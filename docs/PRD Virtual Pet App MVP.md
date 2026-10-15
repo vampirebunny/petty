@@ -91,7 +91,7 @@ Each phase builds on the one before it and ends at an exit check, listed in the 
 | Phase | Scope | Exit criteria |
 | --- | --- | --- |
 | 0. Blob prototype | Needs, feeding, resting and petting on one screen, local-only, drawn with plain shapes. Specified in "Cursor Brief: Pet Blob Prototype". | Runs in Expo Go, state survives closing the app, and the time-jump debug panel works. |
-| 1. Core pet | One assigned dog, age attestation, naming, temperament reveal, continuous aging on the closed-time maturity clock and care-driven vitality, internal stage labels and senior bands, personality traits, levels, and local reminders when a need is low. Placeholder art is driven by maturity and vitality. A Rive spike is proposed once those inputs are stable. | A user who attests they are 13 or older can name the assigned puppy and care for it. An under-13 attestation stays blocked across relaunch. Debug controls move maturity and vitality across the whole range with no visible jump and no stage name on screen. A senior pet can be moved between bands through care. |
+| 1. Core pet | One breed, a choice of three puppies, age attestation, naming, continuous aging on the closed-time maturity clock and care-driven vitality, internal stage labels and senior bands, personality traits, levels, and local reminders when a need is low. Placeholder art is driven by maturity and vitality. A Rive spike is proposed once those inputs are stable. | A user who attests they are 13 or older can choose one of three puppies, name it, and care for it. An under-13 attestation stays blocked across relaunch. Debug controls move maturity and vitality across the whole range with no visible jump and no stage name on screen. A senior pet can be moved between bands through care. |
 | 2. Play and training | Ball fetch and one toy, training with mastery, 3 to 5 tricks with about 3 discoverable, the trick book, and NPC playdates. | A player can discover and teach a trick and finish an NPC playdate, all offline. |
 | 3. Art and audio | The Rive pet and rig built on the maturity and vitality inputs, 2 to 3 breeds, outfits, pet sounds, UI sounds and music. | Final art plays smoothly on real devices, and breeds and outfits swap through configuration. |
 | 4. Accounts and social | Guest-to-account upgrade, Supabase sync, share card and clip, read-only friend visits, age signals, and account and data deletion. | A guest can upgrade, back up the pet, add a friend by invite link and share a card. |
@@ -107,11 +107,11 @@ Requirements are numbered so they can be referenced in tasks and commits. "Propo
 
 - R1.1 First launch shows an age attestation. The screen states that the app is for ages 13 and up and offers two choices: "I am 13 or older" and "I am under 13". It does not ask for a birthdate. A user who attests they are 13 or older continues, and the app stores a local pass so the screen does not appear again. A user who says they are under 13 cannot continue. The app stores only a local blocked note, creates no pet, and shows the blocked screen on later opens. Nothing about the check is sent off the device. Deleting the app clears the note.
 - R1.2 After the gate the user goes straight to adoption, with no account step.
-- R1.3 The app assigns one puppy of the single Phase 1 breed, created from a seed. The user does not choose a breed or pick among puppies.
-- R1.4 The user names the pet, and the app then reveals the pet's temperament label.
-- R1.5 The pet is created from a seed, and the seed is stored with it.
+- R1.3 After the gate, the user meets three puppies of the single Phase 1 breed. All three are deterministic variations of one seed. The variations have different temperament labels. The user picks one. There is no breed picker. The other two puppies are not saved.
+- R1.4 The temperament label and approximate stat bars are visible on each puppy before the pick, so the choice is visible. Exact roll values stay hidden. The user then names the chosen puppy.
+- R1.5 The chosen pet stores that one seed and the variation that was picked. The same seed always offers the same three puppies, and the same seed plus variation always creates the same pet.
 
-Acceptance: an under-13 attestation blocks progress, and the block is still there after the app is closed and reopened; a passing attestation reaches the home screen with a named pet and no account screen; the same seed always creates the same pet.
+Acceptance: an under-13 attestation blocks progress, and the block is still there after the app is closed and reopened; a passing attestation reaches the home screen with one named pet and no account screen; the same seed always offers the same three puppies; the same seed and variation always create the same pet.
 
 **F2. Care and aging (Phases 0 and 1)**
 
@@ -132,7 +132,7 @@ Acceptance: the simulation tests from the prototype brief pass; a 100-hour absen
 
 **F3. Personality and stats (Phase 1)**
 
-- R3.1 Four traits in the MVP: energy, boldness, affection and willfulness. Each pet's value is the breed base plus a hidden roll taken from its seed.
+- R3.1 Four traits in the MVP: energy, boldness, affection and willfulness. Each pet's value is the breed base plus a hidden roll taken from its seed and its variation.
 - R3.2 Temperament boosts one trait by about 10 percent and dampens another by about 10 percent, and gives the pet a label such as "bold explorer".
 - R3.3 Care patterns nudge traits slowly, within bounds, so a pet drifts but never loses its breed character.
 - R3.4 Level rises with experience from care, training and play, and each life stage label has a level ceiling. Ceilings are step values by label and do not change gradually, so the level cap only moves when a label changes.
@@ -140,7 +140,7 @@ Acceptance: the simulation tests from the prototype brief pass; a 100-hour absen
 - R3.6 The app shows level, the temperament label with the two stats it nudges, approximate stat bars and trick mastery. It never shows life stage names, senior bands, or exact roll values. Stage names stay internal (R2.3).
 - R3.7 Roll ranges are narrow enough that no pet is unplayable, and care and training outweigh luck.
 
-Acceptance: the same seed always gives the same traits; two pets of the same breed differ; stats stay within bounds; no screen shows an exact roll value.
+Acceptance: the same seed and variation always give the same traits; the three variations of one seed differ; stats stay within bounds; no screen shows an exact roll value.
 
 ## Functional requirements: play, training and outfits
 
@@ -255,7 +255,8 @@ type CueInput = 'up' | 'down' | 'left' | 'right' | 'tap' | 'hold';
 
 type Pet = {
   id: string;              // UUID created on the device at adoption
-  seed: number;            // makes the pet reproducible
+  seed: number;            // one seed for the litter; the three puppies are variations of it
+  variant: 0 | 1 | 2;       // which variation the user picked
   rngState: number;        // seeded generator state
   name: string;
   breedId: string;
@@ -410,9 +411,9 @@ Treat decided items as fixed. For open items, build the proposed default behind 
 | --- | --- |
 | Platform | Expo / React Native with TypeScript, iOS and Android |
 | Camera | Side view, 2D |
-| Species in the MVP | Dog only. Phase 1 ships one breed and assigns one puppy. Phase 3 can add breeds as content. The user does not pick a breed or a puppy. |
+| Species in the MVP | Dog only. Phase 1 ships one breed. Phase 3 can add breeds as content. The user does not pick a breed. |
 | Age gate | Attestation that the user is 13 or older, or that they are under 13. No birthdate. A local pass or blocked note stays on the device. Apple and Google age-band checks arrive in Phase 4 and override a pass when the store says under 13. |
-| Adoption | One assigned puppy from a seed. The user names it and then sees the temperament label. |
+| Adoption | One seed produces three deterministic puppy variations, with three different temperament labels. The user picks one variation and then names it. The pet stores the seed and the variation. The other two are not saved. |
 | Aging model | Two continuous values, maturity (only up) and vitality (care-driven, reversible), with five internal stage labels (puppy, older puppy, adolescent, adult, senior) and senior bands. No stage-change transition and no separate art per stage. |
 | Maturity clock | Still while the app is in the foreground. On return, gain closed time up to 48 hours and drop the rest. At most one internal stage boundary per return. Needs keep ticking in the foreground. Debug controls bypass the cap and the boundary rule. |
 | Care and maturity | Full rate until the care window exists. After that, poor care can slow maturity toward a floor around half speed. Neglect does not stop aging. |

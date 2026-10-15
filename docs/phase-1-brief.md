@@ -10,13 +10,13 @@ Build it in the existing Expo app. The PRD is the contract. This brief is the bu
 
 **Done means**
 
-A fresh install asks the user to attest that they are 13 or older. Saying they are under 13 leaves the app blocked after it is closed and reopened, with no pet saved. A passing attestation meets one puppy, names it, sees its temperament, and lands on the home screen. Playing with the app open does not age the pet. Coming back later ages maturity by at most 48 hours, eases the view over about a second, and never shows a stage name. Debug controls can walk maturity and vitality across the whole range.
+A fresh install asks the user to attest that they are 13 or older. Saying they are under 13 leaves the app blocked after it is closed and reopened, with no pet saved. A passing attestation meets three puppies, picks one, names it, and lands on the home screen. Playing with the app open does not age the pet. Coming back later ages maturity by at most 48 hours, eases the view over about a second, and never shows a stage name. Debug controls can walk maturity and vitality across the whole range.
 
 ## What to build
 
 - An age attestation, stored locally as a pass or a blocked note (R1.1).
-- One assigned puppy of one placeholder breed, created from a seed (R1.3, R1.5).
-- A name, then the temperament label (R1.4).
+- Three puppies derived from one seed. The user picks one variation, and that puppy is stored with the seed and the variation (R1.3, R1.5).
+- The temperament label and approximate stat bars on each puppy before the pick, then a name for the chosen puppy (R1.4).
 - Maturity and vitality on the two clocks in R2.1 and R2.3.
 - Internal stage labels and senior bands (R2.3, R2.9). The product UI never shows them.
 - Four traits, a hidden roll, temperament, level, and xp (F3).
@@ -26,7 +26,7 @@ A fresh install asks the user to attest that they are 13 or older. Saying they a
 
 ## Do not build
 
-- A birthdate field, a breed picker, or a choice of three puppies.
+- A birthdate field or a breed picker.
 - Stage names on the home screen, in a details view, in a notification, or on any share image.
 - Accounts, sync, friends, share cards, tricks, training, fetch, toys, or outfits.
 - A server, analytics, or purchases.
@@ -40,9 +40,9 @@ Stay on the current Expo SDK and the libraries already in the app. Add `expo-not
 
 Keep `src/sim` pure. Time comes in as milliseconds. Randomness comes from the seeded generator. The view still sends events and renders results.
 
-Extend the pet with the Phase 1 fields from the PRD: `id`, `seed`, `name`, `breedId`, `maturity`, `vitality`, `careWindow`, `bornAt`, `maturityAppliedAt`, `roll`, `temperament`, `drift`, `seniorBand`, `level`, `xp`, and `bond` left at 0. Keep the existing needs, `asleep`, `lastUpdatedAt`, and `rngState`.
+Extend the pet with the Phase 1 fields from the PRD: `id`, `seed`, `variant`, `name`, `breedId`, `maturity`, `vitality`, `careWindow`, `bornAt`, `maturityAppliedAt`, `roll`, `temperament`, `drift`, `seniorBand`, `level`, `xp`, and `bond` left at 0. Keep the existing needs, `asleep`, `lastUpdatedAt`, and `rngState`.
 
-`id` is a string chosen outside the sim and passed into `createPet`. The seed is chosen outside the sim too. `createPet(seed, now, name, id)` is pure and deterministic.
+`id` is a string chosen outside the sim and passed into `createPet`. The seed is chosen outside the sim too. `createLitter(seed)` and `createPet(seed, variant, now, name, id)` are pure. The same seed and variant always return the same pet. `rngState` is derived from the seed and the chosen variant, so the three variations do not share one random stream after adoption.
 
 ### Two clocks
 
@@ -107,7 +107,7 @@ To leave a band, vitality must pass the edge by the margin. Tests cover both dir
 
 One breed, id `dog`, display name "Dog", each base stat 50.
 
-The hidden roll adds an integer from -8 to 8 to each trait, taken from the seed. The same seed always yields the same roll. Temperament boosts one trait by 10 percent and dampens a different trait by 10 percent, also chosen from the seed. The label comes from the boosted trait:
+The hidden roll adds an integer from -8 to 8 to each trait, taken from the seed and the variant. The same seed and variant always yield the same roll. Temperament boosts one trait by 10 percent and dampens a different trait by 10 percent. The three variants of one seed boost three different traits. The label comes from the boosted trait:
 
 | Boosted trait | Label |
 | --- | --- |
@@ -138,15 +138,15 @@ Xp is kept when a debug control lowers the ceiling. The shown level follows the 
 
 ## Age gate and adoption
 
-No navigation library. A small flow in the app is enough: attest, blocked, name, reveal, home.
+No navigation library. A small flow in the app is enough: attest, blocked, litter, name, home.
 
 **Attest.** "This app is for ages 13 and up." Actions: "I am 13 or older" and "I am under 13". Store `passed` or `blocked` under a key of its own, separate from the pet, because a blocked user has no pet.
 
 **Blocked.** A short screen that says they can't use the app. No second chance on that install. Relaunch shows this screen again.
 
-**Name.** Show the puppy. The name is required, trimmed, and at most 16 characters. Confirming the name creates the pet from a new seed.
+**Litter.** A pure `createLitter(seed)` returns three variations of that one seed, with three different temperament labels. Show each puppy's temperament label and approximate stat bars. Exact rolls stay hidden. Generate the seed once and store it until a pet is saved, so leaving and coming back shows the same three. The two variations that are not picked are not saved.
 
-**Reveal.** Show the temperament label, then continue home.
+**Name.** Show the chosen puppy and the temperament the user already saw. The name is required, trimmed, and at most 16 characters. Confirming the name creates the pet from the seed and the picked variant.
 
 **Home.** The pet's name, temperament, level, need bars, feed, and rest. No stage word.
 
@@ -183,12 +183,12 @@ Add sliders that set maturity and vitality directly. Show the internal stage, se
 Work in this order. Do not start a task until the previous check passes. Commit after each task.
 
 1. **Types and config.** Add the new pet fields and the starting numbers in `config.ts`. Check: the project compiles, and a created pet has maturity 0, vitality near the care target, and a name.
-2. **Identity and personality.** `createPet` assigns the breed, roll, temperament, and label from the seed. Check: one seed always matches itself, and a second seed can differ.
+2. **Identity and personality.** `createLitter(seed)` returns three variations with three different labels. `createPet(seed, variant)` keeps the breed, roll, temperament, and label for that variation. Check: one seed always returns the same three puppies; one seed plus variant always matches itself; a second seed can differ.
 3. **Maturity clock and stages.** Split the foreground tick from the resume path. Add the 48-hour cap, the one-boundary clamp, and `stageOf`. Check: foreground time leaves maturity unchanged; a 100-hour gap matches a 48-hour gap; a gain that would pass two thresholds stops on the first; maturity never falls.
 4. **Vitality and bands.** Add `careWindow`, the daily bound, and senior-band hysteresis. Check: one feed barely moves vitality; absence and care move it in opposite directions; the band does not flicker inside the margin; the formula never goes below 0.35.
 5. **Level and drift.** Add xp, ceilings, drift, and effective stats. Check: stats stay in bounds, the shown level respects the ceiling, and drift moves back toward 0 on a capped absence.
 6. **Age gate.** Persist pass and blocked separately from the pet. Check: under 13 stays blocked across a reload and saves no pet; a pass does not show the gate again.
-7. **Adoption.** Name the assigned puppy and reveal the temperament. Check: an empty name cannot continue, and home shows the name, temperament, and level with no stage word.
+7. **Adoption.** Show the three variations of the stored seed, pick one, and name it. Check: the same three are still there after a reload before naming; an empty name cannot continue; the saved pet stores that seed and variant; home shows the chosen pet's name, temperament, and level with no stage word; the other two variations are not saved.
 8. **View.** Drive scale, posture, and breathing from maturity and vitality, and ease maturity changes. Check: the debug slider moves the pet smoothly across the range, and the component never reads a stage label.
 9. **Reminders.** Schedule, cancel, and toggle the low-need notifications. Check: a stage word never appears in the copy, and denying permission leaves care usable.
 10. **Playtest.** Close the app, reopen it later, and use the debug jumps. Check: needs follow the Phase 0 table, maturity follows this brief, and a Phase 0 save does not crash.
