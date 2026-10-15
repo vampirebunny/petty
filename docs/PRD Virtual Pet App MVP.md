@@ -33,7 +33,7 @@ The MVP exists to answer one question: do people come back to care for, train an
 - A pet that feels alive: needs that change over real time, readable moods, and reactions to touch.
 - Six visible attributes, each with a visible, pet-specific maximum potential that players try to reach.
 - Training and trick discovery that reward time and skill.
-- Ways to show off: outfits, learned tricks, a shareable card and clip, and pet-to-pet playdates.
+- Ways to show off: learned tricks, a shareable card and clip, and pet-to-pet playdates. Outfits come after the MVP.
 - A full experience offline and without an account.
 
 **Non-goals for the MVP**
@@ -64,7 +64,7 @@ Build one mobile codebase for iOS and Android, in portrait, as a 2D side-view ga
 | Layer | Choice | Notes |
 | --- | --- | --- |
 | App | Expo / React Native with TypeScript | New standalone repository. Needs a development build once Rive and the age-signal APIs are added. |
-| Animation | Placeholder shapes first, then Rive | Phase 0 uses plain views. Proposed: a Rive spike in Phase 1 with a placeholder blob rig that proves maturity, vitality, and weight (see F2). The final art arrives in Phase 3. Rive does not run in Expo Go, so it needs a development build. |
+| Animation | Placeholder shapes first, then Rive | Phase 0 uses plain views. Proposed: a Rive spike after Phase 1 exits, with a placeholder blob rig that proves maturity, vitality, weight, and ageDays (see F2 and F6). The spike does not include outfits. The final art arrives in Phase 3, with attach points for the post-MVP outfit slots. Rive does not run in Expo Go, so it needs a development build. |
 | Gestures | react-native-gesture-handler | Tap, hold, stroke, flick and swipe. |
 | Motion | react-native-reanimated | Squash, bounce, arcs and running. |
 | Local storage | AsyncStorage at first, then SQLite | Always behind a storage interface. |
@@ -93,11 +93,11 @@ Each phase builds on the one before it and ends at an exit check, listed in the 
 | 0. Blob prototype | Needs, feeding, resting and petting on one screen, local-only, drawn with plain shapes. Specified in "Cursor Brief: Pet Blob Prototype". | Runs in Expo Go, state survives closing the app, and the time-jump debug panel works. |
 | 1. Core pet | One breed, a choice of three puppies, age attestation, naming, continuous aging on the closed-time maturity clock and care-driven vitality, a hidden weight condition, internal stage labels and senior bands, six attributes with visible current scores and maximum potential, temperament, levels, and local reminders when a need is low. Placeholder art is driven by maturity, vitality, and weight. A Rive spike is proposed once those inputs are stable. | A user who attests they are 13 or older can compare three puppies by temperament and exact attribute scores, choose one, name it, and care for it. An under-13 attestation stays blocked across relaunch. Debug controls move maturity and vitality across the whole range with no visible jump and no stage name on screen. A senior pet can be moved between bands through care. |
 | 2. Play and training | Ball fetch and one toy, training with mastery, 3 to 5 tricks with about 3 discoverable, the trick book, and NPC playdates. | A player can discover and teach a trick and finish an NPC playdate, all offline. |
-| 3. Art and audio | The Rive pet and rig built on the maturity, vitality, and weight inputs, 2 to 3 breeds, outfits, pet sounds, UI sounds and music. | Final art plays smoothly on real devices, and breeds and outfits swap through configuration. |
+| 3. Art and audio | The Rive pet and rig built on maturity, vitality, weight, and ageDays, with an attach point for hat, neck, back, and costume. 2 to 3 breeds, pet sounds, UI sounds and music. The cosmetics launch waits until after the MVP (F6). | Final art plays smoothly on real devices, breeds swap through configuration, and the rig exposes one attach point per slot. |
 | 4. Accounts and social | Guest-to-account upgrade, Supabase sync, share card and clip, read-only friend visits, age signals, and account and data deletion. | A guest can upgrade, back up the pet, add a friend by invite link and share a card. |
 | 5. Beta | Legal and store checks, matching age rating, privacy policy, analytics and a small beta. | The privacy attorney consult is done, the store listing and rating match the 13+ terms, and the beta is released. |
 
-Later, after the MVP proves the loop: cats and more breeds, real-friend playdates, pet exchange or restart, purchases and a larger outfit catalog, mini-games, multiple pets, and public showcases.
+Later, after the MVP proves the loop: the cosmetics launch (starter, earned, and premium items on the Phase 3 attach points, with eyewear as a later slot), cats and more breeds, real-friend playdates, pet exchange or restart, mini-games, multiple pets, and public showcases. Premium cosmetics are cosmetic-only. The rest of the monetization model stays open.
 
 ## Functional requirements: care and growth
 
@@ -178,25 +178,29 @@ Deferred: proofing around distractions, consequences for bad habits, and per-pet
 
 Acceptance: a hidden sequence can be found by guessing with near-miss feedback; training raises mastery over several sessions and decays with neglect; the same seed and inputs give the same attempt result; no screen offers a way to pay for skill.
 
-**F6. Outfits (Phase 3)**
+**F6. Outfits (after the MVP; attach points in Phase 3)**
 
-- R6.1 Outfit slots are hat, neck, back and full costume. The MVP uses 2 slots and 4 to 6 items.
-- R6.2 Each rig exposes an attach point per slot. One item asset fits every breed and every point on the maturity scale, because the attach points move with the rig and scale with breed size and maturity, with no per-stage overrides.
-- R6.3 The user can equip and unequip items. Equipped items appear on the pet and on its share card.
-- R6.4 Items are earned through tricks and milestones, plus a few free starters. There are no purchases and no randomized rewards in the MVP.
-- R6.5 The equipped item is a bound property of the Rive file, set through data binding.
+Phase 3 builds the rig with an attach point for each slot below. The wardrobe, the catalog, and the item art wait until after the MVP. No cosmetics UI is required to finish Phase 3, and none of it is built during Phase 1.
 
-Acceptance: every item displays correctly on every breed at several maturity values from puppy to senior; equipping persists after restarting the app; the share card shows what is equipped.
+- R6.1 Slots are hat, neck, back, and costume. A collar uses neck, a hat uses hat, and a coat uses costume. Sunglasses wait for an eyewear slot, added after the first cosmetics release. There is no body slot.
+- R6.2 The rig owns fit. Each slot has an attach point that moves and scales with breed size and maturity. One item asset fits every breed and every point on the maturity scale. The app keeps no per-stage fit table and writes no offsets or scales into the file.
+- R6.3 The user can equip and unequip owned items. Equipped items appear on the pet and, once cosmetics exist, on its share card. Unequip is an equip event with no item. The value `none` exists only in the Rive file. The renderer writes it when the slot is empty.
+- R6.4 Three sources, all after the MVP: starter items granted with the pet, items earned through tricks and milestones, and premium items. Ownership is a list separate from `equipped`, and it gates every equip. An owned item can sit unequipped. Premium items are cosmetic only: they do not change attributes, skill, mastery, or any other simulation result. The MVP has no purchases and no randomized rewards.
+- R6.5 Each item has a fixed palette. The chosen entry is `colorId` on the equip event. A free hex value is outside this contract. The equipped item and its palette color are bound properties of the Rive file, set through data binding.
+- R6.6 The content id is the catalog id and the Rive enum value. Store product ids live in a separate map, and one product may grant several content ids. A content id is never a store product id.
+- R6.7 The Rive file receives maturity, vitality, weight, and ageDays, plus the equipped item and palette color per slot. ageDays is maturity times daysToSenior: the maturity clock scaled into days, not calendar time since `bornAt`. Mood and the animation cue stay view props. Breed is not a view input. Breed chooses `artVariant`, `sizeScale`, and pitch through config.
+
+Acceptance: every item displays correctly on every breed at several maturity values from puppy to senior, because the attach point moved with the rig; equipping an owned item persists after restart and survives sync replay; an unowned item cannot be equipped; a premium item leaves every simulation result unchanged; the share card shows what is equipped once cosmetics exist.
 
 ## Functional requirements: social, accounts and sync
 
 **F7. Social and show-off (NPC playdates in Phase 2, the rest in Phase 4)**
 
-- R7.1 Share card: an image of the pet showing its name, breed, temperament label, equipped outfit and learned tricks, with a download link. It does not show a life stage or senior band. It is sent through the phone's share sheet. It contains no personal details by default, such as a username or location.
+- R7.1 Share card: an image of the pet showing its name, breed, temperament label, and learned tricks, with a download link. Once cosmetics exist, it also shows the equipped outfit. It does not show a life stage or senior band. It is sent through the phone's share sheet. It contains no personal details by default, such as a username or location.
 - R7.2 Trick reel: a short clip, generated on the device, of the pet performing its learned tricks in sequence, shareable the same way.
 - R7.3 Friends: a mutual friendship is created through an invite link or friend code and needs an account. Either side can remove a friend or block them.
-- R7.4 Friend visit: read-only. The user sees a friend's pet as of its last synced snapshot, with its mood, outfit, tricks and trophies, and can leave a preset reaction. It works from cached data when offline.
-- R7.5 NPC playdates: a roster of NPC pets, each with a breed, temperament, name and a couple of quirks, stored in the app. The same simulation resolves a playdate on the device from a seeded roll, and the replay can play immediately. There is no account, server or accept step, so it works offline and for guests. Each NPC has a friendship level, playdates are capped per day, and small items or outfits can be earned. Watching an NPC perform a trick can reveal the first input of a hidden sequence.
+- R7.4 Friend visit: read-only. The user sees a friend's pet as of its last synced snapshot, with its mood, tricks and trophies, and its outfit once cosmetics exist, and can leave a preset reaction. It works from cached data when offline.
+- R7.5 NPC playdates: a roster of NPC pets, each with a breed, temperament, name and a couple of quirks, stored in the app. The same simulation resolves a playdate on the device from a seeded roll, and the replay can play immediately. There is no account, server or accept step, so it works offline and for guests. Each NPC has a friendship level, playdates are capped per day, and small items can be earned. Outfit grants wait until the cosmetics launch. Watching an NPC perform a trick can reveal the first input of a hidden sequence.
 - R7.6 Safety rules apply to every social feature: no free-text chat, blocking and reporting for friends, private by default, and no public discovery of other users.
 
 Deferred: real-friend playdates, public showcases and contests. The planned real-friend flow is asynchronous: one friend invites, the other accepts, the server snapshots both pets, resolves the outcome once from their traits and a seeded roll, notifies both, and each device replays it.
@@ -254,6 +258,8 @@ type Stats = Record<Trait, number>;
 type Stage = 'puppy' | 'olderPuppy' | 'adolescent' | 'adult' | 'senior';
 type SeniorBand = 'earlySenior' | 'senior' | 'elderly';
 type OutfitSlot = 'hat' | 'neck' | 'back' | 'costume';
+// Eyewear is a later slot, added after the first cosmetics release. It is not in this type yet.
+type EquippedItem = { itemId: string; colorId?: string };
 type CueInput = 'up' | 'down' | 'left' | 'right' | 'tap' | 'hold';
 
 type Pet = {
@@ -282,7 +288,7 @@ type Pet = {
   xp: number;
   bond: number;
   tricks: Record<string, TrickProgress>;
-  equipped: Partial<Record<OutfitSlot, string>>;
+  equipped: Partial<Record<OutfitSlot, EquippedItem>>;
   favoriteToyId?: string;
 };
 
@@ -352,6 +358,29 @@ type BreedConfig = {
   artVariant: string;      // coat, ears, tail, markings
 };
 
+// Fixed configuration. The content id is the Rive enum value.
+// Store product ids are a separate map and may grant a bundle.
+type CosmeticDef = {
+  id: string;              // content id
+  slot: OutfitSlot;
+  name: string;
+  palette: { id: string; hex: string }[];
+  premium: boolean;
+};
+
+type StoreProductGrant = {
+  productId: string;       // permanent store id
+  grants: string[];        // content ids
+};
+
+// Owner state, kept apart from Pet.equipped.
+type ItemSource = 'starter' | 'earned' | 'premium';
+
+type OwnedCosmetic = {
+  itemId: string;          // content id
+  source: ItemSource;
+};
+
 type NpcPet = {
   id: string;
   name: string;
@@ -365,6 +394,7 @@ type OwnerProfile = {
   skillRating: number;
   techniqueUnlocks: string[];
   npcFriendship: Record<string, number>;
+  ownedCosmetics: OwnedCosmetic[]; // separate from Pet.equipped; a guest stores the same list locally
 };
 
 type PetEvent =
@@ -375,7 +405,7 @@ type PetEvent =
   | { type: 'giveToy'; at: number; toyId: string }
   | { type: 'trainAttempt'; at: number; trickId: string; timingQuality: number }
   | { type: 'cueSequence'; at: number; inputs: CueInput[] }
-  | { type: 'equip'; at: number; slot: OutfitSlot; itemId: string | null }
+  | { type: 'equip'; at: number; slot: OutfitSlot; itemId: string | null; colorId?: string }
   | { type: 'npcPlaydate'; at: number; npcId: string };
 ```
 
@@ -396,7 +426,7 @@ type PetEvent =
 
 1. The simulation is pure TypeScript with no React, no I/O, no `Date.now()` and no `Math.random()`. Time comes in as elapsed milliseconds, and randomness comes from a seeded generator whose state is stored with the pet.
 2. The user interface never edits pet state directly. It sends an event to the simulation and renders what comes back.
-3. The pet view receives only props such as needs, mood, maturity, vitality, weight, and an animation cue. It holds no game rules, so Rive can replace the placeholder shapes without touching anything else. In Rive, maturity, vitality, and weight are number inputs. Maturity and vitality drive blend states. Weight drives body and leg width. The stage label is never passed to the view. Stage labels are internal and are never shown to the user. The weight number is never shown either.
+3. The pet view receives only props such as needs, mood, maturity, vitality, weight, ageDays, and an animation cue. ageDays is maturity times daysToSenior, the maturity clock scaled into days, not calendar time since bornAt. It holds no game rules, so Rive can replace the placeholder shapes without touching anything else. In Rive, maturity, vitality, weight, and ageDays are number inputs. Maturity and vitality drive blend states. Weight drives body and leg width. Breed is not a view input; it chooses the rig through breed config. The stage label is never passed to the view. Stage labels are internal and are never shown to the user. The weight number is never shown either. Outfit slots, when cosmetics exist, are bound data on the file (F6). The app writes no fit offsets or scales.
 4. All storage sits behind an interface. Local storage is the first implementation and the backend is the second.
 5. Tunable numbers live in config files. Breeds, tricks, NPC pets and outfits are data, so adding one is a config entry and not new code.
 6. The simulation decides what happens and the view only animates it.
@@ -444,13 +474,13 @@ Treat decided items as fixed. For open items, build the proposed default behind 
 | Accounts | Guest-first, with an account later and no friction at the start |
 | Social | Share card, read-only friend visits and NPC playdates in the MVP. Real-friend playdates later, asynchronous, with acceptance by default. |
 | Prototype | Standalone Expo repository, local-only, drawn with plain shapes |
+| Cosmetics | After the MVP. Phase 3 only builds attach points for hat, neck, back, and costume. Eyewear is a later slot. Fit belongs to the rig. Ownership is a separate list and gates every equip. Sources are starter, earned, and premium. Premium is cosmetic-only. Content ids are separate from store product ids. Recolor is a fixed palette on the equip event. See F6. |
 
 **Open**
 
 | Question | Current default |
 | --- | --- |
 | Core audience: kids, nostalgic adults, teens or cozy-game players | Open. The working plan is 13+. |
-| Outfits: earned, purchasable or a mix | Mix, with earned items signaling effort. None purchasable in the MVP. |
 | Pet exchange or restart | Not in the MVP. Revisit once attachment is visible. |
 | Real days per life stage | Tunable maturity thresholds, to be set by playtesting. Proposed starting point: puppy days 0 to 7, older puppy 7 to 21, adolescent 21 to 45, adult 45 to 180, senior after 180. |
 | Senior rejuvenation limit | Proposed: capped by maturity, so a senior can look spry but never like a puppy (R2.10) |
@@ -466,10 +496,10 @@ Treat decided items as fixed. For open items, build the proposed default behind 
 | Vitality session limit, fatigue, and assist-mode timing | TBD. |
 | Which pet survives if a guest signs into an account that already has one | TBD. |
 | Where the share-card link goes | TBD. A public pet page and a store listing are different products. |
-| Rive placeholder spike in Phase 1 | Proposed, to validate the aging inputs and the development build before commissioning art |
+| Rive placeholder spike in Phase 1 | Proposed, after Phase 1 exits, to validate maturity, vitality, weight, and derived ageDays on a development build. Outfits are outside the spike |
 | Sharing | Public share cards for growth, friends-only inside the app |
 | Rare tricks confirmed by the server while offline | Proposed: mark as pending until the next sync (R5.11) |
-| Monetization model | Undecided |
+| Monetization model | Undecided, except premium cosmetics, which are post-MVP and cosmetic-only (F6) |
 | Number of pets | One at a time in the MVP |
 | Meaning of "virtual reality" | Assumed to mean a lifelike, persistent pet and not AR. AR would change the engine choice. |
 | App name | Undecided, and no candidate has been cleared for trademark |
