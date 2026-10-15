@@ -53,7 +53,9 @@ export default function HomeScreen() {
       <NeedBars needs={state.needs} />
       <View style={styles.scene}>
         <GestureDetector gesture={gesture}>
-          <PetView needs={state.needs} mood={mood} cue={cue.kind} cueToken={cue.token} />
+          <View collapsable={false}>
+            <PetView needs={state.needs} mood={mood} cue={cue.kind} cueToken={cue.token} />
+          </View>
         </GestureDetector>
         <View style={styles.ground} />
       </View>
