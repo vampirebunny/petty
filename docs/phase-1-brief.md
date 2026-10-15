@@ -1,0 +1,196 @@
+# Phase 1 Brief: Core Pet
+
+Oct 15, 2026 · @A
+
+## Goal and scope
+
+Phase 0 is done. The app has one blob, three needs, feed, rest, and pet, saved on the device, with a debug panel that jumps time. This phase gives that pet a life: an age check, a name, a personality, and gradual aging.
+
+Build it in the existing Expo app. The PRD is the contract. This brief is the build order for Phase 1. Requirement numbers below point at `docs/PRD Virtual Pet App MVP.md`. Decay, sleep, mood, and the current events stay as they are in "Cursor Brief: Pet Blob Prototype" unless this brief says otherwise.
+
+**Done means**
+
+A fresh install asks the user to attest that they are 13 or older. Saying they are under 13 leaves the app blocked after it is closed and reopened, with no pet saved. A passing attestation meets one puppy, names it, sees its temperament, and lands on the home screen. Playing with the app open does not age the pet. Coming back later ages maturity by at most 48 hours, eases the view over about a second, and never shows a stage name. Debug controls can walk maturity and vitality across the whole range.
+
+## What to build
+
+- An age attestation, stored locally as a pass or a blocked note (R1.1).
+- One assigned puppy of one placeholder breed, created from a seed (R1.3, R1.5).
+- A name, then the temperament label (R1.4).
+- Maturity and vitality on the two clocks in R2.1 and R2.3.
+- Internal stage labels and senior bands (R2.3, R2.9). The product UI never shows them.
+- Four traits, a hidden roll, temperament, level, and xp (F3).
+- Placeholder art driven by maturity and vitality (R2.7).
+- A reminder when a need is about to run low, with a switch to turn reminders off (R2.5).
+- Debug sliders and time jumps that bypass the maturity cap (R2.6).
+
+## Do not build
+
+- A birthdate field, a breed picker, or a choice of three puppies.
+- Stage names on the home screen, in a details view, in a notification, or on any share image.
+- Accounts, sync, friends, share cards, tricks, training, fetch, toys, or outfits.
+- A server, analytics, or purchases.
+- The Rive spike before the exit checks below pass. It stays proposed.
+
+## Stack
+
+Stay on the current Expo SDK and the libraries already in the app. Add `expo-notifications` with `npx expo install` for R2.5. If that install forces a development build, stop and ask before adding it. Do not add any other dependency without asking.
+
+## Simulation
+
+Keep `src/sim` pure. Time comes in as milliseconds. Randomness comes from the seeded generator. The view still sends events and renders results.
+
+Extend the pet with the Phase 1 fields from the PRD: `id`, `seed`, `name`, `breedId`, `maturity`, `vitality`, `careWindow`, `bornAt`, `maturityAppliedAt`, `roll`, `temperament`, `drift`, `seniorBand`, `level`, `xp`, and `bond` left at 0. Keep the existing needs, `asleep`, `lastUpdatedAt`, and `rngState`.
+
+`id` is a string chosen outside the sim and passed into `createPet`. The seed is chosen outside the sim too. `createPet(seed, now, name, id)` is pure and deterministic.
+
+### Two clocks
+
+Needs and maturity no longer share one advance path.
+
+**Foreground tick** (the existing 5-second loop):
+
+- Apply need decay for the elapsed time since `lastUpdatedAt`, using the current step size and the 48-hour cap.
+- Leave maturity unchanged.
+- Set `maturityAppliedAt` to now so closed time starts when the ticks stop.
+
+**Cold start and return to foreground:**
+
+- Closed time is `now - maturityAppliedAt`.
+- Credit `min(closed time, 48 hours)` toward maturity. Drop the rest.
+- Then set `maturityAppliedAt` to now.
+- Apply needs for the same gap, still capped at 48 hours, through the existing decay rules.
+
+A 100-hour gap and a 48-hour gap produce the same needs and the same maturity. Opening and closing again only counts new closed time.
+
+Maturity gain for credited milliseconds is `credited / (daysToSenior * one day)`, times `careMultiplier`. In this phase `careMultiplier` is 1. `daysToSenior` starts at 180. Maturity clamps to 0–1 and never decreases.
+
+### One boundary per return
+
+Stage thresholds are fractions of the 180-day span:
+
+| Internal label | Maturity |
+| --- | --- |
+| puppy | 0 to 7/180 |
+| older puppy | 7/180 to 21/180 |
+| adolescent | 21/180 to 45/180 |
+| adult | 45/180 to 1 |
+| senior | 1 |
+
+On a normal return, if the gain would pass more than one threshold, stop on the first threshold and drop the rest. The next return can continue. Debug time jumps and the maturity slider apply the requested value and ignore this clamp.
+
+### Vitality
+
+Until Phase 2, vitality uses feeding and attention only (R2.12). Store that as `careWindow` samples. `exercise` and `play` stay 0 until fetch and play exist. Starting values, all in config:
+
+- The window holds up to 7 daily samples. A new pet starts with one sample at diet quality 0.75 and attention 0.75.
+- A feed raises today's diet quality by 0.08, clamped to 0–1. A pet raises today's attention by 0.05, clamped to 0–1.
+- Credited absence writes low samples for those days only, at most two days because of the 48-hour cap. Each missed day is diet quality 0.25 and attention 0.25.
+- `vitalityTarget` is the average of diet quality and attention across the window, and it is at least 0.35.
+- Vitality moves toward that target by at most 0.03 per day, including a matching fraction of a day on the foreground tick.
+
+The care formula never sets vitality below 0.35. The debug slider may set any value from 0 to 1. One feed or pet changes the target a little and barely moves vitality.
+
+### Senior bands
+
+Bands apply only when the internal stage is senior. They are a hysteresis cache on the pet. Vitality remains the source of truth. Starting edges, with a margin of 0.05:
+
+| Band | Vitality |
+| --- | --- |
+| elderly | below 0.40 |
+| senior | 0.40 to 0.70 |
+| early senior | above 0.70 |
+
+To leave a band, vitality must pass the edge by the margin. Tests cover both directions.
+
+### Personality, level, and drift
+
+One breed, id `dog`, display name "Dog", each base stat 50.
+
+The hidden roll adds an integer from -8 to 8 to each trait, taken from the seed. The same seed always yields the same roll. Temperament boosts one trait by 10 percent and dampens a different trait by 10 percent, also chosen from the seed. The label comes from the boosted trait:
+
+| Boosted trait | Label |
+| --- | --- |
+| energy | eager spark |
+| boldness | bold explorer |
+| affection | soft heart |
+| willfulness | independent soul |
+
+These strings live in config.
+
+Effective stat = `(base + roll + drift) * temperament factor * level scale`. Temperament factor is 1.1, 0.9, or 1. Level scale is `0.9 + 0.1 * (level / ceiling)`. The product UI shows approximate bars, the level, and the temperament label. It does not show the roll.
+
+Drift starts at 0 and each trait stays within -6 to 6. A pet adds 0.02 to affection drift. A feed adds 0.01 to energy drift. During credited absence, each drift value moves 0.05 toward 0 per day.
+
+Xp starts at 0. A feed adds 5. A pet adds 2. Earned level is `1 + floor(xp / 25)`. Shown level is the earned level clamped to the current ceiling:
+
+| Internal stage | Level ceiling |
+| --- | --- |
+| puppy | 6 |
+| older puppy | 12 |
+| adolescent | 20 |
+| adult | 32 |
+| senior | 45 |
+
+Xp is kept when a debug control lowers the ceiling. The shown level follows the ceiling down and can rise again when the ceiling does.
+
+`bond` stays 0. Do not spend it, show it, or design rules for it.
+
+## Age gate and adoption
+
+No navigation library. A small flow in the app is enough: attest, blocked, name, reveal, home.
+
+**Attest.** "This app is for ages 13 and up." Actions: "I am 13 or older" and "I am under 13". Store `passed` or `blocked` under a key of its own, separate from the pet, because a blocked user has no pet.
+
+**Blocked.** A short screen that says they can't use the app. No second chance on that install. Relaunch shows this screen again.
+
+**Name.** Show the puppy. The name is required, trimmed, and at most 16 characters. Confirming the name creates the pet from a new seed.
+
+**Reveal.** Show the temperament label, then continue home.
+
+**Home.** The pet's name, temperament, level, need bars, feed, and rest. No stage word.
+
+A saved Phase 0 pet has none of the new fields. If the loaded pet does not match this shape, drop it and start from the age gate. Do not crash.
+
+Debug reset replaces the pet and keeps the attestation. A separate debug action clears the attestation so both gate paths can be tested.
+
+## View
+
+`PetView` gains `maturity` and `vitality` props and still receives needs, mood, and the cue. It does not receive a stage label.
+
+Map the numbers onto the placeholder:
+
+- Scale runs from about 0.75 at maturity 0 to about 1.25 at maturity 1.
+- Lower vitality sags the posture slightly and slows the breathing loop.
+- On a maturity change, ease the displayed value over about one second. The stored value updates immediately.
+
+The same props are what a later dog rig will use. Do not branch the drawing on stage names.
+
+## Reminders
+
+Schedule a local notification for the next time fullness will cross 25 or energy will cross 20, using the same decay rules as the sim. If the need is already low, wait until it recovers and would cross again. Copy uses the pet's name and stays calm, for example "Maple could use a meal." No guilt, and no stage words.
+
+A reminders switch on the home screen defaults to on. If the system permission is denied, turn the switch off and keep the rest of the app working. Reschedule after each save.
+
+## Debug panel
+
+Keep the 1-hour, 6-hour, and 24-hour jumps. Those jumps add the full requested time to maturity and apply the vitality absence rule for that full duration, with no 48-hour cap and no boundary clamp.
+
+Add sliders that set maturity and vitality directly. Show the internal stage, senior band, maturity, vitality, care window, level, and xp in this panel only.
+
+## Tasks
+
+Work in this order. Do not start a task until the previous check passes. Commit after each task.
+
+1. **Types and config.** Add the new pet fields and the starting numbers in `config.ts`. Check: the project compiles, and a created pet has maturity 0, vitality near the care target, and a name.
+2. **Identity and personality.** `createPet` assigns the breed, roll, temperament, and label from the seed. Check: one seed always matches itself, and a second seed can differ.
+3. **Maturity clock and stages.** Split the foreground tick from the resume path. Add the 48-hour cap, the one-boundary clamp, and `stageOf`. Check: foreground time leaves maturity unchanged; a 100-hour gap matches a 48-hour gap; a gain that would pass two thresholds stops on the first; maturity never falls.
+4. **Vitality and bands.** Add `careWindow`, the daily bound, and senior-band hysteresis. Check: one feed barely moves vitality; absence and care move it in opposite directions; the band does not flicker inside the margin; the formula never goes below 0.35.
+5. **Level and drift.** Add xp, ceilings, drift, and effective stats. Check: stats stay in bounds, the shown level respects the ceiling, and drift moves back toward 0 on a capped absence.
+6. **Age gate.** Persist pass and blocked separately from the pet. Check: under 13 stays blocked across a reload and saves no pet; a pass does not show the gate again.
+7. **Adoption.** Name the assigned puppy and reveal the temperament. Check: an empty name cannot continue, and home shows the name, temperament, and level with no stage word.
+8. **View.** Drive scale, posture, and breathing from maturity and vitality, and ease maturity changes. Check: the debug slider moves the pet smoothly across the range, and the component never reads a stage label.
+9. **Reminders.** Schedule, cancel, and toggle the low-need notifications. Check: a stage word never appears in the copy, and denying permission leaves care usable.
+10. **Playtest.** Close the app, reopen it later, and use the debug jumps. Check: needs follow the Phase 0 table, maturity follows this brief, and a Phase 0 save does not crash.
+
+When this exit is met, a Rive spike may replace `PetView` with a rig that takes the same maturity and vitality numbers. That spike needs a development build. It is not required to finish Phase 1.
