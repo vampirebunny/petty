@@ -64,7 +64,7 @@ Build one mobile codebase for iOS and Android, in portrait, as a 2D side-view ga
 | Layer | Choice | Notes |
 | --- | --- | --- |
 | App | Expo / React Native with TypeScript | New standalone repository. Needs a development build once Rive and the age-signal APIs are added. |
-| Animation | Placeholder shapes first, then Rive | Phase 0 uses plain views. Proposed: a Rive spike in Phase 1 with a placeholder blob rig that proves the two aging inputs (maturity and vitality, see F2). The final art arrives in Phase 3. Rive does not run in Expo Go, so it needs a development build. |
+| Animation | Placeholder shapes first, then Rive | Phase 0 uses plain views. Proposed: a Rive spike in Phase 1 with a placeholder blob rig that proves maturity, vitality, and weight (see F2). The final art arrives in Phase 3. Rive does not run in Expo Go, so it needs a development build. |
 | Gestures | react-native-gesture-handler | Tap, hold, stroke, flick and swipe. |
 | Motion | react-native-reanimated | Squash, bounce, arcs and running. |
 | Local storage | AsyncStorage at first, then SQLite | Always behind a storage interface. |
@@ -91,9 +91,9 @@ Each phase builds on the one before it and ends at an exit check, listed in the 
 | Phase | Scope | Exit criteria |
 | --- | --- | --- |
 | 0. Blob prototype | Needs, feeding, resting and petting on one screen, local-only, drawn with plain shapes. Specified in "Cursor Brief: Pet Blob Prototype". | Runs in Expo Go, state survives closing the app, and the time-jump debug panel works. |
-| 1. Core pet | One breed, a choice of three puppies, age attestation, naming, continuous aging on the closed-time maturity clock and care-driven vitality, internal stage labels and senior bands, six attributes with visible current scores and maximum potential, temperament, levels, and local reminders when a need is low. Placeholder art is driven by maturity and vitality. A Rive spike is proposed once those inputs are stable. | A user who attests they are 13 or older can compare three puppies by temperament and exact attribute scores, choose one, name it, and care for it. An under-13 attestation stays blocked across relaunch. Debug controls move maturity and vitality across the whole range with no visible jump and no stage name on screen. A senior pet can be moved between bands through care. |
+| 1. Core pet | One breed, a choice of three puppies, age attestation, naming, continuous aging on the closed-time maturity clock and care-driven vitality, a hidden weight condition, internal stage labels and senior bands, six attributes with visible current scores and maximum potential, temperament, levels, and local reminders when a need is low. Placeholder art is driven by maturity, vitality, and weight. A Rive spike is proposed once those inputs are stable. | A user who attests they are 13 or older can compare three puppies by temperament and exact attribute scores, choose one, name it, and care for it. An under-13 attestation stays blocked across relaunch. Debug controls move maturity and vitality across the whole range with no visible jump and no stage name on screen. A senior pet can be moved between bands through care. |
 | 2. Play and training | Ball fetch and one toy, training with mastery, 3 to 5 tricks with about 3 discoverable, the trick book, and NPC playdates. | A player can discover and teach a trick and finish an NPC playdate, all offline. |
-| 3. Art and audio | The Rive pet and rig built on the maturity and vitality inputs, 2 to 3 breeds, outfits, pet sounds, UI sounds and music. | Final art plays smoothly on real devices, and breeds and outfits swap through configuration. |
+| 3. Art and audio | The Rive pet and rig built on the maturity, vitality, and weight inputs, 2 to 3 breeds, outfits, pet sounds, UI sounds and music. | Final art plays smoothly on real devices, and breeds and outfits swap through configuration. |
 | 4. Accounts and social | Guest-to-account upgrade, Supabase sync, share card and clip, read-only friend visits, age signals, and account and data deletion. | A guest can upgrade, back up the pet, add a friend by invite link and share a card. |
 | 5. Beta | Legal and store checks, matching age rating, privacy policy, analytics and a small beta. | The privacy attorney consult is done, the store listing and rating match the 13+ terms, and the beta is released. |
 
@@ -120,15 +120,16 @@ Acceptance: an under-13 attestation blocks progress, and the block is still ther
 - R2.3 Aging runs on two continuous values, each from 0 to 1. Maturity only goes up. It stays still while the app is in the foreground. When the app returns, maturity gains the time the app was closed, up to 48 hours, and any closed time past that cap is dropped. One return may cross at most one stage boundary; maturity past that boundary is dropped. Debug time controls bypass the cap and the boundary rule. Until the care window exists, maturity accrues at full rate. After that, poor care can slow maturity toward a floor around half speed, and neglect does not stop aging. Vitality moves up and down with care (R2.8) and uses the same capped absence. Life stages are internal labels derived from these values, not separate states with separate art: puppy, older puppy, adolescent, adult and senior, with the senior stage split into bands (R2.9). A stage label sets the level ceiling and the learning speed, and nothing else. The maturity threshold of each label is a tunable constant. The user never sees a stage name.
 - R2.4 Mood is derived from the needs using the priority rule in the prototype brief.
 - R2.5 Local notifications remind the user when a need is low. They do not announce life stage labels or senior bands. The tone is calm with no guilt wording, and the user can turn them off in settings.
-- R2.6 Development builds include a debug panel that fast-forwards time and has sliders for maturity and vitality. Time jumps and sliders bypass the maturity catch-up cap and the one-boundary rule. The debug panel may show internal stage labels. The rest of the app does not.
-- R2.7 Seamless aging. The pet's appearance is a function of maturity and vitality only, so proportions, size and aging cues change a little at a time. No stage change plays a transition, effect or swap. On return, the stored maturity updates immediately and the view eases to it over about a second. The user never watches a jump, and the user never sees a stage name.
+- R2.6 Development builds include a debug panel that fast-forwards time and has sliders for maturity, vitality, and weight. Time jumps and sliders bypass the maturity catch-up cap and the one-boundary rule. The debug panel may show internal stage labels and the weight number. The rest of the app does not.
+- R2.7 Seamless aging. The pet's appearance is a function of maturity, vitality, and weight. Maturity and vitality change proportions, size, and aging cues a little at a time. Weight changes the width of the body and the legs. No stage change plays a transition, effect, or swap. On return, the stored values update immediately and the view eases to them over about a second. The user never watches a jump, never sees a stage name, and never sees the weight number.
 - R2.8 Vitality is driven by a rolling window of recent care: diet quality, exercise, play and attention. It moves slowly toward a target set by that window, so one action cannot swing it. Neglect lowers it gradually to a floor of "slow and sleepy but content". It never reaches a state that is distressing or fatal.
 - R2.9 The senior stage has internal bands, such as early senior, senior and elderly, defined as ranges of vitality. A senior pet moves between bands in both directions: more exercise, play, attention or a better diet raises vitality and rejuvenates it, and neglect lowers it. Band boundaries use hysteresis so the label does not flicker. The current band is remembered so that margin can be applied. Vitality stays the source of truth. Band names are never shown.
 - R2.10 Rejuvenation cap. Vitality affects every pet's energy and mood, but its aging cues become visible mainly once maturity reaches the senior range. Proposed: a pet's best possible look is capped by its maturity, so a senior pet can look spry and bright with a graying muzzle but never returns to puppy proportions. Maturity is never reduced.
 - R2.11 Vitality drives visible aging cues: muzzle graying, ear droop, posture, coat dullness, eye brightness, and gait and animation speed. It also scales energy recovery and the number of play and training sessions the pet is happy to do. It does not lock the owner out of any feature.
 - R2.12 Diet and exercise need something to measure. Proposed: a small set of food types with different quality, and exercise measured from fetch and play sessions. Until Phase 2, vitality uses feeding regularity and attention only.
+- R2.13 Weight is a condition from 0 to 100, not an attribute. 50 is the normal middle. Higher is heavier and lower is lighter. Every puppy starts at 50, so the pick is not about weight. The number is never shown. Weight moves slowly toward a target set by a moving average of feedings: feeding more often than the normal rate raises the target, and feeding less often lowers it. One feeding cannot swing it. A long absence uses the same 48-hour cap as needs, so the missed feedings in that gap are capped too. Weight changes the width of the body and the legs (R2.7) and the effective stamina and agility (R3.5). It does not change potential or trained points, and it does not lock any feature.
 
-Acceptance: the simulation tests from the prototype brief pass; a 100-hour absence gives the same result as a 48-hour one for needs and for maturity; maturity never decreases and stays still while the app is in the foreground; a return crosses at most one stage boundary; vitality changes are bounded per day and respond to care in both directions; a senior pet can move between bands through care and back through neglect without flicker; the debug sliders move the pet smoothly across the whole range with no visible jump; no user-facing screen shows a stage name.
+Acceptance: the simulation tests from the prototype brief pass; a 100-hour absence gives the same result as a 48-hour one for needs, maturity, and weight; maturity never decreases and stays still while the app is in the foreground; a return crosses at most one stage boundary; vitality changes are bounded per day and respond to care in both directions; a senior pet can move between bands through care and back through neglect without flicker; every new puppy starts at weight 50; one feeding barely moves weight; a stretch of extra feedings raises it and a stretch of missed feedings lowers it; the debug sliders move the pet smoothly across the whole range with no visible jump; no user-facing screen shows a stage name or the weight number.
 
 **F3. Attributes and potential (Phase 1)**
 
@@ -136,11 +137,11 @@ Acceptance: the simulation tests from the prototype brief pass; a 100-hour absen
 - R3.2 Potential for each attribute is the breed's base potential plus a seeded roll within the breed's roll range, derived from the pet's seed and variation by its own hash (rule 11). The same seed and variation always give the same potential. The three variations of one seed differ. Temperament moves about 10% of one attribute's potential onto another, so the breed total stays the same, and gives the pet a label such as "bold explorer".
 - R3.3 Current scores start low for a puppy (proposed: about 25% of potential, tunable) and rise toward potential through natural growth with maturity and through training (R3.8). A current score never exceeds its potential. Care patterns can nudge current scores slowly within bounds. Proposed: natural growth from maturity carries a score up to about 70% of potential, and training closes the rest. Both limits are tunable.
 - R3.4 Level rises with experience from care, training and play, and each life stage label has a level ceiling. Ceilings are step values by label and do not change gradually, so the level cap only moves when a label changes.
-- R3.5 The effective score the simulation uses is natural growth plus trained points plus care drift plus temporary effects, multiplied by the aging modifier (R3.9) and capped at potential.
+- R3.5 The effective score the simulation uses is natural growth plus trained points plus care drift plus temporary effects, multiplied by the aging modifier (R3.9) and, for stamina and agility, by the weight modifier (R2.13), then capped at potential.
 - R3.6 The app shows level, the temperament label, and for each attribute the current score and potential (for example "14 / 18") with a progress bar and any active temporary effect, plus trick mastery. Potential is visible from the adoption screen on, as an exact number. The seed is never shown. Life stage names and senior bands stay internal (R2.3).
 - R3.7 (Proposed) Fairness: pets of the same breed have the same total potential, so the seeded roll moves points between attributes and no pet is strictly better or unplayable.
 - R3.8 (Proposed) Training raises attributes. Fetch and play raise agility and stamina, trick learning raises intelligence and obedience, and playdates raise boldness and affection. Gains have diminishing returns per day (R5.4) and taper hard as the current score nears potential, so the last points are the slow ones. Trained points push the pet toward potential and are used in the MVP. The activities that award them arrive in Phase 2.
-- R3.9 (Proposed) Attributes change over time through five sources: growth with maturity, training, milestone bonus points which the owner places, temporary buffs from food, play, rest and toys, short penalties while tired or hungry, and aging. Seniors lose some effective stamina and agility through low vitality and may gain obedience, and rejuvenation restores them. Aging changes only the effective score, never the stored trained points or the potential, so it is fully reversible. Keep a floor so effective scores never drop to unplayable.
+- R3.9 (Proposed) Attributes change over time through five sources: growth with maturity, training, milestone bonus points which the owner places, temporary buffs from food, play, rest and toys, short penalties while tired or hungry, and aging. Seniors lose some effective stamina and agility through low vitality and may gain obedience, and rejuvenation restores them. Weight away from 50 also lowers effective stamina and agility, and returning toward 50 restores them. Aging and weight change only the effective score, never the stored trained points or the potential, so both are fully reversible. Keep a floor so effective scores never drop to unplayable.
 
 Acceptance: the same seed and variation always give the same potentials; the three variations of one seed differ; no current score exceeds its potential; pets of one breed have the same total potential but different distributions; training raises the matching attribute and the gain tapers hard near potential; aging lowers only the effective score and rejuvenation restores it; the pick screen shows each puppy's temperament label, the two attributes it nudges, and each attribute's current score and potential.
 
@@ -265,6 +266,8 @@ type Pet = {
   maturity: number;        // 0 to 1, only increases, drives size and proportions
   vitality: number;        // 0 to 1, care-driven, can rise and fall, drives aging cues
   careWindow: CareSample[]; // rolling recent care used to set the vitality target
+  weight: number;          // 0 to 100, 50 is normal, never shown
+  feedWindow: FeedDay[];   // moving average of feedings that sets the weight target
   bornAt: number;          // ms timestamp
   lastUpdatedAt: number;   // ms timestamp of the last needs advance
   maturityAppliedAt: number; // ms timestamp of the last maturity settle; foreground ticks refresh it without adding age
@@ -281,6 +284,11 @@ type Pet = {
   tricks: Record<string, TrickProgress>;
   equipped: Partial<Record<OutfitSlot, string>>;
   favoriteToyId?: string;
+};
+
+type FeedDay = {
+  day: number;             // day index
+  count: number;           // feedings that day
 };
 
 type CareSample = {
@@ -311,7 +319,7 @@ const stageOf = (pet: Pet): Stage => { /* from maturity via StageDef config */ }
 const seniorBandOf = (pet: Pet): SeniorBand | null => { /* from vitality, only when the stage is senior */ };
 
 // Derived, not stored. Does not read rngState or event history.
-const attributeScore = (pet: Pet, trait: Trait): number => { /* growth + trained + drift + effects, times aging modifier, capped at potential[trait] */ };
+const attributeScore = (pet: Pet, trait: Trait): number => { /* growth + trained + drift + effects, times aging modifier, times weight modifier for stamina and agility, capped at potential[trait] */ };
 
 type TrickProgress = {
   discovered: boolean;
@@ -388,7 +396,7 @@ type PetEvent =
 
 1. The simulation is pure TypeScript with no React, no I/O, no `Date.now()` and no `Math.random()`. Time comes in as elapsed milliseconds, and randomness comes from a seeded generator whose state is stored with the pet.
 2. The user interface never edits pet state directly. It sends an event to the simulation and renders what comes back.
-3. The pet view receives only props such as needs, mood, maturity, vitality and an animation cue. It holds no game rules, so Rive can replace the placeholder shapes without touching anything else. In Rive, maturity and vitality are number inputs that drive blend states, and the stage label is never passed to the view. Stage labels are internal and are never shown to the user.
+3. The pet view receives only props such as needs, mood, maturity, vitality, weight, and an animation cue. It holds no game rules, so Rive can replace the placeholder shapes without touching anything else. In Rive, maturity, vitality, and weight are number inputs. Maturity and vitality drive blend states. Weight drives body and leg width. The stage label is never passed to the view. Stage labels are internal and are never shown to the user. The weight number is never shown either.
 4. All storage sits behind an interface. Local storage is the first implementation and the backend is the second.
 5. Tunable numbers live in config files. Breeds, tricks, NPC pets and outfits are data, so adding one is a config entry and not new code.
 6. The simulation decides what happens and the view only animates it.
@@ -427,7 +435,8 @@ Treat decided items as fixed. For open items, build the proposed default behind 
 | Maturity clock | Still while the app is in the foreground. On return, gain closed time up to 48 hours and drop the rest. At most one internal stage boundary per return. Needs keep ticking in the foreground. Debug controls bypass the cap and the boundary rule. |
 | Care and maturity | Full rate until the care window exists. After that, poor care can slow maturity toward a floor around half speed. Neglect does not stop aging. |
 | Stage labels | Internal only. They set level ceilings and learning speed. They are never shown in the UI, notifications, or share card. |
-| Aging art | One continuous dog driven by maturity and vitality. A stage change does not swap the animation. |
+| Aging art | One continuous dog driven by maturity, vitality, and weight. A stage change does not swap the animation. Weight changes body and leg width and is never shown as a number. |
+| Weight | A condition from 0 to 100. 50 is normal. Every puppy starts at 50. A moving average of feedings moves it slowly up or down. It affects body and leg width and effective stamina and agility. |
 | Death | None. The pet never dies. |
 | Growth model | Pokémon-style stats, levels and growth only. No battles, trading or collecting many pets. |
 | Audio | Animal sounds only, with a different pitch per breed |
@@ -451,6 +460,7 @@ Treat decided items as fixed. For open items, build the proposed default behind 
 | Score scale and the puppy starting fraction | Proposed: whole numbers from 1 to 20, starting near 25% of potential. |
 | Whether same-breed pets share a total potential budget | Proposed: yes. The seeded roll and the temperament nudge move points between attributes (R3.7). |
 | How strongly aging affects effective scores | Proposed in R3.9. Aging changes the effective score only. Strength is tunable. |
+| Normal feeding rate and how strongly weight affects stamina and agility | Proposed: about 2 feedings a day holds weight at 50. Distance from 50 lowers effective stamina and agility. The strength is tunable (R2.13). |
 | Whether maturity alone can reach potential | Proposed: natural growth stops near 70% of potential. Training closes the rest, and gains taper hard near the cap (R3.3, R3.8). |
 | Whether short hungry and tired penalties stay | Proposed in R3.9. They lower the effective score only while the need is low. They do not change potential or trained points. |
 | Vitality session limit, fatigue, and assist-mode timing | TBD. |

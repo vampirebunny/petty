@@ -20,7 +20,7 @@ A fresh install asks the user to attest that they are 13 or older. Saying they a
 - Maturity and vitality on the two clocks in R2.1 and R2.3.
 - Internal stage labels and senior bands (R2.3, R2.9). The product UI never shows them.
 - Six attributes with visible current scores and maximum potential, temperament, level, and xp (F3). Training, milestone points, and temporary buffs stay at zero until the activities that award them exist.
-- Placeholder art driven by maturity and vitality (R2.7).
+- Placeholder art driven by maturity, vitality, and weight (R2.7). Weight is never shown as a number.
 - A reminder when a need is about to run low, with a switch to turn reminders off (R2.5).
 - Debug sliders and time jumps that bypass the maturity cap (R2.6).
 
@@ -40,7 +40,7 @@ Stay on the current Expo SDK and the libraries already in the app. Add `expo-not
 
 Keep `src/sim` pure. Time comes in as milliseconds. Randomness comes from the seeded generator. The view still sends events and renders results.
 
-Extend the pet with the Phase 1 fields from the PRD: `id`, `seed`, `variant`, `name`, `breedId`, `maturity`, `vitality`, `careWindow`, `bornAt`, `maturityAppliedAt`, `potential`, `trained`, `temperament`, `drift`, `seniorBand`, `level`, `xp`, and `bond` left at 0. Keep the existing needs, `asleep`, `lastUpdatedAt`, and `rngState`. There is no `roll` field.
+Extend the pet with the Phase 1 fields from the PRD: `id`, `seed`, `variant`, `name`, `breedId`, `maturity`, `vitality`, `careWindow`, `weight`, `feedWindow`, `bornAt`, `maturityAppliedAt`, `potential`, `trained`, `temperament`, `drift`, `seniorBand`, `level`, `xp`, and `bond` left at 0. Keep the existing needs, `asleep`, `lastUpdatedAt`, and `rngState`. There is no `roll` field. `weight` starts at 50. The feed window starts as if the puppy had been fed at the normal rate, so weight holds at 50 until the player's feeding differs.
 
 `id` is a string chosen outside the sim and passed into `createPet`. The seed is chosen outside the sim too. `createLitter(seed)` and `createPet(seed, variant, now, name, id)` are pure. The same seed and variant always return the same pet. Potential is hashed from the seed and variant and does not read `rngState`. `rngState` is still derived from the seed and the chosen variant, so the three variations do not share one random stream after adoption.
 
@@ -125,9 +125,22 @@ The label comes from the boosted attribute. These strings are starting copy in c
 | affection | soft heart |
 | obedience | willing partner |
 
-Effective score = natural growth + trained + drift + temporary effects, multiplied by the aging modifier, then capped at potential. Temporary effects are 0 in this phase. The aging modifier lowers effective stamina and agility when the internal stage is senior and vitality is low, and it can raise effective obedience by a small amount in that same case. It never changes `potential` or `trained`. Effective scores stay at least 1.
+Effective score = natural growth + trained + drift + temporary effects, multiplied by the aging modifier and, for stamina and agility, by the weight modifier, then capped at potential. Temporary effects are 0 in this phase. The aging modifier lowers effective stamina and agility when the internal stage is senior and vitality is low, and it can raise effective obedience by a small amount in that same case. The weight modifier is 1 at weight 50 and falls toward about 0.85 at 0 or at 100. Neither modifier changes `potential` or `trained`. Effective scores stay at least 1.
 
-The product UI shows level, the temperament label, and each attribute as `current / potential`. It does not show the seed or a stage name.
+The product UI shows level, the temperament label, and each attribute as `current / potential`. It does not show the seed, a stage name, or the weight number.
+
+### Weight
+
+Weight is 0 to 100. 50 is normal. Every puppy starts at 50.
+
+Proposed config:
+
+- The normal rate is 2 feedings a day. A 7-day moving average at that rate holds the target at 50.
+- Each extra feeding per day, sustained, raises the target by 25. Each missing feeding per day lowers it by 25. The target clamps to 0–100.
+- Weight eases toward the target by at most 4 points per day. One feeding barely moves it.
+- A return counts missed feedings only up to the 48-hour cap. A 100-hour gap matches a 48-hour gap.
+
+The debug panel may show the number and set it with a slider. No other screen shows it.
 
 Drift starts at 0 and each attribute stays within -2 to 2. A pet adds 0.05 to affection drift. A feed adds 0.02 to stamina drift. During credited absence, each drift value moves 0.05 toward 0 per day.
 
@@ -165,13 +178,14 @@ Debug reset replaces the pet and keeps the attestation. A separate debug action 
 
 ## View
 
-`PetView` gains `maturity` and `vitality` props and still receives needs, mood, and the cue. It does not receive a stage label.
+`PetView` gains `maturity`, `vitality`, and `weight` props and still receives needs, mood, and the cue. It does not receive a stage label, and it does not draw the weight number.
 
 Map the numbers onto the placeholder:
 
 - Scale runs from about 0.75 at maturity 0 to about 1.25 at maturity 1.
 - Lower vitality sags the posture slightly and slows the breathing loop.
-- On a maturity change, ease the displayed value over about one second. The stored value updates immediately.
+- Body width and leg width are 1 at weight 50, about 0.75 at 0, and about 1.3 at 100. Give the placeholder simple legs so both widths can be seen.
+- On a maturity or weight change, ease the displayed value over about one second. The stored value updates immediately.
 
 The same props are what a later dog rig will use. Do not branch the drawing on stage names.
 
@@ -185,7 +199,7 @@ A reminders switch on the home screen defaults to on. If the system permission i
 
 Keep the 1-hour, 6-hour, and 24-hour jumps. Those jumps add the full requested time to maturity and apply the vitality absence rule for that full duration, with no 48-hour cap and no boundary clamp.
 
-Add sliders that set maturity and vitality directly. Show the internal stage, senior band, maturity, vitality, care window, level, xp, and each attribute's effective score and potential in this panel only. Do not show the seed.
+Add sliders that set maturity, vitality, and weight directly. Show the internal stage, senior band, maturity, vitality, weight, care window, feed window, level, xp, and each attribute's effective score and potential in this panel only. Do not show the seed.
 
 ## Tasks
 
@@ -194,12 +208,12 @@ Work in this order. Do not start a task until the previous check passes. Commit 
 1. **Types and config.** Add the new pet fields and the starting numbers in `config.ts`. Check: the project compiles, and a created pet has maturity 0, vitality near the care target, and a name.
 2. **Identity and attributes.** `createLitter(seed)` returns three variations with three different labels and the same total potential. `createPet(seed, variant)` keeps that variation's potentials and temperament. Check: one seed always returns the same three puppies; one seed plus variant always matches itself; a second seed can differ; potentials do not change if `rngState` changes.
 3. **Maturity clock and stages.** Split the foreground tick from the resume path. Add the 48-hour cap, the one-boundary clamp, and `stageOf`. Check: foreground time leaves maturity unchanged; a 100-hour gap matches a 48-hour gap; a gain that would pass two thresholds stops on the first; maturity never falls.
-4. **Vitality and bands.** Add `careWindow`, the daily bound, and senior-band hysteresis. Check: one feed barely moves vitality; absence and care move it in opposite directions; the band does not flicker inside the margin; the formula never goes below 0.35.
-5. **Level, growth, and drift.** Add xp, ceilings, drift, the maturity growth cap, the aging modifier, and the training-gain taper. Check: no current score exceeds potential; growth at full maturity stays near 70% of potential; a gain near the cap is much smaller than the same gain far from it; aging changes the effective score only; drift moves back toward 0 on a capped absence; the shown level respects the ceiling.
+4. **Vitality, weight, and bands.** Add `careWindow`, `feedWindow`, the daily bounds, and senior-band hysteresis. Check: one feed barely moves vitality or weight; a stretch of extra feedings raises weight and missed feedings lower it; a 100-hour gap matches a 48-hour gap for weight; a new pet starts at 50; the band does not flicker inside the margin; vitality never goes below 0.35 from the care formula.
+5. **Level, growth, and drift.** Add xp, ceilings, drift, the maturity growth cap, the aging modifier, the weight modifier, and the training-gain taper. Check: no current score exceeds potential; growth at full maturity stays near 70% of potential; a gain near the cap is much smaller than the same gain far from it; aging and weight change the effective score only; weight away from 50 lowers stamina and agility; drift moves back toward 0 on a capped absence; the shown level respects the ceiling.
 6. **Age gate.** Persist pass and blocked separately from the pet. Check: under 13 stays blocked across a reload and saves no pet; a pass does not show the gate again.
 7. **Adoption.** Show the three variations with temperament, nudged attributes, and exact `current / potential` lines. Pick one and name it. Check: the same three are still there after a reload before naming; an empty name cannot continue; the saved pet stores that seed and variant; home shows the chosen pet's name, temperament, level, and six scores with no stage word and no seed; the other two variations are not saved.
-8. **View.** Drive scale, posture, and breathing from maturity and vitality, and ease maturity changes. Check: the debug slider moves the pet smoothly across the range, and the component never reads a stage label.
+8. **View.** Drive scale, posture, and breathing from maturity and vitality, and body and leg width from weight. Ease maturity and weight changes. Check: the debug sliders move the pet smoothly across the range, the component never reads a stage label, and no screen outside the debug panel shows the weight number.
 9. **Reminders.** Schedule, cancel, and toggle the low-need notifications. Check: a stage word never appears in the copy, and denying permission leaves care usable.
 10. **Playtest.** Close the app, reopen it later, and use the debug jumps. Check: needs follow the Phase 0 table, maturity follows this brief, and a Phase 0 save does not crash.
 
-When this exit is met, a Rive spike may replace `PetView` with a rig that takes the same maturity and vitality numbers. That spike needs a development build. It is not required to finish Phase 1.
+When this exit is met, a Rive spike may replace `PetView` with a rig that takes the same maturity, vitality, and weight numbers. That spike needs a development build. It is not required to finish Phase 1.
