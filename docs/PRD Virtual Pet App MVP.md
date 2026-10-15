@@ -18,7 +18,7 @@ A mobile app for iOS and Android where each user adopts a dog (cats come later) 
 1. Cute and expressive: the pet's emotion should be readable at a glance.
 2. Care without punishment: the pet never dies, there are no guilt mechanics, and training uses positive reinforcement only.
 3. Time and skill matter: outcomes depend on the owner's consistency and skill, never on payment.
-4. Hidden depth: show progress, hide the rolls and secret trick sequences, and let discovery be part of the fun.
+4. Visible goals, hidden secrets: show every attribute and its maximum potential so players can chase them, and hide the secret trick sequences.
 5. Show-off: anything worth bragging about can be shared.
 6. Offline-first and guest-first: play immediately, anywhere, and ask for an account later.
 7. Safe by default: 13+, private by default, no free-text chat between users, and minimal data.
@@ -31,7 +31,7 @@ The MVP exists to answer one question: do people come back to care for, train an
 **Goals**
 
 - A pet that feels alive: needs that change over real time, readable moods, and reactions to touch.
-- A personality system that makes every pet different, with visible traits and hidden potential.
+- Six visible attributes, each with a visible, pet-specific maximum potential that players try to reach.
 - Training and trick discovery that reward time and skill.
 - Ways to show off: outfits, learned tricks, a shareable card and clip, and pet-to-pet playdates.
 - A full experience offline and without an account.
@@ -91,7 +91,7 @@ Each phase builds on the one before it and ends at an exit check, listed in the 
 | Phase | Scope | Exit criteria |
 | --- | --- | --- |
 | 0. Blob prototype | Needs, feeding, resting and petting on one screen, local-only, drawn with plain shapes. Specified in "Cursor Brief: Pet Blob Prototype". | Runs in Expo Go, state survives closing the app, and the time-jump debug panel works. |
-| 1. Core pet | One breed, a choice of three puppies, age attestation, naming, continuous aging on the closed-time maturity clock and care-driven vitality, internal stage labels and senior bands, personality traits, levels, and local reminders when a need is low. Placeholder art is driven by maturity and vitality. A Rive spike is proposed once those inputs are stable. | A user who attests they are 13 or older can choose one of three puppies, name it, and care for it. An under-13 attestation stays blocked across relaunch. Debug controls move maturity and vitality across the whole range with no visible jump and no stage name on screen. A senior pet can be moved between bands through care. |
+| 1. Core pet | One breed, a choice of three puppies, age attestation, naming, continuous aging on the closed-time maturity clock and care-driven vitality, internal stage labels and senior bands, six attributes with visible current scores and maximum potential, temperament, levels, and local reminders when a need is low. Placeholder art is driven by maturity and vitality. A Rive spike is proposed once those inputs are stable. | A user who attests they are 13 or older can compare three puppies by temperament and exact attribute scores, choose one, name it, and care for it. An under-13 attestation stays blocked across relaunch. Debug controls move maturity and vitality across the whole range with no visible jump and no stage name on screen. A senior pet can be moved between bands through care. |
 | 2. Play and training | Ball fetch and one toy, training with mastery, 3 to 5 tricks with about 3 discoverable, the trick book, and NPC playdates. | A player can discover and teach a trick and finish an NPC playdate, all offline. |
 | 3. Art and audio | The Rive pet and rig built on the maturity and vitality inputs, 2 to 3 breeds, outfits, pet sounds, UI sounds and music. | Final art plays smoothly on real devices, and breeds and outfits swap through configuration. |
 | 4. Accounts and social | Guest-to-account upgrade, Supabase sync, share card and clip, read-only friend visits, age signals, and account and data deletion. | A guest can upgrade, back up the pet, add a friend by invite link and share a card. |
@@ -107,11 +107,11 @@ Requirements are numbered so they can be referenced in tasks and commits. "Propo
 
 - R1.1 First launch shows an age attestation. The screen states that the app is for ages 13 and up and offers two choices: "I am 13 or older" and "I am under 13". It does not ask for a birthdate. A user who attests they are 13 or older continues, and the app stores a local pass so the screen does not appear again. A user who says they are under 13 cannot continue. The app stores only a local blocked note, creates no pet, and shows the blocked screen on later opens. Nothing about the check is sent off the device. Deleting the app clears the note.
 - R1.2 After the gate the user goes straight to adoption, with no account step.
-- R1.3 After the gate, the user meets three puppies of the single Phase 1 breed. All three are deterministic variations of one seed. The variations have different temperament labels. The user picks one. There is no breed picker. The other two puppies are not saved.
-- R1.4 The temperament label and approximate stat bars are visible on each puppy before the pick, so the choice is visible. Exact roll values stay hidden. The user then names the chosen puppy.
+- R1.3 After the gate, the user meets three puppies of the single Phase 1 breed. All three are deterministic variations of one seed. For each puppy, the pick screen shows the temperament label, the two attributes it nudges, and every attribute's current score and maximum potential as exact numbers. The user picks one. There is no breed picker. The other two puppies are not saved. (Proposed) Puppies of the same breed have the same total potential, distributed differently.
+- R1.4 The user names the pet after choosing it. The temperament is already visible on the pick screen.
 - R1.5 The chosen pet stores that one seed and the variation that was picked. The same seed always offers the same three puppies, and the same seed plus variation always creates the same pet.
 
-Acceptance: an under-13 attestation blocks progress, and the block is still there after the app is closed and reopened; a passing attestation reaches the home screen with one named pet and no account screen; the same seed always offers the same three puppies; the same seed and variation always create the same pet.
+Acceptance: an under-13 attestation blocks progress, and the block is still there after the app is closed and reopened; a passing attestation reaches the home screen with one named pet and no account screen; the same seed always offers the same three puppies; the same seed and variation always create the same pet; the pick screen shows each puppy's temperament label and attribute potentials.
 
 **F2. Care and aging (Phases 0 and 1)**
 
@@ -130,17 +130,19 @@ Acceptance: an under-13 attestation blocks progress, and the block is still ther
 
 Acceptance: the simulation tests from the prototype brief pass; a 100-hour absence gives the same result as a 48-hour one for needs and for maturity; maturity never decreases and stays still while the app is in the foreground; a return crosses at most one stage boundary; vitality changes are bounded per day and respond to care in both directions; a senior pet can move between bands through care and back through neglect without flicker; the debug sliders move the pet smoothly across the whole range with no visible jump; no user-facing screen shows a stage name.
 
-**F3. Personality and stats (Phase 1)**
+**F3. Attributes and potential (Phase 1)**
 
-- R3.1 Four traits in the MVP: energy, boldness, affection and willfulness. Each pet's value is the breed base plus a hidden roll taken from its seed and its variation.
-- R3.2 Temperament boosts one trait by about 10 percent and dampens another by about 10 percent, and gives the pet a label such as "bold explorer".
-- R3.3 Care patterns nudge traits slowly, within bounds, so a pet drifts but never loses its breed character.
+- R3.1 Six attributes: stamina, agility, intelligence, boldness, affection and obedience. Obedience replaces willfulness and is its opposite: higher means more cooperative. Energy, as an attribute, becomes stamina. The need named energy is unchanged. Scores are whole numbers on a tunable scale (proposed: 1 to 20). Each pet has a current score and a maximum potential for every attribute. A seventh attribute, instinct (nose), is optional and is not built in the MVP.
+- R3.2 Potential for each attribute is the breed's base potential plus a seeded roll within the breed's roll range, derived from the pet's seed and variation by its own hash (rule 11). The same seed and variation always give the same potential. The three variations of one seed differ. Temperament moves about 10% of one attribute's potential onto another, so the breed total stays the same, and gives the pet a label such as "bold explorer".
+- R3.3 Current scores start low for a puppy (proposed: about 25% of potential, tunable) and rise toward potential through natural growth with maturity and through training (R3.8). A current score never exceeds its potential. Care patterns can nudge current scores slowly within bounds. Proposed: natural growth from maturity carries a score up to about 70% of potential, and training closes the rest. Both limits are tunable.
 - R3.4 Level rises with experience from care, training and play, and each life stage label has a level ceiling. Ceilings are step values by label and do not change gradually, so the level cap only moves when a label changes.
-- R3.5 A stat's effective value is the breed base plus the hidden roll plus trained points, scaled by level and adjusted by temperament. Trained points are not used in the MVP.
-- R3.6 The app shows level, the temperament label with the two stats it nudges, approximate stat bars and trick mastery. It never shows life stage names, senior bands, or exact roll values. Stage names stay internal (R2.3).
-- R3.7 Roll ranges are narrow enough that no pet is unplayable, and care and training outweigh luck.
+- R3.5 The effective score the simulation uses is natural growth plus trained points plus care drift plus temporary effects, multiplied by the aging modifier (R3.9) and capped at potential.
+- R3.6 The app shows level, the temperament label, and for each attribute the current score and potential (for example "14 / 18") with a progress bar and any active temporary effect, plus trick mastery. Potential is visible from the adoption screen on, as an exact number. The seed is never shown. Life stage names and senior bands stay internal (R2.3).
+- R3.7 (Proposed) Fairness: pets of the same breed have the same total potential, so the seeded roll moves points between attributes and no pet is strictly better or unplayable.
+- R3.8 (Proposed) Training raises attributes. Fetch and play raise agility and stamina, trick learning raises intelligence and obedience, and playdates raise boldness and affection. Gains have diminishing returns per day (R5.4) and taper hard as the current score nears potential, so the last points are the slow ones. Trained points push the pet toward potential and are used in the MVP. The activities that award them arrive in Phase 2.
+- R3.9 (Proposed) Attributes change over time through five sources: growth with maturity, training, milestone bonus points which the owner places, temporary buffs from food, play, rest and toys, short penalties while tired or hungry, and aging. Seniors lose some effective stamina and agility through low vitality and may gain obedience, and rejuvenation restores them. Aging changes only the effective score, never the stored trained points or the potential, so it is fully reversible. Keep a floor so effective scores never drop to unplayable.
 
-Acceptance: the same seed and variation always give the same traits; the three variations of one seed differ; stats stay within bounds; no screen shows an exact roll value.
+Acceptance: the same seed and variation always give the same potentials; the three variations of one seed differ; no current score exceeds its potential; pets of one breed have the same total potential but different distributions; training raises the matching attribute and the gain tapers hard near potential; aging lowers only the effective score and rejuvenation restores it; the pick screen shows each puppy's temperament label, the two attributes it nudges, and each attribute's current score and potential.
 
 ## Functional requirements: play, training and outfits
 
@@ -244,7 +246,7 @@ Acceptance: an under-13 attestation cannot continue, and a store age signal of u
 These are working types for the simulation and storage layers. Field names can change, but keep the separation between fixed configuration (breeds, tricks, NPC pets, outfits) and per-pet state.
 
 ```ts
-type Trait = 'energy' | 'boldness' | 'affection' | 'willfulness';
+type Trait = 'stamina' | 'agility' | 'intelligence' | 'boldness' | 'affection' | 'obedience';
 type Stats = Record<Trait, number>;
 // Internal labels derived from maturity and vitality, never stored as the source of truth,
 // and never shown in the product UI
@@ -268,7 +270,8 @@ type Pet = {
   maturityAppliedAt: number; // ms timestamp of the last maturity settle; foreground ticks refresh it without adding age
   needs: { fullness: number; energy: number; happiness: number };
   asleep: boolean;
-  roll: Stats;             // hidden birth roll, never shown
+  potential: Stats;        // max per attribute, from seed, variant and breed, visible
+  trained: Stats;          // points earned through training
   temperament: { boosts: Trait; dampens: Trait };
   drift: Stats;            // slow shift from care patterns
   seniorBand?: SeniorBand; // hysteresis cache, not the source of truth
@@ -307,6 +310,9 @@ type SeniorBandDef = {
 const stageOf = (pet: Pet): Stage => { /* from maturity via StageDef config */ };
 const seniorBandOf = (pet: Pet): SeniorBand | null => { /* from vitality, only when the stage is senior */ };
 
+// Derived, not stored. Does not read rngState or event history.
+const attributeScore = (pet: Pet, trait: Trait): number => { /* growth + trained + drift + effects, times aging modifier, capped at potential[trait] */ };
+
 type TrickProgress = {
   discovered: boolean;
   pending?: boolean;       // discovered offline, awaiting server confirmation
@@ -330,7 +336,8 @@ type TrickDef = {
 type BreedConfig = {
   id: string;
   species: 'dog' | 'cat';
-  baseStats: Stats;
+  basePotential: Stats;
+  rollRange: number;       // how far a seeded roll can shift an attribute's potential
   pitchMultiplier: number; // for audio playback rate
   sizeScale: number;
   sampleSet: string;       // audio set id
@@ -389,6 +396,7 @@ type PetEvent =
 8. Events are the source of truth for sync, and state is derived from them.
 9. Trick sequences are checked through a validator interface, so the check can later move to the server.
 10. Time is computed lazily from timestamps. There is no per-pet server tick and no background timer for the simulation.
+11. Potential and any other value derived from the seed is computed from the seed and variation with its own deterministic hash, so it never depends on the order of events or on the pet's random state.
 
 **Non-functional requirements**
 
@@ -397,7 +405,7 @@ type PetEvent =
 - Size: audio is compressed and loops are short. Core art and sound are bundled, and optional extras can be hosted remotely so new breeds ship without an app update.
 - Accessibility: an assist mode for the timing game, an alternative to swipes such as tap rhythms, no meaning carried by color alone, and haptic or on-screen fallbacks for sound.
 - Privacy: collect the minimum, keep analytics free of personal data, and support deletion.
-- Testing: every simulation feature ships with unit tests for determinism, bounds and thresholds, and the same seed must always give the same result.
+- Testing: every simulation feature ships with unit tests for determinism, bounds and thresholds, and the same seed and variation must always give the same potentials.
 - Observability: crash reporting, and analytics events for the success metrics, with no personal data.
 - Code quality: TypeScript in strict mode, small files, and one commit per task.
 
@@ -413,7 +421,8 @@ Treat decided items as fixed. For open items, build the proposed default behind 
 | Camera | Side view, 2D |
 | Species in the MVP | Dog only. Phase 1 ships one breed. Phase 3 can add breeds as content. The user does not pick a breed. |
 | Age gate | Attestation that the user is 13 or older, or that they are under 13. No birthdate. A local pass or blocked note stays on the device. Apple and Google age-band checks arrive in Phase 4 and override a pass when the store says under 13. |
-| Adoption | One seed produces three deterministic puppy variations, with three different temperament labels. The user picks one variation and then names it. The pet stores the seed and the variation. The other two are not saved. |
+| Adoption | One seed produces three deterministic puppy variations, with three different temperament labels. The pick shows each puppy's label, the two attributes it nudges, and exact current scores and potentials. The user picks one variation and then names it. The pet stores the seed and the variation. The other two are not saved. |
+| Attributes | Six visible attributes, each with a visible current score and a visible per-pet maximum potential. Potential is deterministic from the seed and variation. The seed is never shown. Secret trick sequences stay hidden. |
 | Aging model | Two continuous values, maturity (only up) and vitality (care-driven, reversible), with five internal stage labels (puppy, older puppy, adolescent, adult, senior) and senior bands. No stage-change transition and no separate art per stage. |
 | Maturity clock | Still while the app is in the foreground. On return, gain closed time up to 48 hours and drop the rest. At most one internal stage boundary per return. Needs keep ticking in the foreground. Debug controls bypass the cap and the boundary rule. |
 | Care and maturity | Full rate until the care window exists. After that, poor care can slow maturity toward a floor around half speed. Neglect does not stop aging. |
@@ -437,7 +446,13 @@ Treat decided items as fixed. For open items, build the proposed default behind 
 | Real days per life stage | Tunable maturity thresholds, to be set by playtesting. Proposed starting point: puppy days 0 to 7, older puppy 7 to 21, adolescent 21 to 45, adult 45 to 180, senior after 180. |
 | Senior rejuvenation limit | Proposed: capped by maturity, so a senior can look spry but never like a puppy (R2.10) |
 | How diet and exercise are measured | Proposed: a small set of food types plus exercise from fetch and play (R2.12). Needs a decision before Phase 2. |
-| What training changes besides mastery, reliability, and owner skill | TBD. Bond, trophies, and the journal are undefined. |
+| What training changes besides mastery, reliability, owner skill, and attributes | Attribute gains are specified in R3.8. Bond, trophies, and the journal remain TBD. |
+| Final attribute list, and whether to add instinct | Six attributes in R3.1. Instinct (nose) is not in the MVP. |
+| Score scale and the puppy starting fraction | Proposed: whole numbers from 1 to 20, starting near 25% of potential. |
+| Whether same-breed pets share a total potential budget | Proposed: yes. The seeded roll and the temperament nudge move points between attributes (R3.7). |
+| How strongly aging affects effective scores | Proposed in R3.9. Aging changes the effective score only. Strength is tunable. |
+| Whether maturity alone can reach potential | Proposed: natural growth stops near 70% of potential. Training closes the rest, and gains taper hard near the cap (R3.3, R3.8). |
+| Whether short hungry and tired penalties stay | Proposed in R3.9. They lower the effective score only while the need is low. They do not change potential or trained points. |
 | Vitality session limit, fatigue, and assist-mode timing | TBD. |
 | Which pet survives if a guest signs into an account that already has one | TBD. |
 | Where the share-card link goes | TBD. A public pet page and a store listing are different products. |

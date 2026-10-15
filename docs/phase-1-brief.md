@@ -16,10 +16,10 @@ A fresh install asks the user to attest that they are 13 or older. Saying they a
 
 - An age attestation, stored locally as a pass or a blocked note (R1.1).
 - Three puppies derived from one seed. The user picks one variation, and that puppy is stored with the seed and the variation (R1.3, R1.5).
-- The temperament label and approximate stat bars on each puppy before the pick, then a name for the chosen puppy (R1.4).
+- On each puppy before the pick: the temperament label, the two attributes it nudges, and every attribute as an exact current score and potential. Then a name for the chosen puppy (R1.4).
 - Maturity and vitality on the two clocks in R2.1 and R2.3.
 - Internal stage labels and senior bands (R2.3, R2.9). The product UI never shows them.
-- Four traits, a hidden roll, temperament, level, and xp (F3).
+- Six attributes with visible current scores and maximum potential, temperament, level, and xp (F3). Training, milestone points, and temporary buffs stay at zero until the activities that award them exist.
 - Placeholder art driven by maturity and vitality (R2.7).
 - A reminder when a need is about to run low, with a switch to turn reminders off (R2.5).
 - Debug sliders and time jumps that bypass the maturity cap (R2.6).
@@ -40,9 +40,9 @@ Stay on the current Expo SDK and the libraries already in the app. Add `expo-not
 
 Keep `src/sim` pure. Time comes in as milliseconds. Randomness comes from the seeded generator. The view still sends events and renders results.
 
-Extend the pet with the Phase 1 fields from the PRD: `id`, `seed`, `variant`, `name`, `breedId`, `maturity`, `vitality`, `careWindow`, `bornAt`, `maturityAppliedAt`, `roll`, `temperament`, `drift`, `seniorBand`, `level`, `xp`, and `bond` left at 0. Keep the existing needs, `asleep`, `lastUpdatedAt`, and `rngState`.
+Extend the pet with the Phase 1 fields from the PRD: `id`, `seed`, `variant`, `name`, `breedId`, `maturity`, `vitality`, `careWindow`, `bornAt`, `maturityAppliedAt`, `potential`, `trained`, `temperament`, `drift`, `seniorBand`, `level`, `xp`, and `bond` left at 0. Keep the existing needs, `asleep`, `lastUpdatedAt`, and `rngState`. There is no `roll` field.
 
-`id` is a string chosen outside the sim and passed into `createPet`. The seed is chosen outside the sim too. `createLitter(seed)` and `createPet(seed, variant, now, name, id)` are pure. The same seed and variant always return the same pet. `rngState` is derived from the seed and the chosen variant, so the three variations do not share one random stream after adoption.
+`id` is a string chosen outside the sim and passed into `createPet`. The seed is chosen outside the sim too. `createLitter(seed)` and `createPet(seed, variant, now, name, id)` are pure. The same seed and variant always return the same pet. Potential is hashed from the seed and variant and does not read `rngState`. `rngState` is still derived from the seed and the chosen variant, so the three variations do not share one random stream after adoption.
 
 ### Two clocks
 
@@ -103,24 +103,33 @@ Bands apply only when the internal stage is senior. They are a hysteresis cache 
 
 To leave a band, vitality must pass the edge by the margin. Tests cover both directions.
 
-### Personality, level, and drift
+### Attributes, potential, and level
 
-One breed, id `dog`, display name "Dog", each base stat 50.
+One breed, id `dog`, display name "Dog". Six attributes: stamina, agility, intelligence, boldness, affection, obedience. Scores are whole numbers. Proposed scale: 1 to 20.
 
-The hidden roll adds an integer from -8 to 8 to each trait, taken from the seed and the variant. The same seed and variant always yield the same roll. Temperament boosts one trait by 10 percent and dampens a different trait by 10 percent. The three variants of one seed boost three different traits. The label comes from the boosted trait:
+Starting config:
 
-| Boosted trait | Label |
+- Each base potential is 12. The breed total is 72.
+- `rollRange` is 3. The hash from the seed and variant moves points between attributes. Each attribute stays within 3 of its base, and the total stays 72.
+- Temperament then moves about 10% of one attribute's potential onto another, at least 1 point, without leaving 1 to 20. The total stays 72. The three variants boost three different attributes.
+- A puppy's growth at maturity 0 is about 25% of potential, rounded to the nearest whole number and at least 1. Natural growth rises with maturity and stops near 70% of potential. `trained` starts at 0. Phase 1 has no training UI, and a pure gain function still exists so a test can show that gains taper hard near potential.
+
+The label comes from the boosted attribute. These strings are starting copy in config:
+
+| Boosted attribute | Label |
 | --- | --- |
-| energy | eager spark |
+| stamina | steady pacer |
+| agility | quick step |
+| intelligence | bright pupil |
 | boldness | bold explorer |
 | affection | soft heart |
-| willfulness | independent soul |
+| obedience | willing partner |
 
-These strings live in config.
+Effective score = natural growth + trained + drift + temporary effects, multiplied by the aging modifier, then capped at potential. Temporary effects are 0 in this phase. The aging modifier lowers effective stamina and agility when the internal stage is senior and vitality is low, and it can raise effective obedience by a small amount in that same case. It never changes `potential` or `trained`. Effective scores stay at least 1.
 
-Effective stat = `(base + roll + drift) * temperament factor * level scale`. Temperament factor is 1.1, 0.9, or 1. Level scale is `0.9 + 0.1 * (level / ceiling)`. The product UI shows approximate bars, the level, and the temperament label. It does not show the roll.
+The product UI shows level, the temperament label, and each attribute as `current / potential`. It does not show the seed or a stage name.
 
-Drift starts at 0 and each trait stays within -6 to 6. A pet adds 0.02 to affection drift. A feed adds 0.01 to energy drift. During credited absence, each drift value moves 0.05 toward 0 per day.
+Drift starts at 0 and each attribute stays within -2 to 2. A pet adds 0.05 to affection drift. A feed adds 0.02 to stamina drift. During credited absence, each drift value moves 0.05 toward 0 per day.
 
 Xp starts at 0. A feed adds 5. A pet adds 2. Earned level is `1 + floor(xp / 25)`. Shown level is the earned level clamped to the current ceiling:
 
@@ -144,11 +153,11 @@ No navigation library. A small flow in the app is enough: attest, blocked, litte
 
 **Blocked.** A short screen that says they can't use the app. No second chance on that install. Relaunch shows this screen again.
 
-**Litter.** A pure `createLitter(seed)` returns three variations of that one seed, with three different temperament labels. Show each puppy's temperament label and approximate stat bars. Exact rolls stay hidden. Generate the seed once and store it until a pet is saved, so leaving and coming back shows the same three. The two variations that are not picked are not saved.
+**Litter.** A pure `createLitter(seed)` returns three variations of that one seed, with three different temperament labels and three different potential spreads that share one total. Show each puppy's temperament label, the two attributes it nudges, and every attribute as an exact `current / potential`. Generate the seed once and store it until a pet is saved, so leaving and coming back shows the same three. The two variations that are not picked are not saved. The seed is never shown.
 
 **Name.** Show the chosen puppy and the temperament the user already saw. The name is required, trimmed, and at most 16 characters. Confirming the name creates the pet from the seed and the picked variant.
 
-**Home.** The pet's name, temperament, level, need bars, feed, and rest. No stage word.
+**Home.** The pet's name, temperament, level, the six `current / potential` lines, need bars, feed, and rest. No stage word.
 
 A saved Phase 0 pet has none of the new fields. If the loaded pet does not match this shape, drop it and start from the age gate. Do not crash.
 
@@ -176,19 +185,19 @@ A reminders switch on the home screen defaults to on. If the system permission i
 
 Keep the 1-hour, 6-hour, and 24-hour jumps. Those jumps add the full requested time to maturity and apply the vitality absence rule for that full duration, with no 48-hour cap and no boundary clamp.
 
-Add sliders that set maturity and vitality directly. Show the internal stage, senior band, maturity, vitality, care window, level, and xp in this panel only.
+Add sliders that set maturity and vitality directly. Show the internal stage, senior band, maturity, vitality, care window, level, xp, and each attribute's effective score and potential in this panel only. Do not show the seed.
 
 ## Tasks
 
 Work in this order. Do not start a task until the previous check passes. Commit after each task.
 
 1. **Types and config.** Add the new pet fields and the starting numbers in `config.ts`. Check: the project compiles, and a created pet has maturity 0, vitality near the care target, and a name.
-2. **Identity and personality.** `createLitter(seed)` returns three variations with three different labels. `createPet(seed, variant)` keeps the breed, roll, temperament, and label for that variation. Check: one seed always returns the same three puppies; one seed plus variant always matches itself; a second seed can differ.
+2. **Identity and attributes.** `createLitter(seed)` returns three variations with three different labels and the same total potential. `createPet(seed, variant)` keeps that variation's potentials and temperament. Check: one seed always returns the same three puppies; one seed plus variant always matches itself; a second seed can differ; potentials do not change if `rngState` changes.
 3. **Maturity clock and stages.** Split the foreground tick from the resume path. Add the 48-hour cap, the one-boundary clamp, and `stageOf`. Check: foreground time leaves maturity unchanged; a 100-hour gap matches a 48-hour gap; a gain that would pass two thresholds stops on the first; maturity never falls.
 4. **Vitality and bands.** Add `careWindow`, the daily bound, and senior-band hysteresis. Check: one feed barely moves vitality; absence and care move it in opposite directions; the band does not flicker inside the margin; the formula never goes below 0.35.
-5. **Level and drift.** Add xp, ceilings, drift, and effective stats. Check: stats stay in bounds, the shown level respects the ceiling, and drift moves back toward 0 on a capped absence.
+5. **Level, growth, and drift.** Add xp, ceilings, drift, the maturity growth cap, the aging modifier, and the training-gain taper. Check: no current score exceeds potential; growth at full maturity stays near 70% of potential; a gain near the cap is much smaller than the same gain far from it; aging changes the effective score only; drift moves back toward 0 on a capped absence; the shown level respects the ceiling.
 6. **Age gate.** Persist pass and blocked separately from the pet. Check: under 13 stays blocked across a reload and saves no pet; a pass does not show the gate again.
-7. **Adoption.** Show the three variations of the stored seed, pick one, and name it. Check: the same three are still there after a reload before naming; an empty name cannot continue; the saved pet stores that seed and variant; home shows the chosen pet's name, temperament, and level with no stage word; the other two variations are not saved.
+7. **Adoption.** Show the three variations with temperament, nudged attributes, and exact `current / potential` lines. Pick one and name it. Check: the same three are still there after a reload before naming; an empty name cannot continue; the saved pet stores that seed and variant; home shows the chosen pet's name, temperament, level, and six scores with no stage word and no seed; the other two variations are not saved.
 8. **View.** Drive scale, posture, and breathing from maturity and vitality, and ease maturity changes. Check: the debug slider moves the pet smoothly across the range, and the component never reads a stage label.
 9. **Reminders.** Schedule, cancel, and toggle the low-need notifications. Check: a stage word never appears in the copy, and denying permission leaves care usable.
 10. **Playtest.** Close the app, reopen it later, and use the debug jumps. Check: needs follow the Phase 0 table, maturity follows this brief, and a Phase 0 save does not crash.
