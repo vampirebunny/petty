@@ -1,7 +1,7 @@
 # PRD: Virtual Pet App (MVP)
 
 Oct 14, 2026 · @A
-Updated Oct 15, 2026
+Updated Oct 16, 2026
 
 ## Overview
 
@@ -187,10 +187,13 @@ Phase 3 builds the rig with an attach point for each slot below. The wardrobe, t
 - R6.3 The user can equip and unequip owned items. Equipped items appear on the pet and, once cosmetics exist, on its share card. Unequip is an equip event with no item. The value `none` exists only in the Rive file. The renderer writes it when the slot is empty.
 - R6.4 Three sources, all after the MVP: starter items granted with the pet, items earned through tricks and milestones, and premium items. Ownership is a list separate from `equipped`, and it gates every equip. An owned item can sit unequipped. Premium items are cosmetic only: they do not change attributes, skill, mastery, or any other simulation result. The MVP has no purchases and no randomized rewards.
 - R6.5 Each item has a fixed palette. The chosen entry is `colorId` on the equip event. A free hex value is outside this contract. The equipped item and its palette color are bound properties of the Rive file, set through data binding.
-- R6.6 The content id is the catalog id and the Rive enum value. Store product ids live in a separate map, and one product may grant several content ids. A content id is never a store product id.
+- R6.6 The content id is the catalog id and the Rive enum value. There is no separate render key. Store product ids live in a separate map, and one product may grant several content ids. A content id is never a store product id. Content ids are permanent: they are never renamed, reused, or deleted.
 - R6.7 The Rive file receives maturity, vitality, weight, and ageDays, plus the equipped item and palette color per slot. ageDays is maturity times daysToSenior: the maturity clock scaled into days, not calendar time since `bornAt`. Mood and the animation cue stay view props. Breed is not a view input. Breed chooses `artVariant`, `sizeScale`, and pitch through config.
+- R6.8 The post-MVP cosmetics catalog is bundled data, and that bundled copy is the offline source of truth. One loader returns it. `schemaVersion` changes only when the structure changes. `catalogVersion` changes when items change. New cosmetics ship as data plus art. Item art ships inside the app. Remote art delivery is a separate spike. The Phase 2 toy (R4.3) is not a catalog row: it stays one inventory item on the mouth attach point. A toy that needs a new behavior is an app update.
+- R6.9 Retire an item instead of removing it. A retired item cannot be newly acquired. An owner can still render and equip it. Skip an item whose slot the app does not recognize, or whose `minAppVersion` is newer than the app. Never delete a skipped item from stored data. If a pet, including a friend's snapshot, has an equipped id the app cannot resolve, render that slot empty and keep the id. The UI shows nothing broken.
+- R6.10 `offer` on the catalog item says how it is offered: starter, earned, or premium. An earned item names the trick or milestone in `earnedBy`. `OwnedCosmetic.source` is how this player got the item, and it stays on the ownership list. A store product grants premium content ids only. It may grant one id or a bundle. It does not grant a starter or earned id. Product ids may differ by platform.
 
-Acceptance: every item displays correctly on every breed at several maturity values from puppy to senior, because the attach point moved with the rig; equipping an owned item persists after restart and survives sync replay; an unowned item cannot be equipped; a premium item leaves every simulation result unchanged; the share card shows what is equipped once cosmetics exist.
+Acceptance: every item displays correctly on every breed at several maturity values from puppy to senior, because the attach point moved with the rig; equipping an owned item persists after restart and survives sync replay; an unowned item cannot be equipped; a premium item leaves every simulation result unchanged; the share card shows what is equipped once cosmetics exist; a retired item still renders for an owner and cannot be newly acquired; an unknown equipped id leaves that slot empty and remains in stored data; an older app skips a newer `minAppVersion` without deleting the item. A catalog check fails when ids are not unique, a retired id is reused, a slot is outside hat, neck, back, and costume, an earned item points at a missing trick or milestone, or a store product grants an unknown id or an id whose offer is not premium.
 
 ## Functional requirements: social, accounts and sync
 
@@ -358,27 +361,39 @@ type BreedConfig = {
   artVariant: string;      // coat, ears, tail, markings
 };
 
-// Fixed configuration. The content id is the Rive enum value.
-// Store product ids are a separate map and may grant a bundle.
+// How a catalog item is offered. OwnedCosmetic.source is how this player got it.
+type ItemSource = 'starter' | 'earned' | 'premium';
+
+// Bundled cosmetics catalog. The offline source of truth. Toys are not rows (R4.3).
+type Catalog = {
+  schemaVersion: number;   // bump only when the structure changes
+  catalogVersion: number;  // bump whenever items change
+  items: CosmeticDef[];
+};
+
 type CosmeticDef = {
-  id: string;              // content id
+  id: string;              // permanent content id and Rive enum value
   slot: OutfitSlot;
   name: string;
+  species: 'dog' | 'cat' | 'both';
+  offer: ItemSource;
+  earnedBy?: string;       // trick or milestone id when offer is 'earned'
   palette: { id: string; hex: string }[];
-  premium: boolean;
+  status: 'active' | 'retired';
+  minAppVersion?: string;  // older apps skip the item
+  sortOrder: number;
 };
 
+// Separate from content ids. Unused until purchases exist.
 type StoreProductGrant = {
+  platform: 'ios' | 'android';
   productId: string;       // permanent store id
-  grants: string[];        // content ids
+  grants: string[];        // premium content ids; one product may grant a bundle
 };
-
-// Owner state, kept apart from Pet.equipped.
-type ItemSource = 'starter' | 'earned' | 'premium';
 
 type OwnedCosmetic = {
   itemId: string;          // content id
-  source: ItemSource;
+  source: ItemSource;      // how this player got it, kept apart from Pet.equipped
 };
 
 type NpcPet = {
@@ -474,7 +489,7 @@ Treat decided items as fixed. For open items, build the proposed default behind 
 | Accounts | Guest-first, with an account later and no friction at the start |
 | Social | Share card, read-only friend visits and NPC playdates in the MVP. Real-friend playdates later, asynchronous, with acceptance by default. |
 | Prototype | Standalone Expo repository, local-only, drawn with plain shapes |
-| Cosmetics | After the MVP. Phase 3 only builds attach points for hat, neck, back, and costume. Eyewear is a later slot. Fit belongs to the rig. Ownership is a separate list and gates every equip. Sources are starter, earned, and premium. Premium is cosmetic-only. Content ids are separate from store product ids. Recolor is a fixed palette on the equip event. See F6. |
+| Cosmetics | After the MVP. Phase 3 only builds attach points for hat, neck, back, and costume. Eyewear is a later slot. Fit belongs to the rig. The bundled catalog is the offline source of truth, with permanent content ids. Ownership is a separate list and gates every equip. Sources are starter, earned, and premium. Premium is cosmetic-only. Content ids are separate from store product ids, and a product grants premium ids only. Recolor is a fixed palette on the equip event. See F6. |
 
 **Open**
 
@@ -500,6 +515,8 @@ Treat decided items as fixed. For open items, build the proposed default behind 
 | Sharing | Public share cards for growth, friends-only inside the app |
 | Rare tricks confirmed by the server while offline | Proposed: mark as pending until the next sync (R5.11) |
 | Monetization model | Undecided, except premium cosmetics, which are post-MVP and cosmetic-only (F6) |
+| Whether food and boosts get catalog entries | Open. They are not cosmetics. Diet and buffs stay in R2.12 and R3.9 until decided. |
+| Whether a remote cosmetics catalog ships | Open. The bundled catalog is the offline source of truth (R6.8). If a remote copy ships, it may add and retire items and may not change an existing item's id or slot. A failed fetch uses the last cached copy, then the bundled catalog. |
 | Number of pets | One at a time in the MVP |
 | Meaning of "virtual reality" | Assumed to mean a lifelike, persistent pet and not AR. AR would change the engine choice. |
 | App name | Undecided, and no candidate has been cleared for trademark |
