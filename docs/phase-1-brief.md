@@ -1,69 +1,86 @@
 # Phase 1 Brief: Core Pet
 
 Oct 15, 2026 · @A
+Updated Oct 17, 2026
 
 ## Goal and scope
 
-Phase 0 is done. The app has one blob, three needs, feed, rest, and pet, saved on the device, with a debug panel that jumps time. This phase gives that pet a life: an age check, a name, a personality, and gradual aging.
+Phase 0 is done. The app has one blob, three needs, feed, rest, and pet, saved on the device, with a debug panel that jumps time. This phase gives that pet a life: an age check, a name, a personality, gradual aging, and a procedural body. The blob drawing is replaced by an actor. There is no Rive step.
 
 Build it in the existing Expo app. The PRD is the contract. This brief is the build order for Phase 1. Requirement numbers below point at `docs/PRD Virtual Pet App MVP.md`. Decay, sleep, mood, and the current events stay as they are in "Cursor Brief: Pet Blob Prototype" unless this brief says otherwise.
 
 **Done means**
 
-A fresh install asks the user to attest that they are 13 or older. Saying they are under 13 leaves the app blocked after it is closed and reopened, with no pet saved. A passing attestation meets three puppies, picks one, names it, and lands on the home screen. Playing with the app open does not age the pet. Coming back later ages maturity by at most 48 hours, eases the view over about a second, and never shows a stage name. Debug controls can walk maturity and vitality across the whole range.
+A fresh install asks the user to attest that they are 13 or older. Saying they are under 13 leaves the app blocked after it is closed and reopened, with no pet saved. A passing attestation picks a species and a breed, meets three young pets of that breed, picks one, names it, and lands on the home screen. The home screen draws that pet as an actor. Feed, rest, petting, and throw ball start tasks. Nothing in the interface starts panting. Playing with the app open does not age the pet. Coming back later ages the credited day count by at most 48 hours, eases the view over about a second, and never shows a stage name. Debug controls can walk age, maturity, and vitality across the whole range.
 
 ## What to build
 
 - An age attestation, stored locally as a pass or a blocked note (R1.1).
-- Three puppies derived from one seed. The user picks one variation, and that puppy is stored with the seed and the variation (R1.3, R1.5).
-- On each puppy before the pick: the temperament label, the two attributes it nudges, and every attribute as an exact current score and potential. Then a name for the chosen puppy (R1.4).
-- Maturity and vitality on the two clocks in R2.1 and R2.3.
+- A species choice, then a breed choice, then three young pets of that breed derived from one seed. The user picks one variation, and that pet is stored with the seed, the breed, and the variation (R1.3, R1.5).
+- On each pet before the pick: the temperament label, the two attributes it nudges, and every attribute as an exact current score and potential. Then a name for the chosen pet (R1.4).
+- `ageDays` and vitality on the clocks in R2.1, R2.3, and R2.7. Maturity is derived from `ageDays`.
 - Internal stage labels and senior bands (R2.3, R2.9). The product UI never shows them.
 - Six attributes with visible current scores and maximum potential, temperament, level, and xp (F3). Training, milestone points, and temporary buffs stay at zero until the activities that award them exist.
-- Placeholder art driven by maturity, vitality, and weight (R2.7). Weight is never shown as a number.
+- A procedural actor drawn from breed anatomy, age curves, vitality, and weight (R2.7, R4.6). Weight is never shown as a number.
+- Feed starts eat, rest starts sleep, a stroke starts the species reaction, and throw ball starts fetch for a dog or pounce for a cat (R4.1, R4.2, R4.6).
 - A reminder when a need is about to run low, with a switch to turn reminders off (R2.5).
-- Debug sliders and time jumps that bypass the maturity cap (R2.6).
+- Debug sliders and time jumps that bypass the maturity cap (R2.6). The age slider runs from day 0 through day 1000.
 
 ## Do not build
 
-- A birthdate field or a breed picker.
+- A birthdate field for the user. The pet's age is the credited day count, not a date the user types.
+- A control that starts panting. A dog may pant on its own. The button row does not include it.
 - Stage names on the home screen, in a details view, in a notification, or on any share image.
-- Accounts, sync, friends, share cards, tricks, training, fetch, toys, or outfits.
+- Accounts, sync, friends, share cards, tricks, training, fetch mastery, toys, or outfits.
+- A second pet on screen. The sim is an actor list, and a test may step two actors, but the home screen shows the owner's pet only.
 - A server, analytics, or purchases.
-- The Rive spike before the exit checks below pass. It stays proposed.
+- Any Rive dependency. The HTML files in `docs/` are references to port.
 
 ## Stack
 
-Stay on the current Expo SDK and the libraries already in the app. Add `expo-notifications` with `npx expo install` for R2.5. If that install forces a development build, stop and ask before adding it. Do not add any other dependency without asking.
+Stay on the current Expo SDK and the libraries already in the app. Add `expo-notifications` with `npx expo install` for R2.5. Add `@shopify/react-native-skia` and `expo-audio` the same way for the actor and the recorded sounds. Both are included in Expo Go for this SDK, so they do not force a development build. If some other install forces a development build, stop and ask before adding it. Do not add any other dependency without asking.
 
 ## Simulation
 
-Keep `src/sim` pure. Time comes in as milliseconds. Randomness comes from the seeded generator. The view still sends events and renders results.
+Keep `src/sim` pure. Time comes in as milliseconds. Randomness comes from the seeded generator. The screen sends events and draws results. The world is a list of actors. The saved pet is one record. `spawnActor` builds an actor from that record, or from a snapshot. Phase 1 shows one actor. A unit test steps two.
 
-Extend the pet with the Phase 1 fields from the PRD: `id`, `seed`, `variant`, `name`, `breedId`, `maturity`, `vitality`, `careWindow`, `weight`, `feedWindow`, `bornAt`, `maturityAppliedAt`, `potential`, `trained`, `temperament`, `drift`, `seniorBand`, `level`, `xp`, and `bond` left at 0. Keep the existing needs, `asleep`, `lastUpdatedAt`, and `rngState`. There is no `roll` field. `weight` starts at 50. The feed window starts as if the puppy had been fed at the normal rate, so weight holds at 50 until the player's feeding differs.
+The actor logic is plain TypeScript, with no Skia import:
 
-`id` is a string chosen outside the sim and passed into `createPet`. The seed is chosen outside the sim too. `createLitter(seed)` and `createPet(seed, variant, now, name, id)` are pure. The same seed and variant always return the same pet. Potential is hashed from the seed and variant and does not read `rngState`. `rngState` is still derived from the seed and the chosen variant, so the three variations do not share one random stream after adoption.
+- `breeds`: config. `species` is a field. Anatomy, pitch, and the extra behavior ids live here.
+- `growth`: one curve per visual feature, keyed by `ageDays`.
+- `geometry`: proportions from breed anatomy and those curves.
+- `pose`: targets and easing, including `spineArch` and `crouch`.
+- `legs`: the IK solver and the gait.
+- `behavior`: the shared task machine, plus the species list.
+- `sim`: `update(dt)` steps props, then every actor, with dt capped at 50ms.
+- The Skia renderer is outside this folder. It only draws.
+
+Extend the pet with the Phase 1 fields from the PRD: `id`, `seed`, `variant`, `name`, `breedId`, `ageDays`, `maturity`, `vitality`, `careWindow`, `weight`, `feedWindow`, `bornAt`, `maturityAppliedAt`, `potential`, `trained`, `temperament`, `drift`, `seniorBand`, `level`, `xp`, and `bond` left at 0. Keep the existing needs, `asleep`, `lastUpdatedAt`, and `rngState`. There is no `roll` field. `ageDays` starts at 0. `weight` starts at 50. The feed window starts as if the pet had been fed at the normal rate, so weight holds at 50 until the player's feeding differs.
+
+`id` is a string chosen outside the sim and passed into `createPet`. The seed and the `breedId` are chosen outside the sim too. `createLitter(seed, breedId)` and `createPet(seed, breedId, variant, now, name, id)` are pure. The same seed, breed, and variant always return the same pet. Potential is hashed from the seed, breed, and variant and does not read `rngState`. `rngState` is still derived from the seed and the chosen variant, so the three variations do not share one random stream after adoption.
 
 ### Two clocks
 
-Needs and maturity no longer share one advance path.
+Needs and age no longer share one advance path.
 
 **Foreground tick** (the existing 5-second loop):
 
 - Apply need decay for the elapsed time since `lastUpdatedAt`, using the current step size and the 48-hour cap.
-- Leave maturity unchanged.
+- Leave `ageDays` and maturity unchanged.
 - Set `maturityAppliedAt` to now so closed time starts when the ticks stop.
 
 **Cold start and return to foreground:**
 
 - Closed time is `now - maturityAppliedAt`.
-- Credit `min(closed time, 48 hours)` toward maturity. Drop the rest.
+- Credit `min(closed time, 48 hours)` toward `ageDays`. Drop the rest.
+- Until maturity is 1, also stop at the next stage boundary and drop the time past it.
 - Then set `maturityAppliedAt` to now.
-- Apply needs for the same gap, still capped at 48 hours, through the existing decay rules.
+- Apply needs for the same credited gap, still capped at 48 hours, through the existing decay rules.
+- Set maturity to `min(1, ageDays / daysToSenior)`.
 
-A 100-hour gap and a 48-hour gap produce the same needs and the same maturity. Opening and closing again only counts new closed time.
+A 100-hour gap and a 48-hour gap produce the same needs, the same `ageDays`, and the same maturity. Opening and closing again only counts new closed time. After maturity is 1, a return still adds the capped closed time to `ageDays`. The visual curves clamp at 1000. The pet keeps living after that.
 
-Maturity gain for credited milliseconds is `credited / (daysToSenior * one day)`, times `careMultiplier`. In this phase `careMultiplier` is 1. `daysToSenior` starts at 180. Maturity clamps to 0–1 and never decreases.
+`daysToSenior` starts at 180. `careMultiplier` is 1 in this phase. Maturity clamps to 0–1 and never decreases. `ageDays` never decreases except through a debug control.
 
 ### One boundary per return
 
@@ -77,7 +94,7 @@ Stage thresholds are fractions of the 180-day span:
 | adult | 45/180 to 1 |
 | senior | 1 |
 
-On a normal return, if the gain would pass more than one threshold, stop on the first threshold and drop the rest. The next return can continue. Debug time jumps and the maturity slider apply the requested value and ignore this clamp.
+On a normal return, if the gain would pass more than one threshold, stop `ageDays` on the first threshold and drop the rest. The next return can continue. This clamp stops applying once maturity is 1. Debug time jumps and the age slider apply the requested value and ignore this clamp. Setting `ageDays` recomputes maturity.
 
 ### Vitality
 
@@ -105,7 +122,7 @@ To leave a band, vitality must pass the edge by the margin. Tests cover both dir
 
 ### Attributes, potential, and level
 
-One breed, id `dog`, display name "Dog". Six attributes: stamina, agility, intelligence, boldness, affection, obedience. Scores are whole numbers. Proposed scale: 1 to 20.
+Five dog breeds, taken from `docs/Procedural Dog.html`: retriever, corgi, dachshund, husky, and pug. Each record has `species: 'dog'` and the anatomy numbers from that file. Cat breeds are the same kind of record, filled from the cat reference when that file is in `docs/`. Do not invent cat anatomy before then. Shared tasks are stand, sit, sleep, eat, walk, and jump. Dog records add pant, paw, bark, and fetch. Cat records add purr, groom, and pounce. Six attributes: stamina, agility, intelligence, boldness, affection, obedience. Scores are whole numbers. Proposed scale: 1 to 20.
 
 Starting config:
 
@@ -160,17 +177,19 @@ Xp is kept when a debug control lowers the ceiling. The shown level follows the 
 
 ## Age gate and adoption
 
-No navigation library. A small flow in the app is enough: attest, blocked, litter, name, home.
+No navigation library. A small flow in the app is enough: attest, blocked, species, breed, litter, name, home.
 
 **Attest.** "This app is for ages 13 and up." Actions: "I am 13 or older" and "I am under 13". Store `passed` or `blocked` under a key of its own, separate from the pet, because a blocked user has no pet.
 
 **Blocked.** A short screen that says they can't use the app. No second chance on that install. Relaunch shows this screen again.
 
-**Litter.** A pure `createLitter(seed)` returns three variations of that one seed, with three different temperament labels and three different potential spreads that share one total. Show each puppy's temperament label, the two attributes it nudges, and every attribute as an exact `current / potential`. Generate the seed once and store it until a pet is saved, so leaving and coming back shows the same three. The two variations that are not picked are not saved. The seed is never shown.
+**Species and breed.** Dog or cat, then a breed of that species. The five dog breeds are available now. Cat breeds appear when the cat reference is in `docs/`. Store the choice with the seed until a pet is saved, so leaving and coming back shows the same breed.
 
-**Name.** Show the chosen puppy and the temperament the user already saw. The name is required, trimmed, and at most 16 characters. Confirming the name creates the pet from the seed and the picked variant.
+**Litter.** A pure `createLitter(seed, breedId)` returns three variations of that one seed and breed, with three different temperament labels and three different potential spreads that share one total. Show each pet's temperament label, the two attributes it nudges, and every attribute as an exact `current / potential`. Generate the seed once and store it until a pet is saved, so leaving and coming back shows the same three. The two variations that are not picked are not saved. The seed is never shown.
 
-**Home.** The pet's name, temperament, level, the six `current / potential` lines, need bars, feed, and rest. No stage word.
+**Name.** Show the chosen pet and the temperament the user already saw. The name is required, trimmed, and at most 16 characters. Confirming the name creates the pet from the seed, the breed, and the picked variant.
+
+**Home.** The pet's name, temperament, level, the six `current / potential` lines, need bars, feed, rest, and throw ball. No stage word. No pant button.
 
 A saved Phase 0 pet has none of the new fields. If the loaded pet does not match this shape, drop it and start from the age gate. Do not crash.
 
@@ -178,16 +197,27 @@ Debug reset replaces the pet and keeps the attestation. A separate debug action 
 
 ## View
 
-`PetView` gains `maturity`, `vitality`, and `weight` props and still receives needs, mood, and the cue. It does not receive a stage label, and it does not draw the weight number.
+The home screen draws one actor with Skia. The renderer imports Skia. The modules listed under Simulation do not. Port `docs/Procedural Dog.html`. Do not embed it. When the cat reference arrives, add cat breeds and a cat draw path the same way. The species picker lists a species only when it has at least one breed.
 
-Map the numbers onto the placeholder:
+The frame clock is separate from the 5-second needs tick. Cap each frame at 50ms. Pause it when the app is not active. On return, drop an in-progress eat, fetch, or pounce and show the pet standing, or sleeping if rest is on. Save the pet record. Do not save the pose, the gait, or the ball.
 
-- Scale runs from about 0.75 at maturity 0 to about 1.25 at maturity 1.
-- Lower vitality sags the posture slightly and slows the breathing loop.
-- Body width and leg width are 1 at weight 50, about 0.75 at 0, and about 1.3 at 100. Give the placeholder simple legs so both widths can be seen.
-- On a maturity or weight change, ease the displayed value over about one second. The stored value updates immediately.
+Behavior, from the species list:
 
-The same props are what a later dog rig will use. Do not branch the drawing on stage names.
+- Feed starts eat, unless the pet is asleep, which keeps the current stir.
+- Rest starts sleep. Wake returns to stand.
+- A stroke starts the species reaction. A dog barks or offers a paw. A cat purrs or grooms. The existing purr-versus-wiggle roll chooses which.
+- Throw ball starts fetch for a dog and pounce for a cat. Phase 1 always runs that chase.
+- Pant is not a control. The dog task machine may enter it, including the sit-and-pant at the end of a fetch.
+
+Every actor has `x`, depth `y`, and height `z`. A jump is a scripted arc on `z`. Pounce uses it. Fetch stays on the ground. The pose eases `spineArch` and `crouch` with the other channels. Leave them at 0 unless the reference you are porting sets them.
+
+Age curves live in a data file. Leg length is an S-curve across growth. Under-eye bags rise from about day 600 to day 800, and high vitality fades them. The other growth curves do not reverse. Weight still changes body width and leg width: 1 at 50, about 0.75 at 0, and about 1.3 at 100. On an age or weight change, ease the displayed value over about one second. The stored value updates immediately.
+
+The renderer never reads a stage label, and it never draws the weight number. Tuning numbers (sit angle, stride, head targets, pose rates) are named constants.
+
+Recorded clips play from `expo-audio`, with pitch correction off. Pitch is the breed pitch times the age factor from the dog reference (`1.35 - 0.35 × growth`) until a curve replaces that factor. Respect the hardware silent switch. If a clip is missing, that action stays silent. Phase 1 wants a dog bark, chew, pant, and snore, and a cat meow, chew, purr, and snore.
+
+Tests cover pose easing, IK, gait foot targets, each shared and species task, the age curves including bag reversal, and `update(dt)` with two actors. They do not import Skia.
 
 ## Reminders
 
@@ -197,23 +227,23 @@ A reminders switch on the home screen defaults to on. If the system permission i
 
 ## Debug panel
 
-Keep the 1-hour, 6-hour, and 24-hour jumps. Those jumps add the full requested time to maturity and apply the vitality absence rule for that full duration, with no 48-hour cap and no boundary clamp.
+Keep the 1-hour, 6-hour, and 24-hour jumps. Those jumps add the full requested time to `ageDays` and apply the vitality absence rule for that full duration, with no 48-hour cap and no boundary clamp. Maturity follows `ageDays`.
 
-Add sliders that set maturity, vitality, and weight directly. Show the internal stage, senior band, maturity, vitality, weight, care window, feed window, level, xp, and each attribute's effective score and potential in this panel only. Do not show the seed.
+Add sliders that set `ageDays`, vitality, and weight directly. `ageDays` runs from 0 through 1000, and past 180 maturity stays at 1. Show the internal stage, senior band, `ageDays`, maturity, vitality, weight, care window, feed window, level, xp, and each attribute's effective score and potential in this panel only. Do not show the seed.
 
 ## Tasks
 
 Work in this order. Do not start a task until the previous check passes. Commit after each task.
 
-1. **Types and config.** Add the new pet fields and the starting numbers in `config.ts`. Check: the project compiles, and a created pet has maturity 0, vitality near the care target, and a name.
-2. **Identity and attributes.** `createLitter(seed)` returns three variations with three different labels and the same total potential. `createPet(seed, variant)` keeps that variation's potentials and temperament. Check: one seed always returns the same three puppies; one seed plus variant always matches itself; a second seed can differ; potentials do not change if `rngState` changes.
-3. **Maturity clock and stages.** Split the foreground tick from the resume path. Add the 48-hour cap, the one-boundary clamp, and `stageOf`. Check: foreground time leaves maturity unchanged; a 100-hour gap matches a 48-hour gap; a gain that would pass two thresholds stops on the first; maturity never falls.
+1. **Types and config.** Add the new pet fields, the breed records, and the starting numbers in `config.ts`. Check: the project compiles, and a created pet has `ageDays` 0, maturity 0, vitality near the care target, and a name. The five dog breeds carry anatomy from the reference. No logic file imports Skia.
+2. **Identity and attributes.** `createLitter(seed, breedId)` returns three variations with three different labels and the same total potential. `createPet(seed, breedId, variant)` keeps that variation's potentials and temperament. Check: one seed and breed always return the same three pets; one seed, breed, and variant always match themselves; a second seed can differ; potentials do not change if `rngState` changes.
+3. **Maturity clock and stages.** Split the foreground tick from the resume path. Add the 48-hour cap, the one-boundary clamp, and `stageOf`. Check: foreground time leaves `ageDays` unchanged; a 100-hour gap matches a 48-hour gap; a gain that would pass two thresholds stops on the first; maturity never falls; after maturity is 1, more closed time still raises `ageDays`.
 4. **Vitality, weight, and bands.** Add `careWindow`, `feedWindow`, the daily bounds, and senior-band hysteresis. Check: one feed barely moves vitality or weight; a stretch of extra feedings raises weight and missed feedings lower it; a 100-hour gap matches a 48-hour gap for weight; a new pet starts at 50; the band does not flicker inside the margin; vitality never goes below 0.35 from the care formula.
 5. **Level, growth, and drift.** Add xp, ceilings, drift, the maturity growth cap, the aging modifier, the weight modifier, and the training-gain taper. Check: no current score exceeds potential; growth at full maturity stays near 70% of potential; a gain near the cap is much smaller than the same gain far from it; aging and weight change the effective score only; weight away from 50 lowers stamina and agility; drift moves back toward 0 on a capped absence; the shown level respects the ceiling.
 6. **Age gate.** Persist pass and blocked separately from the pet. Check: under 13 stays blocked across a reload and saves no pet; a pass does not show the gate again.
-7. **Adoption.** Show the three variations with temperament, nudged attributes, and exact `current / potential` lines. Pick one and name it. Check: the same three are still there after a reload before naming; an empty name cannot continue; the saved pet stores that seed and variant; home shows the chosen pet's name, temperament, level, and six scores with no stage word and no seed; the other two variations are not saved.
-8. **View.** Drive scale, posture, and breathing from maturity and vitality, and body and leg width from weight. Ease maturity and weight changes. Check: the debug sliders move the pet smoothly across the range, the component never reads a stage label, and no screen outside the debug panel shows the weight number.
+7. **Adoption.** Pick a species and a breed, then show the three variations with temperament, nudged attributes, and exact `current / potential` lines. Pick one and name it. Check: the same three are still there after a reload before naming; an empty name cannot continue; the saved pet stores that seed, breed, and variant; home shows the chosen pet's name, temperament, level, and six scores with no stage word and no seed; the other two variations are not saved.
+8. **Actor.** Port the dog reference into the modules above and draw it with Skia. Hook feed, rest, pet, and throw ball to the tasks in the View section. Check: the five dog breeds render and age from day 0 to day 1000; bags appear across days 600 to 800 and fade when vitality is high; sit, sleep, eat, fetch, bark, and give paw transition without a pop; pant happens after a fetch and from no button; a headless test steps two actors; the behavior tests do not import Skia; backgrounding pauses the frame clock.
 9. **Reminders.** Schedule, cancel, and toggle the low-need notifications. Check: a stage word never appears in the copy, and denying permission leaves care usable.
-10. **Playtest.** Close the app, reopen it later, and use the debug jumps. Check: needs follow the Phase 0 table, maturity follows this brief, and a Phase 0 save does not crash.
+10. **Playtest.** Close the app, reopen it later, and use the debug jumps. Check: needs follow the Phase 0 table, `ageDays` follows this brief, and a Phase 0 save does not crash.
 
-When this exit is met, a Rive spike may replace `PetView` with a rig that takes the same maturity, vitality, and weight numbers, plus `ageDays` derived from maturity (`maturity * daysToSenior`). That spike needs a development build. It is not required to finish Phase 1. It does not include a wardrobe, a catalog, or a move onto the cosmetics contract. That contract is F6 in the PRD: attach points in Phase 3, and the bundled catalog with the cosmetics launch after the MVP.
+Outfits stay on the cosmetics contract in the PRD. Phase 1 does not build a wardrobe. The pose keeps `spineArch`, `crouch`, and `z` so a later hurdle or a cat file can use them. A friend encounter is a later feature. It will spawn a second actor from a snapshot and a seed. Do not build that screen in this phase.
