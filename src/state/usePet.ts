@@ -34,6 +34,10 @@ type PetApi = {
   cue: PetCue;
   remindersOn: boolean;
   setRemindersOn: (enabled: boolean) => void;
+  idle: () => void;
+  sit: () => void;
+  givePaw: () => void;
+  speak: () => void;
   feed: () => void;
   drink: () => void;
   rest: () => void;
@@ -237,6 +241,10 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
     [publish],
   );
 
+  const idle = useCallback(() => dispatch({ type: 'idle' }), [dispatch]);
+  const sit = useCallback(() => dispatch({ type: 'sit' }), [dispatch]);
+  const givePaw = useCallback(() => dispatch({ type: 'paw' }), [dispatch]);
+  const speak = useCallback(() => dispatch({ type: 'speak' }), [dispatch]);
   const feed = useCallback(() => dispatch({ type: 'feed' }), [dispatch]);
   const drink = useCallback(() => dispatch({ type: 'drink' }), [dispatch]);
   const rest = useCallback(() => dispatch({ type: 'toggleRest' }), [dispatch]);
@@ -262,6 +270,10 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
     cue,
     remindersOn,
     setRemindersOn,
+    idle,
+    sit,
+    givePaw,
+    speak,
     feed,
     drink,
     rest,

@@ -68,6 +68,10 @@ export type PetState = {
 };
 
 export type PetEvent =
+  | { type: 'idle' }
+  | { type: 'sit' }
+  | { type: 'paw' }
+  | { type: 'speak' }
   | { type: 'feed' }
   | { type: 'drink' }
   | { type: 'toggleRest' }
@@ -79,7 +83,7 @@ export type PetEvent =
 export type Mood = 'happy' | 'content' | 'hungry' | 'sleepy' | 'sad' | 'sleeping';
 
 export type Cue = {
-  kind: 'none' | 'eat' | 'drink' | 'wiggle' | 'purr' | 'stir' | 'yawn' | 'fetch';
+  kind: 'none' | 'idle' | 'sit' | 'paw' | 'speak' | 'eat' | 'drink' | 'wiggle' | 'purr' | 'stir' | 'yawn' | 'fetch';
   drop?: { x: number; y: number };
 };
 

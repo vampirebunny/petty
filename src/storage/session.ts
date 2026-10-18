@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const attestationKey = 'petty.attestation';
 const draftKey = 'petty.draft';
 const remindersKey = 'petty.reminders';
+const soundKey = 'petty.sound';
 
 export type Attestation = 'passed' | 'blocked';
 
@@ -60,4 +61,13 @@ export async function loadRemindersEnabled(): Promise<boolean> {
 
 export async function saveRemindersEnabled(enabled: boolean): Promise<void> {
   await AsyncStorage.setItem(remindersKey, enabled ? 'on' : 'off');
+}
+
+export async function loadSoundEnabled(): Promise<boolean> {
+  const raw = await AsyncStorage.getItem(soundKey);
+  return raw !== 'off';
+}
+
+export async function saveSoundEnabled(enabled: boolean): Promise<void> {
+  await AsyncStorage.setItem(soundKey, enabled ? 'on' : 'off');
 }

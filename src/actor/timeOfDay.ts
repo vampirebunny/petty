@@ -1,3 +1,5 @@
+import { mulberry } from './mulberry';
+
 export type DayPhase = 'Night' | 'Dawn' | 'Morning' | 'Afternoon' | 'Dusk' | 'Evening';
 
 export type Rgba = {
@@ -132,3 +134,17 @@ export function todAt(hour: number): TimeOfDay {
     dark: from.dark + (to.dark - from.dark) * t,
   };
 }
+
+// Fixed star field: [x 0-1, y 0-0.85, size, twinkle phase].
+export const stars: readonly (readonly [number, number, number, number])[] = (() => {
+  const roll = mulberry(11);
+  const list: [number, number, number, number][] = [];
+  for (let i = 0; i < 46; i += 1) {
+    const x = roll();
+    const y = roll() * 0.85;
+    const size = 0.7 + roll() * 1.1;
+    const phase = roll() * 6.28;
+    list.push([x, y, size, phase]);
+  }
+  return list;
+})();

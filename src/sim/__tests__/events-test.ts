@@ -64,3 +64,22 @@ it('returns the same result for the same state and event', () => {
     applyEvent(before, { type: 'toggleRest' }),
   );
 });
+
+it('runs idle, sit, give paw and speak without touching needs', () => {
+  const before = createPet(1, 'retriever', 0, 0, 'Pup', 'pet');
+  for (const type of ['sit', 'paw', 'speak'] as const) {
+    const result = applyEvent(before, { type });
+    expect(result.cue).toEqual({ kind: type });
+    expect(result.state.needs).toEqual(before.needs);
+    expect(result.state.rngState).toBe(before.rngState);
+    // A sleeping pet only stirs.
+    expect(applyEvent(asleep(before), { type }).cue).toEqual({ kind: 'stir' });
+  }
+});
+
+it('wakes a sleeping pet when asked to idle', () => {
+  const before = asleep(createPet(1, 'retriever', 0, 0, 'Pup', 'pet'));
+  const result = applyEvent(before, { type: 'idle' });
+  expect(result.cue).toEqual({ kind: 'idle' });
+  expect(result.state.asleep).toBe(false);
+});

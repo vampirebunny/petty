@@ -246,6 +246,15 @@ export function breedById(id: string): Breed | null {
   return byId.get(id) ?? null;
 }
 
+// The cat clip is recorded at this breed pitch, so a rate of 1 plays it as recorded.
+export const catClipPitch = 1.5;
+
 export function pitchFor(breed: Breed, growth: number): number {
-  return breed.pitch * (1.35 - 0.35 * growth);
+  return breed.species === 'cat' ? breed.pitch * (1.25 - 0.25 * growth) : breed.pitch * (1.35 - 0.35 * growth);
+}
+
+// Playback rate for the recorded clip: breed pitch times the age factor, relative to how the clip was made.
+export function voiceRate(breed: Breed, growth: number): number {
+  const pitch = pitchFor(breed, growth);
+  return breed.species === 'cat' ? pitch / catClipPitch : pitch;
 }

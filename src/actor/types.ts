@@ -78,6 +78,7 @@ export type Task = {
   kind?: 'eat' | 'drink';
   bats: number;
   cool: number;
+  poi?: { x: number; y: number; face?: 1 | -1 };
 };
 
 export type Idle = {
@@ -94,6 +95,7 @@ export type Bark = {
   t: number;
   fired: [boolean, boolean];
   open: number;
+  sound: boolean;
 };
 
 export type Actor = {
@@ -150,6 +152,14 @@ export type Ball = {
   carrierId: string | null;
 };
 
+export type Particle = { x: number; y: number; v: number; ph: number };
+
+export type SoundEvent = {
+  actorId: string;
+  sound: 'bark' | 'meow';
+  rate: number;
+};
+
 export type World = {
   actors: Actor[];
   ball: Ball;
@@ -158,6 +168,8 @@ export type World = {
   rng: () => number;
   scene: Scene;
   reducedMotion: boolean;
+  particles: Particle[];
+  sounds: SoundEvent[];
 };
 
 export type ActorSource = {

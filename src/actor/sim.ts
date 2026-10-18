@@ -1,11 +1,12 @@
 import { weightBurnPerSec, weightRunSpeed } from '../sim/config';
 import { bodyFrame, reachOf, speedMax, stageWidth } from './geometry';
-import { breedById } from './breeds';
+import { breedById, voiceRate } from './breeds';
+import { growthFor } from './growth';
 import { canBehave, reactionFor, type UserTask } from './behavior';
 import { defaultPose, easePose } from './pose';
-import { poiOf, scenes, stageHeight } from './scenes';
+import { nearestPoi, poiOf, scenes, stageHeight } from './scenes';
 import type { Scene } from './scenes';
-import type { Actor, ActorSource, Anchors, Ball, Idle, IdleMode, Pose, Task, TaskType, Vec, World } from './types';
+import type { Actor, ActorSource, Anchors, Ball, Idle, IdleMode, Pose, SoundEvent, Task, TaskType, Vec, World } from './types';
 
 const displayTau = 0.35;
 const idleWeight: Record<IdleMode, number> = { still: 3, pant: 2, purr: 2, nap: 1.5, walk: 2.5 };
@@ -86,7 +87,7 @@ export function spawnActor(source: ActorSource, at?: Vec): Actor {
     breathPh: 0,
     blinkT: 3,
     pantT: 0,
-    bark: { active: false, t: 0, fired: [false, false], open: 0 },
+    bark: { active: false, t: 0, fired: [false, false], open: 0, sound: false },
     ageDays: source.ageDays,
     displayAgeDays: source.ageDays,
     weight: source.weight,
@@ -100,8 +101,44 @@ export function spawnActor(source: ActorSource, at?: Vec): Actor {
   };
 }
 
+function seedParticles(world: World): void {
+  const ambient = world.scene.ambient?.particles;
+  world.particles = [];
+  if (!ambient) {
+    return;
+  }
+  const count = ambient.count || (ambient.kind === 'rain' ? 70 : 14);
+  for (let i = 0; i < count; i += 1) {
+    world.particles.push({
+      x: world.rng() * stageWidth,
+      y: world.rng() * stageHeight,
+      v: 0.6 + world.rng() * 0.8,
+      ph: world.rng() * 6.28,
+    });
+  }
+}
+
 export function createWorld(actors: Actor[], seed = 1, scene: Scene = scenes.livingroom): World {
-  return { actors, ball: emptyBall(), bowlFill: 1, t: 0, rng: makeRng(seed), scene, reducedMotion: false };
+  const world: World = {
+    actors,
+    ball: emptyBall(),
+    bowlFill: 1,
+    t: 0,
+    rng: makeRng(seed),
+    scene,
+    reducedMotion: false,
+    particles: [],
+    sounds: [],
+  };
+  seedParticles(world);
+  return world;
+}
+
+// Sounds the actors made since the last call. The view plays them; the sim never touches audio.
+export function takeSounds(world: World): SoundEvent[] {
+  const sounds = world.sounds;
+  world.sounds = [];
+  return sounds;
 }
 
 export function syncActor(actor: Actor, source: ActorSource): void {
@@ -125,9 +162,11 @@ export function takeWeightDelta(actor: Actor): number {
   return delta;
 }
 
+// A new scene only moves the actors to its home spot. Pet state is untouched, so a sleeping pet keeps sleeping.
 export function setWorldScene(world: World, scene: Scene): void {
   world.scene = scene;
   const home = homeOf(scene);
+  const bed = poiOf(scene, 'bed');
   for (const actor of world.actors) {
     actor.x = home.x;
     actor.y = home.y;
@@ -135,8 +174,18 @@ export function setWorldScene(world: World, scene: Scene): void {
     actor.vy = 0;
     actor.z = 0;
     actor.vz = 0;
+    actor.speed = 0;
+    actor.face = 1;
+    actor.bark = { active: false, t: 0, fired: [false, false], open: 0, sound: false };
+    if (actor.asleep) {
+      actor.task = taskOf('sleep', bed ? 'go' : 'sleeping');
+    } else {
+      actor.task = taskOf('idle');
+      beginIdle(world, actor, 'still');
+    }
   }
   world.ball = emptyBall();
+  seedParticles(world);
 }
 
 export function frameDt(elapsedMs: number, active: boolean): number {
@@ -213,7 +262,7 @@ function beginIdle(world: World, actor: Actor, mode: IdleMode): void {
   actor.idle.arrived = true;
   actor.idle.dur = mode === 'still' ? 3 + roll() * 3.5 : mode === 'nap' ? 9 + roll() * 6 : mode === 'walk' ? 9 : 4 + roll() * 2.5;
   actor.idle.sit = mode === 'purr' ? true : mode === 'pant' ? roll() < 0.5 : false;
-  const bed = mode === 'nap' ? poiOf(world.scene, 'bed') : null;
+  const bed = mode === 'nap' ? nearestPoi(world.scene, 'bed', actor) : null;
   if (bed) {
     actor.idle.target = { x: bed.x, y: bed.y };
     actor.idle.arrived = false;
@@ -252,25 +301,41 @@ export function startUserTask(world: World, actor: Actor, task: UserTask, roll =
     return true;
   }
   if (task === 'sleep') {
-    const bed = poiOf(world.scene, 'bed');
-    if (!bed) {
-      return false;
-    }
+    // Walk to the bed when the scene has one, otherwise sleep where the pet stands.
+    const bed = nearestPoi(world.scene, 'bed', actor);
+    releaseCarried(world, actor);
     actor.asleep = true;
-    actor.task = taskOf('sleep', 'go');
+    actor.task = taskOf('sleep', bed ? 'go' : 'sleeping');
+    actor.task.poi = bed ?? undefined;
     actor.pantT = 0;
     return true;
   }
   if (actor.asleep) {
     return false;
   }
+  if (task === 'idle') {
+    goIdle(world, actor);
+    return true;
+  }
+  if (task === 'sit' || task === 'paw') {
+    releaseCarried(world, actor);
+    actor.task = taskOf(task);
+    actor.pantT = 0;
+    return true;
+  }
+  if (task === 'speak') {
+    // A voice rides on whatever the pet is doing, so the task is left alone.
+    actor.bark = { active: true, t: 0, fired: [false, false], open: 0, sound: true };
+    return true;
+  }
   if (task === 'eat' || task === 'drink') {
-    const poi = poiOf(world.scene, task === 'eat' ? 'food' : 'water');
+    const poi = nearestPoi(world.scene, task === 'eat' ? 'food' : 'water', actor);
     if (!poi || !canBehave(actor, 'eat')) {
       return false;
     }
     releaseCarried(world, actor);
     actor.task = taskOf('eat', 'go', task);
+    actor.task.poi = poi;
     actor.pantT = 0;
     return true;
   }
@@ -291,7 +356,7 @@ export function startUserTask(world: World, actor: Actor, task: UserTask, roll =
   }
   releaseCarried(world, actor);
   if (reaction === 'bark' || reaction === 'purr') {
-    actor.bark = { active: true, t: 0, fired: [false, false], open: 0 };
+    actor.bark = { active: true, t: 0, fired: [false, false], open: 0, sound: reaction === 'bark' };
     if (reaction === 'purr') {
       actor.task = taskOf('purr');
     }
@@ -375,6 +440,7 @@ function updateActor(world: World, actor: Actor, dt: number): void {
     actor.y,
     actor.face,
     floor,
+    actor.speed,
   );
   actor.mouth = frame.mouth;
   actor.anchors = {
@@ -467,7 +533,7 @@ function updateActor(world: World, actor: Actor, dt: number): void {
       goIdle(world, actor);
     }
   } else if (actor.task.type === 'sleep') {
-    const bed = poiOf(world.scene, 'bed');
+    const bed = actor.task.poi ?? poiOf(world.scene, 'bed');
     if (actor.task.stage === 'go' && bed) {
       move = { x: bed.x, y: bed.y };
       vmax = limit * 0.5;
@@ -498,7 +564,7 @@ function updateActor(world: World, actor: Actor, dt: number): void {
       goIdle(world, actor);
     }
   } else if (actor.task.type === 'eat') {
-    const poi = poiOf(world.scene, actor.task.kind === 'drink' ? 'water' : 'food');
+    const poi = actor.task.poi ?? poiOf(world.scene, actor.task.kind === 'drink' ? 'water' : 'food');
     const face = poi?.face ?? 1;
     const spot = poi
       ? { x: poi.x - face * frame.scale * (frame.geom.bodyLen / 2 + 34), y: poi.y }
@@ -525,14 +591,15 @@ function updateActor(world: World, actor: Actor, dt: number): void {
     wagRate = 9;
     const reach = reachOf(frame.geom) * frame.scale;
     if (actor.task.stage === 'chase' && world.ball.state === 'free') {
+      const mouthSlop = 2;
       let ahead = (world.ball.x - actor.x) * actor.face;
-      if (ahead < -14) {
+      if (ahead < -mouthSlop) {
         actor.face = -actor.face;
         ahead = -ahead;
       }
       move = { x: ahead > reach ? world.ball.x - actor.face * reach : actor.x, y: world.ball.y };
       vmax = limit;
-      const near = ahead >= -2 && ahead <= reach + 10 && Math.abs(actor.y - world.ball.y) < 10 && world.ball.z < 16;
+      const near = ahead >= -mouthSlop && ahead <= reach + 10 && Math.abs(actor.y - world.ball.y) < 10 && world.ball.z < 16;
       if (near && cat && actor.task.cool <= 0) {
         world.ball.vx = actor.face * (150 + world.rng() * 120);
         world.ball.vy = (world.rng() - 0.5) * 140;
@@ -570,6 +637,13 @@ function updateActor(world: World, actor: Actor, dt: number): void {
       const local = actor.bark.t - beat.at;
       if (local >= 0 && !actor.bark.fired[index]) {
         actor.bark.fired[index] = true;
+        if (actor.bark.sound && world.sounds.length < 8) {
+          world.sounds.push({
+            actorId: actor.id,
+            sound: cat ? 'meow' : 'bark',
+            rate: voiceRate(breed, growthFor(actor.displayAgeDays).scale),
+          });
+        }
       }
       if (local >= 0 && local < beat.len) {
         actor.bark.open = Math.max(actor.bark.open, Math.sin((local / beat.len) * Math.PI));
@@ -623,6 +697,35 @@ function updateActor(world: World, actor: Actor, dt: number): void {
   }
 }
 
+function updateParticles(world: World, dt: number): void {
+  const kind = world.scene.ambient?.particles?.kind;
+  if (!kind || world.reducedMotion) {
+    return;
+  }
+  for (const p of world.particles) {
+    if (kind === 'rain') {
+      p.y += 420 * p.v * dt;
+      p.x -= 60 * p.v * dt;
+    } else if (kind === 'snow') {
+      p.y += 28 * p.v * dt;
+      p.x += Math.sin(world.t * 1.2 + p.ph) * 14 * dt;
+    } else {
+      p.y += 22 * p.v * dt;
+      p.x += (14 + Math.sin(world.t * 1.5 + p.ph) * 20) * dt;
+    }
+    if (p.y > stageHeight + 8) {
+      p.y = -8;
+      p.x = world.rng() * stageWidth;
+    }
+    if (p.x > stageWidth + 8) {
+      p.x = -8;
+    }
+    if (p.x < -8) {
+      p.x = stageWidth + 8;
+    }
+  }
+}
+
 export function update(world: World, dt: number): void {
   if (dt <= 0) {
     return;
@@ -630,6 +733,7 @@ export function update(world: World, dt: number): void {
   const step = Math.min(dt, 0.05);
   world.t += step;
   updateBall(world, step);
+  updateParticles(world, step);
   const eating = world.actors.some(
     (actor) => actor.task.type === 'eat' && actor.task.kind !== 'drink' && actor.task.stage === 'eating',
   );

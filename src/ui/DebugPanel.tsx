@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 
+import { phaseOf } from '../actor';
 import { attributeScore, stageOf, traits } from '../sim';
 import type { Mood, PetState, Trait } from '../sim/types';
 import type { PetCue } from '../state/usePet';
@@ -22,6 +23,28 @@ type Props = {
 };
 
 const hourMs = 60 * 60 * 1000;
+
+// Test controls for the sky. Live follows the device clock; the others pin the hour.
+const phaseButtons: [string, number | null][] = [
+  ['Live', null],
+  ['Dawn', 6.25],
+  ['Morning', 9.5],
+  ['Afternoon', 14],
+  ['Dusk', 18],
+  ['Evening', 19.75],
+  ['Night', 23],
+];
+
+function liveHour(): number {
+  const now = new Date();
+  return now.getHours() + now.getMinutes() / 60 + now.getSeconds() / 3600;
+}
+
+function formatHour(hour: number): string {
+  const h = Math.floor(hour);
+  const m = Math.floor((hour - h) * 60);
+  return `${((h + 11) % 12) + 1}:${String(m).padStart(2, '0')} ${h >= 12 && h < 24 ? 'pm' : 'am'}`;
+}
 
 const traitLabel: Record<Trait, string> = {
   stamina: 'Stamina',
@@ -124,10 +147,27 @@ export function DebugPanel({
       <RangeControl label="Age" min={0} max={1000} value={Math.min(1000, state.ageDays)} onChange={onAge} />
       <RangeControl label="Vitality" min={0} max={1} value={state.vitality} onChange={onVitality} />
       <RangeControl label="Weight" min={-1} max={1} value={state.weight} onChange={onWeight} />
-      <RangeControl label="Hour" min={0} max={24} value={hour ?? 12} onChange={onHour} />
-      <Pressable onPress={() => onHour(null)}>
-        <Text style={styles.line}>{hour == null ? 'Clock is live' : 'Use the live clock'}</Text>
-      </Pressable>
+      <RangeControl
+        label={`Time of day: ${phaseOf(hour ?? liveHour())}, ${formatHour(hour ?? liveHour())}${hour == null ? ' (live)' : ''}`}
+        min={0}
+        max={24}
+        value={hour ?? liveHour()}
+        onChange={onHour}
+      />
+      <View style={styles.actions}>
+        {phaseButtons.map(([label, value]) => {
+          const selected = value == null ? hour == null : hour != null && phaseOf(hour) === label;
+          return (
+            <Pressable
+              key={label}
+              style={[styles.button, selected && styles.selected]}
+              onPress={() => onHour(value)}
+            >
+              <Text style={[styles.buttonLabel, selected && styles.selectedLabel]}>{label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
       <View style={styles.actions}>
         <Pressable style={styles.button} onPress={() => onAdvance(hourMs)}>
           <Text style={styles.buttonLabel}>+1 hour</Text>
@@ -198,5 +238,11 @@ const styles = StyleSheet.create({
   buttonLabel: {
     fontSize: 13,
     color: '#243044',
+  },
+  selected: {
+    backgroundColor: '#2f7d5b',
+  },
+  selectedLabel: {
+    color: '#fff',
   },
 });

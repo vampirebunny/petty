@@ -83,6 +83,19 @@ export function applyEvent(state: PetState, event: PetEvent): EventResult {
     return { state: next, cue: { kind: 'none' } };
   }
 
+  if (event.type === 'idle') {
+    // Idle is the way back to the resting state: it cancels what the pet is doing and wakes a sleeper.
+    const next = copyState(state);
+    next.asleep = false;
+    return { state: next, cue: { kind: 'idle' } };
+  }
+
+  if (event.type === 'sit' || event.type === 'paw' || event.type === 'speak') {
+    // Showing a trick costs nothing. A sleeping pet only stirs.
+    const next = copyState(state);
+    return { state: next, cue: { kind: state.asleep ? 'stir' : event.type } };
+  }
+
   if (event.type === 'feed' || event.type === 'drink') {
     if (state.asleep) {
       return { state: copyState(state), cue: { kind: 'stir' } };

@@ -1,4 +1,4 @@
-import { actionEnabled, compileScene, loadScene, scenes, startUserTask } from '..';
+import { actionEnabled, actionReason, compileScene, loadScene, scenes, startUserTask } from '..';
 import { lighting } from '../lighting';
 import { phaseOf, todAt } from '../timeOfDay';
 import { createWorld, spawnActor } from '../sim';
@@ -51,7 +51,10 @@ it('enables an action only when the scene has its point', () => {
   expect(actionEnabled(scenes.livingroom, 'drink')).toBe(false);
   expect(actionEnabled(scenes.park, 'drink')).toBe(true);
   expect(actionEnabled(scenes.park, 'feed')).toBe(false);
-  expect(actionEnabled(scenes.park, 'rest')).toBe(false);
+  expect(actionEnabled(scenes.park, 'rest')).toBe(true);
+  expect(actionReason(scenes.park, 'feed')).toBe('There is no food bowl in this scene.');
+  expect(actionReason(scenes.livingroom, 'drink')).toBe('There is no water in this scene.');
+  expect(actionReason(scenes.livingroom, 'feed')).toBe('');
 
   const pup = spawnActor({
     id: 'pup',
@@ -65,5 +68,7 @@ it('enables an action only when the scene has its point', () => {
   const park = createWorld([pup], 1, scenes.park);
   expect(startUserTask(park, pup, 'drink')).toBe(true);
   expect(startUserTask(park, pup, 'eat')).toBe(false);
-  expect(startUserTask(park, pup, 'sleep')).toBe(false);
+  // With no bed the pet sleeps where it stands.
+  expect(startUserTask(park, pup, 'sleep')).toBe(true);
+  expect(pup.task.type).toBe('sleep');
 });

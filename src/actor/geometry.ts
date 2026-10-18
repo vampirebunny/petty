@@ -145,14 +145,17 @@ export function bodyFrame(
   y: number,
   face: number,
   floor: { yMin: number; yMax: number },
+  speed = 0,
 ): BodyFrame {
   const geom = geomOf(breed, ageDays, weight, vitality);
   const scale = geom.sc * depthScale(y, floor.yMin, floor.yMax);
   const theta = -geom.aSit * pose.sit + 0.12 * pose.headDown;
-  const bounce = -Math.abs(Math.sin(phase)) * 2.4 * pose.walk;
+  const bounce =
+    -Math.abs(Math.sin(phase)) * 2.4 * pose.walk * (0.5 + clamp(speed / 190, 0, 1) * 0.8) - barkOpen * 2.5;
   const dy = -geom.Py * pose.sit + geom.dLie * pose.lie + bounce;
   const natural = torsoPoint(geom, theta, dy, geom.bodyLen / 2 + 4, geom.bodyY - geom.bodyH * 0.32 - 4);
   natural.x += 10 * pose.sit;
+  natural.y += Math.sin(phase * 2) * 1.4 * pose.walk;
   const pitchBase = -0.1 * pose.sit - 0.3 * barkOpen;
   const eatPitch = 0.7;
   const restPitch = 0.12;

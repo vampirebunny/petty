@@ -1,6 +1,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { loadAttestation, loadDraft, saveAttestation, saveDraft } from '../session';
+import {
+  loadAttestation,
+  loadDraft,
+  loadSoundEnabled,
+  saveAttestation,
+  saveDraft,
+  saveSoundEnabled,
+} from '../session';
 
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock'),
@@ -21,4 +28,12 @@ it('returns the same draft seed and breed', async () => {
   await expect(loadDraft()).resolves.toEqual({ seed: 42, breedId: 'husky' });
   await saveAttestation('passed');
   await expect(loadAttestation()).resolves.toBe('passed');
+});
+
+it('keeps the sound setting, on by default', async () => {
+  await expect(loadSoundEnabled()).resolves.toBe(true);
+  await saveSoundEnabled(false);
+  await expect(loadSoundEnabled()).resolves.toBe(false);
+  await saveSoundEnabled(true);
+  await expect(loadSoundEnabled()).resolves.toBe(true);
 });

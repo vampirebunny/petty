@@ -185,6 +185,17 @@ it('picks another idle and skips a walk when motion is reduced', () => {
   }
 });
 
+it('picks up a ball sitting just behind the mouth', () => {
+  const pup = actor();
+  const world = createWorld([pup], 1);
+  pup.face = 1;
+  pup.task = { type: 'fetch', stage: 'chase', t: 0, bats: 0, cool: 0 };
+  world.ball = { state: 'free', x: pup.x - 10, y: pup.y, z: 0, vx: 0, vy: 0, vz: 0, carrierId: null };
+  update(world, 0.05);
+  expect(world.ball.state).toBe('carried');
+  expect(pup.task.stage).toBe('return');
+});
+
 it('lets a dog carry the ball home and a cat bat it three times', () => {
   const pup = actor();
   const chase = createWorld([pup], 5);

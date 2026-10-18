@@ -1,11 +1,24 @@
-export { breedById, breedsFor, catBreeds, catTasks, dogBreeds, dogTasks, limbSize, pitchFor, sharedTasks } from './breeds';
+export { breedById, breedsFor, catBreeds, catTasks, dogBreeds, dogTasks, limbSize, pitchFor, sharedTasks, voiceRate } from './breeds';
 export { canBehave, isUserTask, reactionFor, userTasks } from './behavior';
 export { bagAmount, bodyFrame, depthScale, geomOf, thickOf } from './geometry';
 export { easeOut, growthFor, smoothstep, visualProgress } from './growth';
 export { gaitFoot, jumpArc, solveKnee } from './legs';
 export { defaultPose, easePose } from './pose';
-export { actionEnabled, compileScene, loadScene, poiOf, sceneById, sceneList, scenes } from './scenes';
-export { phaseOf, todAt } from './timeOfDay';
+export {
+  actionEnabled,
+  actionReason,
+  compileScene,
+  isPreset,
+  loadScene,
+  poiOf,
+  sceneById,
+  sceneList,
+  sceneSource,
+  scenes,
+  tuftsFor,
+} from './scenes';
+export { statusOf } from './status';
+export { phaseOf, stars, todAt } from './timeOfDay';
 export { outfitSlots, wardrobe, wearItem } from './wardrobe';
 export {
   createWorld,
@@ -17,6 +30,7 @@ export {
   stagePoint,
   startUserTask,
   syncActor,
+  takeSounds,
   takeWeightDelta,
   throwFromEdge,
   update,
@@ -24,4 +38,4 @@ export {
 export type { Geom } from './geometry';
 export type { Scene } from './scenes';
 export type { TimeOfDay } from './timeOfDay';
-export type { Actor, ActorSource, Anchors, Breed, Pose, TaskType, World } from './types';
+export type { Actor, ActorSource, Anchors, Breed, Pose, SoundEvent, TaskType, World } from './types';

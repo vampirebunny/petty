@@ -1,4 +1,5 @@
 import { defaultActorTint } from './lighting';
+import { mulberry, seedOf } from './mulberry';
 
 export const stageWidth = 640;
 export const stageHeight = 340;
@@ -31,6 +32,12 @@ export type Shape = {
   r?: number;
   rx?: number;
   ry?: number;
+  pts?: [number, number][];
+  x1?: number;
+  y1?: number;
+  x2?: number;
+  y2?: number;
+  lw?: number;
   fill?: string;
   stroke?: string;
   alpha?: number;
@@ -80,9 +87,12 @@ export type Scene = {
   pois: Poi[];
   lighting: { actorTint: number };
   ambient?: {
+    tint?: string;
     particles?: { kind: 'rain' | 'snow' | 'leaves'; count?: number; color?: string };
   };
 };
+
+export const particleKinds = ['rain', 'snow', 'leaves'] as const;
 
 function readActorTint(value: unknown, time: SceneTime): number {
   if (value == null) {
@@ -168,6 +178,10 @@ export function compileScene(def: unknown): Scene {
     }
     return prop as Prop;
   });
+  const ambient = isRecord(def.ambient) ? def.ambient : undefined;
+  if (ambient && isRecord(ambient.particles) && !particleKinds.includes(ambient.particles.kind as (typeof particleKinds)[number])) {
+    throw new Error('"ambient.particles.kind" must be rain, snow or leaves.');
+  }
   const pois = Array.isArray(def.pois) ? def.pois : [];
   const compiledPois = pois.map((poi, index) => {
     if (!isRecord(poi) || typeof poi.type !== 'string' || typeof poi.x !== 'number' || typeof poi.y !== 'number') {
@@ -205,7 +219,7 @@ export function compileScene(def: unknown): Scene {
     props: compiledProps,
     pois: compiledPois,
     lighting: { actorTint },
-    ambient: isRecord(def.ambient) ? (def.ambient as Scene['ambient']) : undefined,
+    ambient: ambient as Scene['ambient'],
   };
 }
 
@@ -294,6 +308,20 @@ const sceneDefs = {
     surface: { bounce: 0.38, friction: 3 },
     props: [
       { kind: 'window', x: 130, y: 150, w: 100, h: 96, layer: 'back' },
+      {
+        kind: 'shape',
+        x: 350,
+        y: 206,
+        shapes: [
+          { t: 'rect', x: -100, y: -80, w: 200, h: 34, fill: '#5a4268', r: 6 },
+          { t: 'rect', x: -96, y: -54, w: 192, h: 42, fill: '#e6dff0', r: 6 },
+          { t: 'rect', x: -96, y: -40, w: 192, h: 28, fill: '#5e7fc4', r: 6 },
+          { t: 'ellipse', x: -52, y: -52, rx: 30, ry: 9, fill: '#ffffff' },
+          { t: 'ellipse', x: 52, y: -52, rx: 30, ry: 9, fill: '#ffffff' },
+          { t: 'rect', x: -98, y: -12, w: 8, h: 12, fill: '#3d2f4a' },
+          { t: 'rect', x: 90, y: -12, w: 8, h: 12, fill: '#3d2f4a' },
+        ],
+      },
       { kind: 'lamp', x: 540, y: 208 },
       { kind: 'bed', x: 470, y: 276, w: 112, color: '#d98b3a' },
       { kind: 'bowl', x: 130, y: 276, color: '#c24d4d', contents: 'kibble' },
@@ -314,12 +342,60 @@ export const scenes = {
 
 export const sceneList = [scenes.livingroom, scenes.park, scenes.bedroom];
 
+// The data a preset was built from, as plain JSON, so it can be edited and applied back.
+export function sceneSource(id: string): unknown {
+  const def = (sceneDefs as Record<string, unknown>)[id] ?? sceneDefs.livingroom;
+  return JSON.parse(JSON.stringify(def));
+}
+
+export function isPreset(id: string): boolean {
+  return id in sceneDefs;
+}
+
+export type Tuft = { x: number; y: number; s: number };
+
+const tuftCache = new WeakMap<Scene, Tuft[]>();
+
+// Grass tufts are seeded by the scene id so a scene always looks the same.
+export function tuftsFor(scene: Scene): Tuft[] {
+  const cached = tuftCache.get(scene);
+  if (cached) {
+    return cached;
+  }
+  const roll = mulberry(seedOf(scene.id));
+  const list: Tuft[] = [];
+  const horizon = scene.floor.horizon;
+  for (let i = 0; i < 110; i += 1) {
+    const y = horizon + 6 + roll() * (stageHeight - horizon - 8);
+    const x = roll() * stageWidth;
+    list.push({ x, y, s: 3 + ((y - horizon) / (stageHeight - horizon)) * 6 });
+  }
+  tuftCache.set(scene, list);
+  return list;
+}
+
 export function sceneById(id: string): Scene {
   return sceneList.find((scene) => scene.id === id) ?? scenes.livingroom;
 }
 
 export function poiOf(scene: Scene, type: string): Poi | null {
   return scene.pois.find((poi) => poi.type === type) ?? null;
+}
+
+// The closest spot of a type, so a scene with two bowls sends the pet to the nearer one.
+export function nearestPoi(scene: Scene, type: string, from: { x: number; y: number }): Poi | null {
+  let best: Poi | null = null;
+  let bestDistance = Infinity;
+  for (const poi of scene.pois) {
+    if (poi.type === type) {
+      const distance = Math.hypot(poi.x - from.x, poi.y - from.y);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        best = poi;
+      }
+    }
+  }
+  return best;
 }
 
 export function actionEnabled(scene: Scene, action: 'feed' | 'drink' | 'rest'): boolean {
@@ -329,5 +405,13 @@ export function actionEnabled(scene: Scene, action: 'feed' | 'drink' | 'rest'): 
   if (action === 'drink') {
     return poiOf(scene, 'water') != null;
   }
-  return poiOf(scene, 'bed') != null;
+  // Sleep walks to a bed when the scene has one and otherwise sleeps where the pet stands.
+  return true;
+}
+
+export function actionReason(scene: Scene, action: 'feed' | 'drink' | 'rest'): string {
+  if (actionEnabled(scene, action)) {
+    return '';
+  }
+  return action === 'feed' ? 'There is no food bowl in this scene.' : 'There is no water in this scene.';
 }
