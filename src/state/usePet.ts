@@ -15,7 +15,7 @@ import {
   setWeight,
   tickForeground,
 } from '../sim';
-import type { Cue, Mood, OutfitSlot, PetEvent, PetState, Variant } from '../sim';
+import type { Cue, Look, Mood, OutfitSlot, PetAttributes, PetEvent, PetState } from '../sim';
 import { clearDraft } from '../storage/session';
 import { loadRemindersEnabled, saveRemindersEnabled } from '../storage/session';
 import { asyncPetStorage } from '../storage/asyncStorage';
@@ -53,7 +53,7 @@ type PetApi = {
   setWeightValue: (weight: number) => void;
   reset: () => void;
   release: () => void;
-  adopt: (seed: number, breedId: string, variant: Variant, name: string) => void;
+  adopt: (breedId: string, attributes: PetAttributes, look: Look, name: string) => void;
 };
 
 export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
@@ -197,8 +197,16 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
     if (!current) {
       return;
     }
+    // Reuse the stored attributes and look: a reset must not regenerate potential from today's breed ranges.
     publish(
-      createPet(current.seed, current.breedId, current.variant, Date.now(), current.name, current.id),
+      createPet({
+        id: current.id,
+        name: current.name,
+        breedId: current.breedId,
+        look: current.look,
+        attributes: current.attributes,
+        now: Date.now(),
+      }),
       { kind: 'none' },
     );
   }, [publish]);
@@ -224,9 +232,10 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
   }, []);
 
   const adopt = useCallback(
-    (seed: number, breedId: string, variant: Variant, name: string) => {
-      const id = `${seed}-${variant}-${Date.now().toString(36)}`;
-      publish(createPet(seed, breedId, variant, Date.now(), name, id), { kind: 'none' });
+    (breedId: string, attributes: PetAttributes, look: Look, name: string) => {
+      const now = Date.now();
+      const id = `${attributes.seed}-${attributes.archetype}-${now.toString(36)}`;
+      publish(createPet({ id, name, breedId, look, attributes, now }), { kind: 'none' });
       void clearDraft();
     },
     [publish],

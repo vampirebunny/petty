@@ -1,4 +1,4 @@
-import { currentScores, potentialOf, rngSeed, temperamentOf, withDerived, zeroStats } from './attributes';
+import { rngSeed, withDerived, zeroStats } from './attributes';
 import {
   defaultSceneId,
   startingAsleep,
@@ -8,30 +8,23 @@ import {
   startingWeight,
 } from './config';
 import { vitalityTarget } from './care';
-import type { LitterMate, PetState, Variant } from './types';
+import { startingCurrent } from './offers';
+import type { Look, PetAttributes, PetState } from './types';
 
-export function createLitter(seed: number, breedId: string): LitterMate[] {
-  return ([0, 1, 2] as Variant[]).map((variant) => {
-    const potential = potentialOf(seed, breedId, variant);
-    return {
-      variant,
-      breedId,
-      temperament: temperamentOf(variant),
-      potential,
-      current: currentScores(potential, 0),
-    };
-  });
-}
+export type NewPet = {
+  id: string;
+  name: string;
+  breedId: string;
+  look: Look;
+  // The picked attribute set from `attributesFor`. Potential is stored and never recomputed.
+  attributes: PetAttributes;
+  now: number;
+};
 
-export function createPet(
-  seed: number,
-  breedId: string,
-  variant: Variant,
-  now: number,
-  name: string,
-  id: string,
-): PetState {
-  const mate = createLitter(seed, breedId)[variant];
+// A brand-new pet from the adoption choices. Pure: the same inputs always return the same pet.
+// Current restarts at the starting fraction of the stored potential, so a debug reset can reuse
+// the stored attributes without regenerating them from today's breed ranges.
+export function createPet({ id, name, breedId, look, attributes, now }: NewPet): PetState {
   const careWindow = [
     {
       day: 0,
@@ -43,8 +36,6 @@ export function createPet(
   ];
   return withDerived({
     id,
-    seed,
-    variant,
     name,
     breedId,
     ageDays: 0,
@@ -56,9 +47,14 @@ export function createPet(
     bornAt: now,
     sceneId: defaultSceneId,
     equipped: {},
-    potential: mate.potential,
-    trained: zeroStats(),
-    temperament: mate.temperament,
+    look: { ...look },
+    attributes: {
+      seed: attributes.seed,
+      rulesVersion: attributes.rulesVersion,
+      archetype: attributes.archetype,
+      potential: { ...attributes.potential },
+      current: startingCurrent(attributes.potential),
+    },
     drift: zeroStats(),
     level: 1,
     xp: 0,
@@ -66,6 +62,6 @@ export function createPet(
     needs: { ...startingNeeds },
     asleep: startingAsleep,
     lastUpdatedAt: now,
-    rngState: rngSeed(seed, variant),
+    rngState: rngSeed(attributes.seed, attributes.archetype),
   });
 }

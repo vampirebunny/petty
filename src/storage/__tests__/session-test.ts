@@ -23,11 +23,26 @@ it('keeps a blocked attestation across a reload and stores no pet with it', asyn
   await expect(AsyncStorage.getItem('petty.pet')).resolves.toBeNull();
 });
 
-it('returns the same draft seed and breed', async () => {
-  await saveDraft({ seed: 42, breedId: 'husky' });
-  await expect(loadDraft()).resolves.toEqual({ seed: 42, breedId: 'husky' });
+it('returns the same draft seed, species, breed, look, and step', async () => {
+  const draft = {
+    seed: 42,
+    species: 'dog' as const,
+    breedId: 'husky',
+    look: { coat: '#8a97a6', ear: 'pointy', tail: 'curl' },
+    step: 'offers' as const,
+  };
+  await saveDraft(draft);
+  await expect(loadDraft()).resolves.toEqual(draft);
   await saveAttestation('passed');
   await expect(loadAttestation()).resolves.toBe('passed');
+});
+
+it('keeps a seed saved at the first step and ignores a draft in the old shape', async () => {
+  await saveDraft({ seed: 7, species: 'cat', breedId: null, look: null, step: 'species' });
+  await expect(loadDraft()).resolves.toEqual({ seed: 7, species: 'cat', breedId: null, look: null, step: 'species' });
+
+  await AsyncStorage.setItem('petty.draft', JSON.stringify({ seed: 42, breedId: 'husky' }));
+  await expect(loadDraft()).resolves.toBeNull();
 });
 
 it('keeps the sound setting, on by default', async () => {

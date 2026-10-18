@@ -1,4 +1,18 @@
-import type { Breed, TaskType } from './types';
+import type { Look } from '../sim/types';
+import { breedAttributes } from './breedAttributes';
+import { luminance, mixHexColor } from './color';
+import type { Breed, EarShape, Species, TailShape, TaskType } from './types';
+
+// Visual and behavior parameters of a breed. Attribute ranges and the blurb come from breedAttributes.
+type BreedVisual = Omit<Breed, 'attributeRanges' | 'blurb'>;
+
+function withAttributes(breed: BreedVisual): Breed {
+  const data = breedAttributes[breed.id];
+  if (!data) {
+    throw new Error(`Breed "${breed.id}" has no attribute ranges.`);
+  }
+  return { ...breed, attributeRanges: data.ranges, blurb: data.blurb };
+}
 
 export const sharedTasks: readonly TaskType[] = ['stand', 'sit', 'sleep', 'eat', 'walk', 'jump', 'idle'];
 
@@ -6,7 +20,7 @@ export const dogTasks: readonly TaskType[] = [...sharedTasks, 'pant', 'paw', 'ba
 
 export const catTasks: readonly TaskType[] = [...sharedTasks, 'purr', 'groom', 'pounce'];
 
-const dogs: Breed[] = [
+const dogVisuals: BreedVisual[] = [
   {
     id: 'retriever',
     name: 'Retriever',
@@ -109,7 +123,7 @@ const dogs: Breed[] = [
   },
 ];
 
-const cats: Breed[] = [
+const catVisuals: BreedVisual[] = [
   {
     id: 'tabby',
     name: 'Tabby',
@@ -223,8 +237,78 @@ const cats: Breed[] = [
   },
 ];
 
+const dogs: Breed[] = dogVisuals.map(withAttributes);
+const cats: Breed[] = catVisuals.map(withAttributes);
 const all = [...dogs, ...cats];
 const byId = new Map(all.map((breed) => [breed.id, breed]));
+
+// Look options offered at adoption. Data only, so adding a swatch or a shape is a config entry.
+export type LookOption = { id: string; label: string };
+
+export const coatPalette: Record<Species, readonly string[]> = {
+  dog: ['#d9a441', '#e08a3c', '#6b3f2a', '#8a97a6', '#d8c19a', '#2b2b33', '#f1ece4', '#a8572f'],
+  cat: ['#b98a58', '#eadbc2', '#f1ece4', '#8b6a4a', '#2b2b33', '#d9822b', '#8a97a6', '#c7b299'],
+};
+
+export const earOptions: Record<Species, readonly LookOption[]> = {
+  dog: [
+    { id: 'floppy', label: 'Floppy' },
+    { id: 'pointy', label: 'Pointy' },
+  ],
+  cat: [],
+};
+
+export const tailOptions: Record<Species, readonly LookOption[]> = {
+  dog: [
+    { id: 'straight', label: 'Straight' },
+    { id: 'curl', label: 'Curled' },
+    { id: 'stub', label: 'Stub' },
+  ],
+  cat: [
+    { id: 'long', label: 'Long' },
+    { id: 'fluffy', label: 'Fluffy' },
+  ],
+};
+
+// The breed's own look, the starting point of the customize step.
+export function defaultLook(breed: Breed): Look {
+  return { coat: breed.coat, ear: breed.ear, tail: breed.tail };
+}
+
+// The swatches for a breed: its own coat first, then the species palette without duplicates.
+export function coatSwatchesFor(breed: Breed): string[] {
+  const own = breed.coat.toLowerCase();
+  return [breed.coat, ...coatPalette[breed.species].filter((color) => color.toLowerCase() !== own)];
+}
+
+// The breed with a pet's look applied. Anatomy is untouched. Ear and muzzle colors follow the coat
+// when it changes. Ears are only changed for dogs, and only to a shape the species offers.
+export function resolveBreed(breed: Breed, look: Look | null | undefined): Breed {
+  if (!look) {
+    return breed;
+  }
+  const recolored = look.coat.toLowerCase() !== breed.coat.toLowerCase();
+  const ear = breed.species === 'dog' && earOptions.dog.some((option) => option.id === look.ear) ? look.ear : breed.ear;
+  const tail = tailOptions[breed.species].some((option) => option.id === look.tail) ? look.tail : breed.tail;
+  return {
+    ...breed,
+    coat: look.coat,
+    ear: ear as EarShape,
+    tail: tail as TailShape,
+    earColor: recolored && breed.pattern !== 'points' ? mixHexColor(look.coat, '#000000', 0.22) : breed.earColor,
+    muzzle: recolored && breed.pattern !== 'points' ? mixHexColor(look.coat, '#ffffff', 0.45) : breed.muzzle,
+  };
+}
+
+export function resolveBreedById(id: string, look: Look | null | undefined): Breed | null {
+  const breed = byId.get(id);
+  return breed ? resolveBreed(breed, look) : null;
+}
+
+// True when a coat is dark enough that white whiskers and dark details need to switch.
+export function isDarkCoat(coat: string): boolean {
+  return luminance(coat) < 0.22;
+}
 
 export function dogBreeds(): readonly Breed[] {
   return dogs;

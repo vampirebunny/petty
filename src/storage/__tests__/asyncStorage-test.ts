@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { createPet } from '../../sim/createPet';
+import { testPet } from '../../sim/__fixtures__/pets';
 import { dayMs } from '../../sim/config';
 import { asyncPetStorage } from '../asyncStorage';
 
@@ -13,13 +13,13 @@ beforeEach(async () => {
 });
 
 it('returns the same state after saving and loading', async () => {
-  const pet = createPet(3, 'retriever', 0, 50, 'Pup', 'pet');
+  const pet = testPet(3, 'retriever', 50, 'Pup', 'pet');
   await asyncPetStorage.save(pet);
   await expect(asyncPetStorage.load()).resolves.toEqual(pet);
 });
 
 it('forgets the pet after clearing', async () => {
-  const pet = createPet(3, 'retriever', 0, 50, 'Pup', 'pet');
+  const pet = testPet(3, 'retriever', 50, 'Pup', 'pet');
   await asyncPetStorage.save(pet);
   await asyncPetStorage.clear();
   await expect(asyncPetStorage.load()).resolves.toBeNull();
@@ -27,7 +27,7 @@ it('forgets the pet after clearing', async () => {
 });
 
 it('maps an old weight and keeps a saved age', async () => {
-  const pet = createPet(3, 'retriever', 0, 50, 'Pup', 'pet');
+  const pet = testPet(3, 'retriever', 50, 'Pup', 'pet');
   const saved = JSON.parse(JSON.stringify(pet)) as Record<string, unknown>;
   saved.weight = 50;
   saved.ageDays = 10;
@@ -54,6 +54,35 @@ it('drops a phase 0 pet that is missing the new fields', async () => {
   );
 
   await expect(asyncPetStorage.load()).resolves.toBeNull();
+});
+
+it('drops a pet saved with litter variants and temperament, and one with a bad look', async () => {
+  const pet = testPet(3, 'retriever', 50, 'Pup', 'pet');
+  const old = JSON.parse(JSON.stringify(pet)) as Record<string, unknown>;
+  delete old.attributes;
+  delete old.look;
+  Object.assign(old, {
+    seed: 3,
+    variant: 1,
+    potential: pet.attributes.potential,
+    trained: pet.attributes.current,
+    temperament: { boosts: 'stamina', dampens: 'agility', label: 'steady pacer' },
+  });
+  await AsyncStorage.setItem('petty.pet', JSON.stringify(old));
+  await expect(asyncPetStorage.load()).resolves.toBeNull();
+
+  const badLook = JSON.parse(JSON.stringify(pet)) as Record<string, unknown>;
+  badLook.look = { coat: 3 };
+  await AsyncStorage.setItem('petty.pet', JSON.stringify(badLook));
+  await expect(asyncPetStorage.load()).resolves.toBeNull();
+});
+
+it('keeps stored potential, current, archetype, seed, and look across a save', async () => {
+  const pet = testPet(9, 'pug', 50, 'Pup', 'pet', 'charmer');
+  await asyncPetStorage.save(pet);
+  const loaded = await asyncPetStorage.load();
+  expect(loaded?.attributes).toEqual(pet.attributes);
+  expect(loaded?.look).toEqual(pet.look);
 });
 
 it('returns null when nothing is stored or the json is unreadable', async () => {

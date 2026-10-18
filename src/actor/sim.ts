@@ -95,6 +95,7 @@ export function spawnActor(source: ActorSource, at?: Vec): Actor {
     syncedWeight: source.weight,
     vitality: source.vitality,
     equipped: { ...source.equipped },
+    look: source.look ? { ...source.look } : null,
     asleep: source.asleep,
     mouth: { x, y },
     anchors: emptyAnchors(),
@@ -148,6 +149,7 @@ export function syncActor(actor: Actor, source: ActorSource): void {
   actor.weight = source.weight + pending;
   actor.vitality = source.vitality;
   actor.equipped = { ...source.equipped };
+  actor.look = source.look ? { ...source.look } : null;
   actor.breedId = source.breedId;
   if (actor.asleep !== source.asleep) {
     actor.asleep = source.asleep;

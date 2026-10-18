@@ -1,5 +1,5 @@
 import { applyEvent } from '../events';
-import { createPet } from '../createPet';
+import { testPet } from '../__fixtures__/pets';
 import type { PetState } from '../types';
 
 function asleep(state: PetState): PetState {
@@ -7,7 +7,7 @@ function asleep(state: PetState): PetState {
 }
 
 it('feeds an awake pet and ignores feeding while asleep', () => {
-  const before = createPet(1, 'retriever', 0, 0, 'Pup', 'pet');
+  const before = testPet(1, 'retriever', 0, 'Pup', 'pet');
   before.needs.fullness = 40;
   const fed = applyEvent(before, { type: 'feed' });
 
@@ -24,13 +24,13 @@ it('feeds an awake pet and ignores feeding while asleep', () => {
 });
 
 it('clamps feeding at 100', () => {
-  const full = createPet(1, 'retriever', 0, 0, 'Pup', 'pet');
+  const full = testPet(1, 'retriever', 0, 'Pup', 'pet');
   full.needs.fullness = 90;
   expect(applyEvent(full, { type: 'feed' }).state.needs.fullness).toBe(100);
 });
 
 it('toggles rest with a yawn when falling asleep', () => {
-  const before = createPet(1, 'retriever', 0, 0, 'Pup', 'pet');
+  const before = testPet(1, 'retriever', 0, 'Pup', 'pet');
   const sleeping = applyEvent(before, { type: 'toggleRest' });
   const awake = applyEvent(sleeping.state, { type: 'toggleRest' });
 
@@ -42,7 +42,7 @@ it('toggles rest with a yawn when falling asleep', () => {
 });
 
 it('pets an awake pet and only stirs a sleeping pet', () => {
-  const before = createPet(4, 'retriever', 0, 0, 'Pup', 'pet');
+  const before = testPet(4, 'retriever', 0, 'Pup', 'pet');
   const petted = applyEvent(before, { type: 'pet' });
   const gain = 6 * (1 - 80 / 100);
 
@@ -57,7 +57,7 @@ it('pets an awake pet and only stirs a sleeping pet', () => {
 });
 
 it('returns the same result for the same state and event', () => {
-  const before = createPet(4, 'retriever', 0, 0, 'Pup', 'pet');
+  const before = testPet(4, 'retriever', 0, 'Pup', 'pet');
   expect(applyEvent(before, { type: 'pet' })).toEqual(applyEvent(before, { type: 'pet' }));
   expect(applyEvent(before, { type: 'feed' })).toEqual(applyEvent(before, { type: 'feed' }));
   expect(applyEvent(before, { type: 'toggleRest' })).toEqual(
@@ -66,7 +66,7 @@ it('returns the same result for the same state and event', () => {
 });
 
 it('runs idle, sit, give paw and speak without touching needs', () => {
-  const before = createPet(1, 'retriever', 0, 0, 'Pup', 'pet');
+  const before = testPet(1, 'retriever', 0, 'Pup', 'pet');
   for (const type of ['sit', 'paw', 'speak'] as const) {
     const result = applyEvent(before, { type });
     expect(result.cue).toEqual({ kind: type });
@@ -78,7 +78,7 @@ it('runs idle, sit, give paw and speak without touching needs', () => {
 });
 
 it('wakes a sleeping pet when asked to idle', () => {
-  const before = asleep(createPet(1, 'retriever', 0, 0, 'Pup', 'pet'));
+  const before = asleep(testPet(1, 'retriever', 0, 'Pup', 'pet'));
   const result = applyEvent(before, { type: 'idle' });
   expect(result.cue).toEqual({ kind: 'idle' });
   expect(result.state.asleep).toBe(false);

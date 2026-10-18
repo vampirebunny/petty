@@ -1,7 +1,7 @@
 import { Skia, StrokeCap } from '@shopify/react-native-skia';
 import type { SkCanvas } from '@shopify/react-native-skia';
 
-import { bodyFrame, gaitFoot, solveKnee, wearItem } from '../../actor';
+import { bodyFrame, gaitFoot, isDarkCoat, solveKnee, wearItem } from '../../actor';
 import type { Actor, Breed, Geom } from '../../actor';
 import { torsoPoint } from '../../actor/geometry';
 import { drawBandana, drawBoot, drawCoat, drawCollar, drawGlasses, drawHat } from './cosmetics';
@@ -319,7 +319,7 @@ export function drawActor(
       whiskers.moveTo(mx + mrx * 0.3, my + R * 0.04 + wk * 0.03 * R);
       whiskers.lineTo(mx + mrx + R * 0.95, my + R * 0.02 + wk * R * 0.22);
     }
-    const pale = points || breed.coat === '#2b2b33';
+    const pale = points || isDarkCoat(breed.coat);
     c.drawPath(whiskers, paintOf(pale ? '#ebebf0' : '#ffffff', pale ? 0.75 : 0.85, 1.1));
   } else {
     fillOval(c, mx + mrx * 0.9, my - R * 0.12, R * 0.17, R * 0.13, '#1b1512');

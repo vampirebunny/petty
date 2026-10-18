@@ -14,11 +14,37 @@ export type Trait =
 
 export type Stats = Record<Trait, number>;
 
+export type Range = [number, number];
+
+export type BreedRanges = Record<Trait, Range>;
+
+export type Archetype = 'athlete' | 'thinker' | 'charmer';
+
+// Per-pet cosmetic look picked at adoption. Ears apply to dogs only.
+export type Look = {
+  coat: string;
+  ear: string;
+  tail: string;
+};
+
+export type PetAttributes = {
+  seed: number;
+  rulesVersion: number;
+  archetype: Archetype;
+  potential: Stats;
+  current: Stats;
+};
+
+export type AttributeSet = {
+  archetype: Archetype;
+  potential: Stats;
+  current: Stats;
+  total: number;
+};
+
 export type Stage = 'puppy' | 'olderPuppy' | 'adolescent' | 'adult' | 'senior';
 
 export type SeniorBand = 'earlySenior' | 'senior' | 'elderly';
-
-export type Variant = 0 | 1 | 2;
 
 export type CareSample = {
   day: number;
@@ -32,16 +58,8 @@ export type OutfitSlot = 'collar' | 'bandana' | 'glasses' | 'hat' | 'coat' | 'bo
 
 export type Equipped = Partial<Record<OutfitSlot, string>>;
 
-export type Temperament = {
-  boosts: Trait;
-  dampens: Trait;
-  label: string;
-};
-
 export type PetState = {
   id: string;
-  seed: number;
-  variant: Variant;
   name: string;
   breedId: string;
   ageDays: number;
@@ -53,9 +71,8 @@ export type PetState = {
   bornAt: number;
   sceneId: string;
   equipped: Equipped;
-  potential: Stats;
-  trained: Stats;
-  temperament: Temperament;
+  look: Look;
+  attributes: PetAttributes;
   drift: Stats;
   seniorBand?: SeniorBand;
   level: number;
@@ -85,12 +102,4 @@ export type Mood = 'happy' | 'content' | 'hungry' | 'sleepy' | 'sad' | 'sleeping
 export type Cue = {
   kind: 'none' | 'idle' | 'sit' | 'paw' | 'speak' | 'eat' | 'drink' | 'wiggle' | 'purr' | 'stir' | 'yawn' | 'fetch';
   drop?: { x: number; y: number };
-};
-
-export type LitterMate = {
-  variant: Variant;
-  breedId: string;
-  temperament: Temperament;
-  potential: Stats;
-  current: Stats;
 };

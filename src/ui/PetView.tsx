@@ -45,6 +45,7 @@ function sourceOf(pet: PetState) {
     weight: pet.weight,
     vitality: pet.vitality,
     equipped: pet.equipped,
+    look: pet.look,
     asleep: pet.asleep,
   };
 }
@@ -118,7 +119,7 @@ export function PetView({ pet, cueKind, cueToken, drop, hour, reducedMotion, sce
       syncActor(actor, sourceOf(pet));
     }
     redraw();
-  }, [pet.ageDays, pet.asleep, pet.breedId, pet.equipped, pet.id, pet.vitality, pet.weight, redraw]);
+  }, [pet.ageDays, pet.asleep, pet.breedId, pet.equipped, pet.id, pet.look, pet.vitality, pet.weight, redraw]);
 
   useEffect(() => {
     const world = worldRef.current;

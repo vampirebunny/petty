@@ -1,9 +1,9 @@
 import { deriveMood } from '../mood';
-import { createPet } from '../createPet';
+import { testPet } from '../__fixtures__/pets';
 import type { Needs, PetState } from '../types';
 
 function pet(partial: Omit<Partial<PetState>, 'needs'> & { needs?: Partial<Needs> } = {}): PetState {
-  const base = createPet(1, 'retriever', 0, 0, 'Pup', 'pet');
+  const base = testPet(1, 'retriever', 0, 'Pup', 'pet');
   return {
     ...base,
     ...partial,

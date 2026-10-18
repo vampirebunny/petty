@@ -31,9 +31,12 @@ function copyState(state: PetState): PetState {
     needs: { ...state.needs },
     careWindow: state.careWindow.map((sample) => ({ ...sample })),
     equipped: { ...state.equipped },
-    potential: { ...state.potential },
-    trained: { ...state.trained },
-    temperament: { ...state.temperament },
+    look: { ...state.look },
+    attributes: {
+      ...state.attributes,
+      potential: { ...state.attributes.potential },
+      current: { ...state.attributes.current },
+    },
     drift: { ...state.drift },
   };
 }

@@ -1,4 +1,4 @@
-import type { Needs, Trait } from './types';
+import type { Archetype, Needs, Trait } from './types';
 
 export const startingNeeds: Needs = {
   fullness: 80,
@@ -50,17 +50,32 @@ export const traits: Trait[] = [
   'obedience',
 ];
 
-export const basePotential = 12;
-export const breedPotentialTotal = 72;
-export const rollRange = 3;
+export const archetypes: Archetype[] = ['athlete', 'thinker', 'charmer'];
 
-export const temperamentByVariant = [
-  { boosts: 'stamina', dampens: 'agility', label: 'steady pacer' },
-  { boosts: 'intelligence', dampens: 'boldness', label: 'bright pupil' },
-  { boosts: 'affection', dampens: 'obedience', label: 'soft heart' },
-] as const;
+// The two attributes each archetype is strong in. Strong is relative to the breed's range.
+export const archetypeStrong: Record<Archetype, Trait[]> = {
+  athlete: ['stamina', 'agility'],
+  thinker: ['intelligence', 'obedience'],
+  charmer: ['boldness', 'affection'],
+};
 
-export const puppyGrowthFraction = 0.25;
+export const archetypeNames: Record<Archetype, string> = {
+  athlete: 'The Athlete',
+  thinker: 'The Thinker',
+  charmer: 'The Charmer',
+};
+
+// Attribute generation tuning. These are tuning numbers and will change.
+export const GEN = {
+  RULES_VERSION: 1,
+  BASE_TOTAL: 375, // matches the breed midpoint sum
+  QUALITY_SPREAD: 10, // per-pet total varies by this much either way
+  JITTER: 0.15, // per-attribute individuality, shared by all three sets
+  BOOST: 0.3, // how far strong attributes are pushed up the range
+  START_FRACTION: 0.2, // current starts at this fraction of potential
+};
+
+export const puppyGrowthFraction = GEN.START_FRACTION;
 export const adultGrowthFraction = 0.7;
 
 export const careWindowDays = 7;

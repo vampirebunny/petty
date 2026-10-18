@@ -143,7 +143,7 @@ export function DebugPanel({
       </Text>
       {traits.map((trait) => (
         <Text key={trait} style={styles.line}>
-          {traitLabel[trait]} {format(attributeScore(state, trait))} / {state.potential[trait]}
+          {traitLabel[trait]} {format(attributeScore(state, trait))} / {state.attributes.potential[trait]}
         </Text>
       ))}
       <RangeControl label="Age" min={0} max={1000} value={Math.min(1000, state.ageDays)} onChange={onAge} />

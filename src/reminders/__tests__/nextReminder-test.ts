@@ -1,4 +1,4 @@
-import { createPet } from '../../sim/createPet';
+import { testPet } from '../../sim/__fixtures__/pets';
 import { nextReminder, reminderCopy } from '../nextReminder';
 
 const stageWords = ['puppy', 'adolescent', 'adult', 'senior', 'elderly'];
@@ -15,7 +15,7 @@ it('uses the pet name and no stage word', () => {
 });
 
 it('schedules the sooner crossing and waits when a need is already low', () => {
-  const pet = createPet(1, 'retriever', 0, 0, 'Maple', 'pet');
+  const pet = testPet(1, 'retriever', 0, 'Maple', 'pet');
   const reminder = nextReminder(pet, 1_000);
   expect(reminder?.kind).toBe('meal');
   expect(reminder && reminder.at).toBeGreaterThan(1_000);

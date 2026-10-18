@@ -1,30 +1,25 @@
-import { createPet } from '../createPet';
-import {
-  attributeScore,
-  naturalGrowth,
-  shownLevel,
-  trainingGain,
-} from '../attributes';
+import { testPet } from '../__fixtures__/pets';
+import { attributeScore, naturalGrowth, shownLevel, trainingGain, withDerived } from '../attributes';
 import { applyCareTime } from '../care';
-import { dayMs } from '../config';
+import { GEN, dayMs } from '../config';
 import { debugJump } from '../clock';
 
 function pet() {
-  return createPet(3, 'husky', 0, 0, 'Pup', 'pet');
+  return testPet(3, 'husky', 0, 'Pup', 'pet');
 }
 
-it('starts near a quarter of potential and stops near 70 percent', () => {
+it('starts at the start fraction of potential and stops near 70 percent', () => {
   const young = pet();
-  const stamina = young.potential.stamina;
-  expect(naturalGrowth(stamina, 0)).toBe(Math.max(1, Math.round(stamina * 0.25)));
+  const stamina = young.attributes.potential.stamina;
+  expect(naturalGrowth(stamina, 0)).toBe(Math.max(1, Math.round(stamina * GEN.START_FRACTION)));
   expect(naturalGrowth(stamina, 1)).toBe(Math.round(stamina * 0.7));
   expect(attributeScore(young, 'stamina')).toBeLessThanOrEqual(stamina);
 });
 
 it('tapers a gain much harder near potential', () => {
-  const potential = 12;
-  const far = trainingGain(3, potential, 4);
-  const near = trainingGain(potential - 1, potential, 4);
+  const potential = 80;
+  const far = trainingGain(20, potential, 4);
+  const near = trainingGain(potential - 4, potential, 4);
   expect(near).toBeLessThan(far * 0.2);
   expect(trainingGain(potential, potential, 4)).toBe(0);
 });
@@ -33,11 +28,34 @@ it('changes only the effective score for aging and weight', () => {
   const fit = { ...pet(), ageDays: 200, maturity: 1, vitality: 0.35, weight: 0 };
   const heavy = { ...fit, weight: 1 };
   expect(attributeScore(heavy, 'stamina')).toBeLessThan(attributeScore(fit, 'stamina'));
-  expect(heavy.potential).toEqual(fit.potential);
-  expect(heavy.trained).toEqual(fit.trained);
+  expect(heavy.attributes.potential).toEqual(fit.attributes.potential);
+  expect(heavy.attributes.current).toEqual(fit.attributes.current);
 
   const adult = { ...pet(), ageDays: 100, maturity: 100 / 180, vitality: 0.35, weight: 0 };
   expect(attributeScore(fit, 'obedience')).toBeGreaterThan(attributeScore(adult, 'obedience'));
+});
+
+it('uses the stored current score when it is above natural growth, and never exceeds potential', () => {
+  const base = pet();
+  const potential = base.attributes.potential.intelligence;
+  const trained = {
+    ...base,
+    attributes: {
+      ...base.attributes,
+      current: { ...base.attributes.current, intelligence: potential - 1 },
+    },
+  };
+  expect(attributeScore(trained, 'intelligence')).toBe(potential - 1);
+
+  const overshoot = withDerived({
+    ...base,
+    attributes: {
+      ...base.attributes,
+      current: { ...base.attributes.current, intelligence: potential + 50 },
+    },
+  });
+  expect(overshoot.attributes.current.intelligence).toBe(potential);
+  expect(attributeScore(overshoot, 'intelligence')).toBeLessThanOrEqual(potential);
 });
 
 it('pulls drift toward 0 on a capped absence and respects the level ceiling', () => {

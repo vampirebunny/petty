@@ -1,7 +1,7 @@
 import { BlendMode, Skia, TileMode } from '@shopify/react-native-skia';
 import type { SkCanvas } from '@shopify/react-native-skia';
 
-import { breedById, depthScale } from '../../actor';
+import { depthScale, resolveBreedById } from '../../actor';
 import type { TimeOfDay, World } from '../../actor';
 import { stageHeight, stageWidth } from '../../actor/geometry';
 import { actorTint, lighting, petLightAmount, sceneryTint } from '../../actor/lighting';
@@ -89,7 +89,7 @@ export function drawWorld(
     }
   }
   for (const actor of world.actors) {
-    const breed = breedById(actor.breedId);
+    const breed = resolveBreedById(actor.breedId, actor.look);
     if (!breed) {
       continue;
     }

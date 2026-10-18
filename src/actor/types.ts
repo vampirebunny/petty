@@ -1,4 +1,4 @@
-import type { Equipped } from '../sim/types';
+import type { BreedRanges, Equipped, Look } from '../sim/types';
 import type { Scene } from './scenes';
 
 export type Vec = { x: number; y: number };
@@ -50,6 +50,8 @@ export type Breed = {
   pattern?: Pattern;
   accent?: string;
   behaviors: readonly TaskType[];
+  attributeRanges: BreedRanges;
+  blurb: string;
 };
 
 export type Pose = {
@@ -127,6 +129,7 @@ export type Actor = {
   syncedWeight: number;
   vitality: number;
   equipped: Equipped;
+  look: Look | null;
   asleep: boolean;
   mouth: Vec;
   anchors: Anchors;
@@ -179,5 +182,6 @@ export type ActorSource = {
   weight: number;
   vitality: number;
   equipped: Equipped;
+  look?: Look | null;
   asleep: boolean;
 };

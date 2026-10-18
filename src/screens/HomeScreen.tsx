@@ -16,7 +16,7 @@ import {
 import type { Scene } from '../actor';
 import { setSoundEnabled } from '../audio/voice';
 import { stageHeight, stageWidth } from '../actor/geometry';
-import { attributeScore, petStrokeIntervalMs, traits } from '../sim';
+import { archetypeNames, attributeScore, petStrokeIntervalMs, traits } from '../sim';
 import type { OutfitSlot, Trait } from '../sim';
 import { loadSoundEnabled, saveSoundEnabled } from '../storage/session';
 import { usePet } from '../state/usePet';
@@ -221,11 +221,11 @@ export default function HomeScreen({ petApi, onClearAttestation }: Props) {
       <View style={styles.header}>
         <Text style={styles.name}>{state.name}</Text>
         <Text style={styles.meta}>
-          {state.temperament.label} · Level {state.level}
+          {archetypeNames[state.attributes.archetype]} · Level {state.level}
         </Text>
         {traits.map((trait) => (
           <Text key={trait} style={styles.score}>
-            {traitLabel[trait]} {formatScore(attributeScore(state, trait))} / {state.potential[trait]}
+            {traitLabel[trait]} {formatScore(attributeScore(state, trait))} / {state.attributes.potential[trait]}
           </Text>
         ))}
       </View>

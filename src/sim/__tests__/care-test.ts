@@ -1,12 +1,12 @@
 import { applyEvent } from '../events';
-import { createPet } from '../createPet';
+import { testPet } from '../__fixtures__/pets';
 import { applyCareTime } from '../care';
 import { dayMs } from '../config';
 import { reconcileBand } from '../attributes';
 import { resume, setVitality } from '../clock';
 
 function pet() {
-  return createPet(1, 'retriever', 0, 0, 'Pup', 'pet');
+  return testPet(1, 'retriever', 0, 'Pup', 'pet');
 }
 
 it('adds a meal to the weight index and leaves a drink unchanged', () => {

@@ -1,11 +1,11 @@
 import { advance } from '../advance';
-import { createPet } from '../createPet';
+import { testPet } from '../__fixtures__/pets';
 import type { Needs, PetState } from '../types';
 
 const hourMs = 60 * 60 * 1000;
 
 function pet(partial: Omit<Partial<PetState>, 'needs'> & { needs?: Partial<Needs> } = {}): PetState {
-  const base = createPet(1, 'retriever', 0, 1_000, 'Pup', 'pet');
+  const base = testPet(1, 'retriever', 1_000, 'Pup', 'pet');
   return {
     ...base,
     ...partial,

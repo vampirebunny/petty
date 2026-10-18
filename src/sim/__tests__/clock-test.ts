@@ -1,11 +1,11 @@
-import { createPet } from '../createPet';
+import { testPet } from '../__fixtures__/pets';
 import { resume, setAgeDays, setWeight, tickForeground } from '../clock';
 import { dayMs, weightDecayPerDay } from '../config';
 
 const hourMs = 60 * 60 * 1000;
 
 function pet() {
-  return createPet(1, 'retriever', 0, 1_000, 'Pup', 'pet');
+  return testPet(1, 'retriever', 1_000, 'Pup', 'pet');
 }
 
 it('ages and loses weight for the whole hour the app stays open', () => {

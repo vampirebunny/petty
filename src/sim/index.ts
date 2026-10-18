@@ -1,17 +1,16 @@
 export { advance, advanceNeeds } from './advance';
-export { createLitter, createPet } from './createPet';
+export { createPet } from './createPet';
+export type { NewPet } from './createPet';
+export { attributesFor, clampCurrent, generateOffers, startingCurrent } from './offers';
 export { deriveMood } from './mood';
 export { applyEvent } from './events';
 export type { EventResult } from './events';
 export {
   attributeScore,
-  currentScores,
   maturityOf,
   naturalGrowth,
-  potentialOf,
   potentialTotal,
   stageOf,
-  temperamentOf,
   trainingGain,
 } from './attributes';
 export { ageDaysAt, applyWeightDelta, debugJump, resume, setAgeDays, setVitality, setWeight, tickForeground } from './clock';
@@ -38,6 +37,10 @@ export {
   weightMealGain,
   stepMs,
   traits,
+  archetypeNames,
+  archetypeStrong,
+  archetypes,
+  GEN,
   wakeAtEnergy,
   daysToSenior,
   dayMs,
@@ -45,18 +48,21 @@ export {
 export { nextRng } from './rng';
 export type { RngStep } from './rng';
 export type {
+  Archetype,
+  AttributeSet,
+  BreedRanges,
   Cue,
   Equipped,
-  LitterMate,
+  Look,
   OutfitSlot,
   Mood,
   Needs,
+  PetAttributes,
   PetEvent,
   PetState,
+  Range,
   SeniorBand,
   Stage,
   Stats,
-  Temperament,
   Trait,
-  Variant,
 } from './types';
