@@ -35,7 +35,7 @@ interface Poi  { id: string; type: string; x: number; y: number; face?: 1 | -1 }
 type Shape = { t: 'rect' | 'ellipse' | 'circle' | 'poly' | 'line'; fill?: string; stroke?: string; lw?: number; alpha?: number; /* plus the shape's own fields */ };
 ```
 - A prop's `y` is its baseline. `sorted` props are depth-sorted against the pets and ball by `y`. `back` props draw flat under everything (rugs, ponds). `front` props draw over everything.
-- A POI's `face` is the direction the pet faces while using it.
+- A POI's `face` is the direction the pet faces while using it. For food and water it is only a tie-break: the pet eats or drinks from the side of the bowl it starts on, standing beside it and facing it, and uses `face` only when it starts exactly level with the bowl.
 - The walkable floor band also sets depth scaling. The pet shrinks slightly toward `yMin`.
 
 ## Three levels of extension

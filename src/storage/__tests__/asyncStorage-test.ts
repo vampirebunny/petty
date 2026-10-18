@@ -18,6 +18,14 @@ it('returns the same state after saving and loading', async () => {
   await expect(asyncPetStorage.load()).resolves.toEqual(pet);
 });
 
+it('forgets the pet after clearing', async () => {
+  const pet = createPet(3, 'retriever', 0, 50, 'Pup', 'pet');
+  await asyncPetStorage.save(pet);
+  await asyncPetStorage.clear();
+  await expect(asyncPetStorage.load()).resolves.toBeNull();
+  await expect(AsyncStorage.getItem('petty.pet')).resolves.toBeNull();
+});
+
 it('maps an old weight and keeps a saved age', async () => {
   const pet = createPet(3, 'retriever', 0, 50, 'Pup', 'pet');
   const saved = JSON.parse(JSON.stringify(pet)) as Record<string, unknown>;

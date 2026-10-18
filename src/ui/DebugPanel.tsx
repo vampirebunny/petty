@@ -19,6 +19,7 @@ type Props = {
   hour: number | null;
   onHour: (hour: number | null) => void;
   onReset: () => void;
+  onNewPet: () => void;
   onClearAttestation: () => void;
 };
 
@@ -109,6 +110,7 @@ export function DebugPanel({
   hour,
   onHour,
   onReset,
+  onNewPet,
   onClearAttestation,
 }: Props) {
   const [open, setOpen] = useState(false);
@@ -180,6 +182,9 @@ export function DebugPanel({
         </Pressable>
         <Pressable style={styles.button} onPress={onReset}>
           <Text style={styles.buttonLabel}>Reset</Text>
+        </Pressable>
+        <Pressable style={styles.button} onPress={onNewPet}>
+          <Text style={styles.buttonLabel}>New pet</Text>
         </Pressable>
         <Pressable style={styles.button} onPress={onClearAttestation}>
           <Text style={styles.buttonLabel}>Clear age check</Text>

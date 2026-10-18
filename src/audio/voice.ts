@@ -4,8 +4,8 @@ import type { AudioPlayer } from 'expo-audio';
 import type { SoundEvent } from '../actor';
 
 const clips = {
-  bark: require('../../assets/sounds/bark.wav'),
-  meow: require('../../assets/sounds/meow.wav'),
+  bark: require('../../assets/sounds/yodguard-friendly-big-dog-bark-2-535469.mp3'),
+  meow: require('../../assets/sounds/sound_garage-cat-meow-8-fx-306184.mp3'),
 };
 
 // Two players per clip so the second bark of a pair can start while the first is still ringing.
@@ -45,10 +45,17 @@ export function playVoice(event: SoundEvent): void {
     const pool = poolFor(event.sound);
     const player = pool.players[pool.next];
     pool.next = (pool.next + 1) % pool.players.length;
+    const rate = playbackRate(event.rate);
+    player.pause();
     player.shouldCorrectPitch = false;
-    player.setPlaybackRate(playbackRate(event.rate));
-    void player.seekTo(0);
-    player.play();
+    player.setPlaybackRate(rate);
+    // A finished clip sits at its end, so wait for the rewind before playing or the repeat is dropped.
+    void player
+      .seekTo(0)
+      .catch(() => undefined)
+      .then(() => {
+        player.play();
+      });
   } catch {
     // stay silent
   }

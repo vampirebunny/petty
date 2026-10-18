@@ -82,4 +82,8 @@ export const asyncPetStorage: PetStorage = {
   async save(state) {
     await AsyncStorage.setItem(storageKey, JSON.stringify(state));
   },
+
+  async clear() {
+    await AsyncStorage.removeItem(storageKey);
+  },
 };

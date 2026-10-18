@@ -48,12 +48,14 @@ it('rejects a bad actor tint and defaults the rest from the scene time', () => {
 it('enables an action only when the scene has its point', () => {
   expect(actionEnabled(scenes.livingroom, 'feed')).toBe(true);
   expect(actionEnabled(scenes.livingroom, 'rest')).toBe(true);
-  expect(actionEnabled(scenes.livingroom, 'drink')).toBe(false);
+  expect(actionEnabled(scenes.livingroom, 'drink')).toBe(true);
+  expect(actionEnabled(scenes.bedroom, 'drink')).toBe(true);
+  expect(actionEnabled(compileScene(room), 'drink')).toBe(false);
   expect(actionEnabled(scenes.park, 'drink')).toBe(true);
   expect(actionEnabled(scenes.park, 'feed')).toBe(false);
   expect(actionEnabled(scenes.park, 'rest')).toBe(true);
   expect(actionReason(scenes.park, 'feed')).toBe('There is no food bowl in this scene.');
-  expect(actionReason(scenes.livingroom, 'drink')).toBe('There is no water in this scene.');
+  expect(actionReason(compileScene(room), 'drink')).toBe('There is no water in this scene.');
   expect(actionReason(scenes.livingroom, 'feed')).toBe('');
 
   const pup = spawnActor({

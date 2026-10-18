@@ -260,7 +260,16 @@ function beginIdle(world: World, actor: Actor, mode: IdleMode): void {
   actor.idle.t = 0;
   actor.idle.target = null;
   actor.idle.arrived = true;
-  actor.idle.dur = mode === 'still' ? 3 + roll() * 3.5 : mode === 'nap' ? 9 + roll() * 6 : mode === 'walk' ? 9 : 4 + roll() * 2.5;
+  actor.idle.dur =
+    mode === 'still'
+      ? 3 + roll() * 3.5
+      : mode === 'nap'
+        ? 9 + roll() * 6
+        : mode === 'walk'
+          ? 9
+          : mode === 'pant'
+            ? 2 + roll() * 1.5
+            : 4 + roll() * 2.5;
   actor.idle.sit = mode === 'purr' ? true : mode === 'pant' ? roll() < 0.5 : false;
   const bed = mode === 'nap' ? nearestPoi(world.scene, 'bed', actor) : null;
   if (bed) {
@@ -335,7 +344,10 @@ export function startUserTask(world: World, actor: Actor, task: UserTask, roll =
     }
     releaseCarried(world, actor);
     actor.task = taskOf('eat', 'go', task);
-    actor.task.poi = poi;
+    // The pet uses the bowl from whichever side it arrives on. It stands beside the bowl and faces it,
+    // so a pet to the right of the bowl faces left. The scene's own `face` only breaks an exact tie.
+    const side = actor.x > poi.x ? -1 : actor.x < poi.x ? 1 : (poi.face ?? 1);
+    actor.task.poi = { ...poi, face: side };
     actor.pantT = 0;
     return true;
   }
@@ -484,7 +496,7 @@ function updateActor(world: World, actor: Actor, dt: number): void {
       if (actor.idle.mode === 'pant') {
         targets.pant = 1;
         targets.breathAmp = 0.05;
-        targets.breathRate = 5;
+        targets.breathRate = 2.5;
         targets.wagAmp = 0.12;
         targets.sit = actor.idle.sit ? 1 : 0;
       } else if (actor.idle.mode === 'purr') {
@@ -575,6 +587,12 @@ function updateActor(world: World, actor: Actor, dt: number): void {
       if (Math.hypot(spot.x - actor.x, spot.y - actor.y) < 4 && actor.speed < 15) {
         actor.task = { ...actor.task, stage: 'eating', t: 0 };
         actor.face = face;
+        // Stand exactly on the spot so the head lands on the bowl and the pet sorts in front of it.
+        actor.x = spot.x;
+        actor.y = spot.y;
+        actor.vx = 0;
+        actor.vy = 0;
+        actor.speed = 0;
       }
     } else if (spot) {
       targets.headDown = 1;
@@ -637,7 +655,8 @@ function updateActor(world: World, actor: Actor, dt: number): void {
       const local = actor.bark.t - beat.at;
       if (local >= 0 && !actor.bark.fired[index]) {
         actor.bark.fired[index] = true;
-        if (actor.bark.sound && world.sounds.length < 8) {
+        // The jaw still moves on every beat, but the recorded clip plays once per voice.
+        if (index === 0 && actor.bark.sound && world.sounds.length < 8) {
           world.sounds.push({
             actorId: actor.id,
             sound: cat ? 'meow' : 'bark',
@@ -687,7 +706,8 @@ function updateActor(world: World, actor: Actor, dt: number): void {
   const stride = frame.geom.L * (0.35 + 0.4 * clamp(actor.speed / 190, 0, 1.1));
   const localSpeed = actor.speed / Math.max(frame.scale, 0.01);
   actor.phase += dt * Math.min(24, ((Math.PI * 2 * 0.55 * localSpeed) / Math.max(stride, 1)) || 0);
-  actor.panPh += dt * Math.PI * 2 * 5;
+  // Match jaw/tongue cadence to breath while panting so a slower idle pant reads as one motion.
+  actor.panPh += dt * Math.PI * 2 * (actor.pose.pant > 0.05 ? actor.pose.breathRate : 5);
   actor.chewPh += dt * Math.PI * 2 * 3;
   actor.wagPh += dt * wagRate * (world.reducedMotion ? 0 : 1);
   actor.breathPh += dt * Math.PI * 2 * actor.pose.breathRate;

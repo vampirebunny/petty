@@ -12,7 +12,7 @@ npx expo start
 
 Open the project in Expo Go on a phone signed into the same Expo account as this machine. The dev server prints a QR code.
 
-Feed and Rest are the buttons under the blob. Tap or stroke the blob to pet it. Debug, at the bottom, jumps 1, 6, or 24 hours and can reset the pet.
+Feed and Rest are the buttons under the blob. Tap or stroke the blob to pet it. Debug, at the bottom, jumps 1, 6, or 24 hours and can reset the pet. Its "New pet" button deletes the current pet and starts adoption again, with no confirmation and no way back.
 
 ## Layout
 

@@ -61,7 +61,13 @@ export function drawWorld(
   const scene = world.scene;
   const floor = scene.floor;
   canvas.scale(width / stageWidth, height / stageHeight);
-  const env: Env = { tod, t: world.t, reduced, bowlFill: world.bowlFill, glows: [] };
+  const feeding: Env['feeding'] = [];
+  for (const actor of world.actors) {
+    if (actor.task.type === 'eat' && actor.task.stage === 'eating' && actor.task.poi) {
+      feeding.push({ x: actor.task.poi.x, y: actor.task.poi.y, kind: actor.task.kind === 'drink' ? 'drink' : 'eat' });
+    }
+  }
+  const env: Env = { tod, t: world.t, reduced, bowlFill: world.bowlFill, glows: [], feeding };
   const roomTint = sceneryTint(scene, tod);
   const bodyTint = actorTint(scene, tod);
 
@@ -88,8 +94,10 @@ export function drawWorld(
       continue;
     }
     const carrying = world.ball.state === 'carried' && world.ball.carrierId === actor.id;
+    // A pet at its bowl stands just in front of it, so the head is seen over the bowl and not hidden by it.
+    const atBowl = actor.task.type === 'eat' && actor.task.stage === 'eating';
     items.push({
-      y: actor.y,
+      y: actor.y + (atBowl ? 1 : 0),
       draw: () => drawTinted(canvas, bodyTint, () => drawActor(canvas, actor, breed, floor, world.t, carrying)),
     });
   }

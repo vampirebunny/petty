@@ -248,7 +248,7 @@ export function drawActor(
   const jaw = Math.max(
     pose.pant * (0.45 + 0.2 * Math.sin(actor.panPh)),
     barkOpen * 0.85,
-    pose.headDown * (0.2 + 0.2 * Math.sin(actor.chewPh)),
+    pose.headDown * (0.3 + 0.3 * Math.sin(actor.chewPh)),
   );
   const tongue = pose.pant * (0.8 + 0.2 * Math.sin(actor.panPh + 1));
   const cf = geom.cf;
@@ -257,7 +257,8 @@ export function drawActor(
   const ex = R * (0.3 + 0.05 * cf);
   const ey = -R * (0.12 - 0.09 * cf);
   c.save();
-  c.translate(head.x, head.y);
+  // At the bowl the head dips and lifts with each bite or lap.
+  c.translate(head.x, head.y + pose.headDown * Math.sin(actor.chewPh) * 1.8);
   c.rotate(deg(pitch), 0, 0);
   const earFar = mix(breed.earColor, '#000000', 0.2);
   if (breed.ear === 'pointy') {

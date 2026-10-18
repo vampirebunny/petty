@@ -71,6 +71,7 @@ export default function HomeScreen({ petApi, onClearAttestation }: Props) {
     setVitalityValue,
     setWeightValue,
     reset,
+    release,
   } = petApi;
   const lastStrokeAt = useRef(0);
   const { width } = useWindowDimensions();
@@ -315,6 +316,7 @@ export default function HomeScreen({ petApi, onClearAttestation }: Props) {
         hour={hour}
         onHour={setHour}
         onReset={reset}
+        onNewPet={release}
         onClearAttestation={onClearAttestation}
       />
     </ScrollView>

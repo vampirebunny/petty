@@ -29,6 +29,8 @@ export type Env = {
   reduced: boolean;
   bowlFill: number;
   glows: Glow[];
+  // Where a pet is eating or drinking right now, so a bowl can react.
+  feeding: { x: number; y: number; kind: 'eat' | 'drink' }[];
 };
 
 // A rectangle of sky: gradient, stars, the sun (06:00-18:00, east to west) and the moon (18:00-06:00).
@@ -124,6 +126,14 @@ function drawBowl(c: SkCanvas, prop: Prop, env: Env): void {
   fillOval(c, 0, -16, 25, 5, mix(accent, '#000000', 0.45));
   if (prop.contents === 'water') {
     fillOval(c, 0, -16, 25, 5, '#7ec3e6');
+    const lapped = env.feeding.some((f) => f.kind === 'drink' && f.x === prop.x && f.y === prop.y);
+    if (lapped && !env.reduced) {
+      // Rings spread from where the tongue hits the water.
+      for (let i = 0; i < 2; i += 1) {
+        const k = (env.t * 1.6 + i * 0.5) % 1;
+        strokeOval(c, 3, -16, 3 + k * 16, 0.7 + k * 3.2, '#ffffff', 1.4, 0.7 * (1 - k));
+      }
+    }
   }
   const count = prop.contents === 'water' ? 0 : Math.round(16 * env.bowlFill);
   for (let i = 0; i < count; i += 1) {

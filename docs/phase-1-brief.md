@@ -195,6 +195,8 @@ A saved Phase 0 pet has none of the new fields. If the loaded pet does not match
 
 Debug reset replaces the pet and keeps the attestation. A separate debug action clears the attestation so both gate paths can be tested.
 
+A debug "New pet" action deletes the saved pet and returns to the species step. It has no confirmation, and the old pet is not kept. It also cancels the scheduled reminder and clears the saved adoption draft, so the flow starts fresh with a new seed. It keeps the attestation and the reminders and sound preferences. The delete goes through the same save queue as every other pet write, so a pending save cannot bring the old pet back. A swap window, rehome, and retire are not part of Phase 1.
+
 ## View
 
 The home screen draws one actor with Skia. The renderer imports Skia. The modules listed under Simulation do not. Port `docs/Procedural Dog.html`. Do not embed it. When the cat reference arrives, add cat breeds and a cat draw path the same way. The species picker lists a species only when it has at least one breed.

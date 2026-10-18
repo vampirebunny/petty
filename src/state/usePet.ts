@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 
-import { syncReminder } from '../reminders/notifications';
+import { cancelReminders, syncReminder } from '../reminders/notifications';
 import {
   applyEvent,
   applyWeightDelta,
@@ -52,6 +52,7 @@ type PetApi = {
   setVitalityValue: (vitality: number) => void;
   setWeightValue: (weight: number) => void;
   reset: () => void;
+  release: () => void;
   adopt: (seed: number, breedId: string, variant: Variant, name: string) => void;
 };
 
@@ -202,6 +203,26 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
     );
   }, [publish]);
 
+  // Deletes the pet for good. The delete rides the same queue as every save, so a pending
+  // save cannot write the old pet back, and the tick skips while no pet is loaded.
+  const release = useCallback(() => {
+    if (!stateRef.current) {
+      return;
+    }
+    stateRef.current = null;
+    // Start the draft delete before the adoption screen mounts and reads the draft.
+    const draftCleared = clearDraft();
+    setState(null);
+    tokenRef.current += 1;
+    setCue({ kind: 'none', token: tokenRef.current });
+    saveQueue.current = saveQueue.current
+      .catch(() => undefined)
+      .then(() => draftCleared)
+      .then(() => storageRef.current.clear())
+      .then(() => cancelReminders())
+      .catch(() => undefined);
+  }, []);
+
   const adopt = useCallback(
     (seed: number, breedId: string, variant: Variant, name: string) => {
       const id = `${seed}-${variant}-${Date.now().toString(36)}`;
@@ -288,6 +309,7 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
     setVitalityValue,
     setWeightValue,
     reset,
+    release,
     adopt,
   };
 }

@@ -21,6 +21,17 @@ function ensureHandler(): void {
   });
 }
 
+export async function cancelReminders(): Promise<void> {
+  if (Platform.OS === 'web') {
+    return;
+  }
+  try {
+    await Notifications.cancelAllScheduledNotificationsAsync();
+  } catch {
+    // Nothing to cancel, or notifications are unavailable.
+  }
+}
+
 export async function syncReminder(pet: PetState, enabled: boolean, now = Date.now()): Promise<boolean> {
   if (Platform.OS === 'web') {
     return enabled;

@@ -60,7 +60,7 @@ it('makes a sound only when the speak action barks, and only on the first beat',
   expect(startUserTask(world, pup, 'speak')).toBe(true);
   run(world, 1.5);
   const sounds = takeSounds(world);
-  expect(sounds.length).toBeGreaterThan(0);
+  expect(sounds.length).toBe(1);
   expect(sounds[0].sound).toBe('bark');
   expect(sounds[0].actorId).toBe('pet');
   expect(takeSounds(world)).toEqual([]);
@@ -147,4 +147,45 @@ it('exposes preset scene data that compiles back and keeps the bedroom bed shape
   }
   expect(scenes.bedroom.props.some((prop) => prop.kind === 'shape')).toBe(true);
   expect(breedById('retriever')).not.toBeNull();
+});
+
+it('eats and drinks from the side of the bowl the pet approaches from', () => {
+  for (const [task, type] of [['eat', 'food'], ['drink', 'water']] as const) {
+    const scene = scenes.livingroom;
+    const poi = scene.pois.find((entry) => entry.type === type)!;
+    for (const side of [-1, 1] as const) {
+      const pup = spawnActor(source());
+      const world = createWorld([pup], 1, scene);
+      pup.x = poi.x - side * 120;
+      pup.y = poi.y;
+      expect(startUserTask(world, pup, task)).toBe(true);
+      for (let i = 0; i < 400 && pup.task.stage !== 'eating'; i += 1) {
+        update(world, 0.05);
+      }
+      expect(pup.task.stage).toBe('eating');
+      expect(pup.face).toBe(side);
+      // The pet stands on the side it came from.
+      expect(Math.sign(poi.x - pup.x)).toBe(side);
+    }
+  }
+});
+
+it('stands exactly at the bowl to eat and at the water bowl to drink, in every indoor scene', () => {
+  for (const scene of [scenes.livingroom, scenes.bedroom]) {
+    for (const [task, type] of [['eat', 'food'], ['drink', 'water']] as const) {
+      const pup = spawnActor(source());
+      const world = createWorld([pup], 1, scene);
+      expect(startUserTask(world, pup, task)).toBe(true);
+      for (let i = 0; i < 400 && pup.task.stage !== 'eating'; i += 1) {
+        update(world, 0.05);
+      }
+      expect(pup.task.stage).toBe('eating');
+      const poi = scene.pois.find((entry) => entry.type === type)!;
+      // Same baseline as the bowl, so the pet is never drawn behind it.
+      expect(pup.y).toBe(poi.y);
+      expect(statusOf(pup)).toBe(task === 'eat' ? 'Eating' : 'Drinking');
+      run(world, 1);
+      expect(pup.pose.headDown).toBeGreaterThan(0.9);
+    }
+  }
 });

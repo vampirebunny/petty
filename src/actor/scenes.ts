@@ -257,9 +257,11 @@ const sceneDefs = {
       { kind: 'lamp', x: 604, y: 206 },
       { kind: 'bed', x: 112, y: 270, w: 112, color: '#c2653d' },
       { kind: 'bowl', x: 540, y: 274, color: '#2f7d5b', contents: 'kibble' },
+      { kind: 'bowl', x: 420, y: 262, color: '#3f78b5', contents: 'water' },
     ],
     pois: [
       { id: 'bowl', type: 'food', x: 540, y: 274, face: 1 },
+      { id: 'water', type: 'water', x: 420, y: 262, face: 1 },
       { id: 'bed', type: 'bed', x: 112, y: 272 },
       { id: 'home', type: 'home', x: 300, y: 272 },
     ],
@@ -325,9 +327,11 @@ const sceneDefs = {
       { kind: 'lamp', x: 540, y: 208 },
       { kind: 'bed', x: 470, y: 276, w: 112, color: '#d98b3a' },
       { kind: 'bowl', x: 130, y: 276, color: '#c24d4d', contents: 'kibble' },
+      { kind: 'bowl', x: 270, y: 266, color: '#3f78b5', contents: 'water' },
     ],
     pois: [
       { id: 'bowl', type: 'food', x: 130, y: 276, face: 1 },
+      { id: 'water', type: 'water', x: 270, y: 266, face: 1 },
       { id: 'bed', type: 'bed', x: 470, y: 278 },
       { id: 'home', type: 'home', x: 300, y: 274 },
     ],
