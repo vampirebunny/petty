@@ -1,19 +1,81 @@
-import { useCallback, useEffect, useRef } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { AccessibilityInfo, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
-import { petStrokeIntervalMs } from '../sim';
+import { actionEnabled, sceneById, sceneList, stagePoint, wardrobe } from '../actor';
+import { stageHeight, stageWidth } from '../actor/geometry';
+import { attributeScore, petStrokeIntervalMs, traits } from '../sim';
+import type { OutfitSlot, Trait } from '../sim';
 import { usePet } from '../state/usePet';
 import { ActionButtons } from '../ui/ActionButtons';
 import { DebugPanel } from '../ui/DebugPanel';
 import { NeedBars } from '../ui/NeedBars';
 import { PetView } from '../ui/PetView';
 
-export default function HomeScreen() {
-  const { state, mood, cue, feed, rest, pet, advanceBy, reset } = usePet();
+type Props = {
+  petApi: ReturnType<typeof usePet>;
+  onClearAttestation: () => void;
+};
+
+const traitLabel: Record<Trait, string> = {
+  stamina: 'Stamina',
+  agility: 'Agility',
+  intelligence: 'Intelligence',
+  boldness: 'Boldness',
+  affection: 'Affection',
+  obedience: 'Obedience',
+};
+
+function formatScore(value: number): string {
+  const rounded = Math.round(value * 10) / 10;
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+}
+
+export default function HomeScreen({ petApi, onClearAttestation }: Props) {
+  const {
+    state,
+    mood,
+    cue,
+    remindersOn,
+    setRemindersOn,
+    feed,
+    drink,
+    rest,
+    pet,
+    fetchBall,
+    throwAt,
+    setScene,
+    equip,
+    applyActorWeight,
+    advanceBy,
+    setAge,
+    setVitalityValue,
+    setWeightValue,
+    reset,
+  } = petApi;
   const lastStrokeAt = useRef(0);
+  const { width } = useWindowDimensions();
+  const viewWidth = Math.max(280, width - 40);
+  const viewHeight = viewWidth * (stageHeight / stageWidth);
+  const [hour, setHour] = useState<number | null>(null);
+  const [reducedMotion, setReducedMotion] = useState(false);
+  const [wardrobeOpen, setWardrobeOpen] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    void AccessibilityInfo.isReduceMotionEnabled().then((enabled) => {
+      if (mounted) {
+        setReducedMotion(enabled);
+      }
+    });
+    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReducedMotion);
+    return () => {
+      mounted = false;
+      subscription.remove();
+    };
+  }, []);
 
   useEffect(() => {
     if (cue.kind === 'wiggle' || cue.kind === 'purr') {
@@ -35,64 +97,148 @@ export default function HomeScreen() {
     .onUpdate(() => {
       runOnJS(stroke)();
     });
-  const tap = Gesture.Tap().onEnd(() => {
-    runOnJS(pet)();
+  const throwHere = useCallback(
+    (x: number, y: number) => {
+      const point = stagePoint(x, y, viewWidth, viewHeight);
+      throwAt(point.x, point.y);
+    },
+    [throwAt, viewHeight, viewWidth],
+  );
+  const tap = Gesture.Tap().onEnd((event) => {
+    runOnJS(throwHere)(event.x, event.y);
   });
   const gesture = Gesture.Exclusive(pan, tap);
+  const scene = sceneById(state?.sceneId ?? 'livingroom');
 
   if (!state || !mood) {
-    return (
-      <View style={styles.loading}>
-        <Text style={styles.loadingText}>Boop Boop</Text>
-      </View>
-    );
+    return null;
   }
 
   return (
-    <View style={styles.screen}>
-      <NeedBars needs={state.needs} />
-      <View style={styles.scene}>
-        <GestureDetector gesture={gesture}>
-          <View collapsable={false}>
-            <PetView needs={state.needs} mood={mood} cue={cue.kind} cueToken={cue.token} />
-          </View>
-        </GestureDetector>
-        <View style={styles.ground} />
+    <ScrollView contentContainerStyle={styles.screen}>
+      <View style={styles.header}>
+        <Text style={styles.name}>{state.name}</Text>
+        <Text style={styles.meta}>
+          {state.temperament.label} · Level {state.level}
+        </Text>
+        {traits.map((trait) => (
+          <Text key={trait} style={styles.score}>
+            {traitLabel[trait]} {formatScore(attributeScore(state, trait))} / {state.potential[trait]}
+          </Text>
+        ))}
       </View>
-      <ActionButtons asleep={state.asleep} onFeed={feed} onRest={rest} />
-      <DebugPanel state={state} mood={mood} cue={cue} onAdvance={advanceBy} onReset={reset} />
-    </View>
+      <NeedBars needs={state.needs} />
+      <GestureDetector gesture={gesture}>
+        <View collapsable={false}>
+          <PetView
+            pet={state}
+            cueKind={cue.kind}
+            cueToken={cue.token}
+            drop={cue.drop}
+            hour={hour}
+            reducedMotion={reducedMotion}
+            onWeightDelta={applyActorWeight}
+          />
+        </View>
+      </GestureDetector>
+      <View style={styles.scenes}>
+        {sceneList.map((entry) => (
+          <Pressable key={entry.id} style={styles.scene} onPress={() => setScene(entry.id)}>
+            <Text style={styles.sceneLabel}>{entry.name}</Text>
+          </Pressable>
+        ))}
+      </View>
+      <ActionButtons
+        asleep={state.asleep}
+        canFeed={actionEnabled(scene, 'feed')}
+        canDrink={actionEnabled(scene, 'drink')}
+        canRest={state.asleep || actionEnabled(scene, 'rest')}
+        onFeed={feed}
+        onDrink={drink}
+        onRest={rest}
+        onThrow={fetchBall}
+      />
+      <Pressable onPress={() => setWardrobeOpen((open) => !open)}>
+        <Text style={styles.switchLabel}>{wardrobeOpen ? 'Hide wardrobe' : 'Wardrobe'}</Text>
+      </Pressable>
+      {wardrobeOpen
+        ? (Object.keys(wardrobe) as OutfitSlot[]).map((slot) => (
+            <View key={slot} style={styles.scenes}>
+              {wardrobe[slot].items.map((item) => (
+                <Pressable key={item.id} style={styles.scene} onPress={() => equip(slot, item.id === 'none' ? null : item.id)}>
+                  <Text style={styles.sceneLabel}>
+                    {wardrobe[slot].label} {item.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          ))
+        : null}
+      <Pressable style={styles.switch} onPress={() => setRemindersOn(!remindersOn)}>
+        <Text style={styles.switchLabel}>Reminders {remindersOn ? 'on' : 'off'}</Text>
+      </Pressable>
+      <DebugPanel
+        state={state}
+        mood={mood}
+        cue={cue}
+        onAdvance={advanceBy}
+        onAge={setAge}
+        onVitality={setVitalityValue}
+        onWeight={setWeightValue}
+        hour={hour}
+        onHour={setHour}
+        onReset={reset}
+        onClearAttestation={onClearAttestation}
+      />
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   screen: {
-    flex: 1,
+    flexGrow: 1,
     backgroundColor: '#F4F7FB',
     paddingTop: 64,
     paddingHorizontal: 20,
-    paddingBottom: 24,
+    paddingBottom: 32,
     gap: 16,
   },
-  loading: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F4F7FB',
+  header: {
+    gap: 2,
   },
-  loadingText: {
-    fontSize: 20,
+  name: {
+    fontSize: 28,
     color: '#243044',
   },
-  scene: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'flex-end',
+  meta: {
+    fontSize: 16,
+    color: '#243044',
+    marginBottom: 4,
   },
-  ground: {
-    alignSelf: 'stretch',
-    height: 2,
-    backgroundColor: '#243044',
-    marginTop: 4,
+  score: {
+    fontSize: 14,
+    color: '#5C6B80',
+  },
+  scenes: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  scene: {
+    backgroundColor: '#E4E8EF',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  sceneLabel: {
+    color: '#243044',
+    fontSize: 13,
+  },
+  switch: {
+    alignSelf: 'flex-start',
+  },
+  switchLabel: {
+    fontSize: 15,
+    color: '#243044',
   },
 });

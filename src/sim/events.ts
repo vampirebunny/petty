@@ -1,12 +1,20 @@
+import { clampDrift, withDerived } from './attributes';
+import { applyMeal } from './care';
 import {
   clampMax,
   clampMin,
+  feedDietGain,
   feedFullnessGain,
+  feedStaminaDrift,
+  feedXp,
+  petAffectionDrift,
+  petAttentionGain,
   petHappinessGain,
   petPurrAtOrAbove,
+  petXp,
 } from './config';
 import { nextRng } from './rng';
-import type { Cue, PetEvent, PetState } from './types';
+import type { CareSample, Cue, PetEvent, PetState } from './types';
 
 export type EventResult = {
   state: PetState;
@@ -17,33 +25,91 @@ function clampNeed(value: number): number {
   return Math.min(clampMax, Math.max(clampMin, value));
 }
 
-function copyState(state: PetState, needs = state.needs): PetState {
+function copyState(state: PetState): PetState {
   return {
     ...state,
-    needs: { ...needs },
+    needs: { ...state.needs },
+    careWindow: state.careWindow.map((sample) => ({ ...sample })),
+    equipped: { ...state.equipped },
+    potential: { ...state.potential },
+    trained: { ...state.trained },
+    temperament: { ...state.temperament },
+    drift: { ...state.drift },
   };
 }
 
+function bumpDiet(samples: CareSample[]): CareSample[] {
+  const next = samples.map((sample) => ({ ...sample }));
+  const today = next[next.length - 1];
+  if (today == null) {
+    return [
+      {
+        day: 0,
+        dietQuality: Math.min(1, feedDietGain),
+        exercise: 0,
+        play: 0,
+        attention: 0,
+      },
+    ];
+  }
+  today.dietQuality = Math.min(1, today.dietQuality + feedDietGain);
+  return next;
+}
+
+function bumpAttention(samples: CareSample[]): CareSample[] {
+  const next = samples.map((sample) => ({ ...sample }));
+  const today = next[next.length - 1];
+  if (today == null) {
+    return next;
+  }
+  today.attention = Math.min(1, today.attention + petAttentionGain);
+  return next;
+}
+
 export function applyEvent(state: PetState, event: PetEvent): EventResult {
-  if (event.type === 'feed') {
+  if (event.type === 'setScene') {
+    const next = copyState(state);
+    next.sceneId = event.sceneId;
+    return { state: next, cue: { kind: 'none' } };
+  }
+
+  if (event.type === 'equip') {
+    const next = copyState(state);
+    if (event.itemId == null || event.itemId === 'none') {
+      delete next.equipped[event.slot];
+    } else {
+      next.equipped[event.slot] = event.itemId;
+    }
+    return { state: next, cue: { kind: 'none' } };
+  }
+
+  if (event.type === 'feed' || event.type === 'drink') {
     if (state.asleep) {
       return { state: copyState(state), cue: { kind: 'stir' } };
     }
-    return {
-      state: copyState(state, {
-        ...state.needs,
-        fullness: clampNeed(state.needs.fullness + feedFullnessGain),
-      }),
-      cue: { kind: 'eat' },
-    };
+    const next = copyState(state);
+    if (event.type === 'feed') {
+      next.needs.fullness = clampNeed(next.needs.fullness + feedFullnessGain);
+      next.xp += feedXp;
+      next.drift.stamina = clampDrift(next.drift.stamina + feedStaminaDrift);
+      next.careWindow = bumpDiet(next.careWindow);
+      next.weight = applyMeal(next.weight);
+      return { state: withDerived(next), cue: { kind: 'eat' } };
+    }
+    return { state: next, cue: { kind: 'drink' } };
   }
 
   if (event.type === 'toggleRest') {
-    const asleep = !state.asleep;
-    return {
-      state: { ...copyState(state), asleep },
-      cue: { kind: asleep ? 'yawn' : 'none' },
-    };
+    const next = copyState(state);
+    next.asleep = !state.asleep;
+    return { state: next, cue: { kind: next.asleep ? 'yawn' : 'none' } };
+  }
+
+  if (event.type === 'fetch') {
+    if (state.asleep) {
+      return { state: copyState(state), cue: { kind: 'stir' } };
+    }
+    return { state: copyState(state), cue: { kind: 'fetch', drop: event.drop } };
   }
 
   if (state.asleep) {
@@ -51,15 +117,16 @@ export function applyEvent(state: PetState, event: PetEvent): EventResult {
   }
 
   const rng = nextRng(state.rngState);
-  const gain = petHappinessGain * (1 - state.needs.happiness / clampMax);
+  const next = copyState(state);
+  next.rngState = rng.state;
+  next.needs.happiness = clampNeed(
+    next.needs.happiness + petHappinessGain * (1 - next.needs.happiness / clampMax),
+  );
+  next.xp += petXp;
+  next.drift.affection = clampDrift(next.drift.affection + petAffectionDrift);
+  next.careWindow = bumpAttention(next.careWindow);
   return {
-    state: copyState(
-      { ...state, rngState: rng.state },
-      {
-        ...state.needs,
-        happiness: clampNeed(state.needs.happiness + gain),
-      },
-    ),
+    state: withDerived(next),
     cue: { kind: rng.value >= petPurrAtOrAbove ? 'purr' : 'wiggle' },
   };
 }

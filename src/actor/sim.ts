@@ -1,0 +1,640 @@
+import { weightBurnPerSec, weightRunSpeed } from '../sim/config';
+import { bodyFrame, reachOf, speedMax, stageWidth } from './geometry';
+import { breedById } from './breeds';
+import { canBehave, reactionFor, type UserTask } from './behavior';
+import { defaultPose, easePose } from './pose';
+import { poiOf, scenes, stageHeight } from './scenes';
+import type { Scene } from './scenes';
+import type { Actor, ActorSource, Anchors, Ball, Idle, IdleMode, Pose, Task, TaskType, Vec, World } from './types';
+
+const displayTau = 0.35;
+const idleWeight: Record<IdleMode, number> = { still: 3, pant: 2, purr: 2, nap: 1.5, walk: 2.5 };
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+function easeDisplay(current: number, target: number, dt: number): number {
+  return current + (target - current) * (1 - Math.exp(-dt / displayTau));
+}
+
+function emptyBall(): Ball {
+  return { state: 'none', x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, carrierId: null };
+}
+
+function emptyAnchors(face: 1 | -1 = 1): Anchors {
+  return {
+    head: { x: 0, y: 0, pitch: 0, radius: 0 },
+    neck: { x: 0, y: 0 },
+    torso: { theta: 0, dy: 0, pivot: { x: 0, y: 0 } },
+    paws: [],
+    scale: 1,
+    facing: face,
+  };
+}
+
+function makeRng(seed: number): () => number {
+  let state = seed >>> 0 || 1;
+  return () => {
+    state = (Math.imul(1664525, state) + 1013904223) >>> 0;
+    return state / 4294967296;
+  };
+}
+
+function taskOf(type: TaskType, stage = '', kind?: 'eat' | 'drink'): Task {
+  return { type, stage, t: 0, kind, bats: 0, cool: 0 };
+}
+
+function idleOf(mode: IdleMode = 'still'): Idle {
+  return { mode, t: 0, dur: 4, target: null, sit: false, arrived: true };
+}
+
+function homeOf(scene: Scene): Vec {
+  return poiOf(scene, 'home') ?? { x: 300, y: scene.floor.yMin + 40 };
+}
+
+export function stagePoint(x: number, y: number, viewW: number, viewH: number): Vec {
+  return {
+    x: (x / Math.max(viewW, 1)) * stageWidth,
+    y: (y / Math.max(viewH, 1)) * stageHeight,
+  };
+}
+
+export function spawnActor(source: ActorSource, at?: Vec): Actor {
+  const scene = scenes.livingroom;
+  const home = homeOf(scene);
+  const x = at?.x ?? home.x;
+  const y = at?.y ?? home.y;
+  return {
+    id: source.id,
+    breedId: source.breedId,
+    x,
+    y,
+    z: 0,
+    vz: 0,
+    vx: 0,
+    vy: 0,
+    speed: 0,
+    face: 1,
+    pose: defaultPose(),
+    task: taskOf(source.asleep ? 'sleep' : 'idle', source.asleep ? 'sleeping' : ''),
+    idle: idleOf(),
+    phase: 0,
+    panPh: 0,
+    chewPh: 0,
+    wagPh: 0,
+    breathPh: 0,
+    blinkT: 3,
+    pantT: 0,
+    bark: { active: false, t: 0, fired: [false, false], open: 0 },
+    ageDays: source.ageDays,
+    displayAgeDays: source.ageDays,
+    weight: source.weight,
+    displayWeight: source.weight,
+    syncedWeight: source.weight,
+    vitality: source.vitality,
+    equipped: { ...source.equipped },
+    asleep: source.asleep,
+    mouth: { x, y },
+    anchors: emptyAnchors(),
+  };
+}
+
+export function createWorld(actors: Actor[], seed = 1, scene: Scene = scenes.livingroom): World {
+  return { actors, ball: emptyBall(), bowlFill: 1, t: 0, rng: makeRng(seed), scene, reducedMotion: false };
+}
+
+export function syncActor(actor: Actor, source: ActorSource): void {
+  const pending = actor.weight - actor.syncedWeight;
+  actor.ageDays = source.ageDays;
+  actor.syncedWeight = source.weight;
+  actor.weight = source.weight + pending;
+  actor.vitality = source.vitality;
+  actor.equipped = { ...source.equipped };
+  actor.breedId = source.breedId;
+  if (actor.asleep !== source.asleep) {
+    actor.asleep = source.asleep;
+    actor.task = taskOf(source.asleep ? 'sleep' : 'idle', source.asleep ? 'sleeping' : '');
+    actor.pantT = 0;
+  }
+}
+
+export function takeWeightDelta(actor: Actor): number {
+  const delta = actor.weight - actor.syncedWeight;
+  actor.syncedWeight = actor.weight;
+  return delta;
+}
+
+export function setWorldScene(world: World, scene: Scene): void {
+  world.scene = scene;
+  const home = homeOf(scene);
+  for (const actor of world.actors) {
+    actor.x = home.x;
+    actor.y = home.y;
+    actor.vx = 0;
+    actor.vy = 0;
+    actor.z = 0;
+    actor.vz = 0;
+  }
+  world.ball = emptyBall();
+}
+
+export function frameDt(elapsedMs: number, active: boolean): number {
+  if (!active || elapsedMs <= 0) {
+    return 0;
+  }
+  return Math.min(elapsedMs, 50) / 1000;
+}
+
+export function settleOnResume(world: World): void {
+  let fetching = false;
+  for (const actor of world.actors) {
+    if (actor.task.type === 'eat' || actor.task.type === 'fetch' || actor.task.type === 'winddown') {
+      fetching = actor.task.type === 'fetch' || fetching;
+      actor.task = taskOf(actor.asleep ? 'sleep' : 'idle', actor.asleep ? 'sleeping' : '');
+      actor.pantT = 0;
+    }
+  }
+  if (fetching || world.ball.state === 'carried') {
+    world.ball = emptyBall();
+  }
+}
+
+function releaseCarried(world: World, actor: Actor): void {
+  if (world.ball.state === 'carried' && world.ball.carrierId === actor.id) {
+    world.ball = {
+      state: 'free',
+      x: actor.mouth.x,
+      y: actor.y + 1,
+      z: Math.max(0, actor.y - actor.z - actor.mouth.y),
+      vx: actor.face * 30,
+      vy: 0,
+      vz: 0,
+      carrierId: null,
+    };
+  }
+}
+
+export function throwFromEdge(world: World): void {
+  const roll = world.rng;
+  const floor = world.scene.floor;
+  world.ball = {
+    state: 'free',
+    x: floor.xMin - 4,
+    y: floor.yMin + 10 + roll() * (floor.yMax - floor.yMin - 20),
+    z: 30,
+    vx: 240 + roll() * 110,
+    vy: (roll() - 0.5) * 90,
+    vz: 330,
+    carrierId: null,
+  };
+}
+
+export function dropBallAt(world: World, x: number, y: number): void {
+  const roll = world.rng;
+  const floor = world.scene.floor;
+  world.ball = {
+    state: 'free',
+    x: clamp(x, floor.xMin - 12, floor.xMax + 12),
+    y: clamp(y, floor.yMin, floor.yMax),
+    z: 130,
+    vx: (roll() - 0.5) * 40,
+    vy: (roll() - 0.5) * 20,
+    vz: 0,
+    carrierId: null,
+  };
+}
+
+function beginIdle(world: World, actor: Actor, mode: IdleMode): void {
+  const roll = world.rng;
+  actor.idle.mode = mode;
+  actor.idle.t = 0;
+  actor.idle.target = null;
+  actor.idle.arrived = true;
+  actor.idle.dur = mode === 'still' ? 3 + roll() * 3.5 : mode === 'nap' ? 9 + roll() * 6 : mode === 'walk' ? 9 : 4 + roll() * 2.5;
+  actor.idle.sit = mode === 'purr' ? true : mode === 'pant' ? roll() < 0.5 : false;
+  const bed = mode === 'nap' ? poiOf(world.scene, 'bed') : null;
+  if (bed) {
+    actor.idle.target = { x: bed.x, y: bed.y };
+    actor.idle.arrived = false;
+  }
+}
+
+function nextIdle(world: World, actor: Actor): void {
+  const breed = breedById(actor.breedId);
+  const options = (breed?.species === 'cat' ? ['still', 'purr', 'nap', 'walk'] : ['still', 'pant', 'nap', 'walk']).filter(
+    (mode) => mode !== actor.idle.mode && !(world.reducedMotion && mode === 'walk'),
+  ) as IdleMode[];
+  const choices = options.length > 0 ? options : (['still'] as IdleMode[]);
+  const total = choices.reduce((sum, mode) => sum + idleWeight[mode], 0);
+  let roll = world.rng() * total;
+  let pick = choices[0];
+  for (const mode of choices) {
+    roll -= idleWeight[mode];
+    if (roll <= 0) {
+      pick = mode;
+      break;
+    }
+  }
+  beginIdle(world, actor, pick);
+}
+
+function goIdle(world: World, actor: Actor): void {
+  releaseCarried(world, actor);
+  actor.task = taskOf('idle');
+  beginIdle(world, actor, 'still');
+}
+
+export function startUserTask(world: World, actor: Actor, task: UserTask, roll = 1, drop?: Vec): boolean {
+  if (task === 'wake') {
+    actor.asleep = false;
+    goIdle(world, actor);
+    return true;
+  }
+  if (task === 'sleep') {
+    const bed = poiOf(world.scene, 'bed');
+    if (!bed) {
+      return false;
+    }
+    actor.asleep = true;
+    actor.task = taskOf('sleep', 'go');
+    actor.pantT = 0;
+    return true;
+  }
+  if (actor.asleep) {
+    return false;
+  }
+  if (task === 'eat' || task === 'drink') {
+    const poi = poiOf(world.scene, task === 'eat' ? 'food' : 'water');
+    if (!poi || !canBehave(actor, 'eat')) {
+      return false;
+    }
+    releaseCarried(world, actor);
+    actor.task = taskOf('eat', 'go', task);
+    actor.pantT = 0;
+    return true;
+  }
+  if (task === 'fetch') {
+    releaseCarried(world, actor);
+    if (drop) {
+      dropBallAt(world, drop.x, drop.y);
+    } else {
+      throwFromEdge(world);
+    }
+    actor.task = taskOf('fetch', 'chase');
+    actor.pantT = 0;
+    return true;
+  }
+  const reaction = reactionFor(actor.breedId, roll);
+  if (reaction == null || !canBehave(actor, reaction)) {
+    return false;
+  }
+  releaseCarried(world, actor);
+  if (reaction === 'bark' || reaction === 'purr') {
+    actor.bark = { active: true, t: 0, fired: [false, false], open: 0 };
+    if (reaction === 'purr') {
+      actor.task = taskOf('purr');
+    }
+    return true;
+  }
+  actor.task = taskOf(reaction);
+  actor.pantT = 0;
+  return true;
+}
+
+function updateBall(world: World, dt: number): void {
+  const ball = world.ball;
+  if (ball.state !== 'free') {
+    return;
+  }
+  const floor = world.scene.floor;
+  const surface = world.scene.surface;
+  ball.vz -= 900 * dt;
+  ball.z += ball.vz * dt;
+  if (ball.z < 0) {
+    ball.z = 0;
+    ball.vz = Math.abs(ball.vz) > 60 ? -ball.vz * surface.bounce : 0;
+  }
+  ball.x += ball.vx * dt;
+  ball.y += ball.vy * dt;
+  const friction = Math.exp(-dt * (ball.z > 0 ? 0.3 : surface.friction));
+  ball.vx *= friction;
+  ball.vy *= friction;
+  if (ball.x < floor.xMin - 14) {
+    ball.x = floor.xMin - 14;
+    ball.vx = Math.abs(ball.vx) * 0.6;
+  }
+  if (ball.x > floor.xMax + 14) {
+    ball.x = floor.xMax + 14;
+    ball.vx = -Math.abs(ball.vx) * 0.6;
+  }
+  if (ball.y < floor.yMin) {
+    ball.y = floor.yMin;
+    ball.vy = Math.abs(ball.vy) * 0.6;
+  }
+  if (ball.y > floor.yMax) {
+    ball.y = floor.yMax;
+    ball.vy = -Math.abs(ball.vy) * 0.6;
+  }
+}
+
+function poseTargets(actor: Actor): Pose {
+  return {
+    ...defaultPose(),
+    walk: actor.speed > 14 ? 1 : 0,
+  };
+}
+
+function updateActor(world: World, actor: Actor, dt: number): void {
+  const breed = breedById(actor.breedId);
+  if (!breed) {
+    return;
+  }
+  const floor = world.scene.floor;
+  actor.task.t += dt;
+  actor.task.cool = Math.max(0, actor.task.cool - dt);
+  actor.displayAgeDays = easeDisplay(actor.displayAgeDays, actor.ageDays, dt);
+  actor.displayWeight = easeDisplay(actor.displayWeight, actor.weight, dt);
+  if (actor.z > 0 || actor.vz !== 0) {
+    actor.vz -= 900 * dt;
+    actor.z += actor.vz * dt;
+    if (actor.z <= 0) {
+      actor.z = 0;
+      actor.vz = 0;
+    }
+  }
+  const frame = bodyFrame(
+    breed,
+    actor.displayAgeDays,
+    actor.displayWeight,
+    actor.vitality,
+    actor.pose,
+    actor.bark.open,
+    actor.phase,
+    actor.x,
+    actor.y,
+    actor.face,
+    floor,
+  );
+  actor.mouth = frame.mouth;
+  actor.anchors = {
+    head: { x: frame.head.x, y: frame.head.y, pitch: frame.pitch, radius: frame.geom.headR },
+    neck: { x: frame.geom.bodyLen / 2 - 14, y: frame.geom.bodyY - 2 },
+    torso: { theta: frame.theta, dy: frame.dy, pivot: { x: frame.geom.Px, y: frame.geom.Py } },
+    paws: actor.anchors.paws,
+    scale: frame.scale,
+    facing: actor.face >= 0 ? 1 : -1,
+  };
+  const targets = poseTargets(actor);
+  let move: Vec | null = null;
+  let vmax = 0;
+  let wagRate = 5;
+  const limit = speedMax(breed, actor.displayAgeDays, actor.displayWeight);
+  const cat = breed.species === 'cat';
+
+  if (actor.speed > weightRunSpeed) {
+    actor.weight = clamp(actor.weight - weightBurnPerSec * dt, -1, 1);
+  }
+
+  if (actor.task.type === 'idle') {
+    actor.idle.t += dt;
+    if (actor.idle.mode === 'walk') {
+      if (!actor.idle.target) {
+        actor.idle.target = {
+          x: floor.xMin + 22 + world.rng() * (floor.xMax - floor.xMin - 44),
+          y: floor.yMin + world.rng() * (floor.yMax - floor.yMin),
+        };
+      }
+      move = actor.idle.target;
+      vmax = limit * 0.42;
+      const arrived =
+        actor.idle.target != null &&
+        Math.hypot(actor.idle.target.x - actor.x, actor.idle.target.y - actor.y) < 6 &&
+        actor.speed < 14;
+      if (arrived || actor.idle.t > actor.idle.dur) {
+        nextIdle(world, actor);
+      }
+    } else {
+      if (actor.idle.mode === 'pant') {
+        targets.pant = 1;
+        targets.breathAmp = 0.05;
+        targets.breathRate = 5;
+        targets.wagAmp = 0.12;
+        targets.sit = actor.idle.sit ? 1 : 0;
+      } else if (actor.idle.mode === 'purr') {
+        targets.squint = 0.7;
+        targets.breathAmp = 0.03;
+        targets.breathRate = 3;
+        targets.sit = 1;
+        targets.wagAmp = 0.1;
+      } else if (actor.idle.mode === 'nap') {
+        if (!actor.idle.arrived && actor.idle.target) {
+          move = actor.idle.target;
+          vmax = limit * 0.42;
+          if (Math.hypot(actor.idle.target.x - actor.x, actor.idle.target.y - actor.y) < 5 && actor.speed < 15) {
+            actor.idle.arrived = true;
+            actor.idle.t = 0;
+          }
+        } else {
+          targets.lie = 1;
+          targets.headRest = 1;
+          targets.eyes = 1;
+          targets.wagAmp = 0;
+          targets.breathAmp = 0.03;
+          targets.breathRate = 0.35;
+        }
+      }
+      if (actor.idle.arrived && actor.idle.t > actor.idle.dur) {
+        nextIdle(world, actor);
+      }
+    }
+  } else if (actor.task.type === 'sit') {
+    targets.sit = 1;
+    targets.wagAmp = 0.3;
+  } else if (actor.task.type === 'paw') {
+    targets.sit = 1;
+    targets.wagAmp = 0.45;
+    targets.paw = actor.task.t > 0.7 && actor.task.t < 3.7 ? 1 : 0;
+    if (actor.task.t > 4.2) {
+      actor.task = taskOf('sit');
+    }
+  } else if (actor.task.type === 'purr' || actor.task.type === 'groom') {
+    targets.sit = 1;
+    targets.squint = 0.7;
+    targets.breathAmp = 0.03;
+    targets.breathRate = 3;
+    if (actor.task.t > 3) {
+      goIdle(world, actor);
+    }
+  } else if (actor.task.type === 'sleep') {
+    const bed = poiOf(world.scene, 'bed');
+    if (actor.task.stage === 'go' && bed) {
+      move = { x: bed.x, y: bed.y };
+      vmax = limit * 0.5;
+      if (Math.hypot(bed.x - actor.x, bed.y - actor.y) < 5 && actor.speed < 15) {
+        actor.task.stage = 'sleeping';
+      }
+    } else {
+      targets.lie = 1;
+      targets.headRest = 1;
+      targets.eyes = 1;
+      targets.wagAmp = 0;
+      targets.breathAmp = 0.03;
+      targets.breathRate = 0.35;
+    }
+  } else if (actor.task.type === 'winddown') {
+    targets.sit = 1;
+    targets.wagAmp = 0.3;
+    if (cat) {
+      targets.squint = 0.7;
+      targets.breathAmp = 0.03;
+      targets.breathRate = 3;
+    } else {
+      targets.pant = 1;
+      targets.breathAmp = 0.05;
+      targets.breathRate = 5;
+    }
+    if (actor.task.t > 5) {
+      goIdle(world, actor);
+    }
+  } else if (actor.task.type === 'eat') {
+    const poi = poiOf(world.scene, actor.task.kind === 'drink' ? 'water' : 'food');
+    const face = poi?.face ?? 1;
+    const spot = poi
+      ? { x: poi.x - face * frame.scale * (frame.geom.bodyLen / 2 + 34), y: poi.y }
+      : null;
+    if (actor.task.stage === 'go' && spot) {
+      move = spot;
+      vmax = limit * 0.5;
+      if (Math.hypot(spot.x - actor.x, spot.y - actor.y) < 4 && actor.speed < 15) {
+        actor.task = { ...actor.task, stage: 'eating', t: 0 };
+        actor.face = face;
+      }
+    } else if (spot) {
+      targets.headDown = 1;
+      targets.wagAmp = 0.35;
+      actor.face = face;
+      if (actor.task.t > 6) {
+        goIdle(world, actor);
+      }
+    } else {
+      goIdle(world, actor);
+    }
+  } else if (actor.task.type === 'fetch') {
+    targets.wagAmp = 0.5;
+    wagRate = 9;
+    const reach = reachOf(frame.geom) * frame.scale;
+    if (actor.task.stage === 'chase' && world.ball.state === 'free') {
+      let ahead = (world.ball.x - actor.x) * actor.face;
+      if (ahead < -14) {
+        actor.face = -actor.face;
+        ahead = -ahead;
+      }
+      move = { x: ahead > reach ? world.ball.x - actor.face * reach : actor.x, y: world.ball.y };
+      vmax = limit;
+      const near = ahead >= -2 && ahead <= reach + 10 && Math.abs(actor.y - world.ball.y) < 10 && world.ball.z < 16;
+      if (near && cat && actor.task.cool <= 0) {
+        world.ball.vx = actor.face * (150 + world.rng() * 120);
+        world.ball.vy = (world.rng() - 0.5) * 140;
+        world.ball.vz = 170;
+        actor.vz = 160;
+        actor.task.bats += 1;
+        actor.task.cool = 0.5;
+        if (actor.task.bats >= 3) {
+          actor.task = taskOf('winddown');
+        }
+      } else if (near && !cat) {
+        world.ball.state = 'carried';
+        world.ball.carrierId = actor.id;
+        actor.task.stage = 'return';
+      }
+    } else if (actor.task.stage === 'return' && world.ball.state === 'carried' && world.ball.carrierId === actor.id) {
+      const home = homeOf(world.scene);
+      move = home;
+      vmax = limit * 0.62;
+      if (Math.hypot(home.x - actor.x, home.y - actor.y) < 8 && actor.speed < 20) {
+        releaseCarried(world, actor);
+        actor.task = taskOf('winddown');
+      }
+    } else if (actor.task.stage !== 'chase' || world.ball.state === 'none') {
+      goIdle(world, actor);
+    }
+  }
+
+  actor.bark.open = 0;
+  if (actor.bark.active) {
+    actor.bark.t += dt;
+    const beats = cat ? [{ at: 0, len: 0.55 }] : [{ at: 0, len: 0.2 }, { at: 0.36, len: 0.2 }];
+    const voiceLen = 0.7;
+    beats.forEach((beat, index) => {
+      const local = actor.bark.t - beat.at;
+      if (local >= 0 && !actor.bark.fired[index]) {
+        actor.bark.fired[index] = true;
+      }
+      if (local >= 0 && local < beat.len) {
+        actor.bark.open = Math.max(actor.bark.open, Math.sin((local / beat.len) * Math.PI));
+      }
+    });
+    if (actor.bark.t > voiceLen) {
+      actor.bark.active = false;
+    }
+  }
+
+  const desired = { x: 0, y: 0 };
+  if (move) {
+    const tx = clamp(move.x, floor.xMin, floor.xMax);
+    const ty = clamp(move.y, floor.yMin, floor.yMax);
+    const dx = tx - actor.x;
+    const dy = ty - actor.y;
+    const distance = Math.hypot(dx, dy);
+    const speed = Math.min(vmax, distance * 5);
+    if (distance > 1) {
+      desired.x = (dx / distance) * speed;
+      desired.y = (dy / distance) * speed;
+    }
+  }
+  const ease = 1 - Math.exp(-dt * 7);
+  actor.vx += (desired.x - actor.vx) * ease;
+  actor.vy += (desired.y - actor.vy) * ease;
+  actor.x = clamp(actor.x + actor.vx * dt, floor.xMin, floor.xMax);
+  actor.y = clamp(actor.y + actor.vy * dt, floor.yMin, floor.yMax);
+  actor.speed = Math.hypot(actor.vx, actor.vy);
+  const chasing = actor.task.type === 'fetch' && actor.task.stage === 'chase';
+  const eating = actor.task.type === 'eat' && actor.task.stage === 'eating';
+  if (!chasing && !eating && Math.abs(actor.vx) > 25) {
+    actor.face = actor.vx > 0 ? 1 : -1;
+    actor.anchors.facing = actor.face >= 0 ? 1 : -1;
+  }
+  targets.walk = actor.speed > 14 ? 1 : 0;
+  if (actor.bark.open > 0.05 && targets.eyes > 0) {
+    targets.eyes = 0;
+  }
+  actor.pose = easePose(actor.pose, targets, dt);
+  const stride = frame.geom.L * (0.35 + 0.4 * clamp(actor.speed / 190, 0, 1.1));
+  const localSpeed = actor.speed / Math.max(frame.scale, 0.01);
+  actor.phase += dt * Math.min(24, ((Math.PI * 2 * 0.55 * localSpeed) / Math.max(stride, 1)) || 0);
+  actor.panPh += dt * Math.PI * 2 * 5;
+  actor.chewPh += dt * Math.PI * 2 * 3;
+  actor.wagPh += dt * wagRate * (world.reducedMotion ? 0 : 1);
+  actor.breathPh += dt * Math.PI * 2 * actor.pose.breathRate;
+  actor.blinkT -= dt;
+  if (actor.blinkT <= 0) {
+    actor.blinkT = world.rng() < 0.18 ? 0.32 : 1.6 + world.rng() * 2.6;
+  }
+}
+
+export function update(world: World, dt: number): void {
+  if (dt <= 0) {
+    return;
+  }
+  const step = Math.min(dt, 0.05);
+  world.t += step;
+  updateBall(world, step);
+  const eating = world.actors.some(
+    (actor) => actor.task.type === 'eat' && actor.task.kind !== 'drink' && actor.task.stage === 'eating',
+  );
+  world.bowlFill = clamp(world.bowlFill + (eating ? -1 / 6 : 0.4) * step, 0, 1);
+  for (const actor of world.actors) {
+    updateActor(world, actor, step);
+  }
+}

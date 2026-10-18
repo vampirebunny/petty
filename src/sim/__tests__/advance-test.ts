@@ -5,7 +5,7 @@ import type { Needs, PetState } from '../types';
 const hourMs = 60 * 60 * 1000;
 
 function pet(partial: Omit<Partial<PetState>, 'needs'> & { needs?: Partial<Needs> } = {}): PetState {
-  const base = createPet(1, 1_000);
+  const base = createPet(1, 'retriever', 0, 1_000, 'Pup', 'pet');
   return {
     ...base,
     ...partial,

@@ -1,0 +1,333 @@
+import { defaultActorTint } from './lighting';
+
+export const stageWidth = 640;
+export const stageHeight = 340;
+
+export const propKinds = [
+  'shape',
+  'bowl',
+  'bed',
+  'rug',
+  'couch',
+  'window',
+  'lamp',
+  'tree',
+  'bench',
+  'pond',
+  'bush',
+  'fence',
+] as const;
+
+export const shapeTypes = ['rect', 'ellipse', 'circle', 'poly', 'line', 'sky'] as const;
+
+export type SceneTime = 'outdoor' | 'indoor' | 'fixed';
+
+export type Shape = {
+  t: (typeof shapeTypes)[number];
+  x?: number;
+  y?: number;
+  w?: number;
+  h?: number;
+  r?: number;
+  rx?: number;
+  ry?: number;
+  fill?: string;
+  stroke?: string;
+  alpha?: number;
+};
+
+export type Prop = {
+  kind: string;
+  x: number;
+  y: number;
+  layer?: 'back' | 'sorted' | 'front';
+  scale?: number;
+  w?: number;
+  h?: number;
+  color?: string;
+  contents?: string;
+  glow?: boolean;
+  shapes?: Shape[];
+};
+
+export type Poi = {
+  id: string;
+  type: string;
+  x: number;
+  y: number;
+  face?: 1 | -1;
+};
+
+export type Scene = {
+  v: 1;
+  id: string;
+  name: string;
+  time: SceneTime;
+  sky: [string, string];
+  layers: Shape[];
+  floor: {
+    horizon: number;
+    yMin: number;
+    yMax: number;
+    xMin: number;
+    xMax: number;
+    color: [string, string];
+    pattern: 'lines' | 'planks' | 'grass' | 'none';
+    lineColor?: string;
+  };
+  surface: { bounce: number; friction: number };
+  props: Prop[];
+  pois: Poi[];
+  lighting: { actorTint: number };
+  ambient?: {
+    particles?: { kind: 'rain' | 'snow' | 'leaves'; count?: number; color?: string };
+  };
+};
+
+function readActorTint(value: unknown, time: SceneTime): number {
+  if (value == null) {
+    return defaultActorTint(time);
+  }
+  if (!isRecord(value) || typeof value.actorTint !== 'number' || !Number.isFinite(value.actorTint) || value.actorTint < 0 || value.actorTint > 1) {
+    throw new Error('"lighting.actorTint" must be a number from 0 to 1.');
+  }
+  return value.actorTint;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function checkShapes(list: unknown, where: string): Shape[] {
+  if (!Array.isArray(list)) {
+    throw new Error(`"${where}" must be a list of shapes.`);
+  }
+  return list.map((shape, index) => {
+    if (!isRecord(shape) || typeof shape.t !== 'string' || !shapeTypes.includes(shape.t as Shape['t'])) {
+      throw new Error(`${where}[${index}]: shape type "t" must be one of ${shapeTypes.join(', ')}.`);
+    }
+    return shape as Shape;
+  });
+}
+
+export function compileScene(def: unknown): Scene {
+  if (!isRecord(def)) {
+    throw new Error('A scene must be a JSON object.');
+  }
+  if (def.v != null && def.v !== 1) {
+    throw new Error(`Unknown schema version ${String(def.v)}.`);
+  }
+  const sky = def.sky;
+  if (!Array.isArray(sky) || sky.length !== 2 || sky.some((color) => typeof color !== 'string')) {
+    throw new Error('"sky" needs two colors, for example ["#a9d8f0", "#e2f3f8"].');
+  }
+  const time = def.time == null ? 'fixed' : def.time;
+  if (time !== 'outdoor' && time !== 'indoor' && time !== 'fixed') {
+    throw new Error('"time" must be outdoor, indoor or fixed.');
+  }
+  const floor = def.floor;
+  if (!isRecord(floor)) {
+    throw new Error('"floor" is required: { horizon, yMin, yMax, color: [top, bottom] }.');
+  }
+  for (const key of ['horizon', 'yMin', 'yMax'] as const) {
+    if (typeof floor[key] !== 'number') {
+      throw new Error(`"floor.${key}" must be a number.`);
+    }
+  }
+  if (!((floor.yMin as number) < (floor.yMax as number))) {
+    throw new Error('"floor.yMin" must be smaller than "floor.yMax".');
+  }
+  if ((floor.horizon as number) > (floor.yMax as number) - 20) {
+    throw new Error('"floor.horizon" must sit above the walkable band.');
+  }
+  const color = floor.color;
+  if (!Array.isArray(color) || color.length !== 2) {
+    throw new Error('"floor.color" needs two colors: [top, bottom].');
+  }
+  const pattern = floor.pattern == null ? 'lines' : floor.pattern;
+  if (pattern !== 'lines' && pattern !== 'planks' && pattern !== 'grass' && pattern !== 'none') {
+    throw new Error('"floor.pattern" must be lines, planks, grass or none.');
+  }
+  const surface = isRecord(def.surface) ? def.surface : {};
+  const actorTint = readActorTint(def.lighting, time);
+  const props = Array.isArray(def.props) ? def.props : [];
+  const compiledProps = props.map((prop, index) => {
+    if (!isRecord(prop) || typeof prop.kind !== 'string' || !propKinds.includes(prop.kind as (typeof propKinds)[number])) {
+      throw new Error(
+        `props[${index}]: unknown kind "${isRecord(prop) ? String(prop.kind) : ''}". Known kinds: ${propKinds.join(', ')}.`,
+      );
+    }
+    if (typeof prop.x !== 'number' || typeof prop.y !== 'number') {
+      throw new Error(`props[${index}]: "x" and "y" must be numbers.`);
+    }
+    if (prop.layer != null && prop.layer !== 'back' && prop.layer !== 'sorted' && prop.layer !== 'front') {
+      throw new Error(`props[${index}]: "layer" must be back, sorted or front.`);
+    }
+    if (prop.kind === 'shape') {
+      checkShapes(prop.shapes, `props[${index}].shapes`);
+    }
+    return prop as Prop;
+  });
+  const pois = Array.isArray(def.pois) ? def.pois : [];
+  const compiledPois = pois.map((poi, index) => {
+    if (!isRecord(poi) || typeof poi.type !== 'string' || typeof poi.x !== 'number' || typeof poi.y !== 'number') {
+      throw new Error(`pois[${index}]: needs type, x, and y.`);
+    }
+    return {
+      id: typeof poi.id === 'string' ? poi.id : `${poi.type}-${index}`,
+      type: poi.type,
+      x: poi.x,
+      y: poi.y,
+      face: poi.face === -1 ? -1 : 1,
+    } satisfies Poi;
+  });
+  return {
+    v: 1,
+    id: typeof def.id === 'string' ? def.id : 'custom',
+    name: typeof def.name === 'string' ? def.name : typeof def.id === 'string' ? def.id : 'custom',
+    time,
+    sky: [sky[0] as string, sky[1] as string],
+    layers: def.layers == null ? [] : checkShapes(def.layers, 'layers'),
+    floor: {
+      horizon: floor.horizon as number,
+      yMin: floor.yMin as number,
+      yMax: floor.yMax as number,
+      xMin: typeof floor.xMin === 'number' ? floor.xMin : 28,
+      xMax: typeof floor.xMax === 'number' ? floor.xMax : stageWidth - 28,
+      color: [color[0] as string, color[1] as string],
+      pattern,
+      lineColor: typeof floor.lineColor === 'string' ? floor.lineColor : undefined,
+    },
+    surface: {
+      bounce: typeof surface.bounce === 'number' ? surface.bounce : 0.55,
+      friction: typeof surface.friction === 'number' ? surface.friction : 1.8,
+    },
+    props: compiledProps,
+    pois: compiledPois,
+    lighting: { actorTint },
+    ambient: isRecord(def.ambient) ? (def.ambient as Scene['ambient']) : undefined,
+  };
+}
+
+export function loadScene(def: unknown): Scene | null {
+  if (isRecord(def) && typeof def.v === 'number' && def.v !== 1) {
+    return null;
+  }
+  try {
+    return compileScene(def);
+  } catch {
+    return null;
+  }
+}
+
+const sceneDefs = {
+  livingroom: {
+    v: 1,
+    id: 'livingroom',
+    name: 'Living room',
+    time: 'indoor',
+    sky: ['#efe3d2', '#e2d2bb'],
+    layers: [
+      { t: 'rect', x: 0, y: 176, w: 640, h: 14, fill: '#b9a389' },
+      { t: 'rect', x: 40, y: 48, w: 54, h: 70, fill: '#8a6a52', r: 3 },
+      { t: 'sky', x: 46, y: 54, w: 42, h: 58 },
+      { t: 'rect', x: 360, y: 40, w: 70, h: 52, fill: '#8a6a52', r: 3 },
+      { t: 'sky', x: 366, y: 46, w: 58, h: 40 },
+    ],
+    floor: { horizon: 190, yMin: 224, yMax: 314, color: ['#c19463', '#a67a4d'], pattern: 'planks', lineColor: 'rgba(70,40,10,0.22)' },
+    surface: { bounce: 0.55, friction: 1.8 },
+    props: [
+      { kind: 'window', x: 210, y: 150, w: 96, h: 92, layer: 'back' },
+      { kind: 'rug', x: 330, y: 268, w: 320, h: 62, color: '#7c5a8a', layer: 'back' },
+      { kind: 'couch', x: 510, y: 204, w: 190, color: '#4f7c8a' },
+      { kind: 'lamp', x: 604, y: 206 },
+      { kind: 'bed', x: 112, y: 270, w: 112, color: '#c2653d' },
+      { kind: 'bowl', x: 540, y: 274, color: '#2f7d5b', contents: 'kibble' },
+    ],
+    pois: [
+      { id: 'bowl', type: 'food', x: 540, y: 274, face: 1 },
+      { id: 'bed', type: 'bed', x: 112, y: 272 },
+      { id: 'home', type: 'home', x: 300, y: 272 },
+    ],
+  },
+  park: {
+    v: 1,
+    id: 'park',
+    name: 'Park',
+    time: 'outdoor',
+    sky: ['#a9d8f0', '#e2f3f8'],
+    layers: [
+      { t: 'ellipse', x: 120, y: 70, rx: 48, ry: 12, fill: '#ffffff', alpha: 0.85 },
+      { t: 'ellipse', x: 150, y: 62, rx: 34, ry: 10, fill: '#ffffff', alpha: 0.85 },
+      { t: 'ellipse', x: 400, y: 92, rx: 56, ry: 12, fill: '#ffffff', alpha: 0.7 },
+      { t: 'ellipse', x: 140, y: 182, rx: 210, ry: 48, fill: '#9ccf91' },
+      { t: 'ellipse', x: 470, y: 186, rx: 240, ry: 56, fill: '#8bc482' },
+    ],
+    floor: { horizon: 176, yMin: 214, yMax: 314, color: ['#86c46f', '#6fae5b'], pattern: 'grass', lineColor: 'rgba(40,100,40,0.45)' },
+    surface: { bounce: 0.42, friction: 3.4 },
+    props: [
+      { kind: 'fence', x: 320, y: 182, w: 640, layer: 'back' },
+      { kind: 'pond', x: 505, y: 268, w: 150, h: 34, layer: 'back' },
+      { kind: 'tree', x: 70, y: 196, scale: 1.1 },
+      { kind: 'bush', x: 190, y: 198 },
+      { kind: 'bench', x: 340, y: 206, w: 96 },
+      { kind: 'tree', x: 590, y: 228, scale: 1.3 },
+    ],
+    pois: [
+      { id: 'pond', type: 'water', x: 474, y: 268, face: 1 },
+      { id: 'home', type: 'home', x: 220, y: 274 },
+    ],
+    ambient: { particles: { kind: 'leaves', count: 12 } },
+  },
+  bedroom: {
+    v: 1,
+    id: 'bedroom',
+    name: 'Bedroom',
+    time: 'indoor',
+    sky: ['#ddd5ee', '#cdc4e3'],
+    layers: [
+      { t: 'rect', x: 0, y: 178, w: 640, h: 12, fill: '#b3a9d2' },
+      { t: 'rect', x: 450, y: 50, w: 64, h: 50, fill: '#efe8f7', r: 3 },
+      { t: 'sky', x: 456, y: 56, w: 52, h: 38 },
+    ],
+    floor: { horizon: 190, yMin: 226, yMax: 314, color: ['#c7b8dd', '#b3a3cc'], pattern: 'planks', lineColor: 'rgba(60,40,100,0.22)' },
+    surface: { bounce: 0.38, friction: 3 },
+    props: [
+      { kind: 'window', x: 130, y: 150, w: 100, h: 96, layer: 'back' },
+      { kind: 'lamp', x: 540, y: 208 },
+      { kind: 'bed', x: 470, y: 276, w: 112, color: '#d98b3a' },
+      { kind: 'bowl', x: 130, y: 276, color: '#c24d4d', contents: 'kibble' },
+    ],
+    pois: [
+      { id: 'bowl', type: 'food', x: 130, y: 276, face: 1 },
+      { id: 'bed', type: 'bed', x: 470, y: 278 },
+      { id: 'home', type: 'home', x: 300, y: 274 },
+    ],
+  },
+} as const;
+
+export const scenes = {
+  livingroom: compileScene(sceneDefs.livingroom),
+  park: compileScene(sceneDefs.park),
+  bedroom: compileScene(sceneDefs.bedroom),
+};
+
+export const sceneList = [scenes.livingroom, scenes.park, scenes.bedroom];
+
+export function sceneById(id: string): Scene {
+  return sceneList.find((scene) => scene.id === id) ?? scenes.livingroom;
+}
+
+export function poiOf(scene: Scene, type: string): Poi | null {
+  return scene.pois.find((poi) => poi.type === type) ?? null;
+}
+
+export function actionEnabled(scene: Scene, action: 'feed' | 'drink' | 'rest'): boolean {
+  if (action === 'feed') {
+    return poiOf(scene, 'food') != null;
+  }
+  if (action === 'drink') {
+    return poiOf(scene, 'water') != null;
+  }
+  return poiOf(scene, 'bed') != null;
+}

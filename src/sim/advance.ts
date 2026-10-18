@@ -34,8 +34,9 @@ function applyStep(needs: Needs, asleep: boolean): Needs {
   };
 }
 
-export function advance(state: PetState, elapsedMs: number): PetState {
-  const elapsed = Math.min(Math.max(elapsedMs, 0), maxElapsedMs);
+export function advanceNeeds(state: PetState, elapsedMs: number, cap: boolean): PetState {
+  const raw = Math.max(elapsedMs, 0);
+  const elapsed = cap ? Math.min(raw, maxElapsedMs) : raw;
   const steps = Math.floor(elapsed / stepMs);
   let needs = { ...state.needs };
   let asleep = state.asleep;
@@ -48,9 +49,13 @@ export function advance(state: PetState, elapsedMs: number): PetState {
   }
 
   return {
+    ...state,
     needs,
     asleep,
     lastUpdatedAt: state.lastUpdatedAt + steps * stepMs,
-    rngState: state.rngState,
   };
+}
+
+export function advance(state: PetState, elapsedMs: number): PetState {
+  return advanceNeeds(state, elapsedMs, true);
 }

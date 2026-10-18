@@ -1,0 +1,85 @@
+import { withDerived } from './attributes';
+import { applyCareTime, clampWeight, decayWeight } from './care';
+import { dayMs, maxElapsedMs } from './config';
+import { advanceNeeds } from './advance';
+import type { PetState } from './types';
+
+export function ageDaysAt(bornAt: number, now: number): number {
+  return Math.max(0, (now - bornAt) / dayMs);
+}
+
+function settle(state: PetState, now: number, needElapsed: number, weightElapsed: number, absence: boolean): PetState {
+  const ageDays = ageDaysAt(state.bornAt, now);
+  const needsNext = advanceNeeds({ ...state, ageDays }, needElapsed, true);
+  const cared = applyCareTime(needsNext, needElapsed, absence, true);
+  return withDerived({
+    ...cared,
+    ageDays,
+    weight: decayWeight(state.weight, weightElapsed),
+    lastUpdatedAt: now,
+    weightAppliedAt: now,
+  });
+}
+
+export function tickForeground(state: PetState, now: number): PetState {
+  const needElapsed = Math.min(Math.max(0, now - state.lastUpdatedAt), maxElapsedMs);
+  const weightElapsed = Math.max(0, now - state.weightAppliedAt);
+  return settle(state, now, needElapsed, weightElapsed, false);
+}
+
+export function resume(state: PetState, now: number): PetState {
+  const needElapsed = Math.min(Math.max(0, now - state.lastUpdatedAt), maxElapsedMs);
+  const weightElapsed = Math.max(0, now - state.weightAppliedAt);
+  return settle(state, now, needElapsed, weightElapsed, needElapsed > 0);
+}
+
+export function debugJump(state: PetState, elapsedMs: number): PetState {
+  const elapsed = Math.max(0, elapsedMs);
+  const now = state.lastUpdatedAt + elapsed;
+  const ageDays = state.ageDays + elapsed / dayMs;
+  const jumped = {
+    ...state,
+    ageDays,
+    bornAt: now - ageDays * dayMs,
+  };
+  const needsNext = advanceNeeds(jumped, elapsed, false);
+  const cared = applyCareTime(needsNext, elapsed, elapsed > 0, false);
+  return withDerived({
+    ...cared,
+    ageDays,
+    bornAt: now - ageDays * dayMs,
+    weight: decayWeight(state.weight, elapsed),
+    lastUpdatedAt: now,
+    weightAppliedAt: now,
+  });
+}
+
+export function setAgeDays(state: PetState, ageDays: number): PetState {
+  const days = Math.max(0, ageDays);
+  return withDerived({
+    ...state,
+    ageDays: days,
+    bornAt: state.lastUpdatedAt - days * dayMs,
+  });
+}
+
+export function setVitality(state: PetState, vitality: number): PetState {
+  return withDerived({
+    ...state,
+    vitality: Math.max(0, Math.min(1, vitality)),
+  });
+}
+
+export function setWeight(state: PetState, weight: number): PetState {
+  return withDerived({
+    ...state,
+    weight: clampWeight(weight),
+  });
+}
+
+export function applyWeightDelta(state: PetState, delta: number): PetState {
+  if (delta === 0) {
+    return state;
+  }
+  return setWeight(state, state.weight + delta);
+}

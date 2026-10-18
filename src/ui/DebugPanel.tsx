@@ -1,7 +1,10 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { runOnJS } from 'react-native-reanimated';
 
-import type { Mood, PetState } from '../sim/types';
+import { attributeScore, stageOf, traits } from '../sim';
+import type { Mood, PetState, Trait } from '../sim/types';
 import type { PetCue } from '../state/usePet';
 
 type Props = {
@@ -9,17 +12,84 @@ type Props = {
   mood: Mood;
   cue: PetCue;
   onAdvance: (elapsedMs: number) => void;
+  onAge: (ageDays: number) => void;
+  onVitality: (vitality: number) => void;
+  onWeight: (weight: number) => void;
+  hour: number | null;
+  onHour: (hour: number | null) => void;
   onReset: () => void;
+  onClearAttestation: () => void;
 };
 
 const hourMs = 60 * 60 * 1000;
+
+const traitLabel: Record<Trait, string> = {
+  stamina: 'Stamina',
+  agility: 'Agility',
+  intelligence: 'Intelligence',
+  boldness: 'Boldness',
+  affection: 'Affection',
+  obedience: 'Obedience',
+};
 
 function format(value: number): string {
   return value.toFixed(1);
 }
 
-export function DebugPanel({ state, mood, cue, onAdvance, onReset }: Props) {
+function RangeControl({
+  label,
+  min,
+  max,
+  value,
+  onChange,
+}: {
+  label: string;
+  min: number;
+  max: number;
+  value: number;
+  onChange: (value: number) => void;
+}) {
+  const width = useRef(1);
+  const change = (next: number) => onChange(Math.min(max, Math.max(min, next)));
+  const pan = Gesture.Pan().onUpdate((event) => {
+    const ratio = Math.min(1, Math.max(0, event.x / width.current));
+    runOnJS(change)(min + (max - min) * ratio);
+  });
+  const span = max - min;
+  const fill = span === 0 ? 0 : ((value - min) / span) * 100;
+
+  return (
+    <View style={styles.range}>
+      <Text style={styles.line}>{label}</Text>
+      <GestureDetector gesture={pan}>
+        <View
+          style={styles.track}
+          onLayout={(event) => {
+            width.current = event.nativeEvent.layout.width;
+          }}
+        >
+          <View style={[styles.fill, { width: `${Math.min(100, Math.max(0, fill))}%` }]} />
+        </View>
+      </GestureDetector>
+    </View>
+  );
+}
+
+export function DebugPanel({
+  state,
+  mood,
+  cue,
+  onAdvance,
+  onAge,
+  onVitality,
+  onWeight,
+  hour,
+  onHour,
+  onReset,
+  onClearAttestation,
+}: Props) {
   const [open, setOpen] = useState(false);
+  const care = state.careWindow[state.careWindow.length - 1];
 
   return (
     <View style={styles.panel}>
@@ -28,26 +98,53 @@ export function DebugPanel({ state, mood, cue, onAdvance, onReset }: Props) {
       </Pressable>
       {open ? (
         <View style={styles.body}>
-          <Text style={styles.line}>Fullness {format(state.needs.fullness)}</Text>
-          <Text style={styles.line}>Energy {format(state.needs.energy)}</Text>
-          <Text style={styles.line}>Happiness {format(state.needs.happiness)}</Text>
-          <Text style={styles.line}>Asleep {state.asleep ? 'yes' : 'no'}</Text>
-          <Text style={styles.line}>Mood {mood}</Text>
-          <Text style={styles.line}>Cue {cue.kind}</Text>
-          <View style={styles.actions}>
-            <Pressable style={styles.button} onPress={() => onAdvance(hourMs)}>
-              <Text style={styles.buttonLabel}>+1 hour</Text>
-            </Pressable>
-            <Pressable style={styles.button} onPress={() => onAdvance(6 * hourMs)}>
-              <Text style={styles.buttonLabel}>+6 hours</Text>
-            </Pressable>
-            <Pressable style={styles.button} onPress={() => onAdvance(24 * hourMs)}>
-              <Text style={styles.buttonLabel}>+24 hours</Text>
-            </Pressable>
-            <Pressable style={styles.button} onPress={onReset}>
-              <Text style={styles.buttonLabel}>Reset</Text>
-            </Pressable>
-          </View>
+      <Text style={styles.line}>Fullness {format(state.needs.fullness)}</Text>
+      <Text style={styles.line}>Energy {format(state.needs.energy)}</Text>
+      <Text style={styles.line}>Happiness {format(state.needs.happiness)}</Text>
+      <Text style={styles.line}>Asleep {state.asleep ? 'yes' : 'no'}</Text>
+      <Text style={styles.line}>Mood {mood}</Text>
+      <Text style={styles.line}>Cue {cue.kind}</Text>
+      <Text style={styles.line}>Stage {stageOf(state.ageDays)}</Text>
+      <Text style={styles.line}>Senior band {state.seniorBand ?? 'none'}</Text>
+      <Text style={styles.line}>Age days {format(state.ageDays)}</Text>
+      <Text style={styles.line}>Maturity {state.maturity.toFixed(3)}</Text>
+      <Text style={styles.line}>Vitality {state.vitality.toFixed(3)}</Text>
+      <Text style={styles.line}>Weight {format(state.weight)}</Text>
+      <Text style={styles.line}>
+        Care {care ? `${care.dietQuality.toFixed(2)} diet, ${care.attention.toFixed(2)} attention` : 'none'}
+      </Text>
+      <Text style={styles.line}>
+        Level {state.level} · xp {state.xp}
+      </Text>
+      {traits.map((trait) => (
+        <Text key={trait} style={styles.line}>
+          {traitLabel[trait]} {format(attributeScore(state, trait))} / {state.potential[trait]}
+        </Text>
+      ))}
+      <RangeControl label="Age" min={0} max={1000} value={Math.min(1000, state.ageDays)} onChange={onAge} />
+      <RangeControl label="Vitality" min={0} max={1} value={state.vitality} onChange={onVitality} />
+      <RangeControl label="Weight" min={-1} max={1} value={state.weight} onChange={onWeight} />
+      <RangeControl label="Hour" min={0} max={24} value={hour ?? 12} onChange={onHour} />
+      <Pressable onPress={() => onHour(null)}>
+        <Text style={styles.line}>{hour == null ? 'Clock is live' : 'Use the live clock'}</Text>
+      </Pressable>
+      <View style={styles.actions}>
+        <Pressable style={styles.button} onPress={() => onAdvance(hourMs)}>
+          <Text style={styles.buttonLabel}>+1 hour</Text>
+        </Pressable>
+        <Pressable style={styles.button} onPress={() => onAdvance(6 * hourMs)}>
+          <Text style={styles.buttonLabel}>+6 hours</Text>
+        </Pressable>
+        <Pressable style={styles.button} onPress={() => onAdvance(24 * hourMs)}>
+          <Text style={styles.buttonLabel}>+24 hours</Text>
+        </Pressable>
+        <Pressable style={styles.button} onPress={onReset}>
+          <Text style={styles.buttonLabel}>Reset</Text>
+        </Pressable>
+        <Pressable style={styles.button} onPress={onClearAttestation}>
+          <Text style={styles.buttonLabel}>Clear age check</Text>
+        </Pressable>
+      </View>
         </View>
       ) : null}
     </View>
@@ -59,7 +156,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#E4E8EF',
     paddingTop: 8,
-    gap: 8,
+    gap: 4,
   },
   toggle: {
     color: '#5C6B80',
@@ -71,6 +168,20 @@ const styles = StyleSheet.create({
   line: {
     fontSize: 13,
     color: '#243044',
+  },
+  range: {
+    gap: 4,
+    marginTop: 6,
+  },
+  track: {
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#E4E8EF',
+    overflow: 'hidden',
+  },
+  fill: {
+    height: '100%',
+    backgroundColor: '#7CB8E8',
   },
   actions: {
     flexDirection: 'row',
