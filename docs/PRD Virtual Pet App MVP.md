@@ -1,7 +1,7 @@
 # PRD: Virtual Pet App (MVP)
 
 Oct 14, 2026 · @A
-Updated Oct 17, 2026
+Updated Oct 18, 2026
 
 ## Overview
 
@@ -11,7 +11,7 @@ A mobile app for iOS and Android where each user adopts a dog or a cat that ages
 
 **What makes it different.** Most virtual pet apps are care loops with mini-games and dress-up. This one has a pet whose personality is visible and different from every other pet, training that rewards the owner's real time and skill, tricks that must be discovered, and ways to show all of it off. It works offline and lets people play before creating an account.
 
-**How to use this document.** Requirements are numbered and each feature has acceptance checks. Build in the order of the release phases, and do not build anything listed as out of scope. Phase 0 is specified in "Cursor Brief: Pet Blob Prototype". The Phase 1 actor, scenes, wardrobe, and time of day follow `docs/CURSOR_BRIEF_pet_demo_v2.md`, `docs/CURSOR_ADDENDUM_scenes_v2_1.md`, `docs/CURSOR_ADDENDUM_time_of_day_v2_2.md`, and `docs/pet-demo-v2_2.html`. Where "Phase 1 Brief: Core Pet" disagrees with this PRD, this PRD wins. When a requirement is unclear or two requirements conflict, ask instead of guessing.
+**How to use this document.** Requirements are numbered and each feature has acceptance checks. Build in the order of the release phases, and do not build anything listed as out of scope. Phase 0 is specified in "Cursor Brief: Pet Blob Prototype". The Phase 1 actor, scenes, wardrobe, and time of day follow `docs/CURSOR_BRIEF_pet_demo_v2.md` and `docs/pet-demo-v2_2.html` (that HTML is the current reference to port). Where "Phase 1 Brief: Core Pet" disagrees with this PRD, this PRD wins. When a requirement is unclear or two requirements conflict, ask instead of guessing.
 
 **Product principles**
 
@@ -151,17 +151,17 @@ Acceptance: the same seed, breed, and variation always give the same potentials;
 **F4. Play interactions (the actor in Phase 1, mastery in Phase 2)**
 
 - R4.1 Petting: a stroke on the pet sends a pet event, at most one every 400 milliseconds, with a light haptic tap. It is ignored while the pet is asleep. The pet event starts that species' reaction. A dog barks or offers a paw. A cat purrs or grooms. The existing roll chooses which of the two. A tap on the scene is the ball drop in R4.2.
-- R4.2 Throw ball starts the species' chase. A dog fetches: chase, carry the ball home, drop it, sit, and pant. A cat bats the ball three times, each bat with a hop, then purrs. In Phase 1 the chase always runs. In Phase 2 the simulation may refuse it from the pet's traits and fetch mastery, and a completed chase costs energy and raises happiness and bond. The ball is a prop. It is launched in code. The view only draws the result. The Throw ball button throws from the left edge. A tap on the scene drops the ball at that point and starts the same chase. Eat, drink, and sleep only start when the current scene has the matching point of interest. A missing point disables that action.
+- R4.2 Throw ball starts the species' chase. A dog fetches: chase, carry the ball home, drop it, sit, and pant. A cat bats the ball three times, each bat with a hop, then purrs. In Phase 1 the chase always runs. In Phase 2 the simulation may refuse it from the pet's traits and fetch mastery, and a completed chase costs energy and raises happiness and bond. The ball is a prop. It is launched in code. The view only draws the result. The Throw ball button throws from the left edge. A tap on the scene drops the ball at that point and starts the same chase. Feed and drink are disabled when the scene has no matching point of interest (`food` or `water`). The UI exposes a reason string for a disabled feed or drink. Rest is always available: sleep and idle naps walk to a `bed` point when the scene has one, and otherwise the pet sleeps or naps where it stands.
 - R4.3 One toy in the MVP: the user can give the pet a toy from their inventory. The pet may have a favorite based on its personality, and the toy attaches to a mouth point on the actor. This waits for Phase 2.
 - R4.4 The simulation decides what happens and the renderer draws it. The renderer never holds game rules.
 - R4.5 Side view only. Each actor has a ground position (`x` and depth `y`) and a height `z`. Walking uses `x` and `y`. Depth `y` is position on the scene floor. Draw scale is `0.82 + 0.18 * clamp((y - yMin) / (yMax - yMin), 0, 1)`, so the pet is smaller toward the back and larger toward the front. A jump or hop writes `z`. The ball keeps its own flight, and its bounce and friction come from the scene surface. Hurdles are not in the MVP. The pose still has `spineArch` and `crouch` so a later behavior can use them. Phase 1 leaves those channels at 0 unless a shipped behavior sets them.
-- R4.6 Behaviors are data on top of one task machine. Shared tasks are stand, sit, sleep, eat, drink, walk, jump, and idle. Drink reuses the eat pose at the water point and does not change weight. A dog also has pant, give paw, bark, and fetch. A cat also has purr, groom, and pounce. Asking a species for a task it does not have does nothing. Feed starts eat at the food point. Drink starts drink at the water point. Rest starts sleep at the bed, and wake returns to stand. When no task is running, the pet idles on its own. Idle weights are still 3, pant 2, purr 2, nap 1.5, and walk 2.5. A dog may stand still, pant, nap, or wander. A cat may stand still, purr, nap, or wander. Wander is skipped when reduced motion is on. Pant and purr are tasks the machine may enter. They are not controls. Scenes are data. Living room, park, and bedroom are bundled presets. Living room and bedroom are indoor. Park is outdoor. Swapping scenes does not change pet stats. The pet moves to that scene's home point. The demo scene editor, weight slider, and hour slider do not ship.
+- R4.6 Behaviors are data on top of one task machine. Shared tasks are stand, sit, sleep, eat, drink, walk, jump, and idle. Drink reuses the eat pose at the water point and does not change weight. A dog also has pant, give paw, bark, and fetch. A cat also has purr, groom, and pounce. Asking a species for a task it does not have does nothing. Feed starts eat at the food point. Drink starts drink at the water point. Rest starts sleep at the bed when one exists, otherwise where the pet stands, and wake returns to stand. When no task is running, the pet idles on its own. Idle weights are still 3, pant 2, purr 2, nap 1.5, and walk 2.5. A dog may stand still, pant, nap, or wander. A cat may stand still, purr, nap, or wander. An idle nap walks to a `bed` point when the scene has one. Wander is skipped when reduced motion is on. Pant and purr are tasks the machine may enter. They are not controls. Scenes are data. Living room, park, and bedroom are bundled presets. Living room and bedroom are indoor. Park is outdoor. Swapping scenes does not change pet stats. The pet moves to that scene's home point. A prop's `y` is its baseline. Props with `layer: 'sorted'` are depth-sorted against pets and the ball by `y`; `back` props draw under everything; `front` props draw over everything. Props are visual only except through points of interest: there is no collision with props. A POI's `face` is the direction the pet faces while using it. For food and water it is only a tie-break when the pet starts exactly level with the bowl; otherwise the pet stands beside the bowl on the side it approached from and faces it. Known prop kinds are shape, bowl, bed, rug, couch, window, lamp, tree, bench, pond, bush, and fence. Scenes extend in three ways: (1) a new scene as JSON using existing prop kinds, the generic `shape` prop, and existing POI types, with no code; (2) a new prop kind as one draw registration; (3) a new POI type with a new action through an affordance registry (poi type, action, approach, pose, duration, optional effects) so the task machine is not hardcoded per POI. Ambient particles (`rain`, `snow`, `leaves`) stay within a small budget and turn off when reduced motion is on. A scene change uses a quick fade. A later `image` shape and downloadable scene packs are allowed; a bad pack must fail validation and never crash the app. Static scenery (sky, layers, floor, `back` props) may render into a cached image and redraw only what moves. The demo scene editor, weight slider, and hour slider do not ship.
 
-- R4.7 Time of day is a view concern. One module returns the blend for a local hour. Scenes only declare `time`: `outdoor`, `indoor`, or `fixed`. Omitted means `fixed`. An unknown value fails validation with `"time" must be outdoor, indoor or fixed.` Nothing outside scene data names a scene. `outdoor` draws the sky gradient, the sun, the moon, and the stars. `indoor` draws lamps and windows of that same sky. `fixed` does not change with the clock. The tint is applied per layer, not as one rectangle over the finished picture. Backdrop and props take the full tint. Pets and the ball take `lighting.actorTint` times that tint. Defaults are 0.35 indoors, 0.85 outdoors, and 0 for `fixed`, which means no tint. A scene may set `lighting.actorTint`. It must be a number from 0 to 1. Anything else fails validation with a message that names `lighting.actorTint`. The indoor night tint keeps its blue and caps alpha at 0.35. Outdoor tint values do not change. When `dark` is above 0.5 in an indoor scene, a warm pool fades in on the floor under and around the pet, drawn after the tint with screen blending and scaled by the same `dark` value as the lamps. It fades across dusk, evening, and night with no pop. `actorTint` defaults, the indoor alpha cap, and the pool's radius and strength live in the lighting data file. At the darkest indoor keyframe the pet's luminance stays at least 70% of its daytime luminance. The keyframe table lives in config and moves to a data file. Phases, in local time, are Night 21:30 to 05:00, Dawn 05:00 to 07:30, Morning 07:30 to 12:00, Afternoon 12:00 to 17:00, Dusk 17:00 to 19:00, and Evening 19:00 to 21:30. Keyframe hours are 0, 4.75, 6.25, 8, 10.5, 14, 16.5, 18, 19.75, 21.5, and 24. Each keyframe holds a top color, a bottom color, an outdoor tint, an indoor tint, and `dark` from 0 to 1. Neighbors blend with smoothstep, so phase boundaries do not jump. The sun crosses east to west from 06:00 to 18:00. The moon uses the same path from 18:00 to 06:00 and fades in with `dark`. Stars fade in above `dark` 0.45. A `sky` shape (`{ t: 'sky', x, y, w, h }`) draws that same sky, and window props use it. Lamp `glow` omitted fades in as it gets dark. `true` or `false` forces it. Lamp glows draw after the tint so they stay bright. The view re-reads the device clock about once a second and does not cache it across a day change. The sky layer redraws on that same cadence. Star twinkle can be skipped. Reduced motion uses static stars. Time of day does not write weight, mood, age, or any other pet state. A later sleepy-at-night behavior would read this same clock. Development builds may override the hour. The product has no phase buttons and no hour slider. Do not ask for location permission to move sunrise and sunset. A later painted background keeps the sky as its own layer so the engine still draws the sky and the tint.
+- R4.7 Time of day is a view concern. One module returns the blend for a local hour. Scenes only declare `time`: `outdoor`, `indoor`, or `fixed`. Omitted means `fixed`. An unknown value fails validation with `"time" must be outdoor, indoor or fixed.` Nothing outside scene data names a scene. `outdoor` draws the sky gradient, the sun, the moon, and the stars. `indoor` draws lamps and windows of that same sky. `fixed` does not change with the clock. The tint is applied per layer, not as one rectangle over the finished picture. Backdrop and props take the full tint. Pets and the ball take `lighting.actorTint` times that tint. Defaults are 0.35 indoors, 0.85 outdoors, and 0 for `fixed`, which means no tint. A scene may set `lighting.actorTint`. It must be a number from 0 to 1. Anything else fails validation with a message that names `lighting.actorTint`. The indoor night tint keeps its blue and caps alpha at 0.35. Outdoor tint values do not change. When `dark` is above 0.5 in an indoor scene, a warm pool fades in on the floor under and around the pet, drawn after the tint with screen blending and scaled by the same `dark` value as the lamps. It fades across dusk, evening, and night with no pop. `actorTint` defaults, the indoor alpha cap, and the pool's radius and strength live in the lighting data file. At the darkest indoor keyframe the pet's luminance stays at least 70% of its daytime luminance. The keyframe table lives in config and moves to a data file. Phases, in local time, are Night 21:30 to 05:00, Dawn 05:00 to 07:30, Morning 07:30 to 12:00, Afternoon 12:00 to 17:00, Dusk 17:00 to 19:00, and Evening 19:00 to 21:30. Keyframe hours are 0, 4.75, 6.25, 8, 10.5, 14, 16.5, 18, 19.75, 21.5, and 24. Each keyframe holds a top color, a bottom color, an outdoor tint, an indoor tint, and `dark` from 0 to 1. Neighbors blend with smoothstep, so phase boundaries do not jump. The sun crosses east to west from 06:00 to 18:00. The moon uses the same path from 18:00 to 06:00 and fades in with `dark`. Stars fade in above `dark` 0.45. A `sky` shape (`{ t: 'sky', x, y, w, h }`) draws that same sky, and window props use it. Lamp `glow` omitted fades in as it gets dark. `true` or `false` forces it. Lamp glows draw after the tint so they stay bright. The view re-reads the device clock about once a second and does not cache it across a day change. The sky layer redraws on that same cadence. Star twinkle can be skipped. Reduced motion uses static stars. Time of day does not write weight, mood, age, or any other pet state. A later sleepy-at-night behavior would read this same clock. Development builds may override the hour. The product has no phase buttons and no hour slider. Do not ask for location permission to move sunrise and sunset. A later painted background keeps the sky as its own layer so the engine still draws the sky and the tint; do not rely on a single painted PNG or a day/night cross-fade as the primary approach.
 
 Deferred: the obstacle course, the laser pointer, and shifting the keyframe hours by date.
 
-Acceptance: stroking feels continuous but cannot be spammed; a tap on the scene drops the ball at that point and starts a chase; the Throw ball button throws from the left edge; a dog carries the ball home, drops it, sits, and pants, and a cat bats it three times then purrs; throw ball always produces a chase in Phase 1, and the same traits and seed give the same refusal in Phase 2; no control starts pant or purr; a cat never pants and a dog never grooms; feed, drink, and sleep stay disabled when the scene has no matching point; swapping scenes leaves weight, wardrobe, age, and mood unchanged and moves the pet to the new home point. Changing the device clock changes the sky in an outdoor scene and the windows, lamps, and tint in an indoor scene, with no jump at 05:00, 07:30, 12:00, 17:00, 19:00, or 21:30. At night an outdoor scene shows stars and the moon and looks as it did with the full outdoor tint. At 23:00 an indoor room still reads as night, and the pet's coat, face, eyes, and cosmetics stay distinguishable from the floor and walls. The indoor tint and the floor light fade smoothly across dusk, evening, and night. Pet luminance at the darkest indoor keyframe is at least 70% of daytime luminance. A bad `lighting.actorTint` is rejected. A scene with `time` omitted, or set to `fixed`, never changes. A window prop and a `sky` shape show the same sky as the outdoor backdrop. The blend wraps past midnight. An unknown `time` value is rejected. Advancing the clock leaves weight, mood, and age unchanged.
+Acceptance: stroking feels continuous but cannot be spammed; a tap on the scene drops the ball at that point and starts a chase; the Throw ball button throws from the left edge; a dog carries the ball home, drops it, sits, and pants, and a cat bats it three times then purrs; throw ball always produces a chase in Phase 1, and the same traits and seed give the same refusal in Phase 2; no control starts pant or purr; a cat never pants and a dog never grooms; feed and drink stay disabled when the scene has no matching point, and the UI can show why; rest stays available without a bed, and sleep and idle naps walk to the bed when the scene has one; ball bounce and friction follow the scene surface; all three preset scenes work with both species, including wardrobe and weight; a new scene written only as JSON with existing prop kinds and POI types loads and plays with no code changes; an invalid scene fails with a clear field-named message and leaves the current scene running; swapping scenes leaves weight, wardrobe, age, and mood unchanged and moves the pet to the new home point. Changing the device clock changes the sky in an outdoor scene and the windows, lamps, and tint in an indoor scene, with no jump at 05:00, 07:30, 12:00, 17:00, 19:00, or 21:30. At night an outdoor scene shows stars and the moon and looks as it did with the full outdoor tint. At 23:00 an indoor room still reads as night, and the pet's coat, face, eyes, and cosmetics stay distinguishable from the floor and walls. The indoor tint and the floor light fade smoothly across dusk, evening, and night. Pet luminance at the darkest indoor keyframe is at least 70% of daytime luminance. A bad `lighting.actorTint` is rejected. A scene with `time` omitted, or set to `fixed`, never changes. A window prop and a `sky` shape show the same sky as the outdoor backdrop. The blend wraps past midnight. An unknown `time` value is rejected. Advancing the clock leaves weight, mood, and age unchanged. Unit tests cover scene validation, POI lookup, action availability, the keyframe blend at 05:00, 07:30, 12:00, 17:00, 19:00, and 21:30, the wrap past midnight, and `time` validation.
 
 **F5. Training and tricks (Phase 2)**
 
@@ -429,20 +429,74 @@ type Anchors = {
 
 type SceneTime = 'outdoor' | 'indoor' | 'fixed';
 
+// Known prop kinds: shape, bowl, bed, rug, couch, window, lamp, tree, bench, pond, bush, fence.
+// Shape types: rect, ellipse, circle, poly, line, sky. A later image shape is allowed.
+type Shape = {
+  t: 'rect' | 'ellipse' | 'circle' | 'poly' | 'line' | 'sky';
+  fill?: string;
+  stroke?: string;
+  lw?: number;
+  alpha?: number;
+  // plus the shape's own fields (x, y, w, h, r, pts, etc.)
+};
+
+type Prop = {
+  kind: string;
+  x: number;
+  y: number;               // baseline. sorted props depth-sort against pets and the ball by y.
+  layer?: 'back' | 'sorted' | 'front';
+  scale?: number;
+  glow?: boolean;          // lamp: omitted fades in with dark; true/false forces it.
+  shapes?: Shape[];        // generic shape prop: list in prop-local coordinates.
+  [param: string]: unknown;
+};
+
+type Poi = {
+  id: string;
+  type: string;            // food, water, bed, home, or a later affordance type
+  x: number;
+  y: number;
+  face?: 1 | -1;           // tie-break facing at food/water when the pet starts level with the bowl
+};
+
 // Scene data. compileScene rejects an unknown prop kind by naming the field.
-// An unknown schemaVersion skips the scene.
+// An unknown schema version (v) skips the scene and keeps the pet in its current one.
 // An unknown time value rejects with: "time" must be outdoor, indoor or fixed.
 type Scene = {
+  v: 1;
   id: string;
-  schemaVersion: number;
+  name: string;
   time: SceneTime;         // omitted on load means 'fixed'
   sky: [string, string];   // fallback top and bottom. outdoor backdrops and sky shapes use the clock.
-  floor: { horizon: number; yMin: number; yMax: number; color: string; pattern: string };
-  surface: { bounce: number; friction: number };
-  props: { kind: string; x: number; y: number; glow?: boolean }[];
-  pois: { type: 'food' | 'water' | 'bed' | 'home'; x: number; y: number }[];
+  layers: Shape[];         // back decoration in canvas coordinates
+  floor: {
+    horizon: number;
+    yMin: number;
+    yMax: number;
+    xMin: number;
+    xMax: number;
+    color: [string, string];
+    pattern: 'lines' | 'planks' | 'grass' | 'none';
+    lineColor?: string;
+  };
+  surface: { bounce: number; friction: number }; // ball behavior; defaults 0.55 / 1.8
+  props: Prop[];
+  pois: Poi[];
   lighting: { actorTint: number }; // 0 to 1. Omitted on load uses 0.35 indoor, 0.85 outdoor, 0 fixed.
-  ambient?: { tint?: string; particles?: string };
+  ambient?: {
+    tint?: string;
+    particles?: { kind: 'rain' | 'snow' | 'leaves'; count?: number; color?: string };
+  };
+};
+
+// New POI types with new actions go through this registry, not hardcoded task-machine branches.
+type Affordance = {
+  poiType: string;
+  action: string;          // e.g. 'water' -> 'drink'
+  approach: 'mouth' | 'body';
+  pose: Partial<Pose>;
+  durationSec: number;
+  effects?: { weight?: number; mood?: number };
 };
 
 // View only. Not stored on the pet and not an input to the simulation.
@@ -551,7 +605,7 @@ type PetEvent =
 2. The user interface never edits pet state directly. It sends an event to the simulation and renders what comes back.
 3. The world simulation owns a list of actors and steps every actor from one capped timestep. The scene is its own data layer. Props, points of interest, and the ball are not actors. Logic modules are plain TypeScript and do not import Skia: breeds, growth curves, geometry, pose, legs, behavior, scenes, and sim. The renderer is the only module that draws. It holds no game rules. Each frame the simulation exposes anchors, and the renderer draws the starter wardrobe from those anchors only (F6). Breed anatomy, the species behavior list, scenes, and the wardrobe come from config. The stage label is never passed to the renderer. Stage labels are internal and are never shown to the user. The weight number is never shown either. Equipped slots are ids on the pet. The app writes no fit offsets or scales. A friend or NPC encounter builds actors with `spawnActor(snapshot)` inside a world created from its own seed.
 4. All storage sits behind an interface. Local storage is the first implementation and the backend is the second.
-5. Tunable numbers live in config files, including sit angle, stride, head targets, pose rates, the age curves, the weight rates, and the time-of-day keyframes. Breeds, tricks, NPC pets, scenes, and outfits are data, so adding one is a config entry and not new code. A scene compiler rejects an unknown prop kind by naming the field, rejects an unknown `time` value, and skips a scene whose schema version it does not know. Nothing outside scene data names a scene.
+5. Tunable numbers live in config files, including sit angle, stride, head targets, pose rates, the age curves, the weight rates, and the time-of-day keyframes. Breeds, tricks, NPC pets, scenes, and outfits are data, so adding one is a config entry and not new code. A scene compiler rejects an unknown prop kind by naming the field, rejects an unknown `time` value, rejects a bad `lighting.actorTint`, and skips a scene whose schema version it does not know. A bad downloaded scene pack fails the same validation and must never crash the app. Nothing outside scene data names a scene. New scenes use existing prop kinds and POI types with no code; a new prop kind is one draw registration; a new POI type with a new action goes through the affordance registry (R4.6).
 6. The simulation decides what happens and the view only animates it.
 7. The same simulation module runs in the app and in the server's functions, so the server can replay events and reach the same state.
 8. Events are the source of truth for sync, and state is derived from them.
@@ -566,7 +620,7 @@ type PetEvent =
 - Size: audio is compressed and loops are short. Core art and sound are bundled, and optional extras can be hosted remotely so new breeds ship without an app update.
 - Accessibility: an assist mode for the timing game, an alternative to swipes such as tap rhythms, no meaning carried by color alone, and haptic or on-screen fallbacks for sound.
 - Privacy: collect the minimum, keep analytics free of personal data, and support deletion.
-- Testing: every simulation feature ships with unit tests for determinism, bounds and thresholds, and the same seed and variation must always give the same potentials.
+- Testing: every simulation feature ships with unit tests for determinism, bounds and thresholds, and the same seed and variation must always give the same potentials. Scene tests cover validation, POI lookup, and action availability. Time-of-day tests cover the keyframe blend at phase boundaries, the wrap past midnight, and `time` validation.
 - Observability: crash reporting, and analytics events for the success metrics, with no personal data.
 - Code quality: TypeScript in strict mode, small files, and one commit per task.
 
@@ -597,8 +651,8 @@ Treat decided items as fixed. For open items, build the proposed default behind 
 | Accounts | Guest-first, with an account later and no friction at the start |
 | Social | Share card, read-only friend visits and NPC playdates in the MVP. A visit or a later friend encounter renders the other pet from a stored snapshot and runs locally from a seed. There is no live sync. Friend encounters themselves wait until after the MVP. |
 | Drawing | Procedural Skia actor. The HTML references are ported. Logic modules do not import Skia. The v1 look is flat vector. Pose keeps spineArch, crouch, and a z jump even where Phase 1 leaves them idle. |
-| Behaviors | One task machine. Shared tasks: stand, sit, sleep, eat, drink, walk, jump, and idle. Dogs add pant, give paw, bark, and fetch. Cats add purr, groom, and pounce. Pant and purr are never user actions. Home controls are feed, drink, rest, a stroke, and throw ball. A tap on the scene drops the ball. A dog carries it home. A cat bats it three times. Scenes are data: living room, park, and bedroom. |
-| Time of day | A view concern driven by the device's local hour. Scenes opt in with `outdoor`, `indoor`, or `fixed`. Omitted means `fixed`. Outdoor draws sky, sun, moon, and stars. Indoor draws lamp glow and windows of the same sky. Scenery takes the full tint. Pets and the ball take `lighting.actorTint` of it (0.35 indoor, 0.85 outdoor, 0 fixed). Indoor night alpha caps at 0.35, and a warm floor light fades in with `dark`. The pet stays readable indoors at night. It does not change weight, mood, or age. The demo hour slider does not ship. See R4.7. |
+| Behaviors | One task machine. Shared tasks: stand, sit, sleep, eat, drink, walk, jump, and idle. Dogs add pant, give paw, bark, and fetch. Cats add purr, groom, and pounce. Pant and purr are never user actions. Home controls are feed, drink, rest, a stroke, and throw ball. A tap on the scene drops the ball. A dog carries it home. A cat bats it three times. Scenes are data: living room, park, and bedroom. Feed and drink need matching POIs; rest always works and walks to a bed when one exists. Props are visual only except through POIs. New POI actions go through an affordance registry. See R4.6. |
+| Time of day | A view concern driven by the device's local hour. Scenes opt in with `outdoor`, `indoor`, or `fixed`. Omitted means `fixed`. Outdoor draws sky, sun, moon, and stars. Indoor draws lamp glow and windows of the same sky. Scenery takes the full tint. Pets and the ball take `lighting.actorTint` of it (0.35 indoor, 0.85 outdoor, 0 fixed). Indoor night alpha caps at 0.35, and a warm floor light fades in with `dark`. The pet stays readable indoors at night. It does not change weight, mood, or age. Painted backgrounds keep the sky as its own layer. The demo hour slider does not ship. See R4.7. |
 | Cosmetics | Phase 1 wears the bundled starter wardrobe, one item per slot: collar, bandana, glasses, hat, coat, and boots. The shop, premium grants, and share-card outfits wait until after the MVP. Fit belongs to the actor, and the renderer draws from the frame's anchors. The bundled catalog is the offline source of truth, with permanent content ids. Ownership is a separate list and gates every equip. Sources are starter, earned, and premium. Premium is cosmetic-only. Content ids are separate from store product ids, and a product grants premium ids only. Recolor is a fixed palette on the equip event. See F6. |
 
 **Open**
