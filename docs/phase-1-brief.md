@@ -13,11 +13,11 @@ Build it in the existing Expo app. The PRD is the contract. This brief is the bu
 
 **Done means**
 
-A fresh install asks the user to attest that they are 13 or older. Saying they are under 13 leaves the app blocked after it is closed and reopened, with no pet saved. A passing attestation picks a species and a breed, meets three young pets of that breed, picks one, names it, and lands on the home screen. The home screen draws that pet as an actor. Feed (meal picker), refill water, rest, petting, and Play (throw ball) start tasks. Needs use hunger, energy, and happiness. Nothing in the interface starts panting. Playing with the app open does not age the pet. Coming back later ages the credited day count by at most 48 hours, eases the view over about a second, and never shows a stage name. Debug controls can walk age, maturity, and vitality across the whole range.
+A fresh install asks whether the person is at least 13, after reading a store age signal when one exists. An under-13 result leaves the app on the Not Available screen after it is closed and reopened, with no pet saved and nothing sent off the device. A 13+ confirmation accepts the current terms, then picks a species and a breed, meets three young pets of that breed, picks one, names it, and lands on the home screen. The home screen draws that pet as an actor. Feed (meal picker), refill water, rest, petting, and Play (throw ball) start tasks. Needs use hunger, energy, and happiness. Nothing in the interface starts panting. Playing with the app open does not age the pet. Coming back later ages the credited day count by at most 48 hours, eases the view over about a second, and never shows a stage name. Debug controls can walk age, maturity, and vitality across the whole range.
 
 ## What to build
 
-- An age attestation, stored locally as a pass or a blocked note (R1.1).
+- An age and terms gate. A store signal is merged with a Yes or No, and under 13 never leaves the device (R1.1).
 - A species choice, then a breed choice, then three young pets of that breed derived from one seed. The user picks one variation, and that pet is stored with the seed, the breed, and the variation (R1.3, R1.5).
 - On each pet before the pick: the temperament label, the two attributes it nudges, and every attribute as an exact current score and potential. Then a name for the chosen pet (R1.4).
 - `ageDays` and vitality on the clocks in R2.1, R2.3, and R2.7. Maturity is derived from `ageDays`.
@@ -180,11 +180,11 @@ Xp is kept when a debug control lowers the ceiling. The shown level follows the 
 
 ## Age gate and adoption
 
-No navigation library. A small flow in the app is enough: attest, blocked, species, breed, litter, name, home.
+No navigation library. A small flow in the app is enough: consent, not available, species, breed, litter, name, home.
 
-**Attest.** "This app is for ages 13 and up." Actions: "I am 13 or older" and "I am under 13". Store `passed` or `blocked` under a key of its own, separate from the pet, because a blocked user has no pet.
+**Consent.** Ask "Are you at least 13 years old?" with equal Yes and No choices, even when a store signal already exists. Continue is disabled until one is selected. The screen links the Terms of Service and Privacy Policy. A Yes keeps the store band when one exists. A No, or a store result under 13, does not create an id. The age record is stored apart from the pet, because an under-13 user has no pet.
 
-**Blocked.** A short screen that says they can't use the app. No second chance on that install. Relaunch shows this screen again.
+**Not available.** A short screen that says Boop Boop is not available on this device right now. It does not mention age, and it has no retry. Relaunch shows this screen again.
 
 **Species and breed.** Dog or cat, then a breed of that species. The five dog breeds are available now. Cat breeds appear when the cat reference is in `docs/`. Store the choice with the seed until a pet is saved, so leaving and coming back shows the same breed.
 
@@ -196,9 +196,9 @@ No navigation library. A small flow in the app is enough: attest, blocked, speci
 
 A saved Phase 0 pet has none of the new fields. If the loaded pet does not match this shape, drop it and start from the age gate. Do not crash.
 
-Debug reset replaces the pet and keeps the attestation. A separate debug action clears the attestation so both gate paths can be tested.
+Debug reset replaces the pet and keeps the age record. A separate debug action clears the age check so both gate paths can be tested. Dev-only controls can simulate an adult, teen, under-13, or unknown store signal.
 
-A debug "New pet" action deletes the saved pet and returns to the species step. It has no confirmation, and the old pet is not kept. It also cancels the scheduled reminder and clears the saved adoption draft, so the flow starts fresh with a new seed. It keeps the attestation and the reminders and sound preferences. The delete goes through the same save queue as every other pet write, so a pending save cannot bring the old pet back. A swap window, rehome, and retire are not part of Phase 1.
+A debug "New pet" action deletes the saved pet and returns to the species step. It has no confirmation, and the old pet is not kept. It also cancels the scheduled reminder and clears the saved adoption draft, so the flow starts fresh with a new seed. It keeps the age record and the reminders and sound preferences. The delete goes through the same save queue as every other pet write, so a pending save cannot bring the old pet back. A swap window, rehome, and retire are not part of Phase 1.
 
 ## View
 
@@ -248,7 +248,7 @@ Work in this order. Do not start a task until the previous check passes. Commit 
 3. **Maturity clock and stages.** Split the foreground tick from the resume path. Add the 48-hour cap, the one-boundary clamp, and `stageOf`. Check: foreground time leaves `ageDays` unchanged; a 100-hour gap matches a 48-hour gap; a gain that would pass two thresholds stops on the first; maturity never falls; after maturity is 1, more closed time still raises `ageDays`.
 4. **Vitality, weight, and bands.** Add `careWindow`, `feedWindow`, the daily bounds, and senior-band hysteresis. Check: one feed barely moves vitality or weight; a stretch of extra feedings raises weight and missed feedings lower it; a 100-hour gap matches a 48-hour gap for weight; a new pet starts at 50; the band does not flicker inside the margin; vitality never goes below 0.35 from the care formula.
 5. **Level, growth, and drift.** Add xp, ceilings, drift, the maturity growth cap, the aging modifier, the weight modifier, and the training-gain taper. Check: no current score exceeds potential; growth at full maturity stays near 70% of potential; a gain near the cap is much smaller than the same gain far from it; aging and weight change the effective score only; weight away from 50 lowers stamina and agility; drift moves back toward 0 on a capped absence; the shown level respects the ceiling.
-6. **Age gate.** Persist pass and blocked separately from the pet. Check: under 13 stays blocked across a reload and saves no pet; a pass does not show the gate again.
+6. **Age gate.** Persist the age record and terms acceptance separately from the pet. Check: under 13 stays on the Not Available screen across a reload, saves no pet, and creates no Supabase user; a 13+ confirmation does not show the age question again until the terms version changes.
 7. **Adoption.** Pick a species and a breed, then show the three variations with temperament, nudged attributes, and exact `current / potential` lines. Pick one and name it. Check: the same three are still there after a reload before naming; an empty name cannot continue; the saved pet stores that seed, breed, and variant; home shows the chosen pet's name, temperament, level, and six scores with no stage word and no seed; the other two variations are not saved.
 8. **Actor.** Port the dog reference into the modules above and draw it with Skia. Hook feed, rest, pet, and throw ball to the tasks in the View section. Check: the five dog breeds render and age from day 0 to day 1000; bags appear across days 600 to 800 and fade when vitality is high; sit, sleep, eat, fetch, bark, and give paw transition without a pop; pant happens after a fetch and from no button; a headless test steps two actors; the behavior tests do not import Skia; backgrounding pauses the frame clock.
 9. **Reminders.** Schedule, cancel, and toggle the low-need notifications. Check: a stage word never appears in the copy, and denying permission leaves care usable.

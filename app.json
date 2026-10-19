@@ -33,7 +33,10 @@
           "enableBackgroundRecording": false
         }
       ],
-      "expo-asset"
+      "expo-asset",
+      "expo-secure-store",
+      "expo-web-browser",
+      "./modules/age-signals/app.plugin.js"
     ]
   }
 }

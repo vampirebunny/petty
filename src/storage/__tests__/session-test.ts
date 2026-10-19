@@ -1,13 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import {
-  loadAttestation,
-  loadDraft,
-  loadSoundEnabled,
-  saveAttestation,
-  saveDraft,
-  saveSoundEnabled,
-} from '../session';
+import { loadDraft, loadSoundEnabled, saveDraft, saveSoundEnabled } from '../session';
 
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock'),
@@ -15,12 +8,6 @@ jest.mock('@react-native-async-storage/async-storage', () =>
 
 beforeEach(async () => {
   await AsyncStorage.clear();
-});
-
-it('keeps a blocked attestation across a reload and stores no pet with it', async () => {
-  await saveAttestation('blocked');
-  await expect(loadAttestation()).resolves.toBe('blocked');
-  await expect(AsyncStorage.getItem('petty.pet')).resolves.toBeNull();
 });
 
 it('returns the same draft seed, species, breed, look, and step', async () => {
@@ -33,8 +20,6 @@ it('returns the same draft seed, species, breed, look, and step', async () => {
   };
   await saveDraft(draft);
   await expect(loadDraft()).resolves.toEqual(draft);
-  await saveAttestation('passed');
-  await expect(loadAttestation()).resolves.toBe('passed');
 });
 
 it('keeps a seed saved at the first step and ignores a draft in the old shape', async () => {

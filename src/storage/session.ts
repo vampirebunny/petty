@@ -3,12 +3,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Look } from '../sim/types';
 import { migrateBreedId } from './migrateIds';
 
-const attestationKey = 'petty.attestation';
 const draftKey = 'petty.draft';
 const remindersKey = 'petty.reminders';
 const soundKey = 'petty.sound';
-
-export type Attestation = 'passed' | 'blocked';
 
 // Species, look, and breed share one design screen. Offers (choose a pup) and name follow.
 export type AdoptionStep = 'design' | 'offers' | 'name';
@@ -73,19 +70,6 @@ function readDraft(value: unknown): AdoptionDraft | null {
     result.name = draft.name.slice(0, 16);
   }
   return result;
-}
-
-export async function loadAttestation(): Promise<Attestation | null> {
-  const raw = await AsyncStorage.getItem(attestationKey);
-  return raw === 'passed' || raw === 'blocked' ? raw : null;
-}
-
-export async function saveAttestation(value: Attestation): Promise<void> {
-  await AsyncStorage.setItem(attestationKey, value);
-}
-
-export async function clearAttestation(): Promise<void> {
-  await AsyncStorage.removeItem(attestationKey);
 }
 
 export async function loadDraft(): Promise<AdoptionDraft | null> {

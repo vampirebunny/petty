@@ -5,15 +5,15 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { AdoptScreen } from './src/screens/AdoptScreen';
 import { MeetScreen } from './src/screens/adopt/MeetScreen';
-import { AttestScreen } from './src/screens/AttestScreen';
-import { BlockedScreen } from './src/screens/BlockedScreen';
+import { ConsentScreen } from './src/screens/ConsentScreen';
+import { NotAvailableScreen } from './src/screens/NotAvailableScreen';
 import HomeScreen from './src/screens/HomeScreen';
+import { useAgeGate } from './src/state/useAgeGate';
 import { usePet } from './src/state/usePet';
-import { useSession } from './src/state/useSession';
 
 export default function App() {
-  const session = useSession();
   const pet = usePet();
+  const gate = useAgeGate({ onUnavailable: () => pet.setRemindersOn(false) });
   // True only in the session where the pet was just adopted, so the intro shows once and is not saved.
   const [meeting, setMeeting] = useState(false);
 
@@ -22,17 +22,17 @@ export default function App() {
       <Text style={styles.loadingText}>Boop Boop</Text>
     </View>
   );
-  if (session.ready && pet.ready) {
-    if (session.attestation === 'blocked') {
-      screen = <BlockedScreen />;
-    } else if (session.attestation !== 'passed') {
+  if (gate.phase !== 'loading' && pet.ready) {
+    if (gate.phase === 'unavailable') {
+      screen = <NotAvailableScreen onDevClear={() => void gate.clear()} />;
+    } else if (gate.phase === 'consent') {
       screen = (
-        <AttestScreen
-          onPass={session.pass}
-          onBlock={() => {
-            session.block();
-            pet.setRemindersOn(false);
-          }}
+        <ConsentScreen
+          askAge={gate.askAge}
+          onYes={() => void gate.continueYes()}
+          onNo={() => void gate.continueNo()}
+          onAcceptTerms={() => void gate.acceptUpdatedTerms()}
+          onSimulate={(signal) => void gate.simulate(signal)}
         />
       );
     } else if (!pet.state) {
@@ -47,7 +47,13 @@ export default function App() {
     } else if (meeting) {
       screen = <MeetScreen pet={pet.state} onStart={() => setMeeting(false)} />;
     } else {
-      screen = <HomeScreen petApi={pet} onClearAttestation={session.clear} />;
+      screen = (
+        <HomeScreen
+          petApi={pet}
+          onClearAgeCheck={() => void gate.clear()}
+          onSimulateAge={(signal) => void gate.simulate(signal)}
+        />
+      );
     }
   }
 

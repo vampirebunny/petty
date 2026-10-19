@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 
+import type { DevAgeSignal } from '../age/ageSignal';
 import { phaseOf } from '../actor';
 import { attributeScore, stageOf, traits } from '../sim';
 import type { Mood, PetState, Trait } from '../sim/types';
@@ -20,7 +21,8 @@ type Props = {
   onHour: (hour: number | null) => void;
   onReset: () => void;
   onNewPet: () => void;
-  onClearAttestation: () => void;
+  onClearAgeCheck: () => void;
+  onSimulateAge: (signal: DevAgeSignal) => void;
 };
 
 const hourMs = 60 * 60 * 1000;
@@ -111,7 +113,8 @@ export function DebugPanel({
   onHour,
   onReset,
   onNewPet,
-  onClearAttestation,
+  onClearAgeCheck,
+  onSimulateAge,
 }: Props) {
   const [open, setOpen] = useState(false);
   const care = state.careWindow[state.careWindow.length - 1];
@@ -186,9 +189,16 @@ export function DebugPanel({
         <Pressable style={styles.button} onPress={onNewPet}>
           <Text style={styles.buttonLabel}>New pet</Text>
         </Pressable>
-        <Pressable style={styles.button} onPress={onClearAttestation}>
+        <Pressable style={styles.button} onPress={onClearAgeCheck}>
           <Text style={styles.buttonLabel}>Clear age check</Text>
         </Pressable>
+        {__DEV__
+          ? (['adult', 'teen', 'under13', 'unknown'] as DevAgeSignal[]).map((signal) => (
+              <Pressable key={signal} style={styles.button} onPress={() => onSimulateAge(signal)}>
+                <Text style={styles.buttonLabel}>Dev signal {signal}</Text>
+              </Pressable>
+            ))
+          : null}
       </View>
         </View>
       ) : null}
