@@ -1,15 +1,15 @@
 # PRD: Virtual Pet App (MVP)
 
 Oct 14, 2026 · @A
-Updated Oct 19, 2026
+Updated Oct 19, 2026 (F5 replaced by care and training)
 
 ## Overview
 
-A mobile app for iOS and Android where each user adopts a dog or a cat that ages gradually from puppy to senior, develops a breed-based personality, learns tricks the user has to discover and teach, and can be shown off through outfits, shareable clips and friends. The app name is not decided yet.
+A mobile app for iOS and Android where each user adopts a dog or a cat that ages gradually from puppy to senior, develops a breed-based personality, learns tricks the user teaches with treats and practice, needs real care, and can be shown off through outfits, shareable clips and friends. The app name is not decided yet.
 
 **Audience.** The working plan is 13+. The gate uses a store age signal when the platform provides one, then a Yes or No to "Are you at least 13 years old?" It never asks for a birthdate. Whether the core audience is nostalgic adults, teens or cozy-game players is still open.
 
-**What makes it different.** Most virtual pet apps are care loops with mini-games and dress-up. This one has a pet whose personality is visible and different from every other pet, training that rewards the owner's real time and skill, tricks that must be discovered, and ways to show all of it off. It works offline and lets people play before creating an account.
+**What makes it different.** Most virtual pet apps are care loops with mini-games and dress-up. This one has a pet whose personality is visible and different from every other pet, a care loop with a payoff (house training, walks, baths), training that rewards the owner's consistency, tricks that unlock as the pet grows up, and ways to show all of it off. It works offline and lets people play before creating an account.
 
 **How to use this document.** Requirements are numbered and each feature has acceptance checks. Build in the order of the release phases, and do not build anything listed as out of scope. Phase 0 is specified in "Cursor Brief: Pet Blob Prototype". Breed anatomy and the reference poses live in `docs/pet-demo-v2_2.html`. That file is a reference to compare against, not code to embed or load in a WebView. This PRD is the contract for behavior, scenes, wardrobe, and time of day. When a requirement is unclear or two requirements conflict, ask instead of guessing.
 
@@ -17,8 +17,8 @@ A mobile app for iOS and Android where each user adopts a dog or a cat that ages
 
 1. Cute and expressive: the pet's emotion should be readable at a glance.
 2. Care without punishment: the pet never dies, there are no guilt mechanics, and training uses positive reinforcement only.
-3. Time and skill matter: outcomes depend on the owner's consistency and skill, never on payment.
-4. Visible goals, hidden secrets: show every attribute and its maximum potential so players can chase them, and hide the secret trick sequences.
+3. Time and attention matter: outcomes depend on the owner's consistency and care, never on payment.
+4. Visible goals, quiet surprises: show every attribute and its maximum potential so players can chase them. Locked tricks show as silhouettes with vague hints, and secret tricks are reserved for later.
 5. Show-off: anything worth bragging about can be shared.
 6. Offline-first and guest-first: play immediately, anywhere, and ask for an account later.
 7. Safe by default: 13+, private by default, no free-text chat between users, and minimal data.
@@ -32,7 +32,7 @@ The MVP exists to answer one question: do people come back to care for, train an
 
 - A pet that feels alive: needs that change over real time, readable moods, and reactions to touch.
 - Six visible attributes, each with a visible, pet-specific maximum potential that players try to reach.
-- Training and trick discovery that reward time and skill.
+- A care and training loop (house training, chores, tricks, treats) that rewards time and consistency.
 - Ways to show off: learned tricks, a shareable card and clip, and pet-to-pet playdates. Outfits come after the MVP.
 - A full experience offline and without an account.
 
@@ -50,7 +50,7 @@ The MVP exists to answer one question: do people come back to care for, train an
 
 - Day-1 and day-7 retention
 - Sessions per day
-- Share of users who train their pet and discover a trick
+- Share of users who house-train their pet and master a first trick
 - Share cards sent
 - Friend invites accepted
 - NPC playdates per user
@@ -92,7 +92,7 @@ Each phase builds on the one before it and ends at an exit check, listed in the 
 | --- | --- | --- |
 | 0. Blob prototype | Needs, feeding, resting and petting on one screen, local-only, drawn with plain shapes. Specified in "Cursor Brief: Pet Blob Prototype". | Runs in Expo Go, state survives closing the app, and the time-jump debug panel works. |
 | 1. Core pet | Species and breed choice for dog or cat with each breed's attribute potential ranges and a live preview, a design step (coat color and the pattern variants the breed allows, plus eye color for cats; ears and tail come from the breed), then three attribute sets for that breed (athlete, thinker, charmer), the age and terms gate, naming, aging from the pet's birth time, care-driven vitality, a hidden weight index, internal stage labels and senior bands, six attributes with visible current scores and maximum potential, an archetype, levels, local reminders when a need is low, a bundled starter wardrobe, and the procedural actor in a scene whose sky follows the device clock. The home screen draws that actor from breed anatomy, age curves, vitality, weight, and the scene. | A person who confirms they are at least 13, and who is not under 13 by a store signal, can pick a dog or a cat and a breed, see each breed's potential ranges, customize the look with a live preview, compare three attribute sets for that breed by exact potentials, choose one, name it, and care for it. Feed, drink, rest, a stroke, cuddle, and throw ball start the matching tasks. A tap on the scene drops a ball and starts the chase. An outdoor scene's sky and an indoor scene's windows and lamps follow the device clock, and a scene that omits time does not. At night an indoor pet stays readable while the room still reads as night. An under-13 result stays on the Not Available screen across relaunch and is not sent off the device. Debug controls move age, vitality, and weight across the whole range with no visible jump and no stage name on screen. A senior pet can be moved between bands through care. |
-| 2. Play and training | Fetch mastery and one toy, training with mastery, 3 to 5 tricks with about 3 discoverable, the trick book, and NPC playdates. The chase itself already plays in Phase 1. | A player can discover and teach a trick and finish an NPC playdate, all offline. |
+| 2. Play and training | Fetch mastery and one toy, the care and training loop in F5 (house training, cleanup, dog walks, baths and brushing, trick tracks, a treat economy and inventory), and NPC playdates. The chase itself already plays in Phase 1. | A player can house-train a pet, master a first trick with treats, keep the care chores going and finish an NPC playdate, all offline. |
 | 3. Art and audio | Recorded pet sounds, UI sounds and music, on the procedural actor. The starter wardrobe already draws in Phase 1. The v1 drawing is flat vector. | Sounds match the behavior, breeds sound different, and the behavior modules do not change when the drawing is replaced. |
 | 4. Accounts and social | Guest-to-account upgrade, pet sync, share card and clip, read-only friend visits, and account and data deletion. Store age signals and anonymous consent records ship with the age gate. | A guest can upgrade, back up the pet, add a friend by invite link and share a card. |
 | 5. Beta | Legal and store checks, matching age rating, privacy policy, analytics and a small beta. | The privacy attorney consult is done, the store listing and rating match the 13+ terms, the store privacy and support URLs point at `https://boopboop.mylisto.app`, and the beta is released. |
@@ -110,7 +110,7 @@ Requirements are numbered so they can be referenced in tasks and commits. "Propo
 - R1.3 After the gate, the user designs the pet on one screen. Dog and cat are both selectable on a species toggle. A sticky preview at the top updates as the user picks species, look, and breed. Below the preview, the user picks a coat style from a fixed palette filtered to the patterns that breed allows (solids, stripes, two-tone points, or bicolor, including a few offbeat fantasy colors), then eye color for cats, then a breed from a horizontal scroll of cards. Ears and tail are not user options: they come from the breed. Within a breed, small differences (ear size, tail fluff, marking strength, and a rare one-ear flop on erect dogs) are deterministic from the pet seed. Erect dog ears (corgi, husky) start folded at the puppy stage and rise with growth. The sticky preview stays awake (no nap). Each breed card shows the breed's potential range for each attribute as a min to max bar, and the card always shows the exact min and max numbers, labelled as potential. The app then moves to a "Choose your pup" (or kitten) step with three equal tiles, one per archetype (athlete, thinker, charmer), all deterministic from one seed and all visible with no scrolling. The tiles are a single-choice group with the first selected by default. A detail card shows the selected pup's name, a one-line blurb from data, and every attribute's exact potential as a 0 to 100 bar, with the two strong attributes highlighted and a +N marker where it beats the best of the other two pups. It does not show breed ranges or starting values. A 4-dot step indicator (adopt, choose, name, meet) appears on every adoption screen. The user picks one with "Adopt {archetype}", which does not create the pet yet. The other two are not saved. All three sets for a pet have the same total potential, and that total varies slightly per pet around 375 (375 plus or minus 10), so some pets roll a bit better overall. Phase 1 uses ten breeds: Retriever, Corgi, Dachshund, Husky, and Pug, plus Domestic Shorthair, Siamese, Persian, Maine Coon, and Scottish Fold. Stored ids are camelCase (`domesticShorthair`, `maineCoon`, `scottishFold`); old `tabby`, `domesticshorthair`, `mainecoon`, `bombay` and `black` ids migrate on load. Each breed carries a marking map and silhouette params so breeds stay recognizable in the same coat color and as silhouettes. The engine does not invent anatomy for a breed that is not in data.
 - R1.4 Then the user names the pet on a "Name your pup" (or kitten) step: a NAME field validated by `validateName` in `src/adopt/name.ts`, and a "Meet {name}" button that creates the pet, exactly once. A valid name is 1 to 16 characters after NFC normalization, trimming, and collapsing inner spaces; only letters, numbers, spaces, and `' - .` are allowed; control, zero-width, and bidi characters are rejected; URLs and `@` handles are rejected; reserved names (such as admin, staff, boopboop) and a curated profanity list are rejected after leetspeak-normalized matching. Invalid input shows a short hint without quoting the blocked text, and Meet stays disabled. The same rules apply later to display names. There are no name suggestion chips. Back from the name or choose step keeps the same offers, the selected pup and the typed name, and never regenerates the seed. A "Meet {name}" intro follows, with the breed, archetype and Day 1, and current and potential bars for all six attributes (current is 20% of potential). Its "Start playing" button goes to the home screen. The intro has no back button, and it is shown only in the session where the pet was adopted; reopening the app after creation goes straight to home.
 - R1.5 The chosen pet stores that one seed, a rules version, the archetype that was picked, its look, and the resulting potential and current scores. The seed is generated once and persisted in the adoption draft before the attribute sets render, so backing out and returning shows the same three sets. The draft also stores the chosen archetype and the typed name while the user is still in the flow. The same seed, species and breed always offer the same three sets, and the same seed, species, breed and archetype always create the same potential. Potential is stored on the pet and never recomputed from the seed after adoption, so a later change to breed ranges does not change existing pets.
-- R1.6 Choose a new pet. For now the user can discard the current pet and adopt another. The button is a debug control with no confirmation. It deletes the stored pet, its scheduled reminder, any saved adoption draft, that pet's playdate history, its partner relationships, and the playdate cooldown, then shows the adoption flow. The owner's NPC cast stays (R7.5). There is no way back to the old pet, and nothing about it is archived. The age record, the terms acceptance, the reminders preference, and the sound preference are not pet data and stay as they are. A separate debug action clears the age check without deleting the pet. This is a stopgap. Later, the user can swap pets freely in the first 72 hours, and after that can rehome or retire a pet. Those rules are not built yet, and this requirement does not design them.
+- R1.6 Choose a new pet. For now the user can discard the current pet and adopt another. The button is a debug control with no confirmation. It deletes the stored pet, its scheduled reminder, any saved adoption draft, that pet's playdate history, its partner relationships, the playdate cooldown, and (from Phase 2) its care state, training tracks, bath tolerance, milestones, seen coach marks and scheduled care notifications, then shows the adoption flow. The user's inventory and treat economy stay (R5.21). The owner's NPC cast stays (R7.5). There is no way back to the old pet, and nothing about it is archived. The age record, the terms acceptance, the reminders preference, and the sound preference are not pet data and stay as they are. A separate debug action clears the age check without deleting the pet. This is a stopgap. Later, the user can swap pets freely in the first 72 hours, and after that can rehome or retire a pet. Those rules are not built yet, and this requirement does not design them.
 
 Acceptance: an under-13 result blocks progress, and the block is still there after the app is closed and reopened, with nothing about that result sent off the device; a 13+ confirmation reaches adoption and then the home screen with one named pet and no account screen; the same seed, species and breed always offer the same three attribute sets, including after leaving and returning to the choose screen; the same seed, species, breed and archetype always create the same pet potential; the design screen shows each breed's potential ranges and the preview follows the species, breed and look choices; the choose screen shows all three pups at once with exact potentials and +N deltas, and no range shading or starting ticks; an empty, overlong, symbol-heavy, link-like, or blocked name keeps Meet disabled and shows a hint; the pet is created only when "Meet {name}" is tapped with a valid name; after "Start playing", back does not return to onboarding; choosing a new pet shows species selection with no draft left over, no old pet after a restart, and no reminder scheduled for the old pet, and the age record and the reminders and sound preferences are unchanged.
 
@@ -120,7 +120,7 @@ Acceptance: an under-13 result blocks progress, and the block is still there aft
 - R2.2 Care actions are feed, drink, toggle rest, pet, and cuddle (R4.8). Throw ball is a play action. Sit, give paw, and speak are also user actions. While asleep, any of those actions (except sleep itself) wakes the pet and then runs. Idle is not a user control: when no task is running, the pet idles on its own. Pant and purr are not actions. A dog may pant on its own, including after a fetch. A cat may purr on its own, including after batting the ball. Nothing in the interface starts pant or purr.
 - R2.3 Aging runs on two continuous values, each from 0 to 1. Maturity only goes up. It is derived from ageDays (R2.7), and ageDays is calendar time since `bornAt`, so it moves while the app is open and for the full time the app was closed. There is no 48-hour cap and no one-boundary clamp on age. Needs decay still caps elapsed time at 48 hours (R2.1). Until the care window exists, maturity accrues at full rate. After that, poor care can slow maturity toward a floor around half speed, and neglect does not stop aging. Vitality moves up and down with care (R2.8) and uses the same capped absence as needs. Life stages are internal labels derived from these values, not separate states with separate art: puppy, older puppy, adolescent, adult and senior, with the senior stage split into bands (R2.9). A stage label sets the level ceiling and the learning speed, and nothing else. The day threshold of each label is a tunable constant. The user never sees a stage name.
 - R2.4 Mood is derived from the needs using the priority rule in the prototype brief.
-- R2.5 Local notifications remind the user when a need is low. They do not announce life stage labels or senior bands. The tone is calm with no guilt wording, and the user can turn them off in settings.
+- R2.5 Local notifications remind the user when a need is low. From Phase 2 one scheduler owns them all and adds opt-in care notifications (R5.19). They do not announce life stage labels or senior bands. The tone is calm with no guilt wording, and the user can turn them off in settings.
 - R2.6 Development builds include a Settings panel (labeled Settings, not Debug) that fast-forwards time and has sliders for ageDays, vitality, and weight. A time jump or an age slider rewrites `bornAt` so ageDays matches the requested value. Settings may show internal stage labels and the weight index. The rest of the app does not. The home screen does not ship a scene JSON editor.
 - R2.7 Seamless aging. The pet's appearance is a function of ageDays, vitality, and weight. ageDays is the calendar day count since `bornAt`, including time the app was open and the full time it was closed. The curves clamp at 1000 days. The pet keeps living after that. maturity is `min(1, ageDays / daysToSenior)` with daysToSenior at 180, so the stage boundaries stay on days 7, 21, 45, and 180, and a senior pet still has days left for late visual cues. Each visual feature has its own curve in a data file. Leg length follows an S-curve across growth. The other growth curves do not reverse. Under-eye bags appear across about day 600 to 800 and fade when vitality is high. Cuteness is stronger on a young pet: `cf = cuteness * (0.55 + 0.45 * (1 - growth))` enlarges the head by `1 + 0.28 * cf`, the eye by `0.12 * cf`, lowers the eyes, sets blush to `0.3 * cf`, and enlarges the paws by `1 + 0.25 * cf`. Weight changes body thickness, the belly, and leg width (R2.13). On the floor, the pet draws smaller toward the back of the scene and larger toward the front. No stage change plays a transition, effect, or swap. On a change, the stored values update immediately and the view eases to them over about a second. The user never watches a jump, never sees a stage name, and never sees the weight number.
 - R2.8 Vitality is driven by a rolling window of recent care: diet quality, exercise, play and attention. It moves slowly toward a target set by that window, so one action cannot swing it. Neglect lowers it gradually to a floor of "slow and sleepy but content". It never reaches a state that is distressing or fatal.
@@ -142,7 +142,7 @@ Acceptance: the simulation tests from the prototype brief pass for needs; a 100-
 - R3.6 The home screen shows the pet's name and level above the actor. Archetype or style and each attribute's current score and potential (for example "Agility 18 / 88") live behind a `{name}'s personality` control that expands like Settings. Adoption still shows potentials and current scores on the choose and meet steps. Trick mastery joins the personality view when it exists. The seed is never shown. Life stage names and senior bands stay internal (R2.3).
 - R3.6a Current style. The pet keeps its origin archetype, unchanged. A derived current style label is a pure function of archetype, stored current and potential, and is never stored or persisted. For each archetype, score = average of current / potential over its two strong attributes (a potential of 0 counts as 0). The style equals the origin unless another archetype's score beats the origin's by at least 0.05 (`STYLE.SWITCH_MARGIN`, in config); ties between non-origin archetypes resolve athlete, thinker, charmer. Labels live in data: origin "The Athlete / The Thinker / The Charmer", style "Athletic / Clever / Charming". The personality panel shows "Born: The Thinker · Style: Athletic" when they differ and the origin label alone when they match. It never changes archetype or potential. Until training raises stored current, every pet's style equals its origin.
 - R3.7 Fairness: the three sets offered for one pet have the same total, so the choice is a tradeoff and not an upgrade. Breed midpoints sum to about 375, so no breed is strictly better. The total varies slightly per pet (375 plus or minus 10), which is the "good roll" players will talk about.
-- R3.8 (Proposed) Training raises attributes. Fetch and play raise agility and stamina, trick learning raises intelligence and obedience, and playdates raise the attributes that activity trains. Gains have diminishing returns per day (R5.4) and taper hard as the current score nears potential, so the last points are the slow ones. Training raises the stored current score toward potential. The activities that award them arrive in Phase 2. Playdate attribute gains are the exception: they are a flat add to the score the pet shows (the higher of the stored current score and natural growth), capped at potential, with no training taper and no level XP (R7.5). Fetch and trick training still taper when they ship.
+- R3.8 (Proposed) Training raises attributes. Fetch and play raise agility and stamina, trick learning raises intelligence and obedience, and playdates raise the attributes that activity trains. Gains have diminishing returns per day (R5.8) and taper hard as the current score nears potential, so the last points are the slow ones. Training raises the stored current score toward potential. The activities that award them arrive in Phase 2. Playdate attribute gains are the exception: they are a flat add to the score the pet shows (the higher of the stored current score and natural growth), capped at potential, with no training taper and no level XP (R7.5). Fetch and trick training still taper when they ship.
 - R3.9 (Proposed) Attributes change over time through five sources: growth with maturity, training, milestone bonus points which the owner places, temporary buffs from food, play, rest and toys, short penalties while tired or hungry, and aging. Seniors lose some effective stamina and agility through low vitality and may gain obedience, and rejuvenation restores them. Weight outside the healthy band (-0.25 to 0.25) also lowers effective stamina and agility, and returning into that band restores them. Aging and weight change only the effective score, never the stored current score or the potential, so both are fully reversible. Keep a floor so effective scores never drop to unplayable.
 
 Acceptance: the same seed, species, breed and archetype always give the same potentials; the three sets differ; every potential is inside its breed range; the three sets share one total, and that total is within 375 plus or minus 10; across many seeds each archetype's strong attributes sit highest within the breed range; current starts at 20% of potential (minimum 1) and no current score exceeds its potential; training raises the matching attribute and the gain tapers hard near potential; aging lowers only the effective score and rejuvenation restores it; the pick screen shows each set's archetype and each attribute's exact potential, and the pet's attribute screen shows current and potential.
@@ -173,24 +173,69 @@ Deferred: the obstacle course, the laser pointer, and shifting the keyframe hour
 
 Acceptance: stroking feels continuous but cannot be spammed; a tap on the scene soft-drops the ball from a high `z` and starts a chase; a flick throws with velocity; Play → Throw ball throws from the left edge; the ball's bounce follows scene surface times the ball kind multiplier (1.5); a dog may play-bow, chase with gait changes and speed variety, return or show off the toy, then pant or flop, and a cat may stalk and pounce, bat three times, or roll with yarn, then groom or purr; all gait and pose transitions are smooth and `headTurn` stays 0 through play; throw ball always produces a chase in Phase 1, and the same traits and seed give the same refusal in Phase 2; no control starts pant or purr; a cat never pants and a dog never grooms; feed and refill water stay disabled when the scene cannot support them, and the UI can show why; rest stays available without a bed, and sleep and idle naps walk to the bed when the scene has one; ball bounce and friction follow the scene surface; all three preset scenes work with both species, including wardrobe and weight; a new scene written only as JSON with existing prop kinds and POI types loads and plays with no code changes; an invalid scene fails with a clear field-named message and leaves the current scene running; swapping scenes leaves weight, wardrobe, age, and mood unchanged and moves the pet to the new home point. Changing the device clock changes the sky in an outdoor scene and the windows, lamps, and tint in an indoor scene, with no jump at 05:00, 07:30, 12:00, 17:00, 19:00, or 21:30. At night an outdoor scene shows stars and the moon and looks as it did with the full outdoor tint. At 23:00 an indoor room still reads as night, and the pet's coat, face, eyes, and cosmetics stay distinguishable from the floor and walls. The indoor tint and the floor light fade smoothly across dusk, evening, and night. Pet luminance at the darkest indoor keyframe is at least 70% of daytime luminance. A bad `lighting.actorTint` is rejected. A scene with `time` omitted, or set to `fixed`, never changes. A window prop and a `sky` shape show the same sky as the outdoor backdrop. The blend wraps past midnight. An unknown `time` value is rejected. Advancing the clock leaves weight, mood, and age unchanged. Unit tests cover scene validation, POI lookup, action availability, the keyframe blend at 05:00, 07:30, 12:00, 17:00, 19:00, and 21:30, the wrap past midnight, and `time` validation.
 
-**F5. Training and tricks (Phase 2)**
+**F5. Care and training (Phase 2)**
 
-- R5.1 A trick is defined by an id, a name, the base motions it chains, a difficulty tier, prerequisites, trait affinities, an optional discoverable cue sequence, and an unlock condition.
-- R5.2 The MVP has 3 to 5 tricks, about 3 of them discoverable by sequence, built from a small library of base motions: sit, jump, spin, roll and paw.
-- R5.3 In a training session the owner picks a trick and plays a reward-timing moment, tapping within a short window after the pet performs the behavior. Harder tricks are taught in steps. An assist mode removes the timing game.
-- R5.4 Short, regular sessions beat long ones, through diminishing returns and a daily fatigue meter. Skills fade without practice but are never lost.
-- R5.5 Each trick tracks mastery, meaning whether the pet knows it, and reliability, meaning how consistently it performs. An attempt succeeds by a seeded roll against the trick's difficulty, with modifiers from the pet's stats, energy and bond and from the owner's skill rating.
-- R5.6 The owner skill rating grows from doing training well. It is earned and never bought.
-- R5.7 Positive reinforcement only. There are no punishment mechanics.
-- R5.8 Discovery uses six cue inputs: swipe up, down, left and right, tap and hold. A command is 3 to 5 inputs in sequence, and hidden sequences unlock tricks in the trick book.
-- R5.9 A near miss gets a pet reaction, such as a head tilt or an ear perk, so guessing feels warmer or colder. Each attempt costs a little energy, and the pet gets confused after many wrong tries, with a short cooldown.
-- R5.10 The trick book shows undiscovered tricks as silhouettes with hints. Hints come from the pet's own spontaneous behavior, a journal, and watching NPC pets perform.
-- R5.11 Sequences are checked through a validator interface. In the MVP the sequences ship inside the app. Later, rare tricks are confirmed by the server on sync and stay marked as pending while the phone is offline.
-- R5.12 Discovering a sequence unlocks the trick, but mastery and reliability still have to be built through training.
+The build spec is `docs/boop-boop-care-training-brief-v2.md`. This feature replaces the earlier F5 (gesture discovery, reliability, skill fade, and the owner skill rating). Where the brief and this section differ, this section wins, and code wins over both. The trick pacing numbers here (tiers, gain, unlock days, treat economy) supersede the brief's track table and config defaults.
 
-Deferred: proofing around distractions, consequences for bad habits, and per-pet quirk tricks.
+- R5.1 Scope. Care is potty, cleanup, walks (dogs), baths (dogs), and brushing (cats). Training is a set of 0 to 100 tracks for house training and tricks. Collection is the treat economy, an inventory, and milestones. All of it works offline and runs in pure logic modules with no React. Positive reinforcement only: no punishment, and no guilt copy.
+- R5.2 Simulation. `simulate(pet, user, now)` advances everything from `PetState.lastUpdatedAt`, with one code path for a 5-second gap and a three-day gap. Signals, reward windows, and training outcomes only happen in the foreground. Away time produces only capped, passive outcomes (R5.17). Time of day is visual only (R4.7) and never writes pet state. "Awake time" is sim time while the pet is not in Rest, and every care timer runs on it. Pet-scoped daily limits reset on the pet-age day (`dayIndex(now, bornAt)`, the same rule the treat cap uses today). User-scoped daily limits reset on the device's local calendar date.
+- R5.3 Randomness and attributes. Every care and training roll consumes `pet.rngState`, with no `Math.random()`. Playdates keep their own seed and never read or advance it. Formulas read `attributeScore`. Every training gain, per rep and at mastery, goes through `trainingGain` onto stored current, so the R3.8 taper applies. Care and training never call `grantFlatAttributes`, which stays playdate-only.
+- R5.4 Tracks. One engine runs house training and every trick. A track has an id, species, `hideWhenMastered` (house training only), prerequisites and unlock rules keyed by species (a missing key means none, or at adoption), a tier (tricks) or base gain (house training), linked attributes (one or two), and a reserved `hidden` flag with no content in v1. Unlock rules are evaluated in `simulate()` from mastered prerequisites, `minAgeDays`, and optional minimum attributes. A new unlock shows a "New trick unlocked!" toast. A locked trick is a silhouette in the training panel, or a hidden button on the main bar. Its hint names the first unmet condition: a prerequisite ("Keep practicing {Prereq} to unlock."), then age ("{Name} needs to grow up a little before learning this."), then an attribute ("{Name} needs to get a bit smarter first.", or "…a bit more focused first." for obedience). Hints never show days, ages, stage names, or attribute numbers.
+- R5.5 Starter tracks. Tier decides pace (R5.8). Prerequisites must be mastered.
 
-Acceptance: a hidden sequence can be found by guessing with near-miss feedback; training raises mastery over several sessions and decays with neglect; the same seed and inputs give the same attempt result; no screen offers a way to pay for skill.
+  | id | species | tier | prerequisite | unlock |
+  | --- | --- | --- | --- | --- |
+  | house_training | dog, cat | n/a | none | at adoption |
+  | sit | dog, cat | 1 | none | at adoption |
+  | speak | dog, cat | 1 | none | at adoption |
+  | come_when_called | cat | 1 | none | minAgeDays 1 |
+  | paw | dog | 2 | sit | minAgeDays 1 |
+  | lie_down | dog | 2 | sit | minAgeDays 2 |
+  | high_five | dog, cat | 2 | dog: paw, cat: sit | minAgeDays 3 |
+  | roll_over | dog | 3 | lie_down | minAgeDays 5 |
+
+  House training links obedience. Every trick links obedience. `lie_down` and `roll_over` also link intelligence. Roll over has no intelligence gate.
+- R5.6 Buttons and reps. The existing Sit, Paw, and Speak buttons are the training entry points, and other tricks get buttons in the training panel. A locked track's button is hidden. On an unlocked, unmastered track a tap is a rep. The pet performs with probability `pSuccess = clamp(0.55 + 0.003 × obedience + 0.004 × progress, 0.50, 0.97)`, and a mastered trick always performs as a show-off pose with no gain. A cat's Speak keeps the meow, and before mastery the cat sometimes ignores the cue. A failed rep plays a confused reaction, opens no reward window, consumes no treat, pays nothing, and does not count toward the daily cap. It counts as one session for R2.11.
+- R5.7 Reward window. After a successful rep, a treat given within 5 seconds pays full credit (1.0 times the tier factor: basic 1.0, special 1.5). A treat from 5 to 15 seconds pays 0.5 and is still consumed. No treat by 15 seconds, or leaving the scene or screen first, resolves at 0.25. The Treat button glows during the full window and dims during the late one. A chip on the button selects basic or special for the current window and resets to basic afterward. An empty tier falls back to the other tier, and if both are empty the button shows "Out of treats, next in {time}" and the rep resolves at 0.25.
+- R5.8 Rep payout and pacing. Every successful rep counts, whatever its credit.
+  - **Trick progress per rep:** `baseGainPerRep(tier) × intelligenceFactor × credit × fatigueFactor`, with `intelligenceFactor = 0.8 + 0.4 × clamp(intelligence / 100, 0, 1)`. There is no age factor on tricks.
+  - **Tier base gain:** 15 for tier 1, 7.5 for tier 2, 5 for tier 3. At the lowest starting intelligence on the roster (about 9) that is about 8, 16, and 24 full-credit reps to reach 100.
+  - **House training:** it keeps its own gain rules in the brief, including an age factor, until the brief is updated.
+  - **Attributes and XP:** a full-credit rep adds `rawAttrPerRep × credit` (default 0.15) through `trainingGain`, split evenly across the linked attributes, and grants `trainingRepXp` (2, flat).
+  - **Fatigue:** each track allows 8 successful reps per pet-age day. Past the cap, progress is multiplied by 0.1, there is no attribute gain or XP, and the pet plays a "had enough {Trick} today" reaction.
+  - **Design rule:** no trick may need more than 3 daily caps of full-credit reps at the lowest starting intelligence. Every future trick is assigned tier 1, 2, or 3, and a config test enforces the rule.
+- R5.9 Mastery. At 100 the track is mastered. Mastery grants `masteryXp` (20), `rawAttrOnMastery` (default 3.0) through `trainingGain`, a milestone, 10 basic treats and 1 special treat, and a recomputed current style (R3.6a). Mastered tricks give no further progress, attribute gain, or XP. A treat after one is a casual treat. There is no decay in v1 (`decayEnabled: false`).
+- R5.10 Fatigue and vitality. R2.11 is unchanged: each rep, success or failure, counts as one session, and nothing is ever locked. The per-track cap in R5.8 is a separate, per-trick diminishing return.
+- R5.11 House training. The meter is "House Training" and the button is "Go Out" (dog) or "Litter Box" (cat).
+  - **Urges:** the next urge is scheduled in awake time from a base interval by life stage, stretched as progress rises, with RNG jitter. In the foreground it starts a signal, and the potty button pulses for 90 seconds. The pet shows the signal through behavior only: sniffing, circling, or scratching the floor.
+  - **Backgrounding:** the remaining time pauses. Returning within 5 minutes resumes it. A longer absence cancels the signal with no mess and no penalty. After any missed urge, a new one is scheduled 20 to 60 seconds after the next foreground.
+  - **Rest:** the potty cycle pauses completely during Rest, with no urges, signals, or accidents.
+  - **Responding:** a cat walks to the litter box. A dog goes to the sidewalk scene and goes after a random 8 to 20 second delay. Either opens the reward window (R5.7), and a correct potty is always a successful rep.
+  - **Missing the window:** an accident spawns a mess in the current scene at a random valid floor spot. An indoor miss gives the next house-training rep a ×0.75 multiplier. A park miss spawns the mess with no penalty and no credit. Progress is never lost.
+  - **Random accidents:** pre-mastery pets also have random accidents at a set hourly rate of awake time, with no penalty.
+- R5.12 After house training. The meter is removed.
+  - **Cats:** the cat goes on its own at an interval and raises `litterBoxFill`. Above the threshold, each care check rolls an indoor accident chance. Tapping the box in Clean mode resets the fill.
+  - **Dogs:** "Walk" replaces "Go Out". A walk need comes due on an awake-time interval and takes the dog to the sidewalk for 60 seconds. Post-mastery the dog goes with no reward window, and "Head Home" is available once it has gone. After a grace period, each care check rolls an indoor accident chance and happiness drains, capped, until a walk happens.
+  - **Sidewalk messes:** they exist only during the walk, are removed when the scene closes with no penalty, and do not count toward the mess cap.
+  - **Interruptions:** leaving during a reward window resolves the rep at 0.25. Backgrounding before the dog has gone abandons the walk with no mess and no penalty.
+- R5.13 Cleanup. Clean enters a tool mode: a scooper indoors, a bag outdoors, and a rake on the litter box. Taps remove messes with an animation, a sparkle, and a sound, and the mode exits when the scene is clean or with an ✕. Clean lights up only when the current scene has messes. There are at most 3 messes across all persistent scenes, and an accident at the cap does not spawn. Messes show stink lines and then flies as they age, and each slowly drains happiness and hygiene with capped totals. When only other scenes have messes, the care chip shows a count, and tapping it switches to the scene with the most. Ties go to the most recently visited scene, then scene-definition order.
+- R5.14 Hygiene, baths, brushing.
+  - **Hygiene:** it drains over awake time and costs a set amount per walk and per active play action in an outdoor scene. Idling outdoors costs nothing. A dirt overlay appears in two steps as hygiene falls.
+  - **Dog bath:** a Bath chip appears below hygiene 40. The bath scene has lather, rinse, towel, and shake steps, and hygiene ends at 100. Happiness changes by `round(bathTolerance / 10)`. Bathing above hygiene 80 gives −5 happiness and no hygiene gain. A treat during the bath raises tolerance by 4 (cap 100) and follows the reward-treat rules.
+  - **Cats:** Brush works in the current room, adds 40 hygiene, and adds `round(affection / 25)` happiness. A bath is always in the Care menu but is only prompted below hygiene 15.
+  - **Tolerance:** `bathTolerance` is rolled once at adoption and stored. `bathTolerance = clamp(round(lerp(-60, 60, t)) + waterAffinity + speciesModifier, -100, 100)`, where `t` places the pet's Boldness potential within the roster's lowest and highest Boldness potential. Water affinity is a per-breed field (retriever +30, default 0), and the cat species modifier is −40. Later Boldness changes never move it.
+  - **Bath Buddy:** the milestone needs a start of −20 or lower and a rise to +20 or higher.
+- R5.15 Treats and inventory. Casual "Give treat" (from the inventory, or after a mastered trick) keeps the cap of 3 per pet-age day and the "too full" gate, and counts full calories toward weight. A reward treat (training, potty, or bath window) skips both, and counts 25% of the calories. Treat sources belong to the user. Regen gives +1 basic every 20 minutes of real time and pauses while the basic stack is at 15 or more. The daily login bonus is +10 basic per local date. Each mastery or milestone gives +10 basic and +1 special. Playdates give none (R7.5). A stack is capped at 99 per tier. The inventory window has Food, Treats, Toys, Cosmetics, and Care tabs, with a Give, Use, or Equip action on each item. There are no consumable chore supplies. Everything is reachable without a purchase, and `purchaseItem()` is a stub with no store integration.
+- R5.16 Weight. Every treat adds weight through the existing index (R2.13), and reward treats add 25% of the casual amount. Weight stays hidden. It is the only brake on treat spending.
+- R5.17 Away time and welcome back. On return, `simulate()` runs the same rules as live play for the pet's training state, in awake time only. An untrained pet has random accidents. A trained cat accrues litter fill and has accidents only above the threshold. A trained dog accrues its walk need and has accidents only after the grace period. Hygiene decay, mess drains, and the existing need decay also apply, and the mess cap holds. No training state changes. When the gap is 8 hours or more, a happiness floor of 40 applies once at the end of the catch-up, after every drain, and is never a live floor. The pet then runs in excited with "{Name} missed you!", plus "A couple of messes to clean up." only if messes exist.
+- R5.18 UI. The stage shows no status bubble, and the pet's behavior is the cue: signaling, dirt, tired poses, the litter box state. Care chips go inline with the Tummy, Energy, and Mood rings, in the same style, and appear only when due: Potty, Clean (with a count), Bath or Brush, and Walk. House Training progress is a small ring in that row until mastered. The training panel lists unlocked tracks with 0 to 100 bars and today's reps against the cap, and shows locked tricks as silhouettes with hints. Each action shows a one-time coach mark, stored as seen. Care actions are buttons, and gestures stay reserved for toys and Cuddle.
+- R5.19 Notifications. One `NotificationScheduler` owns every local notification, including the meal and rest reminder. On a state change it computes the full desired set, then cancels everything and schedules it. Care notifications are opt-in separately: potty urge due (pre-mastery), messes waiting, walk due, bath or brush due, a training cap reset, and treats full. At most 3 a day across all types, in priority order: meal or rest, potty, walk, messes, bath or brush, training reset, treats full. Quiet hours use device local time (default 21:00 to 08:00). The existing reminder keeps its own on and off setting.
+- R5.20 Milestones and playdates. Milestones are house trained, a badge per mastered trick, Bath Buddy, and first walk, and they show on the pet profile. `getMasteredTricks(pet)` is a read-only helper for playdate scripts. A trick line in a playdate still writes nothing onto the pet.
+- R5.21 Discarding a pet (R1.6). It also deletes that pet's care state, training tracks, bath tolerance, milestones, seen coach marks, and its scheduled care notifications. The inventory and treat economy belong to the user and survive.
+
+Deferred: hidden tricks (the flag only), training decay, proofing around distractions, consequences for bad habits, per-pet quirk tricks, real purchases, and server sync of care state (keep it serializable).
+
+Acceptance: a new pet shows the House Training ring, urges only signal in the foreground, backgrounding pauses the signal, and a long absence cancels it with no mess. Dog potty goes to the sidewalk, cat potty goes to the litter box, and credit pays 1.0, 0.5, or 0.25 by treat timing. An indoor miss spawns a mess and penalizes the next rep, and a park miss spawns a mess with no penalty. At mastery the ring is removed, cat litter and dog walks work as specified, and sidewalk messes clear when the walk ends. Trick buttons hide when locked, act as reps when unlocked, and always perform when mastered, and a failed rep opens no window and pays nothing. For every track, mastery takes at most 3 daily caps of full-credit reps at the lowest starting intelligence. All gains go through `trainingGain`, with no `grantFlatAttributes` call in care or training code. Bath tolerance is rolled once from Boldness potential and matches the formula in R5.14. Casual and reward treats follow R5.15, regen pauses at 15, and playdates give no treats. Reopening after 24 hours leaves an untrained pet with at most 3 messes, happiness at 40 or more, a welcome-back moment, and no training change. Discarding a pet removes its care, training, milestones, and care notifications and keeps the inventory. Only `NotificationScheduler` schedules notifications, with a combined cap of 3 a day. No `Math.random()` appears in game logic, care rolls advance `pet.rngState`, and playdate RNG is untouched. Unit tests cover `simulate()` over 5-second, 1-hour, 8-hour, and 72-hour gaps for untrained, trained-cat, and trained-dog pets, plus the gain formula, unlock evaluation, and reward-window credit.
 
 **F6. Outfits (starter wardrobe in Phase 1; shop and share-card outfits later)**
 
@@ -223,7 +268,7 @@ Acceptance: every item displays correctly on every breed at several ages from yo
   - The next screen is "Choose {name}'s playdate outfit!", using the starter wardrobe. The outfit is stored on the playdate and worn only for that playdate. The everyday outfit is unchanged. There are no treats and no brought toys.
   - Playback is daytime. The record stores hour 14, and the player uses that hour for the sky, including on replay. Two actors follow the saved beats. While a playdate is directing them, they do not run home idle, zoomies, or their own fetch. Each activity has its own choreography, and beats can refer to the partner: go to them, meet halfway, run from them, or circle them, so the pets react to each other instead of wandering to separate spots. Pets cannot stand inside each other: overlapping bodies are pushed apart gradually, and pets in different rows pass in front of or behind one another. A stopped pet faces its partner. Unknown beat actions are skipped. The user can play, skip to results, or replay. Leaving before completion saves nothing and does not start the cooldown.
   - The record stores both frozen snapshots, the place, the hour, the activity, the outfit, the seed, the beats, and the outcome. Replays read the beats and do not run the generator. History keeps the newest 3 records. Partner bond lives on the relationship, survives after a record ages out, and does not change `pet.bond`.
-  - Rewards apply once, when the playdate completes or is skipped to the end: a flat happiness gain (`playdate.happinessGain`, default 12) clamped at 100, a flat add to the activity's attributes clamped at potential, a partner bond gain, and sometimes a results line that the partner showed off a trick. The attributes that rise are exactly the ones the activity card lists ("Trains affection", "Trains stamina and agility"). The points are added on top of the score the pet shows, so they still count after natural growth has passed the stored score. Results show a bar for each trained attribute: the score before in the app's dark color, the gain in green right after it, and the potential as a pale bar behind. Each row also shows the new total over potential and the gain as numbers. Those figures come from the same score the home screen shows, so aging or a cap can make a gain smaller than the activity's points. A replay from history shows no bars and pays nothing. That trick line writes nothing onto the pet. Trick discovery stays F5.
+  - Rewards apply once, when the playdate completes or is skipped to the end: a flat happiness gain (`playdate.happinessGain`, default 12) clamped at 100, a flat add to the activity's attributes clamped at potential, a partner bond gain, and sometimes a results line that the partner showed off a trick. The attributes that rise are exactly the ones the activity card lists ("Trains affection", "Trains stamina and agility"). The points are added on top of the score the pet shows, so they still count after natural growth has passed the stored score. Results show a bar for each trained attribute: the score before in the app's dark color, the gain in green right after it, and the potential as a pale bar behind. Each row also shows the new total over potential and the gain as numbers. Those figures come from the same score the home screen shows, so aging or a cap can make a gain smaller than the activity's points. A replay from history shows no bars and pays nothing. That trick line writes nothing onto the pet. Trick learning stays in F5, and a script may read the pet's mastered tricks (R5.20).
   - One playdate per `playdate.cooldownMinutes` (default 60), starting at completion. Remaining time is `max(0, last + cooldown − now)`, clamped to at most one full cooldown, so moving the device clock backward cannot extend the wait. The entry shows a live countdown. While it runs, the partner, place, activity, and outfit choices are greyed out and cannot be tapped, and Start stays disabled until the wait is over. Replaying a saved playdate still works. `skipCooldown()` is a stub; a paid skip needs server-verified time.
   - Stage names stay internal (R2.3). A partner card shows the drawn pet, name, breed, a style-and-favorite line, and a bond hint. Age still filters activities.
   - Discarding the pet deletes that pet's playdate history, relationships, and cooldown (R1.6). The NPC cast stays.
@@ -253,7 +298,7 @@ Acceptance: a guest can upgrade without losing the pet; two devices converge to 
 - R9.2 A base set per species, recorded, not synthesized. For dogs: bark, yip, whine, growl, a happy sound and a snore, with several takes of each so they do not repeat audibly. Cats get their own set. Phase 1 can ship a smaller bundled set (Speak bark and meow, Cuddle `cuddle_happy`, `cuddle_purr`, and `cuddle_pant`, and later chew and snore) and stay silent for any clip that is not in the repo yet.
 - R9.3 Each breed has a pitch multiplier applied through playback rate, with small breeds higher and large breeds lower, kept within a modest range. Each playback adds a few percent of random variation in pitch and volume.
 - R9.4 Maturity, vitality, mood and personality modify the sound: pitch falls smoothly as maturity rises, so puppies sound higher; excited sounds are faster, sleepy sounds softer, and bold pets louder; low vitality gives slower, softer sounds.
-- R9.5 The "speak" trick scales with mastery, for example the number of barks or their pitch, and a failed attempt gives a funny squeak.
+- R9.5 The "speak" trick performs on cue once mastered. Before mastery a failed attempt gives a confused reaction and a funny squeak.
 - R9.6 The behavior module names the sound. The renderer plays the matching clip so it lines up with the pose. Playback rate is the breed pitch times the age factor, with pitch correction off, so a young pet of a small breed sounds higher. Playback respects the hardware silent switch. Sounds do not continue after the app backgrounds.
 - R9.7 UI sounds and one or two calm music loops. Music is quiet by default, easy to mute, respects the phone's silent mode, and has a haptic or on-screen fallback.
 - R9.8 Audio ships inside the app, compressed, with a license log recording each asset's source and license.
@@ -296,7 +341,6 @@ type Stage = 'puppy' | 'olderPuppy' | 'adolescent' | 'adult' | 'senior';
 type SeniorBand = 'earlySenior' | 'senior' | 'elderly';
 type OutfitSlot = 'collar' | 'bandana' | 'glasses' | 'hat' | 'coat' | 'boots';
 type EquippedItem = { itemId: string; colorId?: string };
-type CueInput = 'up' | 'down' | 'left' | 'right' | 'tap' | 'hold';
 
 type Pet = {
   id: string;              // UUID created on the device at adoption
@@ -316,8 +360,8 @@ type Pet = {
   waterLevel: number;      // home water bowl 0 to 1
   waterEmptySince: number | null;
   toys: string[];          // owned toy kind ids; scene items are ephemeral
-  treats: { treatId: string; count: number }[];
-  treatDay: { day: number; count: number };
+  treats: { treatId: string; count: number }[]; // Phase 2 moves the stacks to OwnerProfile.inventory (migration needed)
+  treatDay: { day: number; count: number };   // casual treat cap of 3, per pet-age day
   boosts: { attribute: string; multiplier: number; startAt: number; endAt: number }[];
   asleep: boolean;
   look: Look;              // coat style (color, optional pattern and accent), ears, and tail picked at adoption. Overrides the breed's default look.
@@ -333,7 +377,10 @@ type Pet = {
   level: number;
   xp: number;
   bond: number;
-  tricks: Record<string, TrickProgress>;
+  care: PetCareState;      // F5: hygiene, messes, litter fill, potty cycle, walk need, bath tolerance
+  training: Record<string, TrainingTrack>;
+  milestones: string[];
+  seenCoachMarks: string[];
   equipped: Partial<Record<OutfitSlot, EquippedItem>>;
   favoriteToyId?: string;
 };
@@ -368,24 +415,39 @@ const seniorBandOf = (pet: Pet): SeniorBand | null => { /* from vitality, only w
 // Derived, not stored. Does not read rngState or event history.
 const attributeScore = (pet: Pet, trait: Trait): number => { /* (max(attributes.current, natural growth) + drift + effects), times aging modifier, times weight modifier for stamina and agility, capped at attributes.potential[trait] */ };
 
-type TrickProgress = {
-  discovered: boolean;
-  pending?: boolean;       // discovered offline, awaiting server confirmation
-  mastery: number;         // 0 to 100, does the pet know it
-  reliability: number;     // 0 to 100, does it perform consistently
-  lastPracticedAt: number;
+type TrainingTrack = {
+  id: string;              // 'house_training', 'sit', 'paw', ...
+  progress: number;        // 0 to 100
+  unlocked: boolean;
+  mastered: boolean;
+  repsToday: number;       // successful reps on the pet-age day below
+  repsPetDay: number;
+  pendingPenalty: boolean; // house training only: an indoor miss penalizes the next rep
+  lastPracticedAt: number | null;
 };
 
 // Fixed configuration, not per-pet state
-type TrickDef = {
+type TrackDef = {
   id: string;
-  name: string;
-  motions: string[];       // base motions it chains, e.g. spin then jump
-  difficulty: number;      // difficulty tier
-  prerequisites: string[];
-  affinities: Partial<Record<Trait, number>>;
-  sequence?: CueInput[];   // hidden 3 to 5 input command, if discoverable
-  unlock: 'start' | 'sequence' | 'milestone';
+  species: ('dog' | 'cat')[];
+  tier?: 1 | 2 | 3;        // tricks: sets baseGainPerRep (15, 7.5, 5)
+  hideWhenMastered: boolean;
+  prerequisites: Partial<Record<'dog' | 'cat', string[]>>;  // missing key = none
+  unlock: Partial<Record<'dog' | 'cat', { minAgeDays?: number; minAttributes?: Partial<Record<Trait, number>> }>>;  // missing key = at adoption
+  linkedAttributes: Trait[];  // one or two
+  hidden?: boolean;           // reserved, no content in v1
+};
+
+type PetCareState = {
+  hygiene: number;               // 0 to 100
+  lastBathAt: number | null;
+  lastBrushAt: number | null;
+  messes: { id: string; sceneId: string; x: number; y: number; createdAt: number }[];  // persistent scenes only
+  litterBoxFill: number;         // cats after house training, 0 to 100
+  potty: { nextUrgeAt: number | null; signal: { startedAt: number; remainingMs: number } | null; pausedAt: number | null };
+  walk: { dueAt: number | null };  // dogs after house training
+  bathTolerance: number;         // -100 to 100, rolled once at adoption
+  bathToleranceStart: number;    // for the Bath Buddy milestone
 };
 
 type BreedAnatomy = {
@@ -623,8 +685,9 @@ type NpcPet = {
 };
 
 type OwnerProfile = {
-  skillRating: number;
-  techniqueUnlocks: string[];
+  inventory: { itemId: string; qty: number }[]; // treats and other items. User-scoped, survives a discarded pet.
+  lastTreatRegenAt: number;
+  lastDailyBonusLocalDate: string | null;
   npcFriendship: Record<string, number>;
   ownedCosmetics: OwnedCosmetic[]; // separate from Pet.equipped; a guest stores the same list locally
 };
@@ -636,8 +699,11 @@ type PetEvent =
   | { type: 'pet'; at: number }
   | { type: 'fetch'; at: number; throwPower: number }
   | { type: 'giveToy'; at: number; toyId: string }
-  | { type: 'trainAttempt'; at: number; trickId: string; timingQuality: number }
-  | { type: 'cueSequence'; at: number; inputs: CueInput[] }
+  | { type: 'trickRep'; at: number; trackId: string }
+  | { type: 'rewardTreat'; at: number; tier: 'basic' | 'special' }
+  | { type: 'cleanMess'; at: number; messId: string }
+  | { type: 'bath'; at: number }
+  | { type: 'brush'; at: number }
   | { type: 'equip'; at: number; slot: OutfitSlot; itemId: string | null; colorId?: string }
   | { type: 'npcPlaydate'; at: number; npcId: string };
 ```
@@ -648,7 +714,7 @@ type PetEvent =
 | --- | --- | --- |
 | pets | The latest synced pet state, keyed by the pet UUID | Owner only, plus a read-only snapshot view for mutual friends |
 | pet\_events | An append-only log of the events above, used for replay and sync | Owner only |
-| owner\_profiles | Skill rating, technique unlocks and NPC friendship | Owner only |
+| owner\_profiles | Inventory, treat economy and NPC friendship | Owner only |
 | friendships | Mutual friend links with a status, created by invite link or code | Both users |
 | reactions | Preset reactions left on a friend's pet | Both users |
 | blocks | Blocked users | Owner only, and it overrides friend access |
@@ -674,7 +740,7 @@ type PetEvent =
 - Offline: the core loop of care, play and training works with no connection at all.
 - Performance: animation stays smooth on mid-range phones, and screens open without waiting on the network.
 - Size: audio is compressed and loops are short. Core art and sound are bundled, and optional extras can be hosted remotely so new breeds ship without an app update.
-- Accessibility: an assist mode for the timing game, an alternative to swipes such as tap rhythms, no meaning carried by color alone, and haptic or on-screen fallbacks for sound. Every action button has an `accessibilityLabel` equal to its label and a touch target of at least 44 by 44. Cuddle is the exception to haptic fallbacks: it sends no haptics.
+- Accessibility: the 5-second reward window (R5.7) is tap-only and never required for progress, so a reduced-motion or slower-input option should widen it, no meaning carried by color alone, and haptic or on-screen fallbacks for sound. Every action button has an `accessibilityLabel` equal to its label and a touch target of at least 44 by 44. Cuddle is the exception to haptic fallbacks: it sends no haptics.
 - Privacy: collect the minimum, keep analytics free of personal data, and support deletion. The public policy is the page at `https://boopboop.mylisto.app/privacypolicy`.
 - Testing: every simulation feature ships with unit tests for determinism, bounds and thresholds, and the same seed, species, breed and archetype must always give the same potentials. Scene tests cover validation, POI lookup, and action availability. Time-of-day tests cover the keyframe blend at phase boundaries, the wrap past midnight, and `time` validation. Cuddle tests cover gesture classification, the `headTurn` guard (never 1 while moving), the no-snap pose blend, the roll-over and exit sequence for every breed and life stage, the coach-mark flag, and the icon map covering every action id.
 - Observability: crash reporting, and analytics events for the success metrics, with no personal data.
@@ -693,7 +759,7 @@ Treat decided items as fixed. For open items, build the proposed default behind 
 | Species in the MVP | Dog and cat. The user picks a species and a breed on the design screen. Phase 1 ships five dog breeds (Retriever, Corgi, Dachshund, Husky, Pug) and five cat breeds (Domestic Shorthair, Siamese, Persian, Maine Coon, Scottish Fold). Anatomy comes from `docs/pet-demo-v2_2.html` (ids `domesticShorthair` and `scottishFold`; old `tabby`, `domesticshorthair`, `mainecoon`, `bombay` and `black` ids migrate on load). The extra behavior list lives on the breed. |
 | Age gate | Store age signal first, then a Yes or No to "Are you at least 13 years old?" No birthdate. The more restrictive result wins. Under 13 stays on the device only. A 13+ confirmation accepts the current terms and can sync consent records under an anonymous id. |
 | Adoption | Four steps with a 4-dot indicator: (1) design (species toggle, sticky live preview, coat color and breed-allowed pattern variants, eye color for cats, horizontal breed list with potential ranges and numbers; ears and tail come from the breed), (2) choose one of three pups or kittens (athlete, thinker, charmer) from one seed, all visible with exact potentials, strong attributes and +N deltas, (3) name (validated 1–16 characters per R1.4 / `validateName`; no suggestion chips; "Meet {name}" creates the pet), (4) meet intro with current and potential bars, then "Start playing". Back from choose or name keeps the seed, selection and typed name. The meet intro is same-session only. The pet stores the seed, a rules version, the archetype, the look, and the resulting potential and current. The other two sets are not saved. |
-| Attributes | Six visible attributes, each with a visible current score and a visible per-pet maximum potential. Each breed has a min to max potential range per attribute, as data. Potential is deterministic from the seed, species, breed and archetype, then stored and never recomputed. The total is 375 plus or minus 10 per pet, equal across the three offered sets. The seed is never shown. Secret trick sequences stay hidden. |
+| Attributes | Six visible attributes, each with a visible current score and a visible per-pet maximum potential. Each breed has a min to max potential range per attribute, as data. Potential is deterministic from the seed, species, breed and archetype, then stored and never recomputed. The total is 375 plus or minus 10 per pet, equal across the three offered sets. The seed is never shown. |
 | Aging model | Two continuous values, maturity (only up) and vitality (care-driven, reversible), with five internal stage labels (puppy, older puppy, adolescent, adult, senior) and senior bands. No stage-change transition and no separate art per stage. |
 | Maturity clock | ageDays is calendar time since `bornAt`. It moves while the app is open and for the full closed gap. There is no 48-hour cap and no one-boundary clamp on age. Stage days stay 7, 21, 45, and 180. Needs decay still caps at 48 hours. A saved `ageDays` sets `bornAt` so an existing pet does not become a newborn. |
 | Care and maturity | Full rate until the care window exists. After that, poor care can slow maturity toward a floor around half speed. Neglect does not stop aging. |
@@ -714,6 +780,10 @@ Treat decided items as fixed. For open items, build the proposed default behind 
 | Cuddle mode | A toggle action that sends the pet to its home spot, settles it, and turns the head 3/4 to the camera. Gestures are stroke, scratch, and boop with a trail and hearts as feedback, and a flinch for a too-fast swipe. Dogs escalate to a roll-over and belly rub, cats to kneading and a rare belly-up trap. A pet leaves on its tolerance with a shake-off (dog) or tail flick and swat (cat). Content moments play `cuddle_purr` (cat), `cuddle_happy` (dog stroke and scratch), or `cuddle_pant` (dog belly rub). First entry shows coach marks once, and a help sheet stays reachable. No haptics. All numbers are data. See R4.8 to R4.12. |
 | Action icons | One `lucide-react-native` outline set for every action button and settings toggle, from a single `actionId -> iconName` map, with the active state as a filled accent pill. Labels are accessible and targets are at least 44 by 44. See R4.13. |
 | Compliance pages | Markdown in `site/compliance-docs/`, built with `node build.mjs` to static HTML. Public URLs are `https://boopboop.mylisto.app/privacypolicy`, `/termsofservice`, `/communityguidelines`, `/support`, and `/delete-account`. Hosted as its own Vercel project from this repo (root `site/`). `mylisto.app` stays the other app. A later domain change keeps redirects on these URLs. See R10.6. |
+| Care and training | F5 replaces gesture discovery. Tricks unlock by rule (prerequisites, `minAgeDays`) and are taught with treats in reward windows. House training, cleanup, dog walks, dog baths and cat brushing are the care loop. There is no skill fade in v1 and no owner skill rating. See R5.1 to R5.21. |
+| Trick pacing | Three tiers set pace: 15, 7.5 and 5 base gain, about 8, 16 and 24 full-credit reps at the lowest starting intelligence. No trick may need more than 3 daily caps of reps (cap 8 per track per pet-age day). No age factor on tricks. See R5.8. |
+| Treat economy | User-scoped inventory. Regen +1 basic per 20 minutes, paused at 15. Login bonus +10. Mastery gives +10 basic and +1 special. Reward treats skip the cap of 3 and the hunger gate and count 25% calories. Playdates give none. |
+| Time and care | Time of day never writes pet state (R4.7). Care timers run on awake time and pause in Rest. Nothing succeeds or fails while the app is closed. |
 
 **Open**
 
@@ -724,7 +794,7 @@ Treat decided items as fixed. For open items, build the proposed default behind 
 | Real days per life stage | Decided. Calendar days since `bornAt`: puppy 0 to 7, older puppy 7 to 21, adolescent 21 to 45, adult 45 to 180, senior after 180. Visual curves continue to day 1000 (R2.7). |
 | Senior rejuvenation limit | Proposed: capped by maturity, so a senior can look spry but never like a puppy (R2.10) |
 | How diet and exercise are measured | Proposed: a small set of food types plus exercise from fetch and play (R2.12). Needs a decision before Phase 2. |
-| What training changes besides mastery, reliability, owner skill, and attributes | Attribute gains are specified in R3.8. Bond, trophies, and the journal remain TBD. |
+| What training changes besides mastery and attributes | Attribute gains are specified in R3.8 and R5.8. Bond, trophies, and the journal remain TBD. |
 | Final attribute list, and whether to add instinct | Six attributes in R3.1. Instinct (nose) is not in the MVP. |
 | Score scale and the puppy starting fraction | Decided: whole numbers on the breed range scale (about 10 to 100), starting at 20% of potential (R3.3). All tunable in config. |
 | Whether same-breed pets share a total potential budget | Decided: the three sets offered for one pet share a total. The total varies per pet, 375 plus or minus 10 (R3.7). |
@@ -732,14 +802,16 @@ Treat decided items as fixed. For open items, build the proposed default behind 
 | How strongly weight affects stamina and agility | Decided in R2.13. The index leaves the healthy band (-0.25 to 0.25) and effective stamina and agility drop. Returning to the band restores them. The strength of that drop stays tunable. |
 | Whether maturity alone can reach potential | Proposed: natural growth stops near 70% of potential. Training closes the rest, and gains taper hard near the cap (R3.3, R3.8). |
 | Whether short hungry and tired penalties stay | Proposed in R3.9. They lower the effective score only while the need is low. They do not change potential or the stored current score. |
-| Vitality session limit, fatigue, and assist-mode timing | TBD. |
+| Vitality session limit | TBD. Each rep counts as a session (R5.10), but no session consequence exists in code yet. |
 | Which pet survives if a guest signs into an account that already has one | TBD. |
 | Where the share-card link goes | TBD. A public pet page and a store listing are different products. |
 | Sharing | Public share cards for growth, friends-only inside the app |
-| Rare tricks confirmed by the server while offline | Proposed: mark as pending until the next sync (R5.11) |
 | Monetization model | Undecided, except premium cosmetics, which are post-MVP and cosmetic-only (F6) |
 | Whether food and boosts get catalog entries | Open. They are not cosmetics. Diet and buffs stay in R2.12 and R3.9 until decided. |
 | Whether a remote cosmetics catalog ships | Open. The bundled catalog is the offline source of truth (R6.8). If a remote copy ships, it may add and retire items and may not change an existing item's id or slot. A failed fetch uses the last cached copy, then the bundled catalog. |
 | Number of owned pets | One in the MVP. Encounters add actors. They do not add a second saved pet. |
 | Meaning of "virtual reality" | Assumed to mean a lifelike, persistent pet and not AR. AR would change the engine choice. |
 | App name | Undecided, and no candidate has been cleared for trademark |
+| Whether a purchasable special treat may carry a gain bonus | Open. Special treats are x1.5 gain (R5.7) and principle 3 says outcomes never depend on payment. The MVP sells nothing. |
+| House training gain numbers | Open. The brief's v2.1 values are not in the repo. R5.8 keeps the v2 base gain and age factor until they are. |
+| Where care and training tuning lives | Open. Code keeps tuning in `src/sim/config.ts` and `src/playdate/config.ts`. The brief names `src/game/config.ts`, which does not exist. |
