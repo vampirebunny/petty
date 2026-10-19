@@ -209,7 +209,6 @@ export function cuddleTouch(world: World, actor: Actor, touch: CuddleTouch): voi
 
   if (touch.kind === 'flinch') {
     c.reaction = { kind: 'flinch', t: 0, dur: p.timing.flinch, side };
-    sound(world, actor, 'cuddle_flinch_chirp');
     return;
   }
   if (touch.kind === 'boop') {
@@ -225,7 +224,6 @@ export function cuddleTouch(world: World, actor: Actor, touch: CuddleTouch): voi
       c.reaction = { kind: 'headShake', t: 0, dur: p.timing.headShake, side };
     } else {
       c.reaction = { kind: 'boop', t: 0, dur: p.timing.boop, side };
-      sound(world, actor, 'cuddle_sneeze');
     }
     return;
   }
@@ -247,14 +245,13 @@ export function cuddleTouch(world: World, actor: Actor, touch: CuddleTouch): voi
     if (!cat && c.kickCool <= 0 && world.rng() < p.kick.chance) {
       c.kickT = p.timing.kick;
       c.kickCool = p.kick.cooldown;
-      sound(world, actor, 'cuddle_whimper_happy');
+      sound(world, actor, 'cuddle_happy');
     }
     return;
   }
   // A belly touch on a belly-up cat is the trap: a soft swat, then it rolls back up.
   if (c.phase === 'belly' && c.trap && zone === 'belly') {
     c.reaction = { kind: 'swat', t: 0, dur: p.timing.swat * 0.6, side };
-    sound(world, actor, 'cuddle_swat');
     c.tolerance += p.tolerance.swatCost;
     c.trap = false;
     setPhase(c, 'rollBack');
@@ -393,7 +390,7 @@ export function stepCuddle(
       torsoShift = clamp(local * 0.1, -am.torsoShift, am.torsoShift);
       if (!c.purring && c.continuity > 0.4) {
         c.purring = true;
-        sound(world, actor, cat ? 'cuddle_purr_loop' : 'cuddle_content_sigh');
+        sound(world, actor, cat ? 'cuddle_purr' : 'cuddle_happy');
       }
     } else {
       if (c.sinceTouch > 1.5) {
@@ -433,7 +430,7 @@ export function stepCuddle(
         setPhase(c, 'rollDown');
       } else if (cat && !c.kneading && c.sustained >= kneadAt) {
         c.kneading = true;
-        sound(world, actor, 'cuddle_kneading_loop');
+        sound(world, actor, 'cuddle_purr');
         if (!c.trapTried) {
           c.trapTried = true;
           if (world.rng() < p.escalation.trapChance * affinity) {
@@ -461,7 +458,7 @@ export function stepCuddle(
     if (c.t >= tm.rollOver) {
       setPhase(c, 'belly');
       if (!cat) {
-        sound(world, actor, 'cuddle_content_sigh');
+        sound(world, actor, 'cuddle_happy');
       }
     }
   } else if (c.phase === 'belly') {
@@ -512,10 +509,7 @@ export function stepCuddle(
     wagAmp = 0.4;
     if (c.t >= tm.shakeStand) {
       shake = Math.max(0, 1 - (c.t - tm.shakeStand) / tm.shake);
-      if (!c.fired) {
-        c.fired = true;
-        sound(world, actor, 'cuddle_shake_off');
-      }
+      c.fired = true;
     }
     if (c.t >= tm.shakeStand + tm.shake) {
       setPhase(c, 'leave');
@@ -524,9 +518,8 @@ export function stepCuddle(
     sit = posture;
     tailLift = c.t < 0.25 ? 1 : 0.4;
     paw = c.t > 0.25 && c.t < tm.swat - 0.15 ? 1 : 0;
-    if (c.t >= 0.25 && !c.fired) {
+    if (c.t >= 0.25) {
       c.fired = true;
-      sound(world, actor, 'cuddle_swat');
     }
     if (c.t >= tm.swat) {
       setPhase(c, 'leave');

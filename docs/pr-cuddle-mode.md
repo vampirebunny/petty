@@ -36,21 +36,18 @@ Lucide has no bowl or ball glyph, so Feed is `Soup` (a bowl with steam) and Play
 - The roll-over, kneading and leg-kick poses are procedural and were checked by the simulation tests (every breed and life stage), not by rendering on a device. Look at them in a development build and tune `src/actor/data/cuddle.ts` and the leg and head offsets in `src/ui/skia/pet.ts`.
 - Pose channels blend with the existing first-order ease rather than a per-channel easeInOutSine tween. Keyframed reactions use easeInOutSine envelopes, and only the ear perk and boop use a spring.
 - The cat belly-up "trap" uses the existing raised-paw wave for its swat, not a dedicated swat pose.
-- Placeholder sounds are silent until clips are added (see below).
+- Boop, flinch, swat, and shake-off have no clip and stay silent.
 - `expo lint` still reports the "refs during render" errors that already existed in `HomeScreen.tsx`, `PetView.tsx` and `DebugPanel.tsx`. The new gesture callbacks follow the same pattern and add three more of the same kind.
 
-## Sounds needed (silent until a clip is added to `clips` in `src/audio/voice.ts`)
+## Sounds (shipped)
 
-| Id | Used for |
-| --- | --- |
-| `cuddle_sneeze` | Boop reaction (small sneeze or snort) |
-| `cuddle_purr_loop` | Cat stroke (loopable, 2 to 4 s) |
-| `cuddle_content_sigh` | Dog content moment (stroke and belly rub) |
-| `cuddle_whimper_happy` | Dog scratch and leg kick |
-| `cuddle_shake_off` | Dog tolerance exit |
-| `cuddle_swat` | Cat swat (trap and tolerance exit) |
-| `cuddle_flinch_chirp` | Too-fast swipe flinch |
-| `cuddle_kneading_loop` | Cat kneading |
+| Id | Clip | Used for |
+| --- | --- | --- |
+| `cuddle_purr` | `universfield-purring-cat-156459.mp3` | Cat content stroke and kneading |
+| `cuddle_happy` | `yodguard-friendly-small-dog-bark-1-535470.mp3` | Dog content stroke, scratch kick, and belly rub |
+
+Boop, flinch, swat, and shake-off stay silent. Speak still uses the existing bark and meow clips.
+
 
 ## Testing
 

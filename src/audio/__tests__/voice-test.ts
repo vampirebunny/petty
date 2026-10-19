@@ -1,26 +1,26 @@
 import { createAudioPlayer } from 'expo-audio';
 
-import { playVoice } from '../voice';
+import { playVoice, releaseVoices } from '../voice';
 
 jest.mock('expo-audio', () => ({
-  createAudioPlayer: jest.fn(),
+  createAudioPlayer: jest.fn(() => ({
+    pause: jest.fn(),
+    play: jest.fn(),
+    seekTo: jest.fn(() => Promise.resolve()),
+    setPlaybackRate: jest.fn(),
+    release: jest.fn(),
+    shouldCorrectPitch: false,
+  })),
   setAudioModeAsync: jest.fn(() => Promise.resolve()),
 }));
 
-const placeholders = [
-  'cuddle_sneeze',
-  'cuddle_purr_loop',
-  'cuddle_content_sigh',
-  'cuddle_whimper_happy',
-  'cuddle_shake_off',
-  'cuddle_swat',
-  'cuddle_flinch_chirp',
-  'cuddle_kneading_loop',
-] as const;
+afterEach(() => {
+  releaseVoices();
+  jest.clearAllMocks();
+});
 
-it('stays silent for Cuddle sounds that have no clip yet', () => {
-  for (const sound of placeholders) {
-    expect(() => playVoice({ actorId: 'pet', sound, rate: 1 })).not.toThrow();
-  }
-  expect(createAudioPlayer).not.toHaveBeenCalled();
+it('plays the cuddle purr and happy bark clips', () => {
+  playVoice({ actorId: 'pet', sound: 'cuddle_purr', rate: 1 });
+  playVoice({ actorId: 'pet', sound: 'cuddle_happy', rate: 1 });
+  expect(createAudioPlayer).toHaveBeenCalledTimes(4);
 });

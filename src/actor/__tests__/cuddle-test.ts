@@ -154,7 +154,7 @@ describe('cuddle reactions', () => {
     const boop = () => cuddleTouch(world, actor, { kind: 'boop', zone: 'nose', x: actor.x });
     boop();
     expect(actor.cuddle?.reaction?.kind).toBe('boop');
-    expect(takeSounds(world).map((s) => s.sound)).toContain('cuddle_sneeze');
+    expect(takeSounds(world)).toHaveLength(0);
     let minSnout = 1;
     run(world, 0.4, () => {
       minSnout = Math.min(minSnout, actor.pose.snoutScale);

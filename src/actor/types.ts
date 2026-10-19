@@ -251,16 +251,8 @@ export type Anchors = {
 
 export type Particle = { x: number; y: number; v: number; ph: number };
 
-// Placeholder ids for sounds that have no clip yet. They stay silent until a clip joins the clip map.
-export type CuddleSound =
-  | 'cuddle_sneeze'
-  | 'cuddle_purr_loop'
-  | 'cuddle_content_sigh'
-  | 'cuddle_whimper_happy'
-  | 'cuddle_shake_off'
-  | 'cuddle_swat'
-  | 'cuddle_flinch_chirp'
-  | 'cuddle_kneading_loop';
+// Cuddle uses two recorded clips: a cat purr and a friendly dog bark. Other reactions stay silent.
+export type CuddleSound = 'cuddle_purr' | 'cuddle_happy';
 
 export type SoundEvent = {
   actorId: string;

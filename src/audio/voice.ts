@@ -3,12 +3,12 @@ import type { AudioPlayer } from 'expo-audio';
 
 import type { SoundEvent } from '../actor';
 
-// A sound without a clip here stays silent. Cuddle's placeholder ids (cuddle_sneeze, cuddle_purr_loop,
-// cuddle_content_sigh, cuddle_whimper_happy, cuddle_shake_off, cuddle_swat, cuddle_flinch_chirp,
-// cuddle_kneading_loop) wait for a recorded clip: add `require('../../assets/sounds/<file>.mp3')` under its id.
+// A sound without a clip here stays silent.
 const clips: Partial<Record<SoundEvent['sound'], number>> = {
   bark: require('../../assets/sounds/yodguard-friendly-big-dog-bark-2-535469.mp3'),
   meow: require('../../assets/sounds/sound_garage-cat-meow-8-fx-306184.mp3'),
+  cuddle_purr: require('../../assets/sounds/universfield-purring-cat-156459.mp3'),
+  cuddle_happy: require('../../assets/sounds/yodguard-friendly-small-dog-bark-1-535470.mp3'),
 };
 
 // Two players per clip so the second bark of a pair can start while the first is still ringing.
