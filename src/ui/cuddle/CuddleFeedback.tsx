@@ -14,6 +14,12 @@ export type FeedbackHandle = {
 type Spark = { id: number; kind: 'trail' | 'heart'; x: number; y: number; dur: number; drift: number };
 
 export const trailMs = 420;
+// Hearts alternate between red and pink.
+const heartColors = [
+  { fill: '#F0506E', stroke: '#B8203F' },
+  { fill: '#FFB3C7', stroke: '#E0668A' },
+] as const;
+
 export const heartMinMs = 600;
 export const heartMaxMs = 800;
 const maxSparks = 28;
@@ -50,7 +56,12 @@ function FloatingHeart({ spark, reduced }: { spark: Spark; reduced: boolean }) {
   }));
   return (
     <Animated.View pointerEvents="none" style={[styles.heart, { left: spark.x - 10, top: spark.y - 24 }, style]}>
-      <Heart size={20} strokeWidth={1.75} color={theme.accentDark} fill={theme.accent} />
+      <Heart
+        size={20}
+        strokeWidth={1.75}
+        color={heartColors[spark.id % 2].stroke}
+        fill={heartColors[spark.id % 2].fill}
+      />
     </Animated.View>
   );
 }
