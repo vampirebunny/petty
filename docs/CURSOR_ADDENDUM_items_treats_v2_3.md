@@ -6,7 +6,7 @@ Adds to the v2 brief, the scenes addendum (v2.1) and the time-of-day addendum (v
 
 **Shipped MVP deltas vs this spec:**
 - Toy kinds beyond **ball** are stubbed in `ITEM_KINDS` / `PLAY_RULES` (frisbee, squeaky, bone, jingle ball); laser/wand exist as `PointerTarget` stubs only.
-- Inventory starts with **ball** only. Tap = soft drop from high `z` (~240, no upward velocity); flick = throw; Play → Throw ball still uses edge throw. Ball kind bounce is 1.5× the scene surface.
+- Inventory starts with **ball** only. Tap = soft drop from high `z` (~120, no upward velocity); flick = throw; Play → Throw ball still uses edge throw. Ball kind bounce is 1.5× the scene surface.
 - `fullness` was inverted and renamed to **`hunger`** (0 = not hungry, 100 ≈ 24h without food). Feed refuses at hunger 0 with a head turn.
 - Drink became **Refill water**. Home bowl `waterLevel` drains on autonomous drinks; empty bowl after a 3h grace lowers happiness. Park/pond does not use the home bowl.
 - Treat kinds are stubbed in `src/treats/` with shared `Effects`; **no** treats in the Feed picker yet. Feed → Kibble / Cat food; Play → Throw ball.
