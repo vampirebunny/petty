@@ -726,20 +726,20 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 20,
-    minHeight: 36,
+    minHeight: 52,
     justifyContent: 'center',
   },
   logo: {
     position: 'absolute',
     left: 20,
-    width: 32,
-    height: 32,
-    borderRadius: 8,
+    width: 48,
+    height: 48,
+    borderRadius: 12,
   },
   name: {
     textAlign: 'center',
     // Leaves room on both sides so a long name never runs under the logo.
-    marginHorizontal: 44,
+    marginHorizontal: 60,
     fontSize: 28,
     fontWeight: '700',
     color: '#243044',
