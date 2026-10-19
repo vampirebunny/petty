@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 
-import type { DevAgeSignal } from '../age/ageSignal';
 import { PRIVACY_URL, TERMS_URL } from '../config/legal';
 
 type Props = {
@@ -10,12 +9,9 @@ type Props = {
   onYes: () => void;
   onNo: () => void;
   onAcceptTerms: () => void;
-  onSimulate: (signal: DevAgeSignal) => void;
 };
 
-const devSignals: DevAgeSignal[] = ['adult', 'teen', 'under13', 'unknown'];
-
-export function ConsentScreen({ askAge, onYes, onNo, onAcceptTerms, onSimulate }: Props) {
+export function ConsentScreen({ askAge, onYes, onNo, onAcceptTerms }: Props) {
   const [answer, setAnswer] = useState<'yes' | 'no' | null>(null);
   const canContinue = !askAge || answer != null;
 
@@ -71,15 +67,6 @@ export function ConsentScreen({ askAge, onYes, onNo, onAcceptTerms, onSimulate }
           <Text style={styles.link}>Privacy Policy</Text>
         </Pressable>
       </View>
-      {__DEV__ ? (
-        <View style={styles.dev}>
-          {devSignals.map((signal) => (
-            <Pressable key={signal} style={styles.devButton} onPress={() => onSimulate(signal)}>
-              <Text style={styles.devLabel}>Dev signal {signal}</Text>
-            </Pressable>
-          ))}
-        </View>
-      ) : null}
     </View>
   );
 }
@@ -153,19 +140,5 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#243044',
     textDecorationLine: 'underline',
-  },
-  dev: {
-    gap: 8,
-    marginTop: 12,
-  },
-  devButton: {
-    borderRadius: 12,
-    paddingVertical: 10,
-    alignItems: 'center',
-    backgroundColor: '#E4E8EF',
-  },
-  devLabel: {
-    color: '#243044',
-    fontSize: 14,
   },
 });

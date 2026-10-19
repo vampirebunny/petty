@@ -4,7 +4,6 @@ import { Gesture, GestureDetector, Pressable, ScrollView } from 'react-native-ge
 import { runOnJS } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
-import type { DevAgeSignal } from '../age/ageSignal';
 import {
   actionReason,
   breedById,
@@ -28,8 +27,6 @@ import { PetView } from '../ui/PetView';
 
 type Props = {
   petApi: ReturnType<typeof usePet>;
-  onClearAgeCheck: () => void;
-  onSimulateAge: (signal: DevAgeSignal) => void;
 };
 
 const traitLabel: Record<Trait, string> = {
@@ -46,7 +43,7 @@ function formatScore(value: number): string {
   return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
 }
 
-export default function HomeScreen({ petApi, onClearAgeCheck, onSimulateAge }: Props) {
+export default function HomeScreen({ petApi }: Props) {
   const {
     state,
     mood,
@@ -375,8 +372,6 @@ export default function HomeScreen({ petApi, onClearAgeCheck, onSimulateAge }: P
           onHour={setHour}
           onReset={reset}
           onNewPet={release}
-          onClearAgeCheck={onClearAgeCheck}
-          onSimulateAge={onSimulateAge}
         />
       </ScrollView>
     </View>

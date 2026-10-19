@@ -24,7 +24,7 @@ export default function App() {
   );
   if (gate.phase !== 'loading' && pet.ready) {
     if (gate.phase === 'unavailable') {
-      screen = <NotAvailableScreen onDevClear={() => void gate.clear()} />;
+      screen = <NotAvailableScreen />;
     } else if (gate.phase === 'consent') {
       screen = (
         <ConsentScreen
@@ -32,7 +32,6 @@ export default function App() {
           onYes={() => void gate.continueYes()}
           onNo={() => void gate.continueNo()}
           onAcceptTerms={() => void gate.acceptUpdatedTerms()}
-          onSimulate={(signal) => void gate.simulate(signal)}
         />
       );
     } else if (!pet.state) {
@@ -48,11 +47,7 @@ export default function App() {
       screen = <MeetScreen pet={pet.state} onStart={() => setMeeting(false)} />;
     } else {
       screen = (
-        <HomeScreen
-          petApi={pet}
-          onClearAgeCheck={() => void gate.clear()}
-          onSimulateAge={(signal) => void gate.simulate(signal)}
-        />
+        <HomeScreen petApi={pet} />
       );
     }
   }
