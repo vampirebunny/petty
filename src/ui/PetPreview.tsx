@@ -14,6 +14,8 @@ type Props = {
   species: 'dog' | 'cat';
   breedId: string | null;
   look: Look | null;
+  // Fit the preview into this height, keeping the stage's proportions. Defaults to full width.
+  height?: number;
 };
 
 // Shown while the pet is a puppy or kitten, since that is the pet the user is adopting.
@@ -39,10 +41,12 @@ function newWorld(breedId: string, look: Look | null): World {
 
 // A small Skia view of the pet being adopted. It only draws: the actor, scene, and look all
 // come from the same data the home screen uses.
-export function PetPreview({ species, breedId, look }: Props) {
+export function PetPreview({ species, breedId, look, height }: Props) {
   const { width } = useWindowDimensions();
-  const viewWidth = Math.max(240, width - 40);
-  const viewHeight = viewWidth * (stageHeight / stageWidth);
+  const ratio = stageHeight / stageWidth;
+  const fullWidth = Math.max(240, width - 40);
+  const viewWidth = height ? Math.min(fullWidth, height / ratio) : fullWidth;
+  const viewHeight = viewWidth * ratio;
   const breed = breedId ?? fallbackBreed[species];
   const [picture, setPicture] = useState<SkPicture | null>(null);
   const worldRef = useRef<World | null>(null);

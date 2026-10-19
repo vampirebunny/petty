@@ -8,12 +8,12 @@ type Props = {
   range?: Range;
   // An exact potential, drawn as a bar from 0 up to the value.
   value?: number;
+  // With `value` as the potential, a current score drawn as a darker layer on top, shown as "current / potential".
+  current?: number;
+  // A gain over the other offers, shown as +N next to the value. Hidden unless above 0.
+  delta?: number;
   highlight?: boolean;
   showNumbers?: boolean;
-  // A line drawn across the track, e.g. a pup's starting score.
-  start?: number;
-  // A dot on the track, e.g. a pup's potential. With a range, the number shown is this value.
-  marker?: number;
 };
 
 const trackMax = 100;
@@ -26,29 +26,43 @@ export function AttributeBar({
   label,
   range,
   value,
+  current,
+  delta,
   highlight = false,
   showNumbers = false,
-  start,
-  marker,
 }: Props) {
+  const layered = current != null && value != null;
   const from = range ? range[0] : 0;
   const to = range ? range[1] : (value ?? 0);
-  const numbers = marker != null ? String(marker) : range ? `${range[0]}-${range[1]}` : String(value ?? 0);
+  const numbers = range ? `${range[0]}-${range[1]}` : String(value ?? 0);
+  const gain = delta != null && delta > 0 ? delta : 0;
+  const description = layered ? `${label} ${current} of ${value}` : `${label} ${numbers}${gain ? `, plus ${gain}` : ''}`;
   return (
-    <View style={styles.row} accessibilityLabel={`${label} ${numbers}`}>
+    <View style={styles.row} accessibilityLabel={description}>
       <Text style={[styles.label, highlight && styles.strong]}>{label}</Text>
-      <View style={styles.track}>
+      <View style={[styles.track, layered && styles.trackLayered]}>
         <View
           style={[
             styles.fill,
-            highlight ? styles.fillStrong : styles.fillNormal,
+            layered ? styles.fillPotential : highlight ? styles.fillStrong : styles.fillNormal,
             { left: percent(from), width: percent(to - from) },
           ]}
         />
-        {start != null ? <View style={[styles.start, { left: percent(start) }]} /> : null}
-        {marker != null ? <View style={[styles.marker, { left: percent(marker) }]} /> : null}
+        {layered ? (
+          <View style={[styles.fill, styles.fillCurrent, { left: 0, width: percent(current) }]} />
+        ) : null}
       </View>
-      <Text style={[styles.number, !showNumbers && styles.hidden, highlight && styles.strong]}>{numbers}</Text>
+      {layered ? (
+        <Text style={styles.numberWide}>
+          <Text style={styles.strong}>{current}</Text>
+          <Text> / {value}</Text>
+        </Text>
+      ) : (
+        <Text style={[styles.number, !showNumbers && styles.hidden, highlight && styles.strong]}>{numbers}</Text>
+      )}
+      {delta != null ? (
+        <Text style={[styles.delta, gain === 0 && styles.hidden]}>{gain ? `+${gain}` : '+0'}</Text>
+      ) : null}
     </View>
   );
 }
@@ -75,30 +89,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#E3E9F1',
     overflow: 'hidden',
   },
+  trackLayered: {
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#EDF1F6',
+  },
   fill: {
     position: 'absolute',
     top: 0,
     bottom: 0,
     borderRadius: 4,
-  },
-  start: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    width: 2,
-    marginLeft: -1,
-    backgroundColor: '#243044',
-  },
-  marker: {
-    position: 'absolute',
-    top: 1,
-    width: 6,
-    height: 6,
-    marginLeft: -3,
-    borderRadius: 3,
-    backgroundColor: '#fff',
-    borderWidth: 1.5,
-    borderColor: '#243044',
   },
   fillNormal: {
     backgroundColor: '#8DA2BD',
@@ -106,11 +106,30 @@ const styles = StyleSheet.create({
   fillStrong: {
     backgroundColor: '#E58A3A',
   },
+  fillPotential: {
+    backgroundColor: '#C9D5E4',
+  },
+  fillCurrent: {
+    backgroundColor: '#243044',
+  },
   number: {
     width: 52,
     fontSize: 13,
     textAlign: 'right',
     color: '#5C6B80',
+  },
+  numberWide: {
+    width: 64,
+    fontSize: 13,
+    textAlign: 'right',
+    color: '#5C6B80',
+  },
+  delta: {
+    width: 30,
+    fontSize: 13,
+    textAlign: 'right',
+    fontWeight: '600',
+    color: '#B8631F',
   },
   hidden: {
     opacity: 0,

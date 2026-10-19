@@ -9,10 +9,9 @@ const soundKey = 'petty.sound';
 
 export type Attestation = 'passed' | 'blocked';
 
-// Species, look, and breed share one design screen. Offers is the next step.
-export type AdoptionStep = 'design' | 'offers';
+// Species, look, and breed share one design screen. Offers (choose a pup) and name follow.
+export type AdoptionStep = 'design' | 'offers' | 'name';
 
-const adoptionSteps: AdoptionStep[] = ['design', 'offers'];
 // Older drafts used separate species / breed / look steps; fold them into design on load.
 const legacySteps = ['species', 'breed', 'look'] as const;
 
@@ -24,6 +23,9 @@ export type AdoptionDraft = {
   breedId: string | null;
   look: Look | null;
   step: AdoptionStep;
+  // The pup picked on the offers step and the name typed so far, kept so Back restores them.
+  archetype?: 'athlete' | 'thinker' | 'charmer';
+  name?: string;
 };
 
 function isLook(value: unknown): value is Look {
@@ -41,7 +43,7 @@ function readDraft(value: unknown): AdoptionDraft | null {
   const draft = value as Record<string, unknown>;
   const rawStep = draft.step;
   const step: AdoptionStep | null =
-    rawStep === 'design' || rawStep === 'offers'
+    rawStep === 'design' || rawStep === 'offers' || rawStep === 'name'
       ? rawStep
       : typeof rawStep === 'string' && (legacySteps as readonly string[]).includes(rawStep)
         ? 'design'
@@ -56,13 +58,20 @@ function readDraft(value: unknown): AdoptionDraft | null {
   ) {
     return null;
   }
-  return {
+  const result: AdoptionDraft = {
     seed: draft.seed,
     species: draft.species,
     breedId: draft.breedId,
     look: draft.look,
     step,
   };
+  if (draft.archetype === 'athlete' || draft.archetype === 'thinker' || draft.archetype === 'charmer') {
+    result.archetype = draft.archetype;
+  }
+  if (typeof draft.name === 'string') {
+    result.name = draft.name.slice(0, 16);
+  }
+  return result;
 }
 
 export async function loadAttestation(): Promise<Attestation | null> {

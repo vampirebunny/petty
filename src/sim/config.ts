@@ -65,6 +65,13 @@ export const archetypeNames: Record<Archetype, string> = {
   charmer: 'The Charmer',
 };
 
+// One-line description of each archetype, shown on the choose step.
+export const archetypeBlurbs: Record<Archetype, string> = {
+  athlete: 'Born to run. Fetch is life.',
+  thinker: 'Learns tricks fast and listens well.',
+  charmer: 'Never met a stranger. Loves everyone.',
+};
+
 // Label for the style a pet has grown into, shown next to the origin label when they differ.
 export const archetypeStyleNames: Record<Archetype, string> = {
   athlete: 'Athletic',

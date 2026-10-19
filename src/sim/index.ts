@@ -38,6 +38,7 @@ export {
   stepMs,
   traits,
   archetypeNames,
+  archetypeBlurbs,
   archetypeStyleNames,
   STYLE,
   archetypeStrong,

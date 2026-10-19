@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { cleanName, nameLimit } from '../adopt/name';
 import { newSeed } from '../adopt/seed';
 import {
   breedById,
@@ -14,14 +13,16 @@ import {
   tailOptions,
 } from '../actor';
 import type { Breed, Species } from '../actor/types';
-import { archetypeNames, attributesFor, generateOffers } from '../sim';
-import type { Archetype, Look, PetAttributes } from '../sim';
+import { attributesFor, generateOffers } from '../sim';
+import type { Look, PetAttributes } from '../sim';
 import { loadDraft, saveDraft } from '../storage/session';
 import type { AdoptionDraft } from '../storage/session';
 import { PetPreview } from '../ui/PetPreview';
 import { BreedCard } from './adopt/BreedCard';
 import { LookPicker } from './adopt/LookPicker';
-import { OfferCard } from './adopt/OfferCard';
+import { ChooseScreen } from './adopt/ChooseScreen';
+import { NameScreen } from './adopt/NameScreen';
+import { StepIndicator } from './adopt/StepIndicator';
 
 type Props = {
   onAdopt: (breedId: string, attributes: PetAttributes, look: Look, name: string) => void;
@@ -45,14 +46,6 @@ function lookForBreed(breed: Breed, previous: Look | null): Look {
 
 function firstBreed(species: Species): Breed {
   return breedsFor(species)[0];
-}
-
-function BackButton({ onPress }: { onPress: () => void }) {
-  return (
-    <Pressable onPress={onPress} accessibilityRole="button" hitSlop={8}>
-      <Text style={styles.back}>Back</Text>
-    </Pressable>
-  );
 }
 
 function SpeciesToggle({
@@ -84,8 +77,6 @@ function SpeciesToggle({
 
 export function AdoptScreen({ onAdopt }: Props) {
   const [draft, setDraft] = useState<AdoptionDraft | null>(null);
-  const [archetype, setArchetype] = useState<Archetype | null>(null);
-  const [name, setName] = useState('');
   const draftRef = useRef<AdoptionDraft | null>(null);
 
   useEffect(() => {
@@ -100,11 +91,14 @@ export function AdoptScreen({ onAdopt }: Props) {
       // Design screen always needs a breed so the preview and look options have something to show.
       if (next.breedId == null || !breedById(next.breedId)) {
         const breed = firstBreed(next.species);
-        next = { ...next, breedId: breed.id, look: lookForBreed(breed, next.look), step: next.step === 'offers' ? 'offers' : 'design' };
+        next = { ...next, breedId: breed.id, look: lookForBreed(breed, next.look), step: next.step };
       } else if (next.look == null) {
         next = { ...next, look: defaultLook(breedById(next.breedId)!) };
       }
-      if (!saved || saved.breedId == null || saved.look == null) {
+      if (next.step === 'name' && next.archetype == null) {
+        next = { ...next, step: 'offers' };
+      }
+      if (!saved || saved.breedId == null || saved.look == null || next.step !== saved.step) {
         void saveDraft(next);
       }
       draftRef.current = next;
@@ -171,19 +165,52 @@ export function AdoptScreen({ onAdopt }: Props) {
     );
   }
 
-  const step = archetype ? 'name' : draft.step;
   const species: Species = draft.species;
-  const chosen = archetype ? offers.find((offer) => offer.archetype === archetype) ?? null : null;
-  const readyName = cleanName(name);
-  const young = species === 'cat' ? 'Kitten' : 'Puppy';
-  const youngPlural = species === 'cat' ? 'kittens' : 'pups';
-  const title = step === 'name' ? 'Name' : step === 'offers' ? `Pick a ${young}` : 'Adopt';
 
-  if (step === 'design' && breed && draft.look) {
+  if (draft.step === 'offers' && breed && draft.look && offers.length > 0) {
+    return (
+      <ChooseScreen
+        breed={breed}
+        look={draft.look}
+        offers={offers}
+        selected={draft.archetype ?? offers[0].archetype}
+        onSelect={(archetype) => update({ archetype })}
+        onBack={() => update({ step: 'design' })}
+        onNext={() => update({ archetype: draft.archetype ?? offers[0].archetype, step: 'name' })}
+      />
+    );
+  }
+
+  if (draft.step === 'name' && breed && draft.look && draft.archetype) {
+    const picked = draft.archetype;
+    return (
+      <NameScreen
+        breed={breed}
+        look={draft.look}
+        archetype={picked}
+        name={draft.name ?? ''}
+        onChangeName={(name) => update({ name })}
+        onBack={() => update({ step: 'offers' })}
+        onMeet={(name) =>
+          onAdopt(
+            breed.id,
+            attributesFor(draft.seed, breed.species, breed.id, breed.attributeRanges, picked),
+            draft.look as Look,
+            name,
+          )
+        }
+      />
+    );
+  }
+
+  if (breed && draft.look) {
     return (
       <View style={styles.root}>
         <View style={styles.sticky}>
-          <Text style={styles.title}>{title}</Text>
+          <View style={styles.headerRow}>
+            <Text style={styles.title}>Adopt</Text>
+            <StepIndicator step={1} />
+          </View>
           <SpeciesToggle species={species} onChange={setSpecies} />
           <PetPreview species={species} breedId={breed.id} look={draft.look} />
         </View>
@@ -217,68 +244,9 @@ export function AdoptScreen({ onAdopt }: Props) {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.screen} keyboardShouldPersistTaps="handled">
-      <Text style={styles.title}>{title}</Text>
-      {step === 'offers' || step === 'name' ? (
-        <PetPreview species={species} breedId={breed?.id ?? null} look={draft.look} />
-      ) : null}
-
-      {step === 'offers' && breed ? (
-        <View style={styles.stack}>
-          <BackButton onPress={() => update({ step: 'design' })} />
-          <Text style={styles.body}>There are 3 {youngPlural} available. Which do you choose?</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.offerRow}
-            style={styles.offerScroll}
-            snapToInterval={292}
-            decelerationRate="fast"
-          >
-            {offers.map((offer) => (
-              <OfferCard
-                key={offer.archetype}
-                offer={offer}
-                ranges={breed.attributeRanges}
-                onPress={() => setArchetype(offer.archetype)}
-              />
-            ))}
-          </ScrollView>
-        </View>
-      ) : null}
-
-      {step === 'name' && chosen && breed && draft.look ? (
-        <View style={styles.stack}>
-          <BackButton onPress={() => setArchetype(null)} />
-          <Text style={styles.archetype}>{archetypeNames[chosen.archetype]}</Text>
-          <Text style={styles.body}>{"What's your new pet's name?"}</Text>
-          <TextInput
-            value={name}
-            onChangeText={(value) => setName(value.slice(0, nameLimit))}
-            placeholder="Name"
-            maxLength={nameLimit}
-            style={styles.input}
-            autoCorrect={false}
-          />
-          <Pressable
-            style={[styles.choice, readyName == null && styles.disabled]}
-            disabled={readyName == null}
-            onPress={() => {
-              if (readyName && draft.breedId && draft.look) {
-                onAdopt(
-                  draft.breedId,
-                  attributesFor(draft.seed, breed.species, breed.id, breed.attributeRanges, chosen.archetype),
-                  draft.look,
-                  readyName,
-                );
-              }
-            }}
-          >
-            <Text style={styles.choiceLabel}>Bring home</Text>
-          </Pressable>
-        </View>
-      ) : null}
-    </ScrollView>
+    <View style={styles.root}>
+      <Text style={styles.title}>Boop Boop</Text>
+    </View>
   );
 }
 
@@ -287,6 +255,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F4F7FB',
     paddingTop: 56,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   sticky: {
     paddingHorizontal: 20,
@@ -302,14 +275,6 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 40,
     gap: 20,
-  },
-  screen: {
-    flexGrow: 1,
-    backgroundColor: '#F4F7FB',
-    paddingTop: 72,
-    paddingHorizontal: 20,
-    paddingBottom: 32,
-    gap: 16,
   },
   title: {
     fontSize: 32,
@@ -330,17 +295,6 @@ const styles = StyleSheet.create({
   },
   breedScroll: {
     marginHorizontal: -20,
-  },
-  offerScroll: {
-    marginHorizontal: -20,
-  },
-  offerRow: {
-    paddingHorizontal: 20,
-    gap: 12,
-  },
-  archetype: {
-    fontSize: 18,
-    color: '#243044',
   },
   breedRow: {
     paddingHorizontal: 20,
@@ -369,13 +323,6 @@ const styles = StyleSheet.create({
   speciesLabelOn: {
     color: '#fff',
   },
-  back: {
-    fontSize: 16,
-    color: '#5C6B80',
-  },
-  stack: {
-    gap: 12,
-  },
   choice: {
     backgroundColor: '#243044',
     borderRadius: 12,
@@ -386,16 +333,5 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     textAlign: 'center',
-  },
-  disabled: {
-    opacity: 0.4,
-  },
-  input: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: '#243044',
   },
 });
