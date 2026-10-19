@@ -16,7 +16,7 @@ import {
 import type { Scene } from '../actor';
 import { setSoundEnabled } from '../audio/voice';
 import { stageHeight, stageWidth } from '../actor/geometry';
-import { archetypeNames, attributeScore, petStrokeIntervalMs, traits } from '../sim';
+import { archetypeNames, archetypeStyleNames, attributeScore, currentStyle, petStrokeIntervalMs, traits } from '../sim';
 import type { OutfitSlot, Trait } from '../sim';
 import { loadSoundEnabled, saveSoundEnabled } from '../storage/session';
 import { usePet } from '../state/usePet';
@@ -205,6 +205,13 @@ export default function HomeScreen({ petApi, onClearAttestation }: Props) {
     return null;
   }
 
+  const origin = state.attributes.archetype;
+  const style = currentStyle(origin, state.attributes.current, state.attributes.potential);
+  const styleLine =
+    style === origin
+      ? archetypeNames[origin]
+      : `Born: ${archetypeNames[origin]} · Style: ${archetypeStyleNames[style]}`;
+
   const actions: PetAction[] = [
     { id: 'idle', label: 'Idle', onPress: idle },
     { id: 'sit', label: 'Sit', onPress: sit },
@@ -221,7 +228,7 @@ export default function HomeScreen({ petApi, onClearAttestation }: Props) {
       <View style={styles.header}>
         <Text style={styles.name}>{state.name}</Text>
         <Text style={styles.meta}>
-          {archetypeNames[state.attributes.archetype]} · Level {state.level}
+          {styleLine} · Level {state.level}
         </Text>
         {traits.map((trait) => (
           <Text key={trait} style={styles.score}>

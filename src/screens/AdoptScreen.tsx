@@ -14,7 +14,7 @@ import {
   tailOptions,
 } from '../actor';
 import type { Breed, Species } from '../actor/types';
-import { attributesFor, generateOffers } from '../sim';
+import { archetypeNames, attributesFor, generateOffers } from '../sim';
 import type { Archetype, Look, PetAttributes } from '../sim';
 import { loadDraft, saveDraft } from '../storage/session';
 import type { AdoptionDraft } from '../storage/session';
@@ -175,7 +175,9 @@ export function AdoptScreen({ onAdopt }: Props) {
   const species: Species = draft.species;
   const chosen = archetype ? offers.find((offer) => offer.archetype === archetype) ?? null : null;
   const readyName = cleanName(name);
-  const title = step === 'name' ? 'Name' : step === 'offers' ? 'Choose a set' : 'Adopt';
+  const young = species === 'cat' ? 'Kitten' : 'Puppy';
+  const youngPlural = species === 'cat' ? 'kittens' : 'pups';
+  const title = step === 'name' ? 'Name' : step === 'offers' ? `Pick a ${young}` : 'Adopt';
 
   if (step === 'design' && breed && draft.look) {
     return (
@@ -224,17 +226,32 @@ export function AdoptScreen({ onAdopt }: Props) {
       {step === 'offers' && breed ? (
         <View style={styles.stack}>
           <BackButton onPress={() => update({ step: 'design' })} />
-          <Text style={styles.body}>Pick one set. Each is a different tradeoff.</Text>
-          {offers.map((offer) => (
-            <OfferCard key={offer.archetype} offer={offer} onPress={() => setArchetype(offer.archetype)} />
-          ))}
+          <Text style={styles.body}>There are 3 {youngPlural} available. Which do you choose?</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.offerRow}
+            style={styles.offerScroll}
+            snapToInterval={292}
+            decelerationRate="fast"
+          >
+            {offers.map((offer) => (
+              <OfferCard
+                key={offer.archetype}
+                offer={offer}
+                ranges={breed.attributeRanges}
+                onPress={() => setArchetype(offer.archetype)}
+              />
+            ))}
+          </ScrollView>
         </View>
       ) : null}
 
       {step === 'name' && chosen && breed && draft.look ? (
         <View style={styles.stack}>
           <BackButton onPress={() => setArchetype(null)} />
-          <OfferCard offer={chosen} />
+          <Text style={styles.archetype}>{archetypeNames[chosen.archetype]}</Text>
+          <Text style={styles.body}>{"What's your new pet's name?"}</Text>
           <TextInput
             value={name}
             onChangeText={(value) => setName(value.slice(0, nameLimit))}
@@ -313,6 +330,17 @@ const styles = StyleSheet.create({
   },
   breedScroll: {
     marginHorizontal: -20,
+  },
+  offerScroll: {
+    marginHorizontal: -20,
+  },
+  offerRow: {
+    paddingHorizontal: 20,
+    gap: 12,
+  },
+  archetype: {
+    fontSize: 18,
+    color: '#243044',
   },
   breedRow: {
     paddingHorizontal: 20,

@@ -1,4 +1,4 @@
-import { GEN, archetypeStrong, archetypes, traits } from './config';
+import { GEN, STYLE, archetypeStrong, archetypes, traits } from './config';
 import type { Archetype, AttributeSet, BreedRanges, PetAttributes, Stats, Trait } from './types';
 
 // Pure and deterministic: the three offered attribute sets are a function of
@@ -105,6 +105,37 @@ export function generateOffers(seed: number, species: string, breedKey: string, 
 
     return { archetype, potential, current: startingCurrent(potential), total: target };
   });
+}
+
+// How far each archetype's two strong attributes have grown toward their ceilings (0..1).
+// Ratios, not raw values, so breed does not decide the label.
+export function styleScores(current: Stats, potential: Stats): Record<Archetype, number> {
+  const out = { athlete: 0, thinker: 0, charmer: 0 } as Record<Archetype, number>;
+  for (const archetype of archetypes) {
+    const strong = archetypeStrong[archetype];
+    out[archetype] =
+      strong.reduce((sum, a) => sum + (potential[a] > 0 ? current[a] / potential[a] : 0), 0) / strong.length;
+  }
+  return out;
+}
+
+// The style a pet has been raised into. Defaults to the origin archetype unless another one leads
+// it by STYLE.SWITCH_MARGIN. Ties between non-origin archetypes resolve in archetype order.
+// Derived only: never stored, and it does not touch archetype or potential.
+export function currentStyle(origin: Archetype, current: Stats, potential: Stats): Archetype {
+  const scores = styleScores(current, potential);
+  // Small epsilon so a lead of exactly the margin is not lost to floating-point error.
+  const needed = scores[origin] + STYLE.SWITCH_MARGIN - 1e-9;
+  let best: Archetype = origin;
+  for (const archetype of archetypes) {
+    if (archetype === origin) {
+      continue;
+    }
+    if (scores[archetype] >= needed && (best === origin || scores[archetype] > scores[best])) {
+      best = archetype;
+    }
+  }
+  return best;
 }
 
 // The attributes record stored on a new pet: the seed, the rules version, the picked archetype,

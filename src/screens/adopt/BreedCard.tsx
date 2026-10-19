@@ -11,8 +11,8 @@ type Props = {
   onSelect: () => void;
 };
 
-// A breed with its six potential ranges. Selected cards show the exact numbers. Ranges are
-// potential ceilings, not starting values.
+// A breed with its six potential ranges and their numbers. Ranges are potential ceilings, not
+// starting values.
 export function BreedCard({ breed, selected, onSelect }: Props) {
   return (
     <Pressable
@@ -34,7 +34,7 @@ export function BreedCard({ breed, selected, onSelect }: Props) {
             key={trait}
             label={traitLabel[trait]}
             range={breed.attributeRanges[trait]}
-            showNumbers={selected}
+            showNumbers
           />
         ))}
       </View>

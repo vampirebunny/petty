@@ -65,6 +65,16 @@ export const archetypeNames: Record<Archetype, string> = {
   charmer: 'The Charmer',
 };
 
+// Label for the style a pet has grown into, shown next to the origin label when they differ.
+export const archetypeStyleNames: Record<Archetype, string> = {
+  athlete: 'Athletic',
+  thinker: 'Clever',
+  charmer: 'Charming',
+};
+
+// Another archetype becomes the current style only when it leads the origin by this much.
+export const STYLE = { SWITCH_MARGIN: 0.05 };
+
 // Attribute generation tuning. These are tuning numbers and will change.
 export const GEN = {
   RULES_VERSION: 1,

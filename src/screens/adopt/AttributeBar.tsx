@@ -10,6 +10,10 @@ type Props = {
   value?: number;
   highlight?: boolean;
   showNumbers?: boolean;
+  // A line drawn across the track, e.g. a pup's starting score.
+  start?: number;
+  // A dot on the track, e.g. a pup's potential. With a range, the number shown is this value.
+  marker?: number;
 };
 
 const trackMax = 100;
@@ -18,10 +22,18 @@ function percent(value: number): `${number}%` {
   return `${Math.max(0, Math.min(100, (value / trackMax) * 100))}%`;
 }
 
-export function AttributeBar({ label, range, value, highlight = false, showNumbers = false }: Props) {
+export function AttributeBar({
+  label,
+  range,
+  value,
+  highlight = false,
+  showNumbers = false,
+  start,
+  marker,
+}: Props) {
   const from = range ? range[0] : 0;
   const to = range ? range[1] : (value ?? 0);
-  const numbers = range ? `${range[0]}-${range[1]}` : String(value ?? 0);
+  const numbers = marker != null ? String(marker) : range ? `${range[0]}-${range[1]}` : String(value ?? 0);
   return (
     <View style={styles.row} accessibilityLabel={`${label} ${numbers}`}>
       <Text style={[styles.label, highlight && styles.strong]}>{label}</Text>
@@ -33,6 +45,8 @@ export function AttributeBar({ label, range, value, highlight = false, showNumbe
             { left: percent(from), width: percent(to - from) },
           ]}
         />
+        {start != null ? <View style={[styles.start, { left: percent(start) }]} /> : null}
+        {marker != null ? <View style={[styles.marker, { left: percent(marker) }]} /> : null}
       </View>
       <Text style={[styles.number, !showNumbers && styles.hidden, highlight && styles.strong]}>{numbers}</Text>
     </View>
@@ -66,6 +80,25 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     borderRadius: 4,
+  },
+  start: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    width: 2,
+    marginLeft: -1,
+    backgroundColor: '#243044',
+  },
+  marker: {
+    position: 'absolute',
+    top: 1,
+    width: 6,
+    height: 6,
+    marginLeft: -3,
+    borderRadius: 3,
+    backgroundColor: '#fff',
+    borderWidth: 1.5,
+    borderColor: '#243044',
   },
   fillNormal: {
     backgroundColor: '#8DA2BD',
