@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useImperativeHandle, useMemo, useRef } from 'react';
 import type { Ref } from 'react';
-import { AppState, StyleSheet, useWindowDimensions } from 'react-native';
+import { AppState, StyleSheet } from 'react-native';
 import { useSharedValue } from 'react-native-reanimated';
 import { Canvas, Picture, Skia } from '@shopify/react-native-skia';
 import type { SkPicture } from '@shopify/react-native-skia';
@@ -27,7 +27,7 @@ import {
   todAt,
   update,
 } from '../actor';
-import { stageHeight, stageWidth } from '../actor/geometry';
+import { useStageSize } from './useStageSize';
 import type { CuddleOut, CuddleTouch, CuddleZone, Scene, TimeOfDay, World } from '../actor';
 import { playVoice } from '../audio/voice';
 import { attributeScore } from '../sim';
@@ -98,9 +98,7 @@ export function PetView({
   onWeightDelta,
   onDrank,
 }: Props) {
-  const { width } = useWindowDimensions();
-  const viewWidth = Math.max(280, width);
-  const viewHeight = viewWidth * (stageHeight / stageWidth);
+  const { viewWidth, viewHeight } = useStageSize();
   const widthRef = useRef(viewWidth);
   const heightRef = useRef(viewHeight);
   widthRef.current = viewWidth;

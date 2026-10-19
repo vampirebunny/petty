@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AccessibilityInfo, AppState, Image, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { AccessibilityInfo, AppState, Image, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector, Pressable, ScrollView } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
@@ -35,6 +35,7 @@ import type { PetAction } from '../ui/ActionButtons';
 import { DebugPanel } from '../ui/DebugPanel';
 import { NeedRings } from '../ui/NeedRings';
 import { PetView } from '../ui/PetView';
+import { useStageSize } from '../ui/useStageSize';
 import type { CuddleHandle } from '../ui/PetView';
 import { CuddleFeedback } from '../ui/cuddle/CuddleFeedback';
 import type { FeedbackHandle } from '../ui/cuddle/CuddleFeedback';
@@ -89,9 +90,7 @@ export default function HomeScreen({ petApi }: Props) {
     release,
   } = petApi;
   const lastStrokeAt = useRef(0);
-  const { width } = useWindowDimensions();
-  const viewWidth = Math.max(280, width);
-  const viewHeight = viewWidth * (stageHeight / stageWidth);
+  const { viewWidth, viewHeight } = useStageSize();
   const [hour, setHour] = useState<number | null>(null);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [wardrobeOpen, setWardrobeOpen] = useState(false);
@@ -568,7 +567,7 @@ export default function HomeScreen({ petApi }: Props) {
           </Text>
         </View>
         <GestureDetector gesture={gesture}>
-          <View collapsable={false} style={{ width: viewWidth, height: viewHeight }}>
+          <View collapsable={false} style={{ width: viewWidth, height: viewHeight, alignSelf: 'center' }}>
             <PetView
               cuddleActive={cuddleOn}
               cuddleRef={cuddleHandle}

@@ -46,7 +46,7 @@ function newWorld(breedId: string, look: Look | null): World {
 export function PetPreview({ species, breedId, look, height }: Props) {
   const { width } = useWindowDimensions();
   const ratio = previewStageHeight / stageWidth;
-  const fullWidth = Math.max(240, width - 40);
+  const fullWidth = Math.min(560, Math.max(240, width - 40));
   const viewWidth = height ? Math.min(fullWidth, height / ratio) : fullWidth;
   const viewHeight = viewWidth * ratio;
   const breed = breedId ?? fallbackBreed[species];
