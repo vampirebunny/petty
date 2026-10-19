@@ -1,7 +1,7 @@
 # Phase 1 Brief: Core Pet
 
 Oct 15, 2026 · @A
-Updated Oct 17, 2026
+Updated Oct 18, 2026
 
 ## Goal and scope
 
@@ -32,6 +32,7 @@ A fresh install asks the user to attest that they are 13 or older. Saying they a
 
 - A birthdate field for the user. The pet's age is the credited day count, not a date the user types.
 - A control that starts panting. A dog may pant on its own. The button row does not include it.
+- An Idle button. The pet idles on its own when no task is running.
 - Stage names on the home screen, in a details view, in a notification, or on any share image.
 - Accounts, sync, friends, share cards, tricks, training, fetch mastery, toys, or outfits.
 - A second pet on screen. The sim is an actor list, and a test may step two actors, but the home screen shows the owner's pet only.
@@ -205,13 +206,16 @@ The home screen draws one actor with Skia. The renderer imports Skia. The module
 
 The frame clock is separate from the 5-second needs tick. Cap each frame at 50ms. Pause it when the app is not active. On return, drop an in-progress eat, fetch, or pounce and show the pet standing, or sleeping if rest is on. Save the pet record. Do not save the pose, the gait, or the ball.
 
+The home screen keeps the pet name and actor sticky. Need bars sit below the animation. There is no status bubble on the stage. User actions are sit, give paw, speak, sleep/wake, eat, drink, and throw ball. Idle is not a button. Personality (archetype or style and attribute scores) expands from `{name}'s personality`. Settings holds the time jumps and sliders.
+
 Behavior, from the species list:
 
-- Feed starts eat, unless the pet is asleep, which keeps the current stir.
-- Rest starts sleep. Wake returns to stand.
+- Feed, drink, sit, give paw, speak, throw ball, and a stroke all wake a sleeper and then run.
+- Rest starts sleep. Wake returns to idle.
 - A stroke starts the species reaction. A dog barks or offers a paw. A cat purrs or grooms. The existing purr-versus-wiggle roll chooses which.
 - Throw ball starts fetch for a dog and pounce for a cat. Phase 1 always runs that chase.
 - Pant is not a control. The dog task machine may enter it, including the sit-and-pant at the end of a fetch.
+- When no task is running, the pet idles on its own.
 
 Every actor has `x`, depth `y`, and height `z`. A jump is a scripted arc on `z`. Pounce uses it. Fetch stays on the ground. The pose eases `spineArch` and `crouch` with the other channels. Leave them at 0 unless the reference you are porting sets them.
 
@@ -229,11 +233,11 @@ Schedule a local notification for the next time fullness will cross 25 or energy
 
 A reminders switch on the home screen defaults to on. If the system permission is denied, turn the switch off and keep the rest of the app working. Reschedule after each save.
 
-## Debug panel
+## Settings panel
 
-Keep the 1-hour, 6-hour, and 24-hour jumps. Those jumps add the full requested time to `ageDays` and apply the vitality absence rule for that full duration, with no 48-hour cap and no boundary clamp. Maturity follows `ageDays`.
+Labeled Settings (not Debug). Keep the 1-hour, 6-hour, and 24-hour jumps. Those jumps add the full requested time to `ageDays` and apply the vitality absence rule for that full duration, with no 48-hour cap and no boundary clamp. Maturity follows `ageDays`.
 
-Add sliders that set `ageDays`, vitality, and weight directly. `ageDays` runs from 0 through 1000, and past 180 maturity stays at 1. Show the internal stage, senior band, `ageDays`, maturity, vitality, weight, care window, feed window, level, xp, and each attribute's effective score and potential in this panel only. Do not show the seed.
+Add sliders that set `ageDays`, vitality, and weight directly. `ageDays` runs from 0 through 1000, and past 180 maturity stays at 1. Show the internal stage, senior band, `ageDays`, maturity, vitality, weight, care window, feed window, level, xp, and each attribute's effective score and potential in this panel only. Do not show the seed. Do not ship a scene JSON editor on the home screen.
 
 ## Tasks
 

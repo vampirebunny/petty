@@ -10,7 +10,7 @@ This replaces the earlier Rive plan and updates the v1 reference HTML I gave you
 
 ## What changed since v1
 1. **Cats added.** `species` is data (`dog` | `cat`). Same engine, different anatomy and behavior set. Five breeds each.
-2. **Pant is no longer a user action.** The user-facing actions are now: Idle, Sit, Give paw, Speak, Sleep, Eat, Throw ball. "Stand" became "Idle".
+2. **Pant is no longer a user action.** The user-facing actions are now: Sit, Give paw, Speak, Sleep/Wake, Eat, Drink, Throw ball. Idle is not a button; the pet returns to idle on its own. Any action other than sleep wakes a sleeper.
 3. **Idle state machine.** With no action running, the pet randomly alternates between standing still, panting (dog) or purring (cat), napping, and wandering. Blinking runs continuously underneath (including occasional double blinks).
 4. **Weight index.** A single number from -1 (underweight) to +1 (overweight) drives body thickness. Hunger lowers it, meals raise it, with a floor and a ceiling. It is not a user toggle.
 5. **Cuteness knob.** Larger head and eyes, lower eye position, second eye highlight, blush, bigger paws. Stronger on young pets, fades with age.
@@ -75,7 +75,7 @@ Pick the next mode by weighted random, excluding the current one. Weights: still
 - **Needs:** connect Eat to the existing feeding system, petting to the existing mood reactions. Keep the blob prototype's architecture and swap the pet in.
 
 ## Acceptance criteria
-- All seven user actions work with smooth transitions, for both species.
+- Sit, give paw, speak, sleep/wake, eat, drink, and throw ball work with smooth transitions, for both species. Actions wake a sleeper without a separate wake step.
 - Idle cycles through still, pant or purr, nap, and walk on its own, with continuous blinking.
 - Weight index changes the body visibly (subtle near 0, obvious at the ends) and respects the floor and ceiling, including after time away from the app.
 - Five breeds per species render, with age scaling.

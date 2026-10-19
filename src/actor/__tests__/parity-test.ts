@@ -92,7 +92,10 @@ it('sleeps in place when the scene has no bed and wakes on request', () => {
   expect(startUserTask(world, pup, 'sleep')).toBe(true);
   expect(pup.task.stage).toBe('sleeping');
   expect(pup.x).toBe(300);
-  expect(startUserTask(world, pup, 'sit')).toBe(false);
+  expect(startUserTask(world, pup, 'sit')).toBe(true);
+  expect(pup.asleep).toBe(false);
+  expect(pup.task.type).toBe('sit');
+  startUserTask(world, pup, 'sleep');
   expect(startUserTask(world, pup, 'wake')).toBe(true);
   expect(pup.task.type).not.toBe('sleep');
 });

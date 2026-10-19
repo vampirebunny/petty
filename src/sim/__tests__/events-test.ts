@@ -6,7 +6,7 @@ function asleep(state: PetState): PetState {
   return { ...state, asleep: true };
 }
 
-it('feeds an awake pet and ignores feeding while asleep', () => {
+it('feeds an awake pet and wakes a sleeper to feed', () => {
   const before = testPet(1, 'retriever', 0, 'Pup', 'pet');
   before.needs.fullness = 40;
   const fed = applyEvent(before, { type: 'feed' });
@@ -18,9 +18,9 @@ it('feeds an awake pet and ignores feeding while asleep', () => {
   expect(before.needs.fullness).toBe(40);
 
   const resting = applyEvent(asleep(before), { type: 'feed' });
-  expect(resting.cue).toEqual({ kind: 'stir' });
-  expect(resting.state.needs).toEqual(before.needs);
-  expect(resting.state.asleep).toBe(true);
+  expect(resting.cue).toEqual({ kind: 'eat' });
+  expect(resting.state.needs.fullness).toBe(65);
+  expect(resting.state.asleep).toBe(false);
 });
 
 it('clamps feeding at 100', () => {
@@ -41,7 +41,7 @@ it('toggles rest with a yawn when falling asleep', () => {
   expect(awake.state.asleep).toBe(false);
 });
 
-it('pets an awake pet and only stirs a sleeping pet', () => {
+it('pets an awake pet and wakes a sleeper to pet', () => {
   const before = testPet(4, 'retriever', 0, 'Pup', 'pet');
   const petted = applyEvent(before, { type: 'pet' });
   const gain = 6 * (1 - 80 / 100);
@@ -51,9 +51,10 @@ it('pets an awake pet and only stirs a sleeping pet', () => {
   expect(petted.state.rngState).not.toBe(before.rngState);
 
   const resting = applyEvent(asleep(before), { type: 'pet' });
-  expect(resting.cue).toEqual({ kind: 'stir' });
-  expect(resting.state.needs).toEqual(before.needs);
-  expect(resting.state.rngState).toBe(before.rngState);
+  expect(resting.cue.kind === 'wiggle' || resting.cue.kind === 'purr').toBe(true);
+  expect(resting.state.asleep).toBe(false);
+  expect(resting.state.needs.happiness).toBeCloseTo(80 + gain, 5);
+  expect(resting.state.rngState).not.toBe(before.rngState);
 });
 
 it('returns the same result for the same state and event', () => {
@@ -72,8 +73,10 @@ it('runs idle, sit, give paw and speak without touching needs', () => {
     expect(result.cue).toEqual({ kind: type });
     expect(result.state.needs).toEqual(before.needs);
     expect(result.state.rngState).toBe(before.rngState);
-    // A sleeping pet only stirs.
-    expect(applyEvent(asleep(before), { type }).cue).toEqual({ kind: 'stir' });
+    // A sleeping pet wakes and performs the trick.
+    const woken = applyEvent(asleep(before), { type });
+    expect(woken.cue).toEqual({ kind: type });
+    expect(woken.state.asleep).toBe(false);
   }
 });
 

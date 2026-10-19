@@ -119,7 +119,7 @@ export function DebugPanel({
   return (
     <View style={styles.panel}>
       <Pressable onPress={() => setOpen((current) => !current)}>
-        <Text style={styles.toggle}>{open ? 'Hide debug' : 'Debug'}</Text>
+        <Text style={styles.toggle}>{open ? 'Hide settings' : 'Settings'}</Text>
       </Pressable>
       {open ? (
         <View style={styles.body}>

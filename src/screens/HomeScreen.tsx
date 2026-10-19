@@ -6,14 +6,11 @@ import * as Haptics from 'expo-haptics';
 
 import {
   actionReason,
-  compileScene,
   sceneById,
   sceneList,
-  sceneSource,
   stagePoint,
   wardrobe,
 } from '../actor';
-import type { Scene } from '../actor';
 import { setSoundEnabled } from '../audio/voice';
 import { stageHeight, stageWidth } from '../actor/geometry';
 import { archetypeNames, archetypeStyleNames, attributeScore, currentStyle, petStrokeIntervalMs, traits } from '../sim';
@@ -25,7 +22,6 @@ import type { PetAction } from '../ui/ActionButtons';
 import { DebugPanel } from '../ui/DebugPanel';
 import { NeedBars } from '../ui/NeedBars';
 import { PetView } from '../ui/PetView';
-import { SceneEditor } from '../ui/SceneEditor';
 
 type Props = {
   petApi: ReturnType<typeof usePet>;
@@ -55,7 +51,6 @@ export default function HomeScreen({ petApi, onClearAttestation }: Props) {
     setRemindersOn,
     feed,
     drink,
-    idle,
     sit,
     givePaw,
     speak,
@@ -80,11 +75,9 @@ export default function HomeScreen({ petApi, onClearAttestation }: Props) {
   const [hour, setHour] = useState<number | null>(null);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [wardrobeOpen, setWardrobeOpen] = useState(false);
-  const [status, setStatus] = useState('');
+  const [personalityOpen, setPersonalityOpen] = useState(false);
   const [note, setNote] = useState('');
   const [soundOn, setSoundOn] = useState(true);
-  // A scene typed into the editor. It lives only on this screen; the pet's saved scene stays a preset.
-  const [custom, setCustom] = useState<{ scene: Scene; source: unknown } | null>(null);
   const noteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -116,21 +109,6 @@ export default function HomeScreen({ petApi, onClearAttestation }: Props) {
       clearTimeout(noteTimer.current);
     }
     noteTimer.current = setTimeout(() => setNote(''), 2600);
-  }, []);
-
-  const applyScene = useCallback((text: string): string => {
-    let source: unknown;
-    try {
-      source = JSON.parse(text);
-    } catch (error) {
-      return `That is not valid JSON: ${error instanceof Error ? error.message : 'unreadable'}`;
-    }
-    try {
-      setCustom({ scene: compileScene(source), source });
-      return '';
-    } catch (error) {
-      return error instanceof Error ? error.message : 'That scene could not be loaded.';
-    }
   }, []);
 
   useEffect(() => {
@@ -195,11 +173,7 @@ export default function HomeScreen({ petApi, onClearAttestation }: Props) {
     return Gesture.Exclusive(tap, pan);
   }, [onStrokeStage, onTapStage]);
   const preset = sceneById(state?.sceneId ?? 'livingroom');
-  const scene = custom?.scene ?? preset;
-  const sceneJson = useMemo(
-    () => JSON.stringify(custom?.source ?? sceneSource(preset.id), null, 2),
-    [custom, preset.id],
-  );
+  const scene = preset;
 
   if (!state || !mood) {
     return null;
@@ -213,7 +187,6 @@ export default function HomeScreen({ petApi, onClearAttestation }: Props) {
       : `Born: ${archetypeNames[origin]} · Style: ${archetypeStyleNames[style]}`;
 
   const actions: PetAction[] = [
-    { id: 'idle', label: 'Idle', onPress: idle },
     { id: 'sit', label: 'Sit', onPress: sit },
     { id: 'paw', label: 'Give paw', onPress: givePaw },
     { id: 'speak', label: 'Speak', onPress: speak },
@@ -224,119 +197,126 @@ export default function HomeScreen({ petApi, onClearAttestation }: Props) {
   ];
 
   return (
-    <ScrollView contentContainerStyle={styles.screen}>
-      <View style={styles.header}>
-        <Text style={styles.name}>{state.name}</Text>
-        <Text style={styles.meta}>
-          {styleLine} · Level {state.level}
-        </Text>
-        {traits.map((trait) => (
-          <Text key={trait} style={styles.score}>
-            {traitLabel[trait]} {formatScore(attributeScore(state, trait))} / {state.attributes.potential[trait]}
-          </Text>
-        ))}
-      </View>
-      <NeedBars needs={state.needs} />
-      <GestureDetector gesture={gesture}>
-        <View collapsable={false} style={{ width: viewWidth, height: viewHeight }}>
-          <PetView
-            pet={state}
-            cueKind={cue.kind}
-            cueToken={cue.token}
-            drop={cue.drop}
-            hour={hour}
-            reducedMotion={reducedMotion}
-            sceneOverride={custom?.scene ?? null}
-            onStatus={setStatus}
-            onWeightDelta={applyActorWeight}
-          />
-          <View pointerEvents="none" style={styles.status}>
-            <Text style={styles.statusText}>
-              Now: <Text style={styles.statusStrong}>{status || 'idle'}</Text>
-            </Text>
-          </View>
+    <View style={styles.root}>
+      <View style={styles.sticky}>
+        <View style={styles.header}>
+          <Text style={styles.name}>{state.name}</Text>
+          <Text style={styles.meta}>Level {state.level}</Text>
         </View>
-      </GestureDetector>
-      <View style={styles.scenes}>
-        {sceneList.map((entry) => (
-          <Pressable
-            key={entry.id}
-            style={[styles.scene, !custom && entry.id === preset.id && styles.sceneSelected]}
-            onPress={() => {
-              setCustom(null);
-              setScene(entry.id);
-            }}
-          >
-            <Text style={[styles.sceneLabel, !custom && entry.id === preset.id && styles.sceneSelectedLabel]}>
-              {entry.name}
-            </Text>
-          </Pressable>
-        ))}
-        {custom ? (
-          <View style={[styles.scene, styles.sceneSelected]}>
-            <Text style={styles.sceneSelectedLabel}>Custom</Text>
+        <GestureDetector gesture={gesture}>
+          <View collapsable={false} style={{ width: viewWidth, height: viewHeight }}>
+            <PetView
+              pet={state}
+              cueKind={cue.kind}
+              cueToken={cue.token}
+              drop={cue.drop}
+              hour={hour}
+              reducedMotion={reducedMotion}
+              onWeightDelta={applyActorWeight}
+            />
+          </View>
+        </GestureDetector>
+      </View>
+      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        <NeedBars needs={state.needs} />
+        <View style={styles.scenes}>
+          {sceneList.map((entry) => (
+            <Pressable
+              key={entry.id}
+              style={[styles.scene, entry.id === preset.id && styles.sceneSelected]}
+              onPress={() => setScene(entry.id)}
+            >
+              <Text style={[styles.sceneLabel, entry.id === preset.id && styles.sceneSelectedLabel]}>
+                {entry.name}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+        <ActionButtons actions={actions} onBlocked={flash} />
+        <Text style={styles.hint}>
+          {note ||
+            'With no action running, the pet idles on its own: it wanders, sits, grooms and naps. Tap the stage to throw the ball.'}
+        </Text>
+        <Pressable onPress={() => setWardrobeOpen((open) => !open)}>
+          <Text style={styles.switchLabel}>{wardrobeOpen ? 'Hide wardrobe' : 'Wardrobe'}</Text>
+        </Pressable>
+        {wardrobeOpen
+          ? (Object.keys(wardrobe) as OutfitSlot[]).map((slot) => (
+              <View key={slot} style={styles.scenes}>
+                {wardrobe[slot].items.map((item) => (
+                  <Pressable
+                    key={item.id}
+                    style={styles.scene}
+                    onPress={() => equip(slot, item.id === 'none' ? null : item.id)}
+                  >
+                    <Text style={styles.sceneLabel}>
+                      {wardrobe[slot].label} {item.label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            ))
+          : null}
+        <Pressable style={styles.switch} onPress={() => setRemindersOn(!remindersOn)}>
+          <Text style={styles.switchLabel}>Reminders {remindersOn ? 'on' : 'off'}</Text>
+        </Pressable>
+        <Pressable style={styles.switch} onPress={toggleSound}>
+          <Text style={styles.switchLabel}>Sound {soundOn ? 'on' : 'off'}</Text>
+        </Pressable>
+        <Pressable style={styles.switch} onPress={() => setPersonalityOpen((open) => !open)}>
+          <Text style={styles.switchLabel}>
+            {personalityOpen ? `Hide ${state.name}'s personality` : `${state.name}'s personality`}
+          </Text>
+        </Pressable>
+        {personalityOpen ? (
+          <View style={styles.personality}>
+            <Text style={styles.personalityMeta}>{styleLine}</Text>
+            {traits.map((trait) => (
+              <Text key={trait} style={styles.score}>
+                {traitLabel[trait]} {formatScore(attributeScore(state, trait))} /{' '}
+                {state.attributes.potential[trait]}
+              </Text>
+            ))}
           </View>
         ) : null}
-      </View>
-      <ActionButtons actions={actions} onBlocked={flash} />
-      <Text style={styles.hint}>
-        {note || 'With no action running, the pet idles on its own: it wanders, sits, grooms and naps. Tap the stage to throw the ball.'}
-      </Text>
-      <Pressable onPress={() => setWardrobeOpen((open) => !open)}>
-        <Text style={styles.switchLabel}>{wardrobeOpen ? 'Hide wardrobe' : 'Wardrobe'}</Text>
-      </Pressable>
-      {wardrobeOpen
-        ? (Object.keys(wardrobe) as OutfitSlot[]).map((slot) => (
-            <View key={slot} style={styles.scenes}>
-              {wardrobe[slot].items.map((item) => (
-                <Pressable key={item.id} style={styles.scene} onPress={() => equip(slot, item.id === 'none' ? null : item.id)}>
-                  <Text style={styles.sceneLabel}>
-                    {wardrobe[slot].label} {item.label}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          ))
-        : null}
-      <Pressable style={styles.switch} onPress={() => setRemindersOn(!remindersOn)}>
-        <Text style={styles.switchLabel}>Reminders {remindersOn ? 'on' : 'off'}</Text>
-      </Pressable>
-      <Pressable style={styles.switch} onPress={toggleSound}>
-        <Text style={styles.switchLabel}>Sound {soundOn ? 'on' : 'off'}</Text>
-      </Pressable>
-      <SceneEditor
-        source={sceneJson}
-        onApply={applyScene}
-        onReset={() => {
-          setCustom(null);
-          setScene(preset.id);
-        }}
-      />
-      <DebugPanel
-        state={state}
-        mood={mood}
-        cue={cue}
-        onAdvance={advanceBy}
-        onAge={setAge}
-        onVitality={setVitalityValue}
-        onWeight={setWeightValue}
-        hour={hour}
-        onHour={setHour}
-        onReset={reset}
-        onNewPet={release}
-        onClearAttestation={onClearAttestation}
-      />
-    </ScrollView>
+        <DebugPanel
+          state={state}
+          mood={mood}
+          cue={cue}
+          onAdvance={advanceBy}
+          onAge={setAge}
+          onVitality={setVitalityValue}
+          onWeight={setWeightValue}
+          hour={hour}
+          onHour={setHour}
+          onReset={reset}
+          onNewPet={release}
+          onClearAttestation={onClearAttestation}
+        />
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flexGrow: 1,
+  root: {
+    flex: 1,
     backgroundColor: '#F4F7FB',
     paddingTop: 64,
+  },
+  sticky: {
     paddingHorizontal: 20,
-    paddingBottom: 32,
+    gap: 12,
+    paddingBottom: 8,
+    backgroundColor: '#F4F7FB',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#D0D8E3',
+    zIndex: 1,
+  },
+  scroll: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 40,
     gap: 16,
   },
   header: {
@@ -349,11 +329,18 @@ const styles = StyleSheet.create({
   meta: {
     fontSize: 16,
     color: '#243044',
-    marginBottom: 4,
   },
   score: {
     fontSize: 14,
     color: '#5C6B80',
+  },
+  personality: {
+    gap: 2,
+  },
+  personalityMeta: {
+    fontSize: 15,
+    color: '#243044',
+    marginBottom: 4,
   },
   scenes: {
     flexDirection: 'row',
@@ -380,23 +367,6 @@ const styles = StyleSheet.create({
   hint: {
     fontSize: 12.5,
     color: '#5C6B80',
-  },
-  status: {
-    position: 'absolute',
-    left: 8,
-    top: 8,
-    backgroundColor: 'rgba(255,255,255,0.85)',
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  statusText: {
-    fontSize: 12,
-    color: '#5C6B80',
-  },
-  statusStrong: {
-    color: '#243044',
-    fontWeight: '600',
   },
   switch: {
     alignSelf: 'flex-start',

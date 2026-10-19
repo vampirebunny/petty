@@ -321,8 +321,9 @@ export function startUserTask(world: World, actor: Actor, task: UserTask, roll =
     actor.pantT = 0;
     return true;
   }
+  // Any other request wakes a sleeper, then continues into that action.
   if (actor.asleep) {
-    return false;
+    actor.asleep = false;
   }
   if (task === 'idle') {
     goIdle(world, actor);

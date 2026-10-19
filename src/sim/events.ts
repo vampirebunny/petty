@@ -94,16 +94,15 @@ export function applyEvent(state: PetState, event: PetEvent): EventResult {
   }
 
   if (event.type === 'sit' || event.type === 'paw' || event.type === 'speak') {
-    // Showing a trick costs nothing. A sleeping pet only stirs.
+    // Showing a trick costs nothing. Any action wakes a sleeper.
     const next = copyState(state);
-    return { state: next, cue: { kind: state.asleep ? 'stir' : event.type } };
+    next.asleep = false;
+    return { state: next, cue: { kind: event.type } };
   }
 
   if (event.type === 'feed' || event.type === 'drink') {
-    if (state.asleep) {
-      return { state: copyState(state), cue: { kind: 'stir' } };
-    }
     const next = copyState(state);
+    next.asleep = false;
     if (event.type === 'feed') {
       next.needs.fullness = clampNeed(next.needs.fullness + feedFullnessGain);
       next.xp += feedXp;
@@ -122,18 +121,14 @@ export function applyEvent(state: PetState, event: PetEvent): EventResult {
   }
 
   if (event.type === 'fetch') {
-    if (state.asleep) {
-      return { state: copyState(state), cue: { kind: 'stir' } };
-    }
-    return { state: copyState(state), cue: { kind: 'fetch', drop: event.drop } };
-  }
-
-  if (state.asleep) {
-    return { state: copyState(state), cue: { kind: 'stir' } };
+    const next = copyState(state);
+    next.asleep = false;
+    return { state: next, cue: { kind: 'fetch', drop: event.drop } };
   }
 
   const rng = nextRng(state.rngState);
   const next = copyState(state);
+  next.asleep = false;
   next.rngState = rng.state;
   next.needs.happiness = clampNeed(
     next.needs.happiness + petHappinessGain * (1 - next.needs.happiness / clampMax),
