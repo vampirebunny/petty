@@ -4,6 +4,7 @@ import type { SkCanvas } from '@shopify/react-native-skia';
 import { bodyFrame, gaitFoot, isDarkCoat, solveKnee, wearItem } from '../../actor';
 import type { Actor, Breed, Geom } from '../../actor';
 import { headFaceOf, headShift, noseOf, torsoPoint } from '../../actor/geometry';
+import { frostColorOf } from '../../actor/color';
 import { baseColorOf, markingOf, resolveMarkings } from '../../actor/markings';
 import { earProfiles } from '../../actor/data/breedShapes';
 import { cuddleDefaults } from '../../actor/data/cuddle';
@@ -34,6 +35,7 @@ import {
   strokeLine,
 } from './draw';
 import type { WearItem } from '../../actor/wardrobe';
+import { frostOval } from './frost';
 import { drawBallShape } from './scenery';
 
 type Pt = { x: number; y: number };
@@ -51,6 +53,7 @@ function drawLeg(
   boot: WearItem | null,
   far: boolean,
   sock: string | null,
+  frost = 0,
 ): Paw {
   const bone = geom.L / 2;
   const knee = solveKnee(hip, target, bone, side);
@@ -69,6 +72,14 @@ function drawLeg(
     const sockColor = far ? mix(sock, '#000000', 0.32) : sock;
     strokeLine(c, knee.x + (paw.x - knee.x) * 0.45, knee.y + (paw.y - knee.y) * 0.45, paw.x, paw.y, sockColor, geom.legWidth);
     fillOval(c, paw.x + 3, paw.y - 3, geom.pawRx, geom.pawRy, sockColor);
+  }
+  if (frost > 0.01) {
+    // Senior frosting on the paw and the lower leg, over the sock color when there is one.
+    const frostColor = frostColorOf(sock ? (far ? mix(sock, '#000000', 0.32) : sock) : color);
+    frostOval(c, paw.x + 3, paw.y - 3, geom.pawRx * 1.05, geom.pawRy * 1.1, frostColor, frost);
+    for (const f of [0.5, 0.75]) {
+      frostOval(c, knee.x + (paw.x - knee.x) * f, knee.y + (paw.y - knee.y) * f, geom.legWidth * 0.8, geom.legWidth * 0.8, frostColor, frost * 0.85);
+    }
   }
   if (boot) {
     drawBoot(c, knee, paw, geom, boot, far);
@@ -209,8 +220,8 @@ export function drawActor(
     c.scale(1, bellyScale);
     c.translate(0, -bodyCenterY);
   }
-  const hindFarPaw = drawLeg(c, hindFar, footAt(hindFar, false, 0, false), geom, -1, farColor, boot, true, sockColor);
-  const foreFarPaw = drawLeg(c, foreFar, footAt(foreFar, true, Math.PI, false), geom, foreSide, farColor, boot, true, sockColor);
+  const hindFarPaw = drawLeg(c, hindFar, footAt(hindFar, false, 0, false), geom, -1, farColor, boot, true, sockColor, geom.gray.chest);
+  const foreFarPaw = drawLeg(c, foreFar, footAt(foreFar, true, Math.PI, false), geom, foreSide, farColor, boot, true, sockColor, geom.gray.chest);
 
   // torso: tail, body, markings, ribs, coat
   c.save();
@@ -242,6 +253,18 @@ export function drawActor(
     c.restore();
   }
   drawBodyMarkings(c, geom, markings, breath, bodyDeco);
+  if (geom.gray.chest > 0.01) {
+    // Senior frosting on the chest, over a locked white bib or the coat.
+    frostOval(
+      c,
+      geom.bodyLen * 0.37,
+      geom.bodyY + geom.bodyH * 0.2,
+      geom.bodyLen * 0.13,
+      geom.bodyH * 0.36,
+      frostColorOf(markingOf(markings, 'chest')?.color ?? baseColor),
+      geom.gray.chest,
+    );
+  }
   if (actor.displayWeight < -0.35) {
     const ribs = Skia.Path.Make();
     for (let r = 0; r < 4; r += 1) {
@@ -256,8 +279,8 @@ export function drawActor(
   }
   c.restore();
 
-  const hindNearPaw = drawLeg(c, hindNear, footAt(hindNear, false, Math.PI, false, true), geom, -1, legColor, boot, false, sockColor);
-  const foreNearPaw = drawLeg(c, foreNear, footAt(foreNear, true, 0, true), geom, foreSide, legColor, boot, false, sockColor);
+  const hindNearPaw = drawLeg(c, hindNear, footAt(hindNear, false, Math.PI, false, true), geom, -1, legColor, boot, false, sockColor, geom.gray.chest);
+  const foreNearPaw = drawLeg(c, foreNear, footAt(foreNear, true, 0, true), geom, foreSide, legColor, boot, false, sockColor, geom.gray.chest);
   actor.anchors.paws = [hindFarPaw, foreFarPaw, hindNearPaw, foreNearPaw].map(({ x, y, shin }) => ({ x, y, shin }));
   c.restore();
 
@@ -382,6 +405,12 @@ export function drawActor(
   } else {
     fillOval(c, mx, my, mrx, mry, muzzleColor);
   }
+  if (geom.gray.muzzle > 0.01) {
+    // Senior frosting on the muzzle and chin, over the muzzle's own color (a pug's mask or Siamese points too).
+    const frostColor = frostColorOf(muzzleColor);
+    frostOval(c, mx, my, mrx * 0.95, mry * 0.95, frostColor, geom.gray.muzzle);
+    frostOval(c, mx, my + mry * 0.8, mrx * 0.7, mry * 0.4, frostColor, geom.gray.muzzle * 0.9);
+  }
   if (cat) {
     fillOval(c, noseX, noseY, R * 0.11 * noseK, R * 0.08 * noseK, darkPoints ? '#8a6a5c' : '#e59aa6');
     if (jaw < 0.04 && turn < 0.99) {
@@ -441,6 +470,17 @@ export function drawActor(
     fillOval(c, ex, ey + eyeR * 1.15, eyeR * 0.9, eyeR * 0.45, '#6b5344', 0.45 * geom.bags);
     if (face.farEyeAlpha > 0.001) {
       fillOval(c, face.farEye.x, ey + eyeR * 1.1, eyeR * 0.68, eyeR * 0.4, '#6b5344', 0.45 * geom.bags * face.farEyeAlpha);
+    }
+  }
+  if (geom.gray.brows > 0.01) {
+    // Senior frosting over the brows and the outer corner of each eye. The far eye follows its fade-in.
+    const browColor = frostColorOf(markingOf(markings, 'blackMask')?.color ?? baseColor);
+    frostOval(c, ex + eyeR * 0.1, ey - eyeR * 1.9, eyeR * 1.5, eyeR * 0.65, browColor, geom.gray.brows);
+    frostOval(c, ex - eyeR * 1.1, ey + eyeR * 0.3, eyeR * 0.65, eyeR * 0.65, browColor, geom.gray.brows * 0.8);
+    if (face.farEyeAlpha > 0.001) {
+      const far = geom.gray.brows * face.farEyeAlpha;
+      frostOval(c, face.farEye.x + eyeR * 0.1, ey - eyeR * 1.8, eyeR * 1.2, eyeR * 0.55, browColor, far);
+      frostOval(c, face.farEye.x + eyeR * 0.9, ey + eyeR * 0.3, eyeR * 0.5, eyeR * 0.55, browColor, far * 0.8);
     }
   }
   drawHeadMarkingsAbove(c, headCtx);

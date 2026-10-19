@@ -20,6 +20,14 @@ export function mixHexColor(from: string, toward: string, amount: number): strin
   return toHex([a[0] + (b[0] - a[0]) * amount, a[1] + (b[1] - a[1]) * amount, a[2] + (b[2] - a[2]) * amount]);
 }
 
+// The pale, desaturated gray a coat frosts toward: the color drained of most of its hue, then pushed to #d9d9d9.
+// A very light coat barely changes, a dark or locked one shows a clear gray.
+export function frostColorOf(hex: string): string {
+  const level = Math.round(luminance(hex) * 255);
+  const gray = toHex([level, level, level]);
+  return mixHexColor(mixHexColor(hex, gray, 0.6), '#d9d9d9', 0.7);
+}
+
 // Relative luminance from 0 (black) to 1 (white).
 export function luminance(hex: string): number {
   const [r, g, b] = channels(hex);

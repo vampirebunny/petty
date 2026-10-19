@@ -1,5 +1,7 @@
 import { limbSize } from './breeds';
 import { earProfiles } from './data/breedShapes';
+import { grayAmountsOf } from './data/graying';
+import type { GrayAmounts } from './data/graying';
 import { growthFor, smoothstep, visualProgress } from './growth';
 import { stageHeight, stageWidth } from './scenes';
 import type { Breed, Vec } from './types';
@@ -34,6 +36,8 @@ export type Geom = {
   eye: number;
   cf: number;
   bags: number;
+  // Senior graying by region, from age only.
+  gray: GrayAmounts;
   thick: number;
 };
 
@@ -106,6 +110,7 @@ export function geomOf(breed: Breed, ageDays: number, weight: number, vitality =
     eye: growth.eye,
     cf,
     bags: bagAmount(ageDays, vitality),
+    gray: grayAmountsOf(breed.species, ageDays),
     thick,
   };
 }
