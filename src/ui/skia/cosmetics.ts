@@ -2,6 +2,7 @@ import { Skia, StrokeCap } from '@shopify/react-native-skia';
 import type { SkCanvas } from '@shopify/react-native-skia';
 
 import type { Geom } from '../../actor';
+import type { HeadFace } from '../../actor/geometry';
 import type { WearItem } from '../../actor/wardrobe';
 import { clipOval, fillCircle, fillOval, fillRect, mix, oval, paintOf, polygon, strokeLine } from './draw';
 
@@ -112,23 +113,68 @@ export function drawBandana(c: SkCanvas, at: Pt, perp: Pt, along: Pt, neckWidth:
   }
 }
 
-export function drawGlasses(c: SkCanvas, item: WearItem, ex: number, ey: number, eyeR: number, headR: number): void {
+// One lens centered on an eye. `k` scales the lens, `sx` and `sy` foreshorten it, `alpha` fades it.
+function drawLens(c: SkCanvas, item: WearItem, ex: number, ey: number, eyeR: number, k: number, sx: number, sy: number, alpha: number): void {
   const color = item.c ?? '#1b1b22';
-  const round = item.id === 'round';
-  const frame = round ? color : '#15151b';
-  strokeLine(c, ex - eyeR * 1.7, ey - eyeR * 0.1, -headR * 0.62, ey - headR * 0.06, frame, 2.2);
-  strokeLine(c, ex + eyeR * 1.8, ey + eyeR * 0.05, ex + eyeR * 2.9, ey + eyeR * 0.35, frame, 2.2);
-  if (!round) {
-    fillOval(c, ex + eyeR * 0.1, ey, eyeR * 2.0, eyeR * 1.6, color);
-    strokeLine(c, ex - eyeR * 0.9, ey - eyeR * 0.7, ex - eyeR * 0.1, ey - eyeR * 1.2, '#ffffff', 1.6, 0.45);
+  const cx = ex + eyeR * 0.1 * k * sx;
+  if (item.id !== 'round') {
+    fillOval(c, cx, ey, eyeR * 2.0 * k * sx, eyeR * 1.6 * k * sy, color, alpha);
+    strokeLine(
+      c,
+      ex - eyeR * 0.9 * k * sx,
+      ey - eyeR * 0.7 * k * sy,
+      ex - eyeR * 0.1 * k * sx,
+      ey - eyeR * 1.2 * k * sy,
+      '#ffffff',
+      1.6,
+      0.45 * alpha,
+    );
   } else {
-    fillCircle(c, ex + eyeR * 0.1, ey, eyeR * 1.8, '#82beff', 0.3);
-    c.drawCircle(ex + eyeR * 0.1, ey, eyeR * 1.8, paintOf(color, 1, 2.4));
+    c.save();
+    c.translate(cx, ey);
+    c.scale(sx, sy);
+    fillCircle(c, 0, 0, eyeR * 1.8 * k, '#82beff', 0.3 * alpha);
+    c.drawCircle(0, 0, eyeR * 1.8 * k, paintOf(color, alpha, 2.4));
+    c.restore();
   }
 }
 
-// Drawn in head space, so it follows pitch, sitting, barking and growth.
-export function drawHat(c: SkCanvas, item: WearItem, r: number): void {
+// Glasses follow the head turn: one lens in side view, two lenses and a bridge at the 3/4 turn.
+// The far lens fades in with the far eye, and lenses shrink to fit the gap between the eyes.
+export function drawGlasses(c: SkCanvas, item: WearItem, face: HeadFace, headR: number): void {
+  const color = item.c ?? '#1b1b22';
+  const frame = item.id === 'round' ? color : '#15151b';
+  const { eyeR, nearEye, farEye, turn } = face;
+  const ex = nearEye.x;
+  const ey = nearEye.y;
+  const fit = Math.min(1.8, Math.max(1.15, (face.gap3 - eyeR * 0.3) / 1.8)) / 1.8;
+  const k = 1 + (fit - 1) * turn;
+  strokeLine(c, ex - eyeR * 1.7 * k, ey - eyeR * 0.1, -headR * 0.62, ey - headR * 0.06, frame, 2.2);
+  if (turn < 0.999) {
+    strokeLine(c, ex + eyeR * 1.8 * k, ey + eyeR * 0.05, ex + eyeR * 2.9, ey + eyeR * 0.35, frame, 2.2, 1 - turn);
+  }
+  drawLens(c, item, ex, ey, eyeR, k, 1, 1, 1);
+  if (face.farEyeAlpha > 0.001) {
+    const a = face.farEyeAlpha;
+    const { x: sx, y: sy } = face.farEyeScale;
+    drawLens(c, item, farEye.x, ey, eyeR, k, sx, sy, a);
+    const nearEdge = ex + eyeR * (0.1 + 1.8) * k;
+    const farEdge = farEye.x + eyeR * (0.1 - 1.8) * k * sx;
+    strokeLine(c, nearEdge - 1, ey - eyeR * 0.1, farEdge + 1, ey - eyeR * 0.1, frame, 2.2, a);
+  }
+}
+
+// Drawn in head space, so it follows pitch, sitting, barking and growth. At the 3/4 turn it shifts toward
+// the front and widens a little so the far ear never pokes through.
+export function drawHat(c: SkCanvas, item: WearItem, r: number, face: HeadFace): void {
+  c.save();
+  c.translate(face.top.x, 0);
+  c.scale(1 + 0.12 * face.turn, 1);
+  drawHatShape(c, item, r);
+  c.restore();
+}
+
+function drawHatShape(c: SkCanvas, item: WearItem, r: number): void {
   const color = item.c ?? '#d64545';
   if (item.id === 'beanie') {
     const cap = Skia.Path.Make();

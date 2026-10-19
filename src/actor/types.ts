@@ -30,6 +30,18 @@ export type TaskType =
   | 'groom'
   | 'pounce';
 
+// How the 3/4 head differs per breed, in head radii. Values are the t=1 pose.
+export type Face3q = {
+  // Far eye center, measured from the near eye toward the front edge of the head.
+  farEyeDx: number;
+  // Snout center sits snoutShift right of the midpoint between the eyes, and snoutDrop lower than the side view.
+  snoutShift: number;
+  snoutDrop: number;
+  // Far ear position offset from the near ear at t=1.
+  farEarDx: number;
+  farEarDy: number;
+};
+
 export type Breed = {
   id: string;
   name: string;
@@ -48,6 +60,7 @@ export type Breed = {
   pitch: number;
   size: number;
   cuteness: number;
+  face3q: Face3q;
   eyeColor?: string;
   pattern?: Pattern;
   accent?: string;
@@ -139,7 +152,17 @@ export type Actor = {
 };
 
 export type Anchors = {
-  head: { x: number; y: number; pitch: number; radius: number };
+  // nearEye, farEye and top are in head space (relative to head x and y, before pitch).
+  head: {
+    x: number;
+    y: number;
+    pitch: number;
+    radius: number;
+    nearEye: Vec;
+    farEye: Vec;
+    farEyeAlpha: number;
+    top: Vec;
+  };
   neck: { x: number; y: number };
   torso: { theta: number; dy: number; pivot: { x: number; y: number } };
   paws: { x: number; y: number; shin: number }[];

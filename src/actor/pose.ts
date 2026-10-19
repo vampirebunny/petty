@@ -8,7 +8,7 @@ export const poseRate: Record<keyof Pose, number> = {
   pant: 4,
   headDown: 6,
   headRest: 3,
-  headTurn: 7,
+  headTurn: 10,
   eyes: 10,
   wagAmp: 4,
   breathAmp: 4,

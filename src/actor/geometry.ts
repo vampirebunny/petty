@@ -93,6 +93,73 @@ export function geomOf(breed: Breed, ageDays: number, weight: number, vitality =
   };
 }
 
+export type HeadFace = {
+  turn: number;
+  // Distance between the eyes at t = 1.
+  gap3: number;
+  eyeR: number;
+  nearEye: Vec;
+  farEye: Vec;
+  // 0..1 fade of the far eye, reaching 1 at t = 0.3.
+  farEyeAlpha: number;
+  farEyeScale: Vec;
+  top: Vec;
+  // Snout center at t, interpolated from the side-view center (sideX, sideY).
+  snoutX: number;
+  snoutY: number;
+  snoutXScale: number;
+  farEarShift: Vec;
+  // Slides a floppy near ear back so it never covers the near eye in 3/4.
+  nearEarShift: Vec;
+  farEarAlpha: number;
+};
+
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * t;
+}
+
+// Head layout in head space for a head turn t (0 = side view, 1 = 3/4). One source of truth for the
+// renderer, glasses, hats and the published anchors.
+export function headFaceOf(breed: Breed, geom: Geom, turn: number): HeadFace {
+  const t = clamp(turn, 0, 1);
+  const R = geom.headR;
+  const cf = geom.cf;
+  const f = breed.face3q;
+  const eyeR = R * (0.13 + 0.07 * (1 - geom.eye) + 0.12 * cf);
+  const sideX = R * (0.3 + 0.05 * cf);
+  const eyeY = -R * (0.12 - 0.09 * cf);
+  // The far eye keeps a minimum gap so large puppy and kitten eyes never overlap, and stays inside the head.
+  const farDx = Math.max(f.farEyeDx * R, eyeR * 2.4);
+  const far3 = Math.min(sideX - R * 0.1 + farDx, R * 0.76);
+  const near3 = Math.min(sideX - R * 0.1, far3 - farDx);
+  const farFade = Math.min(1, t / 0.3);
+  const mid3 = (near3 + far3) / 2;
+  // A floppy near ear hangs from (-0.15R, -0.35R) tilted back. Its right edge must clear the near eye's
+  // left edge once the eye has moved to its 3/4 position, so the ear slides back by the overlap.
+  const earRight = -R * 0.15 - R * 0.136 * breed.earSize + R * 0.42 * breed.earSize;
+  const eyeLeft3 = near3 - eyeR * 1.12;
+  // Pointy and cat ears slide back too, so the pair spreads apart instead of bunching at the top front.
+  const nearEarBack = breed.ear === 'floppy' ? clamp(earRight - eyeLeft3 + R * 0.05, 0, R * 0.4) : R * 0.28;
+  const sideSnoutX = R * 0.55 + geom.snout * 0.45;
+  const sideSnoutY = R * 0.3;
+  return {
+    eyeR,
+    nearEye: { x: lerp(sideX, near3, t), y: eyeY },
+    farEye: { x: lerp(sideX, far3, t), y: eyeY },
+    turn: t,
+    gap3: far3 - near3,
+    farEyeAlpha: farFade * farFade * (3 - 2 * farFade),
+    farEyeScale: { x: 0.75, y: 0.9 },
+    top: { x: lerp(0, R * 0.08, t), y: -R },
+    snoutX: lerp(sideSnoutX, mid3 + f.snoutShift * R, t),
+    snoutY: lerp(sideSnoutY, sideSnoutY + f.snoutDrop * R, t),
+    snoutXScale: lerp(1, 0.55, t),
+    farEarShift: { x: f.farEarDx * R * t, y: f.farEarDy * R * t },
+    nearEarShift: { x: -nearEarBack * t, y: 0 },
+    farEarAlpha: Math.min(1, t / 0.5),
+  };
+}
+
 export function depthScale(y: number, yMin: number, yMax: number): number {
   const span = yMax - yMin;
   return 0.82 + 0.18 * clamp(span === 0 ? 0 : (y - yMin) / span, 0, 1);

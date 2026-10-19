@@ -3,7 +3,7 @@ import type { SkCanvas } from '@shopify/react-native-skia';
 
 import { bodyFrame, gaitFoot, isDarkCoat, solveKnee, wearItem } from '../../actor';
 import type { Actor, Breed, Geom } from '../../actor';
-import { torsoPoint } from '../../actor/geometry';
+import { headFaceOf, torsoPoint } from '../../actor/geometry';
 import { drawBandana, drawBoot, drawCoat, drawCollar, drawGlasses, drawHat } from './cosmetics';
 import {
   clamp,
@@ -253,14 +253,20 @@ export function drawActor(
   const tongue = pose.pant * (0.8 + 0.2 * Math.sin(actor.panPh + 1));
   const cf = geom.cf;
   const earSize = breed.earSize;
-  const eyeR = R * (0.13 + 0.07 * (1 - geom.eye) + 0.12 * cf);
-  const ex = R * (0.3 + 0.05 * cf);
-  const ey = -R * (0.12 - 0.09 * cf);
+  // 3/4 head turn: all eye, snout and far-ear positions come from one layout shared with the anchors.
+  const turn = clamp(pose.headTurn, 0, 1);
+  const face = headFaceOf(breed, geom, turn);
+  const eyeR = face.eyeR;
+  const ex = face.nearEye.x;
+  const ey = face.nearEye.y;
   c.save();
   // At the bowl the head dips and lifts with each bite or lap.
   c.translate(head.x, head.y + pose.headDown * Math.sin(actor.chewPh) * 1.8);
   c.rotate(deg(pitch), 0, 0);
   const earFar = mix(breed.earColor, '#000000', 0.2);
+  // The far ear sits behind the head and slides to the far side as the head turns.
+  c.save();
+  c.translate(face.farEarShift.x, face.farEarShift.y);
   if (breed.ear === 'pointy') {
     const ear = Skia.Path.Make();
     ear.moveTo(-R * 0.9, -R * 0.5);
@@ -275,7 +281,12 @@ export function drawActor(
     ear.lineTo(-R * 0.02, -R * 0.78);
     ear.close();
     c.drawPath(ear, paintOf(earFar));
+  } else if (face.farEarAlpha > 0.001) {
+    c.translate(-R * 0.15, -R * 0.35);
+    c.rotate(deg(-0.25), 0, 0);
+    fillOval(c, 0, R * 0.55 * earSize, R * 0.4 * earSize, R * 0.85 * earSize, earFar, face.farEarAlpha);
   }
+  c.restore();
   if (cat) {
     fillOval(c, 0, 0, R * 1.06, R * 0.96, breed.coat);
   } else {
@@ -291,10 +302,13 @@ export function drawActor(
     marks.lineTo(-R * 0.4, -R * 0.52);
     c.drawPath(marks, paintOf(mix(breed.coat, '#000000', 0.5), 0.6, 2.6));
   }
-  const mrx = cat ? geom.snout * 0.6 + R * 0.34 : geom.snout * 0.7 + R * 0.3;
+  const mrx = (cat ? geom.snout * 0.6 + R * 0.34 : geom.snout * 0.7 + R * 0.3) * face.snoutXScale;
   const mry = cat ? R * 0.38 : R * 0.45;
-  const mx = R * 0.55 + geom.snout * 0.45;
-  const my = R * 0.3;
+  const mx = face.snoutX;
+  const my = face.snoutY;
+  // Nose: front of the snout in side view, top-front of it in 3/4.
+  const noseX = mx + mrx * (cat ? 0.85 : 0.9) * (1 - turn) + mrx * 0.1 * turn;
+  const noseY = my - (cat ? R * 0.1 : R * 0.12) * (1 - turn) - mry * 0.4 * turn;
   const jawY = my + mry * 0.55 + jaw * R * 0.38;
   fillOval(c, mx - mrx * 0.05, jawY, mrx * 0.92, mry * 0.5, mix(breed.muzzle, '#000000', 0.14));
   if (jaw > 0.04) {
@@ -305,14 +319,14 @@ export function drawActor(
   }
   fillOval(c, mx, my, mrx, mry, breed.muzzle);
   if (cat) {
-    fillOval(c, mx + mrx * 0.85, my - R * 0.1, R * 0.11, R * 0.08, points ? '#8a6a5c' : '#e59aa6');
-    if (jaw < 0.04) {
+    fillOval(c, noseX, noseY, R * 0.11, R * 0.08, points ? '#8a6a5c' : '#e59aa6');
+    if (jaw < 0.04 && turn < 0.99) {
       const mouth = Skia.Path.Make();
       mouth.moveTo(mx + mrx * 0.82, my - R * 0.02);
       mouth.lineTo(mx + mrx * 0.82, my + R * 0.1);
       mouth.moveTo(mx + mrx * 0.82, my + R * 0.1);
       mouth.quadTo(mx + mrx * 0.5, my + R * 0.2, mx + mrx * 0.15, my + R * 0.1);
-      c.drawPath(mouth, paintOf('#281919', 0.55, 1.1));
+      c.drawPath(mouth, paintOf('#281919', 0.55 * (1 - turn), 1.1));
     }
     const whiskers = Skia.Path.Make();
     for (let wk = -1; wk <= 1; wk += 1) {
@@ -322,14 +336,54 @@ export function drawActor(
     const pale = points || isDarkCoat(breed.coat);
     c.drawPath(whiskers, paintOf(pale ? '#ebebf0' : '#ffffff', pale ? 0.75 : 0.85, 1.1));
   } else {
-    fillOval(c, mx + mrx * 0.9, my - R * 0.12, R * 0.17, R * 0.13, '#1b1512');
+    fillOval(c, noseX, noseY, R * (0.17 + 0.03 * turn), R * (0.13 + 0.01 * turn), '#1b1512');
+  }
+  // Small centered "w" mouth under the nose at the 3/4 turn (dogs show it when the jaw is shut).
+  if (turn > 0.01 && jaw < 0.04) {
+    const wy = noseY + mry * 0.45;
+    const s = R * 0.13;
+    const mouthW = Skia.Path.Make();
+    mouthW.moveTo(noseX, noseY + R * 0.05);
+    mouthW.lineTo(noseX, wy);
+    mouthW.moveTo(noseX - s, wy - R * 0.02);
+    mouthW.quadTo(noseX - s / 2, wy + R * 0.09, noseX, wy);
+    mouthW.quadTo(noseX + s / 2, wy + R * 0.09, noseX + s, wy - R * 0.02);
+    c.drawPath(mouthW, paintOf('#281919', 0.6 * turn, 1.1));
   }
   fillOval(c, ex + R * 0.02, ey + R * 0.4, R * 0.2, R * 0.12, '#ff738c', 0.3 * Math.min(cf, 1));
+  if (face.farEyeAlpha > 0.001) {
+    // Far cheek blush and far eye. Clipped to the head and faded in over t = 0..0.3 so it never pops.
+    const fa = face.farEyeAlpha;
+    c.save();
+    clipOval(c, 0, 0, R, cat ? R * 0.96 : R);
+    fillOval(c, face.farEye.x + R * 0.02, ey + R * 0.4, R * 0.14, R * 0.09, '#ff738c', 0.3 * Math.min(cf, 1) * fa);
+    if (fa < 0.999) {
+      const layer = Skia.Paint();
+      layer.setAlphaf(fa);
+      c.saveLayer(layer);
+    }
+    c.save();
+    c.translate(face.farEye.x, face.farEye.y);
+    c.scale(face.farEyeScale.x, face.farEyeScale.y);
+    drawEye(c, 0, 0, eyeR, eyeClosed, breed, cf);
+    c.restore();
+    if (fa < 0.999) {
+      c.restore();
+    }
+    c.restore();
+  }
   drawEye(c, ex, ey, eyeR, eyeClosed, breed, cf);
   if (geom.bags > 0.04) {
     fillOval(c, ex, ey + eyeR * 1.15, eyeR * 0.9, eyeR * 0.45, '#6b5344', 0.45 * geom.bags);
+    if (face.farEyeAlpha > 0.001) {
+      fillOval(c, face.farEye.x, ey + eyeR * 1.1, eyeR * 0.68, eyeR * 0.4, '#6b5344', 0.45 * geom.bags * face.farEyeAlpha);
+    }
   }
-  // near ear
+  // near ear (slides back in 3/4 so the ears spread apart)
+  if (breed.ear !== 'floppy') {
+    c.save();
+    c.translate(face.nearEarShift.x, face.nearEarShift.y);
+  }
   if (breed.ear === 'pointy') {
     const ear = Skia.Path.Make();
     ear.moveTo(-R * 0.55, -R * 0.75);
@@ -352,16 +406,19 @@ export function drawActor(
     c.drawPath(inner, paintOf(points ? '#a07d70' : '#e8a3ad'));
   } else {
     c.save();
-    c.translate(-R * 0.15, -R * 0.35);
+    c.translate(-R * 0.15 + face.nearEarShift.x, -R * 0.35 + face.nearEarShift.y);
     c.rotate(deg(0.25 + Math.sin(actor.phase * 2) * 0.08 * pose.walk - barkOpen * 0.15), 0, 0);
     fillOval(c, 0, R * 0.55 * earSize, R * 0.4 * earSize, R * 0.85 * earSize, breed.earColor);
     c.restore();
   }
+  if (breed.ear !== 'floppy') {
+    c.restore();
+  }
   if (glasses) {
-    drawGlasses(c, glasses, ex, ey, eyeR, R);
+    drawGlasses(c, glasses, face, R);
   }
   if (hat) {
-    drawHat(c, hat, R);
+    drawHat(c, hat, R, face);
   }
   c.restore();
 

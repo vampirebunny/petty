@@ -52,11 +52,11 @@ The actor logic is plain TypeScript, with no Skia import:
 - `breeds`: config. `species` is a field. Anatomy, pitch, and the extra behavior ids live here.
 - `growth`: one curve per visual feature, keyed by `ageDays`.
 - `geometry`: proportions from breed anatomy and those curves.
-- `pose`: targets and easing, including `spineArch` and `crouch`.
+- `pose`: targets and easing, including `headTurn`, `spineArch`, and `crouch`.
 - `legs`: the IK solver and the gait.
 - `behavior`: the shared task machine, plus the species list.
-- `sim`: `update(dt)` steps props, then every actor, with dt capped at 50ms.
-- The Skia renderer is outside this folder. It only draws.
+- `sim`: `update(dt)` steps props, then every actor, with dt capped at 50ms. Sets `headTurn` to 1 only in stationary idle `still` / `pant` / `purr`, plain `sit`, and `winddown`; otherwise 0. Caps the value while moving.
+- The Skia renderer is outside this folder. It only draws. The 3/4 head (two eyes, far ear, snout, mouth) and glasses/hats that follow `headTurn` live in `src/ui/skia`.
 
 Extend the pet with the Phase 1 fields from the PRD: `id`, `seed`, `variant`, `name`, `breedId`, `ageDays`, `maturity`, `vitality`, `careWindow`, `weight`, `feedWindow`, `bornAt`, `maturityAppliedAt`, `potential`, `trained`, `temperament`, `drift`, `seniorBand`, `level`, `xp`, and `bond` left at 0. Keep the existing needs, `asleep`, `lastUpdatedAt`, and `rngState`. There is no `roll` field. `ageDays` starts at 0. `weight` starts at 50. The feed window starts as if the pet had been fed at the normal rate, so weight holds at 50 until the player's feeding differs.
 

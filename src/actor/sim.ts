@@ -2,7 +2,7 @@ import { weightBurnPerSec, weightRunSpeed } from '../sim/config';
 import type { Item } from '../items/types';
 import { stepItems } from '../items/physics';
 import { inactivePointer } from '../input/pointer';
-import { bodyFrame, reachOf, speedMax, stageWidth } from './geometry';
+import { bodyFrame, headFaceOf, reachOf, speedMax, stageWidth } from './geometry';
 import { breedById, voiceRate } from './breeds';
 import { growthFor } from './growth';
 import { canBehave, reactionFor, type UserTask } from './behavior';
@@ -69,7 +69,16 @@ function canAutonomousDrink(world: World): boolean {
 
 function emptyAnchors(face: 1 | -1 = 1): Anchors {
   return {
-    head: { x: 0, y: 0, pitch: 0, radius: 0 },
+    head: {
+      x: 0,
+      y: 0,
+      pitch: 0,
+      radius: 0,
+      nearEye: { x: 0, y: 0 },
+      farEye: { x: 0, y: 0 },
+      farEyeAlpha: 0,
+      top: { x: 0, y: 0 },
+    },
     neck: { x: 0, y: 0 },
     torso: { theta: 0, dy: 0, pivot: { x: 0, y: 0 } },
     paws: [],
@@ -526,8 +535,18 @@ function updateActor(world: World, actor: Actor, dt: number): void {
     actor.speed,
   );
   actor.mouth = frame.mouth;
+  const face = headFaceOf(breed, frame.geom, actor.pose.headTurn);
   actor.anchors = {
-    head: { x: frame.head.x, y: frame.head.y, pitch: frame.pitch, radius: frame.geom.headR },
+    head: {
+      x: frame.head.x,
+      y: frame.head.y,
+      pitch: frame.pitch,
+      radius: frame.geom.headR,
+      nearEye: face.nearEye,
+      farEye: face.farEye,
+      farEyeAlpha: face.farEyeAlpha,
+      top: face.top,
+    },
     neck: { x: frame.geom.bodyLen / 2 - 14, y: frame.geom.bodyY - 2 },
     torso: { theta: frame.theta, dy: frame.dy, pivot: { x: frame.geom.Px, y: frame.geom.Py } },
     paws: actor.anchors.paws,
@@ -538,6 +557,8 @@ function updateActor(world: World, actor: Actor, dt: number): void {
   let move: Vec | null = null;
   let vmax = 0;
   let wagRate = 5;
+  // Set by the idle and sitting states that may show the 3/4 head. The gate below can still veto it.
+  let faceCamera = false;
   const limit = speedMax(breed, actor.displayAgeDays, actor.displayWeight);
   const cat = breed.species === 'cat';
 
@@ -593,6 +614,9 @@ function updateActor(world: World, actor: Actor, dt: number): void {
           targets.breathRate = 0.35;
         }
       }
+      if (actor.idle.mode === 'still' || actor.idle.mode === 'pant' || actor.idle.mode === 'purr') {
+        faceCamera = true;
+      }
       if (actor.idle.arrived && actor.idle.t > actor.idle.dur) {
         nextIdle(world, actor);
       }
@@ -601,10 +625,11 @@ function updateActor(world: World, actor: Actor, dt: number): void {
     targets.sit = 1;
     targets.wagAmp = 0.3;
     if (actor.task.stage === 'refuse') {
-      targets.headTurn = 1;
       if (actor.task.t > 1.4) {
         goIdle(world, actor);
       }
+    } else {
+      faceCamera = true;
     }
   } else if (actor.task.type === 'paw') {
     targets.sit = 1;
@@ -638,6 +663,7 @@ function updateActor(world: World, actor: Actor, dt: number): void {
       targets.breathRate = 0.35;
     }
   } else if (actor.task.type === 'winddown') {
+    faceCamera = true;
     targets.sit = 1;
     targets.wagAmp = 0.3;
     if (cat) {
@@ -782,6 +808,12 @@ function updateActor(world: World, actor: Actor, dt: number): void {
   targets.walk = actor.speed > 14 ? 1 : 0;
   if (actor.bark.open > 0.05 && targets.eyes > 0) {
     targets.eyes = 0;
+  }
+  // The 3/4 head is a pose target set by the state machine, vetoed whenever the pet moves or acts.
+  const stationary = move == null && actor.speed <= 14 && actor.z <= 0 && !actor.bark.active && actor.pose.lie < 0.05;
+  targets.headTurn = faceCamera && stationary ? 1 : 0;
+  if (actor.speed > 14 && actor.pose.headTurn > 0.15) {
+    actor.pose.headTurn = 0.15;
   }
   actor.pose = easePose(actor.pose, targets, dt);
   const stride = frame.geom.L * (0.35 + 0.4 * clamp(actor.speed / 190, 0, 1.1));

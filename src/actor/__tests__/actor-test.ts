@@ -1,6 +1,6 @@
 import { canBehave, isUserTask, reactionFor } from '../behavior';
 import { breedsFor, dogBreeds } from '../breeds';
-import { bagAmount, thickOf } from '../geometry';
+import { bagAmount, geomOf, headFaceOf, thickOf } from '../geometry';
 import { growthFor } from '../growth';
 import { gaitFoot, jumpArc, solveKnee } from '../legs';
 import { defaultPose, easePose } from '../pose';
@@ -231,4 +231,56 @@ it('burns weight while running and maps a tap into the stage', () => {
   expect(world.items[0]?.z).toBe(130);
   expect(world.items[0]?.x).toBeLessThanOrEqual(world.scene.floor.xMax + 12);
   expect(world.items[0]?.y).toBeGreaterThanOrEqual(world.scene.floor.yMin);
+});
+
+describe('3/4 head turn', () => {
+  it('turns toward the camera only while stationary in idle or sitting', () => {
+    const pup = actor();
+    const world = createWorld([pup], 3);
+    pup.task = { type: 'idle', stage: '', t: 0, bats: 0, cool: 0 };
+    pup.idle = { mode: 'still', t: 0, dur: 99, target: null, sit: false, arrived: true };
+    for (let step = 0; step < 20; step += 1) {
+      update(world, 0.05);
+    }
+    expect(pup.pose.headTurn).toBeGreaterThan(0.9);
+
+    startUserTask(world, pup, 'sleep');
+    for (let step = 0; step < 4; step += 1) {
+      update(world, 0.05);
+      expect(pup.pose.walk > 0.5 ? pup.pose.headTurn : 0).toBeLessThan(0.16);
+    }
+  });
+
+  it('never shows a turned head while the pet is moving', () => {
+    const pup = actor();
+    const world = createWorld([pup], 7);
+    pup.task = { type: 'idle', stage: '', t: 0, bats: 0, cool: 0 };
+    pup.idle = { mode: 'still', t: 0, dur: 99, target: null, sit: false, arrived: true };
+    for (let step = 0; step < 20; step += 1) {
+      update(world, 0.05);
+    }
+    pup.idle = { mode: 'walk', t: 0, dur: 99, target: { x: pup.x + 120, y: pup.y }, sit: false, arrived: false };
+    for (let step = 0; step < 60; step += 1) {
+      update(world, 0.05);
+      if (pup.speed > 14) {
+        expect(pup.pose.headTurn).toBeLessThanOrEqual(0.15 + 1e-9);
+      }
+    }
+  });
+
+  it('eases in about 300 ms and exposes anchors', () => {
+    const pose = defaultPose();
+    const next = easePose(pose, { ...pose, headTurn: 1 }, 0.3);
+    expect(next.headTurn).toBeGreaterThan(0.9);
+    expect(next.headTurn).toBeLessThan(1);
+    for (const breed of [...breedsFor('dog'), ...breedsFor('cat')]) {
+      const geom = geomOf(breed, 0, 0);
+      const side = headFaceOf(breed, geom, 0);
+      const turned = headFaceOf(breed, geom, 1);
+      expect(side.farEyeAlpha).toBe(0);
+      expect(turned.farEyeAlpha).toBe(1);
+      expect(turned.farEye.x - turned.nearEye.x).toBeGreaterThanOrEqual(turned.eyeR * 2.4 - 1e-6);
+      expect(turned.farEye.x).toBeLessThan(geom.headR);
+    }
+  });
 });

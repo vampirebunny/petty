@@ -1,17 +1,39 @@
 import type { Look } from '../sim/types';
 import { breedAttributes } from './breedAttributes';
 import { luminance, mixHexColor } from './color';
-import type { Breed, EarShape, Pattern, Species, TailShape, TaskType } from './types';
+import type { Breed, EarShape, Face3q, Pattern, Species, TailShape, TaskType } from './types';
 
-// Visual and behavior parameters of a breed. Attribute ranges and the blurb come from breedAttributes.
-type BreedVisual = Omit<Breed, 'attributeRanges' | 'blurb'>;
+// Visual and behavior parameters of a breed. Attribute ranges, the blurb and the 3/4 face come from data below.
+type BreedVisual = Omit<Breed, 'attributeRanges' | 'blurb' | 'face3q'>;
+
+// 3/4 head presets, in head radii. Breeds pick one and may override single fields.
+const face3qPresets: Record<'longSnout' | 'medium' | 'flat' | 'cat', Face3q> = {
+  longSnout: { farEyeDx: 0.5, snoutShift: 0.1, snoutDrop: 0.08, farEarDx: 0.85, farEarDy: 0 },
+  medium: { farEyeDx: 0.48, snoutShift: 0.06, snoutDrop: 0.1, farEarDx: 0.85, farEarDy: 0 },
+  flat: { farEyeDx: 0.44, snoutShift: 0.02, snoutDrop: 0.12, farEarDx: 0.8, farEarDy: 0.04 },
+  cat: { farEyeDx: 0.46, snoutShift: 0.03, snoutDrop: 0.1, farEarDx: 1.05, farEarDy: 0 },
+};
+
+const face3qByBreed: Record<string, Face3q> = {
+  retriever: { ...face3qPresets.longSnout, farEarDx: 0.8 },
+  corgi: { ...face3qPresets.medium, farEarDx: 1 },
+  dachshund: { ...face3qPresets.longSnout, farEyeDx: 0.46, snoutShift: 0.12 },
+  husky: { ...face3qPresets.longSnout, farEyeDx: 0.52, farEarDx: 1.05 },
+  pug: { ...face3qPresets.flat, farEyeDx: 0.42, snoutDrop: 0.14 },
+  domesticshorthair: face3qPresets.cat,
+  siamese: { ...face3qPresets.cat, farEarDx: 1.1, farEyeDx: 0.44 },
+  persian: { ...face3qPresets.flat, farEarDx: 1.05, snoutDrop: 0.14 },
+  mainecoon: { ...face3qPresets.cat, farEyeDx: 0.48 },
+  bombay: face3qPresets.cat,
+};
 
 function withAttributes(breed: BreedVisual): Breed {
   const data = breedAttributes[breed.id];
   if (!data) {
     throw new Error(`Breed "${breed.id}" has no attribute ranges.`);
   }
-  return { ...breed, attributeRanges: data.ranges, blurb: data.blurb };
+  const face3q = face3qByBreed[breed.id] ?? face3qPresets[breed.species === 'cat' ? 'cat' : 'medium'];
+  return { ...breed, face3q, attributeRanges: data.ranges, blurb: data.blurb };
 }
 
 export const sharedTasks: readonly TaskType[] = ['stand', 'sit', 'sleep', 'eat', 'walk', 'jump', 'idle'];
@@ -38,7 +60,7 @@ const dogVisuals: BreedVisual[] = [
     muzzle: '#ecc97a',
     pitch: 0.85,
     size: 1,
-    cuteness: 0.6,
+    cuteness: 1,
     behaviors: dogTasks,
   },
   {
@@ -58,7 +80,7 @@ const dogVisuals: BreedVisual[] = [
     muzzle: '#f4e3cf',
     pitch: 1.15,
     size: 1,
-    cuteness: 0.6,
+    cuteness: 1,
     behaviors: dogTasks,
   },
   {
@@ -78,7 +100,7 @@ const dogVisuals: BreedVisual[] = [
     muzzle: '#8a5a41',
     pitch: 1.3,
     size: 1,
-    cuteness: 0.6,
+    cuteness: 1,
     behaviors: dogTasks,
   },
   {
@@ -98,7 +120,7 @@ const dogVisuals: BreedVisual[] = [
     muzzle: '#f1f4f7',
     pitch: 0.95,
     size: 1,
-    cuteness: 0.6,
+    cuteness: 1,
     behaviors: dogTasks,
   },
   {
@@ -118,7 +140,7 @@ const dogVisuals: BreedVisual[] = [
     muzzle: '#3b2f2a',
     pitch: 1.4,
     size: 1,
-    cuteness: 0.6,
+    cuteness: 1,
     behaviors: dogTasks,
   },
 ];
@@ -141,7 +163,7 @@ const catVisuals: BreedVisual[] = [
     muzzle: '#efe0c8',
     pitch: 1.6,
     size: 0.95,
-    cuteness: 0.6,
+    cuteness: 1,
     eyeColor: '#79bd5a',
     pattern: 'stripes',
     behaviors: catTasks,
@@ -163,7 +185,7 @@ const catVisuals: BreedVisual[] = [
     muzzle: '#5b4636',
     pitch: 1.75,
     size: 0.97,
-    cuteness: 0.6,
+    cuteness: 1,
     eyeColor: '#5aa7d8',
     pattern: 'points',
     accent: '#5b4636',
@@ -186,7 +208,7 @@ const catVisuals: BreedVisual[] = [
     muzzle: '#e3d9ca',
     pitch: 1.5,
     size: 0.95,
-    cuteness: 0.6,
+    cuteness: 1,
     eyeColor: '#e0933a',
     pattern: 'none',
     behaviors: catTasks,
@@ -208,7 +230,7 @@ const catVisuals: BreedVisual[] = [
     muzzle: '#d9c4a5',
     pitch: 1.3,
     size: 1.1,
-    cuteness: 0.6,
+    cuteness: 1,
     eyeColor: '#c9b24a',
     pattern: 'stripes',
     behaviors: catTasks,
@@ -230,7 +252,7 @@ const catVisuals: BreedVisual[] = [
     muzzle: '#3b3b45',
     pitch: 1.65,
     size: 0.95,
-    cuteness: 0.6,
+    cuteness: 1,
     eyeColor: '#e7c53a',
     pattern: 'none',
     behaviors: catTasks,

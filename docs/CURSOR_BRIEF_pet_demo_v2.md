@@ -37,7 +37,7 @@ Keep simulation and rendering separate. Plain TypeScript modules with no Skia im
 
 **Build around an `Actor` list from the start.** The demo has a single global `pet`. In the app, every pet (the user's, a friend's, an NPC, a cat) is an `Actor` with its own pose, task, idle state, weight, and wardrobe. Retrofitting this later is much harder.
 
-**Expose anchors.** `sim` must output, per actor per frame, the same anchor data the demo returns from `petDemo.anchors()`: head (x, y, pitch, radius), neck point, torso (theta, dy, pivot), and the four paws (x, y, shin angle), plus scale and facing. The renderer draws cosmetics from these only.
+**Expose anchors.** `sim` must output, per actor per frame: head (x, y, pitch, radius, nearEye, farEye, farEyeAlpha, top), neck point, torso (theta, dy, pivot), and the four paws (x, y, shin angle), plus scale and facing. Eye and top points are in head space and follow `headTurn`. The renderer draws cosmetics from these only. Glasses span both eyes at `headTurn` 1; hats use `top`.
 
 ## Behavior specs
 
