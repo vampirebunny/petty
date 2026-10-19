@@ -389,6 +389,35 @@ export function drawAmbient(c: SkCanvas, world: World, env: Env): void {
   }
 }
 
+// Every toy kind the pet can play with: the ball, a flat frisbee, a ball of yarn with a trailing thread, and a squeaky toy.
+export function drawToyShape(c: SkCanvas, kind: string, x: number, y: number, radius: number, t = 0): void {
+  if (kind === 'frisbee') {
+    fillOval(c, x, y, radius * 1.5, radius * 0.5, '#3a8fd8');
+    fillOval(c, x, y - radius * 0.1, radius * 1.05, radius * 0.3, '#7cc0f2');
+    return;
+  }
+  if (kind === 'yarn') {
+    fillCircle(c, x, y, radius, '#d9628f');
+    for (const k of [-0.5, 0, 0.5]) {
+      const arc = Skia.Path.Make();
+      arc.addArc(oval(x, y, radius * (0.95 - Math.abs(k) * 0.4), radius * 0.95), 200 + k * 40, 130);
+      c.drawPath(arc, paintOf('#a8406a', 0.9, 1.2));
+    }
+    const thread = Skia.Path.Make();
+    thread.moveTo(x + radius * 0.8, y + radius * 0.5);
+    thread.cubicTo(x + radius * 1.8, y + radius * 0.9, x + radius * 1.5, y + radius * 1.5, x + radius * 2.6, y + radius * 1.1 + Math.sin(t * 2) * 0.8);
+    c.drawPath(thread, paintOf('#d9628f', 1, 1.4));
+    return;
+  }
+  if (kind === 'squeaky') {
+    fillOval(c, x, y, radius * 1.1, radius * 0.75, '#f2c230');
+    fillCircle(c, x + radius * 0.85, y - radius * 0.3, radius * 0.5, '#f2c230');
+    fillCircle(c, x + radius * 1.0, y - radius * 0.4, radius * 0.1, '#3a2a10');
+    return;
+  }
+  drawBallShape(c, x, y, radius);
+}
+
 export function drawBallShape(c: SkCanvas, x: number, y: number, radius: number): void {
   fillCircle(c, x, y, radius, '#df5340');
   const shine = Skia.Path.Make();

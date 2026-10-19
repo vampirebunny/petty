@@ -183,7 +183,7 @@ export function drawTail(c: SkCanvas, breed: Breed, geom: Geom, wag: number, col
     }
   };
   // A raised tail swings up about its root. Cuddle uses it for the cat's upright, contented tail.
-  if (lift > 0.001) {
+  if (Math.abs(lift) > 0.001) {
     c.save();
     c.rotate(deg(lift * 1.2), tx, ty);
     body();

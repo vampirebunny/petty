@@ -54,7 +54,8 @@ The actor logic is plain TypeScript, with no Skia import:
 - `growth`: one curve per visual feature, keyed by `ageDays`.
 - `geometry`: proportions from breed anatomy and those curves.
 - `pose`: targets and easing, including `headTurn`, `spineArch`, and `crouch`.
-- `legs`: the IK solver and the gait.
+- `legs`: the IK solver.
+- `locomotion`: gaits, stage profiles, stamina, jumps, and chase speed sampling (`data/locomotion.ts`).
 - `behavior`: the shared task machine, plus the species list.
 - `sim`: `update(dt)` steps props, then every actor, with dt capped at 50ms. Sets `headTurn` to 1 only in stationary idle `still` / `pant` / `purr`, plain `sit`, and `winddown`; otherwise 0. Caps the value while moving.
 - The Skia renderer is outside this folder. It only draws. The 3/4 head (two eyes, far ear, snout, mouth) and glasses/hats that follow `headTurn` live in `src/ui/skia`.
@@ -214,11 +215,11 @@ Behavior, from the species list:
 - Feed, refill water, sit, give paw, speak, play/throw ball, and a stroke all wake a sleeper and then run (refill does not start a drink animation).
 - Rest starts sleep. Wake returns to idle.
 - A stroke starts the species reaction. A dog barks or offers a paw. A cat purrs or grooms. The existing purr-versus-wiggle roll chooses which.
-- Play → throw ball starts fetch for a dog and bat play for a cat. Phase 1 always runs that chase.
-- Pant is not a control. The dog task machine may enter it, including the sit-and-pant at the end of a fetch.
+- Play → throw ball starts fetch for a dog and bat play for a cat. Phase 1 always runs that chase. Fetch uses the gait system, may open with a play bow (dogs), stalk and pounce (cats), leap-catch when allowed, and winds down with pant, flop, or groom.
+- Pant is not a control. The dog task machine may enter it, including the sit-and-pant at the end of a fetch. Zoomies are an idle mode and a post-return stage, driven by age and energy.
 - When no task is running, the pet idles on its own.
 
-Every actor has `x`, depth `y`, and height `z`. A jump is a scripted arc on `z`. Pounce uses it. Fetch stays on the ground. The pose eases `spineArch` and `crouch` with the other channels. Leave them at 0 unless the reference you are porting sets them.
+Every actor has `x`, depth `y`, and height `z`. A jump (hop, leap, pounce) is a vertical offset on `z` with tucked legs and a shrinking ground shadow; landing squashes by mass. Fetch uses walk / trot / canter / gallop with hysteresis and ~150 ms blends (`src/actor/locomotion.ts`, data in `src/actor/data/locomotion.ts`). Life stage, attributes, and weight modulate top speed, allowed gaits, jump height, stamina, and tumble chance. The pose eases play channels (`bow`, `stalk`, `wiggle`, `tuck`, `land`, `stream`, `stretch`, `skid`) with the others. Leave `spineArch` and `crouch` at 0 unless a shipped behavior sets them.
 
 Age curves live in a data file. Leg length is an S-curve across growth. Under-eye bags rise from about day 600 to day 800, and high vitality fades them. The other growth curves do not reverse. Weight still changes body width and leg width: 1 at 50, about 0.75 at 0, and about 1.3 at 100. On an age or weight change, ease the displayed value over about one second. The stored value updates immediately.
 
@@ -226,7 +227,7 @@ The renderer never reads a stage label, and it never draws the weight number. Tu
 
 Recorded clips play from `expo-audio`, with pitch correction off. Pitch is the breed pitch times the age factor from the dog reference (`1.35 - 0.35 × growth`) until a curve replaces that factor. Respect the hardware silent switch. If a clip is missing, that action stays silent. Phase 1 wants a dog bark, chew, pant, and snore, and a cat meow, chew, purr, and snore.
 
-Tests cover pose easing, IK, gait foot targets, each shared and species task, the age curves including bag reversal, and `update(dt)` with two actors. They do not import Skia.
+Tests cover pose easing, IK, gait foot targets and blends, stage and stamina modifiers, leap-catch prediction, toy play rules, fetch stages (bow, stalk, pounce), the `headTurn` guard during play, each shared and species task, the age curves including bag reversal, and `update(dt)` with two actors. They do not import Skia.
 
 ## Reminders
 

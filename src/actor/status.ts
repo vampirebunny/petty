@@ -7,6 +7,7 @@ const idleText: Record<IdleMode, string> = {
   purr: 'Purring',
   nap: 'Napping',
   walk: 'Wandering',
+  zoom: 'Zooming',
 };
 
 // One short line for what the pet is doing, as the reference demo shows it.
@@ -17,7 +18,23 @@ export function statusOf(actor: Actor): string {
     return `Idle, ${idleText[actor.idle.mode].toLowerCase()}`;
   }
   if (task.type === 'fetch') {
-    return cat || task.stage === 'chase' ? 'Chasing the ball' : 'Bringing it back';
+    const stages: Record<string, string> = {
+      bow: 'Play bowing',
+      stalk: 'Stalking the toy',
+      wiggle: 'Getting ready to pounce',
+      pounce: 'Pouncing',
+      tumble: 'Tumbling',
+      zoom: 'Zooming',
+      shake: 'Shaking the toy',
+      chew: 'Chewing the toy',
+      roll: 'Rolling around',
+      tangle: 'Tangled up',
+      carry: 'Showing off the toy',
+    };
+    if (stages[task.stage]) {
+      return stages[task.stage];
+    }
+    return cat || task.stage === 'chase' ? 'Chasing the toy' : 'Bringing it back';
   }
   if (task.type === 'eat') {
     const drink = task.kind === 'drink';
@@ -30,7 +47,10 @@ export function statusOf(actor: Actor): string {
     return task.stage === 'go' ? 'Heading to bed' : 'Sleeping';
   }
   if (task.type === 'winddown') {
-    return cat ? 'Purring' : 'Panting';
+    if (task.stage === 'flop') {
+      return 'Flopped down';
+    }
+    return cat ? (task.stage === 'groom' ? 'Grooming' : 'Purring') : 'Panting';
   }
   const names: Partial<Record<typeof task.type, string>> = {
     sit: 'Sitting',

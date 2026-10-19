@@ -24,6 +24,28 @@ export { canBehave, isUserTask, reactionFor, userTasks } from './behavior';
 export { bagAmount, bodyFrame, depthScale, geomOf, thickOf } from './geometry';
 export { easeOut, growthFor, smoothstep, visualProgress } from './growth';
 export { gaitFoot, jumpArc, solveKnee } from './legs';
+export {
+  airTime,
+  blendedFoot,
+  bounceOf,
+  chooseGait,
+  gaitFootFor,
+  isGaitAllowed,
+  jumpSpeed,
+  landImpact,
+  locoModsOf,
+  maxGaitOf,
+  newGaitState,
+  phaseRate,
+  predictCrossing,
+  predictLanding,
+  sampleChaseSpeed,
+  stageProfileOf,
+  stepGait,
+  stepStamina,
+  strideOf,
+} from './locomotion';
+export { gaitDefs } from './data/locomotion';
 export { defaultPose, easeInOutSine, easePose, springUp } from './pose';
 export { cuddleParamsFor, stageFactor } from './data/cuddle';
 export { cuddleBackPath, cuddleTouch, cuddleZoneAt, endCuddle, isCuddling, takeCuddleOut } from './cuddle';

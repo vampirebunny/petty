@@ -28,6 +28,14 @@ export const poseRate: Record<keyof Pose, number> = {
   paddle: 5,
   kick: 12,
   shake: 14,
+  tuck: 14,
+  land: 18,
+  bow: 9,
+  stalk: 5,
+  wiggle: 10,
+  stream: 6,
+  stretch: 8,
+  skid: 10,
 };
 
 export function defaultPose(): Pose {
@@ -59,6 +67,14 @@ export function defaultPose(): Pose {
     paddle: 0,
     kick: 0,
     shake: 0,
+    tuck: 0,
+    land: 0,
+    bow: 0,
+    stalk: 0,
+    wiggle: 0,
+    stream: 0,
+    stretch: 0,
+    skid: 0,
   };
 }
 
@@ -75,10 +91,11 @@ export function springUp(t: number, damping = 9, freq = 22): number {
   return 1 - Math.exp(-damping * t) * Math.cos(freq * t);
 }
 
-export function easePose(pose: Pose, targets: Pose, dt: number): Pose {
+// `slow` below 1 makes the sit, lie and stand transitions slower (a late senior lies down and stands up slowly).
+export function easePose(pose: Pose, targets: Pose, dt: number, slow = 1): Pose {
   const next = { ...pose };
   (Object.keys(pose) as (keyof Pose)[]).forEach((key) => {
-    const rate = poseRate[key];
+    const rate = poseRate[key] * (key === 'sit' || key === 'lie' ? slow : 1);
     next[key] = pose[key] + (targets[key] - pose[key]) * (1 - Math.exp(-dt * rate));
   });
   return next;

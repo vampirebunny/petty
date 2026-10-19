@@ -51,6 +51,14 @@ export const ITEM_KINDS: Record<string, ItemKind> = {
     physics: { bounce: 0.1, friction: 2, drag: 2, rolls: false },
     stub: true,
   },
+  yarn: {
+    id: 'yarn',
+    name: 'Yarn Ball',
+    size: 0.9,
+    grip: 'paw',
+    physics: { bounce: 0.6, friction: 0.8, drag: 0.8, rolls: true },
+    stub: true,
+  },
   jingleBall: {
     id: 'jingleBall',
     name: 'Jingle Ball',

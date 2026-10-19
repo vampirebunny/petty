@@ -56,6 +56,8 @@ export type Prop = {
   color?: string;
   contents?: string;
   glow?: boolean;
+  // A low obstacle a fast pet hops over when it runs through it.
+  hurdle?: boolean;
   shapes?: Shape[];
 };
 

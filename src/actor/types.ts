@@ -187,9 +187,26 @@ export type Pose = {
   paddle: number;
   kick: number;
   shake: number;
+  // Play locomotion channels, all 0..1.
+  // Legs tucked in the air.
+  tuck: number;
+  // Landing squash that absorbs the impact.
+  land: number;
+  // Dog play bow: front legs folded, chest low, rump up.
+  bow: number;
+  // Cat stalk: low crouch with the eyes on the toy.
+  stalk: number;
+  // Butt wiggle before a pounce.
+  wiggle: number;
+  // Ears and tail streaming back at a gallop.
+  stream: number;
+  // Spine flex and extend at canter and gallop.
+  stretch: number;
+  // Braking hard to turn: weight back, front feet forward.
+  skid: number;
 };
 
-export type IdleMode = 'still' | 'pant' | 'purr' | 'nap' | 'walk';
+export type IdleMode = 'still' | 'pant' | 'purr' | 'nap' | 'walk' | 'zoom';
 
 export type Task = {
   type: TaskType;
@@ -198,6 +215,8 @@ export type Task = {
   kind?: 'eat' | 'drink';
   bats: number;
   cool: number;
+  // How long the current hold lasts (play bow, stalk wiggle, shake, chew), in seconds.
+  hold?: number;
   poi?: { x: number; y: number; face?: 1 | -1 };
 };
 
@@ -211,6 +230,39 @@ export type Idle = {
   // World time of the last spontaneous bark or meow, so they stay rare.
   voicedAt?: number;
 };
+
+export type Gait = 'walk' | 'trot' | 'canter' | 'gallop';
+
+// The gait the legs are in and the one they came from. `blend` runs 0 to 1 over about 150 ms.
+export type GaitState = { current: Gait; from: Gait; blend: number };
+
+// Play-relevant attributes as 0..1.
+export type LocoStats = { stamina: number; agility: number; boldness: number; obedience: number };
+
+export type JumpKind = 'hop' | 'leap' | 'pounce';
+
+// Choices made once per chase, from the seeded stream, the pet's energy and mood, and its age.
+export type PlayState = {
+  // Share of top speed this chase runs at.
+  speedFrac: number;
+  burstLeft: number;
+  burstIn: number;
+  // Seniors sometimes walk to the toy.
+  walkToToy: boolean;
+  // Whether this chase attempts leap-catches.
+  leap: boolean;
+  // Whether the pet brings the toy back.
+  returns: boolean;
+  // A play bow has already happened this chase.
+  bowed: boolean;
+  overshoot: number;
+  tumbled: boolean;
+  // Set once a stalk or a pounce has happened this chase, so each happens at most once.
+  stalked: boolean;
+  pounced: boolean;
+};
+
+export type ZoomState = { leg: number; legs: number; first: number };
 
 export type Bark = {
   active: boolean;
@@ -316,6 +368,24 @@ export type Actor = {
   cuddleAffinity: number;
   cuddle: CuddleState | null;
   cuddleOut: CuddleOut[];
+  gait: GaitState;
+  // 0..1. Drains at canter and gallop, recovers when slower.
+  stamina: number;
+  // Too tired for the fastest gaits until it has recovered.
+  tired: boolean;
+  stats: LocoStats;
+  // Needs as 0..1, used to size how lively play is.
+  energy: number;
+  mood: number;
+  play: PlayState | null;
+  zoom: ZoomState | null;
+  // Seconds of landing absorb left after a jump, 0..1.
+  land: number;
+  jumpKind: JumpKind | null;
+  // Seconds the current gait has been at canter or faster.
+  topT: number;
+  // Speed as a share of the pet's own top speed, for the legs.
+  share: number;
 };
 
 export type Anchors = {
@@ -365,6 +435,8 @@ export type World = {
   silhouette?: boolean;
   // Pets never nap on their own (the adoption preview keeps them awake).
   noNap?: boolean;
+  // The toy a play session uses. Default is the ball.
+  toyKind?: string;
 };
 
 export type ActorSource = {
@@ -379,4 +451,8 @@ export type ActorSource = {
   cuddleAffinity?: number;
   // The pet seed, for per-pet variation inside the breed.
   seed?: number;
+  // 0..1 energy and happiness, and the play attributes, for how the pet moves in play.
+  energy?: number;
+  mood?: number;
+  stats?: LocoStats;
 };

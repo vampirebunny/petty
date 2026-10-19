@@ -71,6 +71,14 @@ function sourceOf(pet: PetState) {
     seed: pet.attributes.seed,
     asleep: pet.asleep,
     cuddleAffinity: Math.min(1, Math.max(0, attributeScore(pet, 'affection') / 100)),
+    energy: Math.min(1, Math.max(0, pet.needs.energy / 100)),
+    mood: Math.min(1, Math.max(0, pet.needs.happiness / 100)),
+    stats: {
+      stamina: Math.min(1, Math.max(0, attributeScore(pet, 'stamina') / 100)),
+      agility: Math.min(1, Math.max(0, attributeScore(pet, 'agility') / 100)),
+      boldness: Math.min(1, Math.max(0, attributeScore(pet, 'boldness') / 100)),
+      obedience: Math.min(1, Math.max(0, attributeScore(pet, 'obedience') / 100)),
+    },
   };
 }
 

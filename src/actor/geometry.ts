@@ -4,7 +4,8 @@ import { grayAmountsOf } from './data/graying';
 import type { GrayAmounts } from './data/graying';
 import { growthFor, smoothstep, visualProgress } from './growth';
 import { stageHeight, stageWidth } from './scenes';
-import type { Breed, Vec } from './types';
+import { bounceOf } from './locomotion';
+import type { Breed, GaitState, Pose, Vec } from './types';
 
 export { stageHeight, stageWidth };
 export const frameCapMs = 50;
@@ -289,7 +290,7 @@ export function bodyFrame(
     headDown: number;
     headRest: number;
     pant: number;
-  },
+  } & Partial<Pose>,
   barkOpen: number,
   phase: number,
   x: number,
@@ -297,13 +298,27 @@ export function bodyFrame(
   face: number,
   floor: { yMin: number; yMax: number },
   speed = 0,
+  gait?: GaitState,
+  share = 0,
 ): BodyFrame {
   const geom = geomOf(breed, ageDays, weight, vitality);
   const scale = PET_SIZE * geom.sc * depthScale(y, floor.yMin, floor.yMax);
-  const theta = -geom.aSit * pose.sit + 0.12 * pose.headDown;
-  const bounce =
-    -Math.abs(Math.sin(phase)) * 2.4 * pose.walk * (0.5 + clamp(speed / 190, 0, 1) * 0.8) - barkOpen * 2.5;
-  const dy = -geom.Py * pose.sit + geom.dLie * pose.lie + bounce;
+  // Spine flex at canter and gallop, a play bow (chest down, rump up), a stalking crouch, and a hard skid
+  // (weight back) all tilt the torso about the hind legs.
+  const theta =
+    -geom.aSit * pose.sit +
+    0.12 * pose.headDown +
+    0.07 * (pose.stretch ?? 0) * Math.sin(phase + 0.8) +
+    0.34 * (pose.bow ?? 0) +
+    0.1 * (pose.stalk ?? 0) -
+    0.16 * (pose.skid ?? 0);
+  const stride = gait
+    ? bounceOf(gait, phase, share) * pose.walk
+    : -Math.abs(Math.sin(phase)) * 2.4 * pose.walk * (0.5 + clamp(speed / 190, 0, 1) * 0.8);
+  const bounce = stride - barkOpen * 2.5;
+  // The body drops for a stalking crouch, a play bow and a landing absorb.
+  const dy =
+    -geom.Py * pose.sit + geom.dLie * (pose.lie + 0.65 * (pose.stalk ?? 0) + 0.25 * (pose.bow ?? 0) + 0.5 * (pose.land ?? 0)) + bounce;
   const natural = torsoPoint(geom, theta, dy, geom.bodyLen / 2 + 4, geom.bodyY - geom.bodyH * 0.32 - 4);
   natural.x += 10 * pose.sit;
   natural.y += Math.sin(phase * 2) * 1.4 * pose.walk;

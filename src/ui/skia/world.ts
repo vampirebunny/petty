@@ -8,7 +8,7 @@ import { actorTint, lighting, petLightAmount, sceneryTint } from '../../actor/li
 import type { Rgba } from '../../actor/timeOfDay';
 import { clamp, fillOval } from './draw';
 import { drawActor } from './pet';
-import { drawAmbient, drawBackdrop, drawBallShape, drawProp } from './scenery';
+import { drawAmbient, drawBackdrop, drawProp, drawToyShape } from './scenery';
 import type { Env } from './scenery';
 
 function drawTinted(canvas: SkCanvas, tint: Rgba, draw: () => void): void {
@@ -103,7 +103,7 @@ export function drawWorld(
       continue;
     }
     const breed = applyVariant(resolved, actor.variant);
-    const carrying = world.items.some((item) => item.state === 'carried' && item.holderId === actor.id);
+    const carrying = world.items.find((item) => item.state === 'carried' && item.holderId === actor.id)?.kind ?? null;
     // A pet at its bowl stands just in front of it, so the head is seen over the bowl and not hidden by it.
     const atBowl = actor.task.type === 'eat' && actor.task.stage === 'eating';
     // A pet stepping onto a bed from behind would be covered by it until it crosses the bed's sort line,
@@ -130,7 +130,7 @@ export function drawWorld(
           const radius = 8 * depthScale(toy.y, floor.yMin, floor.yMax);
           const shade = clamp(1 - toy.z / 260, 0.4, 1);
           fillOval(canvas, toy.x, toy.y + 1, radius * shade * 1.1, radius * 0.4 * shade, '#000000', 0.15);
-          drawBallShape(canvas, toy.x, toy.y - toy.z - radius, radius);
+          drawToyShape(canvas, toy.kind, toy.x, toy.y - toy.z - radius, radius, world.t);
         }),
     });
   }
