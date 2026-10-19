@@ -165,6 +165,9 @@ export function headShift(geom: Geom, headY: number, pose: { headDx: number; hea
   return { x: pose.headDx, y: pose.headDy + pose.belly * (-geom.headR * 0.9 - headY) };
 }
 
+// Overall pet size multiplier, applied to everything that derives from the body frame (drawing, reach, cuddle zones).
+export const PET_SIZE = 1.5;
+
 export function depthScale(y: number, yMin: number, yMax: number): number {
   const span = yMax - yMin;
   return 0.82 + 0.18 * clamp(span === 0 ? 0 : (y - yMin) / span, 0, 1);
@@ -220,7 +223,7 @@ export function bodyFrame(
   speed = 0,
 ): BodyFrame {
   const geom = geomOf(breed, ageDays, weight, vitality);
-  const scale = geom.sc * depthScale(y, floor.yMin, floor.yMax);
+  const scale = PET_SIZE * geom.sc * depthScale(y, floor.yMin, floor.yMax);
   const theta = -geom.aSit * pose.sit + 0.12 * pose.headDown;
   const bounce =
     -Math.abs(Math.sin(phase)) * 2.4 * pose.walk * (0.5 + clamp(speed / 190, 0, 1) * 0.8) - barkOpen * 2.5;

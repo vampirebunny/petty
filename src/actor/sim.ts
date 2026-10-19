@@ -2,7 +2,7 @@ import { weightBurnPerSec, weightRunSpeed } from '../sim/config';
 import type { Item } from '../items/types';
 import { stepItems } from '../items/physics';
 import { inactivePointer } from '../input/pointer';
-import { bodyFrame, headFaceOf, reachOf, speedMax, stageWidth } from './geometry';
+import { PET_SIZE, bodyFrame, headFaceOf, reachOf, speedMax, stageWidth } from './geometry';
 import { breedById, voiceRate } from './breeds';
 import { growthFor } from './growth';
 import { canBehave, reactionFor, type UserTask } from './behavior';
@@ -697,10 +697,20 @@ function updateActor(world: World, actor: Actor, dt: number): void {
     }
   } else if (actor.task.type === 'eat') {
     const poi = actor.task.poi ?? poiOf(world.scene, actor.task.kind === 'drink' ? 'water' : 'food');
-    const face = poi?.face ?? 1;
-    const spot = poi
-      ? { x: poi.x - face * frame.scale * (frame.geom.bodyLen / 2 + 34), y: poi.y }
-      : null;
+    let face: 1 | -1 = poi?.face ?? 1;
+    const standOff = frame.scale * (frame.geom.bodyLen / 2 + 34);
+    const spotInset = reachOf(frame.geom) * frame.scale * (1 - 1 / PET_SIZE);
+    // A bowl near the stage edge: if the pet can't stand on its arriving side, use the other one.
+    if (poi && actor.task.stage === 'go') {
+      const x = poi.x - face * standOff;
+      if (x < world.scene.floor.xMin + spotInset || x > world.scene.floor.xMax - spotInset) {
+        face = face > 0 ? -1 : 1;
+        if (actor.task.poi) {
+          actor.task.poi = { ...actor.task.poi, face };
+        }
+      }
+    }
+    const spot = poi ? { x: poi.x - face * standOff, y: poi.y } : null;
     if (actor.task.stage === 'go' && spot) {
       move = spot;
       vmax = limit * 0.5;
@@ -808,9 +818,13 @@ function updateActor(world: World, actor: Actor, dt: number): void {
     }
   }
 
+  // The larger body (and head) sticks out further from its anchor, so keep it inside the stage.
+  const inset = reachOf(frame.geom) * frame.scale * (1 - 1 / PET_SIZE);
+  const xLo = floor.xMin + inset;
+  const xHi = floor.xMax - inset;
   const desired = { x: 0, y: 0 };
   if (move) {
-    const tx = clamp(move.x, floor.xMin, floor.xMax);
+    const tx = clamp(move.x, xLo, xHi);
     const ty = clamp(move.y, floor.yMin, floor.yMax);
     const dx = tx - actor.x;
     const dy = ty - actor.y;
@@ -824,7 +838,7 @@ function updateActor(world: World, actor: Actor, dt: number): void {
   const ease = 1 - Math.exp(-dt * 7);
   actor.vx += (desired.x - actor.vx) * ease;
   actor.vy += (desired.y - actor.vy) * ease;
-  actor.x = clamp(actor.x + actor.vx * dt, floor.xMin, floor.xMax);
+  actor.x = clamp(actor.x + actor.vx * dt, xLo, xHi);
   actor.y = clamp(actor.y + actor.vy * dt, floor.yMin, floor.yMax);
   actor.speed = Math.hypot(actor.vx, actor.vy);
   const chasing = actor.task.type === 'fetch' && actor.task.stage === 'chase';

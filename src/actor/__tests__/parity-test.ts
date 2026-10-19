@@ -166,9 +166,11 @@ it('eats and drinks from the side of the bowl the pet approaches from', () => {
         update(world, 0.05);
       }
       expect(pup.task.stage).toBe('eating');
-      expect(pup.face).toBe(side);
-      // The pet stands on the side it came from.
-      expect(Math.sign(poi.x - pup.x)).toBe(side);
+      // The pet stands on the side it came from, unless the bowl sits too close to the stage edge for that.
+      const crowded = side === -1 && poi.x > scene.floor.xMax - 100;
+      const expected = crowded ? 1 : side;
+      expect(pup.face).toBe(expected);
+      expect(Math.sign(poi.x - pup.x)).toBe(expected);
     }
   }
 });

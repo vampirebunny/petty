@@ -536,7 +536,7 @@ export function stepCuddle(
       const floor = world.scene.floor;
       const mid = (floor.xMin + floor.xMax) / 2;
       c.leaveTarget = {
-        x: actor.x < mid ? floor.xMax - 30 : floor.xMin + 30,
+        x: actor.x < mid ? floor.xMax - 90 : floor.xMin + 90,
         y: lerp(floor.yMin, floor.yMax, world.rng()),
       };
     }

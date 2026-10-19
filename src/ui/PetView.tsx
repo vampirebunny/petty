@@ -90,7 +90,7 @@ export function PetView({
   onDrank,
 }: Props) {
   const { width } = useWindowDimensions();
-  const viewWidth = Math.max(280, width - 40);
+  const viewWidth = Math.max(280, width);
   const viewHeight = viewWidth * (stageHeight / stageWidth);
   const widthRef = useRef(viewWidth);
   const heightRef = useRef(viewHeight);

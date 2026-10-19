@@ -32,7 +32,7 @@ import {
 import { ActionButtons } from '../ui/ActionButtons';
 import type { PetAction } from '../ui/ActionButtons';
 import { DebugPanel } from '../ui/DebugPanel';
-import { NeedBars } from '../ui/NeedBars';
+import { NeedRings } from '../ui/NeedRings';
 import { PetView } from '../ui/PetView';
 import type { CuddleHandle } from '../ui/PetView';
 import { CuddleFeedback } from '../ui/cuddle/CuddleFeedback';
@@ -89,7 +89,7 @@ export default function HomeScreen({ petApi }: Props) {
   } = petApi;
   const lastStrokeAt = useRef(0);
   const { width } = useWindowDimensions();
-  const viewWidth = Math.max(280, width - 40);
+  const viewWidth = Math.max(280, width);
   const viewHeight = viewWidth * (stageHeight / stageWidth);
   const [hour, setHour] = useState<number | null>(null);
   const [reducedMotion, setReducedMotion] = useState(false);
@@ -532,7 +532,6 @@ export default function HomeScreen({ petApi }: Props) {
       <View style={styles.sticky}>
         <View style={styles.header}>
           <Text style={styles.name}>{state.name}</Text>
-          <Text style={styles.meta}>Level {state.level}</Text>
         </View>
         <GestureDetector gesture={gesture}>
           <View collapsable={false} style={{ width: viewWidth, height: viewHeight }}>
@@ -574,7 +573,7 @@ export default function HomeScreen({ petApi }: Props) {
         </GestureDetector>
       </View>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <NeedBars needs={state.needs} />
+        <NeedRings needs={state.needs} />
         <View style={styles.scenes}>
           {sceneList.map((entry) => (
             <Pressable
@@ -678,7 +677,6 @@ const styles = StyleSheet.create({
     paddingTop: 64,
   },
   sticky: {
-    paddingHorizontal: 20,
     gap: 12,
     paddingBottom: 8,
     backgroundColor: '#F4F7FB',
@@ -694,13 +692,11 @@ const styles = StyleSheet.create({
   },
   header: {
     gap: 2,
+    paddingHorizontal: 20,
   },
   name: {
     fontSize: 28,
-    color: '#243044',
-  },
-  meta: {
-    fontSize: 16,
+    fontWeight: '700',
     color: '#243044',
   },
   score: {

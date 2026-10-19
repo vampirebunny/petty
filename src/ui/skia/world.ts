@@ -105,8 +105,16 @@ export function drawWorld(
     const carrying = world.items.some((item) => item.state === 'carried' && item.holderId === actor.id);
     // A pet at its bowl stands just in front of it, so the head is seen over the bowl and not hidden by it.
     const atBowl = actor.task.type === 'eat' && actor.task.stage === 'eating';
+    // A pet stepping onto a bed from behind would be covered by it until it crosses the bed's sort line,
+    // so a pet over a bed is always drawn in front of it.
+    let sortY = actor.y + (atBowl ? 1 : 0);
+    for (const prop of scene.props) {
+      if (prop.kind === 'bed' && Math.abs(actor.x - prop.x) < (prop.w ?? 0) / 2 && actor.y > prop.y - 60) {
+        sortY = Math.max(sortY, prop.y + 1);
+      }
+    }
     items.push({
-      y: actor.y + (atBowl ? 1 : 0),
+      y: sortY,
       draw: () => drawTinted(canvas, bodyTint, () => drawActor(canvas, actor, breed, floor, world.t, carrying)),
     });
   }
