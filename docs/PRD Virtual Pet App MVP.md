@@ -95,7 +95,7 @@ Each phase builds on the one before it and ends at an exit check, listed in the 
 | 2. Play and training | Fetch mastery and one toy, training with mastery, 3 to 5 tricks with about 3 discoverable, the trick book, and NPC playdates. The chase itself already plays in Phase 1. | A player can discover and teach a trick and finish an NPC playdate, all offline. |
 | 3. Art and audio | Recorded pet sounds, UI sounds and music, on the procedural actor. The starter wardrobe already draws in Phase 1. The v1 drawing is flat vector. | Sounds match the behavior, breeds sound different, and the behavior modules do not change when the drawing is replaced. |
 | 4. Accounts and social | Guest-to-account upgrade, Supabase sync, share card and clip, read-only friend visits, age signals, and account and data deletion. | A guest can upgrade, back up the pet, add a friend by invite link and share a card. |
-| 5. Beta | Legal and store checks, matching age rating, privacy policy, analytics and a small beta. | The privacy attorney consult is done, the store listing and rating match the 13+ terms, and the beta is released. |
+| 5. Beta | Legal and store checks, matching age rating, privacy policy, analytics and a small beta. | The privacy attorney consult is done, the store listing and rating match the 13+ terms, the store privacy and support URLs point at `https://boopboop.mylisto.app`, and the beta is released. |
 
 Later, after the MVP proves the loop: earned and premium cosmetics, more breeds, encounters between the owner's pet and a friend's pet, pet exchange or restart, mini-games, multiple owned pets, and public showcases. A friend encounter is still not a live session. Premium cosmetics are cosmetic-only. The rest of the monetization model stays open.
 
@@ -249,8 +249,8 @@ Acceptance: two breeds sound audibly different; no sound plays in silent mode; e
 - R10.3 Have a process to delete an account when a user turns out to be under 13.
 - R10.4 Private by default, friendships by mutual acceptance only, no public discovery of users, and no free-text chat.
 - R10.5 Minimal data collection, no targeted advertising to minors, no streak or guilt mechanics, and no randomized rewards.
-- R10.6 A privacy policy, in-app account and data deletion, and blocking and reporting.
-- R10.7 Before release: a privacy attorney consult, a fresh check of the state app-store age laws, a trademark check on the app name, and a written rights assignment from the illustrator.
+- R10.6 A privacy policy, terms of service, community guidelines, and a support page, plus in-app account and data deletion, and blocking and reporting. The public pages are markdown in `site/compliance-docs/`, built to static HTML, and served at `https://boopboop.mylisto.app` on `/privacypolicy`, `/termsofservice`, `/communityguidelines`, and `/support`. That host is a second Vercel project with root directory `site/`. It does not replace `mylisto.app`. Store listings and in-app links use these URLs. The privacy draft still has bracketed placeholders, and the other three pages are placeholders, until R10.7 is done.
+- R10.7 Before release: a privacy attorney consult, a fresh check of the state app-store age laws, a trademark check on the app name, and a written rights assignment from the illustrator. Fill the privacy-policy placeholders before the URL is treated as final.
 
 Acceptance: an under-13 attestation cannot continue, and a store age signal of under 13 cannot create an account or reach social features; the store listing, terms and marketing all state 13+; a deletion request removes all the user's server data.
 
@@ -642,7 +642,7 @@ type PetEvent =
 - Performance: animation stays smooth on mid-range phones, and screens open without waiting on the network.
 - Size: audio is compressed and loops are short. Core art and sound are bundled, and optional extras can be hosted remotely so new breeds ship without an app update.
 - Accessibility: an assist mode for the timing game, an alternative to swipes such as tap rhythms, no meaning carried by color alone, and haptic or on-screen fallbacks for sound.
-- Privacy: collect the minimum, keep analytics free of personal data, and support deletion.
+- Privacy: collect the minimum, keep analytics free of personal data, and support deletion. The public policy is the page at `https://boopboop.mylisto.app/privacypolicy`.
 - Testing: every simulation feature ships with unit tests for determinism, bounds and thresholds, and the same seed, species, breed and archetype must always give the same potentials. Scene tests cover validation, POI lookup, and action availability. Time-of-day tests cover the keyframe blend at phase boundaries, the wrap past midnight, and `time` validation.
 - Observability: crash reporting, and analytics events for the success metrics, with no personal data.
 - Code quality: TypeScript in strict mode, small files, and one commit per task.
@@ -677,6 +677,7 @@ Treat decided items as fixed. For open items, build the proposed default behind 
 | Behaviors | One task machine. Shared tasks: stand, sit, sleep, eat, drink, walk, jump, and idle. Dogs add pant, give paw, bark, and fetch. Cats add purr, groom, and pounce. Pant and purr are never user actions. Home controls are Feed (meal picker), Refill water, rest, a stroke, and Play (throw ball). Tap soft-drops a ball; flick throws. A dog carries it home. A cat bats it three times. Toys use an item registry (ball live; other kinds stubbed). Scenes are data: living room, park, and bedroom. Feed needs a food POI; refill needs a water bowl that is not full; rest always works and walks to a bed when one exists. Props are visual only except through POIs. See R4.6 and the items/treats addendum. |
 | Time of day | A view concern driven by the device's local hour. Scenes opt in with `outdoor`, `indoor`, or `fixed`. Omitted means `fixed`. Outdoor draws sky, sun, moon, and stars. Indoor draws lamp glow and windows of the same sky. Scenery takes the full tint. Pets and the ball take `lighting.actorTint` of it (0.35 indoor, 0.85 outdoor, 0 fixed). Indoor night alpha caps at 0.35, and a warm floor light fades in with `dark`. The pet stays readable indoors at night. It does not change weight, mood, or age. Painted backgrounds keep the sky as its own layer. The demo hour slider does not ship. See R4.7. |
 | Cosmetics | Phase 1 wears the bundled starter wardrobe, one item per slot: collar, bandana, glasses, hat, coat, and boots. The shop, premium grants, and share-card outfits wait until after the MVP. Fit belongs to the actor, and the renderer draws from the frame's anchors. The bundled catalog is the offline source of truth, with permanent content ids. Ownership is a separate list and gates every equip. Sources are starter, earned, and premium. Premium is cosmetic-only. Content ids are separate from store product ids, and a product grants premium ids only. Recolor is a fixed palette on the equip event. See F6. |
+| Compliance pages | Markdown in `site/compliance-docs/`, built with `node build.mjs` to static HTML. Public URLs are `https://boopboop.mylisto.app/privacypolicy`, `/termsofservice`, `/communityguidelines`, and `/support`. Hosted as its own Vercel project from this repo (root `site/`). `mylisto.app` stays the other app. A later domain change keeps redirects on these URLs. See R10.6. |
 
 **Open**
 
