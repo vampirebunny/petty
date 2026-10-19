@@ -1,6 +1,6 @@
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { cleanName, nameLimit } from '../../adopt/name';
+import { nameLimit, nameRejectMessage, validateName } from '../../adopt/name';
 import type { Breed } from '../../actor/types';
 import { archetypeNames } from '../../sim';
 import type { Archetype, Look } from '../../sim';
@@ -20,7 +20,11 @@ type Props = {
 
 // Step 3: name the pet. The Meet button is the only place the pet is created.
 export function NameScreen({ breed, look, archetype, name, onChangeName, onBack, onMeet }: Props) {
-  const ready = cleanName(name);
+  const result = validateName(name);
+  const ready = result.ok ? result.name : null;
+  const hint =
+    name.trim().length > 0 && !result.ok ? nameRejectMessage(result.reason) : null;
+
   return (
     <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
@@ -46,6 +50,7 @@ export function NameScreen({ breed, look, archetype, name, onChangeName, onBack,
             autoFocus
             accessibilityLabel="Name"
           />
+          {hint ? <Text style={styles.hint}>{hint}</Text> : null}
         </View>
       </ScrollView>
       <View style={styles.footer}>
@@ -109,6 +114,10 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 16,
     color: '#243044',
+  },
+  hint: {
+    fontSize: 13,
+    color: '#B45309',
   },
   footer: {
     paddingHorizontal: 20,
