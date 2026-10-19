@@ -1,6 +1,6 @@
 # Boop Boop — Care & Training Systems Brief v2 (for Cursor)
 
-**Status:** This document **supersedes** the original brief and Addendums 1–3. Discard those.
+**Status:** This document **supersedes** the original brief and Addendums 1–3. Discard those. The v2.2 trick-pacing patch is folded in below: trick tiers, unlock days, `pSuccess`, and the treat regen numbers. House training still uses the v2 gain and age factor, because the v2.1 house-training numbers are not in the repo.
 **PRD:** This pack **replaces F5** (see §0.2). Where this brief references an existing spec (R1.6, R2.11, R3.4, R3.8, R4.7, R7.5), the existing spec wins.
 **Tuning:** Every number lives in `src/game/config.ts`. §15 lists all defaults.
 
@@ -119,7 +119,8 @@ interface TrackDef {
   hideWhenMastered: boolean;                           // house_training: true
   prerequisites: Partial<Record<Species, string[]>>;   // missing key = none
   unlock: Partial<Record<Species, UnlockRule>>;        // missing key = at adoption
-  baseGainPerRep: number;
+  tier?: 1 | 2 | 3;                                // tricks: sets baseGainPerRep (15, 7.5, 5)
+  baseGainPerRep: number;                              // house training sets this directly
   linkedAttributes: AttributeId[];                     // 1 or 2
   hidden?: boolean;                                    // reserved; no content in v1
 }
@@ -136,7 +137,7 @@ Unlock evaluation runs in `simulate()`. A newly unlocked track shows a "New tric
 
 ### 4.3 Success chance (tricks)
 ```
-pSuccess = clamp(0.35 + 0.004 * obedience + 0.005 * progress, 0.30, 0.95)   // mastered → 1.0
+pSuccess = clamp(0.55 + 0.003 * obedience + 0.004 * progress, 0.50, 0.97)   // mastered → 1.0
 ```
 `obedience` comes from `attributeScore`.
 
@@ -153,18 +154,21 @@ The Treat button glows during the 5 s window and dims during 5–15 s.
 
 ### 4.5 What a resolved successful rep pays
 Every successful rep counts as a "successful rep" whatever its credit level:
-- **Track progress:** `baseGainPerRep × intelligenceFactor × ageFactor × credit × fatigueFactor × penaltyFactor`
+- **Trick progress:** `baseGainPerRep(tier) × intelligenceFactor × credit × fatigueFactor`. Tricks have no age factor and no accident penalty.
+- **House-training progress:** `baseGainPerRep × intelligenceFactor × ageFactor × credit × fatigueFactor × penaltyFactor`.
 - **Attributes:** `rawAttrPerRep × credit` through `trainingGain`, **split evenly** across `linkedAttributes` (two attributes get half each).
 - **XP:** `trainingRepXp` (flat; credit doesn't scale it).
 - **If fatigued** (past the daily cap): progress × `fatigueMultiplier`, and **no** attribute gain or XP.
 
 Factors:
 ```
-intelligenceFactor = 0.7 + 0.6 * clamp(intelligence / 100, 0, 1)
-ageFactor          = by life stage (§15)
+intelligenceFactor = 0.8 + 0.4 * clamp(intelligence / 100, 0, 1)   // tricks and house training
+ageFactor          = by life stage (§15); house training only
 fatigueFactor      = repsToday < dailyRepCap ? 1 : fatigueMultiplier
-penaltyFactor      = pendingPenalty ? accidentPenaltyMultiplier : 1   // then clear pendingPenalty
+penaltyFactor      = pendingPenalty ? accidentPenaltyMultiplier : 1   // house training only; then clear
 ```
+
+**Design rule:** no trick may need more than 3 daily caps of full-credit reps at the lowest starting intelligence on the roster. Future tricks are assigned tier 1, 2, or 3. A config test enforces it. At intelligence about 9, tiers 1 / 2 / 3 take about 8 / 16 / 24 full-credit reps.
 
 ### 4.6 Mastery (progress reaches 100)
 - Set `mastered`. Grant `masteryXp`, plus `rawAttrOnMastery` through `trainingGain` (split evenly across linked attributes), the milestone, `milestoneTreats` basic treats and 1 special treat.
@@ -186,16 +190,18 @@ Never show days, ages, stage names or attribute numbers. Locked tricks appear as
 ---
 
 ## 5. Track table
-| id | species | prerequisites | unlock | baseGainPerRep | linked |
-|---|---|---|---|---|---|
-| house_training | dog, cat | — | at adoption | 3.0 | obedience |
-| sit | dog, cat | — | dog: adoption · cat: minAgeDays 7 | 4.0 | obedience |
-| speak | dog, cat | — | dog: minAgeDays 3 · cat: adoption | 3.5 | obedience |
-| paw | dog | dog: sit | minAgeDays 7 | 3.5 | obedience |
-| come_when_called | cat | — | minAgeDays 7 | 3.0 | obedience |
-| lie_down | dog | dog: sit | minAgeDays 14 | 3.0 | obedience, intelligence |
-| high_five | dog, cat | dog: paw · cat: sit | minAgeDays 21 | 3.0 | obedience |
-| roll_over | dog | dog: lie_down | intelligence ≥ 40 | 2.0 | obedience, intelligence |
+| id | species | tier | prerequisites | unlock | gain | linked |
+|---|---|---|---|---|---|---|
+| house_training | dog, cat | — | — | at adoption | 3.0 (own formula) | obedience |
+| sit | dog, cat | 1 | — | at adoption | 15 | obedience |
+| speak | dog, cat | 1 | — | at adoption | 15 | obedience |
+| come_when_called | cat | 1 | — | minAgeDays 1 | 15 | obedience |
+| paw | dog | 2 | dog: sit | minAgeDays 1 | 7.5 | obedience |
+| lie_down | dog | 2 | dog: sit | minAgeDays 2 | 7.5 | obedience, intelligence |
+| high_five | dog, cat | 2 | dog: paw · cat: sit | minAgeDays 3 | 7.5 | obedience |
+| roll_over | dog | 3 | dog: lie_down | minAgeDays 5 | 5 | obedience, intelligence |
+
+Roll over has no intelligence gate. Tier base gain is 15 / 7.5 / 5.
 
 `hideWhenMastered` is true only for house_training.
 
@@ -297,8 +303,8 @@ bathTolerance = clamp(round(lerp(-60, 60, t)) + waterAffinity + speciesModifier,
 ### Sources (user-scoped)
 | Source | Default |
 |---|---|
-| Regen | +1 basic every 30 min **of real time**; pauses while basic stack ≥ 10 |
-| Daily login bonus | +5 basic per device-local date |
+| Regen | +1 basic every 20 min **of real time**; pauses while basic stack ≥ 15 |
+| Daily login bonus | +10 basic per device-local date |
 | Milestones | +10 basic, +1 special |
 | IAP | stub `purchaseItem()` only |
 | Playdates | **none** (R7.5) |
@@ -371,9 +377,10 @@ When the gap is ≥ `welcomeBackGap` (8 h), the pet runs in excited. Text: "{Nam
 |---|---|
 | dailyRepCap (per track) | 8 |
 | fatigueMultiplier | 0.1 |
-| pSuccess base / obedience coef / progress coef / min / max | 0.35 / 0.004 / 0.005 / 0.30 / 0.95 |
-| intelligenceFactor | 0.7 + 0.6 × clamp(int/100) |
-| ageFactor: puppy / older puppy / adolescent / adult / senior | 0.7 / 0.9 / 1.0 / 1.0 / 0.8 |
+| pSuccess base / obedience coef / progress coef / min / max | 0.55 / 0.003 / 0.004 / 0.50 / 0.97 |
+| intelligenceFactor | 0.8 + 0.4 × clamp(int/100) |
+| trick baseGain by tier 1 / 2 / 3 | 15 / 7.5 / 5 |
+| ageFactor (house training only): puppy / older puppy / adolescent / adult / senior | 0.7 / 0.9 / 1.0 / 1.0 / 0.8 |
 | rewardWindowFull / rewardWindowLate | 5 s / 15 s |
 | credit full / late / none | 1.0 / 0.5 / 0.25 |
 | treat tier factor basic / special | 1.0 / 1.5 |
@@ -437,9 +444,9 @@ When the gap is ≥ `welcomeBackGap` (8 h), the pet runs in excited. Text: "{Nam
 ### Economy
 | Key | Default |
 |---|---|
-| treatRegenInterval / regenCap | 30 min / 10 |
+| treatRegenInterval / regenCap | 20 min / 15 |
 | stackCeiling (per tier) | 99 |
-| dailyLoginBonus | 5 |
+| dailyLoginBonus | 10 |
 | milestoneTreats basic / special | 10 / 1 |
 | casualTreatCapPerPetDay | 3 |
 | rewardTreatCalorieFraction | 0.25 |
@@ -452,10 +459,10 @@ When the gap is ≥ `welcomeBackGap` (8 h), the pet runs in excited. Text: "{Nam
 | notificationDailyMax (all types) | 3 |
 | quietHours | 21:00–08:00 device local |
 
-**Pacing intent** (to check in tests, not to enforce):
-- House training takes ~5–8 real days of engaged play for a puppy.
-- Sit takes ~3–4 days.
-- Roll over takes ~7–10 days after unlock.
+**Pacing rule** (a config test enforces it):
+- No trick needs more than 3 daily caps of full-credit reps at the lowest starting intelligence (about 9).
+- That is about 8 / 16 / 24 reps for tiers 1 / 2 / 3.
+- House training still uses base gain 3.0 and the age factor, so it stays the slower track.
 
 ---
 
@@ -467,7 +474,7 @@ When the gap is ≥ `welcomeBackGap` (8 h), the pet runs in excited. Text: "{Nam
 5. Trick buttons hide when locked, act as reps when unlocked, and always perform when mastered. Failed reps open no window and pay nothing. Hints show the first unmet condition with no numbers.
 6. `lie_down` and `roll_over` split attribute gain evenly. All gains go through `trainingGain`. There are no `grantFlatAttributes` calls in care or training code.
 7. Bath tolerance is rolled once from Boldness potential plus modifiers and matches the target outcomes in §9. Bath treats raise it.
-8. Casual and reward treats follow the §10 table. Regen pauses at 10. Playdates give no treats.
+8. Casual and reward treats follow the §10 table. Regen pauses at 15. Playdates give no treats. For every trick, mastery takes at most 3 daily caps of full-credit reps at the lowest starting intelligence.
 9. Reopening after 24 h: the house-trained, cared-for pet has 0 messes. The untrained pet has ≤ 3. Happiness is ≥ 40 after catch-up. The welcome back plays. Training is unchanged.
 10. Discarding a pet removes its care, training and milestone state and its care notifications. The inventory survives.
 11. Only `NotificationScheduler` schedules notifications. It enforces a combined daily max of 3.
