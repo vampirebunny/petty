@@ -123,6 +123,8 @@ export type Idle = {
   target: Vec | null;
   sit: boolean;
   arrived: boolean;
+  // World time of the last spontaneous bark or meow, so they stay rare.
+  voicedAt?: number;
 };
 
 export type Bark = {

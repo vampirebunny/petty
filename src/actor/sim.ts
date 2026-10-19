@@ -395,6 +395,29 @@ function nextIdle(world: World, actor: Actor): void {
     }
   }
   beginIdle(world, actor, pick);
+  maybeIdleVoice(world, actor, pick);
+}
+
+const idleVoiceChance = 0.06;
+const idleVoiceCooldown = 60;
+
+// Now and then a resting pet pipes up on its own. Rare, never while moving or asleep, and rate limited.
+function maybeIdleVoice(world: World, actor: Actor, mode: IdleMode): void {
+  if (mode !== 'still' && mode !== 'pant' && mode !== 'purr') {
+    return;
+  }
+  if (actor.asleep || actor.bark.active || actor.cuddle) {
+    return;
+  }
+  const last = actor.idle.voicedAt;
+  if (last != null && world.t - last < idleVoiceCooldown) {
+    return;
+  }
+  if (world.rng() >= idleVoiceChance) {
+    return;
+  }
+  actor.idle.voicedAt = world.t;
+  actor.bark = { active: true, t: 0, fired: [false, false], open: 0, sound: true };
 }
 
 function goIdle(world: World, actor: Actor): void {
