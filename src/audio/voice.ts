@@ -3,7 +3,10 @@ import type { AudioPlayer } from 'expo-audio';
 
 import type { SoundEvent } from '../actor';
 
-const clips = {
+// A sound without a clip here stays silent. Cuddle's placeholder ids (cuddle_sneeze, cuddle_purr_loop,
+// cuddle_content_sigh, cuddle_whimper_happy, cuddle_shake_off, cuddle_swat, cuddle_flinch_chirp,
+// cuddle_kneading_loop) wait for a recorded clip: add `require('../../assets/sounds/<file>.mp3')` under its id.
+const clips: Partial<Record<SoundEvent['sound'], number>> = {
   bark: require('../../assets/sounds/yodguard-friendly-big-dog-bark-2-535469.mp3'),
   meow: require('../../assets/sounds/sound_garage-cat-meow-8-fx-306184.mp3'),
 };
@@ -23,9 +26,13 @@ export function playbackRate(rate: number): number {
 }
 
 function poolFor(sound: SoundEvent['sound']) {
+  const clip = clips[sound];
+  if (clip == null) {
+    return null;
+  }
   let pool = pools[sound];
   if (!pool) {
-    pool = { players: Array.from({ length: voices }, () => createAudioPlayer(clips[sound])), next: 0 };
+    pool = { players: Array.from({ length: voices }, () => createAudioPlayer(clip)), next: 0 };
     pools[sound] = pool;
   }
   return pool;
@@ -43,6 +50,9 @@ export function playVoice(event: SoundEvent): void {
       void setAudioModeAsync({ playsInSilentMode: false, interruptionMode: 'mixWithOthers' });
     }
     const pool = poolFor(event.sound);
+    if (!pool) {
+      return;
+    }
     const player = pool.players[pool.next];
     pool.next = (pool.next + 1) % pool.players.length;
     const rate = playbackRate(event.rate);

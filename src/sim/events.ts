@@ -146,6 +146,26 @@ export function applyEvent(state: PetState, event: PetEvent): EventResult {
     return { state: next, cue: { kind: next.asleep ? 'yawn' : 'none' } };
   }
 
+  // Cuddle mode starting only wakes the pet. The view runs the task itself, so there is no cue.
+  if (event.type === 'cuddleStart') {
+    const next = copyState(state);
+    next.asleep = false;
+    return { state: next, cue: { kind: 'none' } };
+  }
+
+  // A finished cuddle with real petting in it. Longer cuddles count for more, up to double a quick stroke.
+  if (event.type === 'cuddled') {
+    const next = copyState(state);
+    const weight = 1 + Math.min(1, Math.max(0, event.seconds) / 20);
+    next.needs.happiness = clampNeed(
+      next.needs.happiness + petHappinessGain * weight * (1 - next.needs.happiness / clampMax),
+    );
+    next.xp += petXp;
+    next.drift.affection = clampDrift(next.drift.affection + petAffectionDrift * weight);
+    next.careWindow = bumpAttention(next.careWindow);
+    return { state: withDerived(next), cue: { kind: 'none' } };
+  }
+
   if (event.type === 'fetch') {
     const next = copyState(state);
     next.asleep = false;

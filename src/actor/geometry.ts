@@ -160,6 +160,11 @@ export function headFaceOf(breed: Breed, geom: Geom, turn: number): HeadFace {
   };
 }
 
+// Where Cuddle moves the head, in actor space: the pose's own lean plus a drop toward the floor as the pet rolls on its back.
+export function headShift(geom: Geom, headY: number, pose: { headDx: number; headDy: number; belly: number }): Vec {
+  return { x: pose.headDx, y: pose.headDy + pose.belly * (-geom.headR * 0.9 - headY) };
+}
+
 export function depthScale(y: number, yMin: number, yMax: number): number {
   const span = yMax - yMin;
   return 0.82 + 0.18 * clamp(span === 0 ? 0 : (y - yMin) / span, 0, 1);

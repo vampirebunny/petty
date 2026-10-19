@@ -7,6 +7,7 @@ import { breedById, voiceRate } from './breeds';
 import { growthFor } from './growth';
 import { canBehave, reactionFor, type UserTask } from './behavior';
 import { defaultPose, easePose } from './pose';
+import { newCuddle, stepCuddle } from './cuddle';
 import { nearestPoi, poiOf, scenes, stageHeight } from './scenes';
 import type { Scene } from './scenes';
 import type { Actor, ActorSource, Anchors, Idle, IdleMode, Pose, SoundEvent, Task, TaskType, Vec, World } from './types';
@@ -152,6 +153,9 @@ export function spawnActor(source: ActorSource, at?: Vec): Actor {
     asleep: source.asleep,
     mouth: { x, y },
     anchors: emptyAnchors(),
+    cuddleAffinity: source.cuddleAffinity ?? 0.5,
+    cuddle: null,
+    cuddleOut: [],
   };
 }
 
@@ -207,6 +211,7 @@ export function syncActor(actor: Actor, source: ActorSource): void {
   actor.equipped = { ...source.equipped };
   actor.look = source.look ? { ...source.look } : null;
   actor.breedId = source.breedId;
+  actor.cuddleAffinity = source.cuddleAffinity ?? actor.cuddleAffinity;
   if (actor.asleep !== source.asleep) {
     actor.asleep = source.asleep;
     actor.task = taskOf(source.asleep ? 'sleep' : 'idle', source.asleep ? 'sleeping' : '');
@@ -424,6 +429,18 @@ export function startUserTask(
   // Any other request wakes a sleeper, then continues into that action.
   if (actor.asleep) {
     actor.asleep = false;
+  }
+  // Another request ends Cuddle. A voice rides on top of it, so speak leaves it alone.
+  if (task !== 'cuddle' && task !== 'speak' && actor.cuddle) {
+    actor.cuddle = null;
+  }
+  if (task === 'cuddle') {
+    releaseCarried(world, actor);
+    actor.task = taskOf('cuddle');
+    actor.cuddle = newCuddle(actor, world.rng);
+    actor.cuddleOut = [];
+    actor.pantT = 0;
+    return true;
   }
   if (task === 'idle') {
     goIdle(world, actor);
@@ -710,6 +727,17 @@ function updateActor(world: World, actor: Actor, dt: number): void {
     } else {
       goIdle(world, actor);
     }
+  } else if (actor.task.type === 'cuddle') {
+    const step = stepCuddle(world, actor, dt, limit, homeOf(world.scene), targets);
+    move = step.move;
+    vmax = step.vmax;
+    wagRate = step.wagRate;
+    faceCamera = step.faceCamera;
+    if (step.done) {
+      actor.cuddleOut.push({ type: 'done', petted: actor.cuddle?.petted ?? 0 });
+      actor.cuddle = null;
+      goIdle(world, actor);
+    }
   } else if (actor.task.type === 'fetch') {
     targets.wagAmp = 0.5;
     wagRate = 9;
@@ -810,7 +838,10 @@ function updateActor(world: World, actor: Actor, dt: number): void {
     targets.eyes = 0;
   }
   // The 3/4 head is a pose target set by the state machine, vetoed whenever the pet moves or acts.
-  const stationary = move == null && actor.speed <= 14 && actor.z <= 0 && !actor.bark.active && actor.pose.lie < 0.05;
+  // Cuddle may hold the turned head while the pet lies down. It never turns while the pet moves.
+  const cuddling = actor.task.type === 'cuddle';
+  const stationary =
+    move == null && actor.speed <= 14 && actor.z <= 0 && !actor.bark.active && (actor.pose.lie < 0.05 || cuddling);
   targets.headTurn = faceCamera && stationary ? 1 : 0;
   if (actor.speed > 14 && actor.pose.headTurn > 0.15) {
     actor.pose.headTurn = 0.15;

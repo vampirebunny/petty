@@ -45,6 +45,8 @@ type PetApi = {
   reportDrank: (fromBowl: boolean) => void;
   rest: () => void;
   pet: () => void;
+  startCuddle: () => void;
+  finishCuddle: (seconds: number) => void;
   fetchBall: () => void;
   throwAt: (x: number, y: number) => void;
   flickAt: (x: number, y: number, vx: number, vy: number) => void;
@@ -292,6 +294,8 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
   );
   const rest = useCallback(() => dispatch({ type: 'toggleRest' }), [dispatch]);
   const pet = useCallback(() => dispatch({ type: 'pet' }), [dispatch]);
+  const startCuddle = useCallback(() => dispatch({ type: 'cuddleStart' }), [dispatch]);
+  const finishCuddle = useCallback((seconds: number) => dispatch({ type: 'cuddled', seconds }), [dispatch]);
   const fetchBall = useCallback(() => dispatch({ type: 'fetch' }), [dispatch]);
   const throwAt = useCallback(
     (x: number, y: number) => dispatch({ type: 'fetch', drop: { x, y } }),
@@ -328,6 +332,8 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
     reportDrank,
     rest,
     pet,
+    startCuddle,
+    finishCuddle,
     fetchBall,
     throwAt,
     flickAt,

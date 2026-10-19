@@ -13,6 +13,7 @@ export const userTasks = [
   'wake',
   'react',
   'fetch',
+  'cuddle',
 ] as const;
 
 export type UserTask = (typeof userTasks)[number];

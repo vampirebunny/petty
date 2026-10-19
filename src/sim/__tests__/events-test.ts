@@ -120,3 +120,21 @@ it('wakes a sleeping pet when asked to idle', () => {
   expect(result.cue).toEqual({ kind: 'idle' });
   expect(result.state.asleep).toBe(false);
 });
+
+it('wakes the pet when Cuddle starts and gives no cue', () => {
+  const before = asleep(testPet(1, 'retriever', 0, 'Pup', 'pet'));
+  const started = applyEvent(before, { type: 'cuddleStart' });
+  expect(started.cue).toEqual({ kind: 'none' });
+  expect(started.state.asleep).toBe(false);
+});
+
+it('rewards a finished cuddle, more for a longer one, with no cue', () => {
+  const before = testPet(1, 'retriever', 0, 'Pup', 'pet');
+  before.needs.happiness = 40;
+  const quick = applyEvent(before, { type: 'cuddled', seconds: 1 });
+  const long = applyEvent(before, { type: 'cuddled', seconds: 30 });
+  expect(quick.cue).toEqual({ kind: 'none' });
+  expect(quick.state.needs.happiness).toBeGreaterThan(40);
+  expect(long.state.needs.happiness).toBeGreaterThan(quick.state.needs.happiness);
+  expect(long.state.rngState).toBe(before.rngState);
+});

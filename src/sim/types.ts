@@ -115,6 +115,8 @@ export type PetEvent =
   | { type: 'drank'; fromBowl: boolean; now: number }
   | { type: 'toggleRest' }
   | { type: 'pet' }
+  | { type: 'cuddleStart' }
+  | { type: 'cuddled'; seconds: number }
   | { type: 'fetch'; drop?: { x: number; y: number }; flick?: { vx: number; vy: number; vz: number } }
   | { type: 'setScene'; sceneId: string }
   | { type: 'equip'; slot: OutfitSlot; itemId: string | null };

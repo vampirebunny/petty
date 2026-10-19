@@ -3,7 +3,8 @@ import type { SkCanvas } from '@shopify/react-native-skia';
 
 import { bodyFrame, gaitFoot, isDarkCoat, solveKnee, wearItem } from '../../actor';
 import type { Actor, Breed, Geom } from '../../actor';
-import { headFaceOf, torsoPoint } from '../../actor/geometry';
+import { headFaceOf, headShift, torsoPoint } from '../../actor/geometry';
+import { cuddleDefaults } from '../../actor/data/cuddle';
 import { drawBandana, drawBoot, drawCoat, drawCollar, drawGlasses, drawHat } from './cosmetics';
 import {
   clamp,
@@ -62,7 +63,7 @@ function drawEye(c: SkCanvas, ex: number, ey: number, eyeR: number, closed: numb
   fillCircle(c, ex - eyeR * 0.35, ey + eyeR * 0.4 * open, eyeR * (0.12 + 0.1 * cf) * open, '#ffffff', 0.75);
 }
 
-function drawTail(c: SkCanvas, breed: Breed, geom: Geom, wag: number, color: string): void {
+function drawTail(c: SkCanvas, breed: Breed, geom: Geom, wag: number, color: string, lift: number): void {
   const tx = -geom.bodyLen / 2 + 6;
   const ty = geom.bodyY - geom.bodyH * 0.1;
   const tail = Skia.Path.Make();
@@ -84,6 +85,14 @@ function drawTail(c: SkCanvas, breed: Breed, geom: Geom, wag: number, color: str
   } else {
     tail.moveTo(tx, ty);
     tail.lineTo(tx - 9 + wag * 4, ty - 7);
+  }
+  // A raised tail swings up about its root. Cuddle uses it for the cat's upright, contented tail.
+  if (lift > 0.001) {
+    c.save();
+    c.rotate(deg(lift * 1.2), tx, ty);
+    c.drawPath(tail, paintOf(color, 1, width));
+    c.restore();
+    return;
   }
   c.drawPath(tail, paintOf(color, 1, width));
 }
@@ -138,10 +147,16 @@ export function drawActor(
   c.save();
   c.translate(actor.x, actor.y);
   c.scale(actor.face * scale, scale);
+  // Cuddle: the torso leans with the finger, and a shake-off wobbles the whole body about its feet.
+  c.translate(pose.torsoShift, 0);
+  if (pose.shake > 0.01) {
+    c.rotate(deg(Math.sin(t * 42) * 0.07 * pose.shake), 0, 0);
+    c.translate(Math.sin(t * 37) * 2.2 * pose.shake, 0);
+  }
   fillOval(c, geom.bodyLen * 0.05 + 10 * pose.lie, 2, geom.bodyLen * (0.52 + 0.08 * pose.lie), 7, '#000000', 0.13);
   c.translate(0, -actor.z / scale);
 
-  const footAt = (hip: Pt, fore: boolean, offset: number, nearFore: boolean): Pt => {
+  const footAt = (hip: Pt, fore: boolean, offset: number, nearFore: boolean, kicker = false): Pt => {
     const gait = gaitFoot(actor.phase, offset, stride, lift);
     const stand = { x: hip.x + (fore ? 3 : -1) + gait.x * pose.walk, y: gait.y * pose.walk };
     const sit = fore ? { x: hip.x + 4, y: 0 } : { x: hip.x + 0.45 * geom.L, y: 0 };
@@ -156,6 +171,21 @@ export function drawActor(
       x += (pawX - x) * pose.paw;
       y += (pawY - y) * pose.paw;
     }
+    if (pose.belly > 0.001) {
+      // On its back the legs fold up toward the body, and paddle slowly when the belly is rubbed.
+      x = hip.x + (x - hip.x) * (1 - 0.3 * pose.belly);
+      y = hip.y + (y - hip.y) * (1 - 0.3 * pose.belly);
+      x += Math.sin(t * 5 + offset + (fore ? 1 : 0)) * 5 * pose.paddle;
+      y += Math.cos(t * 5 + offset + (fore ? 1 : 0)) * 4 * pose.paddle;
+    }
+    if (fore && pose.knead > 0.001) {
+      // Kneading: the front paws press in turn, about twice a second.
+      y -= Math.max(0, Math.sin(t * Math.PI * 2 * cuddleDefaults.escalation.kneadHz + offset)) * geom.L * 0.22 * pose.knead;
+    }
+    if (kicker && pose.kick > 0.001) {
+      // A few quick small lifts of the near hind leg.
+      y -= Math.abs(Math.sin(t * 16)) * geom.L * 0.35 * pose.kick;
+    }
     return { x, y };
   };
 
@@ -165,6 +195,15 @@ export function drawActor(
   const hindFar = { x: hindNear.x + 4, y: hindNear.y };
   const foreSide = pose.lie > 0.5 ? -1 : 1;
 
+  // Roll-over mirrors the torso, legs, and tail about the body's center line. The head stays upright.
+  const bellyScale = 1 - 2 * pose.belly;
+  const bodyCenterY = geom.bodyY + dy;
+  c.save();
+  if (pose.belly > 0.001) {
+    c.translate(0, bodyCenterY);
+    c.scale(1, bellyScale);
+    c.translate(0, -bodyCenterY);
+  }
   const hindFarPaw = drawLeg(c, hindFar, footAt(hindFar, false, 0, false), geom, -1, farColor, boot, true);
   const foreFarPaw = drawLeg(c, foreFar, footAt(foreFar, true, Math.PI, false), geom, foreSide, farColor, boot, true);
 
@@ -174,7 +213,7 @@ export function drawActor(
   c.translate(geom.Px, geom.Py);
   c.rotate(deg(theta), 0, 0);
   c.translate(-geom.Px, -geom.Py);
-  drawTail(c, breed, geom, wag, tailColor);
+  drawTail(c, breed, geom, wag, tailColor, pose.tailLift);
   const breath = 1 + pose.breathAmp * Math.sin(actor.breathPh);
   fillOval(c, 0, geom.bodyY, geom.bodyLen / 2, (geom.bodyH / 2) * breath, breed.coat);
   fillOval(
@@ -211,14 +250,19 @@ export function drawActor(
   }
   c.restore();
 
-  const hindNearPaw = drawLeg(c, hindNear, footAt(hindNear, false, Math.PI, false), geom, -1, legColor, boot, false);
+  const hindNearPaw = drawLeg(c, hindNear, footAt(hindNear, false, Math.PI, false, true), geom, -1, legColor, boot, false);
   const foreNearPaw = drawLeg(c, foreNear, footAt(foreNear, true, 0, true), geom, foreSide, legColor, boot, false);
   actor.anchors.paws = [hindFarPaw, foreFarPaw, hindNearPaw, foreNearPaw].map(({ x, y, shin }) => ({ x, y, shin }));
+  c.restore();
 
   // neck, bandana, collar
-  const head = frame.head;
-  const pitch = frame.pitch;
+  const shift = headShift(geom, frame.head.y, pose);
+  const head = { x: frame.head.x + shift.x, y: frame.head.y + shift.y };
+  const pitch = frame.pitch + pose.headRot;
   const base = torsoPoint(geom, theta, dy, geom.bodyLen / 2 - 14, geom.bodyY - 2);
+  if (pose.belly > 0.001) {
+    base.y = bodyCenterY + (base.y - bodyCenterY) * bellyScale;
+  }
   const neckWidth = geom.headR * 1.35;
   strokeLine(c, base.x, base.y, head.x - 2, head.y + 3, breed.coat, neckWidth);
   const nx = head.x - 2 - base.x;
@@ -267,6 +311,10 @@ export function drawActor(
   // The far ear sits behind the head and slides to the far side as the head turns.
   c.save();
   c.translate(face.farEarShift.x, face.farEarShift.y);
+  // Ears bend back (positive) or perk forward (negative) about their base. Floppy ears swing from the top.
+  if (breed.ear !== 'floppy') {
+    c.rotate(deg(-pose.earBack * 1.2), -R * 0.3, -R * 0.65);
+  }
   if (breed.ear === 'pointy') {
     const ear = Skia.Path.Make();
     ear.moveTo(-R * 0.9, -R * 0.5);
@@ -283,7 +331,7 @@ export function drawActor(
     c.drawPath(ear, paintOf(earFar));
   } else if (face.farEarAlpha > 0.001) {
     c.translate(-R * 0.15, -R * 0.35);
-    c.rotate(deg(-0.25), 0, 0);
+    c.rotate(deg(-0.25 + pose.earBack), 0, 0);
     fillOval(c, 0, R * 0.55 * earSize, R * 0.4 * earSize, R * 0.85 * earSize, earFar, face.farEarAlpha);
   }
   c.restore();
@@ -303,7 +351,7 @@ export function drawActor(
     c.drawPath(marks, paintOf(mix(breed.coat, '#000000', 0.5), 0.6, 2.6));
   }
   const mrx = (cat ? geom.snout * 0.6 + R * 0.34 : geom.snout * 0.7 + R * 0.3) * face.snoutXScale;
-  const mry = cat ? R * 0.38 : R * 0.45;
+  const mry = (cat ? R * 0.38 : R * 0.45) * pose.snoutScale;
   const mx = face.snoutX;
   const my = face.snoutY;
   // Nose: front of the snout in side view, top-front of it in 3/4.
@@ -383,6 +431,7 @@ export function drawActor(
   if (breed.ear !== 'floppy') {
     c.save();
     c.translate(face.nearEarShift.x, face.nearEarShift.y);
+    c.rotate(deg(-pose.earBack * 1.2), R * 0.05, -R * 0.7);
   }
   if (breed.ear === 'pointy') {
     const ear = Skia.Path.Make();
@@ -407,7 +456,7 @@ export function drawActor(
   } else {
     c.save();
     c.translate(-R * 0.15 + face.nearEarShift.x, -R * 0.35 + face.nearEarShift.y);
-    c.rotate(deg(0.25 + Math.sin(actor.phase * 2) * 0.08 * pose.walk - barkOpen * 0.15), 0, 0);
+    c.rotate(deg(0.25 + Math.sin(actor.phase * 2) * 0.08 * pose.walk - barkOpen * 0.15 + pose.earBack), 0, 0);
     fillOval(c, 0, R * 0.55 * earSize, R * 0.4 * earSize, R * 0.85 * earSize, breed.earColor);
     c.restore();
   }

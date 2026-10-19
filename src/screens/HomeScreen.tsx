@@ -13,17 +13,31 @@ import {
   wardrobe,
 } from '../actor';
 import { setSoundEnabled } from '../audio/voice';
+import type { CuddleOut } from '../actor';
 import { stageHeight, stageWidth } from '../actor/geometry';
 import { flickSpeedThreshold } from '../input/flick';
+import { CuddleGesture } from '../input/cuddleGesture';
+import type { GestureEvent } from '../input/cuddleGesture';
 import { archetypeNames, archetypeStyleNames, attributeScore, currentStyle, petStrokeIntervalMs, traits } from '../sim';
 import type { OutfitSlot, Trait } from '../sim';
 import { loadSoundEnabled, saveSoundEnabled } from '../storage/session';
 import { usePet } from '../state/usePet';
+import {
+  ghostDelayMs,
+  ghostEligible,
+  loadCoachSeen,
+  saveCoachSeen,
+  startCuddleSession,
+} from '../cuddle/guidance';
 import { ActionButtons } from '../ui/ActionButtons';
 import type { PetAction } from '../ui/ActionButtons';
 import { DebugPanel } from '../ui/DebugPanel';
 import { NeedBars } from '../ui/NeedBars';
 import { PetView } from '../ui/PetView';
+import type { CuddleHandle } from '../ui/PetView';
+import { CuddleFeedback } from '../ui/cuddle/CuddleFeedback';
+import type { FeedbackHandle } from '../ui/cuddle/CuddleFeedback';
+import { CoachMarks, CuddleHelpSheet, CuddleHintPill, GhostFinger } from '../ui/cuddle/CuddleGuidance';
 
 type Props = {
   petApi: ReturnType<typeof usePet>;
@@ -58,6 +72,8 @@ export default function HomeScreen({ petApi }: Props) {
     speak,
     rest,
     pet,
+    startCuddle,
+    finishCuddle,
     fetchBall,
     throwAt,
     flickAt,
@@ -81,6 +97,21 @@ export default function HomeScreen({ petApi }: Props) {
   const [personalityOpen, setPersonalityOpen] = useState(false);
   const [feedOpen, setFeedOpen] = useState(false);
   const [playOpen, setPlayOpen] = useState(false);
+  const [cuddleOn, setCuddleOn] = useState(false);
+  const [coachVisible, setCoachVisible] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [sessionNumber, setSessionNumber] = useState(0);
+  const [ghost, setGhost] = useState<{ from: { x: number; y: number }; to: { x: number; y: number }; key: number } | null>(
+    null,
+  );
+  const [coachTarget, setCoachTarget] = useState<{ x: number; y: number } | null>(null);
+  const cuddleHandle = useRef<CuddleHandle>(null);
+  const feedback = useRef<FeedbackHandle>(null);
+  const tracker = useRef(new CuddleGesture());
+  const touchedRef = useRef(false);
+  const touchActive = useRef(false);
+  const lastTrailAt = useRef(0);
+  const cuddleOnRef = useRef(false);
   const [note, setNote] = useState('');
   const [soundOn, setSoundOn] = useState(true);
   const noteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -161,6 +192,95 @@ export default function HomeScreen({ petApi }: Props) {
     },
     [flickAt, viewHeight, viewWidth],
   );
+  const stageToView = useCallback(
+    (point: { x: number; y: number }) => ({
+      x: (point.x / stageWidth) * viewWidth,
+      y: (point.y / stageHeight) * viewHeight,
+    }),
+    [viewHeight, viewWidth],
+  );
+
+  const acceptingTouch = useCallback(() => {
+    const phase = cuddleHandle.current?.phase();
+    return phase === 'waiting' || phase === 'rollDown' || phase === 'rollOver' || phase === 'belly';
+  }, []);
+
+  const sendCuddleEvents = useCallback(
+    (events: GestureEvent[]) => {
+      const handle = cuddleHandle.current;
+      if (!handle || !acceptingTouch()) {
+        return;
+      }
+      for (const event of events) {
+        const stage = stagePoint(event.x, event.y, viewWidth, viewHeight);
+        if (event.type === 'move') {
+          touchedRef.current = true;
+          handle.touch({ kind: 'move', zone: event.zone, x: stage.x });
+          const now = Date.now();
+          if (now - lastTrailAt.current > 35) {
+            lastTrailAt.current = now;
+            feedback.current?.trail(event.x, event.y);
+          }
+        } else if (event.type === 'stroke') {
+          handle.touch({ kind: 'stroke', zone: event.zone, x: stage.x });
+        } else if (event.type === 'heart') {
+          feedback.current?.heart(event.x, event.y);
+        } else if (event.type === 'tooFast') {
+          touchedRef.current = true;
+          handle.touch({ kind: 'flinch', zone: 'back', x: stage.x });
+        } else {
+          touchedRef.current = true;
+          handle.touch({ kind: 'scratch', zone: event.zone, x: stage.x });
+        }
+      }
+    },
+    [acceptingTouch, viewHeight, viewWidth],
+  );
+
+  const cuddleMove = useCallback(
+    (x: number, y: number) => {
+      const handle = cuddleHandle.current;
+      if (!handle) {
+        return;
+      }
+      if (!touchActive.current) {
+        touchActive.current = true;
+        tracker.current.begin();
+      }
+      const stage = stagePoint(x, y, viewWidth, viewHeight);
+      sendCuddleEvents(tracker.current.move(x, y, Date.now(), handle.zoneAt(stage.x, stage.y)));
+    },
+    [sendCuddleEvents, viewHeight, viewWidth],
+  );
+  const cuddleTap = useCallback(
+    (x: number, y: number) => {
+      const handle = cuddleHandle.current;
+      if (!handle || !acceptingTouch()) {
+        return;
+      }
+      const stage = stagePoint(x, y, viewWidth, viewHeight);
+      if (handle.zoneAt(stage.x, stage.y) === 'nose') {
+        touchedRef.current = true;
+        handle.touch({ kind: 'boop', zone: 'nose', x: stage.x });
+      }
+    },
+    [acceptingTouch, viewHeight, viewWidth],
+  );
+  const cuddleEnd = useCallback(() => {
+    touchActive.current = false;
+  }, []);
+  const cuddleMoveRef = useRef(cuddleMove);
+  const cuddleTapRef = useRef(cuddleTap);
+  const cuddleEndRef = useRef(cuddleEnd);
+  useEffect(() => {
+    cuddleMoveRef.current = cuddleMove;
+    cuddleTapRef.current = cuddleTap;
+    cuddleEndRef.current = cuddleEnd;
+  }, [cuddleEnd, cuddleMove, cuddleTap]);
+  const onCuddleMoveStage = useCallback((x: number, y: number) => cuddleMoveRef.current(x, y), []);
+  const onCuddleTapStage = useCallback((x: number, y: number) => cuddleTapRef.current(x, y), []);
+  const onCuddleEndStage = useCallback(() => cuddleEndRef.current(), []);
+
   const dropRef = useRef(softDropHere);
   const flickRef = useRef(flickHere);
   const strokeRef = useRef(stroke);
@@ -179,6 +299,27 @@ export default function HomeScreen({ petApi }: Props) {
     flickRef.current(x, y, vx, vy);
   }, []);
   const gesture = useMemo(() => {
+    if (cuddleOn) {
+      // Cuddle replaces the ball gestures: a drag is a stroke or a scratch, a tap on the nose is a boop.
+      const boop = Gesture.Tap()
+        .maxDistance(12)
+        .enabled(!coachVisible)
+        .onEnd((event, success) => {
+          if (success) {
+            runOnJS(onCuddleTapStage)(event.x, event.y);
+          }
+        });
+      const drag = Gesture.Pan()
+        .minDistance(4)
+        .enabled(!coachVisible)
+        .onUpdate((event) => {
+          runOnJS(onCuddleMoveStage)(event.x, event.y);
+        })
+        .onFinalize(() => {
+          runOnJS(onCuddleEndStage)();
+        });
+      return Gesture.Exclusive(boop, drag);
+    }
     const tap = Gesture.Tap()
       .maxDistance(18)
       .onEnd((event) => {
@@ -196,7 +337,107 @@ export default function HomeScreen({ petApi }: Props) {
         }
       });
     return Gesture.Exclusive(tap, pan);
-  }, [onFlickStage, onStrokeStage, onTapStage]);
+  }, [coachVisible, cuddleOn, onCuddleEndStage, onCuddleMoveStage, onCuddleTapStage, onFlickStage, onStrokeStage, onTapStage]);
+  const petName = state?.name ?? 'Your pet';
+
+  const toggleCuddle = useCallback(() => {
+    if (cuddleOnRef.current) {
+      cuddleOnRef.current = false;
+      setCuddleOn(false);
+      setCoachVisible(false);
+      setGhost(null);
+      return;
+    }
+    cuddleOnRef.current = true;
+    startCuddle();
+    setCuddleOn(true);
+    setGhost(null);
+    setSessionNumber(0);
+    tracker.current.reset();
+    touchedRef.current = false;
+    touchActive.current = false;
+    void Promise.all([loadCoachSeen(), startCuddleSession()]).then(([seen, session]) => {
+      if (!cuddleOnRef.current) {
+        return;
+      }
+      setSessionNumber(session);
+      if (!seen) {
+        setCoachVisible(true);
+      }
+    });
+  }, [startCuddle]);
+
+  const dismissCoach = useCallback(() => {
+    setCoachVisible(false);
+    void saveCoachSeen();
+  }, []);
+
+  const onCuddleEvent = useCallback(
+    (event: CuddleOut | { type: 'interrupted' }) => {
+      if (event.type === 'exit') {
+        cuddleOnRef.current = false;
+        setCuddleOn(false);
+        setCoachVisible(false);
+        setGhost(null);
+        flash(
+          event.reason === 'tolerance'
+            ? `${petName} has had enough cuddles for now.`
+            : `${petName} is done cuddling.`,
+        );
+      } else if (event.type === 'interrupted') {
+        cuddleOnRef.current = false;
+        setCuddleOn(false);
+        setCoachVisible(false);
+        setGhost(null);
+      } else if (event.petted >= 2) {
+        finishCuddle(event.petted);
+      }
+    },
+    [finishCuddle, flash, petName],
+  );
+
+  // The ghost finger strokes the back once if a settled pet goes untouched, for the first few sessions.
+  useEffect(() => {
+    if (!cuddleOn || coachVisible || !ghostEligible(sessionNumber)) {
+      return undefined;
+    }
+    let settledAt: number | null = null;
+    let shown = false;
+    const timer = setInterval(() => {
+      if (shown || touchedRef.current) {
+        return;
+      }
+      if (cuddleHandle.current?.phase() !== 'waiting') {
+        return;
+      }
+      settledAt ??= Date.now();
+      if (Date.now() - settledAt >= ghostDelayMs) {
+        const path = cuddleHandle.current?.backPath();
+        if (path) {
+          shown = true;
+          setGhost({ from: stageToView(path.from), to: stageToView(path.to), key: Date.now() });
+        }
+      }
+    }, 200);
+    return () => clearInterval(timer);
+  }, [coachVisible, cuddleOn, sessionNumber, stageToView]);
+
+  // Keeps the coach-mark ring on the pet while the pet settles.
+  useEffect(() => {
+    if (!coachVisible) {
+      return undefined;
+    }
+    const update = () => {
+      const path = cuddleHandle.current?.backPath();
+      if (path) {
+        setCoachTarget(stageToView({ x: (path.from.x + path.to.x) / 2, y: (path.from.y + path.to.y) / 2 }));
+      }
+    };
+    update();
+    const timer = setInterval(update, 300);
+    return () => clearInterval(timer);
+  }, [coachVisible, stageToView]);
+
   const preset = sceneById(state?.sceneId ?? 'livingroom');
   const scene = preset;
 
@@ -218,7 +459,14 @@ export default function HomeScreen({ petApi }: Props) {
     { id: 'sit', label: 'Sit', onPress: sit },
     { id: 'paw', label: 'Give paw', onPress: givePaw },
     { id: 'speak', label: 'Speak', onPress: speak },
-    { id: 'rest', label: state.asleep ? 'Wake' : 'Sleep', onPress: rest },
+    {
+      id: 'cuddle',
+      label: 'Cuddle',
+      onPress: toggleCuddle,
+      onLongPress: () => setHelpOpen(true),
+      active: cuddleOn,
+    },
+    { id: state.asleep ? 'wake' : 'rest', label: state.asleep ? 'Wake' : 'Sleep', onPress: rest },
     {
       id: 'feed',
       label: 'Feed',
@@ -226,6 +474,7 @@ export default function HomeScreen({ petApi }: Props) {
         setPlayOpen(false);
         setFeedOpen((open) => !open);
       },
+      active: feedOpen,
       reason: actionReason(scene, 'feed'),
     },
     {
@@ -241,7 +490,40 @@ export default function HomeScreen({ petApi }: Props) {
         setFeedOpen(false);
         setPlayOpen((open) => !open);
       },
-      primary: true,
+      active: playOpen,
+    },
+  ];
+
+  const toggles: PetAction[] = [
+    {
+      id: 'wardrobe',
+      label: 'Wardrobe',
+      onPress: () => setWardrobeOpen((open) => !open),
+      active: wardrobeOpen,
+    },
+    {
+      id: 'reminders',
+      label: 'Reminders',
+      onPress: () => setRemindersOn(!remindersOn),
+      active: remindersOn,
+    },
+    {
+      id: soundOn ? 'sound' : 'soundOff',
+      label: 'Sound',
+      onPress: toggleSound,
+      active: soundOn,
+    },
+    {
+      id: 'personality',
+      label: 'Personality',
+      onPress: () => setPersonalityOpen((open) => !open),
+      active: personalityOpen,
+    },
+    {
+      id: 'help',
+      label: 'Help',
+      onPress: () => setHelpOpen(true),
+      active: helpOpen,
     },
   ];
 
@@ -255,6 +537,9 @@ export default function HomeScreen({ petApi }: Props) {
         <GestureDetector gesture={gesture}>
           <View collapsable={false} style={{ width: viewWidth, height: viewHeight }}>
             <PetView
+              cuddleActive={cuddleOn}
+              cuddleRef={cuddleHandle}
+              onCuddleEvent={onCuddleEvent}
               pet={state}
               cueKind={cue.kind}
               cueToken={cue.token}
@@ -265,6 +550,26 @@ export default function HomeScreen({ petApi }: Props) {
               onWeightDelta={applyActorWeight}
               onDrank={reportDrank}
             />
+            <CuddleFeedback feedbackRef={feedback} reducedMotion={reducedMotion} />
+            {cuddleOn ? <CuddleHintPill /> : null}
+            {ghost && cuddleOn ? (
+              <GhostFinger
+                key={ghost.key}
+                from={ghost.from}
+                to={ghost.to}
+                reducedMotion={reducedMotion}
+                onDone={() => setGhost(null)}
+              />
+            ) : null}
+            {coachVisible ? (
+              <CoachMarks
+                name={state.name}
+                target={coachTarget}
+                width={viewWidth}
+                height={viewHeight}
+                onDone={dismissCoach}
+              />
+            ) : null}
           </View>
         </GestureDetector>
       </View>
@@ -283,7 +588,7 @@ export default function HomeScreen({ petApi }: Props) {
             </Pressable>
           ))}
         </View>
-        <ActionButtons actions={actions} onBlocked={flash} />
+        <ActionButtons actions={actions} species={species} onBlocked={flash} />
         {feedOpen ? (
           <View style={styles.scenes}>
             <Pressable
@@ -318,9 +623,7 @@ export default function HomeScreen({ petApi }: Props) {
           {note ||
             'With no action running, the pet idles on its own. Tap the stage to soft-drop a ball, or flick to throw.'}
         </Text>
-        <Pressable onPress={() => setWardrobeOpen((open) => !open)}>
-          <Text style={styles.switchLabel}>{wardrobeOpen ? 'Hide wardrobe' : 'Wardrobe'}</Text>
-        </Pressable>
+        <ActionButtons actions={toggles} species={species} />
         {wardrobeOpen
           ? (Object.keys(wardrobe) as OutfitSlot[]).map((slot) => (
               <View key={slot} style={styles.scenes}>
@@ -338,17 +641,6 @@ export default function HomeScreen({ petApi }: Props) {
               </View>
             ))
           : null}
-        <Pressable style={styles.switch} onPress={() => setRemindersOn(!remindersOn)}>
-          <Text style={styles.switchLabel}>Reminders {remindersOn ? 'on' : 'off'}</Text>
-        </Pressable>
-        <Pressable style={styles.switch} onPress={toggleSound}>
-          <Text style={styles.switchLabel}>Sound {soundOn ? 'on' : 'off'}</Text>
-        </Pressable>
-        <Pressable style={styles.switch} onPress={() => setPersonalityOpen((open) => !open)}>
-          <Text style={styles.switchLabel}>
-            {personalityOpen ? `Hide ${state.name}'s personality` : `${state.name}'s personality`}
-          </Text>
-        </Pressable>
         {personalityOpen ? (
           <View style={styles.personality}>
             <Text style={styles.personalityMeta}>{styleLine}</Text>
@@ -360,6 +652,7 @@ export default function HomeScreen({ petApi }: Props) {
             ))}
           </View>
         ) : null}
+        <CuddleHelpSheet visible={helpOpen} onClose={() => setHelpOpen(false)} />
         <DebugPanel
           state={state}
           mood={mood}
@@ -447,12 +740,5 @@ const styles = StyleSheet.create({
   hint: {
     fontSize: 12.5,
     color: '#5C6B80',
-  },
-  switch: {
-    alignSelf: 'flex-start',
-  },
-  switchLabel: {
-    fontSize: 15,
-    color: '#243044',
   },
 });

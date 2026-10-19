@@ -2,6 +2,7 @@ import type { Item } from '../items/types';
 import type { PointerTarget } from '../input/pointer';
 import type { BreedRanges, Equipped, Look } from '../sim/types';
 import type { Scene } from './scenes';
+import type { CuddleParams } from './data/cuddle';
 
 export type Vec = { x: number; y: number };
 
@@ -28,7 +29,8 @@ export type TaskType =
   | 'winddown'
   | 'purr'
   | 'groom'
-  | 'pounce';
+  | 'pounce'
+  | 'cuddle';
 
 // How the 3/4 head differs per breed, in head radii. Values are the t=1 pose.
 export type Face3q = {
@@ -85,6 +87,21 @@ export type Pose = {
   squint: number;
   spineArch: number;
   crouch: number;
+  // Cuddle channels. Offsets are actor-local pixels and angles are radians.
+  headDx: number;
+  headDy: number;
+  headRot: number;
+  // Positive bends the ears back, negative perks them up.
+  earBack: number;
+  torsoShift: number;
+  snoutScale: number;
+  tailLift: number;
+  // 0 = upright, 1 = on its back.
+  belly: number;
+  knead: number;
+  paddle: number;
+  kick: number;
+  shake: number;
 };
 
 export type IdleMode = 'still' | 'pant' | 'purr' | 'nap' | 'walk';
@@ -115,6 +132,64 @@ export type Bark = {
   open: number;
   sound: boolean;
 };
+
+export type CuddleZone = 'head' | 'back' | 'nose' | 'belly';
+
+export type CuddlePhase =
+  | 'approach'
+  | 'settle'
+  | 'waiting'
+  | 'rollDown'
+  | 'rollOver'
+  | 'belly'
+  | 'rollBack'
+  | 'hold'
+  | 'unturn'
+  | 'shake'
+  | 'swat'
+  | 'leave';
+
+export type CuddleExit = 'mode' | 'tolerance' | 'timeout';
+
+export type CuddleReactionKind = 'boop' | 'headShake' | 'flinch' | 'scratch' | 'swat';
+
+export type CuddleReaction = { kind: CuddleReactionKind; t: number; dur: number; side: 1 | -1 };
+
+export type CuddleState = {
+  params: CuddleParams;
+  phase: CuddlePhase;
+  t: number;
+  // Seconds since the last valid touch movement, and since a touch of any kind.
+  touchT: number;
+  sinceTouch: number;
+  touchX: number | null;
+  zone: CuddleZone | null;
+  strokes: number;
+  continuity: number;
+  sustained: number;
+  tolerance: number;
+  petted: number;
+  reaction: CuddleReaction | null;
+  boopTimes: number[];
+  kickT: number;
+  kickCool: number;
+  buntT: number;
+  tiltT: number;
+  tiltNext: number;
+  tiltSide: 1 | -1;
+  kneading: boolean;
+  purring: boolean;
+  trap: boolean;
+  trapTried: boolean;
+  exit: CuddleExit | null;
+  leaveTarget: Vec | null;
+  perkT: number;
+  announced: boolean;
+  // One-shot flag for the sound or event of the current phase.
+  fired: boolean;
+};
+
+export type CuddleOut = { type: 'exit'; reason: CuddleExit } | { type: 'done'; petted: number };
 
 export type Actor = {
   id: string;
@@ -149,6 +224,10 @@ export type Actor = {
   asleep: boolean;
   mouth: Vec;
   anchors: Anchors;
+  // 0..1, how much this pet likes cuddling. It sets how soon it escalates and how long it stays.
+  cuddleAffinity: number;
+  cuddle: CuddleState | null;
+  cuddleOut: CuddleOut[];
 };
 
 export type Anchors = {
@@ -172,9 +251,20 @@ export type Anchors = {
 
 export type Particle = { x: number; y: number; v: number; ph: number };
 
+// Placeholder ids for sounds that have no clip yet. They stay silent until a clip joins the clip map.
+export type CuddleSound =
+  | 'cuddle_sneeze'
+  | 'cuddle_purr_loop'
+  | 'cuddle_content_sigh'
+  | 'cuddle_whimper_happy'
+  | 'cuddle_shake_off'
+  | 'cuddle_swat'
+  | 'cuddle_flinch_chirp'
+  | 'cuddle_kneading_loop';
+
 export type SoundEvent = {
   actorId: string;
-  sound: 'bark' | 'meow';
+  sound: 'bark' | 'meow' | CuddleSound;
   rate: number;
 };
 
@@ -202,4 +292,5 @@ export type ActorSource = {
   equipped: Equipped;
   look?: Look | null;
   asleep: boolean;
+  cuddleAffinity?: number;
 };

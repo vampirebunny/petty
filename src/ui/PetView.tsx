@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useImperativeHandle, useMemo, useRef } from 'react';
+import type { Ref } from 'react';
 import { AppState, StyleSheet, useWindowDimensions } from 'react-native';
 import { useSharedValue } from 'react-native-reanimated';
 import { Canvas, Picture, Skia } from '@shopify/react-native-skia';
@@ -6,6 +7,10 @@ import type { SkPicture } from '@shopify/react-native-skia';
 
 import {
   createWorld,
+  cuddleBackPath,
+  cuddleTouch,
+  cuddleZoneAt,
+  endCuddle,
   frameDt,
   sceneById,
   setWorldScene,
@@ -16,18 +21,31 @@ import {
   syncActor,
   syncWorldWater,
   takeBowlDrinks,
+  takeCuddleOut,
   takeSounds,
   takeWeightDelta,
   todAt,
   update,
 } from '../actor';
 import { stageHeight, stageWidth } from '../actor/geometry';
-import type { Scene, TimeOfDay, World } from '../actor';
+import type { CuddleOut, CuddleTouch, CuddleZone, Scene, TimeOfDay, World } from '../actor';
 import { playVoice } from '../audio/voice';
+import { attributeScore } from '../sim';
 import type { Cue, PetState } from '../sim/types';
 import { drawWorld } from './skia/world';
 
+// What the home screen can ask of the pet while Cuddle is on. Points are stage coordinates.
+export type CuddleHandle = {
+  zoneAt: (x: number, y: number) => CuddleZone | null;
+  touch: (touch: CuddleTouch) => void;
+  phase: () => string | null;
+  backPath: () => { from: { x: number; y: number }; to: { x: number; y: number } } | null;
+};
+
 type Props = {
+  cuddleActive?: boolean;
+  cuddleRef?: Ref<CuddleHandle>;
+  onCuddleEvent?: (event: CuddleOut | { type: 'interrupted' }) => void;
   pet: PetState;
   cueKind: Cue['kind'];
   cueToken: number;
@@ -51,10 +69,14 @@ function sourceOf(pet: PetState) {
     equipped: pet.equipped,
     look: pet.look,
     asleep: pet.asleep,
+    cuddleAffinity: Math.min(1, Math.max(0, attributeScore(pet, 'affection') / 100)),
   };
 }
 
 export function PetView({
+  cuddleActive = false,
+  cuddleRef,
+  onCuddleEvent,
   pet,
   cueKind,
   cueToken,
@@ -187,6 +209,56 @@ export function PetView({
     redraw();
   }, [cueKind, cueToken, drop, flick, redraw]);
 
+  useImperativeHandle(
+    cuddleRef,
+    () => ({
+      zoneAt: (x, y) => {
+        const actor = worldRef.current.actors[0];
+        return actor ? cuddleZoneAt(actor, x, y) : null;
+      },
+      touch: (touch) => {
+        const world = worldRef.current;
+        const actor = world.actors[0];
+        if (actor) {
+          cuddleTouch(world, actor, touch);
+        }
+      },
+      phase: () => worldRef.current.actors[0]?.cuddle?.phase ?? null,
+      backPath: () => {
+        const actor = worldRef.current.actors[0];
+        return actor ? cuddleBackPath(actor) : null;
+      },
+    }),
+    [],
+  );
+
+  const cuddleLive = useRef(false);
+  const petRef = useRef(pet);
+  useEffect(() => {
+    petRef.current = pet;
+  }, [pet]);
+  const onCuddleRef = useRef(onCuddleEvent);
+  useEffect(() => {
+    onCuddleRef.current = onCuddleEvent;
+  }, [onCuddleEvent]);
+  useEffect(() => {
+    const world = worldRef.current;
+    const actor = world.actors[0];
+    if (!actor) {
+      return;
+    }
+    if (cuddleActive && !cuddleLive.current) {
+      cuddleLive.current = true;
+      actor.cuddleAffinity = sourceOf(petRef.current).cuddleAffinity;
+      startUserTask(world, actor, 'cuddle');
+    } else if (!cuddleActive && cuddleLive.current) {
+      cuddleLive.current = false;
+      if (actor.task.type === 'cuddle') {
+        endCuddle(actor);
+      }
+    }
+  }, [cuddleActive]);
+
   const pendingWeight = useRef(0);
   const onWeightRef = useRef(onWeightDelta);
   useEffect(() => {
@@ -228,6 +300,14 @@ export function PetView({
       }
       const actor = world.actors[0];
       if (actor) {
+        for (const out of takeCuddleOut(actor)) {
+          onCuddleRef.current?.(out);
+        }
+        // Another action or a scene change replaced the Cuddle task.
+        if (cuddleLive.current && actor.task.type !== 'cuddle') {
+          cuddleLive.current = false;
+          onCuddleRef.current?.({ type: 'interrupted' });
+        }
         pendingWeight.current += takeWeightDelta(actor);
         flushWeight(false);
         const status = statusOf(actor);
