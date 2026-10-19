@@ -48,7 +48,15 @@
       "expo-asset",
       "expo-secure-store",
       "expo-web-browser",
-      "./modules/age-signals/app.plugin.js"
+      "./modules/age-signals/app.plugin.js",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "enableSceneSupport": true
+          }
+        }
+      ]
     ],
     "extra": {
       "eas": {
