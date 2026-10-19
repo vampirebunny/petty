@@ -10,6 +10,7 @@ import { defaultPose, easePose } from './pose';
 import { newCuddle, stepCuddle } from './cuddle';
 import { nearestPoi, poiOf, scenes, stageHeight } from './scenes';
 import type { Scene } from './scenes';
+import { variantFor } from './variation';
 import type { Actor, ActorSource, Anchors, Idle, IdleMode, Pose, SoundEvent, Task, TaskType, Vec, World } from './types';
 
 const displayTau = 0.35;
@@ -150,6 +151,7 @@ export function spawnActor(source: ActorSource, at?: Vec): Actor {
     vitality: source.vitality,
     equipped: { ...source.equipped },
     look: source.look ? { ...source.look } : null,
+    variant: variantFor(source.seed, source.breedId),
     asleep: source.asleep,
     mouth: { x, y },
     anchors: emptyAnchors(),
@@ -211,6 +213,7 @@ export function syncActor(actor: Actor, source: ActorSource): void {
   actor.equipped = { ...source.equipped };
   actor.look = source.look ? { ...source.look } : null;
   actor.breedId = source.breedId;
+  actor.variant = variantFor(source.seed, source.breedId);
   actor.cuddleAffinity = source.cuddleAffinity ?? actor.cuddleAffinity;
   if (actor.asleep !== source.asleep) {
     actor.asleep = source.asleep;
@@ -381,7 +384,8 @@ function nextIdle(world: World, actor: Actor): void {
     return;
   }
   const options = (breed?.species === 'cat' ? ['still', 'purr', 'nap', 'walk'] : ['still', 'pant', 'nap', 'walk']).filter(
-    (mode) => mode !== actor.idle.mode && !(world.reducedMotion && mode === 'walk'),
+    (mode) =>
+      mode !== actor.idle.mode && !(world.reducedMotion && mode === 'walk') && !(world.noNap && mode === 'nap'),
   ) as IdleMode[];
   const choices = options.length > 0 ? options : (['still'] as IdleMode[]);
   const total = choices.reduce((sum, mode) => sum + idleWeight[mode], 0);

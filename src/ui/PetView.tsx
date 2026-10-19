@@ -68,6 +68,7 @@ function sourceOf(pet: PetState) {
     vitality: pet.vitality,
     equipped: pet.equipped,
     look: pet.look,
+    seed: pet.attributes.seed,
     asleep: pet.asleep,
     cuddleAffinity: Math.min(1, Math.max(0, attributeScore(pet, 'affection') / 100)),
   };

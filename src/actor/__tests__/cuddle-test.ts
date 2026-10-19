@@ -143,7 +143,7 @@ describe('cuddle reactions', () => {
   });
 
   it('keeps cat ears forward and raises its tail on a stroke', () => {
-    const { world, actor } = settled('domesticshorthair');
+    const { world, actor } = settled('domesticShorthair');
     run(world, 2, () => cuddleTouch(world, actor, { kind: 'move', zone: 'back', x: actor.x }));
     expect(actor.pose.earBack).toBeCloseTo(0, 1);
     expect(actor.pose.tailLift).toBeGreaterThan(0.6);

@@ -117,6 +117,6 @@ it('never calls Math.random while generating offers', () => {
 
 it('has breed ranges for all ten breeds', () => {
   expect(allBreeds.map((breed) => breed.id).sort()).toEqual(
-    ['bombay', 'corgi', 'dachshund', 'domesticshorthair', 'husky', 'mainecoon', 'persian', 'pug', 'retriever', 'siamese'],
+    ['corgi', 'dachshund', 'domesticShorthair', 'husky', 'maineCoon', 'persian', 'pug', 'retriever', 'scottishFold', 'siamese'],
   );
 });

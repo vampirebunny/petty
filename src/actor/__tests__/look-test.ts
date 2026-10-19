@@ -3,12 +3,13 @@ import {
   coatStyles,
   coatStylesFor,
   defaultLook,
-  earOptions,
+  eyeColorsFor,
   isDarkCoat,
   lookWithCoat,
   resolveBreed,
-  tailOptions,
 } from '../breeds';
+import { luminance } from '../color';
+import { baseColorOf, markingOf, resolveMarkings } from '../markings';
 import { createWorld, spawnActor, syncActor } from '../sim';
 
 const source = {
@@ -27,35 +28,58 @@ it('returns the breed unchanged when there is no look or the look is the default
   expect(resolveBreed(breed, defaultLook(breed))).toEqual(breed);
 });
 
-it('overrides coat, ears, and tail but leaves anatomy alone', () => {
-  const breed = breedById('retriever')!;
-  const look = { coat: '#2b2b33', ear: 'pointy', tail: 'curl' };
-  const resolved = resolveBreed(breed, look);
+it('overrides coat and eye color but leaves anatomy, ears and tail alone', () => {
+  const breed = breedById('domesticShorthair')!;
+  const resolved = resolveBreed(breed, { coat: '#2b2b33', eyeColor: '#5aa7d8' });
   expect(resolved.coat).toBe('#2b2b33');
-  expect(resolved.ear).toBe('pointy');
-  expect(resolved.tail).toBe('curl');
+  expect(resolved.eyeColor).toBe('#5aa7d8');
   expect(resolved.earColor).not.toBe(breed.earColor);
   expect(resolved.muzzle).not.toBe(breed.muzzle);
   expect(resolved.bodyLen).toBe(breed.bodyLen);
   expect(resolved.legLen).toBe(breed.legLen);
   expect(resolved.head).toBe(breed.head);
+  expect(resolved.earType).toBe(breed.earType);
+  expect(resolved.tailType).toBe(breed.tailType);
   expect(resolved.attributeRanges).toBe(breed.attributeRanges);
 });
 
-it('ignores ear and tail values the species does not offer', () => {
-  const cat = breedById('domesticshorthair')!;
-  const resolved = resolveBreed(cat, { coat: cat.coat, ear: 'floppy', tail: 'stub' });
-  expect(resolved.ear).toBe('cat');
-  expect(resolved.tail).toBe(cat.tail);
-  expect(earOptions.cat).toEqual([]);
-  expect(tailOptions.cat.map((option) => option.id)).toEqual(['long', 'fluffy']);
+it('ear and tail come from breed data: legacy look fields are ignored', () => {
+  const husky = breedById('husky')!;
+  const legacy = { coat: '#ffffff', ear: 'floppy', tail: 'stub' } as never;
+  const resolved = resolveBreed(husky, legacy);
+  expect(resolved.earType).toBe('erectTall');
+  expect(resolved.tailType).toBe('sickleBushy');
 });
 
-it('keeps siamese point colors when the coat changes', () => {
+it('offers eye colors only for unlocked breeds that have one', () => {
+  expect(eyeColorsFor(breedById('domesticShorthair')!).length).toBeGreaterThan(0);
+  for (const id of ['scottishFold', 'siamese', 'persian']) {
+    expect(eyeColorsFor(breedById(id)!).length).toBeGreaterThan(0);
+  }
+  for (const id of ['husky', 'pug']) {
+    expect(eyeColorsFor(breedById(id)!)).toEqual([]);
+  }
+});
+
+it('only offers pattern variants the breed allows, and snaps a disallowed pattern back', () => {
+  const husky = breedById('husky')!;
+  expect(coatStylesFor(husky).every((style) => (style.pattern ?? 'none') === 'none')).toBe(true);
+  const dsh = breedById('domesticShorthair')!;
+  const patterns = new Set(coatStylesFor(dsh).map((style) => style.pattern ?? 'none'));
+  expect(patterns.has('bicolor')).toBe(true);
+  expect(patterns.has('points')).toBe(false);
+  expect(resolveBreed(husky, { coat: '#ffffff', pattern: 'stripes' }).pattern).toBe(husky.pattern);
+});
+
+it('siamese: the user color fills the points and the body is a pale tint of it', () => {
   const siamese = breedById('siamese')!;
-  const resolved = resolveBreed(siamese, { coat: '#ffffff', ear: 'cat', tail: 'long' });
-  expect(resolved.earColor).toBe(siamese.earColor);
-  expect(resolved.muzzle).toBe(siamese.muzzle);
+  const resolved = resolveBreed(siamese, { coat: '#6f7f95' });
+  expect(baseColorOf(resolved)).not.toBe('#6f7f95');
+  expect(luminance(baseColorOf(resolved))).toBeGreaterThan(luminance('#6f7f95'));
+  const points = resolveMarkings(resolved);
+  for (const shape of ['blackMask', 'ears', 'legs', 'tail'] as const) {
+    expect(markingOf(points, shape)?.color).toBe('#6f7f95');
+  }
 });
 
 it('lists the breed coat first with no duplicate coat styles', () => {
@@ -98,7 +122,7 @@ it('detects dark coats by luminance, not by one hex value', () => {
 });
 
 it('carries the look onto the actor and updates it on sync', () => {
-  const look = { coat: '#8a97a6', ear: 'floppy', tail: 'stub' };
+  const look = { coat: '#8a97a6' };
   const actor = spawnActor({ ...source, look });
   expect(actor.look).toEqual(look);
   expect(createWorld([actor]).actors[0].look).toEqual(look);

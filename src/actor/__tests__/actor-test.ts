@@ -87,11 +87,11 @@ it('loads five dog breeds and leaves cat tasks unassigned', () => {
   expect(dogBreeds().every((breed) => breed.species === 'dog')).toBe(true);
   expect(dogBreeds().some((breed) => breed.behaviors.includes('groom'))).toBe(false);
   expect(breedsFor('cat').map((breed) => breed.id)).toEqual([
-    'domesticshorthair',
+    'domesticShorthair',
     'siamese',
     'persian',
-    'mainecoon',
-    'bombay',
+    'maineCoon',
+    'scottishFold',
   ]);
 });
 
@@ -175,7 +175,7 @@ it('picks another idle and skips a walk when motion is reduced', () => {
   expect(pup.idle.mode).not.toBe('still');
   expect(['pant', 'nap', 'walk']).toContain(pup.idle.mode);
 
-  const cat = spawnActor(source({ id: 'kit', breedId: 'domesticshorthair' }));
+  const cat = spawnActor(source({ id: 'kit', breedId: 'domesticShorthair' }));
   const quiet = createWorld([cat], 3);
   quiet.waterLevel = 0;
   quiet.reducedMotion = true;
@@ -207,7 +207,7 @@ it('lets a dog carry the ball home and a cat bat it three times', () => {
   expect(chase.items[0]?.state).toBe('carried');
   expect(pup.task.stage).toBe('return');
 
-  const kit = spawnActor(source({ id: 'kit', breedId: 'domesticshorthair' }));
+  const kit = spawnActor(source({ id: 'kit', breedId: 'domesticShorthair' }));
   const play = createWorld([kit], 6);
   startUserTask(play, kit, 'fetch', 1, { x: kit.x, y: kit.y });
   for (let step = 0; step < 240 && kit.task.type !== 'winddown'; step += 1) {

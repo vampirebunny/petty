@@ -8,7 +8,7 @@ export {
   defaultLook,
   dogBreeds,
   dogTasks,
-  earOptions,
+  eyeColorsFor,
   isCoatStyle,
   isDarkCoat,
   limbSize,
@@ -17,7 +17,6 @@ export {
   resolveBreed,
   resolveBreedById,
   sharedTasks,
-  tailOptions,
   voiceRate,
 } from './breeds';
 export type { CoatStyle, LookOption } from './breeds';
@@ -80,3 +79,5 @@ export type {
   TaskType,
   World,
 } from './types';
+export { applyVariant, neutralVariant, variantFor } from './variation';
+export type { Variant } from './variation';

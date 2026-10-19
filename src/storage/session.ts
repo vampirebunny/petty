@@ -32,7 +32,7 @@ function isLook(value: unknown): value is Look {
     return false;
   }
   const look = value as Look;
-  return typeof look.coat === 'string' && typeof look.ear === 'string' && typeof look.tail === 'string';
+  return typeof look.coat === 'string';
 }
 
 function readDraft(value: unknown): AdoptionDraft | null {

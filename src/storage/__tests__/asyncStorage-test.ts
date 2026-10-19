@@ -94,7 +94,7 @@ it('returns null when nothing is stored or the json is unreadable', async () => 
 });
 
 it('migrates legacy breed ids and fullness into hunger', async () => {
-  const pet = testPet(3, 'bombay', 50, 'Kit', 'pet');
+  const pet = testPet(3, 'scottishFold', 50, 'Kit', 'pet');
   const saved = JSON.parse(JSON.stringify(pet)) as Record<string, unknown>;
   saved.breedId = 'black';
   saved.needs = { fullness: 70, energy: 70, happiness: 60 };
@@ -103,8 +103,17 @@ it('migrates legacy breed ids and fullness into hunger', async () => {
   await AsyncStorage.setItem('petty.pet', JSON.stringify(saved));
 
   const loaded = await asyncPetStorage.load();
-  expect(loaded?.breedId).toBe('bombay');
+  expect(loaded?.breedId).toBe('scottishFold');
   expect(loaded?.needs.hunger).toBe(30);
   expect(loaded?.waterLevel).toBe(1);
   expect(loaded?.toys).toEqual(['ball']);
+});
+
+it('drops legacy ear and tail choices from a saved look, so the pet takes its breed ears and tail', async () => {
+  const pet = testPet(3, 'husky', 50, 'Pup', 'pet');
+  const old = JSON.parse(JSON.stringify(pet)) as { look: Record<string, unknown> };
+  old.look = { coat: '#ffffff', ear: 'floppy', tail: 'stub' };
+  await AsyncStorage.setItem('petty.pet', JSON.stringify(old));
+  const loaded = await asyncPetStorage.load();
+  expect(loaded?.look).toEqual({ coat: '#ffffff' });
 });

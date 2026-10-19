@@ -15,7 +15,7 @@ it('returns the same draft seed, species, breed, look, and step', async () => {
     seed: 42,
     species: 'dog' as const,
     breedId: 'husky',
-    look: { coat: '#8a97a6', ear: 'pointy', tail: 'curl' },
+    look: { coat: '#8a97a6' },
     step: 'offers' as const,
   };
   await saveDraft(draft);
@@ -52,7 +52,7 @@ it('migrates legacy cat breed ids in a draft', async () => {
   await expect(loadDraft()).resolves.toEqual({
     seed: 9,
     species: 'cat',
-    breedId: 'domesticshorthair',
+    breedId: 'domesticShorthair',
     look: null,
     step: 'design',
   });

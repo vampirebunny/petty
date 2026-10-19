@@ -3,8 +3,24 @@ import type { SkCanvas } from '@shopify/react-native-skia';
 
 import { bodyFrame, gaitFoot, isDarkCoat, solveKnee, wearItem } from '../../actor';
 import type { Actor, Breed, Geom } from '../../actor';
-import { headFaceOf, headShift, torsoPoint } from '../../actor/geometry';
+import { headFaceOf, headShift, noseOf, torsoPoint } from '../../actor/geometry';
+import { baseColorOf, markingOf, resolveMarkings } from '../../actor/markings';
+import { earProfiles } from '../../actor/data/breedShapes';
 import { cuddleDefaults } from '../../actor/data/cuddle';
+import {
+  drawBodyMarkings,
+  drawEar,
+  drawEye,
+  drawHeadMarkingsAbove,
+  drawHeadMarkingsBelow,
+  drawRuff,
+  clipRectAbove,
+  drawSkull,
+  drawTail,
+  earColorOf,
+  muzzleColorOf,
+} from './breedParts';
+import type { HeadCtx } from './breedParts';
 import { drawBandana, drawBoot, drawCoat, drawCollar, drawGlasses, drawHat } from './cosmetics';
 import {
   clamp,
@@ -12,8 +28,8 @@ import {
   deg,
   fillCircle,
   fillOval,
+  fillRRect,
   mix,
-  oval,
   paintOf,
   strokeLine,
 } from './draw';
@@ -25,7 +41,17 @@ type Pt = { x: number; y: number };
 type Paw = { x: number; y: number; shin: number; knee: Pt };
 
 // Two-bone leg: the knee bends toward `side`, the paw stays on the bone length even when the target is out of reach.
-function drawLeg(c: SkCanvas, hip: Pt, target: Pt, geom: Geom, side: number, color: string, boot: WearItem | null, far: boolean): Paw {
+function drawLeg(
+  c: SkCanvas,
+  hip: Pt,
+  target: Pt,
+  geom: Geom,
+  side: number,
+  color: string,
+  boot: WearItem | null,
+  far: boolean,
+  sock: string | null,
+): Paw {
   const bone = geom.L / 2;
   const knee = solveKnee(hip, target, bone, side);
   const ex = target.x - knee.x;
@@ -38,63 +64,16 @@ function drawLeg(c: SkCanvas, hip: Pt, target: Pt, geom: Geom, side: number, col
   leg.lineTo(paw.x, paw.y);
   c.drawPath(leg, paintOf(color, 1, geom.legWidth));
   fillOval(c, paw.x + 3, paw.y - 3, geom.pawRx, geom.pawRy, color);
+  if (sock) {
+    // Socks or tan lower legs: the lower half of the leg and the paw in the marking color.
+    const sockColor = far ? mix(sock, '#000000', 0.32) : sock;
+    strokeLine(c, knee.x + (paw.x - knee.x) * 0.45, knee.y + (paw.y - knee.y) * 0.45, paw.x, paw.y, sockColor, geom.legWidth);
+    fillOval(c, paw.x + 3, paw.y - 3, geom.pawRx, geom.pawRy, sockColor);
+  }
   if (boot) {
     drawBoot(c, knee, paw, geom, boot, far);
   }
   return { x: paw.x, y: paw.y, shin: Math.atan2(paw.y - knee.y, paw.x - knee.x), knee };
-}
-
-function drawEye(c: SkCanvas, ex: number, ey: number, eyeR: number, closed: number, breed: Breed, cf: number): void {
-  const cat = breed.species === 'cat';
-  if (closed > 0.6) {
-    const lid = Skia.Path.Make();
-    lid.addArc(oval(ex, ey - eyeR * 0.3, eyeR * 1.1, eyeR * 1.1), 27, 126);
-    c.drawPath(lid, paintOf('#1b1512', 1, 2));
-    return;
-  }
-  const open = 1 - closed;
-  if (cat) {
-    fillOval(c, ex, ey, eyeR * 1.12, eyeR * 1.1 * open, breed.eyeColor ?? '#79bd5a');
-    fillOval(c, ex + eyeR * 0.05, ey, eyeR * 0.4, eyeR * 1.02 * open, '#15110f');
-  } else {
-    fillOval(c, ex, ey, eyeR, eyeR * open, '#1b1512');
-  }
-  fillCircle(c, ex + eyeR * 0.38, ey - eyeR * 0.38 * open, eyeR * 0.34 * open, '#ffffff');
-  fillCircle(c, ex - eyeR * 0.35, ey + eyeR * 0.4 * open, eyeR * (0.12 + 0.1 * cf) * open, '#ffffff', 0.75);
-}
-
-function drawTail(c: SkCanvas, breed: Breed, geom: Geom, wag: number, color: string, lift: number): void {
-  const tx = -geom.bodyLen / 2 + 6;
-  const ty = geom.bodyY - geom.bodyH * 0.1;
-  const tail = Skia.Path.Make();
-  let width = 9;
-  if (breed.tail === 'straight') {
-    const angle = 0.9 + wag;
-    const length = 38;
-    width = 8;
-    tail.moveTo(tx, ty);
-    tail.quadTo(tx - length * 0.4, ty - 4, tx - Math.cos(angle) * length, ty - Math.sin(angle) * length);
-  } else if (breed.tail === 'curl') {
-    width = 8;
-    tail.addArc(oval(tx - 6 + wag * 6, ty - 12, 13, 13), 108, 288);
-  } else if (breed.tail === 'long' || breed.tail === 'fluffy') {
-    width = breed.tail === 'fluffy' ? 12 : 6.2;
-    const sway = wag * (breed.tail === 'fluffy' ? 22 : 30);
-    tail.moveTo(tx, ty);
-    tail.cubicTo(tx - 24, ty + 8, tx - 40, ty - 8, tx - 34 + sway, ty - 38);
-  } else {
-    tail.moveTo(tx, ty);
-    tail.lineTo(tx - 9 + wag * 4, ty - 7);
-  }
-  // A raised tail swings up about its root. Cuddle uses it for the cat's upright, contented tail.
-  if (lift > 0.001) {
-    c.save();
-    c.rotate(deg(lift * 1.2), tx, ty);
-    c.drawPath(tail, paintOf(color, 1, width));
-    c.restore();
-    return;
-  }
-  c.drawPath(tail, paintOf(color, 1, width));
 }
 
 export function drawActor(
@@ -104,6 +83,7 @@ export function drawActor(
   floor: { yMin: number; yMax: number },
   t: number,
   carrying: boolean,
+  silhouette = false,
 ): void {
   const frame = bodyFrame(
     breed,
@@ -140,10 +120,35 @@ export function drawActor(
   const glasses = wearItem('glasses', actor.equipped.glasses);
   const hat = wearItem('hat', actor.equipped.hat);
   const points = breed.pattern === 'points';
-  const legColor = points ? breed.accent ?? breed.coat : breed.coat;
-  const tailColor = legColor;
+  // Breed marking regions, resolved against the coat. Locked regions ignore the user palette.
+  const markings = resolveMarkings(breed);
+  const baseColor = baseColorOf(breed);
+  const legColor = markingOf(markings, 'legs')?.color ?? (points ? breed.accent ?? baseColor : baseColor);
+  const tailColor = markingOf(markings, 'tail')?.color ?? legColor;
   const farColor = mix(legColor, '#000000', 0.32);
+  const socks = markingOf(markings, 'socks') ?? markingOf(markings, 'lowerLegs');
+  const sockColor = socks ? socks.color : null;
+  const featherColor = markingOf(markings, 'feathering')?.color ?? mix(baseColor, '#ffffff', 0.18);
+  const tailDeco = {
+    feather: featherColor,
+    tip: markingOf(markings, 'tailTip')?.color ?? null,
+    rings: markingOf(markings, 'tailRings')?.color ?? null,
+  };
+  const lighter = mix(baseColor, '#ffffff', 0.25);
+  const bodyDeco = {
+    chestRuff: breed.ruff === 'chest' ? lighter : null,
+    scallop: breed.texture === 'longCoat' ? baseColor : null,
+  };
+  // Tabby breeds draw their stripes from marking regions instead of the generic stripes pattern.
+  const tabby = markingOf(markings, 'tabbyBack') != null;
+  const darkPoints = points || breed.baseRule != null;
 
+  if (silhouette) {
+    // Debug view: everything the actor draws is flattened to solid black, so only the outline remains.
+    const flat = Skia.Paint();
+    flat.setColorFilter(Skia.ColorFilter.MakeMatrix([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0]));
+    c.saveLayer(flat);
+  }
   c.save();
   c.translate(actor.x, actor.y);
   c.scale(actor.face * scale, scale);
@@ -204,8 +209,8 @@ export function drawActor(
     c.scale(1, bellyScale);
     c.translate(0, -bodyCenterY);
   }
-  const hindFarPaw = drawLeg(c, hindFar, footAt(hindFar, false, 0, false), geom, -1, farColor, boot, true);
-  const foreFarPaw = drawLeg(c, foreFar, footAt(foreFar, true, Math.PI, false), geom, foreSide, farColor, boot, true);
+  const hindFarPaw = drawLeg(c, hindFar, footAt(hindFar, false, 0, false), geom, -1, farColor, boot, true, sockColor);
+  const foreFarPaw = drawLeg(c, foreFar, footAt(foreFar, true, Math.PI, false), geom, foreSide, farColor, boot, true, sockColor);
 
   // torso: tail, body, markings, ribs, coat
   c.save();
@@ -213,18 +218,18 @@ export function drawActor(
   c.translate(geom.Px, geom.Py);
   c.rotate(deg(theta), 0, 0);
   c.translate(-geom.Px, -geom.Py);
-  drawTail(c, breed, geom, wag, tailColor, pose.tailLift);
+  drawTail(c, breed, geom, wag, tailColor, pose.tailLift, tailDeco);
   const breath = 1 + pose.breathAmp * Math.sin(actor.breathPh);
-  fillOval(c, 0, geom.bodyY, geom.bodyLen / 2, (geom.bodyH / 2) * breath, breed.coat);
+  fillOval(c, 0, geom.bodyY, geom.bodyLen / 2, (geom.bodyH / 2) * breath, baseColor);
   fillOval(
     c,
     4,
     geom.bodyY + geom.bodyH * 0.22,
     geom.bodyLen * 0.38,
     geom.bodyH * 0.22 * breath,
-    mix(breed.coat, '#ffffff', 0.18),
+    mix(baseColor, '#ffffff', 0.18),
   );
-  if (breed.pattern === 'stripes') {
+  if (breed.pattern === 'stripes' && !tabby) {
     c.save();
     clipOval(c, 0, geom.bodyY, geom.bodyLen / 2, (geom.bodyH / 2) * breath);
     const stripes = Skia.Path.Make();
@@ -233,9 +238,10 @@ export function drawActor(
       stripes.moveTo(sx, geom.bodyY - geom.bodyH * 0.5);
       stripes.quadTo(sx + 6, geom.bodyY - geom.bodyH * 0.1, sx + 2, geom.bodyY + geom.bodyH * 0.12);
     }
-    c.drawPath(stripes, paintOf(mix(breed.coat, '#000000', 0.5), 0.55, 4));
+    c.drawPath(stripes, paintOf(mix(baseColor, '#000000', 0.5), 0.55, 4));
     c.restore();
   }
+  drawBodyMarkings(c, geom, markings, breath, bodyDeco);
   if (actor.displayWeight < -0.35) {
     const ribs = Skia.Path.Make();
     for (let r = 0; r < 4; r += 1) {
@@ -250,8 +256,8 @@ export function drawActor(
   }
   c.restore();
 
-  const hindNearPaw = drawLeg(c, hindNear, footAt(hindNear, false, Math.PI, false, true), geom, -1, legColor, boot, false);
-  const foreNearPaw = drawLeg(c, foreNear, footAt(foreNear, true, 0, true), geom, foreSide, legColor, boot, false);
+  const hindNearPaw = drawLeg(c, hindNear, footAt(hindNear, false, Math.PI, false, true), geom, -1, legColor, boot, false, sockColor);
+  const foreNearPaw = drawLeg(c, foreNear, footAt(foreNear, true, 0, true), geom, foreSide, legColor, boot, false, sockColor);
   actor.anchors.paws = [hindFarPaw, foreFarPaw, hindNearPaw, foreNearPaw].map(({ x, y, shin }) => ({ x, y, shin }));
   c.restore();
 
@@ -264,7 +270,7 @@ export function drawActor(
     base.y = bodyCenterY + (base.y - bodyCenterY) * bellyScale;
   }
   const neckWidth = geom.headR * 1.35;
-  strokeLine(c, base.x, base.y, head.x - 2, head.y + 3, breed.coat, neckWidth);
+  strokeLine(c, base.x, base.y, head.x - 2, head.y + 3, baseColor, neckWidth);
   const nx = head.x - 2 - base.x;
   const ny = head.y + 3 - base.y;
   const nl = Math.hypot(nx, ny) || 1;
@@ -296,51 +302,54 @@ export function drawActor(
   );
   const tongue = pose.pant * (0.8 + 0.2 * Math.sin(actor.panPh + 1));
   const cf = geom.cf;
-  const earSize = breed.earSize;
+  const profile = earProfiles[breed.earType];
   // 3/4 head turn: all eye, snout and far-ear positions come from one layout shared with the anchors.
   const turn = clamp(pose.headTurn, 0, 1);
   const face = headFaceOf(breed, geom, turn);
   const eyeR = face.eyeR;
   const ex = face.nearEye.x;
   const ey = face.nearEye.y;
+  const headCtx: HeadCtx = { breed, geom, face, markings };
+  const earColor = earColorOf(breed, markings);
+  const nearPaint = {
+    color: earColor,
+    inner: cat ? (darkPoints ? '#a07d70' : '#e8a3ad') : mix(earColor, '#ffffff', 0.35),
+    feather: featherColor,
+  };
+  const farPaint = { ...nearPaint, color: mix(earColor, '#000000', 0.2) };
+  const muzzleColor = muzzleColorOf(breed, markings);
+  const earSwing = Math.sin(actor.phase * 2) * 0.08 * pose.walk - barkOpen * 0.15 + pose.earBack;
+  const nearEar = (): void =>
+    drawEar(c, breed, geom, nearPaint, { far: false, shift: face.nearEarShift, angle: 0.25 + earSwing, earBack: pose.earBack, alpha: 1 });
+  const farEar = (): void =>
+    drawEar(c, breed, geom, farPaint, {
+      far: true,
+      shift: face.farEarShift,
+      angle: -0.25 + pose.earBack,
+      earBack: pose.earBack,
+      alpha: profile.stiff ? 1 : face.farEarAlpha,
+    });
   c.save();
   // At the bowl the head dips and lifts with each bite or lap.
   c.translate(head.x, head.y + pose.headDown * Math.sin(actor.chewPh) * 1.8);
   c.rotate(deg(pitch), 0, 0);
-  const earFar = mix(breed.earColor, '#000000', 0.2);
-  // The far ear sits behind the head and slides to the far side as the head turns.
-  c.save();
-  c.translate(face.farEarShift.x, face.farEarShift.y);
-  // Ears bend back (positive) or perk forward (negative) about their base. Floppy ears swing from the top.
-  if (breed.ear !== 'floppy') {
-    c.rotate(deg(-pose.earBack * 1.2), -R * 0.3, -R * 0.65);
+  // The far ear sits behind the head and slides to the far side as the head turns. Hanging far ears stay
+  // partly hidden behind the head; erect ears show both.
+  if (!profile.overHead && (profile.stiff || face.farEarAlpha > 0.001)) {
+    farEar();
   }
-  if (breed.ear === 'pointy') {
-    const ear = Skia.Path.Make();
-    ear.moveTo(-R * 0.9, -R * 0.5);
-    ear.lineTo(-R * 0.55, -R * 1.7);
-    ear.lineTo(-R * 0.05, -R * 0.8);
-    ear.close();
-    c.drawPath(ear, paintOf(earFar));
-  } else if (breed.ear === 'cat') {
-    const ear = Skia.Path.Make();
-    ear.moveTo(-R * 0.8, -R * 0.55);
-    ear.lineTo(-R * 0.5, -R * 1.62 * earSize);
-    ear.lineTo(-R * 0.02, -R * 0.78);
-    ear.close();
-    c.drawPath(ear, paintOf(earFar));
-  } else if (face.farEarAlpha > 0.001) {
-    c.translate(-R * 0.15, -R * 0.35);
-    c.rotate(deg(-0.25 + pose.earBack), 0, 0);
-    fillOval(c, 0, R * 0.55 * earSize, R * 0.4 * earSize, R * 0.85 * earSize, earFar, face.farEarAlpha);
-  }
-  c.restore();
+  drawRuff(c, headCtx, baseColor, lighter);
   if (cat) {
-    fillOval(c, 0, 0, R * 1.06, R * 0.96, breed.coat);
+    fillOval(c, 0, 0, R * 1.06, R * 0.96, baseColor);
   } else {
-    fillCircle(c, 0, 0, R, breed.coat);
+    fillCircle(c, 0, 0, R, baseColor);
   }
-  if (breed.pattern === 'stripes') {
+  drawSkull(c, headCtx, baseColor);
+  if (profile.overHead) {
+    // Folded ears lie on the head, so the far one is drawn over the head circle too.
+    farEar();
+  }
+  if (breed.pattern === 'stripes' && !tabby) {
     const marks = Skia.Path.Make();
     marks.moveTo(-R * 0.1, -R * 0.92);
     marks.lineTo(-R * 0.1, -R * 0.55);
@@ -348,26 +357,33 @@ export function drawActor(
     marks.lineTo(R * 0.2, -R * 0.55);
     marks.moveTo(-R * 0.36, -R * 0.84);
     marks.lineTo(-R * 0.4, -R * 0.52);
-    c.drawPath(marks, paintOf(mix(breed.coat, '#000000', 0.5), 0.6, 2.6));
+    c.drawPath(marks, paintOf(mix(baseColor, '#000000', 0.5), 0.6, 2.6));
   }
-  const mrx = (cat ? geom.snout * 0.6 + R * 0.34 : geom.snout * 0.7 + R * 0.3) * face.snoutXScale;
-  const mry = (cat ? R * 0.38 : R * 0.45) * pose.snoutScale;
-  const mx = face.snoutX;
-  const my = face.snoutY;
-  // Nose: front of the snout in side view, top-front of it in 3/4.
-  const noseX = mx + mrx * (cat ? 0.85 : 0.9) * (1 - turn) + mrx * 0.1 * turn;
-  const noseY = my - (cat ? R * 0.1 : R * 0.12) * (1 - turn) - mry * 0.4 * turn;
+  drawHeadMarkingsBelow(c, headCtx);
+  // The muzzle comes from breed data: its 3/4 shape (visible length, width, drop) is already in the layout.
+  const mrx = face.muzzle.rx;
+  const mry = face.muzzle.ry * pose.snoutScale;
+  const mx = face.muzzle.x;
+  const my = face.muzzle.y;
+  const nose = noseOf(breed, R, face, pose.snoutScale);
+  const noseX = nose.x;
+  const noseY = nose.y;
+  const noseK = cat ? face.noseSize / 0.8 : face.noseSize;
   const jawY = my + mry * 0.55 + jaw * R * 0.38;
-  fillOval(c, mx - mrx * 0.05, jawY, mrx * 0.92, mry * 0.5, mix(breed.muzzle, '#000000', 0.14));
+  fillOval(c, mx - mrx * 0.05, jawY, mrx * 0.92, mry * 0.5, mix(muzzleColor, '#000000', 0.14));
   if (jaw > 0.04) {
     fillOval(c, mx, my + mry * 0.5 + jaw * R * 0.18, mrx * 0.85, Math.max(0.5, jaw * R * 0.36), '#3a1f22');
     if (tongue > 0.05) {
       fillOval(c, mx + mrx * 0.15, jawY + R * 0.04 + tongue * R * 0.1, mrx * 0.42, R * 0.1 + tongue * R * 0.12, '#e87a8a');
     }
   }
-  fillOval(c, mx, my, mrx, mry, breed.muzzle);
+  if (face.squareMuzzle) {
+    fillRRect(c, mx - mrx, my - mry, mrx * 2, mry * 2, Math.min(mrx, mry) * 0.45, muzzleColor);
+  } else {
+    fillOval(c, mx, my, mrx, mry, muzzleColor);
+  }
   if (cat) {
-    fillOval(c, noseX, noseY, R * 0.11, R * 0.08, points ? '#8a6a5c' : '#e59aa6');
+    fillOval(c, noseX, noseY, R * 0.11 * noseK, R * 0.08 * noseK, darkPoints ? '#8a6a5c' : '#e59aa6');
     if (jaw < 0.04 && turn < 0.99) {
       const mouth = Skia.Path.Make();
       mouth.moveTo(mx + mrx * 0.82, my - R * 0.02);
@@ -381,10 +397,10 @@ export function drawActor(
       whiskers.moveTo(mx + mrx * 0.3, my + R * 0.04 + wk * 0.03 * R);
       whiskers.lineTo(mx + mrx + R * 0.95, my + R * 0.02 + wk * R * 0.22);
     }
-    const pale = points || isDarkCoat(breed.coat);
+    const pale = points || isDarkCoat(baseColor);
     c.drawPath(whiskers, paintOf(pale ? '#ebebf0' : '#ffffff', pale ? 0.75 : 0.85, 1.1));
   } else {
-    fillOval(c, noseX, noseY, R * (0.17 + 0.03 * turn), R * (0.13 + 0.01 * turn), '#1b1512');
+    fillOval(c, noseX, noseY, R * (0.17 + 0.03 * turn) * noseK, R * (0.13 + 0.01 * turn) * noseK, '#1b1512');
   }
   // Small centered "w" mouth under the nose at the 3/4 turn (dogs show it when the jaw is shut).
   if (turn > 0.01 && jaw < 0.04) {
@@ -427,47 +443,22 @@ export function drawActor(
       fillOval(c, face.farEye.x, ey + eyeR * 1.1, eyeR * 0.68, eyeR * 0.4, '#6b5344', 0.45 * geom.bags * face.farEyeAlpha);
     }
   }
+  drawHeadMarkingsAbove(c, headCtx);
   // near ear (slides back in 3/4 so the ears spread apart)
-  if (breed.ear !== 'floppy') {
-    c.save();
-    c.translate(face.nearEarShift.x, face.nearEarShift.y);
-    c.rotate(deg(-pose.earBack * 1.2), R * 0.05, -R * 0.7);
-  }
-  if (breed.ear === 'pointy') {
-    const ear = Skia.Path.Make();
-    ear.moveTo(-R * 0.55, -R * 0.75);
-    ear.lineTo(-R * 0.1, -R * 1.8);
-    ear.lineTo(R * 0.5, -R * 0.8);
-    ear.close();
-    c.drawPath(ear, paintOf(breed.earColor));
-  } else if (breed.ear === 'cat') {
-    const ear = Skia.Path.Make();
-    ear.moveTo(-R * 0.4, -R * 0.7);
-    ear.lineTo(R * 0.12, -R * 1.7 * earSize);
-    ear.lineTo(R * 0.62, -R * 0.62);
-    ear.close();
-    c.drawPath(ear, paintOf(breed.earColor));
-    const inner = Skia.Path.Make();
-    inner.moveTo(-R * 0.2, -R * 0.78);
-    inner.lineTo(R * 0.12, -R * 1.4 * earSize);
-    inner.lineTo(R * 0.44, -R * 0.74);
-    inner.close();
-    c.drawPath(inner, paintOf(points ? '#a07d70' : '#e8a3ad'));
-  } else {
-    c.save();
-    c.translate(-R * 0.15 + face.nearEarShift.x, -R * 0.35 + face.nearEarShift.y);
-    c.rotate(deg(0.25 + Math.sin(actor.phase * 2) * 0.08 * pose.walk - barkOpen * 0.15 + pose.earBack), 0, 0);
-    fillOval(c, 0, R * 0.55 * earSize, R * 0.4 * earSize, R * 0.85 * earSize, breed.earColor);
-    c.restore();
-  }
-  if (breed.ear !== 'floppy') {
-    c.restore();
-  }
+  nearEar();
   if (glasses) {
     drawGlasses(c, glasses, face, R);
   }
   if (hat) {
     drawHat(c, hat, R, face);
+    if (hat.id === 'beanie' && profile.hatPoke) {
+      // Erect and bat ears poke through the beanie: redraw them over it, above the brim.
+      c.save();
+      clipRectAbove(c, -R * 0.55, R * 3);
+      farEar();
+      nearEar();
+      c.restore();
+    }
   }
   c.restore();
 
@@ -479,6 +470,10 @@ export function drawActor(
     drawBallShape(c, mouthX - 4, mouthY + 1, 8);
   }
   c.restore();
+
+  if (silhouette) {
+    c.restore();
+  }
 
   // sleep marks float up from the head in screen space, so they never mirror
   const sleepy = pose.lie * pose.eyes;

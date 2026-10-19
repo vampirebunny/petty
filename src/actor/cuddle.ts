@@ -1,6 +1,6 @@
 import { cuddleParamsFor } from './data/cuddle';
 import { breedById } from './breeds';
-import { geomOf, headFaceOf, headShift, torsoPoint } from './geometry';
+import { geomOf, headFaceOf, headShift, noseOf, torsoPoint } from './geometry';
 import { easeInOutSine, springUp } from './pose';
 import type {
   Actor,
@@ -138,13 +138,9 @@ export function cuddleZoneAt(actor: Actor, px: number, py: number): CuddleZone |
   const head = screen(headLocal.x, headLocal.y);
 
   // The nose, in head space, rotated by the head pitch. It follows the 3/4 turn like the renderer does.
-  const cat = breed.species === 'cat';
   const turn = clamp(actor.pose.headTurn, 0, 1);
   const face = headFaceOf(breed, geom, turn);
-  const mrx = (cat ? geom.snout * 0.6 + R * 0.34 : geom.snout * 0.7 + R * 0.3) * face.snoutXScale;
-  const mry = cat ? R * 0.38 : R * 0.45;
-  const noseX = face.snoutX + mrx * (cat ? 0.85 : 0.9) * (1 - turn) + mrx * 0.1 * turn;
-  const noseY = face.snoutY - (cat ? R * 0.1 : R * 0.12) * (1 - turn) - mry * 0.4 * turn;
+  const { x: noseX, y: noseY } = noseOf(breed, R, face);
   const cs = Math.cos(a.head.pitch + actor.pose.headRot);
   const sn = Math.sin(a.head.pitch + actor.pose.headRot);
   const nose = screen(headLocal.x + noseX * cs - noseY * sn, headLocal.y + noseX * sn + noseY * cs);

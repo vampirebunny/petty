@@ -1,7 +1,7 @@
 import { BlendMode, Skia, TileMode } from '@shopify/react-native-skia';
 import type { SkCanvas } from '@shopify/react-native-skia';
 
-import { depthScale, resolveBreedById } from '../../actor';
+import { applyVariant, depthScale, resolveBreedById } from '../../actor';
 import type { TimeOfDay, World } from '../../actor';
 import { stageHeight, stageWidth } from '../../actor/geometry';
 import { actorTint, lighting, petLightAmount, sceneryTint } from '../../actor/lighting';
@@ -98,10 +98,11 @@ export function drawWorld(
     }
   }
   for (const actor of world.actors) {
-    const breed = resolveBreedById(actor.breedId, actor.look);
-    if (!breed) {
+    const resolved = resolveBreedById(actor.breedId, actor.look);
+    if (!resolved) {
       continue;
     }
+    const breed = applyVariant(resolved, actor.variant);
     const carrying = world.items.some((item) => item.state === 'carried' && item.holderId === actor.id);
     // A pet at its bowl stands just in front of it, so the head is seen over the bowl and not hidden by it.
     const atBowl = actor.task.type === 'eat' && actor.task.stage === 'eating';
@@ -115,7 +116,7 @@ export function drawWorld(
     }
     items.push({
       y: sortY,
-      draw: () => drawTinted(canvas, bodyTint, () => drawActor(canvas, actor, breed, floor, world.t, carrying)),
+      draw: () => drawTinted(canvas, bodyTint, () => drawActor(canvas, actor, breed, floor, world.t, carrying, world.silhouette === true)),
     });
   }
   for (const toy of world.items) {

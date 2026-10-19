@@ -147,7 +147,9 @@ export function drawGlasses(c: SkCanvas, item: WearItem, face: HeadFace, headR: 
   const { eyeR, nearEye, farEye, turn } = face;
   const ex = nearEye.x;
   const ey = nearEye.y;
-  const fit = Math.min(1.8, Math.max(1.15, (face.gap3 - eyeR * 0.3) / 1.8)) / 1.8;
+  // The two lenses together need about 3.3 eye radii between the eye centers. Close-set breeds (husky) get
+  // smaller lenses so they never overlap, wide-set breeds (pug) keep the full size.
+  const fit = Math.min(1, Math.max(0.6, face.gap3 / (3.3 * eyeR)));
   const k = 1 + (fit - 1) * turn;
   strokeLine(c, ex - eyeR * 1.7 * k, ey - eyeR * 0.1, -headR * 0.62, ey - headR * 0.06, frame, 2.2);
   if (turn < 0.999) {

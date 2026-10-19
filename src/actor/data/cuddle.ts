@@ -152,7 +152,7 @@ export const cuddleBreeds: Record<string, DeepPartial<CuddleTuning>> = {
   pug: { tolerance: { max: 48 }, escalation: { rollAt: 10 } },
   persian: { tolerance: { max: 34 }, escalation: { kneadAt: 6 } },
   siamese: { tolerance: { max: 24 }, escalation: { kneadAt: 10 } },
-  mainecoon: { tolerance: { max: 36 } },
+  maineCoon: { tolerance: { max: 36 } },
 };
 
 // Durations in `timing` scale by the life-stage factor, so seniors move slower.

@@ -1,5 +1,6 @@
 import { limbSize } from './breeds';
-import { growthFor, smoothstep } from './growth';
+import { earProfiles } from './data/breedShapes';
+import { growthFor, smoothstep, visualProgress } from './growth';
 import { stageHeight, stageWidth } from './scenes';
 import type { Breed, Vec } from './types';
 
@@ -15,6 +16,10 @@ export type Geom = {
   hipY: number;
   headR: number;
   snout: number;
+  // Ear size multiplier: the breed's earSize with growth and cuteness applied.
+  ear: number;
+  // 0..1: erect ears start folded at the puppy stage and are fully up by the adult stage.
+  earRise: number;
   Px: number;
   Py: number;
   foreX: number;
@@ -42,6 +47,9 @@ export function thickOf(weight: number): number {
   return value >= 0 ? 1 + 0.5 * amount : 1 - 0.3 * amount;
 }
 
+// Share of the visual lifespan by which erect ears are fully up.
+export const earRiseEnd = 0.5;
+
 export function bagAmount(ageDays: number, vitality: number): number {
   const grown = smoothstep((ageDays - 600) / 200);
   return grown * (1 - clamp(vitality, 0, 1));
@@ -59,8 +67,15 @@ export function geomOf(breed: Breed, ageDays: number, weight: number, vitality =
   const sag = (thick - 1) * bodyH0 * 0.4;
   const bottom = Math.min(-2, -(0.93 * L - 8) + sag);
   const bodyY = bottom - bodyH / 2;
-  const headR = breed.head * 22 * (1.25 - 0.25 * growth.head) * (1 + 0.28 * cf);
-  const snout = breed.snout * 26 * (0.85 + 0.15 * growth.snout);
+  // Cuteness is a multiplier on each breed's own proportions, never a pull toward a shared shape,
+  // so the order of breeds by head, snout and ear size is the same at any cuteness.
+  const headScale = 1 + 0.28 * cf;
+  const snoutScale = 1 - 0.14 * cf;
+  const earScale = 1 + 0.12 * cf;
+  const headR = breed.head * 22 * (1.25 - 0.25 * growth.head) * headScale;
+  const snout = breed.snout * 26 * (0.85 + 0.15 * growth.snout) * snoutScale;
+  const ear = breed.earSize * (0.85 + 0.15 * growth.head) * earScale;
+  const earRise = earProfiles[breed.earType].rises ? smoothstep(visualProgress(ageDays) / earRiseEnd) : 1;
   const Px = -bodyLen / 2 + 8;
   const Py = bodyY + bodyH / 2 - 4;
   const foreX = bodyLen / 2 - 16;
@@ -75,6 +90,8 @@ export function geomOf(breed: Breed, ageDays: number, weight: number, vitality =
     hipY: -0.93 * L,
     headR,
     snout,
+    ear,
+    earRise,
     Px,
     Py,
     foreX,
@@ -104,12 +121,14 @@ export type HeadFace = {
   farEyeAlpha: number;
   farEyeScale: Vec;
   top: Vec;
-  // Snout center at t, interpolated from the side-view center (sideX, sideY).
-  snoutX: number;
-  snoutY: number;
-  snoutXScale: number;
+  // Muzzle oval at t, interpolated from its side-view shape to the breed's 3/4 shape.
+  muzzle: { x: number; y: number; rx: number; ry: number };
+  // A square muzzle is drawn as a rounded box (Maine Coon).
+  squareMuzzle: boolean;
+  // Nose size multiplier from the breed.
+  noseSize: number;
   farEarShift: Vec;
-  // Slides a floppy near ear back so it never covers the near eye in 3/4.
+  // Slides a near ear back in 3/4 so it never covers the near eye and the pair spreads apart.
   nearEarShift: Vec;
   farEarAlpha: number;
 };
@@ -118,30 +137,50 @@ function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
 
+const eyeShapeScale = { almond: 0.92, slanted: 0.92, round: 1, bigRound: 1.2 } as const;
+
 // Head layout in head space for a head turn t (0 = side view, 1 = 3/4). One source of truth for the
-// renderer, glasses, hats and the published anchors.
+// renderer, glasses, hats, cuddle and the published anchors. Everything breed specific comes from breed data.
 export function headFaceOf(breed: Breed, geom: Geom, turn: number): HeadFace {
   const t = clamp(turn, 0, 1);
   const R = geom.headR;
   const cf = geom.cf;
-  const f = breed.face3q;
-  const eyeR = R * (0.13 + 0.07 * (1 - geom.eye) + 0.12 * cf);
+  const cat = breed.species === 'cat';
+  const profile = earProfiles[breed.earType];
+  const eyeR = R * (0.13 + 0.07 * (1 - geom.eye) + 0.12 * cf) * eyeShapeScale[breed.eyeShape] * (breed.eyeSize ?? 1);
   const sideX = R * (0.3 + 0.05 * cf);
   const eyeY = -R * (0.12 - 0.09 * cf);
   // The far eye keeps a minimum gap so large puppy and kitten eyes never overlap, and stays inside the head.
-  const farDx = Math.max(f.farEyeDx * R, eyeR * 2.4);
-  const far3 = Math.min(sideX - R * 0.1 + farDx, R * 0.76);
+  // Eye spacing is the breed's: close-set husky, wide-set pug.
+  const farDx = Math.max(0.48 * breed.eyeSpacing * R, eyeR * 2.4);
+  const far3 = Math.min(sideX - R * 0.1 + farDx, R * 0.78);
   const near3 = Math.min(sideX - R * 0.1, far3 - farDx);
   const farFade = Math.min(1, t / 0.3);
   const mid3 = (near3 + far3) / 2;
-  // A floppy near ear hangs from (-0.15R, -0.35R) tilted back. Its right edge must clear the near eye's
+  // A hanging near ear drops from (-0.15R, -0.35R) tilted back. Its right edge must clear the near eye's
   // left edge once the eye has moved to its 3/4 position, so the ear slides back by the overlap.
-  const earRight = -R * 0.15 - R * 0.136 * breed.earSize + R * 0.42 * breed.earSize;
+  const earRight = -R * 0.15 - R * 0.136 * geom.ear + R * 0.42 * geom.ear;
   const eyeLeft3 = near3 - eyeR * 1.12;
-  // Pointy and cat ears slide back too, so the pair spreads apart instead of bunching at the top front.
-  const nearEarBack = breed.ear === 'floppy' ? clamp(earRight - eyeLeft3 + R * 0.05, 0, R * 0.4) : R * 0.28;
-  const sideSnoutX = R * 0.55 + geom.snout * 0.45;
-  const sideSnoutY = R * 0.3;
+  const hangBack = clamp(earRight - eyeLeft3 + R * 0.05, 0, R * 0.4);
+  const nearEarBack = profile.stiff ? profile.nearBack * R : Math.max(hangBack, profile.nearBack * R);
+
+  // Side view muzzle.
+  const sideRx = cat ? geom.snout * 0.6 + R * 0.34 : geom.snout * 0.7 + R * 0.3;
+  const sideRy = (cat ? R * 0.38 : R * 0.45) * (0.6 + 0.4 * breed.muzzleWidth);
+  const flat = breed.skull === 'flat';
+  const square = breed.skull === 'square';
+  // A flat face (Persian) puts the nose right in front of the eye, level with it, in side view.
+  const sideX0 = flat ? sideX + R * 0.48 - sideRx * 0.9 : R * 0.55 + geom.snout * 0.45;
+  const sideY0 = flat ? eyeY + R * 0.34 : R * 0.3;
+  // 3/4 muzzle: only visibleLen of the snout shows. The snout points toward the viewer and to the side the
+  // head faces, so it sits off the eye midline on that side, a long one poking out past the near cheek line
+  // (the head circle's edge), a short or flat one staying inside the face right under the eyes.
+  const visibleLen = geom.snout * 0.7;
+  const rx3 = (Math.max(R * 0.3, R * (cat ? 0.5 : 0.5) * breed.muzzleWidth) + (flat ? 0 : visibleLen * 0.36)) * (square ? 1.15 : 1);
+  const ry3 = R * 0.3 * (0.6 + 0.4 * breed.muzzleWidth) * (square ? 1.2 : 1) + visibleLen * 0.14;
+  const x3 = flat ? mid3 : mid3 + visibleLen * 0.3;
+  // Flat faces keep the nose just under the eye line, between the eyes.
+  const y3 = flat ? eyeY + R * 0.3 : eyeY + R * (0.36 + 0.1 * breed.stop) + visibleLen * 0.3;
   return {
     eyeR,
     nearEye: { x: lerp(sideX, near3, t), y: eyeY },
@@ -151,12 +190,28 @@ export function headFaceOf(breed: Breed, geom: Geom, turn: number): HeadFace {
     farEyeAlpha: farFade * farFade * (3 - 2 * farFade),
     farEyeScale: { x: 0.75, y: 0.9 },
     top: { x: lerp(0, R * 0.08, t), y: -R },
-    snoutX: lerp(sideSnoutX, mid3 + f.snoutShift * R, t),
-    snoutY: lerp(sideSnoutY, sideSnoutY + f.snoutDrop * R, t),
-    snoutXScale: lerp(1, 0.55, t),
-    farEarShift: { x: f.farEarDx * R * t, y: f.farEarDy * R * t },
-    nearEarShift: { x: -nearEarBack * t, y: 0 },
+    muzzle: {
+      x: lerp(sideX0, x3, t),
+      y: lerp(sideY0, y3, t),
+      rx: lerp(sideRx, rx3, t),
+      ry: lerp(sideRy, ry3, t),
+    },
+    squareMuzzle: square,
+    noseSize: breed.noseSize,
+    farEarShift: { x: profile.farDx * R * t, y: (profile.farDy * t + profile.drop) * R },
+    nearEarShift: { x: -nearEarBack * t, y: profile.drop * R },
     farEarAlpha: Math.min(1, t / 0.5),
+  };
+}
+
+// The nose center in head space. Front of the muzzle in side view, top-front of it in 3/4.
+export function noseOf(breed: Breed, R: number, face: HeadFace, ryScale = 1): Vec {
+  const cat = breed.species === 'cat';
+  const { x, y, rx, ry } = face.muzzle;
+  const t = face.turn;
+  return {
+    x: x + rx * (cat ? 0.85 : 0.9) * (1 - t) + rx * (breed.skull === 'flat' ? 0.1 : 0.5) * t,
+    y: y - (cat ? R * 0.1 : R * 0.12) * (1 - t) - ry * ryScale * 0.15 * t,
   };
 }
 

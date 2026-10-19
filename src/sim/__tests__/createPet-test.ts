@@ -90,7 +90,7 @@ it('starts with the breed look and keeps a picked look', () => {
   const breed = breedById('husky')!;
   expect(make('athlete', 'husky').look).toEqual(defaultLook(breed));
 
-  const look = { coat: '#2b2b33', ear: 'floppy', tail: 'stub' };
+  const look = { coat: '#2b2b33' };
   const custom = createPet({
     id: 'p',
     name: 'Maple',

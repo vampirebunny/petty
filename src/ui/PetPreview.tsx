@@ -29,7 +29,7 @@ const previewSource = {
   asleep: false,
 };
 
-const fallbackBreed = { dog: 'retriever', cat: 'domesticshorthair' } as const;
+const fallbackBreed = { dog: 'retriever', cat: 'domesticShorthair' } as const;
 const noon = todAt(12);
 const frameMs = 1000 / 30;
 
@@ -37,6 +37,7 @@ function newWorld(breedId: string, look: Look | null): World {
   const world = createWorld([spawnActor({ ...previewSource, breedId, look }, previewHome)], 1, previewScene);
   // The pet stays put in the preview: reduced motion skips the idle wander.
   world.reducedMotion = true;
+  world.noNap = true;
   return world;
 }
 

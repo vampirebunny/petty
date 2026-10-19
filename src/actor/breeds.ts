@@ -1,39 +1,17 @@
 import type { Look } from '../sim/types';
 import { breedAttributes } from './breedAttributes';
 import { luminance, mixHexColor } from './color';
-import type { Breed, EarShape, Face3q, Pattern, Species, TailShape, TaskType } from './types';
+import type { Breed, MarkingRegion, Pattern, Species, TaskType } from './types';
 
-// Visual and behavior parameters of a breed. Attribute ranges, the blurb and the 3/4 face come from data below.
-type BreedVisual = Omit<Breed, 'attributeRanges' | 'blurb' | 'face3q'>;
-
-// 3/4 head presets, in head radii. Breeds pick one and may override single fields.
-const face3qPresets: Record<'longSnout' | 'medium' | 'flat' | 'cat', Face3q> = {
-  longSnout: { farEyeDx: 0.5, snoutShift: 0.1, snoutDrop: 0.08, farEarDx: 0.85, farEarDy: 0 },
-  medium: { farEyeDx: 0.48, snoutShift: 0.06, snoutDrop: 0.1, farEarDx: 0.85, farEarDy: 0 },
-  flat: { farEyeDx: 0.44, snoutShift: 0.02, snoutDrop: 0.12, farEarDx: 0.8, farEarDy: 0.04 },
-  cat: { farEyeDx: 0.46, snoutShift: 0.03, snoutDrop: 0.1, farEarDx: 1.05, farEarDy: 0 },
-};
-
-const face3qByBreed: Record<string, Face3q> = {
-  retriever: { ...face3qPresets.longSnout, farEarDx: 0.8 },
-  corgi: { ...face3qPresets.medium, farEarDx: 1 },
-  dachshund: { ...face3qPresets.longSnout, farEyeDx: 0.46, snoutShift: 0.12 },
-  husky: { ...face3qPresets.longSnout, farEyeDx: 0.52, farEarDx: 1.05 },
-  pug: { ...face3qPresets.flat, farEyeDx: 0.42, snoutDrop: 0.14 },
-  domesticshorthair: face3qPresets.cat,
-  siamese: { ...face3qPresets.cat, farEarDx: 1.1, farEyeDx: 0.44 },
-  persian: { ...face3qPresets.flat, farEarDx: 1.05, snoutDrop: 0.14 },
-  mainecoon: { ...face3qPresets.cat, farEyeDx: 0.48 },
-  bombay: face3qPresets.cat,
-};
+// Visual and behavior parameters of a breed. Attribute ranges and the blurb come from data below.
+type BreedVisual = Omit<Breed, 'attributeRanges' | 'blurb'>;
 
 function withAttributes(breed: BreedVisual): Breed {
   const data = breedAttributes[breed.id];
   if (!data) {
     throw new Error(`Breed "${breed.id}" has no attribute ranges.`);
   }
-  const face3q = face3qByBreed[breed.id] ?? face3qPresets[breed.species === 'cat' ? 'cat' : 'medium'];
-  return { ...breed, face3q, attributeRanges: data.ranges, blurb: data.blurb };
+  return { ...breed, attributeRanges: data.ranges, blurb: data.blurb };
 }
 
 export const sharedTasks: readonly TaskType[] = ['stand', 'sit', 'sleep', 'eat', 'walk', 'jump', 'idle'];
@@ -42,19 +20,68 @@ export const dogTasks: readonly TaskType[] = [...sharedTasks, 'pant', 'paw', 'ba
 
 export const catTasks: readonly TaskType[] = [...sharedTasks, 'purr', 'groom', 'pounce'];
 
+const white = '#f7f4ee';
+const ink = '#241d19';
+// A pug's mask is a soft warm brown, not black, so the face stays readable and friendly.
+const pugMask = '#8a7461';
+
+const locked = (name: string, shape: MarkingRegion['shape'], where: MarkingRegion['where'], color: string): MarkingRegion => ({
+  name,
+  shape,
+  where,
+  color: { mode: 'locked', color },
+});
+const tint = (name: string, shape: MarkingRegion['shape'], where: MarkingRegion['where'], amount: number): MarkingRegion => ({
+  name,
+  shape,
+  where,
+  color: { mode: 'tint', amount },
+});
+const shade = (name: string, shape: MarkingRegion['shape'], where: MarkingRegion['where'], amount: number): MarkingRegion => ({
+  name,
+  shape,
+  where,
+  color: { mode: 'shade', amount },
+});
+
+// Tabby and bicolor regions are shared by the breeds that allow those patterns.
+const tabbyRegions: MarkingRegion[] = [
+  { ...shade('back', 'tabbyBack', 'body', 0.5), when: 'stripes' },
+  { ...shade('forehead', 'tabbyM', 'head', 0.5), when: 'stripes' },
+  { ...shade('cheeks', 'cheekBars', 'head', 0.5), when: 'stripes' },
+];
+const bicolorRegions: MarkingRegion[] = [
+  { ...locked('blaze', 'blaze', 'head', white), when: 'bicolor' },
+  { ...locked('chest', 'chest', 'body', white), when: 'bicolor' },
+  { ...locked('belly', 'belly', 'body', white), when: 'bicolor' },
+  { ...locked('socks', 'socks', 'body', white), when: 'bicolor' },
+];
+
+// Every breed declares its silhouette, its face and its marking regions. The renderer only reads this data.
 const dogVisuals: BreedVisual[] = [
   {
     id: 'retriever',
     name: 'Retriever',
     species: 'dog',
-    bodyLen: 1,
+    bodyLen: 1.05,
     bodyH: 1,
     legLen: 1,
-    head: 1,
+    head: 1.05,
     snout: 1,
-    earSize: 1,
-    ear: 'floppy',
-    tail: 'straight',
+    earSize: 0.85,
+    earType: 'softFlop',
+    skull: 'broad',
+    stop: 0.45,
+    tailType: 'plume',
+    ruff: 'none',
+    texture: 'feathered',
+    noseSize: 1.05,
+    muzzleWidth: 1.1,
+    eyeShape: 'round',
+    eyeSpacing: 1,
+    // Solid base. Ear, leg, tail and chest feathering is a lighter tint of it.
+    markings: [tint('feathering', 'feathering', 'body', 0.2), tint('chest', 'chest', 'body', 0.2)],
+    patterns: ['none', 'stripes', 'points'],
     coat: '#d9a441',
     earColor: '#b9822a',
     muzzle: '#ecc97a',
@@ -67,14 +94,30 @@ const dogVisuals: BreedVisual[] = [
     id: 'corgi',
     name: 'Corgi',
     species: 'dog',
-    bodyLen: 0.95,
-    bodyH: 0.95,
-    legLen: 0.5,
-    head: 1.05,
-    snout: 0.9,
-    earSize: 1,
-    ear: 'pointy',
-    tail: 'stub',
+    bodyLen: 1.02,
+    bodyH: 0.92,
+    legLen: 0.42,
+    head: 1.15,
+    snout: 0.8,
+    earSize: 1.3,
+    earType: 'bat',
+    skull: 'fox',
+    stop: 0.35,
+    tailType: 'fluffyRump',
+    ruff: 'none',
+    texture: 'fluffyRump',
+    noseSize: 0.9,
+    muzzleWidth: 0.9,
+    eyeShape: 'round',
+    eyeSpacing: 1,
+    // White blaze, muzzle, bib and socks are locked and ignore the user palette.
+    markings: [
+      locked('blaze', 'blaze', 'head', white),
+      locked('muzzle', 'muzzle', 'head', white),
+      locked('bib', 'chest', 'body', white),
+      locked('socks', 'socks', 'body', white),
+    ],
+    patterns: ['none'],
     coat: '#e08a3c',
     earColor: '#c46f27',
     muzzle: '#f4e3cf',
@@ -87,14 +130,30 @@ const dogVisuals: BreedVisual[] = [
     id: 'dachshund',
     name: 'Dachshund',
     species: 'dog',
-    bodyLen: 1.45,
-    bodyH: 0.7,
-    legLen: 0.38,
-    head: 0.85,
-    snout: 1.2,
+    bodyLen: 1.65,
+    bodyH: 0.62,
+    legLen: 0.34,
+    head: 0.78,
+    snout: 1.5,
     earSize: 1,
-    ear: 'floppy',
-    tail: 'straight',
+    earType: 'longDrape',
+    skull: 'long',
+    stop: 0.2,
+    tailType: 'thinTaper',
+    ruff: 'none',
+    texture: 'smooth',
+    noseSize: 0.8,
+    muzzleWidth: 0.7,
+    eyeShape: 'round',
+    eyeSpacing: 1.05,
+    // Tan points follow the palette as a lighter tint of the base.
+    markings: [
+      tint('browDots', 'browDots', 'head', 0.4),
+      tint('muzzle', 'muzzle', 'head', 0.4),
+      tint('chest', 'chest', 'body', 0.4),
+      tint('lowerLegs', 'lowerLegs', 'body', 0.4),
+    ],
+    patterns: ['none', 'stripes'],
     coat: '#6b3f2a',
     earColor: '#4d2b1c',
     muzzle: '#8a5a41',
@@ -108,13 +167,30 @@ const dogVisuals: BreedVisual[] = [
     name: 'Husky',
     species: 'dog',
     bodyLen: 1,
-    bodyH: 0.95,
-    legLen: 0.95,
-    head: 1,
-    snout: 0.9,
-    earSize: 1,
-    ear: 'pointy',
-    tail: 'curl',
+    bodyH: 0.92,
+    legLen: 1.12,
+    head: 0.9,
+    snout: 1.15,
+    earSize: 1.1,
+    earType: 'erectTall',
+    skull: 'wedge',
+    stop: 0.12,
+    tailType: 'sickleBushy',
+    ruff: 'none',
+    texture: 'ruff',
+    noseSize: 0.95,
+    muzzleWidth: 0.85,
+    eyeShape: 'almond',
+    eyeSpacing: 0.8,
+    // White mask, chest and belly are locked. The dark cap and brow spots are a darker shade of the base.
+    markings: [
+      shade('cap', 'cap', 'head', 0.3),
+      locked('mask', 'faceMask', 'head', white),
+      shade('browSpots', 'browDots', 'head', 0.45),
+      locked('chest', 'chest', 'body', white),
+      locked('belly', 'belly', 'body', white),
+    ],
+    patterns: ['none'],
     coat: '#8a97a6',
     earColor: '#5f6b79',
     muzzle: '#f1f4f7',
@@ -127,17 +203,33 @@ const dogVisuals: BreedVisual[] = [
     id: 'pug',
     name: 'Pug',
     species: 'dog',
-    bodyLen: 0.8,
-    bodyH: 1,
-    legLen: 0.6,
-    head: 1.25,
-    snout: 0.3,
-    earSize: 0.7,
-    ear: 'floppy',
-    tail: 'curl',
+    bodyLen: 0.75,
+    bodyH: 1.05,
+    legLen: 0.55,
+    head: 1.35,
+    snout: 0.12,
+    earSize: 0.55,
+    earType: 'button',
+    skull: 'dome',
+    stop: 0.95,
+    tailType: 'doubleCurl',
+    ruff: 'none',
+    texture: 'smooth',
+    noseSize: 1.1,
+    muzzleWidth: 1.25,
+    eyeShape: 'bigRound',
+    eyeSpacing: 1.25,
+    // Black mask (muzzle and around the eyes), black ears and forehead wrinkles are locked.
+    markings: [
+      locked('mask', 'blackMask', 'head', pugMask),
+      locked('muzzle', 'muzzle', 'head', pugMask),
+      locked('ears', 'ears', 'head', pugMask),
+      locked('wrinkles', 'wrinkles', 'head', '#4a3a31'),
+    ],
+    patterns: ['none'],
     coat: '#d8c19a',
-    earColor: '#3b2f2a',
-    muzzle: '#3b2f2a',
+    earColor: pugMask,
+    muzzle: pugMask,
     pitch: 1.4,
     size: 1,
     cuteness: 1,
@@ -147,17 +239,29 @@ const dogVisuals: BreedVisual[] = [
 
 const catVisuals: BreedVisual[] = [
   {
-    id: 'domesticshorthair',
+    id: 'domesticShorthair',
     name: 'Domestic Shorthair',
     species: 'cat',
     bodyLen: 0.95,
     bodyH: 0.72,
     legLen: 0.78,
-    head: 0.92,
+    head: 0.95,
     snout: 0.3,
     earSize: 1,
-    ear: 'cat',
-    tail: 'long',
+    earType: 'standard',
+    skull: 'round',
+    stop: 0.4,
+    tailType: 'catLong',
+    texture: 'smooth',
+    ruff: 'none',
+    noseSize: 0.8,
+    muzzleWidth: 0.8,
+    eyeShape: 'round',
+    eyeSpacing: 1,
+    // Tabby: back stripes, forehead "M" and cheek bars, all derived from the user color. Solid draws none.
+    // Bicolor: white face blaze, chest, belly and socks, locked.
+    markings: [...tabbyRegions, ...bicolorRegions],
+    patterns: ['none', 'stripes', 'bicolor'],
     coat: '#b98a58',
     earColor: '#8c6238',
     muzzle: '#efe0c8',
@@ -172,88 +276,138 @@ const catVisuals: BreedVisual[] = [
     id: 'siamese',
     name: 'Siamese',
     species: 'cat',
-    bodyLen: 1,
-    bodyH: 0.62,
-    legLen: 0.88,
-    head: 0.86,
-    snout: 0.4,
-    earSize: 1.2,
-    ear: 'cat',
-    tail: 'long',
-    coat: '#eadbc2',
+    bodyLen: 1.12,
+    bodyH: 0.52,
+    legLen: 0.98,
+    head: 0.8,
+    snout: 0.5,
+    earSize: 1.4,
+    earType: 'wedgeLarge',
+    skull: 'wedge',
+    stop: 0.15,
+    tailType: 'catThin',
+    texture: 'smooth',
+    ruff: 'none',
+    noseSize: 0.7,
+    muzzleWidth: 0.65,
+    eyeShape: 'slanted',
+    eyeSpacing: 0.95,
+    // The user color fills the points (mask, ears, legs, tail). The body is a pale tint of it, derived.
+    baseRule: { mode: 'tint', amount: 0.78 },
+    markings: [
+      { name: 'mask', shape: 'blackMask', where: 'head', color: { mode: 'base' } },
+      { name: 'muzzle', shape: 'muzzle', where: 'head', color: { mode: 'base' } },
+      { name: 'ears', shape: 'ears', where: 'head', color: { mode: 'base' } },
+      { name: 'legs', shape: 'legs', where: 'body', color: { mode: 'base' } },
+      { name: 'tail', shape: 'tail', where: 'body', color: { mode: 'base' } },
+    ],
+    patterns: ['none'],
+    coat: '#5b4636',
     earColor: '#5b4636',
     muzzle: '#5b4636',
     pitch: 1.75,
     size: 0.97,
     cuteness: 1,
     eyeColor: '#5aa7d8',
-    pattern: 'points',
-    accent: '#5b4636',
+    pattern: 'none',
     behaviors: catTasks,
   },
   {
     id: 'persian',
     name: 'Persian',
     species: 'cat',
-    bodyLen: 0.9,
-    bodyH: 0.9,
-    legLen: 0.6,
-    head: 1.12,
-    snout: 0.1,
-    earSize: 0.8,
-    ear: 'cat',
-    tail: 'fluffy',
+    bodyLen: 0.85,
+    bodyH: 0.98,
+    legLen: 0.5,
+    head: 1.25,
+    snout: 0.03,
+    earSize: 0.65,
+    earType: 'smallLow',
+    skull: 'flat',
+    stop: 0.9,
+    tailType: 'catPlume',
+    texture: 'longCoat',
+    ruff: 'neck',
+    noseSize: 0.7,
+    muzzleWidth: 1,
+    eyeShape: 'bigRound',
+    eyeSize: 1.3,
+    eyeSpacing: 1.15,
+    markings: [tint('fringe', 'feathering', 'body', 0.22), tint('bib', 'chest', 'body', 0.25)],
+    patterns: ['none', 'points'],
     coat: '#f1ece4',
     earColor: '#d9cfc0',
     muzzle: '#e3d9ca',
     pitch: 1.5,
     size: 0.95,
     cuteness: 1,
-    eyeColor: '#e0933a',
+    eyeColor: '#d9822b',
     pattern: 'none',
     behaviors: catTasks,
   },
   {
-    id: 'mainecoon',
+    id: 'maineCoon',
     name: 'Maine Coon',
     species: 'cat',
-    bodyLen: 1.18,
-    bodyH: 0.86,
-    legLen: 0.86,
-    head: 1,
-    snout: 0.45,
-    earSize: 1.1,
-    ear: 'cat',
-    tail: 'fluffy',
+    bodyLen: 1.35,
+    bodyH: 0.95,
+    legLen: 0.92,
+    head: 1.1,
+    snout: 0.55,
+    earSize: 1.2,
+    earType: 'tufted',
+    skull: 'square',
+    stop: 0.3,
+    tailType: 'catBushy',
+    texture: 'smooth',
+    ruff: 'chest',
+    noseSize: 0.85,
+    muzzleWidth: 1.1,
+    eyeShape: 'almond',
+    eyeSpacing: 1,
+    markings: [...tabbyRegions, shade('rings', 'tailRings', 'body', 0.5)],
+    patterns: ['none', 'stripes'],
     coat: '#8b6a4a',
     earColor: '#5f4630',
     muzzle: '#d9c4a5',
     pitch: 1.3,
-    size: 1.1,
+    size: 1.25,
     cuteness: 1,
     eyeColor: '#c9b24a',
     pattern: 'stripes',
     behaviors: catTasks,
   },
   {
-    id: 'bombay',
-    name: 'Bombay',
+    id: 'scottishFold',
+    name: 'Scottish Fold',
     species: 'cat',
-    bodyLen: 0.95,
-    bodyH: 0.7,
-    legLen: 0.8,
-    head: 0.9,
-    snout: 0.3,
-    earSize: 1,
-    ear: 'cat',
-    tail: 'long',
-    coat: '#2b2b33',
-    earColor: '#1a1a20',
-    muzzle: '#3b3b45',
+    bodyLen: 0.92,
+    bodyH: 0.78,
+    legLen: 0.72,
+    head: 1.15,
+    snout: 0.2,
+    earSize: 0.8,
+    earType: 'folded',
+    skull: 'round',
+    stop: 0.5,
+    tailType: 'catLong',
+    texture: 'smooth',
+    ruff: 'none',
+    noseSize: 0.8,
+    muzzleWidth: 0.85,
+    eyeShape: 'bigRound',
+    eyeSize: 1.1,
+    eyeSpacing: 1.05,
+    // Any coat color. Tabby and bicolor are allowed patterns.
+    markings: [...tabbyRegions, ...bicolorRegions],
+    patterns: ['none', 'stripes', 'bicolor'],
+    coat: '#9aa0ab',
+    earColor: '#7c828d',
+    muzzle: '#d9dce2',
     pitch: 1.65,
     size: 0.95,
     cuteness: 1,
-    eyeColor: '#e7c53a',
+    eyeColor: '#e0a030',
     pattern: 'none',
     behaviors: catTasks,
   },
@@ -279,6 +433,7 @@ export type CoatStyle = {
 
 const solid = (id: string, label: string, coat: string): CoatStyle => ({ id, label, coat });
 const striped = (id: string, label: string, coat: string): CoatStyle => ({ id, label, coat, pattern: 'stripes' });
+const bicolor = (id: string, label: string, coat: string): CoatStyle => ({ id, label, coat, pattern: 'bicolor' });
 const pointed = (id: string, label: string, coat: string, accent: string): CoatStyle => ({
   id,
   label,
@@ -325,32 +480,29 @@ export const coatStyles: Record<Species, readonly CoatStyle[]> = {
     pointed('flame-point', 'Flame point', '#f4e6d0', '#d9822b'),
     pointed('bubblegum-points', 'Bubblegum points', '#f6c1dc', '#8a6ad0'),
     solid('lilac', 'Lilac', '#cdb7e8'),
+    bicolor('tuxedo', 'Tuxedo', '#2b2b33'),
+    bicolor('white-ginger', 'Ginger and white', '#d9822b'),
+    bicolor('white-gray', 'Gray and white', '#8a97a6'),
   ],
 };
 
-export const earOptions: Record<Species, readonly LookOption[]> = {
-  dog: [
-    { id: 'floppy', label: 'Floppy' },
-    { id: 'pointy', label: 'Pointy' },
-  ],
-  cat: [],
-};
+// Eye colors a look can pick for breeds whose eyes are not locked.
+export const eyeColorOptions: readonly { id: string; label: string; color: string }[] = [
+  { id: 'green', label: 'Green', color: '#79bd5a' },
+  { id: 'gold', label: 'Gold', color: '#c9b24a' },
+  { id: 'amber', label: 'Amber', color: '#e0a030' },
+  { id: 'blue', label: 'Blue', color: '#5aa7d8' },
+  { id: 'copper', label: 'Copper', color: '#d9822b' },
+];
 
-export const tailOptions: Record<Species, readonly LookOption[]> = {
-  dog: [
-    { id: 'straight', label: 'Straight' },
-    { id: 'curl', label: 'Curled' },
-    { id: 'stub', label: 'Stub' },
-  ],
-  cat: [
-    { id: 'long', label: 'Long' },
-    { id: 'fluffy', label: 'Fluffy' },
-  ],
-};
+// Eye colors offered for a breed: none when its eyes are locked or it has no eye color of its own (dogs).
+export function eyeColorsFor(breed: Breed): readonly { id: string; label: string; color: string }[] {
+  return breed.eyeColor && !breed.eyeColorLocked ? eyeColorOptions : [];
+}
 
 // The breed's own look, the starting point of the customize step.
 export function defaultLook(breed: Breed): Look {
-  const look: Look = { coat: breed.coat, ear: breed.ear, tail: breed.tail };
+  const look: Look = { coat: breed.coat };
   if (breed.pattern) {
     look.pattern = breed.pattern;
   }
@@ -381,13 +533,22 @@ export function coatStylesFor(breed: Breed): CoatStyle[] {
     accent: breed.accent,
   };
   const ownLook = defaultLook(breed);
-  return [own, ...coatStyles[breed.species].filter((style) => !isCoatStyle(ownLook, style))];
+  // Only the pattern variants the breed allows are offered (a husky's mask would clash with stripes).
+  return [
+    own,
+    ...coatStyles[breed.species].filter(
+      (style) => !isCoatStyle(ownLook, style) && breed.patterns.includes(style.pattern ?? 'none'),
+    ),
+  ];
 }
 
-// The look for a coat style, keeping the ears and tail already chosen.
+// The look for a coat style, keeping the eye color already chosen.
 export function lookWithCoat(look: Look, style: CoatStyle): Look {
   // A solid style says so explicitly, so it clears a breed's own pattern (a Siamese's points).
-  const next: Look = { coat: style.coat, ear: look.ear, tail: look.tail, pattern: style.pattern ?? 'none' };
+  const next: Look = { coat: style.coat, pattern: style.pattern ?? 'none' };
+  if (look.eyeColor) {
+    next.eyeColor = look.eyeColor;
+  }
   if (style.accent) {
     next.accent = style.accent;
   }
@@ -400,9 +561,9 @@ export function resolveBreed(breed: Breed, look: Look | null | undefined): Breed
   if (!look) {
     return breed;
   }
-  const ear = breed.species === 'dog' && earOptions.dog.some((option) => option.id === look.ear) ? look.ear : breed.ear;
-  const tail = tailOptions[breed.species].some((option) => option.id === look.tail) ? look.tail : breed.tail;
-  const pattern = look.pattern ?? breed.pattern;
+  // A pattern the breed does not allow snaps back to the breed's own. Ears and tails are never in the look.
+  const wanted = look.pattern ?? breed.pattern;
+  const pattern = wanted == null || wanted === breed.pattern || breed.patterns.includes(wanted) ? wanted : breed.pattern;
   const accent = look.accent ?? breed.accent;
   const patternChanged =
     (pattern ?? 'none') !== (breed.pattern ?? 'none') || (pattern === 'points' && !sameHex(accent, breed.accent));
@@ -421,8 +582,7 @@ export function resolveBreed(breed: Breed, look: Look | null | undefined): Breed
   return {
     ...breed,
     coat: look.coat,
-    ear: ear as EarShape,
-    tail: tail as TailShape,
+    eyeColor: breed.eyeColorLocked ? breed.eyeColor : look.eyeColor ?? breed.eyeColor,
     pattern,
     accent,
     earColor,

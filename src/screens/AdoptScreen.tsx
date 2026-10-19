@@ -7,10 +7,9 @@ import {
   breedsFor,
   coatStylesFor,
   defaultLook,
-  earOptions,
+  eyeColorsFor,
   isCoatStyle,
   lookWithCoat,
-  tailOptions,
 } from '../actor';
 import type { Breed, Species } from '../actor/types';
 import { attributesFor, generateOffers } from '../sim';
@@ -35,13 +34,12 @@ function lookForBreed(breed: Breed, previous: Look | null): Look {
     return defaults;
   }
   const style = coatStylesFor(breed).find((candidate) => isCoatStyle(previous, candidate));
-  const ears = earOptions[breed.species];
-  const tails = tailOptions[breed.species];
-  return {
-    ...(style ? lookWithCoat(defaults, style) : defaults),
-    ear: ears.some((option) => option.id === previous.ear) ? previous.ear : defaults.ear,
-    tail: tails.some((option) => option.id === previous.tail) ? previous.tail : defaults.tail,
-  };
+  const next = style ? lookWithCoat(defaults, style) : defaults;
+  // Keep the eye color only when this breed lets the user pick one.
+  if (previous.eyeColor && eyeColorsFor(breed).some((option) => option.color === previous.eyeColor)) {
+    next.eyeColor = previous.eyeColor;
+  }
+  return next;
 }
 
 function firstBreed(species: Species): Breed {

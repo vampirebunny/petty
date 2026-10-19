@@ -34,12 +34,12 @@ export type Archetype = 'athlete' | 'thinker' | 'charmer';
 // Per-pet cosmetic look picked at adoption. Ears apply to dogs only.
 export type Look = {
   coat: string;
-  ear: string;
-  tail: string;
   // A coat combination: stripes darken the coat, points put the accent on ears, legs, tail, and muzzle.
   // Omitted means the breed's own pattern.
-  pattern?: 'stripes' | 'points' | 'none';
+  pattern?: 'stripes' | 'points' | 'bicolor' | 'none';
   accent?: string;
+  // Optional eye color. Breeds with locked eyes ignore it.
+  eyeColor?: string;
 };
 
 export type PetAttributes = {

@@ -3,16 +3,13 @@ import type { PointerTarget } from '../input/pointer';
 import type { BreedRanges, Equipped, Look } from '../sim/types';
 import type { Scene } from './scenes';
 import type { CuddleParams } from './data/cuddle';
+import type { Variant } from './variation';
 
 export type Vec = { x: number; y: number };
 
 export type Species = 'dog' | 'cat';
 
-export type EarShape = 'floppy' | 'pointy' | 'cat';
-
-export type TailShape = 'straight' | 'curl' | 'stub' | 'long' | 'fluffy';
-
-export type Pattern = 'stripes' | 'points' | 'none';
+export type Pattern = 'stripes' | 'points' | 'bicolor' | 'none';
 
 export type TaskType =
   | 'stand'
@@ -32,17 +29,82 @@ export type TaskType =
   | 'pounce'
   | 'cuddle';
 
-// How the 3/4 head differs per breed, in head radii. Values are the t=1 pose.
-export type Face3q = {
-  // Far eye center, measured from the near eye toward the front edge of the head.
-  farEyeDx: number;
-  // Snout center sits snoutShift right of the midpoint between the eyes, and snoutDrop lower than the side view.
-  snoutShift: number;
-  snoutDrop: number;
-  // Far ear position offset from the near ear at t=1.
-  farEarDx: number;
-  farEarDy: number;
+// Silhouette vocabulary. Each breed picks one value per slot, and the renderer draws the matching shape.
+export type EarType =
+  | 'erectTall'
+  | 'bat'
+  | 'longDrape'
+  | 'button'
+  | 'softFlop'
+  // Cat ears.
+  | 'standard'
+  | 'wedgeLarge'
+  | 'smallLow'
+  | 'tufted'
+  | 'folded';
+
+export type SkullShape = 'wedge' | 'long' | 'dome' | 'broad' | 'fox' | 'round' | 'flat' | 'square';
+
+export type TailType =
+  | 'sickleBushy'
+  | 'fluffyRump'
+  | 'plume'
+  | 'thinTaper'
+  | 'doubleCurl'
+  | 'catLong'
+  | 'catThin'
+  | 'catPlume'
+  | 'catBushy';
+
+export type Texture = 'smooth' | 'ruff' | 'feathered' | 'fluffyRump' | 'longCoat' | 'tufts';
+
+export type EyeShape = 'almond' | 'slanted' | 'round' | 'bigRound';
+
+export type Ruff = 'none' | 'neck' | 'chest';
+
+// Named marking shapes. Head shapes are drawn in head space and follow the 3/4 turn; body shapes in torso space.
+export type MarkingShape =
+  | 'faceMask'
+  | 'cap'
+  | 'blaze'
+  | 'muzzle'
+  | 'browDots'
+  | 'blackMask'
+  | 'wrinkles'
+  | 'ears'
+  | 'chest'
+  | 'belly'
+  | 'socks'
+  | 'lowerLegs'
+  | 'feathering'
+  | 'points'
+  | 'tailTip'
+  | 'legs'
+  | 'tail'
+  | 'tabbyBack'
+  | 'tabbyM'
+  | 'cheekBars'
+  | 'tailRings';
+
+// How a marking region gets its color: locked to a fixed color, or derived from the user's palette.
+export type ColorRule =
+  | { mode: 'locked'; color: string }
+  | { mode: 'base' }
+  | { mode: 'tint'; amount: number }
+  | { mode: 'shade'; amount: number }
+  // The user's point accent when the look has one, otherwise a shade of the base.
+  | { mode: 'points'; amount: number };
+
+export type MarkingRegion = {
+  name: string;
+  shape: MarkingShape;
+  where: 'head' | 'body';
+  color: ColorRule;
+  // Only active when the look's pattern is this one (tabby stripes only for 'stripes').
+  when?: Pattern;
 };
+
+export type ResolvedMarking = { name: string; shape: MarkingShape; where: 'head' | 'body'; color: string; locked: boolean };
 
 export type Breed = {
   id: string;
@@ -54,15 +116,38 @@ export type Breed = {
   head: number;
   snout: number;
   earSize: number;
-  ear: EarShape;
-  tail: TailShape;
+  // Silhouette parameters. They come from breed data only: the look never changes them.
+  earType: EarType;
+  skull: SkullShape;
+  // Brow-to-snout step depth, 0 (flat wedge) to 1 (deep).
+  stop: number;
+  tailType: TailType;
+  texture: Texture;
+  noseSize: number;
+  muzzleWidth: number;
+  eyeShape: EyeShape;
+  // 1 is average. Below is close-set, above is wide-set.
+  eyeSpacing: number;
+  // Eye size multiplier on top of the eye shape. Omitted is 1.
+  eyeSize?: number;
+  markings: readonly MarkingRegion[];
+  // How the body color is derived from the user's color. Default is the user's color itself.
+  baseRule?: ColorRule;
+  ruff: Ruff;
+  // Locked eye colors ignore any color the look asks for.
+  eyeColorLocked?: boolean;
+  // Look patterns this breed allows, besides its own.
+  patterns: readonly Pattern[];
+  // Per-pet variation, set from the pet seed (see variation.ts). Absent means the breed's own values.
+  tailFluff?: number;
+  markingIntensity?: number;
+  oneEarFlop?: boolean;
   coat: string;
   earColor: string;
   muzzle: string;
   pitch: number;
   size: number;
   cuteness: number;
-  face3q: Face3q;
   eyeColor?: string;
   pattern?: Pattern;
   accent?: string;
@@ -223,6 +308,7 @@ export type Actor = {
   vitality: number;
   equipped: Equipped;
   look: Look | null;
+  variant: Variant;
   asleep: boolean;
   mouth: Vec;
   anchors: Anchors;
@@ -275,6 +361,10 @@ export type World = {
   reducedMotion: boolean;
   particles: Particle[];
   sounds: SoundEvent[];
+  // Debug rendering only: draw every actor as a flat black silhouette.
+  silhouette?: boolean;
+  // Pets never nap on their own (the adoption preview keeps them awake).
+  noNap?: boolean;
 };
 
 export type ActorSource = {
@@ -287,4 +377,6 @@ export type ActorSource = {
   look?: Look | null;
   asleep: boolean;
   cuddleAffinity?: number;
+  // The pet seed, for per-pet variation inside the breed.
+  seed?: number;
 };

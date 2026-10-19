@@ -73,12 +73,17 @@ function readLook(value: unknown): Look | null {
   if (!isRecord(value)) {
     return null;
   }
-  if (typeof value.coat !== 'string' || typeof value.ear !== 'string' || typeof value.tail !== 'string') {
+  if (typeof value.coat !== 'string') {
     return null;
   }
-  const look: Look = { coat: value.coat, ear: value.ear, tail: value.tail };
-  if (value.pattern === 'stripes' || value.pattern === 'points' || value.pattern === 'none') {
+  // Older saves also stored ear and tail choices. Both now come from breed data, so they are dropped here and
+  // the pet snaps to its breed's own ears and tail on the next save.
+  const look: Look = { coat: value.coat };
+  if (value.pattern === 'stripes' || value.pattern === 'points' || value.pattern === 'bicolor' || value.pattern === 'none') {
     look.pattern = value.pattern;
+  }
+  if (typeof value.eyeColor === 'string') {
+    look.eyeColor = value.eyeColor;
   }
   if (typeof value.accent === 'string') {
     look.accent = value.accent;
