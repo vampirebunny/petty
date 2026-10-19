@@ -12,6 +12,7 @@ const pages = [
   { file: "Terms of Service.md", route: "termsofservice" },
   { file: "Community Guidelines.md", route: "communityguidelines" },
   { file: "Support.md", route: "support" },
+  { file: "Delete account.md", route: "delete-account" },
 ];
 
 function escapeHtml(value) {
