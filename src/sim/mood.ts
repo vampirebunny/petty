@@ -1,7 +1,7 @@
 import {
   happyHappinessAtLeast,
+  highHungerThreshold,
   lowEnergyThreshold,
-  lowFullnessThreshold,
   sadHappinessBelow,
 } from './config';
 import type { Mood, PetState } from './types';
@@ -10,7 +10,7 @@ export function deriveMood(state: PetState): Mood {
   if (state.asleep) {
     return 'sleeping';
   }
-  if (state.needs.fullness < lowFullnessThreshold) {
+  if (state.needs.hunger > highHungerThreshold) {
     return 'hungry';
   }
   if (state.needs.energy < lowEnergyThreshold) {

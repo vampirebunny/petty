@@ -1,4 +1,7 @@
 import { weightBurnPerSec, weightRunSpeed } from '../sim/config';
+import type { Item } from '../items/types';
+import { stepItems } from '../items/physics';
+import { inactivePointer } from '../input/pointer';
 import { bodyFrame, reachOf, speedMax, stageWidth } from './geometry';
 import { breedById, voiceRate } from './breeds';
 import { growthFor } from './growth';
@@ -6,7 +9,7 @@ import { canBehave, reactionFor, type UserTask } from './behavior';
 import { defaultPose, easePose } from './pose';
 import { nearestPoi, poiOf, scenes, stageHeight } from './scenes';
 import type { Scene } from './scenes';
-import type { Actor, ActorSource, Anchors, Ball, Idle, IdleMode, Pose, SoundEvent, Task, TaskType, Vec, World } from './types';
+import type { Actor, ActorSource, Anchors, Idle, IdleMode, Pose, SoundEvent, Task, TaskType, Vec, World } from './types';
 
 const displayTau = 0.35;
 const idleWeight: Record<IdleMode, number> = { still: 3, pant: 2, purr: 2, nap: 1.5, walk: 2.5 };
@@ -19,8 +22,49 @@ function easeDisplay(current: number, target: number, dt: number): number {
   return current + (target - current) * (1 - Math.exp(-dt / displayTau));
 }
 
-function emptyBall(): Ball {
-  return { state: 'none', x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, carrierId: null };
+function makeBallItem(partial: Partial<Item> & Pick<Item, 'state'>): Item {
+  return {
+    id: 'ball-1',
+    kind: 'ball',
+    x: 0,
+    y: 0,
+    z: 0,
+    vx: 0,
+    vy: 0,
+    vz: 0,
+    holderId: undefined,
+    ...partial,
+  };
+}
+
+function clearItems(world: World): void {
+  world.items = [];
+}
+
+function freeBall(world: World): Item | null {
+  return world.items.find((item) => item.kind === 'ball' && item.state === 'free') ?? null;
+}
+
+function carriedBy(world: World, actorId: string): Item | null {
+  return world.items.find((item) => item.state === 'carried' && item.holderId === actorId) ?? null;
+}
+
+function anyCarried(world: World): boolean {
+  return world.items.some((item) => item.state === 'carried');
+}
+
+function hasRefillableBowl(scene: Scene): boolean {
+  return scene.props.some((prop) => prop.kind === 'bowl' && prop.contents === 'water');
+}
+
+function canAutonomousDrink(world: World): boolean {
+  if (poiOf(world.scene, 'water') == null) {
+    return false;
+  }
+  if (hasRefillableBowl(world.scene)) {
+    return world.waterLevel > 0;
+  }
+  return true;
 }
 
 function emptyAnchors(face: 1 | -1 = 1): Anchors {
@@ -122,8 +166,11 @@ function seedParticles(world: World): void {
 export function createWorld(actors: Actor[], seed = 1, scene: Scene = scenes.livingroom): World {
   const world: World = {
     actors,
-    ball: emptyBall(),
+    items: [],
+    pointerTarget: inactivePointer(),
+    waterLevel: 1,
     bowlFill: 1,
+    pendingBowlDrinks: 0,
     t: 0,
     rng: makeRng(seed),
     scene,
@@ -186,7 +233,7 @@ export function setWorldScene(world: World, scene: Scene): void {
       beginIdle(world, actor, 'still');
     }
   }
-  world.ball = emptyBall();
+  clearItems(world);
   seedParticles(world);
 }
 
@@ -206,54 +253,86 @@ export function settleOnResume(world: World): void {
       actor.pantT = 0;
     }
   }
-  if (fetching || world.ball.state === 'carried') {
-    world.ball = emptyBall();
+  if (fetching || anyCarried(world)) {
+    clearItems(world);
   }
 }
 
 function releaseCarried(world: World, actor: Actor): void {
-  if (world.ball.state === 'carried' && world.ball.carrierId === actor.id) {
-    world.ball = {
-      state: 'free',
-      x: actor.mouth.x,
-      y: actor.y + 1,
-      z: Math.max(0, actor.y - actor.z - actor.mouth.y),
-      vx: actor.face * 30,
-      vy: 0,
-      vz: 0,
-      carrierId: null,
-    };
+  const item = carriedBy(world, actor.id);
+  if (!item) {
+    return;
   }
+  item.state = 'free';
+  item.holderId = undefined;
+  item.x = actor.mouth.x;
+  item.y = actor.y + 1;
+  item.z = Math.max(0, actor.y - actor.z - actor.mouth.y);
+  item.vx = actor.face * 30;
+  item.vy = 0;
+  item.vz = 0;
 }
 
 export function throwFromEdge(world: World): void {
   const roll = world.rng;
   const floor = world.scene.floor;
-  world.ball = {
-    state: 'free',
-    x: floor.xMin - 4,
-    y: floor.yMin + 10 + roll() * (floor.yMax - floor.yMin - 20),
-    z: 30,
-    vx: 240 + roll() * 110,
-    vy: (roll() - 0.5) * 90,
-    vz: 330,
-    carrierId: null,
-  };
+  world.items = [
+    makeBallItem({
+      state: 'free',
+      x: floor.xMin - 4,
+      y: floor.yMin + 10 + roll() * (floor.yMax - floor.yMin - 20),
+      z: 30,
+      vx: 240 + roll() * 110,
+      vy: (roll() - 0.5) * 90,
+      vz: 330,
+    }),
+  ];
 }
 
-export function dropBallAt(world: World, x: number, y: number): void {
+export function dropBallAt(world: World, x: number, y: number, soft = true): void {
   const roll = world.rng;
   const floor = world.scene.floor;
-  world.ball = {
-    state: 'free',
-    x: clamp(x, floor.xMin - 12, floor.xMax + 12),
-    y: clamp(y, floor.yMin, floor.yMax),
-    z: 130,
-    vx: (roll() - 0.5) * 40,
-    vy: (roll() - 0.5) * 20,
-    vz: 0,
-    carrierId: null,
-  };
+  world.items = [
+    makeBallItem({
+      state: 'free',
+      x: clamp(x, floor.xMin - 12, floor.xMax + 12),
+      y: clamp(y, floor.yMin, floor.yMax),
+      z: soft ? 40 : 130,
+      vx: (roll() - 0.5) * (soft ? 18 : 40),
+      vy: (roll() - 0.5) * (soft ? 10 : 20),
+      vz: soft ? 20 : 0,
+    }),
+  ];
+}
+
+export function flickBallAt(
+  world: World,
+  x: number,
+  y: number,
+  velocity: { vx: number; vy: number; vz: number },
+): void {
+  const floor = world.scene.floor;
+  world.items = [
+    makeBallItem({
+      state: 'free',
+      x: clamp(x, floor.xMin - 12, floor.xMax + 12),
+      y: clamp(y, floor.yMin, floor.yMax),
+      z: 60,
+      vx: velocity.vx,
+      vy: velocity.vy,
+      vz: velocity.vz,
+    }),
+  ];
+}
+
+export function takeBowlDrinks(world: World): number {
+  const count = world.pendingBowlDrinks;
+  world.pendingBowlDrinks = 0;
+  return count;
+}
+
+export function syncWorldWater(world: World, waterLevel: number): void {
+  world.waterLevel = waterLevel;
 }
 
 function beginIdle(world: World, actor: Actor, mode: IdleMode): void {
@@ -282,6 +361,11 @@ function beginIdle(world: World, actor: Actor, mode: IdleMode): void {
 
 function nextIdle(world: World, actor: Actor): void {
   const breed = breedById(actor.breedId);
+  // Occasional autonomous drink when water is available.
+  if (canAutonomousDrink(world) && world.rng() < 0.18 && canBehave(actor, 'eat')) {
+    startUserTask(world, actor, 'drink');
+    return;
+  }
   const options = (breed?.species === 'cat' ? ['still', 'purr', 'nap', 'walk'] : ['still', 'pant', 'nap', 'walk']).filter(
     (mode) => mode !== actor.idle.mode && !(world.reducedMotion && mode === 'walk'),
   ) as IdleMode[];
@@ -305,7 +389,14 @@ function goIdle(world: World, actor: Actor): void {
   beginIdle(world, actor, 'still');
 }
 
-export function startUserTask(world: World, actor: Actor, task: UserTask, roll = 1, drop?: Vec): boolean {
+export function startUserTask(
+  world: World,
+  actor: Actor,
+  task: UserTask,
+  roll = 1,
+  drop?: Vec,
+  flick?: { vx: number; vy: number; vz: number },
+): boolean {
   if (task === 'wake') {
     actor.asleep = false;
     goIdle(world, actor);
@@ -327,6 +418,13 @@ export function startUserTask(world: World, actor: Actor, task: UserTask, roll =
   }
   if (task === 'idle') {
     goIdle(world, actor);
+    return true;
+  }
+  if (task === 'refuse') {
+    releaseCarried(world, actor);
+    actor.task = taskOf('sit', 'refuse');
+    actor.face = -actor.face;
+    actor.pantT = 0;
     return true;
   }
   if (task === 'sit' || task === 'paw') {
@@ -356,8 +454,10 @@ export function startUserTask(world: World, actor: Actor, task: UserTask, roll =
   }
   if (task === 'fetch') {
     releaseCarried(world, actor);
-    if (drop) {
-      dropBallAt(world, drop.x, drop.y);
+    if (flick && drop) {
+      flickBallAt(world, drop.x, drop.y, flick);
+    } else if (drop) {
+      dropBallAt(world, drop.x, drop.y, true);
     } else {
       throwFromEdge(world);
     }
@@ -382,40 +482,8 @@ export function startUserTask(world: World, actor: Actor, task: UserTask, roll =
   return true;
 }
 
-function updateBall(world: World, dt: number): void {
-  const ball = world.ball;
-  if (ball.state !== 'free') {
-    return;
-  }
-  const floor = world.scene.floor;
-  const surface = world.scene.surface;
-  ball.vz -= 900 * dt;
-  ball.z += ball.vz * dt;
-  if (ball.z < 0) {
-    ball.z = 0;
-    ball.vz = Math.abs(ball.vz) > 60 ? -ball.vz * surface.bounce : 0;
-  }
-  ball.x += ball.vx * dt;
-  ball.y += ball.vy * dt;
-  const friction = Math.exp(-dt * (ball.z > 0 ? 0.3 : surface.friction));
-  ball.vx *= friction;
-  ball.vy *= friction;
-  if (ball.x < floor.xMin - 14) {
-    ball.x = floor.xMin - 14;
-    ball.vx = Math.abs(ball.vx) * 0.6;
-  }
-  if (ball.x > floor.xMax + 14) {
-    ball.x = floor.xMax + 14;
-    ball.vx = -Math.abs(ball.vx) * 0.6;
-  }
-  if (ball.y < floor.yMin) {
-    ball.y = floor.yMin;
-    ball.vy = Math.abs(ball.vy) * 0.6;
-  }
-  if (ball.y > floor.yMax) {
-    ball.y = floor.yMax;
-    ball.vy = -Math.abs(ball.vy) * 0.6;
-  }
+function updateItems(world: World, dt: number): void {
+  stepItems(world.items, world.scene, dt);
 }
 
 function poseTargets(actor: Actor): Pose {
@@ -532,6 +600,12 @@ function updateActor(world: World, actor: Actor, dt: number): void {
   } else if (actor.task.type === 'sit') {
     targets.sit = 1;
     targets.wagAmp = 0.3;
+    if (actor.task.stage === 'refuse') {
+      targets.headTurn = 1;
+      if (actor.task.t > 1.4) {
+        goIdle(world, actor);
+      }
+    }
   } else if (actor.task.type === 'paw') {
     targets.sit = 1;
     targets.wagAmp = 0.45;
@@ -602,6 +676,9 @@ function updateActor(world: World, actor: Actor, dt: number): void {
       targets.wagAmp = 0.35;
       actor.face = face;
       if (actor.task.t > 6) {
+        if (actor.task.kind === 'drink' && hasRefillableBowl(world.scene)) {
+          world.pendingBowlDrinks += 1;
+        }
         goIdle(world, actor);
       }
     } else {
@@ -611,20 +688,21 @@ function updateActor(world: World, actor: Actor, dt: number): void {
     targets.wagAmp = 0.5;
     wagRate = 9;
     const reach = reachOf(frame.geom) * frame.scale;
-    if (actor.task.stage === 'chase' && world.ball.state === 'free') {
+    const ball = freeBall(world) ?? carriedBy(world, actor.id);
+    if (actor.task.stage === 'chase' && ball && ball.state === 'free') {
       const mouthSlop = 2;
-      let ahead = (world.ball.x - actor.x) * actor.face;
+      let ahead = (ball.x - actor.x) * actor.face;
       if (ahead < -mouthSlop) {
         actor.face = -actor.face;
         ahead = -ahead;
       }
-      move = { x: ahead > reach ? world.ball.x - actor.face * reach : actor.x, y: world.ball.y };
+      move = { x: ahead > reach ? ball.x - actor.face * reach : actor.x, y: ball.y };
       vmax = limit;
-      const near = ahead >= -mouthSlop && ahead <= reach + 10 && Math.abs(actor.y - world.ball.y) < 10 && world.ball.z < 16;
+      const near = ahead >= -mouthSlop && ahead <= reach + 10 && Math.abs(actor.y - ball.y) < 10 && ball.z < 16;
       if (near && cat && actor.task.cool <= 0) {
-        world.ball.vx = actor.face * (150 + world.rng() * 120);
-        world.ball.vy = (world.rng() - 0.5) * 140;
-        world.ball.vz = 170;
+        ball.vx = actor.face * (150 + world.rng() * 120);
+        ball.vy = (world.rng() - 0.5) * 140;
+        ball.vz = 170;
         actor.vz = 160;
         actor.task.bats += 1;
         actor.task.cool = 0.5;
@@ -632,11 +710,11 @@ function updateActor(world: World, actor: Actor, dt: number): void {
           actor.task = taskOf('winddown');
         }
       } else if (near && !cat) {
-        world.ball.state = 'carried';
-        world.ball.carrierId = actor.id;
+        ball.state = 'carried';
+        ball.holderId = actor.id;
         actor.task.stage = 'return';
       }
-    } else if (actor.task.stage === 'return' && world.ball.state === 'carried' && world.ball.carrierId === actor.id) {
+    } else if (actor.task.stage === 'return' && ball && ball.state === 'carried' && ball.holderId === actor.id) {
       const home = homeOf(world.scene);
       move = home;
       vmax = limit * 0.62;
@@ -644,7 +722,7 @@ function updateActor(world: World, actor: Actor, dt: number): void {
         releaseCarried(world, actor);
         actor.task = taskOf('winddown');
       }
-    } else if (actor.task.stage !== 'chase' || world.ball.state === 'none') {
+    } else if (actor.task.stage !== 'chase' || !ball) {
       goIdle(world, actor);
     }
   }
@@ -755,7 +833,7 @@ export function update(world: World, dt: number): void {
   }
   const step = Math.min(dt, 0.05);
   world.t += step;
-  updateBall(world, step);
+  updateItems(world, step);
   updateParticles(world, step);
   const eating = world.actors.some(
     (actor) => actor.task.type === 'eat' && actor.task.kind !== 'drink' && actor.task.stage === 'eating',

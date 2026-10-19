@@ -67,7 +67,15 @@ export function drawWorld(
       feeding.push({ x: actor.task.poi.x, y: actor.task.poi.y, kind: actor.task.kind === 'drink' ? 'drink' : 'eat' });
     }
   }
-  const env: Env = { tod, t: world.t, reduced, bowlFill: world.bowlFill, glows: [], feeding };
+  const env: Env = {
+    tod,
+    t: world.t,
+    reduced,
+    bowlFill: world.bowlFill,
+    waterLevel: world.waterLevel,
+    glows: [],
+    feeding,
+  };
   const roomTint = sceneryTint(scene, tod);
   const bodyTint = actorTint(scene, tod);
 
@@ -93,7 +101,7 @@ export function drawWorld(
     if (!breed) {
       continue;
     }
-    const carrying = world.ball.state === 'carried' && world.ball.carrierId === actor.id;
+    const carrying = world.items.some((item) => item.state === 'carried' && item.holderId === actor.id);
     // A pet at its bowl stands just in front of it, so the head is seen over the bowl and not hidden by it.
     const atBowl = actor.task.type === 'eat' && actor.task.stage === 'eating';
     items.push({
@@ -101,16 +109,18 @@ export function drawWorld(
       draw: () => drawTinted(canvas, bodyTint, () => drawActor(canvas, actor, breed, floor, world.t, carrying)),
     });
   }
-  if (world.ball.state === 'free') {
-    const ball = world.ball;
+  for (const toy of world.items) {
+    if (toy.state !== 'free') {
+      continue;
+    }
     items.push({
-      y: ball.y,
+      y: toy.y,
       draw: () =>
         drawTinted(canvas, bodyTint, () => {
-          const radius = 8 * depthScale(ball.y, floor.yMin, floor.yMax);
-          const shade = clamp(1 - ball.z / 260, 0.4, 1);
-          fillOval(canvas, ball.x, ball.y + 1, radius * shade * 1.1, radius * 0.4 * shade, '#000000', 0.15);
-          drawBallShape(canvas, ball.x, ball.y - ball.z - radius, radius);
+          const radius = 8 * depthScale(toy.y, floor.yMin, floor.yMax);
+          const shade = clamp(1 - toy.z / 260, 0.4, 1);
+          fillOval(canvas, toy.x, toy.y + 1, radius * shade * 1.1, radius * 0.4 * shade, '#000000', 0.15);
+          drawBallShape(canvas, toy.x, toy.y - toy.z - radius, radius);
         }),
     });
   }

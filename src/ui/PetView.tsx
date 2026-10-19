@@ -14,6 +14,8 @@ import {
   startUserTask,
   statusOf,
   syncActor,
+  syncWorldWater,
+  takeBowlDrinks,
   takeSounds,
   takeWeightDelta,
   todAt,
@@ -30,11 +32,13 @@ type Props = {
   cueKind: Cue['kind'];
   cueToken: number;
   drop?: { x: number; y: number };
+  flick?: { vx: number; vy: number; vz: number };
   hour: number | null;
   reducedMotion: boolean;
   sceneOverride?: Scene | null;
   onStatus?: (status: string) => void;
   onWeightDelta: (delta: number) => void;
+  onDrank?: (fromBowl: boolean) => void;
 };
 
 function sourceOf(pet: PetState) {
@@ -50,7 +54,19 @@ function sourceOf(pet: PetState) {
   };
 }
 
-export function PetView({ pet, cueKind, cueToken, drop, hour, reducedMotion, sceneOverride, onStatus, onWeightDelta }: Props) {
+export function PetView({
+  pet,
+  cueKind,
+  cueToken,
+  drop,
+  flick,
+  hour,
+  reducedMotion,
+  sceneOverride,
+  onStatus,
+  onWeightDelta,
+  onDrank,
+}: Props) {
   const { width } = useWindowDimensions();
   const viewWidth = Math.max(280, width - 40);
   const viewHeight = viewWidth * (stageHeight / stageWidth);
@@ -114,12 +130,24 @@ export function PetView({ pet, cueKind, cueToken, drop, hour, reducedMotion, sce
     const actor = world.actors[0];
     if (!actor || actor.id !== pet.id) {
       world.actors = [spawnActor(sourceOf(pet))];
-      world.ball.state = 'none';
+      world.items = [];
     } else {
       syncActor(actor, sourceOf(pet));
     }
+    syncWorldWater(world, pet.waterLevel);
     redraw();
-  }, [pet.ageDays, pet.asleep, pet.breedId, pet.equipped, pet.id, pet.look, pet.vitality, pet.weight, redraw]);
+  }, [
+    pet.ageDays,
+    pet.asleep,
+    pet.breedId,
+    pet.equipped,
+    pet.id,
+    pet.look,
+    pet.vitality,
+    pet.waterLevel,
+    pet.weight,
+    redraw,
+  ]);
 
   useEffect(() => {
     const world = worldRef.current;
@@ -145,8 +173,8 @@ export function PetView({ pet, cueKind, cueToken, drop, hour, reducedMotion, sce
       startUserTask(world, actor, 'speak');
     } else if (cueKind === 'eat') {
       startUserTask(world, actor, 'eat');
-    } else if (cueKind === 'drink') {
-      startUserTask(world, actor, 'drink');
+    } else if (cueKind === 'refuse') {
+      startUserTask(world, actor, 'refuse');
     } else if (cueKind === 'yawn') {
       startUserTask(world, actor, 'sleep');
     } else if (cueKind === 'purr') {
@@ -154,10 +182,10 @@ export function PetView({ pet, cueKind, cueToken, drop, hour, reducedMotion, sce
     } else if (cueKind === 'wiggle') {
       startUserTask(world, actor, 'react', 0.2);
     } else if (cueKind === 'fetch') {
-      startUserTask(world, actor, 'fetch', 1, drop);
+      startUserTask(world, actor, 'fetch', 1, drop, flick);
     }
     redraw();
-  }, [cueKind, cueToken, drop, redraw]);
+  }, [cueKind, cueToken, drop, flick, redraw]);
 
   const pendingWeight = useRef(0);
   const onWeightRef = useRef(onWeightDelta);
@@ -181,6 +209,10 @@ export function PetView({ pet, cueKind, cueToken, drop, hour, reducedMotion, sce
   useEffect(() => {
     onStatusRef.current = onStatus;
   }, [onStatus]);
+  const onDrankRef = useRef(onDrank);
+  useEffect(() => {
+    onDrankRef.current = onDrank;
+  }, [onDrank]);
   const statusRef = useRef('');
 
   const step = useCallback(
@@ -189,6 +221,10 @@ export function PetView({ pet, cueKind, cueToken, drop, hour, reducedMotion, sce
       update(world, frameDt(elapsedMs, activeRef.current));
       for (const sound of takeSounds(world)) {
         playVoice(sound);
+      }
+      const drinks = takeBowlDrinks(world);
+      for (let i = 0; i < drinks; i += 1) {
+        onDrankRef.current?.(true);
       }
       const actor = world.actors[0];
       if (actor) {

@@ -46,7 +46,7 @@ it('drops a phase 0 pet that is missing the new fields', async () => {
   await AsyncStorage.setItem(
     'petty.pet',
     JSON.stringify({
-      needs: { fullness: 80, energy: 70, happiness: 60 },
+      needs: { hunger: 20, energy: 70, happiness: 60 },
       asleep: false,
       lastUpdatedAt: 50,
       rngState: 3,
@@ -91,4 +91,20 @@ it('returns null when nothing is stored or the json is unreadable', async () => 
   await expect(asyncPetStorage.load()).resolves.toBeNull();
   await AsyncStorage.setItem('petty.pet', JSON.stringify({ asleep: true }));
   await expect(asyncPetStorage.load()).resolves.toBeNull();
+});
+
+it('migrates legacy breed ids and fullness into hunger', async () => {
+  const pet = testPet(3, 'bombay', 50, 'Kit', 'pet');
+  const saved = JSON.parse(JSON.stringify(pet)) as Record<string, unknown>;
+  saved.breedId = 'black';
+  saved.needs = { fullness: 70, energy: 70, happiness: 60 };
+  delete saved.waterLevel;
+  delete saved.toys;
+  await AsyncStorage.setItem('petty.pet', JSON.stringify(saved));
+
+  const loaded = await asyncPetStorage.load();
+  expect(loaded?.breedId).toBe('bombay');
+  expect(loaded?.needs.hunger).toBe(30);
+  expect(loaded?.waterLevel).toBe(1);
+  expect(loaded?.toys).toEqual(['ball']);
 });

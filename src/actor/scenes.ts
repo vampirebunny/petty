@@ -402,20 +402,44 @@ export function nearestPoi(scene: Scene, type: string, from: { x: number; y: num
   return best;
 }
 
-export function actionEnabled(scene: Scene, action: 'feed' | 'drink' | 'rest'): boolean {
+export function hasRefillableWaterBowl(scene: Scene): boolean {
+  return scene.props.some((prop) => prop.kind === 'bowl' && prop.contents === 'water');
+}
+
+export function actionEnabled(
+  scene: Scene,
+  action: 'feed' | 'drink' | 'refillWater' | 'rest',
+  waterLevel = 1,
+): boolean {
   if (action === 'feed') {
     return poiOf(scene, 'food') != null;
   }
   if (action === 'drink') {
     return poiOf(scene, 'water') != null;
   }
+  if (action === 'refillWater') {
+    return hasRefillableWaterBowl(scene) && waterLevel < 1;
+  }
   // Sleep walks to a bed when the scene has one and otherwise sleeps where the pet stands.
   return true;
 }
 
-export function actionReason(scene: Scene, action: 'feed' | 'drink' | 'rest'): string {
-  if (actionEnabled(scene, action)) {
+export function actionReason(
+  scene: Scene,
+  action: 'feed' | 'drink' | 'refillWater' | 'rest',
+  waterLevel = 1,
+): string {
+  if (actionEnabled(scene, action, waterLevel)) {
     return '';
   }
-  return action === 'feed' ? 'There is no food bowl in this scene.' : 'There is no water in this scene.';
+  if (action === 'feed') {
+    return 'There is no food bowl in this scene.';
+  }
+  if (action === 'refillWater') {
+    if (!hasRefillableWaterBowl(scene)) {
+      return 'There is no water bowl to refill here.';
+    }
+    return 'The water bowl is already full.';
+  }
+  return 'There is no water in this scene.';
 }

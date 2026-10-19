@@ -39,10 +39,10 @@ it('copies starting needs so a pet cannot change the defaults', () => {
   expect(first.needs).toEqual(second.needs);
   expect(first.needs).not.toBe(second.needs);
 
-  first.needs.fullness = 0;
+  first.needs.hunger = 100;
 
-  expect(startingNeeds.fullness).toBe(80);
-  expect(make().needs.fullness).toBe(80);
+  expect(startingNeeds.hunger).toBe(20);
+  expect(make().needs.hunger).toBe(20);
 });
 
 it('returns the same pet for the same seed, breed, and archetype', () => {

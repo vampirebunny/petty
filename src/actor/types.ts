@@ -1,3 +1,5 @@
+import type { Item } from '../items/types';
+import type { PointerTarget } from '../input/pointer';
 import type { BreedRanges, Equipped, Look } from '../sim/types';
 import type { Scene } from './scenes';
 
@@ -62,6 +64,7 @@ export type Pose = {
   pant: number;
   headDown: number;
   headRest: number;
+  headTurn: number;
   eyes: number;
   wagAmp: number;
   breathAmp: number;
@@ -144,17 +147,6 @@ export type Anchors = {
   facing: 1 | -1;
 };
 
-export type Ball = {
-  state: 'none' | 'free' | 'carried';
-  x: number;
-  y: number;
-  z: number;
-  vx: number;
-  vy: number;
-  vz: number;
-  carrierId: string | null;
-};
-
 export type Particle = { x: number; y: number; v: number; ph: number };
 
 export type SoundEvent = {
@@ -165,8 +157,11 @@ export type SoundEvent = {
 
 export type World = {
   actors: Actor[];
-  ball: Ball;
+  items: Item[];
+  pointerTarget: PointerTarget;
+  waterLevel: number;
   bowlFill: number;
+  pendingBowlDrinks: number;
   t: number;
   rng: () => number;
   scene: Scene;

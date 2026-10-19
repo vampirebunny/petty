@@ -1,7 +1,19 @@
 import { breedById } from './breeds';
 import type { Actor, TaskType } from './types';
 
-export const userTasks = ['idle', 'sit', 'paw', 'speak', 'eat', 'drink', 'sleep', 'wake', 'react', 'fetch'] as const;
+export const userTasks = [
+  'idle',
+  'sit',
+  'paw',
+  'speak',
+  'eat',
+  'drink',
+  'refuse',
+  'sleep',
+  'wake',
+  'react',
+  'fetch',
+] as const;
 
 export type UserTask = (typeof userTasks)[number];
 

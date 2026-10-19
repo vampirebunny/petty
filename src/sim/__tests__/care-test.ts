@@ -9,10 +9,10 @@ function pet() {
   return testPet(1, 'retriever', 0, 'Pup', 'pet');
 }
 
-it('adds a meal to the weight index and leaves a drink unchanged', () => {
+it('adds a meal to the weight index and leaves a water refill unchanged', () => {
   const before = pet();
   const fed = applyEvent(before, { type: 'feed' }).state;
-  const watered = applyEvent(before, { type: 'drink' }).state;
+  const watered = applyEvent(before, { type: 'refillWater' }).state;
 
   expect(fed.weight).toBeCloseTo(before.weight + 0.12, 5);
   expect(fed.vitality).toBe(before.vitality);

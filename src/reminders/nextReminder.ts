@@ -1,5 +1,5 @@
 import { advanceNeeds } from '../sim/advance';
-import { dayMs, lowEnergyThreshold, lowFullnessThreshold, stepMs } from '../sim/config';
+import { dayMs, highHungerThreshold, lowEnergyThreshold, stepMs } from '../sim/config';
 import type { PetState } from '../sim/types';
 
 export type ReminderKind = 'meal' | 'rest';
@@ -21,7 +21,7 @@ export function reminderCopy(name: string, kind: ReminderKind): string {
 export function nextReminder(state: PetState, now: number): Reminder | null {
   const steps = Math.floor(searchLimitMs / stepMs);
   let cursor = state;
-  let mealArmed = state.needs.fullness >= lowFullnessThreshold;
+  let mealArmed = state.needs.hunger <= highHungerThreshold;
   let restArmed = state.needs.energy >= lowEnergyThreshold;
   let mealAt: number | null = null;
   let restAt: number | null = null;
@@ -32,10 +32,10 @@ export function nextReminder(state: PetState, now: number): Reminder | null {
   for (let step = 1; step <= steps; step += 1) {
     const next = advanceNeeds(cursor, stepMs, true);
     const at = now + firstDelay + (step - 1) * stepMs;
-    if (mealArmed && cursor.needs.fullness >= lowFullnessThreshold && next.needs.fullness < lowFullnessThreshold) {
+    if (mealArmed && cursor.needs.hunger <= highHungerThreshold && next.needs.hunger > highHungerThreshold) {
       mealAt = at;
       mealArmed = false;
-    } else if (!mealArmed && next.needs.fullness >= lowFullnessThreshold) {
+    } else if (!mealArmed && next.needs.hunger <= highHungerThreshold) {
       mealArmed = true;
     }
     if (restArmed && cursor.needs.energy >= lowEnergyThreshold && next.needs.energy < lowEnergyThreshold) {

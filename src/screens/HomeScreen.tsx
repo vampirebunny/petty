@@ -6,6 +6,7 @@ import * as Haptics from 'expo-haptics';
 
 import {
   actionReason,
+  breedById,
   sceneById,
   sceneList,
   stagePoint,
@@ -13,6 +14,7 @@ import {
 } from '../actor';
 import { setSoundEnabled } from '../audio/voice';
 import { stageHeight, stageWidth } from '../actor/geometry';
+import { flickSpeedThreshold } from '../input/flick';
 import { archetypeNames, archetypeStyleNames, attributeScore, currentStyle, petStrokeIntervalMs, traits } from '../sim';
 import type { OutfitSlot, Trait } from '../sim';
 import { loadSoundEnabled, saveSoundEnabled } from '../storage/session';
@@ -50,7 +52,8 @@ export default function HomeScreen({ petApi, onClearAttestation }: Props) {
     remindersOn,
     setRemindersOn,
     feed,
-    drink,
+    refillWater,
+    reportDrank,
     sit,
     givePaw,
     speak,
@@ -58,6 +61,7 @@ export default function HomeScreen({ petApi, onClearAttestation }: Props) {
     pet,
     fetchBall,
     throwAt,
+    flickAt,
     setScene,
     equip,
     applyActorWeight,
@@ -76,6 +80,8 @@ export default function HomeScreen({ petApi, onClearAttestation }: Props) {
   const [reducedMotion, setReducedMotion] = useState(false);
   const [wardrobeOpen, setWardrobeOpen] = useState(false);
   const [personalityOpen, setPersonalityOpen] = useState(false);
+  const [feedOpen, setFeedOpen] = useState(false);
+  const [playOpen, setPlayOpen] = useState(false);
   const [note, setNote] = useState('');
   const [soundOn, setSoundOn] = useState(true);
   const noteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -140,24 +146,38 @@ export default function HomeScreen({ petApi, onClearAttestation }: Props) {
     pet();
   }, [pet]);
 
-  const throwHere = useCallback(
+  const softDropHere = useCallback(
     (x: number, y: number) => {
       const point = stagePoint(x, y, viewWidth, viewHeight);
       throwAt(point.x, point.y);
     },
     [throwAt, viewHeight, viewWidth],
   );
-  const throwRef = useRef(throwHere);
+  const flickHere = useCallback(
+    (x: number, y: number, vx: number, vy: number) => {
+      const point = stagePoint(x, y, viewWidth, viewHeight);
+      const scaleX = stageWidth / Math.max(viewWidth, 1);
+      const scaleY = stageHeight / Math.max(viewHeight, 1);
+      flickAt(point.x, point.y, vx * scaleX, vy * scaleY);
+    },
+    [flickAt, viewHeight, viewWidth],
+  );
+  const dropRef = useRef(softDropHere);
+  const flickRef = useRef(flickHere);
   const strokeRef = useRef(stroke);
   useEffect(() => {
-    throwRef.current = throwHere;
+    dropRef.current = softDropHere;
+    flickRef.current = flickHere;
     strokeRef.current = stroke;
-  }, [stroke, throwHere]);
+  }, [flickHere, softDropHere, stroke]);
   const onTapStage = useCallback((x: number, y: number) => {
-    throwRef.current(x, y);
+    dropRef.current(x, y);
   }, []);
   const onStrokeStage = useCallback(() => {
     strokeRef.current();
+  }, []);
+  const onFlickStage = useCallback((x: number, y: number, vx: number, vy: number) => {
+    flickRef.current(x, y, vx, vy);
   }, []);
   const gesture = useMemo(() => {
     const tap = Gesture.Tap()
@@ -169,9 +189,15 @@ export default function HomeScreen({ petApi, onClearAttestation }: Props) {
       .minDistance(18)
       .onUpdate(() => {
         runOnJS(onStrokeStage)();
+      })
+      .onEnd((event) => {
+        const speed = Math.hypot(event.velocityX, event.velocityY);
+        if (speed >= flickSpeedThreshold) {
+          runOnJS(onFlickStage)(event.x, event.y, event.velocityX, event.velocityY);
+        }
       });
     return Gesture.Exclusive(tap, pan);
-  }, [onStrokeStage, onTapStage]);
+  }, [onFlickStage, onStrokeStage, onTapStage]);
   const preset = sceneById(state?.sceneId ?? 'livingroom');
   const scene = preset;
 
@@ -185,15 +211,39 @@ export default function HomeScreen({ petApi, onClearAttestation }: Props) {
     style === origin
       ? archetypeNames[origin]
       : `Born: ${archetypeNames[origin]} · Style: ${archetypeStyleNames[style]}`;
+  const species = breedById(state.breedId)?.species ?? 'dog';
+  const mealLabel = species === 'cat' ? 'Cat food' : 'Kibble';
+  const ownsBall = state.toys.includes('ball');
 
   const actions: PetAction[] = [
     { id: 'sit', label: 'Sit', onPress: sit },
     { id: 'paw', label: 'Give paw', onPress: givePaw },
     { id: 'speak', label: 'Speak', onPress: speak },
     { id: 'rest', label: state.asleep ? 'Wake' : 'Sleep', onPress: rest },
-    { id: 'feed', label: 'Eat', onPress: feed, reason: actionReason(scene, 'feed') },
-    { id: 'drink', label: 'Drink', onPress: drink, reason: actionReason(scene, 'drink') },
-    { id: 'throw', label: 'Throw ball', onPress: fetchBall, primary: true },
+    {
+      id: 'feed',
+      label: 'Feed',
+      onPress: () => {
+        setPlayOpen(false);
+        setFeedOpen((open) => !open);
+      },
+      reason: actionReason(scene, 'feed'),
+    },
+    {
+      id: 'refill',
+      label: 'Refill water',
+      onPress: refillWater,
+      reason: actionReason(scene, 'refillWater', state.waterLevel),
+    },
+    {
+      id: 'play',
+      label: 'Play',
+      onPress: () => {
+        setFeedOpen(false);
+        setPlayOpen((open) => !open);
+      },
+      primary: true,
+    },
   ];
 
   return (
@@ -210,9 +260,11 @@ export default function HomeScreen({ petApi, onClearAttestation }: Props) {
               cueKind={cue.kind}
               cueToken={cue.token}
               drop={cue.drop}
+              flick={cue.flick}
               hour={hour}
               reducedMotion={reducedMotion}
               onWeightDelta={applyActorWeight}
+              onDrank={reportDrank}
             />
           </View>
         </GestureDetector>
@@ -233,9 +285,39 @@ export default function HomeScreen({ petApi, onClearAttestation }: Props) {
           ))}
         </View>
         <ActionButtons actions={actions} onBlocked={flash} />
+        {feedOpen ? (
+          <View style={styles.scenes}>
+            <Pressable
+              style={styles.scene}
+              onPress={() => {
+                setFeedOpen(false);
+                feed();
+              }}
+            >
+              <Text style={styles.sceneLabel}>{mealLabel}</Text>
+            </Pressable>
+          </View>
+        ) : null}
+        {playOpen ? (
+          <View style={styles.scenes}>
+            {ownsBall ? (
+              <Pressable
+                style={[styles.scene, styles.sceneSelected]}
+                onPress={() => {
+                  setPlayOpen(false);
+                  fetchBall();
+                }}
+              >
+                <Text style={[styles.sceneLabel, styles.sceneSelectedLabel]}>Throw ball</Text>
+              </Pressable>
+            ) : (
+              <Text style={styles.hint}>No toys yet.</Text>
+            )}
+          </View>
+        ) : null}
         <Text style={styles.hint}>
           {note ||
-            'With no action running, the pet idles on its own: it wanders, sits, grooms and naps. Tap the stage to throw the ball.'}
+            'With no action running, the pet idles on its own. Tap the stage to soft-drop a ball, or flick to throw.'}
         </Text>
         <Pressable onPress={() => setWardrobeOpen((open) => !open)}>
           <Text style={styles.switchLabel}>{wardrobeOpen ? 'Hide wardrobe' : 'Wardrobe'}</Text>

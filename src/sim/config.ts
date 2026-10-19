@@ -1,7 +1,7 @@
 import type { Archetype, Needs, Trait } from './types';
 
 export const startingNeeds: Needs = {
-  fullness: 80,
+  hunger: 20,
   energy: 80,
   happiness: 80,
 };
@@ -15,17 +15,26 @@ export const stepMs = 5 * 60 * 1000;
 export const maxElapsedMs = 48 * 60 * 60 * 1000;
 
 export const decayPerHour: { awake: Needs; asleep: Needs } = {
-  awake: { fullness: -8, energy: -5, happiness: -3 },
-  asleep: { fullness: -4, energy: 12, happiness: -1 },
+  awake: { hunger: 8, energy: -5, happiness: -3 },
+  asleep: { hunger: 4, energy: 12, happiness: -1 },
 };
 
-export const lowFullnessThreshold = 25;
+export const highHungerThreshold = 75;
 export const lowEnergyThreshold = 20;
 export const extraHappinessDecayPerHour = -6;
 
 export const wakeAtEnergy = 100;
 
-export const feedFullnessGain = 25;
+export const feedHungerDrop = 25;
+
+export const waterDrainPerDrink = 0.1;
+export const waterEmptyGraceMs = 3 * 60 * 60 * 1000;
+export const startingWaterLevel = 1;
+export const startingToys = ['ball'] as const;
+
+export const treatHungerDrop = 10;
+export const treatWeightGain = 0.04;
+export const treatDailyCap = 3;
 
 export const petHappinessGain = 6;
 export const petPurrAtOrAbove = 0.5;

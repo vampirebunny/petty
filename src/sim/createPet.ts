@@ -5,6 +5,8 @@ import {
   startingAttention,
   startingDietQuality,
   startingNeeds,
+  startingToys,
+  startingWaterLevel,
   startingWeight,
 } from './config';
 import { vitalityTarget } from './care';
@@ -63,5 +65,11 @@ export function createPet({ id, name, breedId, look, attributes, now }: NewPet):
     asleep: startingAsleep,
     lastUpdatedAt: now,
     rngState: rngSeed(attributes.seed, attributes.archetype),
+    waterLevel: startingWaterLevel,
+    waterEmptySince: null,
+    toys: [...startingToys],
+    treats: [],
+    treatDay: { day: 0, count: 0 },
+    boosts: [],
   });
 }

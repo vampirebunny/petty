@@ -28,7 +28,7 @@ const previewSource = {
   asleep: false,
 };
 
-const fallbackBreed = { dog: 'retriever', cat: 'tabby' } as const;
+const fallbackBreed = { dog: 'retriever', cat: 'domesticshorthair' } as const;
 const noon = todAt(12);
 const frameMs = 1000 / 30;
 

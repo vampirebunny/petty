@@ -23,7 +23,7 @@ function Bar({ label, value }: { label: string; value: number }) {
 export function NeedBars({ needs }: Props) {
   return (
     <View style={styles.bars}>
-      <Bar label="Fullness" value={needs.fullness} />
+      <Bar label="Hunger" value={needs.hunger} />
       <Bar label="Energy" value={needs.energy} />
       <Bar label="Mood" value={needs.happiness} />
     </View>

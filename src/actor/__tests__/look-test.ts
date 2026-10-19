@@ -43,7 +43,7 @@ it('overrides coat, ears, and tail but leaves anatomy alone', () => {
 });
 
 it('ignores ear and tail values the species does not offer', () => {
-  const cat = breedById('tabby')!;
+  const cat = breedById('domesticshorthair')!;
   const resolved = resolveBreed(cat, { coat: cat.coat, ear: 'floppy', tail: 'stub' });
   expect(resolved.ear).toBe('cat');
   expect(resolved.tail).toBe(cat.tail);

@@ -20,10 +20,10 @@ export {
   clampMin,
   decayPerHour,
   extraHappinessDecayPerHour,
-  feedFullnessGain,
+  feedHungerDrop,
   happyHappinessAtLeast,
+  highHungerThreshold,
   lowEnergyThreshold,
-  lowFullnessThreshold,
   maxElapsedMs,
   openTickMs,
   petHappinessGain,
@@ -32,8 +32,15 @@ export {
   sadHappinessBelow,
   startingAsleep,
   startingNeeds,
+  startingToys,
+  startingWaterLevel,
   defaultSceneId,
   startingWeight,
+  treatDailyCap,
+  treatHungerDrop,
+  treatWeightGain,
+  waterDrainPerDrink,
+  waterEmptyGraceMs,
   weightMealGain,
   stepMs,
   traits,
@@ -48,6 +55,8 @@ export {
   daysToSenior,
   dayMs,
 } from './config';
+export { applyEffects, activeBoosts, boostRemainingSec } from './effects';
+export type { Effects } from './effects';
 export { nextRng } from './rng';
 export type { RngStep } from './rng';
 export type {

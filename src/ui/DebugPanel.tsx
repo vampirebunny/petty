@@ -123,7 +123,7 @@ export function DebugPanel({
       </Pressable>
       {open ? (
         <View style={styles.body}>
-      <Text style={styles.line}>Fullness {format(state.needs.fullness)}</Text>
+      <Text style={styles.line}>Hunger {format(state.needs.hunger)}</Text>
       <Text style={styles.line}>Energy {format(state.needs.energy)}</Text>
       <Text style={styles.line}>Happiness {format(state.needs.happiness)}</Text>
       <Text style={styles.line}>Asleep {state.asleep ? 'yes' : 'no'}</Text>

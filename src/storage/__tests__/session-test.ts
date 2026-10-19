@@ -59,6 +59,20 @@ it('folds a legacy species, breed, or look step into design', async () => {
   });
 });
 
+it('migrates legacy cat breed ids in a draft', async () => {
+  await AsyncStorage.setItem(
+    'petty.draft',
+    JSON.stringify({ seed: 9, species: 'cat', breedId: 'tabby', look: null, step: 'design' }),
+  );
+  await expect(loadDraft()).resolves.toEqual({
+    seed: 9,
+    species: 'cat',
+    breedId: 'domesticshorthair',
+    look: null,
+    step: 'design',
+  });
+});
+
 it('keeps the sound setting, on by default', async () => {
   await expect(loadSoundEnabled()).resolves.toBe(true);
   await saveSoundEnabled(false);

@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import type { Look } from '../sim/types';
+import { migrateBreedId } from './migrateIds';
 
 const attestationKey = 'petty.attestation';
 const draftKey = 'petty.draft';
@@ -61,7 +62,7 @@ function readDraft(value: unknown): AdoptionDraft | null {
   const result: AdoptionDraft = {
     seed: draft.seed,
     species: draft.species,
-    breedId: draft.breedId,
+    breedId: draft.breedId == null ? null : migrateBreedId(draft.breedId),
     look: draft.look,
     step,
   };

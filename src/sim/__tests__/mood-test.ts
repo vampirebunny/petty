@@ -16,7 +16,7 @@ it('lets sleeping win over every other condition', () => {
     deriveMood(
       pet({
         asleep: true,
-        needs: { fullness: 0, energy: 0, happiness: 0 },
+        needs: { hunger: 100, energy: 0, happiness: 0 },
       }),
     ),
   ).toBe('sleeping');
@@ -24,24 +24,24 @@ it('lets sleeping win over every other condition', () => {
 
 it('lets hunger win over sleepy and happy', () => {
   expect(
-    deriveMood(pet({ needs: { fullness: 24, energy: 0, happiness: 100 } })),
+    deriveMood(pet({ needs: { hunger: 76, energy: 0, happiness: 100 } })),
   ).toBe('hungry');
 });
 
 it('lets sleepy win over happy', () => {
   expect(
-    deriveMood(pet({ needs: { fullness: 25, energy: 19, happiness: 100 } })),
+    deriveMood(pet({ needs: { hunger: 75, energy: 19, happiness: 100 } })),
   ).toBe('sleepy');
 });
 
 it('treats under-thresholds as exclusive and happiness 70 as happy', () => {
   expect(
-    deriveMood(pet({ needs: { fullness: 25, energy: 20, happiness: 70 } })),
+    deriveMood(pet({ needs: { hunger: 75, energy: 20, happiness: 70 } })),
   ).toBe('happy');
   expect(
-    deriveMood(pet({ needs: { fullness: 25, energy: 20, happiness: 30 } })),
+    deriveMood(pet({ needs: { hunger: 75, energy: 20, happiness: 30 } })),
   ).toBe('content');
   expect(
-    deriveMood(pet({ needs: { fullness: 25, energy: 20, happiness: 29 } })),
+    deriveMood(pet({ needs: { hunger: 75, energy: 20, happiness: 29 } })),
   ).toBe('sad');
 });

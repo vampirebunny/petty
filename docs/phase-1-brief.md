@@ -7,13 +7,13 @@ Updated Oct 18, 2026
 
 Phase 0 is done. The app has one blob, three needs, feed, rest, and pet, saved on the device, with a debug panel that jumps time. This phase gives that pet a life: an age check, a name, a personality, gradual aging, and a procedural body. The blob drawing is replaced by an actor. There is no Rive step.
 
-**Superseded (Oct 18, 2026).** Adoption and attributes changed in the PRD (R1.3–R1.5, F3). The litter of three temperament variants is replaced by three archetype attribute sets (athlete, thinker, charmer) from `generateOffers(seed, species, breedKey, ranges)`. Adoption is four steps with a 4-dot indicator: design (species, sticky preview, coat styles with solids/stripes/points, ears, tail, horizontal breed list with potential ranges), choose (three equal tiles and potential-only bars with +N deltas), name (1–16 characters, no suggestion chips; "Meet {name}" creates the pet), and a same-session meet intro with current/potential bars. Cat display names are Domestic Shorthair and Bombay (stored ids stay `tabby` and `black`). `Look` may include optional `pattern` and `accent`. `variant`, `temperament`, `trained` and `createLitter` are gone. The pet stores `attributes { seed, rulesVersion, archetype, potential, current }` and `look`. Scores use the breed range scale (about 10 to 100), `current` starts at 20% of potential, and totals are 375 plus or minus 10. Wherever the sections below mention variants, temperament labels, the 1 to 20 scale, or `createLitter`, follow the PRD instead.
+**Superseded (Oct 18, 2026).** Adoption and attributes changed in the PRD (R1.3–R1.5, F3). The litter of three temperament variants is replaced by three archetype attribute sets (athlete, thinker, charmer) from `generateOffers(seed, species, breedKey, ranges)`. Adoption is four steps with a 4-dot indicator: design (species, sticky preview, coat styles with solids/stripes/points, ears, tail, horizontal breed list with potential ranges), choose (three equal tiles and potential-only bars with +N deltas), name (1–16 characters, no suggestion chips; "Meet {name}" creates the pet), and a same-session meet intro with current/potential bars. Cat display names and stored ids are Domestic Shorthair (`domesticshorthair`) and Bombay (`bombay`); saves migrate old `tabby` / `black` ids. `Look` may include optional `pattern` and `accent`. `variant`, `temperament`, `trained` and `createLitter` are gone. The pet stores `attributes { seed, rulesVersion, archetype, potential, current }` and `look`. Scores use the breed range scale (about 10 to 100), `current` starts at 20% of potential, and totals are 375 plus or minus 10. Wherever the sections below mention variants, temperament labels, the 1 to 20 scale, or `createLitter`, follow the PRD instead.
 
 Build it in the existing Expo app. The PRD is the contract. This brief is the build order for Phase 1. Requirement numbers below point at `docs/PRD Virtual Pet App MVP.md`. Decay, sleep, mood, and the current events stay as they are in "Cursor Brief: Pet Blob Prototype" unless this brief says otherwise.
 
 **Done means**
 
-A fresh install asks the user to attest that they are 13 or older. Saying they are under 13 leaves the app blocked after it is closed and reopened, with no pet saved. A passing attestation picks a species and a breed, meets three young pets of that breed, picks one, names it, and lands on the home screen. The home screen draws that pet as an actor. Feed, rest, petting, and throw ball start tasks. Nothing in the interface starts panting. Playing with the app open does not age the pet. Coming back later ages the credited day count by at most 48 hours, eases the view over about a second, and never shows a stage name. Debug controls can walk age, maturity, and vitality across the whole range.
+A fresh install asks the user to attest that they are 13 or older. Saying they are under 13 leaves the app blocked after it is closed and reopened, with no pet saved. A passing attestation picks a species and a breed, meets three young pets of that breed, picks one, names it, and lands on the home screen. The home screen draws that pet as an actor. Feed (meal picker), refill water, rest, petting, and Play (throw ball) start tasks. Needs use hunger, energy, and happiness. Nothing in the interface starts panting. Playing with the app open does not age the pet. Coming back later ages the credited day count by at most 48 hours, eases the view over about a second, and never shows a stage name. Debug controls can walk age, maturity, and vitality across the whole range.
 
 ## What to build
 
@@ -24,7 +24,7 @@ A fresh install asks the user to attest that they are 13 or older. Saying they a
 - Internal stage labels and senior bands (R2.3, R2.9). The product UI never shows them.
 - Six attributes with visible current scores and maximum potential, temperament, level, and xp (F3). Training, milestone points, and temporary buffs stay at zero until the activities that award them exist.
 - A procedural actor drawn from breed anatomy, age curves, vitality, and weight (R2.7, R4.6). Weight is never shown as a number.
-- Feed starts eat, rest starts sleep, a stroke starts the species reaction, and throw ball starts fetch for a dog or pounce for a cat (R4.1, R4.2, R4.6).
+- Feed starts eat, refill water fills the bowl, rest starts sleep, a stroke starts the species reaction, and Play → throw ball starts fetch for a dog or bat play for a cat (R4.1, R4.2, R4.6).
 - A reminder when a need is about to run low, with a switch to turn reminders off (R2.5).
 - Debug sliders and time jumps that bypass the maturity cap (R2.6). The age slider runs from day 0 through day 1000.
 
@@ -192,7 +192,7 @@ No navigation library. A small flow in the app is enough: attest, blocked, speci
 
 **Name.** Show the chosen pet and the temperament the user already saw. The name is required, trimmed, and at most 16 characters. Confirming the name creates the pet from the seed, the breed, and the picked variant.
 
-**Home.** The pet's name, temperament, level, the six `current / potential` lines, need bars, feed, rest, and throw ball. No stage word. No pant button.
+**Home.** The pet's name, temperament, level, the six `current / potential` lines, need bars (hunger, energy, mood), Feed / Play pickers, refill water, rest, and tricks. No stage word. No pant button.
 
 A saved Phase 0 pet has none of the new fields. If the loaded pet does not match this shape, drop it and start from the age gate. Do not crash.
 
@@ -206,14 +206,14 @@ The home screen draws one actor with Skia. The renderer imports Skia. The module
 
 The frame clock is separate from the 5-second needs tick. Cap each frame at 50ms. Pause it when the app is not active. On return, drop an in-progress eat, fetch, or pounce and show the pet standing, or sleeping if rest is on. Save the pet record. Do not save the pose, the gait, or the ball.
 
-The home screen keeps the pet name and actor sticky. Need bars sit below the animation. There is no status bubble on the stage. User actions are sit, give paw, speak, sleep/wake, eat, drink, and throw ball. Idle is not a button. Personality (archetype or style and attribute scores) expands from `{name}'s personality`. Settings holds the time jumps and sliders.
+The home screen keeps the pet name and actor sticky. Need bars sit below the animation. There is no status bubble on the stage. User actions are sit, give paw, speak, sleep/wake, Feed (kibble / cat food), Refill water, and Play (throw ball). Tap the stage to soft-drop a ball; flick to throw. Idle is not a button. Personality (archetype or style and attribute scores) expands from `{name}'s personality`. Settings holds the time jumps and sliders.
 
 Behavior, from the species list:
 
-- Feed, drink, sit, give paw, speak, throw ball, and a stroke all wake a sleeper and then run.
+- Feed, refill water, sit, give paw, speak, play/throw ball, and a stroke all wake a sleeper and then run (refill does not start a drink animation).
 - Rest starts sleep. Wake returns to idle.
 - A stroke starts the species reaction. A dog barks or offers a paw. A cat purrs or grooms. The existing purr-versus-wiggle roll chooses which.
-- Throw ball starts fetch for a dog and pounce for a cat. Phase 1 always runs that chase.
+- Play → throw ball starts fetch for a dog and bat play for a cat. Phase 1 always runs that chase.
 - Pant is not a control. The dog task machine may enter it, including the sit-and-pant at the end of a fetch.
 - When no task is running, the pet idles on its own.
 
@@ -229,7 +229,7 @@ Tests cover pose easing, IK, gait foot targets, each shared and species task, th
 
 ## Reminders
 
-Schedule a local notification for the next time fullness will cross 25 or energy will cross 20, using the same decay rules as the sim. If the need is already low, wait until it recovers and would cross again. Copy uses the pet's name and stays calm, for example "Maple could use a meal." No guilt, and no stage words.
+Schedule a local notification for the next time hunger will cross above 75 or energy will cross below 20, using the same decay rules as the sim. If the need is already in the alert band, wait until it recovers and would cross again. Copy uses the pet's name and stays calm, for example "Maple could use a meal." No guilt, and no stage words.
 
 A reminders switch on the home screen defaults to on. If the system permission is denied, turn the switch off and keep the rest of the app working. Reschedule after each save.
 

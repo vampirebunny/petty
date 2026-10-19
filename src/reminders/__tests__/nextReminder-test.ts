@@ -22,13 +22,13 @@ it('schedules the sooner crossing and waits when a need is already low', () => {
 
   const hungry = {
     ...pet,
-    needs: { ...pet.needs, fullness: 10, energy: 80 },
+    needs: { ...pet.needs, hunger: 90, energy: 80 },
   };
   expect(nextReminder(hungry, 1_000)?.kind).toBe('rest');
 
   const low = {
     ...pet,
-    needs: { fullness: 10, energy: 10, happiness: 80 },
+    needs: { hunger: 90, energy: 10, happiness: 80 },
   };
   expect(nextReminder(low, 1_000)).toBeNull();
 });

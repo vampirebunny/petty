@@ -4,7 +4,7 @@ import {
   clampMax,
   clampMin,
   feedDietGain,
-  feedFullnessGain,
+  feedHungerDrop,
   feedStaminaDrift,
   feedXp,
   petAffectionDrift,
@@ -12,6 +12,8 @@ import {
   petHappinessGain,
   petPurrAtOrAbove,
   petXp,
+  startingWaterLevel,
+  waterDrainPerDrink,
 } from './config';
 import { nextRng } from './rng';
 import type { CareSample, Cue, PetEvent, PetState } from './types';
@@ -38,6 +40,10 @@ function copyState(state: PetState): PetState {
       current: { ...state.attributes.current },
     },
     drift: { ...state.drift },
+    toys: [...state.toys],
+    treats: state.treats.map((stack) => ({ ...stack })),
+    treatDay: { ...state.treatDay },
+    boosts: state.boosts.map((boost) => ({ ...boost })),
   };
 }
 
@@ -87,31 +93,51 @@ export function applyEvent(state: PetState, event: PetEvent): EventResult {
   }
 
   if (event.type === 'idle') {
-    // Idle is the way back to the resting state: it cancels what the pet is doing and wakes a sleeper.
     const next = copyState(state);
     next.asleep = false;
     return { state: next, cue: { kind: 'idle' } };
   }
 
   if (event.type === 'sit' || event.type === 'paw' || event.type === 'speak') {
-    // Showing a trick costs nothing. Any action wakes a sleeper.
     const next = copyState(state);
     next.asleep = false;
     return { state: next, cue: { kind: event.type } };
   }
 
-  if (event.type === 'feed' || event.type === 'drink') {
+  if (event.type === 'feed') {
     const next = copyState(state);
     next.asleep = false;
-    if (event.type === 'feed') {
-      next.needs.fullness = clampNeed(next.needs.fullness + feedFullnessGain);
-      next.xp += feedXp;
-      next.drift.stamina = clampDrift(next.drift.stamina + feedStaminaDrift);
-      next.careWindow = bumpDiet(next.careWindow);
-      next.weight = applyMeal(next.weight);
-      return { state: withDerived(next), cue: { kind: 'eat' } };
+    if (next.needs.hunger <= 0) {
+      return { state: next, cue: { kind: 'refuse' } };
     }
-    return { state: next, cue: { kind: 'drink' } };
+    next.needs.hunger = clampNeed(next.needs.hunger - feedHungerDrop);
+    next.xp += feedXp;
+    next.drift.stamina = clampDrift(next.drift.stamina + feedStaminaDrift);
+    next.careWindow = bumpDiet(next.careWindow);
+    next.weight = applyMeal(next.weight);
+    return { state: withDerived(next), cue: { kind: 'eat' } };
+  }
+
+  if (event.type === 'refillWater') {
+    const next = copyState(state);
+    next.waterLevel = startingWaterLevel;
+    next.waterEmptySince = null;
+    return { state: next, cue: { kind: 'none' } };
+  }
+
+  if (event.type === 'drank') {
+    const next = copyState(state);
+    if (!event.fromBowl) {
+      return { state: next, cue: { kind: 'none' } };
+    }
+    next.waterLevel = Math.max(0, next.waterLevel - waterDrainPerDrink);
+    if (next.waterLevel <= 0) {
+      next.waterLevel = 0;
+      if (next.waterEmptySince == null) {
+        next.waterEmptySince = event.now;
+      }
+    }
+    return { state: next, cue: { kind: 'none' } };
   }
 
   if (event.type === 'toggleRest') {
@@ -123,7 +149,7 @@ export function applyEvent(state: PetState, event: PetEvent): EventResult {
   if (event.type === 'fetch') {
     const next = copyState(state);
     next.asleep = false;
-    return { state: next, cue: { kind: 'fetch', drop: event.drop } };
+    return { state: next, cue: { kind: 'fetch', drop: event.drop, flick: event.flick } };
   }
 
   const rng = nextRng(state.rngState);

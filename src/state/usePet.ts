@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 
+import { flickToThrow } from '../input/flick';
 import { cancelReminders, syncReminder } from '../reminders/notifications';
 import {
   applyEvent,
@@ -25,6 +26,7 @@ export type PetCue = {
   kind: Cue['kind'];
   token: number;
   drop?: { x: number; y: number };
+  flick?: { vx: number; vy: number; vz: number };
 };
 
 type PetApi = {
@@ -39,11 +41,13 @@ type PetApi = {
   givePaw: () => void;
   speak: () => void;
   feed: () => void;
-  drink: () => void;
+  refillWater: () => void;
+  reportDrank: (fromBowl: boolean) => void;
   rest: () => void;
   pet: () => void;
   fetchBall: () => void;
   throwAt: (x: number, y: number) => void;
+  flickAt: (x: number, y: number, vx: number, vy: number) => void;
   setScene: (sceneId: string) => void;
   equip: (slot: OutfitSlot, itemId: string | null) => void;
   applyActorWeight: (delta: number) => void;
@@ -77,7 +81,12 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
     setState(next);
     if (nextCue) {
       tokenRef.current += 1;
-      setCue({ kind: nextCue.kind, token: tokenRef.current, drop: nextCue.drop });
+      setCue({
+        kind: nextCue.kind,
+        token: tokenRef.current,
+        drop: nextCue.drop,
+        flick: nextCue.flick,
+      });
     }
     const snapshot = next;
     saveQueue.current = saveQueue.current
@@ -276,12 +285,22 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
   const givePaw = useCallback(() => dispatch({ type: 'paw' }), [dispatch]);
   const speak = useCallback(() => dispatch({ type: 'speak' }), [dispatch]);
   const feed = useCallback(() => dispatch({ type: 'feed' }), [dispatch]);
-  const drink = useCallback(() => dispatch({ type: 'drink' }), [dispatch]);
+  const refillWater = useCallback(() => dispatch({ type: 'refillWater' }), [dispatch]);
+  const reportDrank = useCallback(
+    (fromBowl: boolean) => dispatch({ type: 'drank', fromBowl, now: Date.now() }),
+    [dispatch],
+  );
   const rest = useCallback(() => dispatch({ type: 'toggleRest' }), [dispatch]);
   const pet = useCallback(() => dispatch({ type: 'pet' }), [dispatch]);
   const fetchBall = useCallback(() => dispatch({ type: 'fetch' }), [dispatch]);
   const throwAt = useCallback(
     (x: number, y: number) => dispatch({ type: 'fetch', drop: { x, y } }),
+    [dispatch],
+  );
+  const flickAt = useCallback(
+    (x: number, y: number, vx: number, vy: number) => {
+      dispatch({ type: 'fetch', drop: { x, y }, flick: flickToThrow(vx, vy) });
+    },
     [dispatch],
   );
   const setScene = useCallback(
@@ -305,11 +324,13 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
     givePaw,
     speak,
     feed,
-    drink,
+    refillWater,
+    reportDrank,
     rest,
     pet,
     fetchBall,
     throwAt,
+    flickAt,
     setScene,
     equip,
     applyActorWeight,

@@ -2,9 +2,27 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { withDerived } from '../sim/attributes';
 import { clampWeight } from '../sim/care';
-import { archetypes, dayMs, defaultSceneId, traits } from '../sim/config';
-import type { Equipped, Look, PetAttributes, PetState, Stats } from '../sim/types';
+import {
+  archetypes,
+  dayMs,
+  defaultSceneId,
+  startingToys,
+  startingWaterLevel,
+  traits,
+} from '../sim/config';
+import type {
+  ActiveBoost,
+  Equipped,
+  Look,
+  Needs,
+  PetAttributes,
+  PetState,
+  Stats,
+  TreatDay,
+  TreatStack,
+} from '../sim/types';
 import type { PetStorage } from './PetStorage';
+import { migrateBreedId } from './migrateIds';
 
 const storageKey = 'petty.pet';
 
@@ -68,6 +86,76 @@ function readLook(value: unknown): Look | null {
   return look;
 }
 
+function readNeeds(value: unknown): Needs | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  if (typeof value.energy !== 'number' || typeof value.happiness !== 'number') {
+    return null;
+  }
+  if (typeof value.hunger === 'number') {
+    return { hunger: value.hunger, energy: value.energy, happiness: value.happiness };
+  }
+  if (typeof value.fullness === 'number') {
+    return { hunger: 100 - value.fullness, energy: value.energy, happiness: value.happiness };
+  }
+  return null;
+}
+
+function readTreats(value: unknown): TreatStack[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const stacks: TreatStack[] = [];
+  for (const entry of value) {
+    if (!isRecord(entry) || typeof entry.treatId !== 'string' || typeof entry.count !== 'number') {
+      continue;
+    }
+    stacks.push({ treatId: entry.treatId, count: entry.count });
+  }
+  return stacks;
+}
+
+function readTreatDay(value: unknown): TreatDay {
+  if (!isRecord(value) || typeof value.day !== 'number' || typeof value.count !== 'number') {
+    return { day: 0, count: 0 };
+  }
+  return { day: value.day, count: value.count };
+}
+
+function readBoosts(value: unknown): ActiveBoost[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const boosts: ActiveBoost[] = [];
+  for (const entry of value) {
+    if (
+      !isRecord(entry) ||
+      typeof entry.attribute !== 'string' ||
+      typeof entry.multiplier !== 'number' ||
+      typeof entry.startAt !== 'number' ||
+      typeof entry.endAt !== 'number'
+    ) {
+      continue;
+    }
+    boosts.push({
+      attribute: entry.attribute,
+      multiplier: entry.multiplier,
+      startAt: entry.startAt,
+      endAt: entry.endAt,
+    });
+  }
+  return boosts;
+}
+
+function readToys(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [...startingToys];
+  }
+  const toys = value.filter((entry): entry is string => typeof entry === 'string');
+  return toys.length > 0 ? toys : [...startingToys];
+}
+
 // A pet saved in an older shape (litter variants, temperament, no look) does not load, and
 // adoption starts over. That is the same rule as any save that does not match the current shape.
 function migratePet(value: unknown): PetState | null {
@@ -75,7 +163,7 @@ function migratePet(value: unknown): PetState | null {
     return null;
   }
   const raw = value;
-  const needs = raw.needs;
+  const needs = readNeeds(raw.needs);
   const attributes = readAttributes(raw.attributes);
   const look = readLook(raw.look);
   const drift = readStats(raw.drift);
@@ -92,10 +180,7 @@ function migratePet(value: unknown): PetState | null {
     !attributes ||
     !look ||
     !drift ||
-    !isRecord(needs) ||
-    typeof needs.fullness !== 'number' ||
-    typeof needs.energy !== 'number' ||
-    typeof needs.happiness !== 'number' ||
+    !needs ||
     !Array.isArray(raw.careWindow)
   ) {
     return null;
@@ -110,16 +195,30 @@ function migratePet(value: unknown): PetState | null {
       ? raw.bornAt
       : raw.lastUpdatedAt - raw.ageDays * dayMs;
   const equipped = isRecord(raw.equipped) ? (raw.equipped as Equipped) : {};
+  const waterLevel =
+    typeof raw.waterLevel === 'number' && Number.isFinite(raw.waterLevel)
+      ? Math.max(0, Math.min(1, raw.waterLevel))
+      : startingWaterLevel;
+  const waterEmptySince =
+    raw.waterEmptySince === null || typeof raw.waterEmptySince === 'number' ? raw.waterEmptySince : null;
   const next = {
     ...(raw as unknown as PetState),
+    breedId: migrateBreedId(raw.breedId),
     attributes,
     look,
     drift,
+    needs,
     weight: clampWeight(weight),
     bornAt,
     weightAppliedAt: legacy ? raw.lastUpdatedAt : (raw.weightAppliedAt as number),
     sceneId: typeof raw.sceneId === 'string' ? raw.sceneId : defaultSceneId,
     equipped,
+    waterLevel,
+    waterEmptySince,
+    toys: readToys(raw.toys),
+    treats: readTreats(raw.treats),
+    treatDay: readTreatDay(raw.treatDay),
+    boosts: readBoosts(raw.boosts),
   };
   delete (next as { feedWindow?: unknown }).feedWindow;
   delete (next as { maturityAppliedAt?: unknown }).maturityAppliedAt;

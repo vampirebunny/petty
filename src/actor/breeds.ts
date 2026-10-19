@@ -125,7 +125,7 @@ const dogVisuals: BreedVisual[] = [
 
 const catVisuals: BreedVisual[] = [
   {
-    id: 'tabby',
+    id: 'domesticshorthair',
     name: 'Domestic Shorthair',
     species: 'cat',
     bodyLen: 0.95,
@@ -214,7 +214,7 @@ const catVisuals: BreedVisual[] = [
     behaviors: catTasks,
   },
   {
-    id: 'black',
+    id: 'bombay',
     name: 'Bombay',
     species: 'cat',
     bodyLen: 0.95,

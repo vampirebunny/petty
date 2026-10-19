@@ -8,25 +8,60 @@ function asleep(state: PetState): PetState {
 
 it('feeds an awake pet and wakes a sleeper to feed', () => {
   const before = testPet(1, 'retriever', 0, 'Pup', 'pet');
-  before.needs.fullness = 40;
+  before.needs.hunger = 60;
   const fed = applyEvent(before, { type: 'feed' });
 
   expect(fed.cue).toEqual({ kind: 'eat' });
-  expect(fed.state.needs.fullness).toBe(65);
+  expect(fed.state.needs.hunger).toBe(35);
   expect(fed.state.needs.energy).toBe(before.needs.energy);
   expect(fed.state.rngState).toBe(before.rngState);
-  expect(before.needs.fullness).toBe(40);
+  expect(before.needs.hunger).toBe(60);
 
   const resting = applyEvent(asleep(before), { type: 'feed' });
   expect(resting.cue).toEqual({ kind: 'eat' });
-  expect(resting.state.needs.fullness).toBe(65);
+  expect(resting.state.needs.hunger).toBe(35);
   expect(resting.state.asleep).toBe(false);
 });
 
-it('clamps feeding at 100', () => {
+it('refuses feed at hunger 0 with a head-turn cue', () => {
   const full = testPet(1, 'retriever', 0, 'Pup', 'pet');
-  full.needs.fullness = 90;
-  expect(applyEvent(full, { type: 'feed' }).state.needs.fullness).toBe(100);
+  full.needs.hunger = 0;
+  const refused = applyEvent(full, { type: 'feed' });
+  expect(refused.cue).toEqual({ kind: 'refuse' });
+  expect(refused.state.needs.hunger).toBe(0);
+  expect(refused.state.weight).toBe(full.weight);
+});
+
+it('clamps feeding at hunger 0', () => {
+  const almost = testPet(1, 'retriever', 0, 'Pup', 'pet');
+  almost.needs.hunger = 10;
+  expect(applyEvent(almost, { type: 'feed' }).state.needs.hunger).toBe(0);
+});
+
+it('refills water without changing happiness', () => {
+  const before = testPet(1, 'retriever', 0, 'Pup', 'pet');
+  before.waterLevel = 0.2;
+  before.waterEmptySince = 100;
+  before.needs.happiness = 50;
+  const result = applyEvent(before, { type: 'refillWater' });
+  expect(result.cue).toEqual({ kind: 'none' });
+  expect(result.state.waterLevel).toBe(1);
+  expect(result.state.waterEmptySince).toBeNull();
+  expect(result.state.needs.happiness).toBe(50);
+});
+
+it('drains the water bowl when the pet drinks from it', () => {
+  const before = testPet(1, 'retriever', 0, 'Pup', 'pet');
+  const result = applyEvent(before, { type: 'drank', fromBowl: true, now: 500 });
+  expect(result.state.waterLevel).toBeCloseTo(0.9, 5);
+  expect(result.state.waterEmptySince).toBeNull();
+
+  const empty = applyEvent(
+    { ...before, waterLevel: 0.05 },
+    { type: 'drank', fromBowl: true, now: 900 },
+  );
+  expect(empty.state.waterLevel).toBe(0);
+  expect(empty.state.waterEmptySince).toBe(900);
 });
 
 it('toggles rest with a yawn when falling asleep', () => {
@@ -73,7 +108,6 @@ it('runs idle, sit, give paw and speak without touching needs', () => {
     expect(result.cue).toEqual({ kind: type });
     expect(result.state.needs).toEqual(before.needs);
     expect(result.state.rngState).toBe(before.rngState);
-    // A sleeping pet wakes and performs the trick.
     const woken = applyEvent(asleep(before), { type });
     expect(woken.cue).toEqual({ kind: type });
     expect(woken.state.asleep).toBe(false);

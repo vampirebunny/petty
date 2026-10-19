@@ -87,11 +87,11 @@ it('loads five dog breeds and leaves cat tasks unassigned', () => {
   expect(dogBreeds().every((breed) => breed.species === 'dog')).toBe(true);
   expect(dogBreeds().some((breed) => breed.behaviors.includes('groom'))).toBe(false);
   expect(breedsFor('cat').map((breed) => breed.id)).toEqual([
-    'tabby',
+    'domesticshorthair',
     'siamese',
     'persian',
     'mainecoon',
-    'black',
+    'bombay',
   ]);
 });
 
@@ -140,10 +140,10 @@ it('pants after a fetch and does not start pant or groom from a request', () => 
   pup.y = 272;
   pup.speed = 0;
   pup.task = { type: 'fetch', stage: 'return', t: 1, bats: 0, cool: 0 };
-  world.ball = { state: 'carried', x: 296, y: 272, z: 0, vx: 0, vy: 0, vz: 0, carrierId: pup.id };
+  world.items = [{ id: 'ball-1', kind: 'ball', state: 'carried', x: 296, y: 272, z: 0, vx: 0, vy: 0, vz: 0, holderId: pup.id }];
   update(world, 0.05);
   expect(pup.task.type).toBe('winddown');
-  expect(world.ball.state).toBe('free');
+  expect(world.items[0]?.state).toBe('free');
   update(world, 0.2);
   expect(pup.pose.pant).toBeGreaterThan(0);
   expect(pup.z).toBe(0);
@@ -169,13 +169,15 @@ it('steps two actors and pauses the frame clock', () => {
 it('picks another idle and skips a walk when motion is reduced', () => {
   const pup = actor();
   const world = createWorld([pup], 2);
+  world.waterLevel = 0;
   pup.idle.t = pup.idle.dur;
   update(world, 0.05);
   expect(pup.idle.mode).not.toBe('still');
   expect(['pant', 'nap', 'walk']).toContain(pup.idle.mode);
 
-  const cat = spawnActor(source({ id: 'kit', breedId: 'tabby' }));
+  const cat = spawnActor(source({ id: 'kit', breedId: 'domesticshorthair' }));
   const quiet = createWorld([cat], 3);
+  quiet.waterLevel = 0;
   quiet.reducedMotion = true;
   for (let step = 0; step < 12; step += 1) {
     cat.idle.t = cat.idle.dur;
@@ -190,22 +192,22 @@ it('picks up a ball sitting just behind the mouth', () => {
   const world = createWorld([pup], 1);
   pup.face = 1;
   pup.task = { type: 'fetch', stage: 'chase', t: 0, bats: 0, cool: 0 };
-  world.ball = { state: 'free', x: pup.x - 10, y: pup.y, z: 0, vx: 0, vy: 0, vz: 0, carrierId: null };
+  world.items = [{ id: 'ball-1', kind: 'ball', state: 'free', x: pup.x - 10, y: pup.y, z: 0, vx: 0, vy: 0, vz: 0 }];
   update(world, 0.05);
-  expect(world.ball.state).toBe('carried');
+  expect(world.items[0]?.state).toBe('carried');
   expect(pup.task.stage).toBe('return');
 });
 
 it('lets a dog carry the ball home and a cat bat it three times', () => {
   const pup = actor();
   const chase = createWorld([pup], 5);
-  chase.ball = { state: 'free', x: pup.x + 8, y: pup.y, z: 0, vx: 0, vy: 0, vz: 0, carrierId: null };
+  chase.items = [{ id: 'ball-1', kind: 'ball', state: 'free', x: pup.x + 8, y: pup.y, z: 0, vx: 0, vy: 0, vz: 0 }];
   pup.task = { type: 'fetch', stage: 'chase', t: 0, bats: 0, cool: 0 };
   update(chase, 0.05);
-  expect(chase.ball.state).toBe('carried');
+  expect(chase.items[0]?.state).toBe('carried');
   expect(pup.task.stage).toBe('return');
 
-  const kit = spawnActor(source({ id: 'kit', breedId: 'tabby' }));
+  const kit = spawnActor(source({ id: 'kit', breedId: 'domesticshorthair' }));
   const play = createWorld([kit], 6);
   startUserTask(play, kit, 'fetch', 1, { x: kit.x, y: kit.y });
   for (let step = 0; step < 240 && kit.task.type !== 'winddown'; step += 1) {
@@ -225,8 +227,8 @@ it('burns weight while running and maps a tap into the stage', () => {
   }
   expect(takeWeightDelta(pup)).toBeCloseTo(-0.003, 5);
   expect(stagePoint(100, 50, 200, 100)).toEqual({ x: 320, y: 170 });
-  dropBallAt(world, 10_000, -20);
-  expect(world.ball.z).toBe(130);
-  expect(world.ball.x).toBeLessThanOrEqual(world.scene.floor.xMax + 12);
-  expect(world.ball.y).toBeGreaterThanOrEqual(world.scene.floor.yMin);
+  dropBallAt(world, 10_000, -20, false);
+  expect(world.items[0]?.z).toBe(130);
+  expect(world.items[0]?.x).toBeLessThanOrEqual(world.scene.floor.xMax + 12);
+  expect(world.items[0]?.y).toBeGreaterThanOrEqual(world.scene.floor.yMin);
 });

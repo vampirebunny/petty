@@ -28,6 +28,7 @@ export type Env = {
   t: number;
   reduced: boolean;
   bowlFill: number;
+  waterLevel: number;
   glows: Glow[];
   // Where a pet is eating or drinking right now, so a bowl can react.
   feeding: { x: number; y: number; kind: 'eat' | 'drink' }[];
@@ -125,13 +126,16 @@ function drawBowl(c: SkCanvas, prop: Prop, env: Env): void {
   fillOval(c, 0, -16, 30, 7, accent);
   fillOval(c, 0, -16, 25, 5, mix(accent, '#000000', 0.45));
   if (prop.contents === 'water') {
-    fillOval(c, 0, -16, 25, 5, '#7ec3e6');
-    const lapped = env.feeding.some((f) => f.kind === 'drink' && f.x === prop.x && f.y === prop.y);
-    if (lapped && !env.reduced) {
-      // Rings spread from where the tongue hits the water.
-      for (let i = 0; i < 2; i += 1) {
-        const k = (env.t * 1.6 + i * 0.5) % 1;
-        strokeOval(c, 3, -16, 3 + k * 16, 0.7 + k * 3.2, '#ffffff', 1.4, 0.7 * (1 - k));
+    const level = clamp(env.waterLevel, 0, 1);
+    if (level > 0.02) {
+      fillOval(c, 0, -16, 25 * (0.55 + 0.45 * level), 5 * (0.55 + 0.45 * level), '#7ec3e6', 0.35 + 0.65 * level);
+      const lapped = env.feeding.some((f) => f.kind === 'drink' && f.x === prop.x && f.y === prop.y);
+      if (lapped && !env.reduced) {
+        // Rings spread from where the tongue hits the water.
+        for (let i = 0; i < 2; i += 1) {
+          const k = (env.t * 1.6 + i * 0.5) % 1;
+          strokeOval(c, 3, -16, 3 + k * 16, 0.7 + k * 3.2, '#ffffff', 1.4, 0.7 * (1 - k));
+        }
       }
     }
   }

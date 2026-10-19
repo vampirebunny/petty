@@ -1,7 +1,18 @@
 export type Needs = {
-  fullness: number;
+  hunger: number;
   energy: number;
   happiness: number;
+};
+
+export type TreatStack = { treatId: string; count: number };
+
+export type TreatDay = { day: number; count: number };
+
+export type ActiveBoost = {
+  attribute: string;
+  multiplier: number;
+  startAt: number;
+  endAt: number;
 };
 
 export type Trait =
@@ -86,6 +97,12 @@ export type PetState = {
   asleep: boolean;
   lastUpdatedAt: number;
   rngState: number;
+  waterLevel: number;
+  waterEmptySince: number | null;
+  toys: string[];
+  treats: TreatStack[];
+  treatDay: TreatDay;
+  boosts: ActiveBoost[];
 };
 
 export type PetEvent =
@@ -94,16 +111,30 @@ export type PetEvent =
   | { type: 'paw' }
   | { type: 'speak' }
   | { type: 'feed' }
-  | { type: 'drink' }
+  | { type: 'refillWater' }
+  | { type: 'drank'; fromBowl: boolean; now: number }
   | { type: 'toggleRest' }
   | { type: 'pet' }
-  | { type: 'fetch'; drop?: { x: number; y: number } }
+  | { type: 'fetch'; drop?: { x: number; y: number }; flick?: { vx: number; vy: number; vz: number } }
   | { type: 'setScene'; sceneId: string }
   | { type: 'equip'; slot: OutfitSlot; itemId: string | null };
 
 export type Mood = 'happy' | 'content' | 'hungry' | 'sleepy' | 'sad' | 'sleeping';
 
 export type Cue = {
-  kind: 'none' | 'idle' | 'sit' | 'paw' | 'speak' | 'eat' | 'drink' | 'wiggle' | 'purr' | 'stir' | 'yawn' | 'fetch';
+  kind:
+    | 'none'
+    | 'idle'
+    | 'sit'
+    | 'paw'
+    | 'speak'
+    | 'eat'
+    | 'refuse'
+    | 'wiggle'
+    | 'purr'
+    | 'stir'
+    | 'yawn'
+    | 'fetch';
   drop?: { x: number; y: number };
+  flick?: { vx: number; vy: number; vz: number };
 };

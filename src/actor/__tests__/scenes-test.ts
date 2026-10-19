@@ -52,10 +52,15 @@ it('enables an action only when the scene has its point', () => {
   expect(actionEnabled(scenes.bedroom, 'drink')).toBe(true);
   expect(actionEnabled(compileScene(room), 'drink')).toBe(false);
   expect(actionEnabled(scenes.park, 'drink')).toBe(true);
+  expect(actionEnabled(scenes.livingroom, 'refillWater', 0.5)).toBe(true);
+  expect(actionEnabled(scenes.livingroom, 'refillWater', 1)).toBe(false);
+  expect(actionEnabled(scenes.park, 'refillWater', 0)).toBe(false);
   expect(actionEnabled(scenes.park, 'feed')).toBe(false);
   expect(actionEnabled(scenes.park, 'rest')).toBe(true);
   expect(actionReason(scenes.park, 'feed')).toBe('There is no food bowl in this scene.');
   expect(actionReason(compileScene(room), 'drink')).toBe('There is no water in this scene.');
+  expect(actionReason(scenes.park, 'refillWater')).toBe('There is no water bowl to refill here.');
+  expect(actionReason(scenes.livingroom, 'refillWater', 1)).toBe('The water bowl is already full.');
   expect(actionReason(scenes.livingroom, 'feed')).toBe('');
 
   const pup = spawnActor({
