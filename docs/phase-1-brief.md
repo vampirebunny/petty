@@ -206,7 +206,7 @@ The home screen draws one actor with Skia. The renderer imports Skia. The module
 
 The frame clock is separate from the 5-second needs tick. Cap each frame at 50ms. Pause it when the app is not active. On return, drop an in-progress eat, fetch, or pounce and show the pet standing, or sleeping if rest is on. Save the pet record. Do not save the pose, the gait, or the ball.
 
-The home screen keeps the pet name and actor sticky. Need bars sit below the animation. There is no status bubble on the stage. User actions are sit, give paw, speak, sleep/wake, Feed (kibble / cat food), Refill water, and Play (throw ball). Tap the stage to soft-drop a ball; flick to throw. Idle is not a button. Personality (archetype or style and attribute scores) expands from `{name}'s personality`. Settings holds the time jumps and sliders.
+The home screen keeps the pet name and actor sticky. Need bars sit below the animation. There is no status bubble on the stage. The stage is 640×680 with the wall height kept and the floor extended so the pet has depth to wander; the adoption preview still crops to the top 340. User actions are sit, give paw, speak, sleep/wake, Feed (kibble / cat food), Refill water, and Play (throw ball). Tap the stage to soft-drop a ball from high `z`; flick to throw. Idle is not a button. Personality (archetype or style and attribute scores) expands from `{name}'s personality`. Settings holds the time jumps and sliders.
 
 Behavior, from the species list:
 

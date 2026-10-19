@@ -25,7 +25,7 @@ export const ITEM_KINDS: Record<string, ItemKind> = {
     name: 'Ball',
     size: 1,
     grip: 'mouth',
-    physics: { bounce: 1, friction: 1, drag: 1, rolls: true },
+    physics: { bounce: 1.5, friction: 1, drag: 1, rolls: true },
   },
   frisbee: {
     id: 'frisbee',

@@ -57,10 +57,11 @@ export function drawWorld(
   height: number,
   tod: TimeOfDay,
   reduced: boolean,
+  visibleHeight: number = stageHeight,
 ): void {
   const scene = world.scene;
   const floor = scene.floor;
-  canvas.scale(width / stageWidth, height / stageHeight);
+  canvas.scale(width / stageWidth, height / visibleHeight);
   const feeding: Env['feeding'] = [];
   for (const actor of world.actors) {
     if (actor.task.type === 'eat' && actor.task.stage === 'eating' && actor.task.poi) {

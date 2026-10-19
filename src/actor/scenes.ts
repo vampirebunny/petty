@@ -2,7 +2,9 @@ import { defaultActorTint } from './lighting';
 import { mulberry, seedOf } from './mulberry';
 
 export const stageWidth = 640;
-export const stageHeight = 340;
+export const stageHeight = 680;
+// The adoption preview shows only the top of the stage, so it keeps the original proportions.
+export const previewStageHeight = 340;
 
 export const propKinds = [
   'shape',
@@ -248,22 +250,22 @@ const sceneDefs = {
       { t: 'rect', x: 360, y: 40, w: 70, h: 52, fill: '#8a6a52', r: 3 },
       { t: 'sky', x: 366, y: 46, w: 58, h: 40 },
     ],
-    floor: { horizon: 190, yMin: 224, yMax: 314, color: ['#c19463', '#a67a4d'], pattern: 'planks', lineColor: 'rgba(70,40,10,0.22)' },
+    floor: { horizon: 190, yMin: 224, yMax: 654, color: ['#c19463', '#a67a4d'], pattern: 'planks', lineColor: 'rgba(70,40,10,0.22)' },
     surface: { bounce: 0.55, friction: 1.8 },
     props: [
       { kind: 'window', x: 210, y: 150, w: 96, h: 92, layer: 'back' },
-      { kind: 'rug', x: 330, y: 268, w: 320, h: 62, color: '#7c5a8a', layer: 'back' },
+      { kind: 'rug', x: 330, y: 440, w: 400, h: 130, color: '#7c5a8a', layer: 'back' },
       { kind: 'couch', x: 510, y: 204, w: 190, color: '#4f7c8a' },
       { kind: 'lamp', x: 604, y: 206 },
-      { kind: 'bed', x: 112, y: 270, w: 112, color: '#c2653d' },
-      { kind: 'bowl', x: 540, y: 274, color: '#2f7d5b', contents: 'kibble' },
-      { kind: 'bowl', x: 420, y: 262, color: '#3f78b5', contents: 'water' },
+      { kind: 'bed', x: 110, y: 540, w: 112, color: '#c2653d' },
+      { kind: 'bowl', x: 540, y: 330, color: '#2f7d5b', contents: 'kibble' },
+      { kind: 'bowl', x: 500, y: 560, color: '#3f78b5', contents: 'water' },
     ],
     pois: [
-      { id: 'bowl', type: 'food', x: 540, y: 274, face: 1 },
-      { id: 'water', type: 'water', x: 420, y: 262, face: 1 },
-      { id: 'bed', type: 'bed', x: 112, y: 272 },
-      { id: 'home', type: 'home', x: 300, y: 272 },
+      { id: 'bowl', type: 'food', x: 540, y: 330, face: 1 },
+      { id: 'water', type: 'water', x: 500, y: 560, face: 1 },
+      { id: 'bed', type: 'bed', x: 110, y: 542 },
+      { id: 'home', type: 'home', x: 300, y: 440 },
     ],
   },
   park: {
@@ -279,7 +281,7 @@ const sceneDefs = {
       { t: 'ellipse', x: 140, y: 182, rx: 210, ry: 48, fill: '#9ccf91' },
       { t: 'ellipse', x: 470, y: 186, rx: 240, ry: 56, fill: '#8bc482' },
     ],
-    floor: { horizon: 176, yMin: 214, yMax: 314, color: ['#86c46f', '#6fae5b'], pattern: 'grass', lineColor: 'rgba(40,100,40,0.45)' },
+    floor: { horizon: 176, yMin: 214, yMax: 654, color: ['#86c46f', '#6fae5b'], pattern: 'grass', lineColor: 'rgba(40,100,40,0.45)' },
     surface: { bounce: 0.42, friction: 3.4 },
     props: [
       { kind: 'fence', x: 320, y: 182, w: 640, layer: 'back' },
@@ -306,7 +308,7 @@ const sceneDefs = {
       { t: 'rect', x: 450, y: 50, w: 64, h: 50, fill: '#efe8f7', r: 3 },
       { t: 'sky', x: 456, y: 56, w: 52, h: 38 },
     ],
-    floor: { horizon: 190, yMin: 226, yMax: 314, color: ['#c7b8dd', '#b3a3cc'], pattern: 'planks', lineColor: 'rgba(60,40,100,0.22)' },
+    floor: { horizon: 190, yMin: 226, yMax: 654, color: ['#c7b8dd', '#b3a3cc'], pattern: 'planks', lineColor: 'rgba(60,40,100,0.22)' },
     surface: { bounce: 0.38, friction: 3 },
     props: [
       { kind: 'window', x: 130, y: 150, w: 100, h: 96, layer: 'back' },
@@ -325,15 +327,16 @@ const sceneDefs = {
         ],
       },
       { kind: 'lamp', x: 540, y: 208 },
-      { kind: 'bed', x: 470, y: 276, w: 112, color: '#d98b3a' },
-      { kind: 'bowl', x: 130, y: 276, color: '#c24d4d', contents: 'kibble' },
-      { kind: 'bowl', x: 270, y: 266, color: '#3f78b5', contents: 'water' },
+      { kind: 'rug', x: 330, y: 470, w: 380, h: 120, color: '#9a86c0', layer: 'back' },
+      { kind: 'bed', x: 520, y: 560, w: 112, color: '#d98b3a' },
+      { kind: 'bowl', x: 120, y: 340, color: '#c24d4d', contents: 'kibble' },
+      { kind: 'bowl', x: 130, y: 590, color: '#3f78b5', contents: 'water' },
     ],
     pois: [
-      { id: 'bowl', type: 'food', x: 130, y: 276, face: 1 },
-      { id: 'water', type: 'water', x: 270, y: 266, face: 1 },
-      { id: 'bed', type: 'bed', x: 470, y: 278 },
-      { id: 'home', type: 'home', x: 300, y: 274 },
+      { id: 'bowl', type: 'food', x: 120, y: 340, face: 1 },
+      { id: 'water', type: 'water', x: 130, y: 590, face: 1 },
+      { id: 'bed', type: 'bed', x: 520, y: 562 },
+      { id: 'home', type: 'home', x: 320, y: 470 },
     ],
   },
 } as const;

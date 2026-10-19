@@ -306,10 +306,10 @@ export function dropBallAt(world: World, x: number, y: number, soft = true): voi
       state: 'free',
       x: clamp(x, floor.xMin - 12, floor.xMax + 12),
       y: clamp(y, floor.yMin, floor.yMax),
-      z: soft ? 40 : 130,
+      z: soft ? 240 : 130,
       vx: (roll() - 0.5) * (soft ? 18 : 40),
       vy: (roll() - 0.5) * (soft ? 10 : 20),
-      vz: soft ? 20 : 0,
+      vz: 0,
     }),
   ];
 }

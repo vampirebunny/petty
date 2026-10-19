@@ -5,7 +5,8 @@ import type { SkPicture } from '@shopify/react-native-skia';
 
 import { breedById, createWorld, frameDt, spawnActor, syncActor, todAt, update } from '../actor';
 import type { World } from '../actor';
-import { stageHeight, stageWidth } from '../actor/geometry';
+import { stageWidth } from '../actor/geometry';
+import { previewStageHeight } from '../actor/scenes';
 import { previewBackdrop, previewHome, previewScene } from '../actor/previewScene';
 import type { Look } from '../sim/types';
 import { drawWorld } from './skia/world';
@@ -43,7 +44,7 @@ function newWorld(breedId: string, look: Look | null): World {
 // come from the same data the home screen uses.
 export function PetPreview({ species, breedId, look, height }: Props) {
   const { width } = useWindowDimensions();
-  const ratio = stageHeight / stageWidth;
+  const ratio = previewStageHeight / stageWidth;
   const fullWidth = Math.max(240, width - 40);
   const viewWidth = height ? Math.min(fullWidth, height / ratio) : fullWidth;
   const viewHeight = viewWidth * ratio;
@@ -79,7 +80,7 @@ export function PetPreview({ species, breedId, look, height }: Props) {
       }
       const recorder = Skia.PictureRecorder();
       const canvas = recorder.beginRecording(Skia.XYWHRect(0, 0, viewWidth, viewHeight));
-      drawWorld(canvas, world, viewWidth, viewHeight, noon, true);
+      drawWorld(canvas, world, viewWidth, viewHeight, noon, true, previewStageHeight);
       const next = recorder.finishRecordingAsPicture();
       const now = Date.now();
       if (live.current) {

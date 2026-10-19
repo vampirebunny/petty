@@ -304,13 +304,21 @@ function drawFloorPattern(c: SkCanvas, scene: Scene): void {
       path.lineTo(stageWidth, y);
     }
   } else if (floor.pattern === 'planks') {
-    const ys = [0, 8, 22, 44, 76, 120].map((offset) => floor.horizon + offset).concat(stageHeight);
+    // Rows widen with depth for perspective, then settle at a fixed height so the near floor
+    // keeps tiling instead of stretching into a few huge planks.
+    const ys: number[] = [];
+    let rowHeight = 8;
+    for (let y = floor.horizon; y < stageHeight; y += rowHeight) {
+      ys.push(y);
+      rowHeight = Math.min(rowHeight * 1.4, 64);
+    }
+    ys.push(stageHeight);
     for (const y of ys) {
       path.moveTo(0, y);
       path.lineTo(stageWidth, y);
     }
     for (let row = 0; row < ys.length - 1; row += 1) {
-      const span = 46 + row * 34;
+      const span = 40 + (ys[row + 1] - ys[row]) * 3.6;
       const offset = ((row % 2) * span) / 2;
       for (let x = offset; x < stageWidth; x += span) {
         path.moveTo(x, ys[row]);

@@ -98,8 +98,8 @@ it('loads five dog breeds and leaves cat tasks unassigned', () => {
 it('sleeps, eats, barks, and gives a paw', () => {
   const pup = actor();
   const world = createWorld([pup]);
-  pup.x = 112;
-  pup.y = 272;
+  pup.x = 110;
+  pup.y = 542;
   startUserTask(world, pup, 'sleep');
   for (let step = 0; step < 20; step += 1) {
     update(world, 0.05);
@@ -136,11 +136,11 @@ it('pants after a fetch and does not start pant or groom from a request', () => 
   expect(isUserTask('pant')).toBe(false);
   expect(canBehave(pup, 'groom')).toBe(false);
   expect(canBehave(pup, 'pounce')).toBe(false);
-  pup.x = 296;
-  pup.y = 272;
+  pup.x = 300;
+  pup.y = 440;
   pup.speed = 0;
   pup.task = { type: 'fetch', stage: 'return', t: 1, bats: 0, cool: 0 };
-  world.items = [{ id: 'ball-1', kind: 'ball', state: 'carried', x: 296, y: 272, z: 0, vx: 0, vy: 0, vz: 0, holderId: pup.id }];
+  world.items = [{ id: 'ball-1', kind: 'ball', state: 'carried', x: 300, y: 440, z: 0, vx: 0, vy: 0, vz: 0, holderId: pup.id }];
   update(world, 0.05);
   expect(pup.task.type).toBe('winddown');
   expect(world.items[0]?.state).toBe('free');
@@ -226,7 +226,7 @@ it('burns weight while running and maps a tap into the stage', () => {
     update(world, 0.05);
   }
   expect(takeWeightDelta(pup)).toBeCloseTo(-0.003, 5);
-  expect(stagePoint(100, 50, 200, 100)).toEqual({ x: 320, y: 170 });
+  expect(stagePoint(100, 50, 200, 100)).toEqual({ x: 320, y: 340 });
   dropBallAt(world, 10_000, -20, false);
   expect(world.items[0]?.z).toBe(130);
   expect(world.items[0]?.x).toBeLessThanOrEqual(world.scene.floor.xMax + 12);
