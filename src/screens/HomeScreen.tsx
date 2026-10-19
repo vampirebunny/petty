@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AccessibilityInfo, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { AccessibilityInfo, Image, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Gesture, GestureDetector, Pressable, ScrollView } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
@@ -531,7 +531,15 @@ export default function HomeScreen({ petApi }: Props) {
     <View style={styles.root}>
       <View style={styles.sticky}>
         <View style={styles.header}>
-          <Text style={styles.name}>{state.name}</Text>
+          <Image
+            source={require('../../assets/icon.png')}
+            style={styles.logo}
+            accessibilityLabel="Boop Boop"
+            accessibilityIgnoresInvertColors
+          />
+          <Text style={styles.name} numberOfLines={1}>
+            {state.name}
+          </Text>
         </View>
         <GestureDetector gesture={gesture}>
           <View collapsable={false} style={{ width: viewWidth, height: viewHeight }}>
@@ -691,10 +699,21 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   header: {
-    gap: 2,
     paddingHorizontal: 20,
+    minHeight: 36,
+    justifyContent: 'center',
+  },
+  logo: {
+    position: 'absolute',
+    left: 20,
+    width: 32,
+    height: 32,
+    borderRadius: 8,
   },
   name: {
+    textAlign: 'center',
+    // Leaves room on both sides so a long name never runs under the logo.
+    marginHorizontal: 44,
     fontSize: 28,
     fontWeight: '700',
     color: '#243044',
