@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { AppState, StyleSheet, useWindowDimensions } from 'react-native';
+import { AppState, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Canvas, Picture, Skia } from '@shopify/react-native-skia';
 import type { SkPicture } from '@shopify/react-native-skia';
 
 import { breedById, createWorld, frameDt, spawnActor, syncActor, todAt, update } from '../actor';
 import type { World } from '../actor';
 import { stageHeight, stageWidth } from '../actor/geometry';
-import { previewHome, previewScene } from '../actor/previewScene';
+import { previewBackdrop, previewHome, previewScene } from '../actor/previewScene';
 import type { Look } from '../sim/types';
 import { drawWorld } from './skia/world';
 
@@ -125,14 +125,16 @@ export function PetPreview({ species, breedId, look }: Props) {
   }, [viewHeight, viewWidth]);
 
   return (
-    <Canvas pointerEvents="none" style={[styles.canvas, { width: viewWidth, height: viewHeight }]}>
-      {picture ? <Picture picture={picture} /> : null}
-    </Canvas>
+    <View style={[styles.frame, { width: viewWidth, height: viewHeight, backgroundColor: previewBackdrop }]}>
+      <Canvas pointerEvents="none" style={{ width: viewWidth, height: viewHeight }}>
+        {picture ? <Picture picture={picture} /> : null}
+      </Canvas>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  canvas: {
+  frame: {
     alignSelf: 'center',
     borderRadius: 12,
     overflow: 'hidden',

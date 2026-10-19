@@ -7,42 +7,44 @@ import { traitLabel } from './labels';
 
 type Props = {
   breed: Breed;
-  open: boolean;
-  onOpen: () => void;
-  onChoose: () => void;
+  selected: boolean;
+  onSelect: () => void;
 };
 
-// A breed with its six potential ranges. Tapping opens it, which shows the exact numbers and
-// moves the preview to this breed. The ranges are potential ceilings, not starting values.
-export function BreedCard({ breed, open, onOpen, onChoose }: Props) {
+// A breed with its six potential ranges. Selected cards show the exact numbers. Ranges are
+// potential ceilings, not starting values.
+export function BreedCard({ breed, selected, onSelect }: Props) {
   return (
-    <Pressable style={[styles.card, open && styles.open]} onPress={onOpen} accessibilityRole="button">
+    <Pressable
+      style={[styles.card, selected && styles.selected]}
+      onPress={onSelect}
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+    >
       <View style={styles.header}>
         <Text style={styles.title}>{breed.name}</Text>
         <Text style={styles.tag}>Potential</Text>
       </View>
-      <Text style={styles.blurb}>{breed.blurb}</Text>
+      <Text style={styles.blurb} numberOfLines={2}>
+        {breed.blurb}
+      </Text>
       <View style={styles.bars}>
         {traits.map((trait) => (
           <AttributeBar
             key={trait}
             label={traitLabel[trait]}
             range={breed.attributeRanges[trait]}
-            showNumbers={open}
+            showNumbers={selected}
           />
         ))}
       </View>
-      {open ? (
-        <Pressable style={styles.choose} onPress={onChoose} accessibilityRole="button">
-          <Text style={styles.chooseLabel}>Choose {breed.name}</Text>
-        </Pressable>
-      ) : null}
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
+    width: 280,
     backgroundColor: '#fff',
     borderRadius: 12,
     padding: 14,
@@ -50,7 +52,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: 'transparent',
   },
-  open: {
+  selected: {
     borderColor: '#243044',
   },
   header: {
@@ -71,19 +73,9 @@ const styles = StyleSheet.create({
   blurb: {
     fontSize: 14,
     color: '#5C6B80',
+    minHeight: 36,
   },
   bars: {
     gap: 5,
-  },
-  choose: {
-    marginTop: 4,
-    backgroundColor: '#243044',
-    borderRadius: 10,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  chooseLabel: {
-    color: '#fff',
-    fontSize: 16,
   },
 });

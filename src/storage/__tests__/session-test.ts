@@ -38,11 +38,25 @@ it('returns the same draft seed, species, breed, look, and step', async () => {
 });
 
 it('keeps a seed saved at the first step and ignores a draft in the old shape', async () => {
-  await saveDraft({ seed: 7, species: 'cat', breedId: null, look: null, step: 'species' });
-  await expect(loadDraft()).resolves.toEqual({ seed: 7, species: 'cat', breedId: null, look: null, step: 'species' });
+  await saveDraft({ seed: 7, species: 'cat', breedId: null, look: null, step: 'design' });
+  await expect(loadDraft()).resolves.toEqual({ seed: 7, species: 'cat', breedId: null, look: null, step: 'design' });
 
   await AsyncStorage.setItem('petty.draft', JSON.stringify({ seed: 42, breedId: 'husky' }));
   await expect(loadDraft()).resolves.toBeNull();
+});
+
+it('folds a legacy species, breed, or look step into design', async () => {
+  await AsyncStorage.setItem(
+    'petty.draft',
+    JSON.stringify({ seed: 3, species: 'dog', breedId: 'corgi', look: null, step: 'breed' }),
+  );
+  await expect(loadDraft()).resolves.toEqual({
+    seed: 3,
+    species: 'dog',
+    breedId: 'corgi',
+    look: null,
+    step: 'design',
+  });
 });
 
 it('keeps the sound setting, on by default', async () => {
