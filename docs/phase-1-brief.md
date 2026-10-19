@@ -184,7 +184,7 @@ Xp is kept when a debug control lowers the ceiling. The shown level follows the 
 
 No navigation library. A small flow in the app is enough: consent, not available, species, breed, litter, name, home.
 
-**Consent.** Ask "Are you at least 13 years old?" with equal Yes and No choices, even when a store signal already exists. Continue is disabled until one is selected. The screen links the Terms of Service and Privacy Policy. A Yes keeps the store band when one exists. A No, or a store result under 13, does not create an id. The age record is stored apart from the pet, because an under-13 user has no pet.
+**Consent.** The app icon is centered at the top on sky blue (`#DCEEFF`). Ask "Are you at least 13 years old?" with equal Yes and No choices, even when a store signal already exists. Continue is disabled until one is selected. The screen links the Terms of Service and Privacy Policy. A Yes keeps the store band when one exists. A No, or a store result under 13, does not create an id. The age record is stored apart from the pet, because an under-13 user has no pet. The launch screen, before this one, is the Boop Boop wordmark centered on orange (`#FAAB45`).
 
 **Not available.** A short screen that says Boop Boop is not available on this device right now. It does not mention age, and it has no retry. Relaunch shows this screen again.
 

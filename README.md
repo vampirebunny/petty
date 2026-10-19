@@ -12,6 +12,10 @@ npx expo start
 
 Open the project in Expo Go on a phone signed into the same Expo account as this machine. The dev server prints a QR code. Expo Go has no store age API, so the consent screen asks the age question. A development build is required before Apple Declared Age Range or Play Age Signals can answer.
 
+The launch screen is the Boop Boop wordmark, centered on orange (`#FAAB45`). `assets/splash-icon.png` is that wordmark with clear space around it, and `expo-splash-screen` in `app.json` draws it. The same image is the in-app loading screen while the age check and pet load. Expo Go shows the app icon during launch, then the loading screen. The operating-system splash updates on the next native build.
+
+The age screen shows the app icon centered at the top on sky blue (`#DCEEFF`), the same tint as the speak and drink controls.
+
 ### Environment variables
 
 Consent sync needs two public Supabase values (Project Settings → API in the dashboard). Use the project URL and the **anon** / **publishable** key — never the `service_role` key.
@@ -37,6 +41,16 @@ npx eas-cli@latest env:set --name EXPO_PUBLIC_SUPABASE_ANON_KEY --value "your_an
 Migration SQL in `supabase/migrations/` is applied only by the project owner, with `supabase db push` after the CLI is linked. Do not apply it from an agent or another script.
 
 ### Build (iOS and Android)
+
+Local debug builds for simulators (installs the app and starts Metro):
+
+```sh
+# iOS Simulator
+npx expo run:ios
+
+# Android Emulator (start an AVD first)
+npx expo run:android
+```
 
 EAS is already configured (`eas.json`, project linked under `@vampirebunny/boop-boop`). Log in, then build:
 

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 
 import { PRIVACY_URL, TERMS_URL } from '../config/legal';
@@ -17,7 +17,12 @@ export function ConsentScreen({ askAge, onYes, onNo, onAcceptTerms }: Props) {
 
   return (
     <View style={styles.screen}>
-      <Text style={styles.title}>Boop Boop</Text>
+      <Image
+        source={require('../../assets/icon.png')}
+        style={styles.logo}
+        accessibilityLabel="Boop Boop"
+        accessibilityIgnoresInvertColors
+      />
       {askAge ? (
         <View style={styles.question}>
           <Text style={styles.body}>Are you at least 13 years old?</Text>
@@ -74,14 +79,16 @@ export function ConsentScreen({ askAge, onYes, onNo, onAcceptTerms }: Props) {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#F4F7FB',
+    backgroundColor: '#DCEEFF',
     paddingTop: 96,
     paddingHorizontal: 24,
     gap: 16,
   },
-  title: {
-    fontSize: 32,
-    color: '#243044',
+  logo: {
+    width: 84,
+    height: 84,
+    borderRadius: 20,
+    alignSelf: 'center',
   },
   question: {
     gap: 12,
