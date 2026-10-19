@@ -1,4 +1,4 @@
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { marked } from "marked";
@@ -39,6 +39,8 @@ function splitTitle(markdown) {
   };
 }
 
+const logo = `<a class="logo" href="/"><svg width="36" height="36" viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="20" r="13" fill="#F2B66B"></circle><ellipse cx="7" cy="12" rx="5" ry="8" fill="#8A5A34" transform="rotate(-20 7 12)"></ellipse><ellipse cx="29" cy="12" rx="5" ry="8" fill="#8A5A34" transform="rotate(20 29 12)"></ellipse><circle cx="13" cy="19" r="2.4" fill="#2B2118"></circle><circle cx="23" cy="19" r="2.4" fill="#2B2118"></circle><ellipse cx="18" cy="25" rx="3" ry="2.2" fill="#2B2118"></ellipse></svg>Boop Boop</a>`;
+
 function pageHtml({ title, bodyHtml }) {
   const safeTitle = escapeHtml(title);
   return `<!DOCTYPE html>
@@ -47,30 +49,13 @@ function pageHtml({ title, bodyHtml }) {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${safeTitle} · Boop Boop</title>
-  <style>
-    :root { color-scheme: light; }
-    body {
-      margin: 0;
-      font-family: Georgia, "Iowan Old Style", Palatino, serif;
-      line-height: 1.55;
-      color: #1c1917;
-      background: #fafaf9;
-    }
-    main {
-      max-width: 40rem;
-      margin: 0 auto;
-      padding: 1.5rem 1.25rem 3rem;
-    }
-    h1 { font-size: 1.75rem; line-height: 1.2; margin: 0 0 1rem; }
-    h2 { font-size: 1.25rem; margin: 1.75rem 0 0.5rem; }
-    h3 { font-size: 1.05rem; margin: 1.25rem 0 0.4rem; }
-    a { color: #1d4ed8; }
-    table { border-collapse: collapse; width: 100%; font-size: 0.95rem; }
-    th, td { border: 1px solid #d6d3d1; padding: 0.4rem 0.5rem; text-align: left; vertical-align: top; }
-  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito+Sans:wght@400;600;700&display=swap">
+  <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-  <main>
+  <header class="legal-bar">${logo}</header>
+  <main class="prose">
     <h1>${safeTitle}</h1>
     ${bodyHtml}
   </main>
@@ -81,8 +66,9 @@ function pageHtml({ title, bodyHtml }) {
 
 await rm(dist, { recursive: true, force: true });
 await mkdir(dist, { recursive: true });
+await copyFile(path.join(root, "styles.css"), path.join(dist, "styles.css"));
+await copyFile(path.join(root, "home.html"), path.join(dist, "index.html"));
 
-const built = [];
 for (const page of pages) {
   const markdown = await readFile(path.join(docsDir, page.file), "utf8");
   const { title, body } = splitTitle(markdown);
@@ -90,17 +76,4 @@ for (const page of pages) {
   const dir = path.join(dist, page.route);
   await mkdir(dir, { recursive: true });
   await writeFile(path.join(dir, "index.html"), pageHtml({ title, bodyHtml }));
-  built.push({ title, route: page.route });
 }
-
-const links = built
-  .map((page) => `<li><a href="/${page.route}">${escapeHtml(page.title)}</a></li>`)
-  .join("\n");
-
-await writeFile(
-  path.join(dist, "index.html"),
-  pageHtml({
-    title: "Boop Boop",
-    bodyHtml: `<ul>\n${links}\n</ul>`,
-  }),
-);

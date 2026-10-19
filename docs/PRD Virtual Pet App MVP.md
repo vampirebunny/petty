@@ -11,7 +11,7 @@ A mobile app for iOS and Android where each user adopts a dog or a cat that ages
 
 **What makes it different.** Most virtual pet apps are care loops with mini-games and dress-up. This one has a pet whose personality is visible and different from every other pet, training that rewards the owner's real time and skill, tricks that must be discovered, and ways to show all of it off. It works offline and lets people play before creating an account.
 
-**How to use this document.** Requirements are numbered and each feature has acceptance checks. Build in the order of the release phases, and do not build anything listed as out of scope. Phase 0 is specified in "Cursor Brief: Pet Blob Prototype". The Phase 1 actor, scenes, wardrobe, and time of day follow `docs/CURSOR_BRIEF_pet_demo_v2.md` and `docs/pet-demo-v2_2.html` (that HTML is the current reference to port). Where "Phase 1 Brief: Core Pet" disagrees with this PRD, this PRD wins. When a requirement is unclear or two requirements conflict, ask instead of guessing.
+**How to use this document.** Requirements are numbered and each feature has acceptance checks. Build in the order of the release phases, and do not build anything listed as out of scope. Phase 0 is specified in "Cursor Brief: Pet Blob Prototype". Breed anatomy and the reference poses live in `docs/pet-demo-v2_2.html`. That file is a reference to compare against, not code to embed or load in a WebView. This PRD is the contract for behavior, scenes, wardrobe, and time of day. When a requirement is unclear or two requirements conflict, ask instead of guessing.
 
 **Product principles**
 
