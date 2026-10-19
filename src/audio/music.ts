@@ -1,0 +1,107 @@
+import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
+import type { AudioPlayer } from 'expo-audio';
+
+// Metro needs static requires, so the track list is explicit.
+const tracks: number[] = [
+  require('../../assets/background music/bransboynd-night-summer-lounge-473222.mp3'),
+  require('../../assets/background music/grumpynora-lay-back-619255.mp3'),
+  require('../../assets/background music/ikoliks_aj-background-music-320427.mp3'),
+  require('../../assets/background music/ilyatruhanov-for-p-453681.mp3'),
+  require('../../assets/background music/kontraa-hype-drill-music-438398.mp3'),
+  require('../../assets/background music/kontraa-water-afro-pop-music-445661.mp3'),
+  require('../../assets/background music/kornevmusic-upbeat-happy-corporate-487426.mp3'),
+  require('../../assets/background music/mfcc-background-music-274290.mp3'),
+  require('../../assets/background music/mickeyscat-moment-of-peace-mickeyscat-554494.mp3'),
+  require('../../assets/background music/penguinmusic-lazy-day-stylish-futuristic-chill-239287.mp3'),
+  require('../../assets/background music/sonican-lo-fi-music-loop-sentimental-jazzy-love-473154.mp3'),
+  require('../../assets/background music/twisterium-beautiful-uplifting-music-618490.mp3'),
+];
+
+const volume = 0.075;
+
+let player: AudioPlayer | null = null;
+let subscription: { remove(): void } | null = null;
+let last = -1;
+let wanted = false;
+let suspended = false;
+
+// A random index in 0..count-1 that is never `prev`: draw from the other count-1 slots, then skip over prev.
+export function pickNext(count: number, prev: number, rand: () => number = Math.random): number {
+  if (count <= 1) {
+    return 0;
+  }
+  let index = Math.floor(rand() * (count - 1));
+  if (index >= prev) {
+    index += 1;
+  }
+  return Math.min(index, count - 1);
+}
+
+function dispose(): void {
+  subscription?.remove();
+  subscription = null;
+  player?.release();
+  player = null;
+}
+
+function playNext(): void {
+  if (!wanted) {
+    return;
+  }
+  try {
+    dispose();
+    last = pickNext(tracks.length, last);
+    const next = createAudioPlayer(tracks[last]);
+    next.volume = volume;
+    subscription = next.addListener('playbackStatusUpdate', (status) => {
+      if (status.didJustFinish) {
+        playNext();
+      }
+    });
+    player = next;
+    if (!suspended) {
+      next.play();
+    }
+  } catch {
+    // stay silent
+  }
+}
+
+export function setMusicEnabled(on: boolean): void {
+  wanted = on;
+  try {
+    if (!on) {
+      player?.pause();
+      return;
+    }
+    if (player) {
+      if (!suspended) {
+        player.play();
+      }
+      return;
+    }
+    void setAudioModeAsync({ playsInSilentMode: false, interruptionMode: 'mixWithOthers' });
+    playNext();
+  } catch {
+    // stay silent
+  }
+}
+
+// Pauses while the app is in the background and resumes on return if music is still wanted.
+export function suspendMusic(off: boolean): void {
+  suspended = off;
+  try {
+    if (off) {
+      player?.pause();
+    } else if (wanted) {
+      player?.play();
+    }
+  } catch {
+    // stay silent
+  }
+}
+
+export function releaseMusic(): void {
+  wanted = false;
+  dispose();
+}

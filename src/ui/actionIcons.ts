@@ -6,6 +6,7 @@ import {
   HandHeart,
   MessageCircle,
   Moon,
+  Music,
   PawPrint,
   Shirt,
   Soup,
@@ -34,6 +35,9 @@ export const actionIcons: Record<string, LucideIcon> = {
   reminders: Bell,
   sound: Volume2,
   soundOff: VolumeX,
+  // lucide has no slashed music icon, so the off state shows through the button's inactive style.
+  music: Music,
+  musicOff: Music,
   personality: Sparkles,
   help: CircleQuestionMark,
 };

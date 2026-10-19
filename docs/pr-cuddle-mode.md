@@ -23,7 +23,8 @@
 | `play` | Play | `Volleyball` |
 | `wardrobe` | Wardrobe | `Shirt` |
 | `reminders` | Reminders | `Bell` |
-| `sound` / `soundOff` | Sound | `Volume2` / `VolumeX` |
+| `sound` / `soundOff` | Pet sounds | `Volume2` / `VolumeX` |
+| `music` / `musicOff` | Music | `Music` (lucide has no slashed variant, so off shows through the inactive style) |
 | `personality` | Personality | `Sparkles` |
 | `help` | Help | `CircleQuestionMark` |
 
@@ -50,8 +51,14 @@ Lucide has no bowl or ball glyph, so Feed is `Soup` (a bowl with steam) and Play
 Boop, flinch, swat, and shake-off stay silent. Speak still uses the existing bark and meow clips.
 
 
+## Background music
+
+- Both the Pet sounds and Music toggles default to on and are saved separately (`petty.sound`, `petty.music`).
+- `src/audio/music.ts` plays the tracks in `assets/background music/` at volume 0.075. Each next track is picked at random and never repeats the previous one (`pickNext`). The track list is an explicit `require` list, so a new file needs a new entry.
+- Music starts when `HomeScreen` mounts, which is after adoption and the meet screen, and is released when it unmounts. It pauses while the app is in the background.
+
 ## Testing
 
 - `src/actor/__tests__/cuddle-test.ts`: params, zones, reactions, and a full session for all 10 breeds at 5 life stages. It asserts the phase order, `headTurn` at most 0.16 while moving, `headTurn` below 0.06 when the walk starts, and no pose channel jump above 25% of its range in one frame.
-- `src/input/__tests__/cuddleGesture-test.ts`, `src/cuddle/__tests__/guidance-test.ts`, `src/ui/__tests__/actionIcons-test.ts`, `src/audio/__tests__/voice-test.ts`, and new event tests.
+- `src/input/__tests__/cuddleGesture-test.ts`, `src/cuddle/__tests__/guidance-test.ts`, `src/ui/__tests__/actionIcons-test.ts`, `src/audio/__tests__/voice-test.ts`, `src/audio/__tests__/music-test.ts`, and new event tests.
 - Run `npx tsc --noEmit`, `npx jest`, `npx expo lint`.

@@ -6,6 +6,7 @@ import { migrateBreedId } from './migrateIds';
 const draftKey = 'petty.draft';
 const remindersKey = 'petty.reminders';
 const soundKey = 'petty.sound';
+const musicKey = 'petty.music';
 
 // Species, look, and breed share one design screen. Offers (choose a pup) and name follow.
 export type AdoptionStep = 'design' | 'offers' | 'name';
@@ -108,4 +109,13 @@ export async function loadSoundEnabled(): Promise<boolean> {
 
 export async function saveSoundEnabled(enabled: boolean): Promise<void> {
   await AsyncStorage.setItem(soundKey, enabled ? 'on' : 'off');
+}
+
+export async function loadMusicEnabled(): Promise<boolean> {
+  const raw = await AsyncStorage.getItem(musicKey);
+  return raw !== 'off';
+}
+
+export async function saveMusicEnabled(enabled: boolean): Promise<void> {
+  await AsyncStorage.setItem(musicKey, enabled ? 'on' : 'off');
 }

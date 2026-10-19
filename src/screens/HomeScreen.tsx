@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AccessibilityInfo, Image, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { AccessibilityInfo, AppState, Image, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Gesture, GestureDetector, Pressable, ScrollView } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
@@ -12,6 +12,7 @@ import {
   stagePoint,
   wardrobe,
 } from '../actor';
+import { releaseMusic, setMusicEnabled, suspendMusic } from '../audio/music';
 import { setSoundEnabled } from '../audio/voice';
 import type { CuddleOut } from '../actor';
 import { stageHeight, stageWidth } from '../actor/geometry';
@@ -20,7 +21,7 @@ import { CuddleGesture } from '../input/cuddleGesture';
 import type { GestureEvent } from '../input/cuddleGesture';
 import { archetypeNames, archetypeStyleNames, attributeScore, currentStyle, petStrokeIntervalMs, traits } from '../sim';
 import type { OutfitSlot, Trait } from '../sim';
-import { loadSoundEnabled, saveSoundEnabled } from '../storage/session';
+import { loadMusicEnabled, loadSoundEnabled, saveMusicEnabled, saveSoundEnabled } from '../storage/session';
 import { usePet } from '../state/usePet';
 import {
   ghostDelayMs,
@@ -114,6 +115,7 @@ export default function HomeScreen({ petApi }: Props) {
   const cuddleOnRef = useRef(false);
   const [note, setNote] = useState('');
   const [soundOn, setSoundOn] = useState(true);
+  const [musicOn, setMusicOn] = useState(true);
   const noteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -124,8 +126,19 @@ export default function HomeScreen({ petApi }: Props) {
         setSoundEnabled(enabled);
       }
     });
+    void loadMusicEnabled().then((enabled) => {
+      if (mounted) {
+        setMusicOn(enabled);
+        setMusicEnabled(enabled);
+      }
+    });
+    const appState = AppState.addEventListener('change', (state) => {
+      suspendMusic(state !== 'active');
+    });
     return () => {
       mounted = false;
+      appState.remove();
+      releaseMusic();
       if (noteTimer.current) {
         clearTimeout(noteTimer.current);
       }
@@ -138,6 +151,13 @@ export default function HomeScreen({ petApi }: Props) {
     setSoundEnabled(next);
     void saveSoundEnabled(next);
   }, [soundOn]);
+
+  const toggleMusic = useCallback(() => {
+    const next = !musicOn;
+    setMusicOn(next);
+    setMusicEnabled(next);
+    void saveMusicEnabled(next);
+  }, [musicOn]);
 
   const flash = useCallback((text: string) => {
     setNote(text);
@@ -509,9 +529,15 @@ export default function HomeScreen({ petApi }: Props) {
     },
     {
       id: soundOn ? 'sound' : 'soundOff',
-      label: 'Sound',
+      label: 'Pet sounds',
       onPress: toggleSound,
       active: soundOn,
+    },
+    {
+      id: musicOn ? 'music' : 'musicOff',
+      label: 'Music',
+      onPress: toggleMusic,
+      active: musicOn,
     },
     {
       id: 'personality',
