@@ -17,10 +17,14 @@ import {
   tickForeground,
 } from '../sim';
 import type { Cue, Look, Mood, OutfitSlot, PetAttributes, PetEvent, PetState } from '../sim';
-import { clearDraft } from '../storage/session';
-import { loadRemindersEnabled, saveRemindersEnabled } from '../storage/session';
+import { getCachedOwnerId } from '../compliance/identity';
 import { asyncPetStorage } from '../storage/asyncStorage';
 import type { PetStorage } from '../storage/PetStorage';
+import {
+  clearDraft,
+  loadRemindersEnabled,
+  saveRemindersEnabled,
+} from '../storage/session';
 
 export type PetCue = {
   kind: Cue['kind'];
@@ -59,7 +63,8 @@ type PetApi = {
   setWeightValue: (weight: number) => void;
   reset: () => void;
   release: () => void;
-  adopt: (breedId: string, attributes: PetAttributes, look: Look, name: string) => void;
+  adopt: (breedId: string, attributes: PetAttributes, look: Look, name: string, ownerId: string) => void;
+  setOwnerId: (ownerId: string) => void;
 };
 
 export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
@@ -208,10 +213,15 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
     if (!current) {
       return;
     }
+    const ownerId = current.ownerId ?? getCachedOwnerId();
+    if (!ownerId) {
+      return;
+    }
     // Reuse the stored attributes and look: a reset must not regenerate potential from today's breed ranges.
     publish(
       createPet({
         id: current.id,
+        ownerId,
         name: current.name,
         breedId: current.breedId,
         look: current.look,
@@ -243,11 +253,22 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
   }, []);
 
   const adopt = useCallback(
-    (breedId: string, attributes: PetAttributes, look: Look, name: string) => {
+    (breedId: string, attributes: PetAttributes, look: Look, name: string, ownerId: string) => {
       const now = Date.now();
       const id = `${attributes.seed}-${attributes.archetype}-${now.toString(36)}`;
-      publish(createPet({ id, name, breedId, look, attributes, now }), { kind: 'none' });
+      publish(createPet({ id, ownerId, name, breedId, look, attributes, now }), { kind: 'none' });
       void clearDraft();
+    },
+    [publish],
+  );
+
+  const setOwnerId = useCallback(
+    (ownerId: string) => {
+      const current = stateRef.current;
+      if (!current || current.ownerId === ownerId) {
+        return;
+      }
+      publish({ ...current, ownerId });
     },
     [publish],
   );
@@ -347,5 +368,6 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
     reset,
     release,
     adopt,
+    setOwnerId,
   };
 }

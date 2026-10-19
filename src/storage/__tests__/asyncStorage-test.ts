@@ -117,3 +117,17 @@ it('drops legacy ear and tail choices from a saved look, so the pet takes its br
   const loaded = await asyncPetStorage.load();
   expect(loaded?.look).toEqual({ coat: '#ffffff' });
 });
+
+it('loads a pet saved without ownerId and round-trips one that has it', async () => {
+  const pet = testPet(3, 'retriever', 50, 'Pup', 'pet');
+  const legacy = JSON.parse(JSON.stringify(pet)) as Record<string, unknown>;
+  delete legacy.ownerId;
+  await AsyncStorage.setItem('petty.pet', JSON.stringify(legacy));
+  const loadedLegacy = await asyncPetStorage.load();
+  expect(loadedLegacy?.ownerId).toBeUndefined();
+  expect(loadedLegacy?.id).toBe(pet.id);
+
+  const owned = { ...pet, ownerId: 'guest-abc' };
+  await asyncPetStorage.save(owned);
+  await expect(asyncPetStorage.load()).resolves.toEqual(owned);
+});

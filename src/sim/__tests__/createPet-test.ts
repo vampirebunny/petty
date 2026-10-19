@@ -15,6 +15,7 @@ function make(archetype: 'athlete' | 'thinker' | 'charmer' = 'athlete', breedId 
 it('starts at age 0, a balanced weight, and vitality near the care target', () => {
   const pet = make();
 
+  expect(pet.ownerId).toBe('test-owner');
   expect(pet.ageDays).toBe(0);
   expect(pet.maturity).toBe(0);
   expect(pet.weight).toBe(startingWeight);
@@ -77,6 +78,7 @@ it('keeps stored potential when breed ranges change later and ignores rngState',
   // A reset rebuilds from the stored attributes, not from the (changed) ranges.
   const rebuilt = createPet({
     id: pet.id,
+    ownerId: pet.ownerId!,
     name: pet.name,
     breedId: pet.breedId,
     look: pet.look,
@@ -93,6 +95,7 @@ it('starts with the breed look and keeps a picked look', () => {
   const look = { coat: '#2b2b33' };
   const custom = createPet({
     id: 'p',
+    ownerId: 'test-owner',
     name: 'Maple',
     breedId: 'husky',
     look,

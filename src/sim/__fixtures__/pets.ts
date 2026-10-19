@@ -18,6 +18,7 @@ export function testPet(
   }
   return createPet({
     id,
+    ownerId: 'test-owner',
     name,
     breedId,
     look: defaultLook(breed),

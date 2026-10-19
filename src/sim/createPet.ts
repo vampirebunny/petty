@@ -15,6 +15,7 @@ import type { Look, PetAttributes, PetState } from './types';
 
 export type NewPet = {
   id: string;
+  ownerId: string;
   name: string;
   breedId: string;
   look: Look;
@@ -26,7 +27,7 @@ export type NewPet = {
 // A brand-new pet from the adoption choices. Pure: the same inputs always return the same pet.
 // Current restarts at the starting fraction of the stored potential, so a debug reset can reuse
 // the stored attributes without regenerating them from today's breed ranges.
-export function createPet({ id, name, breedId, look, attributes, now }: NewPet): PetState {
+export function createPet({ id, ownerId, name, breedId, look, attributes, now }: NewPet): PetState {
   const careWindow = [
     {
       day: 0,
@@ -38,6 +39,7 @@ export function createPet({ id, name, breedId, look, attributes, now }: NewPet):
   ];
   return withDerived({
     id,
+    ownerId,
     name,
     breedId,
     ageDays: 0,

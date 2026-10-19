@@ -9,6 +9,7 @@ import {
   type PendingConsentRecord,
 } from '../age/storage';
 import { PRIVACY_VERSION, TERMS_VERSION } from '../config/legal';
+import { ensureAnonymousUserId } from './identity';
 import { getSupabase } from './supabase';
 
 function clientEventId(): string {
@@ -84,29 +85,15 @@ export async function enqueueAgeStatusChanged(record: AgeRecord, occurredAt: str
   }
 }
 
-async function anonymousUserId(): Promise<string | null> {
-  const supabase = getSupabase();
-  if (!supabase) {
-    return null;
-  }
-  const existing = await supabase.auth.getSession();
-  if (existing.data.session?.user.id) {
-    return existing.data.session.user.id;
-  }
-  const signedIn = await supabase.auth.signInAnonymously();
-  if (signedIn.error || !signedIn.data.user) {
-    return null;
-  }
-  return signedIn.data.user.id;
-}
-
 export async function flushConsentRecords(): Promise<void> {
   try {
     const pending = await loadPendingConsentRecords();
     if (pending.length === 0) {
       return;
     }
-    const userId = pending.every((record) => record.userId) ? pending[0].userId ?? null : await anonymousUserId();
+    const userId = pending.every((record) => record.userId)
+      ? pending[0].userId ?? null
+      : await ensureAnonymousUserId();
     if (!userId) {
       return;
     }

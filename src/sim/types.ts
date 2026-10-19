@@ -75,6 +75,8 @@ export type Equipped = Partial<Record<OutfitSlot, string>>;
 
 export type PetState = {
   id: string;
+  /** Guest or account user id that owns this pet. Missing on pre-identity saves. */
+  ownerId?: string;
   name: string;
   breedId: string;
   ageDays: number;

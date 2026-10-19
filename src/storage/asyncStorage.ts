@@ -206,7 +206,7 @@ function migratePet(value: unknown): PetState | null {
       : startingWaterLevel;
   const waterEmptySince =
     raw.waterEmptySince === null || typeof raw.waterEmptySince === 'number' ? raw.waterEmptySince : null;
-  const next = {
+  const next: PetState = {
     ...(raw as unknown as PetState),
     breedId: migrateBreedId(raw.breedId),
     attributes,
@@ -225,6 +225,11 @@ function migratePet(value: unknown): PetState | null {
     treatDay: readTreatDay(raw.treatDay),
     boosts: readBoosts(raw.boosts),
   };
+  if (typeof raw.ownerId === 'string') {
+    next.ownerId = raw.ownerId;
+  } else {
+    delete next.ownerId;
+  }
   delete (next as { feedWindow?: unknown }).feedWindow;
   delete (next as { maturityAppliedAt?: unknown }).maturityAppliedAt;
   return withDerived(next);
