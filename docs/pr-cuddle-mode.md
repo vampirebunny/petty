@@ -54,7 +54,8 @@ Boop, flinch, swat, and shake-off stay silent. Speak still uses the existing bar
 ## Background music
 
 - Both the Pet sounds and Music toggles default to on and are saved separately (`petty.sound`, `petty.music`).
-- `src/audio/music.ts` plays the tracks in `assets/background music/` at volume 0.075. Each next track is picked at random and never repeats the previous one (`pickNext`). The track list is an explicit `require` list, so a new file needs a new entry.
+- `src/audio/music.ts` plays the tracks in `assets/background music/` at volume 0.075. Each next track is picked at random and never repeats the previous one (`pickNext`). The track list is an explicit `require` list, so a new file needs a new entry. The files stay in the app bundle and are not loaded from storage.
+- The set is 21 tracks, about 52 minutes, encoded as 128 kbps stereo MP3 (about 48 MB). Re-encode a new file to that bitrate before adding its `require`.
 - Music starts when `HomeScreen` mounts, which is after adoption and the meet screen, and is released when it unmounts. It pauses while the app is in the background.
 
 ## Testing

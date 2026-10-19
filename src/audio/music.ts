@@ -15,6 +15,15 @@ const tracks: number[] = [
   require('../../assets/background music/penguinmusic-lazy-day-stylish-futuristic-chill-239287.mp3'),
   require('../../assets/background music/sonican-lo-fi-music-loop-sentimental-jazzy-love-473154.mp3'),
   require('../../assets/background music/twisterium-beautiful-uplifting-music-618490.mp3'),
+  require('../../assets/background music/34910776-for-her-chill-upbeat-summel-travel-vlog-and-ig-music-royalty-free-use-202298.mp3'),
+  require('../../assets/background music/alexgrohl-no-copyright-music-bounce-on-it-184234.mp3'),
+  require('../../assets/background music/alexgrohl-sad-soul-hip-hop-185750.mp3'),
+  require('../../assets/background music/denys_brodovskyi-ethereal-vistas-191254.mp3'),
+  require('../../assets/background music/good_b_music-perfect-beauty-191271.mp3'),
+  require('../../assets/background music/lexin_music-science-documentary-169621.mp3'),
+  require('../../assets/background music/penguinmusic-better-day-186374.mp3'),
+  require('../../assets/background music/soulprodmusic-movement-200697.mp3'),
+  require('../../assets/background music/syouki_takahashi-midnight-forest-184304.mp3'),
 ];
 
 const volume = 0.075;
