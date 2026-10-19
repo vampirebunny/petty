@@ -57,6 +57,7 @@ EAS is already configured (`eas.json`, project linked under `@vampirebunny/boop-
 ```sh
 npx eas-cli@latest login
 npx eas-cli@latest build --platform all --profile production
+npx eas-cli@latest build --platform ios --profile production
 ```
 
 Profiles:

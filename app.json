@@ -8,7 +8,13 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "app.mylisto.boopboop"
+      "bundleIdentifier": "app.mylisto.boopboop",
+      "entitlements": {
+        "com.apple.developer.declared-age-range": true
+      },
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "app.mylisto.boopboop",
