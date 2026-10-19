@@ -8,7 +8,7 @@
 
 ### Delete Without the App
 
-Email \[PRIVACY EMAIL\] from the address on your account, with the subject line "Delete My Boop Boop Account." If you signed in with Apple's Hide My Email, include your Boop Boop username instead. We may ask you to verify the request before acting on it.
+Email help@mylisto.app from the address on your account, with the subject line "Delete My Boop Boop Account." If you signed in with Apple's Hide My Email, include your Boop Boop username instead. We may ask you to verify the request before acting on it.
 
 ### Playing Without an Account
 

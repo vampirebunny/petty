@@ -2,9 +2,9 @@
 
 **Last Updated:** October 19, 2026
 
-Boop Boop is a friendly place for people 13 and up to raise pets and show them off to friends. These guidelines apply to your display name, your pet's name, and every interaction with other players. They are part of our Terms of Service.
+Boop Boop is meant to be a friendly place for people 13 and up to raise pets and show them off to friends.
 
-These guidelines describe what we expect of you. They do not create any obligation for us to monitor, review, moderate, or act on any content, user, or report. Any action we take is at our sole discretion.
+You are responsible for your own interactions with other users, and we are not responsible for any user's conduct.
 
 ### 1. Be Kind
 
@@ -39,8 +39,8 @@ Display names and pet names must not include:
 
 ### 5. Blocking and Reporting
 
-- **Block:** you can block someone from their profile. Blocking removes them from your friends and prevents new friend requests from them.
-- **Report:** you can report a user from their profile. We may use reports to help keep the community safe, but we do not guarantee that any report will be reviewed, answered, or acted on.
+- **Block:** you can block someone from their profile. Blocking is designed to remove them from your friends and prevent new friend requests from them.
+- **Report:** you can report a user from their profile. We may use reports to enforce these guidelines.
 - **Emergencies:** Boop Boop is not an emergency service. If someone is in danger, contact local emergency services. For other serious concerns, you can email help@mylisto.app.
 
 ### 6. Enforcement
