@@ -31,7 +31,12 @@ export function ActionButtons({ actions, species = 'dog', onBlocked }: Props) {
         return (
           <Pressable
             key={action.id}
-            style={[styles.button, action.reason ? styles.disabled : null]}
+            style={({ pressed }: { pressed: boolean }) => [
+              styles.button,
+              action.active && styles.buttonActive,
+              pressed && styles.buttonPressed,
+              action.reason ? styles.disabled : null,
+            ]}
             accessibilityRole="button"
             accessibilityLabel={action.label}
             accessibilityState={{ disabled: !!action.reason, selected: !!action.active }}
@@ -55,21 +60,41 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    rowGap: 6,
+    rowGap: 10,
+    columnGap: 10,
+    justifyContent: 'center',
   },
   button: {
-    flexBasis: '25%',
-    flexGrow: 0,
-    minHeight: minTouch + 20,
-    minWidth: minTouch,
+    width: 76,
+    minHeight: minTouch + 26,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 2,
+    gap: 4,
+    borderRadius: 28,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    borderBottomWidth: 4,
+    borderBottomColor: 'rgba(36, 48, 68, 0.18)',
+    backgroundColor: '#F3F6FB',
+    shadowColor: theme.ink,
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
+  },
+  buttonActive: {
+    borderColor: theme.accent,
+    borderBottomColor: theme.accentDark,
+    backgroundColor: '#EAF8F1',
+  },
+  buttonPressed: {
+    transform: [{ translateY: 2 }, { scale: 0.96 }],
+    borderBottomWidth: 2,
   },
   pill: {
-    width: 56,
-    height: 32,
-    borderRadius: 16,
+    width: 48,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -81,6 +106,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 12,
+    fontWeight: '600',
     textAlign: 'center',
   },
 });
