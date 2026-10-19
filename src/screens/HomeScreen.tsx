@@ -32,6 +32,9 @@ import {
 } from '../cuddle/guidance';
 import { ActionButtons } from '../ui/ActionButtons';
 import type { PetAction } from '../ui/ActionButtons';
+import { PlaydateScreen } from './PlaydateScreen';
+import { usePlaydates } from '../state/usePlaydates';
+import { formatCooldown } from '../playdate/cooldown';
 import { DebugPanel } from '../ui/DebugPanel';
 import { NeedRings } from '../ui/NeedRings';
 import { PetView } from '../ui/PetView';
@@ -64,8 +67,6 @@ export default function HomeScreen({ petApi }: Props) {
     state,
     mood,
     cue,
-    remindersOn,
-    setRemindersOn,
     feed,
     refillWater,
     reportDrank,
@@ -88,9 +89,12 @@ export default function HomeScreen({ petApi }: Props) {
     setWeightValue,
     reset,
     release,
+    finishPlaydate,
   } = petApi;
   const lastStrokeAt = useRef(0);
   const { viewWidth, viewHeight } = useStageSize();
+  const [playdateOpen, setPlaydateOpen] = useState(false);
+  const playdates = usePlaydates(state?.ownerId);
   const [hour, setHour] = useState<number | null>(null);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [wardrobeOpen, setWardrobeOpen] = useState(false);
@@ -464,6 +468,21 @@ export default function HomeScreen({ petApi }: Props) {
     return null;
   }
 
+  if (playdateOpen) {
+    return (
+      <PlaydateScreen
+        pet={state}
+        save={playdates.save}
+        now={playdates.now}
+        remaining={playdates.remaining}
+        reducedMotion={reducedMotion}
+        onSave={playdates.persist}
+        onRewarded={finishPlaydate}
+        onClose={() => setPlaydateOpen(false)}
+      />
+    );
+  }
+
   const origin = state.attributes.archetype;
   const style = currentStyle(origin, state.attributes.current, state.attributes.potential);
   const styleLine =
@@ -503,6 +522,16 @@ export default function HomeScreen({ petApi }: Props) {
       reason: actionReason(scene, 'refillWater', state.waterLevel),
     },
     {
+      id: 'playdate',
+      label: playdates.remaining > 0 ? formatCooldown(playdates.remaining) : 'Playdate',
+      onPress: () => {
+        setFeedOpen(false);
+        setPlayOpen(false);
+        setWardrobeOpen(false);
+        setPlaydateOpen(true);
+      },
+    },
+    {
       id: 'play',
       label: 'Play',
       onPress: () => {
@@ -519,12 +548,6 @@ export default function HomeScreen({ petApi }: Props) {
       label: 'Wardrobe',
       onPress: () => setWardrobeOpen((open) => !open),
       active: wardrobeOpen,
-    },
-    {
-      id: 'reminders',
-      label: 'Reminders',
-      onPress: () => setRemindersOn(!remindersOn),
-      active: remindersOn,
     },
     {
       id: soundOn ? 'sound' : 'soundOff',
@@ -620,6 +643,9 @@ export default function HomeScreen({ petApi }: Props) {
             </Pressable>
           ))}
         </View>
+        {playdates.remaining > 0 ? (
+          <Text style={styles.hint}>Next playdate in {formatCooldown(playdates.remaining)}</Text>
+        ) : null}
         <ActionButtons actions={actions} species={species} onBlocked={flash} />
         {feedOpen ? (
           <View style={styles.scenes}>

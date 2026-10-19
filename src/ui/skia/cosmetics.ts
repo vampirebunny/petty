@@ -1,4 +1,4 @@
-import { Skia, StrokeCap } from '@shopify/react-native-skia';
+import { Skia, StrokeCap, StrokeJoin } from '@shopify/react-native-skia';
 import type { SkCanvas } from '@shopify/react-native-skia';
 
 import type { Geom } from '../../actor';
@@ -113,37 +113,37 @@ export function drawBandana(c: SkCanvas, at: Pt, perp: Pt, along: Pt, neckWidth:
   }
 }
 
-// One lens centered on an eye. `k` scales the lens, `sx` and `sy` foreshorten it, `alpha` fades it.
+function strokeSquare(c: SkCanvas, x: number, y: number, size: number, color: string, width: number, alpha: number): void {
+  const paint = paintOf(color, alpha, width);
+  paint.setStrokeJoin(StrokeJoin.Miter);
+  c.drawRect(Skia.XYWHRect(x, y, size, size), paint);
+}
+
+// One square lens centered on an eye. `k` scales the lens, `sx` and `sy` foreshorten it, `alpha` fades it.
 function drawLens(c: SkCanvas, item: WearItem, ex: number, ey: number, eyeR: number, k: number, sx: number, sy: number, alpha: number): void {
   const color = item.c ?? '#1b1b22';
   const cx = ex + eyeR * 0.1 * k * sx;
-  if (item.id !== 'round') {
-    fillOval(c, cx, ey, eyeR * 2.0 * k * sx, eyeR * 1.6 * k * sy, color, alpha);
-    strokeLine(
-      c,
-      ex - eyeR * 0.9 * k * sx,
-      ey - eyeR * 0.7 * k * sy,
-      ex - eyeR * 0.1 * k * sx,
-      ey - eyeR * 1.2 * k * sy,
-      '#ffffff',
-      1.6,
-      0.45 * alpha,
-    );
+  const half = eyeR * 1.7 * k;
+  const gold = item.id === 'square';
+  c.save();
+  c.translate(cx, ey);
+  c.scale(sx, sy);
+  if (gold) {
+    fillRect(c, -half, -half, half * 2, half * 2, '#82beff', 0.3 * alpha);
+    strokeSquare(c, -half, -half, half * 2, color, 2.4, alpha);
   } else {
-    c.save();
-    c.translate(cx, ey);
-    c.scale(sx, sy);
-    fillCircle(c, 0, 0, eyeR * 1.8 * k, '#82beff', 0.3 * alpha);
-    c.drawCircle(0, 0, eyeR * 1.8 * k, paintOf(color, alpha, 2.4));
-    c.restore();
+    fillRect(c, -half, -half, half * 2, half * 2, color, alpha);
+    strokeSquare(c, -half, -half, half * 2, '#15151b', 1.6, alpha);
+    strokeLine(c, -half * 0.55, -half * 0.45, -half * 0.05, -half * 0.75, '#ffffff', 1.6, 0.45 * alpha);
   }
+  c.restore();
 }
 
 // Glasses follow the head turn: one lens in side view, two lenses and a bridge at the 3/4 turn.
 // The far lens fades in with the far eye, and lenses shrink to fit the gap between the eyes.
 export function drawGlasses(c: SkCanvas, item: WearItem, face: HeadFace, headR: number): void {
   const color = item.c ?? '#1b1b22';
-  const frame = item.id === 'round' ? color : '#15151b';
+  const frame = item.id === 'square' ? color : '#15151b';
   const { eyeR, nearEye, farEye, turn } = face;
   const ex = nearEye.x;
   const ey = nearEye.y;

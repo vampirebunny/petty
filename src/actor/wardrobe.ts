@@ -31,7 +31,7 @@ export const wardrobe: Record<OutfitSlot, { label: string; items: WearItem[] }> 
     items: [
       { id: 'none', label: 'None' },
       { id: 'classic', label: 'Classic shades', c: '#1b1b22' },
-      { id: 'round', label: 'Round gold', c: '#e0b43c' },
+      { id: 'square', label: 'Square gold', c: '#e0b43c' },
     ],
   },
   hat: {
@@ -69,6 +69,7 @@ export function wearItem(slot: OutfitSlot, id: string | undefined): WearItem | n
   if (!id || id === 'none') {
     return null;
   }
-  const item = wardrobe[slot].items.find((entry) => entry.id === id);
+  const lookup = slot === 'glasses' && id === 'round' ? 'square' : id;
+  const item = wardrobe[slot].items.find((entry) => entry.id === lookup);
   return item && item.c ? item : null;
 }

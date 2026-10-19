@@ -241,6 +241,28 @@ export type LocoStats = { stamina: number; agility: number; boldness: number; ob
 
 export type JumpKind = 'hop' | 'leap' | 'pounce';
 
+// A playdate director owns the actor. Home idle does not run while this is set.
+export type DirectionPose =
+  | 'walk'
+  | 'run'
+  | 'sit'
+  | 'sleep'
+  | 'jump'
+  | 'pant'
+  | 'paw'
+  | 'bow'
+  | 'stalk'
+  | 'pounce'
+  | 'celebrate'
+  | 'sniff';
+
+export type Direction = {
+  target: Vec | null;
+  pace: number;
+  pose: DirectionPose;
+  token: number;
+};
+
 // Choices made once per chase, from the seeded stream, the pet's energy and mood, and its age.
 export type PlayState = {
   // Share of top speed this chase runs at.
@@ -386,6 +408,9 @@ export type Actor = {
   topT: number;
   // Speed as a share of the pet's own top speed, for the legs.
   share: number;
+  direction: Direction | null;
+  // The direction token that already launched a jump, so a held jump fires once.
+  directionJump: number;
 };
 
 export type Anchors = {

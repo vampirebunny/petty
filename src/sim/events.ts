@@ -1,4 +1,4 @@
-import { clampDrift, withDerived } from './attributes';
+import { clampDrift, grantFlatAttributes, maturityOf, withDerived } from './attributes';
 import { applyMeal } from './care';
 import {
   clampMax,
@@ -163,6 +163,18 @@ export function applyEvent(state: PetState, event: PetEvent): EventResult {
     next.xp += petXp;
     next.drift.affection = clampDrift(next.drift.affection + petAffectionDrift * weight);
     next.careWindow = bumpAttention(next.careWindow);
+    return { state: withDerived(next), cue: { kind: 'none' } };
+  }
+
+  if (event.type === 'playdate') {
+    const next = copyState(state);
+    next.needs.happiness = clampNeed(next.needs.happiness + event.happiness);
+    next.attributes.current = grantFlatAttributes(
+      next.attributes.current,
+      next.attributes.potential,
+      maturityOf(next.ageDays),
+      event.attributes,
+    );
     return { state: withDerived(next), cue: { kind: 'none' } };
   }
 

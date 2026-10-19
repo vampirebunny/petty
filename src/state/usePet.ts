@@ -16,8 +16,9 @@ import {
   setWeight,
   tickForeground,
 } from '../sim';
-import type { Cue, Look, Mood, OutfitSlot, PetAttributes, PetEvent, PetState } from '../sim';
+import type { Cue, Look, Mood, OutfitSlot, PetAttributes, PetEvent, PetState, Trait } from '../sim';
 import { getCachedOwnerId } from '../compliance/identity';
+import { clearPetPlaydates } from '../playdate/storage';
 import { asyncPetStorage } from '../storage/asyncStorage';
 import type { PetStorage } from '../storage/PetStorage';
 import {
@@ -63,6 +64,7 @@ type PetApi = {
   setWeightValue: (weight: number) => void;
   reset: () => void;
   release: () => void;
+  finishPlaydate: (happiness: number, attributes: Partial<Record<Trait, number>>) => void;
   adopt: (breedId: string, attributes: PetAttributes, look: Look, name: string, ownerId: string) => void;
   setOwnerId: (ownerId: string) => void;
 };
@@ -214,6 +216,9 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
       return;
     }
     const ownerId = current.ownerId ?? getCachedOwnerId();
+    if (ownerId) {
+      void clearPetPlaydates(ownerId, current.id);
+    }
     if (!ownerId) {
       return;
     }
@@ -235,8 +240,13 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
   // Deletes the pet for good. The delete rides the same queue as every save, so a pending
   // save cannot write the old pet back, and the tick skips while no pet is loaded.
   const release = useCallback(() => {
-    if (!stateRef.current) {
+    const current = stateRef.current;
+    if (!current) {
       return;
+    }
+    const ownerId = current.ownerId ?? getCachedOwnerId();
+    if (ownerId) {
+      void clearPetPlaydates(ownerId, current.id);
     }
     stateRef.current = null;
     // Start the draft delete before the adoption screen mounts and reads the draft.
@@ -337,6 +347,13 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
     [dispatch],
   );
 
+  const finishPlaydate = useCallback(
+    (happiness: number, attributes: Partial<Record<Trait, number>>) => {
+      dispatch({ type: 'playdate', happiness, attributes });
+    },
+    [dispatch],
+  );
+
   return {
     ready,
     state,
@@ -367,6 +384,7 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
     setWeightValue,
     reset,
     release,
+    finishPlaydate,
     adopt,
     setOwnerId,
   };

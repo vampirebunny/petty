@@ -121,7 +121,8 @@ export type PetEvent =
   | { type: 'cuddled'; seconds: number }
   | { type: 'fetch'; drop?: { x: number; y: number }; flick?: { vx: number; vy: number; vz: number } }
   | { type: 'setScene'; sceneId: string }
-  | { type: 'equip'; slot: OutfitSlot; itemId: string | null };
+  | { type: 'equip'; slot: OutfitSlot; itemId: string | null }
+  | { type: 'playdate'; happiness: number; attributes: Partial<Record<Trait, number>> };
 
 export type Mood = 'happy' | 'content' | 'hungry' | 'sleepy' | 'sad' | 'sleeping';
 

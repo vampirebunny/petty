@@ -69,6 +69,26 @@ export function naturalGrowth(potential: number, maturity: number): number {
   return Math.min(potential, Math.max(1, Math.round(potential * fraction)));
 }
 
+// A flat playdate grant. It is added on top of the score already shown, which is the
+// higher of stored current and natural growth, then capped at potential.
+export function grantFlatAttributes(
+  current: Stats,
+  potential: Stats,
+  maturity: number,
+  gains: Partial<Record<Trait, number>>,
+): Stats {
+  const next = { ...current };
+  for (const trait of traits) {
+    const gain = gains[trait];
+    if (!gain) {
+      continue;
+    }
+    const base = Math.max(current[trait], naturalGrowth(potential[trait], maturity));
+    next[trait] = base + gain;
+  }
+  return clampCurrent(next, potential);
+}
+
 export function trainingGain(current: number, potential: number, raw: number): number {
   if (potential <= 0 || raw <= 0 || current >= potential) {
     return 0;

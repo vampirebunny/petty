@@ -1,3 +1,4 @@
+import { attributeScore, withDerived } from '../attributes';
 import { applyEvent } from '../events';
 import { testPet } from '../__fixtures__/pets';
 import type { PetState } from '../types';
@@ -126,6 +127,24 @@ it('wakes the pet when Cuddle starts and gives no cue', () => {
   const started = applyEvent(before, { type: 'cuddleStart' });
   expect(started.cue).toEqual({ kind: 'none' });
   expect(started.state.asleep).toBe(false);
+});
+
+it('playdate raises the attributes the activity trains', () => {
+  const before = withDerived({ ...testPet(1, 'retriever', 0, 'Pup', 'pet'), ageDays: 80 });
+  before.needs.happiness = 40;
+  const stamina = attributeScore(before, 'stamina');
+  const agility = attributeScore(before, 'agility');
+  const affection = attributeScore(before, 'affection');
+  const result = applyEvent(before, {
+    type: 'playdate',
+    happiness: 12,
+    attributes: { stamina: 3, agility: 2 },
+  });
+  expect(attributeScore(result.state, 'stamina')).toBeGreaterThan(stamina);
+  expect(attributeScore(result.state, 'agility')).toBeGreaterThan(agility);
+  expect(attributeScore(result.state, 'affection')).toBeCloseTo(affection);
+  expect(result.state.needs.happiness).toBe(before.needs.happiness + 12);
+  expect(result.state.xp).toBe(before.xp);
 });
 
 it('rewards a finished cuddle, more for a longer one, with no cue', () => {

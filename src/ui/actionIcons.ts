@@ -1,6 +1,5 @@
 import {
   Armchair,
-  Bell,
   CircleQuestionMark,
   Droplet,
   HandHeart,
@@ -12,6 +11,7 @@ import {
   Soup,
   Sparkles,
   Sun,
+  Users,
   Volleyball,
   Volume2,
   VolumeX,
@@ -25,6 +25,7 @@ export const actionIcons: Record<string, LucideIcon> = {
   feed: Soup,
   refill: Droplet,
   play: Volleyball,
+  playdate: Users,
   sit: Armchair,
   speak: MessageCircle,
   paw: PawPrint,
@@ -32,7 +33,6 @@ export const actionIcons: Record<string, LucideIcon> = {
   wake: Sun,
   cuddle: HandHeart,
   wardrobe: Shirt,
-  reminders: Bell,
   sound: Volume2,
   soundOff: VolumeX,
   // lucide has no slashed music icon, so the off state shows through the button's inactive style.

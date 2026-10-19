@@ -42,7 +42,7 @@ import { newCuddle, stepCuddle } from './cuddle';
 import { nearestPoi, poiOf, scenes, stageHeight } from './scenes';
 import type { Scene } from './scenes';
 import { variantFor } from './variation';
-import type { Actor, ActorSource, Anchors, Idle, IdleMode, JumpKind, PlayState, Pose, SoundEvent, Task, TaskType, Vec, World } from './types';
+import type { Actor, ActorSource, Anchors, Direction, Idle, IdleMode, JumpKind, PlayState, Pose, SoundEvent, Task, TaskType, Vec, World } from './types';
 
 const displayTau = 0.35;
 const idleWeight: Record<IdleMode, number> = { still: 3, pant: 2, purr: 2, nap: 1.5, walk: 2.5, zoom: 0 };
@@ -204,7 +204,21 @@ export function spawnActor(source: ActorSource, at?: Vec): Actor {
     jumpKind: null,
     topT: 0,
     share: 0,
+    direction: null,
+    directionJump: -1,
   };
+}
+
+export function setDirection(actor: Actor, direction: Direction | null): void {
+  actor.direction = direction;
+  if (!direction) {
+    return;
+  }
+  actor.task = taskOf('idle');
+  actor.play = null;
+  actor.zoom = null;
+  actor.cuddle = null;
+  actor.asleep = false;
 }
 
 function seedParticles(world: World): void {
@@ -736,6 +750,69 @@ function poseTargets(actor: Actor): Pose {
   };
 }
 
+function steerDirection(actor: Actor, limit: number, targets: Pose): { move: Vec | null; vmax: number; wagRate: number; faceCamera: boolean } {
+  const direction = actor.direction;
+  if (!direction) {
+    return { move: null, vmax: 0, wagRate: 5, faceCamera: false };
+  }
+  const pose = direction.pose;
+  let move = direction.target;
+  let vmax = limit * direction.pace;
+  let wagRate = 6;
+  let faceCamera = false;
+  const arrived = move != null && Math.hypot(move.x - actor.x, move.y - actor.y) < 10 && actor.speed < 16;
+  const traveling = pose === 'walk' || pose === 'run' || pose === 'sniff' || pose === 'stalk';
+  if (!traveling || arrived) {
+    move = null;
+    vmax = 0;
+  }
+  if (pose === 'sniff' && arrived) {
+    targets.headDown = 1;
+    targets.wagAmp = 0.2;
+  }
+  if (pose === 'stalk') {
+    targets.stalk = 1;
+    targets.crouch = 0.55;
+    if (!arrived) {
+      vmax = limit * Math.min(direction.pace, 0.32);
+    }
+  }
+  if (pose === 'sit' || pose === 'celebrate' || pose === 'pant' || pose === 'paw') {
+    targets.sit = 1;
+    faceCamera = true;
+  }
+  if (pose === 'celebrate') {
+    targets.wagAmp = 0.7;
+    wagRate = 14;
+  }
+  if (pose === 'pant') {
+    targets.pant = 1;
+    targets.breathAmp = 0.05;
+    targets.breathRate = 2.5;
+  }
+  if (pose === 'paw') {
+    targets.paw = 1;
+    targets.wagAmp = 0.4;
+  }
+  if (pose === 'bow') {
+    targets.bow = 1;
+    targets.wagAmp = 0.65;
+    wagRate = 16;
+  }
+  if (pose === 'sleep') {
+    targets.lie = 1;
+    targets.headRest = 1;
+    targets.eyes = 1;
+    targets.wagAmp = 0;
+  }
+  if ((pose === 'jump' || pose === 'pounce') && actor.z <= 0 && actor.directionJump !== direction.token) {
+    actor.directionJump = direction.token;
+    const kind = pose === 'pounce' ? 'pounce' : 'hop';
+    launch(actor, kind, jumpSpeed(jumpHeights[kind]));
+  }
+  return { move, vmax, wagRate, faceCamera };
+}
+
 function updateActor(world: World, actor: Actor, dt: number): void {
   const breed = breedById(actor.breedId);
   if (!breed) {
@@ -813,7 +890,13 @@ function updateActor(world: World, actor: Actor, dt: number): void {
     actor.weight = clamp(actor.weight - weightBurnPerSec * dt, -1, 1);
   }
 
-  if (actor.task.type === 'idle') {
+  if (actor.direction) {
+    const directed = steerDirection(actor, limit, targets);
+    move = directed.move;
+    vmax = directed.vmax;
+    wagRate = directed.wagRate;
+    faceCamera = directed.faceCamera;
+  } else if (actor.task.type === 'idle') {
     actor.idle.t += dt;
     if (actor.idle.mode === 'zoom') {
       wagRate = 14;
