@@ -10,7 +10,7 @@ export type PetAction = {
   label: string;
   onPress: () => void;
   onLongPress?: () => void;
-  // Toggled on: the button gets the accent pill.
+  // Toggled on: the button fills with its full tint.
   active?: boolean;
   // Set when the scene cannot offer this action. The button dims and tapping it explains why.
   reason?: string;
@@ -22,29 +22,80 @@ type Props = {
   onBlocked?: (reason: string) => void;
 };
 
+// Each action gets a candy tint: soft `bg` at rest, a darker `edge` for the chunky bottom lip,
+// and a saturated `strong` that fills the icon bubble (and the whole button when active).
+type Tint = { bg: string; edge: string; strong: string; ink: string };
+
+const tints: Record<string, Tint> = {
+  pink: { bg: '#FFE3EC', edge: '#F5B5C9', strong: '#FF7BA5', ink: '#8A1F4B' },
+  peach: { bg: '#FFE9D6', edge: '#F7C49A', strong: '#FF9F5A', ink: '#8A4210' },
+  butter: { bg: '#FFF5CC', edge: '#F2DC82', strong: '#FFCB3D', ink: '#7A5A00' },
+  mint: { bg: '#DDF6E8', edge: '#A6DFC0', strong: '#4FC98A', ink: '#14503A' },
+  sky: { bg: '#DCEEFF', edge: '#A7CDF2', strong: '#5AA9F0', ink: '#16466F' },
+  lilac: { bg: '#EBE2FF', edge: '#C6B4F2', strong: '#9B7BF0', ink: '#412784' },
+};
+
+const tintFor: Record<string, keyof typeof tints> = {
+  sit: 'peach',
+  paw: 'butter',
+  speak: 'sky',
+  cuddle: 'pink',
+  rest: 'lilac',
+  wake: 'butter',
+  feed: 'peach',
+  refill: 'sky',
+  play: 'mint',
+  wardrobe: 'pink',
+  reminders: 'butter',
+  sound: 'sky',
+  soundOff: 'sky',
+  music: 'lilac',
+  musicOff: 'lilac',
+  personality: 'mint',
+  help: 'lilac',
+};
+
 export function ActionButtons({ actions, species = 'dog', onBlocked }: Props) {
   return (
     <View style={styles.row}>
       {actions.map((action) => {
         const Icon = iconFor(action.id, species);
-        const color = action.active ? theme.accentDark : theme.ink;
+        const tint = tints[tintFor[action.id] ?? 'mint'];
+        const on = !!action.active;
+        const color = on ? '#FFFFFF' : tint.ink;
         return (
           <Pressable
             key={action.id}
             style={({ pressed }: { pressed: boolean }) => [
               styles.button,
-              action.active && styles.buttonActive,
+              {
+                backgroundColor: on ? tint.strong : tint.bg,
+                borderColor: on ? tint.edge : '#FFFFFF',
+                borderBottomColor: on ? tint.ink : tint.edge,
+                shadowColor: tint.strong,
+              },
               pressed && styles.buttonPressed,
               action.reason ? styles.disabled : null,
             ]}
             accessibilityRole="button"
             accessibilityLabel={action.label}
-            accessibilityState={{ disabled: !!action.reason, selected: !!action.active }}
+            accessibilityState={{ disabled: !!action.reason, selected: on }}
             onPress={() => (action.reason ? onBlocked?.(action.reason) : action.onPress())}
             onLongPress={action.onLongPress}
           >
-            <View style={[styles.pill, action.active && styles.pillActive]}>
-              {Icon ? <Icon size={iconSize} strokeWidth={iconStroke} color={color} /> : null}
+            <View
+              style={[
+                styles.bubble,
+                { backgroundColor: on ? 'rgba(255,255,255,0.28)' : '#FFFFFF' },
+              ]}
+            >
+              {Icon ? (
+                <Icon
+                  size={iconSize}
+                  strokeWidth={iconStroke + 0.5}
+                  color={on ? '#FFFFFF' : tint.strong}
+                />
+              ) : null}
             </View>
             <Text style={[styles.label, { color }]} numberOfLines={1}>
               {action.label}
@@ -65,48 +116,41 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   button: {
-    width: 76,
-    minHeight: minTouch + 26,
+    width: 88,
+    minHeight: minTouch + 30,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
-    borderRadius: 28,
+    gap: 5,
+    paddingHorizontal: 6,
+    borderRadius: 30,
     borderWidth: 2,
-    borderColor: '#FFFFFF',
-    borderBottomWidth: 4,
-    borderBottomColor: 'rgba(36, 48, 68, 0.18)',
-    backgroundColor: '#F3F6FB',
-    shadowColor: theme.ink,
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
+    borderBottomWidth: 5,
+    shadowOpacity: 0.28,
+    shadowRadius: 7,
+    shadowOffset: { width: 0, height: 4 },
     elevation: 3,
   },
-  buttonActive: {
-    borderColor: theme.accent,
-    borderBottomColor: theme.accentDark,
-    backgroundColor: '#EAF8F1',
-  },
   buttonPressed: {
-    transform: [{ translateY: 2 }, { scale: 0.96 }],
+    transform: [{ translateY: 3 }, { scale: 0.95 }],
     borderBottomWidth: 2,
   },
-  pill: {
-    width: 48,
-    height: 36,
-    borderRadius: 18,
+  bubble: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  pillActive: {
-    backgroundColor: theme.accent,
+    shadowColor: theme.ink,
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
   },
   disabled: {
-    opacity: 0.35,
+    opacity: 0.4,
   },
   label: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
     textAlign: 'center',
   },
 });
