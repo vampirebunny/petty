@@ -44,7 +44,8 @@ Lucide has no bowl or ball glyph, so Feed is `Soup` (a bowl with steam) and Play
 | Id | Clip | Used for |
 | --- | --- | --- |
 | `cuddle_purr` | `universfield-purring-cat-156459.mp3` | Cat content stroke and kneading |
-| `cuddle_happy` | `yodguard-friendly-small-dog-bark-1-535470.mp3` | Dog content stroke, scratch kick, and belly rub |
+| `cuddle_happy` | `yodguard-friendly-small-dog-bark-1-535470.mp3` | Dog content stroke and scratch kick |
+| `cuddle_pant` | `fnx_sound-animated-dog-panting-287307-short.mp3` | Dog belly rub (2.2 s cut of the 9 s pant; full file kept for later idle) |
 
 Boop, flinch, swat, and shake-off stay silent. Speak still uses the existing bark and meow clips.
 

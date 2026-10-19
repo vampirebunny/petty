@@ -9,6 +9,8 @@ const clips: Partial<Record<SoundEvent['sound'], number>> = {
   meow: require('../../assets/sounds/sound_garage-cat-meow-8-fx-306184.mp3'),
   cuddle_purr: require('../../assets/sounds/universfield-purring-cat-156459.mp3'),
   cuddle_happy: require('../../assets/sounds/yodguard-friendly-small-dog-bark-1-535470.mp3'),
+  // Short cut of the 9 s pant: about 2.2 s with a fade-out. Keep the full file for later idle use.
+  cuddle_pant: require('../../assets/sounds/fnx_sound-animated-dog-panting-287307-short.mp3'),
 };
 
 // Two players per clip so the second bark of a pair can start while the first is still ringing.

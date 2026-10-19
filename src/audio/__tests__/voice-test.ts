@@ -19,8 +19,9 @@ afterEach(() => {
   jest.clearAllMocks();
 });
 
-it('plays the cuddle purr and happy bark clips', () => {
+it('plays the cuddle purr, happy bark, and pant clips', () => {
   playVoice({ actorId: 'pet', sound: 'cuddle_purr', rate: 1 });
   playVoice({ actorId: 'pet', sound: 'cuddle_happy', rate: 1 });
-  expect(createAudioPlayer).toHaveBeenCalledTimes(4);
+  playVoice({ actorId: 'pet', sound: 'cuddle_pant', rate: 1 });
+  expect(createAudioPlayer).toHaveBeenCalledTimes(6);
 });

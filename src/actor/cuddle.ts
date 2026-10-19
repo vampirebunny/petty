@@ -458,7 +458,7 @@ export function stepCuddle(
     if (c.t >= tm.rollOver) {
       setPhase(c, 'belly');
       if (!cat) {
-        sound(world, actor, 'cuddle_happy');
+        sound(world, actor, 'cuddle_pant');
       }
     }
   } else if (c.phase === 'belly') {

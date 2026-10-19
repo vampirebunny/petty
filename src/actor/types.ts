@@ -251,8 +251,8 @@ export type Anchors = {
 
 export type Particle = { x: number; y: number; v: number; ph: number };
 
-// Cuddle uses two recorded clips: a cat purr and a friendly dog bark. Other reactions stay silent.
-export type CuddleSound = 'cuddle_purr' | 'cuddle_happy';
+// Cuddle content clips. Boop, flinch, swat, and shake-off stay silent.
+export type CuddleSound = 'cuddle_purr' | 'cuddle_happy' | 'cuddle_pant';
 
 export type SoundEvent = {
   actorId: string;
