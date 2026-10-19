@@ -11,6 +11,7 @@ import {
   voiceRate,
 } from '..';
 import { breedById, catBreeds, dogBreeds } from '../breeds';
+import { PET_SIZE, depthScale, geomOf, xRangeOf } from '../geometry';
 import { nearestPoi } from '../scenes';
 import { createWorld, setWorldScene, spawnActor } from '../sim';
 import type { ActorSource } from '../types';
@@ -167,8 +168,12 @@ it('eats and drinks from the side of the bowl the pet approaches from', () => {
       }
       expect(pup.task.stage).toBe('eating');
       // The pet stands on the side it came from, unless the bowl sits too close to the stage edge for that.
-      const crowded = side === -1 && poi.x > scene.floor.xMax - 100;
-      const expected = crowded ? 1 : side;
+      const geom = geomOf(breedById('retriever')!, 0, 0);
+      const scale = PET_SIZE * geom.sc * depthScale(poi.y, scene.floor.yMin, scene.floor.yMax);
+      const range = xRangeOf(scene.floor, geom, scale);
+      const spot = poi.x - side * scale * (geom.bodyLen / 2 + 34);
+      const crowded = spot < range.lo || spot > range.hi;
+      const expected = crowded ? -side : side;
       expect(pup.face).toBe(expected);
       expect(Math.sign(poi.x - pup.x)).toBe(expected);
     }

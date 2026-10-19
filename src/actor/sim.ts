@@ -2,7 +2,7 @@ import { weightBurnPerSec, weightRunSpeed } from '../sim/config';
 import type { Item } from '../items/types';
 import { stepItems } from '../items/physics';
 import { inactivePointer } from '../input/pointer';
-import { PET_SIZE, bodyFrame, headFaceOf, reachOf, speedMax, stageWidth } from './geometry';
+import { bodyFrame, headFaceOf, reachOf, speedMax, stageWidth, xRangeOf } from './geometry';
 import { breedById, voiceRate } from './breeds';
 import { growthFor } from './growth';
 import { canBehave, reactionFor, type UserTask } from './behavior';
@@ -726,11 +726,11 @@ function updateActor(world: World, actor: Actor, dt: number): void {
     const poi = actor.task.poi ?? poiOf(world.scene, actor.task.kind === 'drink' ? 'water' : 'food');
     let face: 1 | -1 = poi?.face ?? 1;
     const standOff = frame.scale * (frame.geom.bodyLen / 2 + 34);
-    const spotInset = reachOf(frame.geom) * frame.scale * (1 - 1 / PET_SIZE);
+    const range = xRangeOf(world.scene.floor, frame.geom, frame.scale);
     // A bowl near the stage edge: if the pet can't stand on its arriving side, use the other one.
     if (poi && actor.task.stage === 'go') {
       const x = poi.x - face * standOff;
-      if (x < world.scene.floor.xMin + spotInset || x > world.scene.floor.xMax - spotInset) {
+      if (x < range.lo || x > range.hi) {
         face = face > 0 ? -1 : 1;
         if (actor.task.poi) {
           actor.task.poi = { ...actor.task.poi, face };
@@ -845,10 +845,8 @@ function updateActor(world: World, actor: Actor, dt: number): void {
     }
   }
 
-  // The larger body (and head) sticks out further from its anchor, so keep it inside the stage.
-  const inset = reachOf(frame.geom) * frame.scale * (1 - 1 / PET_SIZE);
-  const xLo = floor.xMin + inset;
-  const xHi = floor.xMax - inset;
+  // The larger body (head in front, tail behind) sticks out from its anchor, so keep all of it inside the stage.
+  const { lo: xLo, hi: xHi } = xRangeOf(floor, frame.geom, frame.scale);
   const desired = { x: 0, y: 0 };
   if (move) {
     const tx = clamp(move.x, xLo, xHi);

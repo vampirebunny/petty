@@ -243,6 +243,22 @@ export function reachOf(geom: Geom): number {
   return geom.bodyLen / 2 + 4 + geom.tipX * 0.9;
 }
 
+// How far the tail sticks out behind the body anchor, before scale.
+export function rearOf(geom: Geom): number {
+  return geom.bodyLen / 2 + 50;
+}
+
+const stageEdge = 6;
+
+// The x range an actor's anchor can take so none of the drawn pet crosses the stage edge: the floor's own
+// limits, tightened by how far the head reaches in front and the tail behind at the pet's current size.
+export function xRangeOf(floor: { xMin: number; xMax: number }, geom: Geom, scale: number): { lo: number; hi: number } {
+  const lo = Math.max(floor.xMin, stageEdge + rearOf(geom) * scale);
+  const hi = Math.min(floor.xMax, stageWidth - stageEdge - reachOf(geom) * scale);
+  // A pet too big for the stage sits in the middle rather than inverting the range.
+  return lo <= hi ? { lo, hi } : { lo: (lo + hi) / 2, hi: (lo + hi) / 2 };
+}
+
 export function torsoPoint(geom: Geom, theta: number, dy: number, x: number, y: number): Vec {
   const rx = x - geom.Px;
   const ry = y - geom.Py;
