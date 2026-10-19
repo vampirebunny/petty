@@ -1,4 +1,14 @@
-import { breedById, coatSwatchesFor, defaultLook, earOptions, isDarkCoat, resolveBreed, tailOptions } from '../breeds';
+import {
+  breedById,
+  coatStyles,
+  coatStylesFor,
+  defaultLook,
+  earOptions,
+  isDarkCoat,
+  lookWithCoat,
+  resolveBreed,
+  tailOptions,
+} from '../breeds';
 import { createWorld, spawnActor, syncActor } from '../sim';
 
 const source = {
@@ -48,11 +58,37 @@ it('keeps siamese point colors when the coat changes', () => {
   expect(resolved.muzzle).toBe(siamese.muzzle);
 });
 
-it('lists the breed coat first with no duplicate swatches', () => {
+it('lists the breed coat first with no duplicate coat styles', () => {
   const breed = breedById('retriever')!;
-  const swatches = coatSwatchesFor(breed);
-  expect(swatches[0]).toBe(breed.coat);
-  expect(new Set(swatches.map((color) => color.toLowerCase())).size).toBe(swatches.length);
+  const styles = coatStylesFor(breed);
+  expect(styles[0].coat).toBe(breed.coat);
+  const keys = styles.map((style) => `${style.coat}|${style.pattern ?? 'none'}|${style.accent ?? ''}`.toLowerCase());
+  expect(new Set(keys).size).toBe(styles.length);
+});
+
+it('offers striped and pointed combinations to both species', () => {
+  for (const species of ['dog', 'cat'] as const) {
+    const styles = coatStyles[species];
+    expect(styles.some((style) => style.pattern === 'stripes')).toBe(true);
+    expect(styles.some((style) => style.pattern === 'points' && style.accent)).toBe(true);
+  }
+});
+
+it('applies a pointed coat: accent on ears and muzzle', () => {
+  const breed = breedById('retriever')!;
+  const style = coatStyles.dog.find((candidate) => candidate.id === 'cocoa-points')!;
+  const resolved = resolveBreed(breed, lookWithCoat(defaultLook(breed), style));
+  expect(resolved.pattern).toBe('points');
+  expect(resolved.accent).toBe(style.accent);
+  expect(resolved.earColor).toBe(style.accent);
+});
+
+it('a solid coat clears the breed pattern', () => {
+  const siamese = breedById('siamese')!;
+  const style = coatStyles.cat.find((candidate) => candidate.id === 'lilac')!;
+  const resolved = resolveBreed(siamese, lookWithCoat(defaultLook(siamese), style));
+  expect(resolved.pattern).toBe('none');
+  expect(resolved.coat).toBe(style.coat);
 });
 
 it('detects dark coats by luminance, not by one hex value', () => {

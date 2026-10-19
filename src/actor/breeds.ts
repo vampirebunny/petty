@@ -1,7 +1,7 @@
 import type { Look } from '../sim/types';
 import { breedAttributes } from './breedAttributes';
 import { luminance, mixHexColor } from './color';
-import type { Breed, EarShape, Species, TailShape, TaskType } from './types';
+import type { Breed, EarShape, Pattern, Species, TailShape, TaskType } from './types';
 
 // Visual and behavior parameters of a breed. Attribute ranges and the blurb come from breedAttributes.
 type BreedVisual = Omit<Breed, 'attributeRanges' | 'blurb'>;
@@ -126,7 +126,7 @@ const dogVisuals: BreedVisual[] = [
 const catVisuals: BreedVisual[] = [
   {
     id: 'tabby',
-    name: 'Tabby',
+    name: 'Domestic Shorthair',
     species: 'cat',
     bodyLen: 0.95,
     bodyH: 0.72,
@@ -215,7 +215,7 @@ const catVisuals: BreedVisual[] = [
   },
   {
     id: 'black',
-    name: 'Black cat',
+    name: 'Bombay',
     species: 'cat',
     bodyLen: 0.95,
     bodyH: 0.7,
@@ -245,9 +245,65 @@ const byId = new Map(all.map((breed) => [breed.id, breed]));
 // Look options offered at adoption. Data only, so adding a swatch or a shape is a config entry.
 export type LookOption = { id: string; label: string };
 
-export const coatPalette: Record<Species, readonly string[]> = {
-  dog: ['#d9a441', '#e08a3c', '#6b3f2a', '#8a97a6', '#d8c19a', '#2b2b33', '#f1ece4', '#a8572f'],
-  cat: ['#b98a58', '#eadbc2', '#f1ece4', '#8b6a4a', '#2b2b33', '#d9822b', '#8a97a6', '#c7b299'],
+// A coat is a base color, optionally with a pattern: stripes (darker bands) or points (an accent on
+// ears, legs, tail, and muzzle). The renderer draws both patterns for dogs and cats.
+export type CoatStyle = {
+  id: string;
+  label: string;
+  coat: string;
+  pattern?: Pattern;
+  accent?: string;
+};
+
+const solid = (id: string, label: string, coat: string): CoatStyle => ({ id, label, coat });
+const striped = (id: string, label: string, coat: string): CoatStyle => ({ id, label, coat, pattern: 'stripes' });
+const pointed = (id: string, label: string, coat: string, accent: string): CoatStyle => ({
+  id,
+  label,
+  coat,
+  pattern: 'points',
+  accent,
+});
+
+export const coatStyles: Record<Species, readonly CoatStyle[]> = {
+  dog: [
+    solid('gold', 'Gold', '#d9a441'),
+    solid('ginger', 'Ginger', '#e08a3c'),
+    solid('cocoa', 'Cocoa', '#6b3f2a'),
+    solid('slate', 'Slate', '#8a97a6'),
+    solid('fawn', 'Fawn', '#d8c19a'),
+    solid('midnight', 'Midnight', '#2b2b33'),
+    solid('cream', 'Cream', '#f1ece4'),
+    solid('rust', 'Rust', '#a8572f'),
+    striped('brindle', 'Brindle', '#8a5a3a'),
+    striped('tiger-dog', 'Tiger', '#e08a3c'),
+    striped('mint-stripe', 'Mint stripes', '#8fd9b6'),
+    pointed('cocoa-points', 'Cocoa points', '#ead9bf', '#6b3f2a'),
+    pointed('ghost-points', 'Ghost points', '#f1ece4', '#9aa6b8'),
+    pointed('lilac-points', 'Lilac points', '#d9d2ee', '#4a3f6b'),
+    pointed('candy', 'Cotton candy', '#f6c1dc', '#7fb7ea'),
+    solid('bubblegum', 'Bubblegum', '#f2a1c7'),
+    solid('sky', 'Sky', '#7fb7ea'),
+  ],
+  cat: [
+    solid('tabby-brown', 'Brown', '#b98a58'),
+    solid('cream-cat', 'Cream', '#eadbc2'),
+    solid('snow', 'Snow', '#f1ece4'),
+    solid('walnut', 'Walnut', '#8b6a4a'),
+    solid('soot', 'Soot', '#2b2b33'),
+    solid('orange', 'Orange', '#d9822b'),
+    solid('smoke', 'Smoke', '#8a97a6'),
+    solid('sand', 'Sand', '#c7b299'),
+    striped('ginger-tiger', 'Ginger tiger', '#d9822b'),
+    striped('silver-tabby', 'Silver tabby', '#c9ced6'),
+    striped('mint-tabby', 'Mint tabby', '#8fd9b6'),
+    striped('cosmic', 'Cosmic', '#4a4478'),
+    pointed('blue-point', 'Blue point', '#e8e2d8', '#6f7f95'),
+    pointed('chocolate-point', 'Chocolate point', '#efe3cf', '#5b3a2a'),
+    pointed('flame-point', 'Flame point', '#f4e6d0', '#d9822b'),
+    pointed('bubblegum-points', 'Bubblegum points', '#f6c1dc', '#8a6ad0'),
+    solid('lilac', 'Lilac', '#cdb7e8'),
+  ],
 };
 
 export const earOptions: Record<Species, readonly LookOption[]> = {
@@ -272,13 +328,48 @@ export const tailOptions: Record<Species, readonly LookOption[]> = {
 
 // The breed's own look, the starting point of the customize step.
 export function defaultLook(breed: Breed): Look {
-  return { coat: breed.coat, ear: breed.ear, tail: breed.tail };
+  const look: Look = { coat: breed.coat, ear: breed.ear, tail: breed.tail };
+  if (breed.pattern) {
+    look.pattern = breed.pattern;
+  }
+  if (breed.accent) {
+    look.accent = breed.accent;
+  }
+  return look;
 }
 
-// The swatches for a breed: its own coat first, then the species palette without duplicates.
-export function coatSwatchesFor(breed: Breed): string[] {
-  const own = breed.coat.toLowerCase();
-  return [breed.coat, ...coatPalette[breed.species].filter((color) => color.toLowerCase() !== own)];
+const sameHex = (a: string | undefined, b: string | undefined) => (a ?? '').toLowerCase() === (b ?? '').toLowerCase();
+
+// Whether a look's coat is this style (same base color, pattern, and accent).
+export function isCoatStyle(look: Look, style: CoatStyle): boolean {
+  return (
+    sameHex(look.coat, style.coat) &&
+    (look.pattern ?? 'none') === (style.pattern ?? 'none') &&
+    (style.pattern === 'points' ? sameHex(look.accent, style.accent) : true)
+  );
+}
+
+// The coat styles for a breed: its own coat first, then the species styles without duplicates.
+export function coatStylesFor(breed: Breed): CoatStyle[] {
+  const own: CoatStyle = {
+    id: `${breed.id}-own`,
+    label: `${breed.name} classic`,
+    coat: breed.coat,
+    pattern: breed.pattern,
+    accent: breed.accent,
+  };
+  const ownLook = defaultLook(breed);
+  return [own, ...coatStyles[breed.species].filter((style) => !isCoatStyle(ownLook, style))];
+}
+
+// The look for a coat style, keeping the ears and tail already chosen.
+export function lookWithCoat(look: Look, style: CoatStyle): Look {
+  // A solid style says so explicitly, so it clears a breed's own pattern (a Siamese's points).
+  const next: Look = { coat: style.coat, ear: look.ear, tail: look.tail, pattern: style.pattern ?? 'none' };
+  if (style.accent) {
+    next.accent = style.accent;
+  }
+  return next;
 }
 
 // The breed with a pet's look applied. Anatomy is untouched. Ear and muzzle colors follow the coat
@@ -287,16 +378,33 @@ export function resolveBreed(breed: Breed, look: Look | null | undefined): Breed
   if (!look) {
     return breed;
   }
-  const recolored = look.coat.toLowerCase() !== breed.coat.toLowerCase();
   const ear = breed.species === 'dog' && earOptions.dog.some((option) => option.id === look.ear) ? look.ear : breed.ear;
   const tail = tailOptions[breed.species].some((option) => option.id === look.tail) ? look.tail : breed.tail;
+  const pattern = look.pattern ?? breed.pattern;
+  const accent = look.accent ?? breed.accent;
+  const patternChanged =
+    (pattern ?? 'none') !== (breed.pattern ?? 'none') || (pattern === 'points' && !sameHex(accent, breed.accent));
+  const recolored = !sameHex(look.coat, breed.coat) || patternChanged;
+  let earColor = breed.earColor;
+  let muzzle = breed.muzzle;
+  if (recolored) {
+    if (pattern === 'points' && accent) {
+      earColor = accent;
+      muzzle = accent;
+    } else {
+      earColor = mixHexColor(look.coat, '#000000', 0.22);
+      muzzle = mixHexColor(look.coat, '#ffffff', 0.45);
+    }
+  }
   return {
     ...breed,
     coat: look.coat,
     ear: ear as EarShape,
     tail: tail as TailShape,
-    earColor: recolored && breed.pattern !== 'points' ? mixHexColor(look.coat, '#000000', 0.22) : breed.earColor,
-    muzzle: recolored && breed.pattern !== 'points' ? mixHexColor(look.coat, '#ffffff', 0.45) : breed.muzzle,
+    pattern,
+    accent,
+    earColor,
+    muzzle,
   };
 }
 

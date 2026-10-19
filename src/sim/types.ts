@@ -25,6 +25,10 @@ export type Look = {
   coat: string;
   ear: string;
   tail: string;
+  // A coat combination: stripes darken the coat, points put the accent on ears, legs, tail, and muzzle.
+  // Omitted means the breed's own pattern.
+  pattern?: 'stripes' | 'points' | 'none';
+  accent?: string;
 };
 
 export type PetAttributes = {

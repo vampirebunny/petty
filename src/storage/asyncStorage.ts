@@ -58,7 +58,14 @@ function readLook(value: unknown): Look | null {
   if (typeof value.coat !== 'string' || typeof value.ear !== 'string' || typeof value.tail !== 'string') {
     return null;
   }
-  return { coat: value.coat, ear: value.ear, tail: value.tail };
+  const look: Look = { coat: value.coat, ear: value.ear, tail: value.tail };
+  if (value.pattern === 'stripes' || value.pattern === 'points' || value.pattern === 'none') {
+    look.pattern = value.pattern;
+  }
+  if (typeof value.accent === 'string') {
+    look.accent = value.accent;
+  }
+  return look;
 }
 
 // A pet saved in an older shape (litter variants, temperament, no look) does not load, and

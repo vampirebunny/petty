@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { coatSwatchesFor, earOptions, tailOptions } from '../../actor';
-import type { Breed, LookOption } from '../../actor';
+import { coatStylesFor, earOptions, isCoatStyle, lookWithCoat, tailOptions } from '../../actor';
+import type { Breed, CoatStyle, LookOption } from '../../actor';
 import type { Look } from '../../sim';
 
 type Props = {
@@ -9,10 +9,6 @@ type Props = {
   look: Look;
   onChange: (look: Look) => void;
 };
-
-function sameColor(a: string, b: string): boolean {
-  return a.toLowerCase() === b.toLowerCase();
-}
 
 function OptionRow({
   title,
@@ -45,29 +41,50 @@ function OptionRow({
   );
 }
 
-// Coat color from a fixed palette, ears (dogs only, the reference cats have one ear shape), and tail.
+// A round preview of a coat: the base color, with the accent on one half for points and
+// darker bands for stripes.
+function Swatch({ style, on, onPress }: { style: CoatStyle; on: boolean; onPress: () => void }) {
+  return (
+    <Pressable
+      style={[styles.swatch, { backgroundColor: style.coat }, on && styles.swatchOn]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`Coat ${style.label}`}
+      accessibilityState={{ selected: on }}
+    >
+      {style.pattern === 'points' && style.accent ? (
+        <View style={[styles.half, { backgroundColor: style.accent }]} />
+      ) : null}
+      {style.pattern === 'stripes' ? (
+        <View style={styles.stripes}>
+          <View style={styles.stripe} />
+          <View style={styles.stripe} />
+          <View style={styles.stripe} />
+        </View>
+      ) : null}
+    </Pressable>
+  );
+}
+
+// Coat style (solids, stripes, points), ears (dogs only, the reference cats have one ear shape), and tail.
 export function LookPicker({ breed, look, onChange }: Props) {
-  const swatches = coatSwatchesFor(breed);
+  const styleList = coatStylesFor(breed);
+  const active = styleList.find((style) => isCoatStyle(look, style));
   const ears = earOptions[breed.species];
   const tails = tailOptions[breed.species];
   return (
     <View style={styles.stack}>
       <View style={styles.group}>
-        <Text style={styles.groupTitle}>Coat color</Text>
+        <Text style={styles.groupTitle}>Coat{active ? `: ${active.label}` : ''}</Text>
         <View style={styles.row}>
-          {swatches.map((color) => {
-            const on = sameColor(color, look.coat);
-            return (
-              <Pressable
-                key={color}
-                style={[styles.swatch, { backgroundColor: color }, on && styles.swatchOn]}
-                onPress={() => onChange({ ...look, coat: color })}
-                accessibilityRole="button"
-                accessibilityLabel={`Coat color ${color}`}
-                accessibilityState={{ selected: on }}
-              />
-            );
-          })}
+          {styleList.map((style) => (
+            <Swatch
+              key={style.id}
+              style={style}
+              on={active?.id === style.id}
+              onPress={() => onChange(lookWithCoat(look, style))}
+            />
+          ))}
         </View>
       </View>
       {ears.length > 0 ? (
@@ -102,10 +119,28 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 2,
     borderColor: '#D0D8E3',
+    overflow: 'hidden',
   },
   swatchOn: {
     borderColor: '#243044',
     borderWidth: 4,
+  },
+  half: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    right: 0,
+    width: '50%',
+  },
+  stripes: {
+    ...StyleSheet.absoluteFill,
+    flexDirection: 'row',
+    justifyContent: 'space-evenly',
+  },
+  stripe: {
+    width: 4,
+    height: '100%',
+    backgroundColor: 'rgba(0,0,0,0.35)',
   },
   chip: {
     backgroundColor: '#fff',

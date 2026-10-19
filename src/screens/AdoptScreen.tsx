@@ -3,7 +3,16 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-
 
 import { cleanName, nameLimit } from '../adopt/name';
 import { newSeed } from '../adopt/seed';
-import { breedById, breedsFor, coatSwatchesFor, defaultLook, earOptions, tailOptions } from '../actor';
+import {
+  breedById,
+  breedsFor,
+  coatStylesFor,
+  defaultLook,
+  earOptions,
+  isCoatStyle,
+  lookWithCoat,
+  tailOptions,
+} from '../actor';
 import type { Breed, Species } from '../actor/types';
 import { attributesFor, generateOffers } from '../sim';
 import type { Archetype, Look, PetAttributes } from '../sim';
@@ -18,21 +27,17 @@ type Props = {
   onAdopt: (breedId: string, attributes: PetAttributes, look: Look, name: string) => void;
 };
 
-function sameColor(a: string, b: string): boolean {
-  return a.toLowerCase() === b.toLowerCase();
-}
-
 // Keep as much of the previous look as the next breed allows; fill the rest from its defaults.
 function lookForBreed(breed: Breed, previous: Look | null): Look {
   const defaults = defaultLook(breed);
   if (!previous) {
     return defaults;
   }
-  const coats = coatSwatchesFor(breed);
+  const style = coatStylesFor(breed).find((candidate) => isCoatStyle(previous, candidate));
   const ears = earOptions[breed.species];
   const tails = tailOptions[breed.species];
   return {
-    coat: coats.some((color) => sameColor(color, previous.coat)) ? previous.coat : defaults.coat,
+    ...(style ? lookWithCoat(defaults, style) : defaults),
     ear: ears.some((option) => option.id === previous.ear) ? previous.ear : defaults.ear,
     tail: tails.some((option) => option.id === previous.tail) ? previous.tail : defaults.tail,
   };

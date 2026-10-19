@@ -2,10 +2,10 @@ import type { BreedRanges } from '../sim/types';
 
 // Potential ceilings per breed, as min to max per attribute, in the order
 // stamina, agility, intelligence, boldness, affection, obedience.
-// These are tuning numbers: nothing in logic hardcodes them. Retriever, corgi, tabby,
-// siamese, black and mainecoon midpoints sum to 375; dachshund, husky, pug and persian
-// sum to a little less, which the generator absorbs by pushing those breeds slightly
-// above their midpoints.
+// These are tuning numbers: nothing in logic hardcodes them. Retriever, corgi,
+// Domestic Shorthair (id tabby), Siamese, Bombay (id black) and Maine Coon midpoints
+// sum to 375; dachshund, husky, pug and persian sum to a little less, which the
+// generator absorbs by pushing those breeds slightly above their midpoints.
 type Row = [number, number][];
 
 function ranges(row: Row): BreedRanges {

@@ -3,14 +3,16 @@ export {
   breedsFor,
   catBreeds,
   catTasks,
-  coatPalette,
-  coatSwatchesFor,
+  coatStyles,
+  coatStylesFor,
   defaultLook,
   dogBreeds,
   dogTasks,
   earOptions,
+  isCoatStyle,
   isDarkCoat,
   limbSize,
+  lookWithCoat,
   pitchFor,
   resolveBreed,
   resolveBreedById,
@@ -18,7 +20,7 @@ export {
   tailOptions,
   voiceRate,
 } from './breeds';
-export type { LookOption } from './breeds';
+export type { CoatStyle, LookOption } from './breeds';
 export { canBehave, isUserTask, reactionFor, userTasks } from './behavior';
 export { bagAmount, bodyFrame, depthScale, geomOf, thickOf } from './geometry';
 export { easeOut, growthFor, smoothstep, visualProgress } from './growth';
