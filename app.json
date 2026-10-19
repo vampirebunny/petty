@@ -18,7 +18,10 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -37,6 +40,11 @@
       "expo-secure-store",
       "expo-web-browser",
       "./modules/age-signals/app.plugin.js"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "2b7285d6-d03f-453f-96bc-01c556649375"
+      }
+    }
   }
 }
