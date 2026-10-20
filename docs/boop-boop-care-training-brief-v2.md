@@ -1,6 +1,8 @@
 # Boop Boop — Care & Training Systems Brief v2 (for Cursor)
 
-**Status:** This document **supersedes** the original brief and Addendums 1–3. Discard those. The v2.2 trick-pacing patch is folded in below: trick tiers, unlock days, `pSuccess`, and the treat regen numbers. House training still uses the v2 gain and age factor, because the v2.1 house-training numbers are not in the repo.
+**Status:** This document **supersedes** the original brief and Addendums 1–3. Discard those. The v2.2 trick-pacing patch is folded in below: trick tiers, unlock days, `pSuccess`, and the treat regen numbers.
+
+**Shipped change:** Potty, messes, cleanup, house training, and the post-mastery walk are not in the game. Sections 6, 7, and 8 below are retired. Shipped tricks are Sit, Speak, and Paw. Paw (High five for cats) unlocks when Sit and Speak are both mastered. A new unlock plays "New trick!" and the training ring becomes a New! button. Mastered tricks are candy buttons in Learned Tricks, with no extra text pill.
 **PRD:** This pack **replaces F5** (see §0.2). Where this brief references an existing spec (R1.6, R2.11, R3.4, R3.8, R4.7, R7.5), the existing spec wins.
 **Tuning:** Every number lives in `src/game/config.ts`. §15 lists all defaults.
 
@@ -9,8 +11,8 @@
 ## 0. Scope and precedence
 
 ### 0.1 What this adds
-- **Care:** potty, cleanup, walks (dogs), bath (dogs), brush (cats).
-- **Training:** 0–100 tracks for house training and tricks.
+- **Care:** baths (dogs) and brushing (cats) remain specified and are not built. Potty, cleanup, and potty walks are removed.
+- **Training:** 0–100 tracks for tricks. House training is removed.
 - **Collection:** treat economy, inventory, milestones.
 
 ### 0.2 F5 is replaced
@@ -30,7 +32,7 @@ Update the PRD to mark F5 as superseded by this brief:
 2. **Nothing succeeds or fails while the app is closed.** Signals and reward windows only happen in the foreground. Away time only produces capped, passive outcomes (§11).
 3. **Time of day is visual only** (R4.7). It never writes pet state. Overnight protection comes from the existing **Rest** state.
 4. **No lockouts from vitality** (R2.11).
-5. **One generic training-track engine** for house training and all tricks.
+5. **One generic training-track engine** for all tricks. House training is not a track.
 6. **Pure logic.** The game rules are pure TS modules with no React, unit-tested.
 
 ---
@@ -43,10 +45,6 @@ interface PetCareState {
   hygiene: number;                 // 0–100
   lastBathAt: number | null;
   lastBrushAt: number | null;
-  messes: Mess[];                  // persistent scenes only (indoor rooms, park)
-  litterBoxFill: number;           // cats, post-mastery: 0–100
-  potty: PottyCycle;
-  walk: { dueAt: number | null };  // dogs, post-mastery
   bathTolerance: number;           // -100…100, rolled once at adoption
   bathToleranceStart: number;      // for the Bath Buddy milestone
   pausedCycleRemainingMs?: number; // potty cycle paused during Rest
@@ -192,24 +190,22 @@ Never show days, ages, stage names or attribute numbers. Locked tricks appear as
 ## 5. Track table
 | id | species | tier | prerequisites | unlock | gain | linked |
 |---|---|---|---|---|---|---|
-| house_training | dog, cat | — | — | at adoption | 3.0 (own formula) | obedience |
 | sit | dog, cat | 1 | — | at adoption | 15 | obedience |
 | speak | dog, cat | 1 | — | at adoption | 15 | obedience |
 | come_when_called | cat | 1 | — | minAgeDays 1 | 15 | obedience |
-| paw | dog | 2 | dog: sit | minAgeDays 1 | 7.5 | obedience |
+| paw | dog, cat | 2 | sit and speak | when both are mastered | 7.5 | obedience |
 | lie_down | dog | 2 | dog: sit | minAgeDays 2 | 7.5 | obedience, intelligence |
-| high_five | dog, cat | 2 | dog: paw · cat: sit | minAgeDays 3 | 7.5 | obedience |
 | roll_over | dog | 3 | dog: lie_down | minAgeDays 5 | 5 | obedience, intelligence |
 
-Roll over has no intelligence gate. Tier base gain is 15 / 7.5 / 5.
+Roll over has no intelligence gate. Tier base gain is 15 / 7.5 / 5. Shipped tracks are sit, speak, and paw. Cats use the paw track as High five. There is no separate high-five track and no house-training track.
 
-`hideWhenMastered` is true only for house_training.
-
-**Buttons:** the existing Sit, Paw and Speak buttons are the training entry points. A locked track's button is hidden. Unlocked tracks: a tap is a rep. Mastered tracks: a tap is a show-off pose. The cat's Speak button keeps the meow and follows the same rules, so before mastery the cat sometimes ignores the cue. Other tricks get buttons in the training panel.
+**Buttons:** In Training rings are the practice buttons while a trick is unlocked and not mastered. A locked Paw or High five ring stays visible and is not tappable until Sit and Speak are both mastered. Unlocking it plays "New trick!" and the ring caption becomes New! while it pulses. Mastered tracks move to Learned Tricks as candy buttons (Sit, Give paw or High five, Speak) with no extra text pill. A tap on a mastered trick is a show-off pose. The cat's Speak button keeps the meow and follows the same rules, so before mastery the cat sometimes ignores the cue.
 
 ---
 
 ## 6. House training (pre-mastery)
+
+**Retired.** Do not build this. There is no house-training track, urge, signal, or accident.
 
 UI labels: meter **"House Training"**. Button **"Go Out"** (dog) / **"Litter Box"** (cat).
 
@@ -237,6 +233,8 @@ Separate from urges, pre-mastery pets have random accidents at `randomAccidentRa
 
 ## 7. After mastery
 
+**Retired with §6.** There is no litter-fill loop and no potty walk.
+
 ### 7.1 Cat litter box
 - The cat goes on its own every `postMasteryCatPottyInterval` (awake time). Each time adds `litterFillPerUse`.
 - Above `litterAccidentThreshold`, each `careCheckInterval` of awake time rolls `litterAccidentChance` for an indoor accident.
@@ -253,6 +251,8 @@ Separate from urges, pre-mastery pets have random accidents at `randomAccidentRa
 ---
 
 ## 8. Cleanup
+
+**Retired with §6.** There are no messes and no Clean mode.
 - **Clean** enters tool mode: scooper indoors, bag outdoors, rake on the litter box. A one-time coach mark says "Tap the messes to clean them!" Each tap plays a scoop animation, a sparkle and a sound. Tool mode exits automatically when the scene is clean, or with ✕.
 - **Clean lights up only when the current scene has messes.**
 - **Mess cap:** at most `maxMesses` (3) across all persistent scenes. At the cap, new accidents don't spawn.
@@ -335,20 +335,16 @@ This runs in `simulate()` on return, in awake time only, with **the same rules a
 Apply `awayHappinessFloor` (40) **once, at the end of a catch-up pass** in which the gap was ≥ `welcomeBackGap`, after all existing drains. It is **not** a live floor.
 
 ### Welcome back
-When the gap is ≥ `welcomeBackGap` (8 h), the pet runs in excited. Text: "{Name} missed you!" If there are messes, add "A couple of messes to clean up." With zero messes, the greeting plays alone.
+When the gap is ≥ `welcomeBackGap` (8 h), the greeting is "{Name} missed you!" There is no mess line.
 
 ---
 
 ## 12. UI
 
-- **No status bubble on stage.** On the stage, the pet's behavior is the only cue: signaling, dirt, tired poses, the litter box state.
-- **Care chips go inline with the existing Tummy, Energy and Mood rings**, in the same row and style. A chip appears only when its need is due:
-  - **Potty** (pulses during a signal)
-  - **Clean** (with a count; tapping navigates per §8)
-  - **Bath** or **Brush**
-  - **Walk**
-- **House Training progress** is a small ring in the same row until mastered, then it's removed.
-- **Training panel:** unlocked tracks with 0–100 bars, today's reps against the cap, locked silhouettes with hints, and buttons for tricks that aren't on the main bar.
+- **No status bubble on stage.**
+- **In Training** shows a ring for each unmastered shipped trick. Paw or High five stays locked, with a hint, until Sit and Speak are both mastered. On unlock the ring pulses and its caption is New!.
+- **Learned Tricks** lists mastered tricks as candy buttons only: Sit, Give paw (dogs) or High five (cats), and Speak. No second text pill for those tricks.
+- Bath, brush, potty, clean, and walk chips are not on the home screen.
 - **Coach marks** appear once per action. Seen marks are stored in `seenCoachMarks`.
 - Care actions use buttons, not gestures. Gestures stay reserved for toys.
 
@@ -358,8 +354,8 @@ When the gap is ≥ `welcomeBackGap` (8 h), the pet runs in excited. Text: "{Nam
 
 - **One shared scheduler.** Refactor the existing meal/rest reminder scheduler into a single `NotificationScheduler`. It owns every local notification. Each time state changes, it computes the **full desired set** (the existing meal/rest reminder plus care) and does cancel-all, then schedule-all. Nothing else schedules notifications.
 - **Opt-in**, separately for care notifications. The existing reminder keeps its current setting.
-- **Care types:** a potty urge is due (pre-mastery), messes are waiting, a walk is due, a bath or brush is due, a training cap has reset, treats are full.
-- **Daily max of 3 for all notifications combined.** Priority order: meal/rest reminder, then potty, walk, messes, bath/brush, training reset, treats full.
+- **Care types:** a training cap has reset, treats are full. No potty or mess notifications.
+- **Daily max of 3 for all notifications combined.** Priority order: meal/rest reminder, then training reset, treats full.
 - **Quiet hours** use device local time. That's allowed because it's a device setting, not pet state.
 
 ---
@@ -462,24 +458,24 @@ When the gap is ≥ `welcomeBackGap` (8 h), the pet runs in excited. Text: "{Nam
 **Pacing rule** (a config test enforces it):
 - No trick needs more than 3 daily caps of full-credit reps at the lowest starting intelligence (about 9).
 - That is about 8 / 16 / 24 reps for tiers 1 / 2 / 3.
-- House training still uses base gain 3.0 and the age factor, so it stays the slower track.
+- There is no house-training gain and no age factor on tricks.
 
 ---
 
 ## 16. Acceptance criteria
-1. A new pet shows the House Training ring. Urges only signal in the foreground. Backgrounding pauses the signal, and a long absence cancels it with no mess.
-2. Dog potty goes to the sidewalk; cat potty goes to the litter box. Credit pays 1.0, 0.5 or 0.25 by treat timing. XP is flat for any successful rep. Attribute gain scales with credit.
-3. An indoor miss spawns a mess and penalizes the next rep. A park miss spawns a mess with no penalty.
-4. At mastery the ring is removed. Cat litter fill and accidents work as specified. Dog walks come due, and overdue accidents and drain work as specified. Sidewalk messes clear when the walk ends.
-5. Trick buttons hide when locked, act as reps when unlocked, and always perform when mastered. Failed reps open no window and pay nothing. Hints show the first unmet condition with no numbers.
+1. A new pet shows Sit and Speak ready to train, and Paw or High five locked until both are mastered. There is no house-training ring, urge, or mess.
+2. Mastering the second of Sit and Speak unlocks Paw immediately. Dogs see Paw, then Give paw. Cats see High five. The unlock plays "New trick!" after any mastery badge, and the ring caption becomes New!.
+3. Trick credit pays 1.0, 0.5 or 0.25 by treat timing. XP is flat for any successful rep. Attribute gain scales with credit.
+4. There is no potty scene change, litter-fill loop, or cleanup mode. Litter boxes in cat rooms are scenery.
+5. A locked ring is not a rep. An unlocked ring is a rep. A mastered trick always performs from its Learned Tricks candy button, with no extra text pill. Failed reps open no window and pay nothing. Hints show the first unmet condition with no numbers.
 6. `lie_down` and `roll_over` split attribute gain evenly. All gains go through `trainingGain`. There are no `grantFlatAttributes` calls in care or training code.
 7. Bath tolerance is rolled once from Boldness potential plus modifiers and matches the target outcomes in §9. Bath treats raise it.
 8. Casual and reward treats follow the §10 table. Regen pauses at 15. Playdates give no treats. For every trick, mastery takes at most 3 daily caps of full-credit reps at the lowest starting intelligence.
-9. Reopening after 24 h: the house-trained, cared-for pet has 0 messes. The untrained pet has ≤ 3. Happiness is ≥ 40 after catch-up. The welcome back plays. Training is unchanged.
+9. Reopening after a gap of at least 8 h floors happiness at 40 and plays "{Name} missed you!" Training is unchanged. There are no messes.
 10. Discarding a pet removes its care, training and milestone state and its care notifications. The inventory survives.
 11. Only `NotificationScheduler` schedules notifications. It enforces a combined daily max of 3.
 12. No `Math.random()` in game logic. Care rolls advance `pet.rngState`. Playdate RNG is untouched.
-13. Unit tests cover `simulate()` over 5 s, 1 h, 8 h and 72 h gaps for untrained, trained-cat and trained-dog pets, plus the gain formula, unlock evaluation, and the reward-window credit.
+13. Unit tests cover the gain formula, Paw unlocking only after Sit and Speak for dogs and cats, and the reward-window credit.
 
 ## 17. Out of scope (stub or flag only)
 - IAP store integration (`purchaseItem()` stub only).

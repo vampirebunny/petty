@@ -19,8 +19,7 @@ import {
 } from './config';
 import { canRaiseMood } from './mood';
 import { nextRng } from './rng';
-import { beginPotty, headHome, rememberScene } from './potty';
-import { cleanMess } from './messes';
+import { rememberScene } from './game';
 import { resolveReward, rollTrick } from './training';
 import type { CareSample, Cue, PetCareState, PetEvent, PetState, TrainingTrack } from './types';
 
@@ -43,13 +42,6 @@ function addHappiness(state: PetState, delta: number): void {
 function copyCare(care: PetCareState): PetCareState {
   return {
     ...care,
-    messes: care.messes.map((mess) => ({ ...mess })),
-    potty: {
-      ...care.potty,
-      signal: care.potty.signal ? { ...care.potty.signal } : null,
-      outing: care.potty.outing ? { ...care.potty.outing } : null,
-    },
-    walk: { ...care.walk },
     pendingReward: care.pendingReward ? { ...care.pendingReward } : null,
     unclaimed: { ...care.unclaimed },
     recentScenes: [...care.recentScenes],
@@ -149,20 +141,6 @@ export function applyEvent(state: PetState, event: PetEvent): EventResult {
       return { state, cue: { kind: 'none' } };
     }
     return { state: withDerived(resolveReward(copyState(state), event.now, 'basic')), cue: { kind: 'none' } };
-  }
-
-  if (event.type === 'goPotty') {
-    const next = beginPotty(copyState(state), event.now);
-    const moved = next.sceneId !== state.sceneId || next.care.potty.outing != null;
-    return { state: withDerived(next), cue: { kind: moved ? 'potty' : 'none' } };
-  }
-
-  if (event.type === 'returnHome') {
-    return { state: withDerived(headHome(copyState(state), event.now)), cue: { kind: 'none' } };
-  }
-
-  if (event.type === 'cleanMess') {
-    return { state: cleanMess(copyState(state), event.messId), cue: { kind: 'none' } };
   }
 
   if (event.type === 'claimGrants') {

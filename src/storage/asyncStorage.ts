@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { withDerived } from '../sim/attributes';
-import { ensureGame } from '../sim/potty';
+import { ensureGame } from '../sim/game';
 import { clampWeight } from '../sim/care';
 import {
   archetypes,

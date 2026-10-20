@@ -1,6 +1,6 @@
 import { breedById } from '../actor/breeds';
-import { careConfig, type TrickTier } from './careConfig';
-import { attributeScore, stageOf } from './attributes';
+import type { TrickTier } from './careConfig';
+import { attributeScore } from './attributes';
 import type { PetState, TrainingTrack, Trait } from './types';
 
 export type SpeciesId = 'dog' | 'cat';
@@ -24,16 +24,6 @@ export type TrackDef = {
 
 // This slice ships the tracks whose poses already exist. Later tricks stay out until they have animation.
 export const trackDefs: TrackDef[] = [
-  {
-    id: 'house_training',
-    name: 'House Training',
-    species: ['dog', 'cat'],
-    hideWhenMastered: true,
-    prerequisites: {},
-    unlock: {},
-    linked: ['obedience'],
-    button: 'panel',
-  },
   {
     id: 'sit',
     name: 'Sit',
@@ -59,10 +49,10 @@ export const trackDefs: TrackDef[] = [
   {
     id: 'paw',
     name: 'Paw',
-    species: ['dog'],
+    species: ['dog', 'cat'],
     hideWhenMastered: false,
-    prerequisites: { dog: ['sit'] },
-    unlock: { dog: { minAgeDays: 1 } },
+    prerequisites: { dog: ['sit', 'speak'], cat: ['sit', 'speak'] },
+    unlock: {},
     tier: 2,
     linked: ['obedience'],
     button: 'main',
@@ -73,6 +63,13 @@ const byId = new Map(trackDefs.map((def) => [def.id, def]));
 
 export function trackDef(id: string): TrackDef | null {
   return byId.get(id) ?? null;
+}
+
+export function trackName(id: string, species: SpeciesId): string {
+  if (id === 'paw' && species === 'cat') {
+    return 'High five';
+  }
+  return byId.get(id)?.name ?? id;
 }
 
 export function speciesOf(breedId: string): SpeciesId {
@@ -126,7 +123,7 @@ export function isUnlocked(state: PetState, def: TrackDef): boolean {
   return prereqsMet(state, def, species) && ruleMet(state, def.unlock[species]);
 }
 
-// Newly unlocked tracks this pass. House training starts unlocked, so it is not announced.
+// Newly unlocked tracks this pass.
 export function refreshUnlocks(state: PetState): { state: PetState; unlocked: string[] } {
   const training = { ...state.training };
   const unlocked: string[] = [];
@@ -139,9 +136,7 @@ export function refreshUnlocks(state: PetState): { state: PetState; unlocked: st
       continue;
     }
     training[def.id] = { ...track, unlocked: true };
-    if (def.id !== 'house_training') {
-      unlocked.push(def.id);
-    }
+    unlocked.push(def.id);
   }
   return { state: { ...state, training }, unlocked };
 }
@@ -171,12 +166,4 @@ export function lockHint(state: PetState, def: TrackDef): string | null {
     }
   }
   return null;
-}
-
-export function houseTrained(state: PetState): boolean {
-  return state.training.house_training?.mastered === true;
-}
-
-export function ageFactorOf(state: PetState): number {
-  return careConfig.ageFactor[stageOf(state.ageDays)];
 }

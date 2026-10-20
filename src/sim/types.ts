@@ -73,31 +73,6 @@ export type OutfitSlot = 'collar' | 'bandana' | 'glasses' | 'hat' | 'coat' | 'bo
 
 export type Equipped = Partial<Record<OutfitSlot, string>>;
 
-export type Mess = {
-  id: string;
-  sceneId: string;
-  x: number;
-  y: number;
-  createdAt: number;
-};
-
-export type PottySignal = {
-  startedAt: number;
-  remainingMs: number;
-};
-
-export type PottyOuting = {
-  returnSceneId: string;
-  goesAt: number;
-};
-
-export type PottyCycle = {
-  nextUrgeAt: number | null;
-  signal: PottySignal | null;
-  pausedAt: number | null;
-  outing: PottyOuting | null;
-};
-
 export type PendingReward = {
   trackId: string;
   openedAt: number;
@@ -112,14 +87,9 @@ export type PetCareState = {
   hygiene: number;
   lastBathAt: number | null;
   lastBrushAt: number | null;
-  messes: Mess[];
-  litterBoxFill: number;
-  potty: PottyCycle;
-  walk: { dueAt: number | null };
   bathTolerance: number;
   bathToleranceStart: number;
   pendingReward: PendingReward | null;
-  returnSceneId: string | null;
   unclaimed: TreatGrant;
   recentScenes: string[];
 };
@@ -197,9 +167,6 @@ export type PetEvent =
   | { type: 'trickRep'; trackId: string; now: number }
   | { type: 'rewardTreat'; tier: 'basic' | 'special'; now: number }
   | { type: 'rewardCuddle'; now: number }
-  | { type: 'goPotty'; now: number }
-  | { type: 'returnHome'; now: number }
-  | { type: 'cleanMess'; messId: string }
   | { type: 'claimGrants' }
   | { type: 'clearTreats' }
   | { type: 'seeCoach'; id: string };
@@ -220,9 +187,7 @@ export type Cue = {
     | 'stir'
     | 'yawn'
     | 'fetch'
-    | 'confused'
-    | 'signal'
-    | 'potty';
+    | 'confused';
   drop?: { x: number; y: number };
   flick?: { vx: number; vy: number; vz: number };
 };

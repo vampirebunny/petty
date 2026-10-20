@@ -10,9 +10,12 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { Award } from 'lucide-react-native';
+import type { LucideIcon } from 'lucide-react-native';
 
 type Props = {
   title: string;
+  caption?: string;
+  Icon?: LucideIcon;
   reducedMotion: boolean;
   onDone: () => void;
 };
@@ -41,7 +44,7 @@ function Particle({ angle, distance, color, still }: { angle: number; distance: 
 }
 
 // Badge pops in with a spring and a wobble while confetti bursts out, then clears itself.
-export function BadgeCelebration({ title, reducedMotion, onDone }: Props) {
+export function BadgeCelebration({ title, caption = 'Badge earned!', Icon = Award, reducedMotion, onDone }: Props) {
   const pop = useSharedValue(reducedMotion ? 1 : 0);
   const wobble = useSharedValue(0);
   const fade = useSharedValue(1);
@@ -65,15 +68,15 @@ export function BadgeCelebration({ title, reducedMotion, onDone }: Props) {
   const wrap = useAnimatedStyle(() => ({ opacity: fade.value }));
 
   return (
-    <Animated.View style={[styles.overlay, wrap]} pointerEvents="none" accessible accessibilityLiveRegion="polite" accessibilityLabel={`Badge earned: ${title}`}>
+    <Animated.View style={[styles.overlay, wrap]} pointerEvents="none" accessible accessibilityLiveRegion="polite" accessibilityLabel={`${caption} ${title}`}>
       <View style={styles.center}>
         {particles.map((particle) => (
           <Particle key={particle.angle} {...particle} still={reducedMotion} />
         ))}
         <Animated.View style={[styles.badge, badge]}>
-          <Award size={56} strokeWidth={2.2} color="#8A4210" fill="#FFD166" />
+          <Icon size={56} strokeWidth={2.2} color="#8A4210" fill="#FFD166" />
         </Animated.View>
-        <Text style={styles.caption}>Badge earned!</Text>
+        <Text style={styles.caption}>{caption}</Text>
         <Text style={styles.title}>{title}</Text>
       </View>
     </Animated.View>

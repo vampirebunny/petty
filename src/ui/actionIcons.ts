@@ -20,6 +20,7 @@ import {
   Shovel,
   Backpack,
   Footprints,
+  Hand,
 } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
 
@@ -57,12 +58,12 @@ export const actionIcons: Record<string, LucideIcon> = {
 // `play: Target` here and `play: 'Laser'` below, and nothing else changes.
 const speciesIcons: Record<ActionSpecies, Record<string, LucideIcon>> = {
   dog: {},
-  cat: {},
+  cat: { paw: Hand },
 };
 
 const speciesLabels: Record<ActionSpecies, Record<string, string>> = {
-  dog: {},
-  cat: {},
+  dog: { paw: 'Give paw' },
+  cat: { paw: 'High five' },
 };
 
 export function iconFor(actionId: string, species: ActionSpecies = 'dog'): LucideIcon | null {

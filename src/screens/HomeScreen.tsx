@@ -25,8 +25,7 @@ import { loadMusicEnabled, loadSoundEnabled, saveMusicEnabled, saveSoundEnabled 
 import { usePet } from '../state/usePet';
 import { useEconomy } from '../economy/useEconomy';
 import { basicTreatId, emptyEconomy, minutesUntilTreat, rewardTierAvailable, specialTreatId, stackQty } from '../economy/state';
-import { messDestination, messesIn, messStage } from '../sim/messes';
-import { houseTrained } from '../sim/tracks';
+import { trackName } from '../sim/tracks';
 import {
   ghostDelayMs,
   ghostEligible,
@@ -41,9 +40,10 @@ import { usePlaydates } from '../state/usePlaydates';
 import { formatCooldown } from '../playdate/cooldown';
 import { DebugPanel } from '../ui/DebugPanel';
 import { NeedRings } from '../ui/NeedRings';
-import { CareChips } from '../ui/CareChips';
 import { TrainingRings } from '../ui/TrainingRings';
 import { BadgeCelebration } from '../ui/BadgeCelebration';
+import { speciesLabel } from '../ui/actionIcons';
+import { Sparkles } from 'lucide-react-native';
 import { playBadgeChime } from '../audio/badge';
 import { PetView } from '../ui/PetView';
 import { useStageSize } from '../ui/useStageSize';
@@ -53,7 +53,6 @@ import type { FeedbackHandle } from '../ui/cuddle/CuddleFeedback';
 import { CoachMarks, CuddleHelpSheet, GhostFinger } from '../ui/cuddle/CuddleGuidance';
 
 const badgeLabels: Record<string, string> = {
-  house_training: 'Housebroken',
   sit: 'Sit',
   speak: 'Speak',
   paw: 'Paw',
@@ -61,8 +60,8 @@ const badgeLabels: Record<string, string> = {
 
 function earnedBadges(milestones: string[], species: 'dog' | 'cat') {
   return Object.keys(badgeLabels)
-    .filter((id) => milestones.includes(id) && (id !== 'paw' || species === 'dog'))
-    .map((id) => ({ id, label: badgeLabels[id] }));
+    .filter((id) => milestones.includes(id))
+    .map((id) => ({ id, label: id === 'paw' ? trackName(id, species) : badgeLabels[id] }));
 }
 
 type Props = {
@@ -116,12 +115,8 @@ export default function HomeScreen({ petApi }: Props) {
     reset,
     release,
     finishPlaydate,
-    goPotty,
-    returnHome,
     rewardTreat,
     rewardCuddle,
-    cleanMess,
-    seeCoach,
     claimGrants,
     clearTreats,
     welcomeBack,
@@ -131,7 +126,6 @@ export default function HomeScreen({ petApi }: Props) {
     setCareTreatCount,
   } = petApi;
   const economyApi = useEconomy(state?.ownerId);
-  const [cleanOn, setCleanOn] = useState(false);
   const [inventoryOpen, setInventoryOpen] = useState(false);
   const [treatTier, setTreatTier] = useState<'basic' | 'special'>('basic');
   const lastStrokeAt = useRef(0);
@@ -144,7 +138,6 @@ export default function HomeScreen({ petApi }: Props) {
   const [personalityOpen, setPersonalityOpen] = useState(false);
   const [playOpen, setPlayOpen] = useState(false);
   const [cuddleOn, setCuddleOn] = useState(false);
-  const [traveling, setTraveling] = useState(false);
   const [coachVisible, setCoachVisible] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [sessionNumber, setSessionNumber] = useState(0);
@@ -245,17 +238,9 @@ export default function HomeScreen({ petApi }: Props) {
   const softDropHere = useCallback(
     (x: number, y: number) => {
       const point = stagePoint(x, y, viewWidth, viewHeight);
-      if (cleanOn && state) {
-        const here = messesIn(state, state.sceneId);
-        const hit = here.find((mess) => Math.hypot(mess.x - point.x, mess.y - point.y) < 48);
-        if (hit) {
-          cleanMess(hit.id);
-        }
-        return;
-      }
       throwAt(point.x, point.y);
     },
-    [cleanMess, cleanOn, state, throwAt, viewHeight, viewWidth],
+    [throwAt, viewHeight, viewWidth],
   );
   const flickHere = useCallback(
     (x: number, y: number, vx: number, vy: number) => {
@@ -561,6 +546,16 @@ export default function HomeScreen({ petApi }: Props) {
   const milestones = state?.milestones;
   const [knownMilestones, setKnownMilestones] = useState<string[] | null>(null);
   const [celebrating, setCelebrating] = useState<string | null>(null);
+  const [knownUnlockKey, setKnownUnlockKey] = useState<string | null>(null);
+  const [unlocking, setUnlocking] = useState<string | null>(null);
+  const [unlockQueue, setUnlockQueue] = useState<string[]>([]);
+  const openTrickKey = state
+    ? Object.values(state.training)
+        .filter((track) => track.unlocked)
+        .map((track) => track.id)
+        .sort()
+        .join(',')
+    : '';
   if (milestones && (knownMilestones == null || milestones.length !== knownMilestones.length)) {
     setKnownMilestones(milestones);
     if (knownMilestones != null) {
@@ -570,12 +565,35 @@ export default function HomeScreen({ petApi }: Props) {
       }
     }
   }
+  if (state && knownUnlockKey !== openTrickKey) {
+    const previous = knownUnlockKey;
+    setKnownUnlockKey(openTrickKey);
+    if (previous != null) {
+      const prevIds = previous ? previous.split(',') : [];
+      const fresh = openTrickKey.split(',').filter((id) => id && !prevIds.includes(id));
+      if (fresh.length > 0) {
+        setUnlockQueue((queue) => [...queue, ...fresh]);
+      }
+    }
+  }
+  if (state && !celebrating && !unlocking && unlockQueue.length > 0) {
+    setUnlocking(unlockQueue[0]);
+    setUnlockQueue((queue) => queue.slice(1));
+  }
   useEffect(() => {
     if (celebrating) {
       playBadgeChime();
     }
   }, [celebrating]);
+  useEffect(() => {
+    if (!unlocking) {
+      return;
+    }
+    playBadgeChime();
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }, [unlocking]);
   const finishCelebration = useCallback(() => setCelebrating(null), []);
+  const finishUnlock = useCallback(() => setUnlocking(null), []);
 
   const preset = sceneById(state?.sceneId ?? 'livingroom');
   const scene = preset;
@@ -662,11 +680,13 @@ export default function HomeScreen({ petApi }: Props) {
   };
   const learned: PetAction[] = [
     ...(state.training.sit?.mastered ? [{ id: 'sit', label: 'Sit', onPress: sit }] : []),
-    ...(species === 'dog' && state.training.paw?.mastered ? [{ id: 'paw', label: 'Give paw', onPress: givePaw }] : []),
+    ...(state.training.paw?.mastered
+      ? [{ id: 'paw', label: speciesLabel('paw', species) ?? 'Give paw', onPress: givePaw }]
+      : []),
     ...(state.training.speak?.mastered ? [{ id: 'speak', label: 'Speak', onPress: speak }] : []),
   ];
   const badges = earnedBadges(state.milestones, species).filter(
-    (badge) => badge.id !== 'sit' && badge.id !== 'speak',
+    (badge) => badge.id !== 'sit' && badge.id !== 'speak' && badge.id !== 'paw',
   );
 
   const toggles: PetAction[] = [
@@ -718,9 +738,18 @@ export default function HomeScreen({ petApi }: Props) {
     <View style={styles.root}>
       {celebrating ? (
         <BadgeCelebration
-          title={badgeLabels[celebrating] ?? 'Badge'}
+          title={celebrating === 'paw' ? trackName('paw', species) : (badgeLabels[celebrating] ?? 'Badge')}
           reducedMotion={reducedMotion}
           onDone={finishCelebration}
+        />
+      ) : null}
+      {unlocking ? (
+        <BadgeCelebration
+          title={trackName(unlocking, species)}
+          caption="New trick!"
+          Icon={Sparkles}
+          reducedMotion={reducedMotion}
+          onDone={finishUnlock}
         />
       ) : null}
       <View style={styles.sticky}>
@@ -754,7 +783,6 @@ export default function HomeScreen({ petApi }: Props) {
               onThirstDelta={applyActorThirst}
               onDrank={reportDrank}
               onAte={reportAte}
-              onTraveling={setTraveling}
               onEnergyPop={(x, y) => {
                 const view = stageToView({ x, y });
                 feedback.current?.energyGain(view.x, view.y);
@@ -771,28 +799,6 @@ export default function HomeScreen({ petApi }: Props) {
                 feedback.current?.moodGain(view.x, view.y, amount);
               }}
             />
-            {!traveling &&
-              state.care.messes
-              .filter((mess) => mess.sceneId === state.sceneId)
-              .map((mess) => {
-                const view = stageToView(mess);
-                const stage = messStage(mess.createdAt, state.lastUpdatedAt);
-                return (
-                  <View
-                    key={mess.id}
-                    pointerEvents="none"
-                    style={{
-                      position: 'absolute',
-                      left: view.x - 10,
-                      top: view.y - 8,
-                      width: 20,
-                      height: 16,
-                      borderRadius: 8,
-                      backgroundColor: stage === 'flies' ? '#6b4f2a' : stage === 'stink' ? '#8a6a32' : '#c4a15a',
-                    }}
-                  />
-                );
-              })}
             <CuddleFeedback feedbackRef={feedback} reducedMotion={reducedMotion} />
             {ghost && cuddleOn ? (
               <GhostFinger
@@ -821,42 +827,9 @@ export default function HomeScreen({ petApi }: Props) {
         />
         {welcomeBack ? (
           <Pressable onPress={dismissWelcome} accessibilityRole="button">
-            <Text style={styles.hint}>
-              {state.name} missed you!
-              {state.care.messes.length > 0 ? ' There are messes to clean.' : ''}
-            </Text>
+            <Text style={styles.hint}>{state.name} missed you!</Text>
           </Pressable>
         ) : null}
-        {state.care.potty.signal && !state.seenCoachMarks.includes('potty') ? (
-          <Pressable onPress={() => seeCoach('potty')} accessibilityRole="button">
-            <Text style={styles.hint}>
-              {state.name} needs to go. {species === 'cat' ? 'Tap the litter box.' : 'Tap Go Out.'}
-            </Text>
-          </Pressable>
-        ) : null}
-        <CareChips
-          potty={state.care.potty.signal != null && !houseTrained(state)}
-          pottyLabel={state.sceneId === 'sidewalk' ? 'Head Home' : species === 'cat' ? 'Litter' : 'Go Out'}
-          onPotty={() => {
-            if (state.sceneId === 'sidewalk') {
-              returnHome();
-              return;
-            }
-            goPotty();
-          }}
-          cleanCount={messesIn(state, state.sceneId).length || state.care.messes.length}
-          onClean={() => {
-            const here = messesIn(state, state.sceneId);
-            if (here.length === 0 && state.care.messes.length > 0) {
-              const dest = messDestination(state);
-              if (dest) {
-                setScene(dest);
-              }
-              return;
-            }
-            setCleanOn((on) => !on);
-          }}
-        />
         {state.care.pendingReward ? (
           <Pressable
             onPress={() => {
@@ -900,7 +873,13 @@ export default function HomeScreen({ petApi }: Props) {
             </Pressable>
           ))}
         </View>
-        <TrainingRings pet={state} species={species} onPractice={practice} />
+        <TrainingRings
+          pet={state}
+          species={species}
+          onPractice={practice}
+          highlightId={unlocking}
+          reducedMotion={reducedMotion}
+        />
         {playdates.remaining > 0 ? (
           <Text style={styles.hint}>Next playdate in {formatCooldown(playdates.remaining)}</Text>
         ) : null}

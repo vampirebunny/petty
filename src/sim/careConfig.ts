@@ -1,5 +1,3 @@
-import type { Stage } from './types';
-
 // Tuning for care and training. The brief's `src/game/config.ts` path does not exist;
 // this file sits next to the rest of the sim tuning.
 export const careConfig = {
@@ -13,14 +11,6 @@ export const careConfig = {
   intelligenceBase: 0.8,
   intelligenceSpan: 0.4,
   tierGain: { 1: 15, 2: 7.5, 3: 5 } as const,
-  houseGain: 3,
-  ageFactor: {
-    puppy: 0.7,
-    olderPuppy: 0.9,
-    adolescent: 1,
-    adult: 1,
-    senior: 0.8,
-  } as Record<Stage, number>,
   rewardFullMs: 5_000,
   rewardLateMs: 15_000,
   creditFull: 1,
@@ -31,30 +21,6 @@ export const careConfig = {
   rawAttrOnMastery: 3,
   trainingRepXp: 2,
   masteryXp: 20,
-  accidentPenalty: 0.75,
-  urgeMinutes: {
-    puppy: 90,
-    olderPuppy: 120,
-    adolescent: 180,
-    adult: 240,
-    senior: 210,
-  } as Record<Stage, number>,
-  urgeStretch: 0.5,
-  urgeJitter: 0.15,
-  signalWindowMs: 90_000,
-  resumeGraceMs: 5 * 60_000,
-  reurgeMinMs: 20_000,
-  reurgeMaxMs: 60_000,
-  walkPottyMinMs: 8_000,
-  walkPottyMaxMs: 20_000,
-  catPottyDelayMs: 2_000,
-  randomAccidentPerHour: 0.33,
-  maxMesses: 3,
-  messStinkMs: 60 * 60_000,
-  messFliesMs: 180 * 60_000,
-  messHappyPerHour: 1,
-  messHygienePerHour: 1,
-  messDrainCap: 10,
   welcomeBackMs: 8 * 60 * 60_000,
   awayHappinessFloor: 40,
   regenMs: 20 * 60_000,
@@ -67,10 +33,6 @@ export const careConfig = {
   notificationMax: 3,
   quietStartHour: 21,
   quietEndHour: 8,
-  // An already-adult save should not start house training over.
-  legacyHouseTrainedDays: 45,
-  outdoorScenes: ['park', 'sidewalk'] as readonly string[],
-  sceneOrder: ['livingroom', 'park', 'bedroom', 'sidewalk'] as readonly string[],
 };
 
 export type TrickTier = 1 | 2 | 3;

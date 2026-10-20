@@ -3,7 +3,7 @@ import { advanceNeeds, advanceNeedsDetail } from './advance';
 import { applyCareTime, clampWeight, decayWeight } from './care';
 import { dayMs, maxElapsedMs } from './config';
 import { canRaiseMood } from './mood';
-import { advanceCare } from './potty';
+import { advanceCare } from './game';
 import type { PetState } from './types';
 
 export function ageDaysAt(bornAt: number, now: number): number {

@@ -2,7 +2,7 @@ import { advanceNeeds } from '../sim/advance';
 import { dayMs, highHungerThreshold, lowEnergyThreshold, stepMs } from '../sim/config';
 import type { PetState } from '../sim/types';
 
-export type ReminderKind = 'meal' | 'rest' | 'potty' | 'mess' | 'training' | 'treats';
+export type ReminderKind = 'meal' | 'rest' | 'training' | 'treats';
 
 export type Reminder = {
   at: number;
@@ -14,12 +14,6 @@ const searchLimitMs = 7 * dayMs;
 export function reminderCopy(name: string, kind: ReminderKind): string {
   if (kind === 'meal') {
     return `${name} could use a meal.`;
-  }
-  if (kind === 'potty') {
-    return `${name} needs to go out.`;
-  }
-  if (kind === 'mess') {
-    return `${name} left a mess.`;
   }
   if (kind === 'training') {
     return `${name} can train again.`;
@@ -74,7 +68,7 @@ export function nextReminder(state: PetState, now: number): Reminder | null {
   return { at: restAt, kind: 'rest' };
 }
 
-const reminderPriority: ReminderKind[] = ['meal', 'rest', 'potty', 'mess', 'training', 'treats'];
+const reminderPriority: ReminderKind[] = ['meal', 'rest', 'training', 'treats'];
 
 export function shiftQuietHours(at: number): number {
   const date = new Date(at);
@@ -102,13 +96,6 @@ export function planReminders(
     }
   }
   if (options.care && state.care) {
-    const urge = state.care.potty.nextUrgeAt;
-    if (urge != null && urge > now && !state.training.house_training?.mastered) {
-      planned.push({ at: urge, kind: 'potty' });
-    }
-    if (state.care.messes.length > 0) {
-      planned.push({ at: now + 15 * 60 * 1000, kind: 'mess' });
-    }
     const capped = Object.values(state.training).some((track) => track.repsToday >= 8);
     if (capped) {
       const day = Math.floor((now - state.bornAt) / dayMs);

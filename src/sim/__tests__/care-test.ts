@@ -4,11 +4,13 @@ import { reconcileBand, attributeScore } from '../attributes';
 import { applyCareTime } from '../care';
 import { careConfig } from '../careConfig';
 import { testPet } from '../__fixtures__/pets';
-import { resume, setVitality, tickForeground } from '../clock';
+import { resume, setVitality } from '../clock';
 import { dayMs, GEN } from '../config';
 import { applyEvent } from '../events';
 import { payRep, resolveReward, rewardCredit, rollTrick, successChance } from '../training';
-import { lockHint, trackDef, trackDefs } from '../tracks';
+import { ensureGame } from '../game';
+import { lockHint, refreshUnlocks, trackDef, trackDefs, trackName } from '../tracks';
+import type { PetState, TrainingTrack } from '../types';
 import { planReminders } from '../../reminders/nextReminder';
 
 function pet() {
@@ -108,45 +110,52 @@ it('scores a treat by how soon it arrives', () => {
   expect(rewardCredit(1_000, null)).toBe(0.25);
 });
 
-it('keeps Paw locked until Sit is mastered and the pup is a day old', () => {
+it('unlocks Paw after Sit and Speak are mastered, and calls it High five for cats', () => {
   const young = pet();
   const paw = trackDef('paw');
   expect(paw).not.toBeNull();
+  expect(paw?.species).toEqual(['dog', 'cat']);
   expect(young.training.paw?.unlocked).toBe(false);
   expect(lockHint(young, paw!)).toMatch(/Sit/);
+
+  const mastered = (state: PetState, id: string, progress = 100): PetState => ({
+    ...state,
+    training: {
+      ...state.training,
+      [id]: { ...(state.training[id] as TrainingTrack), mastered: progress >= 100, progress },
+    },
+  });
+  const sitDone = mastered(young, 'sit');
+  expect(lockHint(sitDone, paw!)).toMatch(/Speak/);
+  expect(refreshUnlocks(sitDone).unlocked).toEqual([]);
+
+  const both = mastered(sitDone, 'speak');
+  const unlocked = refreshUnlocks(both);
+  expect(unlocked.unlocked).toEqual(['paw']);
+  expect(unlocked.state.training.paw?.unlocked).toBe(true);
+  expect(trackName('paw', 'dog')).toBe('Paw');
+  expect(trackName('paw', 'cat')).toBe('High five');
+
+  const cat = trainedPet('domesticShorthair');
+  expect(cat.training.paw?.unlocked).toBe(false);
+  const ready = mastered(mastered(cat, 'sit'), 'speak', 99);
+  const learned = payRep(ready, 'speak', 1, ready.lastUpdatedAt);
+  expect(learned.training.speak?.mastered).toBe(true);
+  expect(learned.training.paw?.unlocked).toBe(true);
+
+  const saved = { ...cat, training: { sit: cat.training.sit! }, milestones: ['house_trained', 'sit'] };
+  const repaired = ensureGame(saved);
+  expect(repaired.training.paw?.unlocked).toBe(false);
+  expect(repaired.training.house_training).toBeUndefined();
+  expect(repaired.milestones).toEqual(['sit']);
 });
 
-it('does not start accidents while the pet is resting', () => {
+it('keeps a resting pet asleep and still floors happiness after a long absence', () => {
   const resting = pet();
   const before = { ...resting, asleep: true, needs: { ...resting.needs, energy: 0 } };
   const after = resume(before, before.lastUpdatedAt + 20 * 60 * 1000);
   expect(after.asleep).toBe(true);
-  expect(after.care.messes).toEqual([]);
-});
-
-it('gives a house-trained pet no accidents across a long absence', () => {
-  const before = trainedPet();
-  const trained = {
-    ...before,
-    training: {
-      ...before.training,
-      house_training: { ...before.training.house_training!, mastered: true, progress: 100 },
-    },
-    milestones: ['house_trained'],
-    care: { ...before.care, potty: { ...before.care.potty, nextUrgeAt: null, signal: null, outing: null } },
-  };
-  for (const gap of [5_000, hourMs, 8 * hourMs, 72 * hourMs]) {
-    const after = resume(trained, trained.lastUpdatedAt + gap);
-    expect(after.care.messes).toEqual([]);
-    expect(after.care.potty.signal).toBeNull();
-  }
-});
-
-it('still runs the care clock for an untrained pet over short and long gaps', () => {
-  const before = trainedPet();
-  const live = tickForeground(before, before.lastUpdatedAt + 5_000);
-  expect(live.care.potty.nextUrgeAt).not.toBeNull();
-  const away = resume(before, before.lastUpdatedAt + 72 * hourMs);
+  const away = resume(trainedPet(), trainedPet().lastUpdatedAt + 72 * hourMs);
   expect(away.needs.happiness).toBeGreaterThanOrEqual(careConfig.awayHappinessFloor);
 });
 
@@ -177,11 +186,7 @@ it('caps treat regen, the login bonus, and the stack ceiling', () => {
 it('keeps the notification plan inside the daily cap and quiet hours', () => {
   const before = trainedPet();
   const evening = Date.UTC(2026, 9, 19, 22, 0, 0);
-  const planned = planReminders(
-    { ...before, care: { ...before.care, messes: [{ id: 'm', sceneId: 'livingroom', x: 1, y: 1, createdAt: evening }] } },
-    evening,
-    { reminders: true, care: true, basicTreats: 0 },
-  );
+  const planned = planReminders(before, evening, { reminders: true, care: true, basicTreats: 0 });
   expect(planned.length).toBeLessThanOrEqual(careConfig.notificationMax);
   for (const item of planned) {
     const hour = new Date(item.at).getHours();

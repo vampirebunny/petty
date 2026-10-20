@@ -1,7 +1,7 @@
 import { attributeScore, trainingGain } from './attributes';
 import { careConfig, type TreatTier } from './careConfig';
 import { nextRng } from './rng';
-import { ageFactorOf, houseTrained, speciesOf, trackDef } from './tracks';
+import { refreshUnlocks, speciesOf, trackDef } from './tracks';
 import type { PetState, TrainingTrack, Trait } from './types';
 
 export function petDayIndex(state: PetState, now: number): number {
@@ -63,9 +63,6 @@ function grantMastery(state: PetState, trackId: string): PetState {
     next = addAttribute(next, trait, share);
   }
   const milestones = next.milestones.includes(trackId) ? next.milestones : [...next.milestones, trackId];
-  if (trackId === 'house_training' && !milestones.includes('house_trained')) {
-    milestones.push('house_trained');
-  }
   return {
     ...next,
     xp: next.xp + careConfig.masteryXp,
@@ -89,12 +86,12 @@ export function payRep(state: PetState, trackId: string, credit: number, now: nu
   }
   const day = petDayIndex(state, now);
   let track = rollDay(existing, day);
+  if (def.tier == null) {
+    return state;
+  }
   const fatigued = track.repsToday >= careConfig.dailyRepCap;
-  const penalty = track.pendingPenalty && def.id === 'house_training' ? careConfig.accidentPenalty : 1;
-  const base = def.tier == null ? careConfig.houseGain : careConfig.tierGain[def.tier];
-  const age = def.tier == null ? ageFactorOf(state) : 1;
   const fatigue = fatigued ? careConfig.fatigueMultiplier : 1;
-  const gain = base * intelligenceFactor(state) * age * credit * fatigue * penalty;
+  const gain = careConfig.tierGain[def.tier] * intelligenceFactor(state) * credit * fatigue;
   const progress = Math.min(100, track.progress + gain);
   const mastered = progress >= 100;
   track = {
@@ -115,15 +112,7 @@ export function payRep(state: PetState, trackId: string, credit: number, now: nu
   }
   if (mastered) {
     next = grantMastery(next, trackId);
-    if (trackId === 'house_training') {
-      next = {
-        ...next,
-        care: {
-          ...next.care,
-          potty: { ...next.care.potty, nextUrgeAt: null, signal: null, outing: null },
-        },
-      };
-    }
+    next = refreshUnlocks(next).state;
   }
   return next;
 }
@@ -183,14 +172,3 @@ export function rollTrick(state: PetState, trackId: string, now: number): { stat
   return { state: openReward(next, trackId, now), ok: true };
 }
 
-export function markHousePenalty(state: PetState): PetState {
-  const track = state.training.house_training;
-  if (!track || track.mastered) {
-    return state;
-  }
-  return withTrack(state, { ...track, pendingPenalty: true });
-}
-
-export function trainedEnough(state: PetState): boolean {
-  return houseTrained(state);
-}

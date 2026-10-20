@@ -1,5 +1,5 @@
 import { rngSeed, withDerived, zeroStats } from './attributes';
-import { armPotty, bathToleranceFor, blankCare, blankTraining } from './potty';
+import { bathToleranceFor, blankCare, blankTraining } from './game';
 import { speciesOf } from './tracks';
 import {
   defaultSceneId,
@@ -42,7 +42,7 @@ export function createPet({ id, ownerId, name, breedId, look, attributes, now }:
   ];
   const species = speciesOf(breedId);
   const tolerance = bathToleranceFor(attributes.potential.boldness, breedId, species);
-  return armPotty(withDerived({
+  return withDerived({
     id,
     ownerId,
     name,
@@ -81,8 +81,8 @@ export function createPet({ id, ownerId, name, breedId, look, attributes, now }:
     treatDay: { day: 0, count: 0 },
     boosts: [],
     care: blankCare(now, tolerance),
-    training: blankTraining(species, 0, false),
+    training: blankTraining(species, 0),
     milestones: [],
     seenCoachMarks: [],
-  }), now);
+  });
 }

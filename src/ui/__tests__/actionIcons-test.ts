@@ -42,4 +42,10 @@ describe('actionIcons', () => {
     expect(iconFor('nope')).toBeNull();
     expect(speciesLabel('play', 'cat')).toBeNull();
   });
+
+  it('names the paw trick Give paw for dogs and High five for cats', () => {
+    expect(speciesLabel('paw', 'dog')).toBe('Give paw');
+    expect(speciesLabel('paw', 'cat')).toBe('High five');
+    expect(iconFor('paw', 'cat')).not.toBe(iconFor('paw', 'dog'));
+  });
 });
