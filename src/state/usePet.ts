@@ -75,6 +75,7 @@ type PetApi = {
   goPotty: () => void;
   returnHome: () => void;
   rewardTreat: (tier: 'basic' | 'special') => void;
+  rewardCuddle: () => void;
   cleanMess: (messId: string) => void;
   seeCoach: (id: string) => void;
   claimGrants: () => void;
@@ -394,6 +395,11 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
     },
     [publish],
   );
+  const rewardCuddle = useCallback(() => {
+    if (stateRef.current?.care.pendingReward) {
+      dispatch({ type: 'rewardCuddle', now: Date.now() });
+    }
+  }, [dispatch]);
   const cleanMess = useCallback((messId: string) => dispatch({ type: 'cleanMess', messId }), [dispatch]);
   const seeCoach = useCallback((id: string) => dispatch({ type: 'seeCoach', id }), [dispatch]);
   const claimGrants = useCallback(() => dispatch({ type: 'claimGrants' }), [dispatch]);
@@ -477,6 +483,7 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
     goPotty,
     returnHome,
     rewardTreat,
+    rewardCuddle,
     cleanMess,
     seeCoach,
     claimGrants,

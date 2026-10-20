@@ -187,3 +187,17 @@ it('keeps the notification plan inside the daily cap and quiet hours', () => {
     expect(hour >= 8 && hour < 21).toBe(true);
   }
 });
+
+it('pays a cuddle like a basic treat inside the reward window and ignores it otherwise', () => {
+  const before = trainedPet();
+  const opened = {
+    ...before,
+    care: { ...before.care, pendingReward: { trackId: 'sit', openedAt: before.lastUpdatedAt } },
+  };
+  const cuddled = applyEvent(opened, { type: 'rewardCuddle', now: opened.lastUpdatedAt + 1_000 }).state;
+  const treated = applyEvent(opened, { type: 'rewardTreat', tier: 'basic', now: opened.lastUpdatedAt + 1_000 }).state;
+  expect(cuddled.care.pendingReward).toBeNull();
+  expect(cuddled.training.sit?.progress).toBe(treated.training.sit?.progress);
+  const idle = applyEvent(before, { type: 'rewardCuddle', now: before.lastUpdatedAt });
+  expect(idle.state).toBe(before);
+});

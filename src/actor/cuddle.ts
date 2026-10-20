@@ -268,7 +268,6 @@ export function stepCuddle(
   actor: Actor,
   dt: number,
   limit: number,
-  home: Vec,
   targets: Pose,
 ): CuddleStep {
   const c = actor.cuddle;
@@ -334,12 +333,12 @@ export function stepCuddle(
   const baseEars = touching ? (cat ? am.earBackCat : am.earBackDog) : 0;
 
   if (c.phase === 'approach') {
-    out.move = home;
-    out.vmax = limit * 0.5;
+    // The pet cuddles where it stands: it only has to come to a stop first.
+    out.move = null;
+    out.vmax = 0;
     wagRate = 8;
     wagAmp = 0.35;
-    const near = Math.hypot(home.x - actor.x, home.y - actor.y) < 6 && actor.speed < 15;
-    if (near || c.t > tm.approachMax) {
+    if (actor.speed < 15 || c.t > tm.approachMax) {
       setPhase(c, 'settle');
     }
   } else if (c.phase === 'settle') {

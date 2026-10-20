@@ -133,6 +133,14 @@ export function applyEvent(state: PetState, event: PetEvent): EventResult {
     return { state: withDerived(resolveReward(copyState(state), event.now, event.tier)), cue: { kind: 'none' } };
   }
 
+  // A cuddle is worth a basic treat: same window, same credit, nothing to spend.
+  if (event.type === 'rewardCuddle') {
+    if (!state.care.pendingReward) {
+      return { state, cue: { kind: 'none' } };
+    }
+    return { state: withDerived(resolveReward(copyState(state), event.now, 'basic')), cue: { kind: 'none' } };
+  }
+
   if (event.type === 'goPotty') {
     const next = beginPotty(copyState(state), event.now);
     const moved = next.sceneId !== state.sceneId || next.care.potty.outing != null;

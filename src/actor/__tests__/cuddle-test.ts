@@ -71,18 +71,18 @@ describe('cuddle data', () => {
 });
 
 describe('cuddle enter and settle', () => {
-  it('walks to the spot with headTurn 0, then sits and turns the head', () => {
+  it('settles where the pet stands, with headTurn 0, then sits and turns the head', () => {
     const { world, actor } = setup('retriever', 100, { x: 90, y: 560 });
     run(world, 2);
     expect(actor.pose.headTurn).toBeGreaterThan(0.9);
     startUserTask(world, actor, 'cuddle');
     expect(actor.task.type).toBe('cuddle');
+    const startX = actor.x;
+    const startY = actor.y;
     let sawApproach = false;
-    let moving = 0;
     run(world, 12, () => {
       if (phaseOf(actor) === 'approach') {
         sawApproach = true;
-        moving = Math.max(moving, actor.speed);
         // The turned head eases away over the first moments of the walk.
         if ((actor.cuddle?.t ?? 0) > 0.5) {
           expect(actor.pose.headTurn).toBeLessThanOrEqual(0.1);
@@ -93,7 +93,7 @@ describe('cuddle enter and settle', () => {
       }
     });
     expect(sawApproach).toBe(true);
-    expect(moving).toBeGreaterThan(14);
+    expect(Math.hypot(actor.x - startX, actor.y - startY)).toBeLessThan(40);
     expect(phaseOf(actor)).toBe('waiting');
     expect(actor.pose.sit).toBeGreaterThan(0.9);
     expect(actor.pose.headTurn).toBeGreaterThan(0.9);

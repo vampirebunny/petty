@@ -1134,7 +1134,7 @@ function updateActor(world: World, actor: Actor, dt: number): void {
       goIdle(world, actor);
     }
   } else if (actor.task.type === 'cuddle') {
-    const step = stepCuddle(world, actor, dt, limit, homeOf(world.scene), targets);
+    const step = stepCuddle(world, actor, dt, limit, targets);
     move = step.move;
     vmax = step.vmax;
     wagRate = step.wagRate;

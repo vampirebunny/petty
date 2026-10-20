@@ -50,7 +50,7 @@ import { useStageSize } from '../ui/useStageSize';
 import type { CuddleHandle } from '../ui/PetView';
 import { CuddleFeedback } from '../ui/cuddle/CuddleFeedback';
 import type { FeedbackHandle } from '../ui/cuddle/CuddleFeedback';
-import { CoachMarks, CuddleHelpSheet, CuddleHintPill, GhostFinger } from '../ui/cuddle/CuddleGuidance';
+import { CoachMarks, CuddleHelpSheet, GhostFinger } from '../ui/cuddle/CuddleGuidance';
 
 const badgeLabels: Record<string, string> = {
   house_training: 'Housebroken',
@@ -115,6 +115,7 @@ export default function HomeScreen({ petApi }: Props) {
     goPotty,
     returnHome,
     rewardTreat,
+    rewardCuddle,
     cleanMess,
     seeCoach,
     claimGrants,
@@ -280,6 +281,9 @@ export default function HomeScreen({ petApi }: Props) {
       if (!handle || !acceptingTouch()) {
         return;
       }
+      if (events.length > 0) {
+        rewardCuddle();
+      }
       for (const event of events) {
         const stage = stagePoint(event.x, event.y, viewWidth, viewHeight);
         if (event.type === 'move') {
@@ -303,7 +307,7 @@ export default function HomeScreen({ petApi }: Props) {
         }
       }
     },
-    [acceptingTouch, viewHeight, viewWidth],
+    [acceptingTouch, rewardCuddle, viewHeight, viewWidth],
   );
 
   const cuddleMove = useCallback(
@@ -330,10 +334,11 @@ export default function HomeScreen({ petApi }: Props) {
       const stage = stagePoint(x, y, viewWidth, viewHeight);
       if (handle.zoneAt(stage.x, stage.y) === 'nose') {
         touchedRef.current = true;
+        rewardCuddle();
         handle.touch({ kind: 'boop', zone: 'nose', x: stage.x });
       }
     },
-    [acceptingTouch, viewHeight, viewWidth],
+    [acceptingTouch, rewardCuddle, viewHeight, viewWidth],
   );
   const cuddleEnd = useCallback(() => {
     touchActive.current = false;
@@ -761,7 +766,6 @@ export default function HomeScreen({ petApi }: Props) {
                 );
               })}
             <CuddleFeedback feedbackRef={feedback} reducedMotion={reducedMotion} />
-            {cuddleOn ? <CuddleHintPill /> : null}
             {ghost && cuddleOn ? (
               <GhostFinger
                 key={ghost.key}

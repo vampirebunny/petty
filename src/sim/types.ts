@@ -194,6 +194,7 @@ export type PetEvent =
   | { type: 'playdate'; happiness: number; attributes: Partial<Record<Trait, number>> }
   | { type: 'trickRep'; trackId: string; now: number }
   | { type: 'rewardTreat'; tier: 'basic' | 'special'; now: number }
+  | { type: 'rewardCuddle'; now: number }
   | { type: 'goPotty'; now: number }
   | { type: 'returnHome'; now: number }
   | { type: 'cleanMess'; messId: string }
