@@ -1,17 +1,70 @@
 import { breedAttributes } from '../../actor/breedAttributes';
 import { addStack, emptyEconomy, settleEconomy, stackQty } from '../../economy/state';
-import { attributeScore } from '../attributes';
+import { reconcileBand, attributeScore } from '../attributes';
+import { applyCareTime } from '../care';
 import { careConfig } from '../careConfig';
 import { testPet } from '../__fixtures__/pets';
-import { resume, tickForeground } from '../clock';
-import { GEN } from '../config';
+import { resume, setVitality, tickForeground } from '../clock';
+import { dayMs, GEN } from '../config';
+import { applyEvent } from '../events';
 import { payRep, resolveReward, rewardCredit, rollTrick, successChance } from '../training';
 import { lockHint, trackDef, trackDefs } from '../tracks';
 import { planReminders } from '../../reminders/nextReminder';
 
+function pet() {
+  return testPet(1, 'retriever', 0, 'Pup', 'pet');
+}
+
+it('adds a meal to the weight index and leaves a water refill unchanged', () => {
+  const before = trainedPet();
+  const fed = applyEvent(before, { type: 'feed' }).state;
+  const watered = applyEvent(before, { type: 'refillWater' }).state;
+
+  expect(fed.weight).toBeCloseTo(before.weight + 0.12, 5);
+  expect(fed.vitality).toBe(before.vitality);
+  expect(watered.weight).toBe(before.weight);
+  expect(watered.ageDays).toBe(before.ageDays);
+});
+
+it('thins the pet across missed days and leaves a scene change alone', () => {
+  const before = trainedPet();
+  const missed = resume(before, before.lastUpdatedAt + 7 * dayMs);
+  expect(missed.weight).toBeCloseTo(before.weight - 0.12 * 7, 5);
+
+  const moved = applyEvent(before, { type: 'setScene', sceneId: 'park' }).state;
+  expect(moved.sceneId).toBe('park');
+  expect(moved.weight).toBe(before.weight);
+  expect(moved.ageDays).toBe(before.ageDays);
+  expect(moved.needs).toEqual(before.needs);
+});
+
+it('keeps thinning through a long absence after needs have stopped', () => {
+  const before = trainedPet();
+  const longGap = resume(before, before.lastUpdatedAt + 100 * 60 * 60 * 1000);
+  const capped = resume(before, before.lastUpdatedAt + 48 * 60 * 60 * 1000);
+
+  expect(longGap.weight).toBeLessThan(capped.weight);
+  expect(longGap.needs).toEqual(capped.needs);
+});
+
+it('keeps care vitality at or above 0.35 and remembers band hysteresis', () => {
+  const drained = applyCareTime(pet(), 40 * dayMs, true, false);
+  expect(drained.vitality).toBeGreaterThanOrEqual(0.35);
+
+  const senior = setVitality({ ...pet(), ageDays: 200 }, 0.5);
+  expect(senior.seniorBand).toBe('senior');
+  const inside = setVitality(senior, 0.72);
+  expect(inside.seniorBand).toBe('senior');
+  const left = setVitality(senior, 0.76);
+  expect(left.seniorBand).toBe('earlySenior');
+  const back = setVitality(left, 0.64);
+  expect(back.seniorBand).toBe('senior');
+  expect(reconcileBand(setVitality(back, 0.34))).toBe('elderly');
+});
+
 const hourMs = 60 * 60 * 1000;
 
-function pet(breedId = 'retriever', now = 1_000_000) {
+function trainedPet(breedId = 'retriever', now = 1_000_000) {
   return testPet(1, breedId, now, 'Pup', 'pet');
 }
 
@@ -33,7 +86,7 @@ it('keeps every shipped trick inside three daily caps at the lowest starting int
 });
 
 it('pays a full-credit sit rep from the tier gain and the intelligence factor', () => {
-  const before = pet();
+  const before = trainedPet();
   const factor = careConfig.intelligenceBase + careConfig.intelligenceSpan * Math.min(1, attributeScore(before, 'intelligence') / 100);
   const after = payRep(before, 'sit', 1, before.lastUpdatedAt);
   expect(after.training.sit?.progress).toBeCloseTo(careConfig.tierGain[1] * factor, 5);
@@ -71,7 +124,7 @@ it('does not start accidents while the pet is resting', () => {
 });
 
 it('gives a house-trained pet no accidents across a long absence', () => {
-  const before = pet();
+  const before = trainedPet();
   const trained = {
     ...before,
     training: {
@@ -89,7 +142,7 @@ it('gives a house-trained pet no accidents across a long absence', () => {
 });
 
 it('still runs the care clock for an untrained pet over short and long gaps', () => {
-  const before = pet();
+  const before = trainedPet();
   const live = tickForeground(before, before.lastUpdatedAt + 5_000);
   expect(live.care.potty.nextUrgeAt).not.toBeNull();
   const away = resume(before, before.lastUpdatedAt + 72 * hourMs);
@@ -97,7 +150,7 @@ it('still runs the care clock for an untrained pet over short and long gaps', ()
 });
 
 it('resolves an open reward when the treat arrives inside the window', () => {
-  const before = pet();
+  const before = trainedPet();
   const opened = {
     ...before,
     care: { ...before.care, pendingReward: { trackId: 'sit', openedAt: before.lastUpdatedAt } },
@@ -121,7 +174,7 @@ it('caps treat regen, the login bonus, and the stack ceiling', () => {
 });
 
 it('keeps the notification plan inside the daily cap and quiet hours', () => {
-  const before = pet();
+  const before = trainedPet();
   const evening = Date.UTC(2026, 9, 19, 22, 0, 0);
   const planned = planReminders(
     { ...before, care: { ...before.care, messes: [{ id: 'm', sceneId: 'livingroom', x: 1, y: 1, createdAt: evening }] } },
