@@ -157,6 +157,16 @@ function drawPropBody(c: SkCanvas, prop: Prop, env: Env): void {
     case 'bowl':
       drawBowl(c, prop, env);
       break;
+    case 'litterbox': {
+      const w = prop.w ?? 78;
+      const col = color ?? '#d9d3c7';
+      fillOval(c, 0, 6, w / 2 + 4, 10, '#000000', 0.12);
+      fillRRect(c, -w / 2, -16, w, 22, 6, mix(col, '#000000', 0.18));
+      fillRRect(c, -w / 2 + 6, -20, w - 12, 16, 5, mix(col, '#c4b49a', 0.35));
+      fillOval(c, -8, -14, 7, 3, '#b7a48c', 0.7);
+      fillOval(c, 10, -12, 5, 2.4, '#b7a48c', 0.55);
+      break;
+    }
     case 'bed': {
       const w = prop.w ?? 110;
       const col = color ?? '#4d7fa8';

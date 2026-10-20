@@ -186,6 +186,15 @@ export function PetView({
     }
   }, [scene, redraw]);
 
+  const signalStartedAt = pet.care.potty.signal?.startedAt;
+  useEffect(() => {
+    const actor = worldRef.current.actors[0];
+    if (actor && signalStartedAt != null) {
+      startUserTask(worldRef.current, actor, 'signal');
+      redraw();
+    }
+  }, [redraw, signalStartedAt]);
+
   useEffect(() => {
     const actor = worldRef.current.actors[0];
     if (!actor) {
@@ -200,6 +209,12 @@ export function PetView({
       startUserTask(world, actor, 'paw');
     } else if (cueKind === 'speak') {
       startUserTask(world, actor, 'speak');
+    } else if (cueKind === 'confused') {
+      startUserTask(world, actor, 'confused');
+    } else if (cueKind === 'signal') {
+      startUserTask(world, actor, 'signal');
+    } else if (cueKind === 'potty') {
+      startUserTask(world, actor, 'potty');
     } else if (cueKind === 'eat') {
       startUserTask(world, actor, 'eat');
     } else if (cueKind === 'refuse') {

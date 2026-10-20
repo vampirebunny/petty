@@ -551,10 +551,24 @@ export function startUserTask(
     goIdle(world, actor);
     return true;
   }
-  if (task === 'refuse') {
+  if (task === 'refuse' || task === 'confused') {
     releaseCarried(world, actor);
     actor.task = taskOf('sit', 'refuse');
     actor.face = -actor.face;
+    actor.pantT = 0;
+    return true;
+  }
+  if (task === 'signal') {
+    releaseCarried(world, actor);
+    actor.task = taskOf('sit', 'signal');
+    actor.pantT = 0;
+    return true;
+  }
+  if (task === 'potty') {
+    const litter = nearestPoi(world.scene, 'litter', actor);
+    releaseCarried(world, actor);
+    actor.task = taskOf('sit', litter ? 'goto' : '');
+    actor.task.poi = litter ?? undefined;
     actor.pantT = 0;
     return true;
   }
@@ -968,6 +982,18 @@ function updateActor(world: World, actor: Actor, dt: number): void {
     if (actor.task.stage === 'refuse') {
       if (actor.task.t > 1.4) {
         goIdle(world, actor);
+      }
+    } else if (actor.task.stage === 'signal') {
+      targets.crouch = 0.55;
+      targets.sit = 0.3;
+      const angle = actor.task.t * 1.6;
+      move = { x: actor.x + Math.cos(angle) * 28, y: actor.y + Math.sin(angle) * 14 };
+      vmax = limit * 0.28;
+    } else if (actor.task.stage === 'goto' && actor.task.poi) {
+      move = { x: actor.task.poi.x, y: actor.task.poi.y };
+      vmax = limit * 0.45;
+      if (Math.hypot(actor.task.poi.x - actor.x, actor.task.poi.y - actor.y) < 18) {
+        actor.task = taskOf('sit');
       }
     } else {
       faceCamera = true;

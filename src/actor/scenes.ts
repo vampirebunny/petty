@@ -19,6 +19,7 @@ export const propKinds = [
   'pond',
   'bush',
   'fence',
+  'litterbox',
 ] as const;
 
 export const shapeTypes = ['rect', 'ellipse', 'circle', 'poly', 'line', 'sky'] as const;
@@ -262,11 +263,13 @@ const sceneDefs = {
       { kind: 'bed', x: 110, y: 540, w: 112, color: '#c2653d' },
       { kind: 'bowl', x: 540, y: 330, color: '#2f7d5b', contents: 'kibble' },
       { kind: 'bowl', x: 500, y: 560, color: '#3f78b5', contents: 'water' },
+      { kind: 'litterbox', x: 180, y: 360, w: 78, color: '#d9d3c7' },
     ],
     pois: [
       { id: 'bowl', type: 'food', x: 540, y: 330, face: 1 },
       { id: 'water', type: 'water', x: 500, y: 560, face: 1 },
       { id: 'bed', type: 'bed', x: 110, y: 542 },
+      { id: 'litter', type: 'litter', x: 180, y: 360, face: -1 },
       { id: 'home', type: 'home', x: 300, y: 440 },
     ],
   },
@@ -333,13 +336,34 @@ const sceneDefs = {
       { kind: 'bed', x: 520, y: 560, w: 112, color: '#d98b3a' },
       { kind: 'bowl', x: 120, y: 340, color: '#c24d4d', contents: 'kibble' },
       { kind: 'bowl', x: 130, y: 590, color: '#3f78b5', contents: 'water' },
+      { kind: 'litterbox', x: 220, y: 300, w: 78, color: '#d9d3c7' },
     ],
     pois: [
       { id: 'bowl', type: 'food', x: 120, y: 340, face: 1 },
       { id: 'water', type: 'water', x: 130, y: 590, face: 1 },
       { id: 'bed', type: 'bed', x: 520, y: 562 },
+      { id: 'litter', type: 'litter', x: 220, y: 300, face: -1 },
       { id: 'home', type: 'home', x: 320, y: 470 },
     ],
+  },
+  sidewalk: {
+    v: 1,
+    id: 'sidewalk',
+    name: 'Sidewalk',
+    time: 'outdoor',
+    sky: ['#a9d8f0', '#e2f3f8'],
+    layers: [
+      { t: 'rect', x: 0, y: 150, w: 640, h: 40, fill: '#c5ccd4' },
+      { t: 'rect', x: 0, y: 168, w: 640, h: 8, fill: '#9aa3ad' },
+    ],
+    floor: { horizon: 176, yMin: 220, yMax: 654, color: ['#c9c2b6', '#b7b0a4'], pattern: 'lines', lineColor: 'rgba(80,70,60,0.25)' },
+    surface: { bounce: 0.3, friction: 2.4 },
+    props: [
+      { kind: 'tree', x: 80, y: 200, scale: 0.9 },
+      { kind: 'tree', x: 560, y: 210, scale: 1.05 },
+      { kind: 'bench', x: 400, y: 214, w: 90 },
+    ],
+    pois: [{ id: 'home', type: 'home', x: 300, y: 420 }],
   },
 } as const;
 
@@ -347,6 +371,7 @@ export const scenes = {
   livingroom: compileScene(sceneDefs.livingroom),
   park: compileScene(sceneDefs.park),
   bedroom: compileScene(sceneDefs.bedroom),
+  sidewalk: compileScene(sceneDefs.sidewalk),
 };
 
 export const sceneList = [scenes.livingroom, scenes.park, scenes.bedroom];
@@ -384,6 +409,9 @@ export function tuftsFor(scene: Scene): Tuft[] {
 }
 
 export function sceneById(id: string): Scene {
+  if (id === 'sidewalk') {
+    return scenes.sidewalk;
+  }
   return sceneList.find((scene) => scene.id === id) ?? scenes.livingroom;
 }
 
