@@ -374,7 +374,7 @@ export const scenes = {
   sidewalk: compileScene(sceneDefs.sidewalk),
 };
 
-export const sceneList = [scenes.livingroom, scenes.park, scenes.bedroom];
+export const sceneList = [scenes.livingroom, scenes.bedroom, scenes.park];
 
 // The data a preset was built from, as plain JSON, so it can be edited and applied back.
 export function sceneSource(id: string): unknown {
