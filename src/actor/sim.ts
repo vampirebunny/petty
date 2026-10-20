@@ -920,7 +920,7 @@ function updateActor(world: World, actor: Actor, dt: number): void {
   let faceCamera = false;
   // The pet's own top speed, from its life stage, attributes and weight. A tired or elderly pet is held to a
   // slower gait, which caps how fast it may be sent. Energy scales how much of that age speed it actually uses:
-  // zoomy is full speed for the age, and a full bar is a little faster.
+  // zoomy is already a run for the age, and a full bar is a sprint.
   const topSpeed = speedMax(breed, actor.displayAgeDays, actor.displayWeight) * mods.maxSpeed;
   const maxGait = maxGaitOf(profile, actor.tired);
   const limit = topSpeed * gaitSpeedCap[maxGait] * energySpeedScale(actor.energy);

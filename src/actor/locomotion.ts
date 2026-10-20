@@ -211,15 +211,17 @@ export function stepStamina(stamina: number, tired: boolean, gait: Gait, mods: L
 
 // ---------------------------------------------------------------- speed variety
 
-// Share of the age's top speed. Zoomy (0.75) is full speed for that age; full energy is a little faster.
+// Share of the age's top speed. Zoomy (0.75) is already a run for that age; a full bar is a sprint.
 // Below that, speed falls off so a tired pet is clearly slower.
 export function energySpeedScale(energy: number): number {
   const e = clamp(energy, 0, 1);
   const zoomy = 0.75;
+  const zoomyScale = 1.75;
+  const fullScale = 2.8;
   if (e >= zoomy) {
-    return 1 + 0.2 * ((e - zoomy) / (1 - zoomy));
+    return zoomyScale + (fullScale - zoomyScale) * ((e - zoomy) / (1 - zoomy));
   }
-  return 0.28 + (1 - 0.28) * (e / zoomy);
+  return 0.28 + (zoomyScale - 0.28) * (e / zoomy);
 }
 
 // A share of top speed for one chase, from the seeded stream and how lively the pet is. A tired, sad pet
