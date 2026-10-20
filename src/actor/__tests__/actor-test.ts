@@ -12,6 +12,7 @@ import {
   spawnActor,
   stagePoint,
   startUserTask,
+  takeEnergyDelta,
   takeWeightDelta,
   update,
 } from '../sim';
@@ -215,6 +216,37 @@ it('lets a dog carry the ball home and a cat bat it three times', () => {
   }
   expect(kit.task.type).toBe('winddown');
   expect(canBehave(kit, 'fetch')).toBe(false);
+});
+
+it('spends energy while running and restores it during an idle nap', () => {
+  const runner = actor();
+  runner.energy = 1;
+  const zooming = createWorld([runner], 4);
+  runner.idle.mode = 'zoom';
+  runner.idle.dur = 30;
+  runner.zoom = { leg: 0, legs: 4, first: -1 };
+  for (let step = 0; step < 80; step += 1) {
+    update(zooming, 0.05);
+  }
+  expect(takeEnergyDelta(runner)).toBeLessThan(0);
+
+  const sleeper = actor();
+  const napping = createWorld([sleeper], 5);
+  sleeper.idle.mode = 'nap';
+  sleeper.idle.arrived = true;
+  sleeper.idle.dur = 30;
+  for (let step = 0; step < 40; step += 1) {
+    update(napping, 0.05);
+  }
+  expect(sleeper.idle.mode).toBe('nap');
+  expect(takeEnergyDelta(sleeper)).toBeGreaterThan(0);
+
+  const resting = actor(true);
+  const bed = createWorld([resting], 6);
+  for (let step = 0; step < 40; step += 1) {
+    update(bed, 0.05);
+  }
+  expect(takeEnergyDelta(resting)).toBe(0);
 });
 
 it('burns weight while running and maps a tap into the stage', () => {

@@ -1,4 +1,6 @@
 import { advance } from '../advance';
+import { tickForeground } from '../clock';
+import { decayPerHour } from '../config';
 import { testPet } from '../__fixtures__/pets';
 import type { Needs, PetState } from '../types';
 
@@ -23,7 +25,11 @@ it('applies one awake hour of decay', () => {
   const before = pet();
   const after = advance(before, hourMs);
 
-  expectNeeds(after.needs, { hunger: 28, energy: 75, happiness: 77 });
+  expectNeeds(after.needs, {
+    hunger: 20 + decayPerHour.awake.hunger,
+    energy: 80 + decayPerHour.awake.energy,
+    happiness: 80 + decayPerHour.awake.happiness,
+  });
   expect(after.asleep).toBe(false);
   expect(after.lastUpdatedAt).toBe(before.lastUpdatedAt + hourMs);
   expect(after.rngState).toBe(before.rngState);
@@ -36,13 +42,17 @@ it('applies an extra happiness penalty while awake and hunger is high', () => {
     hourMs,
   );
 
-  expectNeeds(after.needs, { hunger: 88, energy: 75, happiness: 41 });
+  expectNeeds(after.needs, {
+    hunger: 100,
+    energy: 80 + decayPerHour.awake.energy,
+    happiness: 50 + decayPerHour.awake.happiness + -6,
+  });
 });
 
-it('restores energy during one asleep hour and stays asleep below 100', () => {
-  const after = advance(pet({ asleep: true }), hourMs);
+it('restores energy during a nap and stays asleep below 100', () => {
+  const after = advance(pet({ asleep: true, needs: { energy: 0 } }), 30 * 60 * 1000);
 
-  expectNeeds(after.needs, { hunger: 24, energy: 92, happiness: 79 });
+  expectNeeds(after.needs, { hunger: 26, energy: 60, happiness: 78 });
   expect(after.asleep).toBe(true);
 });
 
@@ -50,10 +60,11 @@ it('wakes at full energy and uses awake decay for the rest of the call', () => {
   const after = advance(pet({ asleep: true, needs: { energy: 90 } }), hourMs);
 
   expect(after.asleep).toBe(false);
+  // 10 energy at +120/hour is 5 asleep minutes, then 55 awake minutes.
   expectNeeds(after.needs, {
-    hunger: 20 + (4 * 10) / 12 + (8 * 2) / 12,
-    energy: 100 - (5 * 2) / 12,
-    happiness: 80 - (1 * 10) / 12 - (3 * 2) / 12,
+    hunger: 20 + 12 * (5 / 60) + 40 * (55 / 60),
+    energy: 100 - 24 * (55 / 60),
+    happiness: 80 - 4 * (5 / 60) - 16 * (55 / 60),
   });
 });
 
@@ -77,14 +88,23 @@ it('keeps needs inside 0 to 100', () => {
   expect(filled.asleep).toBe(false);
 });
 
-it('carries leftover minutes by advancing the clock one step', () => {
+it('applies time shorter than a step, including across foreground ticks', () => {
   const before = pet();
-  const after = advance(before, 7 * 60 * 1000);
+  const gap = 7 * 60 * 1000;
+  const once = advance(before, gap);
 
-  expect(after.lastUpdatedAt).toBe(before.lastUpdatedAt + 5 * 60 * 1000);
-  expectNeeds(after.needs, {
-    hunger: 20 + 8 / 12,
-    energy: 80 - 5 / 12,
-    happiness: 80 - 3 / 12,
+  expect(once.lastUpdatedAt).toBe(before.lastUpdatedAt + gap);
+  expectNeeds(once.needs, {
+    hunger: 20 + decayPerHour.awake.hunger * (gap / hourMs),
+    energy: 80 + decayPerHour.awake.energy * (gap / hourMs),
+    happiness: 80 + decayPerHour.awake.happiness * (gap / hourMs),
   });
+
+  let ticked = before;
+  const tick = 5_000;
+  const ticks = gap / tick;
+  for (let i = 0; i < ticks; i += 1) {
+    ticked = tickForeground(ticked, before.lastUpdatedAt + (i + 1) * tick);
+  }
+  expectNeeds(ticked.needs, once.needs);
 });

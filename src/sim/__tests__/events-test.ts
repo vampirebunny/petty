@@ -38,7 +38,7 @@ it('finishing the bowl feeds the pet and empties it', () => {
   const before = testPet(1, 'retriever', 0, 'Pup', 'pet');
   before.needs.hunger = 60;
   const done = eat(before);
-  expect(done.needs.hunger).toBe(35);
+  expect(done.needs.hunger).toBe(20);
   expect(done.foodInBowl).toBe(false);
   expect(done.rngState).toBe(before.rngState);
   expect(applyEvent(done, { type: 'ate', now: 2 }).state).toBe(done);

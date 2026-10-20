@@ -4,6 +4,7 @@ import { geomOf } from '../geometry';
 import {
   blendedFoot,
   chooseGait,
+  energySpeedScale,
   gaitFootFor,
   isGaitAllowed,
   landImpact,
@@ -129,6 +130,13 @@ describe('stage and stats', () => {
       state = stepStamina(state.stamina, state.tired, 'walk', mods, 0.05);
     }
     expect(state.tired).toBe(false);
+  });
+
+  it('runs a zoomy pet at full age speed and a tired pet slower', () => {
+    expect(energySpeedScale(0.75)).toBe(1);
+    expect(energySpeedScale(1)).toBeGreaterThan(1);
+    expect(energySpeedScale(0.2)).toBeLessThan(energySpeedScale(0.75));
+    expect(energySpeedScale(0)).toBeLessThan(energySpeedScale(0.2));
   });
 
   it('samples a chase speed that varies with the roll and with energy', () => {

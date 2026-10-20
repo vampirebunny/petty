@@ -82,6 +82,17 @@ export function setWeight(state: PetState, weight: number): PetState {
   });
 }
 
+export function applyEnergyDelta(state: PetState, delta: number): PetState {
+  if (delta === 0) {
+    return state;
+  }
+  const energy = Math.max(0, Math.min(100, state.needs.energy + delta));
+  if (energy === state.needs.energy) {
+    return state;
+  }
+  return { ...state, needs: { ...state.needs, energy } };
+}
+
 export function applyWeightDelta(state: PetState, delta: number): PetState {
   if (delta === 0) {
     return state;

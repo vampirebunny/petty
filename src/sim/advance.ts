@@ -26,9 +26,9 @@ function waterPenalty(state: PetState, stepNow: number): boolean {
   return stepNow - state.waterEmptySince > waterEmptyGraceMs;
 }
 
-function applyStep(needs: Needs, asleep: boolean, emptyWater: boolean): Needs {
+function applyInterval(needs: Needs, asleep: boolean, emptyWater: boolean, durationMs: number): Needs {
   const rates = asleep ? decayPerHour.asleep : decayPerHour.awake;
-  const scale = stepMs / hourMs;
+  const scale = durationMs / hourMs;
   let happiness = needs.happiness + rates.happiness * scale;
   if (
     !asleep &&
@@ -51,32 +51,38 @@ export function advanceNeedsDetail(
   const raw = Math.max(elapsedMs, 0);
   const elapsed = cap ? Math.min(raw, maxElapsedMs) : raw;
   const steps = Math.floor(elapsed / stepMs);
+  const remainder = elapsed - steps * stepMs;
   let needs = { ...state.needs };
   let asleep = state.asleep;
   let awakeMs = 0;
   let cursor = state.lastUpdatedAt;
 
-  for (let i = 0; i < steps; i += 1) {
+  const take = (durationMs: number) => {
     if (!asleep) {
-      awakeMs += stepMs;
+      awakeMs += durationMs;
     }
-    cursor += stepMs;
-    needs = applyStep(needs, asleep, waterPenalty(state, cursor));
+    cursor += durationMs;
+    needs = applyInterval(needs, asleep, waterPenalty(state, cursor), durationMs);
     if (asleep && needs.energy >= wakeAtEnergy) {
       asleep = false;
     }
+  };
+
+  for (let i = 0; i < steps; i += 1) {
+    take(stepMs);
   }
-  if (!asleep) {
-    awakeMs += elapsed - steps * stepMs;
+  if (remainder > 0) {
+    take(remainder);
   }
 
+  const appliedThrough = state.lastUpdatedAt + elapsed;
   return {
     state: {
       ...state,
       needs,
       asleep,
-      lastUpdatedAt: state.lastUpdatedAt + steps * stepMs,
-      boosts: activeBoosts(state.boosts, state.lastUpdatedAt + steps * stepMs),
+      lastUpdatedAt: appliedThrough,
+      boosts: activeBoosts(state.boosts, appliedThrough),
     },
     awakeMs,
   };

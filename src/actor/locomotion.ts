@@ -211,6 +211,17 @@ export function stepStamina(stamina: number, tired: boolean, gait: Gait, mods: L
 
 // ---------------------------------------------------------------- speed variety
 
+// Share of the age's top speed. Zoomy (0.75) is full speed for that age; full energy is a little faster.
+// Below that, speed falls off so a tired pet is clearly slower.
+export function energySpeedScale(energy: number): number {
+  const e = clamp(energy, 0, 1);
+  const zoomy = 0.75;
+  if (e >= zoomy) {
+    return 1 + 0.2 * ((e - zoomy) / (1 - zoomy));
+  }
+  return 0.28 + (1 - 0.28) * (e / zoomy);
+}
+
 // A share of top speed for one chase, from the seeded stream and how lively the pet is. A tired, sad pet
 // picks a slower pace; a lively one can pick anything up to full speed.
 export function sampleChaseSpeed(roll: () => number, energy: number, mood: number): number {

@@ -1,4 +1,4 @@
-import { weightBurnPerSec, weightRunSpeed } from '../sim/config';
+import { decayPerHour, runEnergyPerHour, weightBurnPerSec, weightRunSpeed } from '../sim/config';
 import type { Item } from '../items/types';
 import { stepItems } from '../items/physics';
 import { inactivePointer } from '../input/pointer';
@@ -19,6 +19,7 @@ import {
   chooseGait,
   jumpSpeed,
   landImpact,
+  energySpeedScale,
   locoModsOf,
   maxGaitOf,
   newGaitState,
@@ -182,6 +183,7 @@ export function spawnActor(source: ActorSource, at?: Vec): Actor {
     weight: source.weight,
     displayWeight: source.weight,
     syncedWeight: source.weight,
+    pendingEnergy: 0,
     vitality: source.vitality,
     equipped: { ...source.equipped },
     look: source.look ? { ...source.look } : null,
@@ -290,6 +292,12 @@ export function syncActor(actor: Actor, source: ActorSource): void {
 export function takeWeightDelta(actor: Actor): number {
   const delta = actor.weight - actor.syncedWeight;
   actor.syncedWeight = actor.weight;
+  return delta;
+}
+
+export function takeEnergyDelta(actor: Actor): number {
+  const delta = actor.pendingEnergy;
+  actor.pendingEnergy = 0;
   return delta;
 }
 
@@ -911,10 +919,11 @@ function updateActor(world: World, actor: Actor, dt: number): void {
   // Set by the idle and sitting states that may show the 3/4 head. The gate below can still veto it.
   let faceCamera = false;
   // The pet's own top speed, from its life stage, attributes and weight. A tired or elderly pet is held to a
-  // slower gait, which caps how fast it may be sent.
+  // slower gait, which caps how fast it may be sent. Energy scales how much of that age speed it actually uses:
+  // zoomy is full speed for the age, and a full bar is a little faster.
   const topSpeed = speedMax(breed, actor.displayAgeDays, actor.displayWeight) * mods.maxSpeed;
   const maxGait = maxGaitOf(profile, actor.tired);
-  const limit = topSpeed * gaitSpeedCap[maxGait];
+  const limit = topSpeed * gaitSpeedCap[maxGait] * energySpeedScale(actor.energy);
   const cat = breed.species === 'cat';
 
   if (actor.speed > weightRunSpeed) {
@@ -948,7 +957,8 @@ function updateActor(world: World, actor: Actor, dt: number): void {
         };
       }
       move = actor.idle.target;
-      vmax = limit * 0.42;
+      // A zoomy pet crosses the room near the top of its age speed. A tired one ambles.
+      vmax = limit * 0.82;
       const arrived =
         actor.idle.target != null &&
         Math.hypot(actor.idle.target.x - actor.x, actor.idle.target.y - actor.y) < 6 &&
@@ -1491,6 +1501,15 @@ function updateActor(world: World, actor: Actor, dt: number): void {
   const tireState = stepStamina(actor.stamina, actor.tired, actor.gait.current, mods, dt);
   actor.stamina = tireState.stamina;
   actor.tired = tireState.tired;
+  // Running spends need-energy. An idle nap pays it back. User sleep is restored by the needs clock.
+  const napping =
+    !actor.asleep && actor.task.type === 'idle' && actor.idle.mode === 'nap' && actor.idle.arrived && actor.speed < 15;
+  const runRate =
+    actor.gait.current === 'gallop' ? runEnergyPerHour.gallop : actor.gait.current === 'canter' ? runEnergyPerHour.canter : 0;
+  const energyPerHour = napping ? decayPerHour.asleep.energy - decayPerHour.awake.energy : actor.asleep ? 0 : -runRate;
+  if (energyPerHour !== 0) {
+    actor.pendingEnergy += (energyPerHour / 3600) * dt;
+  }
   const flow = streamOf(actor.gait);
   const moving = actor.speed > 14 && actor.z <= 0 ? 1 : 0;
   targets.stretch = flow.stretch * moving;

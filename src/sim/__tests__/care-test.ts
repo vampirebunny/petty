@@ -119,7 +119,8 @@ it('keeps Paw locked until Sit is mastered and the pup is a day old', () => {
 it('does not start accidents while the pet is resting', () => {
   const resting = pet();
   const before = { ...resting, asleep: true, needs: { ...resting.needs, energy: 0 } };
-  const after = resume(before, before.lastUpdatedAt + 8 * hourMs);
+  const after = resume(before, before.lastUpdatedAt + 20 * 60 * 1000);
+  expect(after.asleep).toBe(true);
   expect(after.care.messes).toEqual([]);
 });
 

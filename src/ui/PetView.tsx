@@ -25,6 +25,7 @@ import {
   takeMeals,
   takeCuddleOut,
   takeSounds,
+  takeEnergyDelta,
   takeWeightDelta,
   todAt,
   update,
@@ -58,6 +59,7 @@ type Props = {
   sceneOverride?: Scene | null;
   onStatus?: (status: string) => void;
   onWeightDelta: (delta: number) => void;
+  onEnergyDelta: (delta: number) => void;
   onDrank?: (fromBowl: boolean) => void;
   onAte?: () => void;
 };
@@ -99,6 +101,7 @@ export function PetView({
   sceneOverride,
   onStatus,
   onWeightDelta,
+  onEnergyDelta,
   onDrank,
   onAte,
 }: Props) {
@@ -179,6 +182,7 @@ export function PetView({
     pet.id,
     pet.look,
     pet.vitality,
+    pet.needs.energy,
     pet.waterLevel,
     pet.weight,
     redraw,
@@ -288,10 +292,13 @@ export function PetView({
   }, [cuddleActive]);
 
   const pendingWeight = useRef(0);
+  const pendingEnergy = useRef(0);
   const onWeightRef = useRef(onWeightDelta);
+  const onEnergyRef = useRef(onEnergyDelta);
   useEffect(() => {
     onWeightRef.current = onWeightDelta;
-  }, [onWeightDelta]);
+    onEnergyRef.current = onEnergyDelta;
+  }, [onEnergyDelta, onWeightDelta]);
   const flushWeight = useCallback((force: boolean) => {
     const delta = pendingWeight.current;
     if (Math.abs(delta) <= 0.00001) {
@@ -303,6 +310,18 @@ export function PetView({
     }
     pendingWeight.current = 0;
     onWeightRef.current(delta);
+  }, []);
+  const flushEnergy = useCallback((force: boolean) => {
+    const delta = pendingEnergy.current;
+    if (Math.abs(delta) <= 0.00001) {
+      pendingEnergy.current = 0;
+      return;
+    }
+    if (!force && Math.abs(delta) < 0.4) {
+      return;
+    }
+    pendingEnergy.current = 0;
+    onEnergyRef.current(delta);
   }, []);
 
   const onStatusRef = useRef(onStatus);
@@ -346,6 +365,8 @@ export function PetView({
         }
         pendingWeight.current += takeWeightDelta(actor);
         flushWeight(false);
+        pendingEnergy.current += takeEnergyDelta(actor);
+        flushEnergy(false);
         const status = statusOf(actor);
         if (status !== statusRef.current) {
           statusRef.current = status;
@@ -354,14 +375,17 @@ export function PetView({
       }
       redraw();
     },
-    [flushWeight, redraw],
+    [flushEnergy, flushWeight, redraw],
   );
 
   const kick = useRef<() => void>(() => undefined);
 
   useEffect(() => {
-    return () => flushWeight(true);
-  }, [flushWeight, pet.id]);
+    return () => {
+      flushWeight(true);
+      flushEnergy(true);
+    };
+  }, [flushEnergy, flushWeight, pet.id]);
 
   useEffect(() => {
     let raf = 0;

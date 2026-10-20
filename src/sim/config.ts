@@ -14,9 +14,11 @@ export const clampMax = 100;
 export const stepMs = 5 * 60 * 1000;
 export const maxElapsedMs = 48 * 60 * 60 * 1000;
 
+// A sitting should change a caption within minutes, and a real "please help" state
+// (hunger above 75, energy below 20) should land in roughly 1.5–2.5 hours.
 export const decayPerHour: { awake: Needs; asleep: Needs } = {
-  awake: { hunger: 8, energy: -5, happiness: -3 },
-  asleep: { hunger: 4, energy: 12, happiness: -1 },
+  awake: { hunger: 40, energy: -24, happiness: -16 },
+  asleep: { hunger: 12, energy: 120, happiness: -4 },
 };
 
 export const highHungerThreshold = 75;
@@ -25,7 +27,7 @@ export const extraHappinessDecayPerHour = -6;
 
 export const wakeAtEnergy = 100;
 
-export const feedHungerDrop = 25;
+export const feedHungerDrop = 40;
 
 export const waterDrainPerDrink = 0.1;
 export const waterEmptyGraceMs = 3 * 60 * 60 * 1000;
@@ -120,6 +122,8 @@ export const weightCeil = 1;
 export const weightMealGain = 0.12;
 export const weightDecayPerDay = 0.12;
 export const weightBurnPerSec = 0.003;
+// Extra need-energy spent per hour while running. The passive awake drain still applies on top.
+export const runEnergyPerHour = { canter: 140, gallop: 280 } as const;
 export const weightRunSpeed = 80;
 export const healthyWeightBand = 0.25;
 export const defaultSceneId = 'livingroom';
