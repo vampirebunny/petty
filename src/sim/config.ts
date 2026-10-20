@@ -17,13 +17,15 @@ export const maxElapsedMs = 48 * 60 * 60 * 1000;
 // A sitting should change a caption within minutes, and a real "please help" state
 // (hunger above 75, energy below 20) should land in roughly 1.5–2.5 hours.
 export const decayPerHour: { awake: Needs; asleep: Needs } = {
-  awake: { hunger: 40, energy: -24, happiness: -16 },
-  asleep: { hunger: 12, energy: 120, happiness: -4 },
+  awake: { hunger: 40, energy: -24, happiness: -36 },
+  asleep: { hunger: 12, energy: 120, happiness: -8 },
 };
 
 export const highHungerThreshold = 75;
 export const lowEnergyThreshold = 20;
-export const extraHappinessDecayPerHour = -6;
+export const extraHappinessDecayPerHour = -10;
+// A throw or fetch. Uses the same diminishing curve as a stroke.
+export const playHappinessGain = 10;
 
 export const wakeAtEnergy = 100;
 
@@ -124,6 +126,8 @@ export const weightDecayPerDay = 0.12;
 export const weightBurnPerSec = 0.003;
 // Extra need-energy spent per hour while running. The passive awake drain still applies on top.
 export const runEnergyPerHour = { canter: 140, gallop: 280 } as const;
+// Extra hunger per hour on top of the awake clock, so the tummy ring drops faster while busy.
+export const activityHungerPerHour = { walk: 28, trot: 48, canter: 72, gallop: 110, play: 40 } as const;
 export const weightRunSpeed = 80;
 export const healthyWeightBand = 0.25;
 export const defaultSceneId = 'livingroom';

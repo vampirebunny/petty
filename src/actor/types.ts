@@ -382,6 +382,8 @@ export type Actor = {
   syncedWeight: number;
   // Need-energy change (pet points, not 0..1) waiting to be applied to pet state.
   pendingEnergy: number;
+  // Hunger gain (pet points) from moving or playing, waiting to be applied to pet state.
+  pendingHunger: number;
   vitality: number;
   equipped: Equipped;
   look: Look | null;

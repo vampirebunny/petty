@@ -13,6 +13,7 @@ import {
   stagePoint,
   startUserTask,
   takeEnergyDelta,
+  takeHungerDelta,
   takeWeightDelta,
   update,
 } from '../sim';
@@ -229,6 +230,7 @@ it('spends energy while running and restores it during an idle nap', () => {
     update(zooming, 0.05);
   }
   expect(takeEnergyDelta(runner)).toBeLessThan(0);
+  expect(takeHungerDelta(runner)).toBeGreaterThan(0);
 
   const sleeper = actor();
   const napping = createWorld([sleeper], 5);
@@ -240,6 +242,7 @@ it('spends energy while running and restores it during an idle nap', () => {
   }
   expect(sleeper.idle.mode).toBe('nap');
   expect(takeEnergyDelta(sleeper)).toBeGreaterThan(0);
+  expect(takeHungerDelta(sleeper)).toBe(0);
 
   const resting = actor(true);
   const bed = createWorld([resting], 6);
@@ -247,6 +250,24 @@ it('spends energy while running and restores it during an idle nap', () => {
     update(bed, 0.05);
   }
   expect(takeEnergyDelta(resting)).toBe(0);
+  expect(takeHungerDelta(resting)).toBe(0);
+});
+
+it('empties the tummy while playing even if the pet is standing still', () => {
+  const pup = actor();
+  const world = createWorld([pup], 8);
+  pup.task = { type: 'travel', stage: 'exit', t: 0, bats: 0, cool: 0 };
+  pup.task.poi = { x: pup.x, y: pup.y };
+  pup.speed = 0;
+  pup.vx = 0;
+  pup.vy = 0;
+  for (let step = 0; step < 40; step += 1) {
+    pup.speed = 0;
+    pup.vx = 0;
+    pup.vy = 0;
+    update(world, 0.05);
+  }
+  expect(takeHungerDelta(pup)).toBeGreaterThan(0);
 });
 
 it('burns weight while running and maps a tap into the stage', () => {

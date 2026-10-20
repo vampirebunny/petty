@@ -93,6 +93,17 @@ export function applyEnergyDelta(state: PetState, delta: number): PetState {
   return { ...state, needs: { ...state.needs, energy } };
 }
 
+export function applyHungerDelta(state: PetState, delta: number): PetState {
+  if (delta === 0) {
+    return state;
+  }
+  const hunger = Math.max(0, Math.min(100, state.needs.hunger + delta));
+  if (hunger === state.needs.hunger) {
+    return state;
+  }
+  return { ...state, needs: { ...state.needs, hunger } };
+}
+
 export function applyWeightDelta(state: PetState, delta: number): PetState {
   if (delta === 0) {
     return state;

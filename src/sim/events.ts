@@ -10,6 +10,7 @@ import {
   petAffectionDrift,
   petAttentionGain,
   petHappinessGain,
+  playHappinessGain,
   petPurrAtOrAbove,
   petXp,
   startingWaterLevel,
@@ -286,7 +287,10 @@ export function applyEvent(state: PetState, event: PetEvent): EventResult {
   if (event.type === 'fetch') {
     const next = copyState(state);
     next.asleep = false;
-    return { state: next, cue: { kind: 'fetch', drop: event.drop, flick: event.flick } };
+    next.needs.happiness = clampNeed(
+      next.needs.happiness + playHappinessGain * (1 - next.needs.happiness / clampMax),
+    );
+    return { state: withDerived(next), cue: { kind: 'fetch', drop: event.drop, flick: event.flick } };
   }
 
   const rng = nextRng(state.rngState);

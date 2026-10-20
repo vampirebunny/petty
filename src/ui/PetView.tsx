@@ -31,6 +31,7 @@ import {
   takeCuddleOut,
   takeSounds,
   takeEnergyDelta,
+  takeHungerDelta,
   takeWeightDelta,
   todAt,
   update,
@@ -65,6 +66,7 @@ type Props = {
   onStatus?: (status: string) => void;
   onWeightDelta: (delta: number) => void;
   onEnergyDelta: (delta: number) => void;
+  onHungerDelta: (delta: number) => void;
   onDrank?: (fromBowl: boolean) => void;
   onAte?: () => void;
   onTraveling?: (active: boolean) => void;
@@ -108,6 +110,7 @@ export function PetView({
   onStatus,
   onWeightDelta,
   onEnergyDelta,
+  onHungerDelta,
   onDrank,
   onAte,
   onTraveling,
@@ -353,12 +356,15 @@ export function PetView({
 
   const pendingWeight = useRef(0);
   const pendingEnergy = useRef(0);
+  const pendingHunger = useRef(0);
   const onWeightRef = useRef(onWeightDelta);
   const onEnergyRef = useRef(onEnergyDelta);
+  const onHungerRef = useRef(onHungerDelta);
   useEffect(() => {
     onWeightRef.current = onWeightDelta;
     onEnergyRef.current = onEnergyDelta;
-  }, [onEnergyDelta, onWeightDelta]);
+    onHungerRef.current = onHungerDelta;
+  }, [onEnergyDelta, onHungerDelta, onWeightDelta]);
   const flushWeight = useCallback((force: boolean) => {
     const delta = pendingWeight.current;
     if (Math.abs(delta) <= 0.00001) {
@@ -382,6 +388,18 @@ export function PetView({
     }
     pendingEnergy.current = 0;
     onEnergyRef.current(delta);
+  }, []);
+  const flushHunger = useCallback((force: boolean) => {
+    const delta = pendingHunger.current;
+    if (Math.abs(delta) <= 0.00001) {
+      pendingHunger.current = 0;
+      return;
+    }
+    if (!force && Math.abs(delta) < 0.4) {
+      return;
+    }
+    pendingHunger.current = 0;
+    onHungerRef.current(delta);
   }, []);
 
   const onStatusRef = useRef(onStatus);
@@ -457,6 +475,8 @@ export function PetView({
         flushWeight(false);
         pendingEnergy.current += takeEnergyDelta(actor);
         flushEnergy(false);
+        pendingHunger.current += takeHungerDelta(actor);
+        flushHunger(false);
         const status = statusOf(actor);
         if (status !== statusRef.current) {
           statusRef.current = status;
@@ -465,7 +485,7 @@ export function PetView({
       }
       redraw();
     },
-    [applyCue, flushEnergy, flushWeight, redraw],
+    [applyCue, flushEnergy, flushHunger, flushWeight, redraw],
   );
 
   const kick = useRef<() => void>(() => undefined);
@@ -474,8 +494,9 @@ export function PetView({
     return () => {
       flushWeight(true);
       flushEnergy(true);
+      flushHunger(true);
     };
-  }, [flushEnergy, flushWeight, pet.id]);
+  }, [flushEnergy, flushHunger, flushWeight, pet.id]);
 
   useEffect(() => {
     let raf = 0;

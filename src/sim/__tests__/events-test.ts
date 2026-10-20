@@ -1,4 +1,5 @@
 import { attributeScore, withDerived } from '../attributes';
+import { clampMax, playHappinessGain } from '../config';
 import { applyEvent } from '../events';
 import { testPet } from '../__fixtures__/pets';
 import type { PetState } from '../types';
@@ -171,4 +172,17 @@ it('rewards a finished cuddle, more for a longer one, with no cue', () => {
   expect(quick.state.needs.happiness).toBeGreaterThan(40);
   expect(long.state.needs.happiness).toBeGreaterThan(quick.state.needs.happiness);
   expect(long.state.rngState).toBe(before.rngState);
+});
+
+it('raises happiness when the user throws a toy', () => {
+  const before = testPet(1, 'retriever', 0, 'Pup', 'pet');
+  before.needs.happiness = 50;
+  const gain = playHappinessGain * (1 - 50 / clampMax);
+  const thrown = applyEvent(before, { type: 'fetch', drop: { x: 200, y: 240 } });
+  expect(thrown.cue).toEqual({ kind: 'fetch', drop: { x: 200, y: 240 } });
+  expect(thrown.state.needs.happiness).toBeCloseTo(50 + gain, 5);
+  expect(thrown.state.asleep).toBe(false);
+
+  const full = applyEvent({ ...before, needs: { ...before.needs, happiness: 100 } }, { type: 'fetch' });
+  expect(full.state.needs.happiness).toBe(100);
 });

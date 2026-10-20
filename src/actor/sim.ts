@@ -1,4 +1,4 @@
-import { decayPerHour, runEnergyPerHour, weightBurnPerSec, weightRunSpeed } from '../sim/config';
+import { activityHungerPerHour, decayPerHour, runEnergyPerHour, weightBurnPerSec, weightRunSpeed } from '../sim/config';
 import type { Item } from '../items/types';
 import { stepItems } from '../items/physics';
 import { inactivePointer } from '../input/pointer';
@@ -188,6 +188,7 @@ export function spawnActor(source: ActorSource, at?: Vec): Actor {
     displayWeight: source.weight,
     syncedWeight: source.weight,
     pendingEnergy: 0,
+    pendingHunger: 0,
     vitality: source.vitality,
     equipped: { ...source.equipped },
     look: source.look ? { ...source.look } : null,
@@ -302,6 +303,12 @@ export function takeWeightDelta(actor: Actor): number {
 export function takeEnergyDelta(actor: Actor): number {
   const delta = actor.pendingEnergy;
   actor.pendingEnergy = 0;
+  return delta;
+}
+
+export function takeHungerDelta(actor: Actor): number {
+  const delta = actor.pendingHunger;
+  actor.pendingHunger = 0;
   return delta;
 }
 
@@ -1584,6 +1591,13 @@ function updateActor(world: World, actor: Actor, dt: number): void {
   const energyPerHour = napping ? decayPerHour.asleep.energy - decayPerHour.awake.energy : actor.asleep ? 0 : -runRate;
   if (energyPerHour !== 0) {
     actor.pendingEnergy += (energyPerHour / 3600) * dt;
+  }
+  // Moving or playing empties the tummy faster than sitting still.
+  const playing = actor.task.type === 'fetch' || actor.task.type === 'winddown' || actor.task.type === 'travel';
+  const moveHunger = actor.speed > 14 ? activityHungerPerHour[actor.gait.current] : 0;
+  const hungerPerHour = Math.max(moveHunger, playing ? activityHungerPerHour.play : 0);
+  if (hungerPerHour > 0 && !actor.asleep) {
+    actor.pendingHunger += (hungerPerHour / 3600) * dt;
   }
   const flow = streamOf(actor.gait);
   const moving = actor.speed > 14 && actor.z <= 0 ? 1 : 0;
