@@ -89,6 +89,7 @@ export {
   takeBowlDrinks,
   takeMeals,
   takeEnergyDelta,
+  takeEnergyPops,
   takeHungerDelta,
   takeThirstDelta,
   takeSounds,

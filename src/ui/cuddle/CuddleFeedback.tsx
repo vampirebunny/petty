@@ -1,17 +1,28 @@
 import { useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import type { Ref } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
-import { Heart } from 'lucide-react-native';
+import { Bone, Heart, Zap } from 'lucide-react-native';
 
+import { playPointPop } from '../../audio/badge';
 import { theme } from '../theme';
 
 export type FeedbackHandle = {
   trail: (x: number, y: number) => void;
   heart: (x: number, y: number) => void;
+  energyGain: (x: number, y: number) => void;
+  tummyGain: (x: number, y: number, amount: number) => void;
 };
 
-type Spark = { id: number; kind: 'trail' | 'heart'; x: number; y: number; dur: number; drift: number };
+type Spark = {
+  id: number;
+  kind: 'trail' | 'heart' | 'energy' | 'tummy';
+  x: number;
+  y: number;
+  dur: number;
+  drift: number;
+  label?: string;
+};
 
 export const trailMs = 420;
 // Hearts alternate between red and pink.
@@ -22,6 +33,7 @@ const heartColors = [
 
 export const heartMinMs = 600;
 export const heartMaxMs = 800;
+export const energyPopMs = 1200;
 const maxSparks = 28;
 
 // A heart lasts 600 to 800 ms.
@@ -66,6 +78,50 @@ function FloatingHeart({ spark, reduced }: { spark: Spark; reduced: boolean }) {
   );
 }
 
+function FloatingNeed({
+  spark,
+  reduced,
+  tint,
+  icon: Icon,
+}: {
+  spark: Spark;
+  reduced: boolean;
+  tint: { bg: string; edge: string; strong: string; ink: string };
+  icon: typeof Zap;
+}) {
+  const progress = useSharedValue(0);
+  useEffect(() => {
+    progress.value = withTiming(1, { duration: spark.dur, easing: Easing.out(Easing.cubic) });
+  }, [progress, spark.dur]);
+  const style = useAnimatedStyle(() => {
+    const p = progress.value;
+    const pop = p < 0.18 ? 0.35 + (p / 0.18) * 1.05 : p < 0.32 ? 1.4 - ((p - 0.18) / 0.14) * 0.28 : 1.12;
+    const fade = p < 0.12 ? p / 0.12 : p > 0.62 ? 1 - (p - 0.62) / 0.38 : 1;
+    return {
+      opacity: Math.max(0, fade),
+      transform: [
+        { translateY: reduced ? 0 : -78 * p },
+        { translateX: reduced ? 0 : spark.drift * p },
+        { scale: reduced ? 1 : pop },
+        { rotate: `${reduced ? 0 : (1 - p) * -8}deg` },
+      ],
+    };
+  });
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[
+        styles.needBurst,
+        { left: spark.x - 36, top: spark.y - 22, backgroundColor: tint.bg, borderColor: tint.strong, shadowColor: tint.ink },
+        style,
+      ]}
+    >
+      <Icon size={16} strokeWidth={2.6} color={tint.ink} fill={tint.strong} />
+      <Text style={[styles.needBurstText, { color: tint.ink }]}>{spark.label ?? '+10'}</Text>
+    </Animated.View>
+  );
+}
+
 type Props = {
   feedbackRef?: Ref<FeedbackHandle>;
   reducedMotion: boolean;
@@ -100,6 +156,14 @@ export function CuddleFeedback({ feedbackRef, reducedMotion }: Props) {
     () => ({
       trail: (x, y) => add({ kind: 'trail', x, y, dur: trailMs, drift: 0 }),
       heart: (x, y) => add({ kind: 'heart', x, y, dur: heartDuration(Math.random()), drift: (Math.random() - 0.5) * 18 }),
+      energyGain: (x, y) => {
+        playPointPop();
+        add({ kind: 'energy', x, y, dur: energyPopMs, drift: (Math.random() - 0.5) * 10, label: '+10' });
+      },
+      tummyGain: (x, y, amount) => {
+        playPointPop();
+        add({ kind: 'tummy', x, y, dur: energyPopMs, drift: (Math.random() - 0.5) * 10, label: `+${Math.round(amount)}` });
+      },
     }),
     [add],
   );
@@ -109,6 +173,22 @@ export function CuddleFeedback({ feedbackRef, reducedMotion }: Props) {
       {sparks.map((spark) =>
         spark.kind === 'trail' ? (
           <TrailDot key={spark.id} spark={spark} reduced={reducedMotion} />
+        ) : spark.kind === 'energy' ? (
+          <FloatingNeed
+            key={spark.id}
+            spark={spark}
+            reduced={reducedMotion}
+            tint={{ bg: '#DDF6E8', edge: '#A6DFC0', strong: '#4FC98A', ink: '#14503A' }}
+            icon={Zap}
+          />
+        ) : spark.kind === 'tummy' ? (
+          <FloatingNeed
+            key={spark.id}
+            spark={spark}
+            reduced={reducedMotion}
+            tint={{ bg: '#FFE9D6', edge: '#F7C49A', strong: '#FF9F5A', ink: '#8A4210' }}
+            icon={Bone}
+          />
         ) : (
           <FloatingHeart key={spark.id} spark={spark} reduced={reducedMotion} />
         ),
@@ -129,5 +209,26 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: 20,
     height: 20,
+  },
+  needBurst: {
+    position: 'absolute',
+    minWidth: 72,
+    height: 36,
+    paddingHorizontal: 10,
+    borderRadius: 18,
+    borderWidth: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    shadowOpacity: 0.28,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 4,
+  },
+  needBurstText: {
+    fontSize: 18,
+    fontWeight: '800',
+    letterSpacing: 0.4,
   },
 });

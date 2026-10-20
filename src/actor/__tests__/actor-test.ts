@@ -13,6 +13,7 @@ import {
   stagePoint,
   startUserTask,
   takeEnergyDelta,
+  takeEnergyPops,
   takeHungerDelta,
   takeThirstDelta,
   takeWeightDelta,
@@ -274,6 +275,46 @@ it('empties the tummy while playing even if the pet is standing still', () => {
   expect(takeHungerDelta(pup)).toBeGreaterThan(0);
   expect(takeEnergyDelta(pup)).toBeLessThan(0);
   expect(takeThirstDelta(pup)).toBeGreaterThan(0);
+});
+
+it('gives energy after a user sleep of at least five seconds', () => {
+  const pup = actor();
+  const world = createWorld([pup], 12);
+  pup.x = 400;
+  pup.y = 400;
+  startUserTask(world, pup, 'sleep');
+  expect(pup.task.stage).toBe('go');
+  for (let step = 0; step < 120; step += 1) {
+    pup.x = 400;
+    pup.y = 400;
+    update(world, 0.05);
+  }
+  expect(pup.task.stage).toBe('go');
+  expect(takeEnergyDelta(pup)).toBe(0);
+  expect(takeEnergyPops(pup)).toBe(0);
+
+  pup.x = 110;
+  pup.y = 542;
+  pup.speed = 0;
+  pup.vx = 0;
+  pup.vy = 0;
+  for (let step = 0; step < 20 && pup.task.stage !== 'sleeping'; step += 1) {
+    update(world, 0.05);
+  }
+  expect(pup.task.stage).toBe('sleeping');
+  takeEnergyDelta(pup);
+  takeEnergyPops(pup);
+  for (let step = 0; step < 20; step += 1) {
+    update(world, 0.05);
+  }
+  expect(takeEnergyDelta(pup)).toBe(0);
+  expect(takeEnergyPops(pup)).toBe(0);
+
+  for (let step = 0; step < 120; step += 1) {
+    update(world, 0.05);
+  }
+  expect(takeEnergyDelta(pup)).toBeCloseTo(10, 5);
+  expect(takeEnergyPops(pup)).toBe(1);
 });
 
 it('collapses to sleep at empty energy and wakes with a little energy', () => {

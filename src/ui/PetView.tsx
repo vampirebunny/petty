@@ -31,6 +31,7 @@ import {
   takeCuddleOut,
   takeSounds,
   takeEnergyDelta,
+  takeEnergyPops,
   takeHungerDelta,
   takeThirstDelta,
   takeWeightDelta,
@@ -40,7 +41,7 @@ import {
 import { useStageSize } from './useStageSize';
 import type { CuddleOut, CuddleTouch, CuddleZone, Scene, TimeOfDay, World } from '../actor';
 import { playVoice } from '../audio/voice';
-import { attributeScore } from '../sim';
+import { attributeScore, feedHungerDrop } from '../sim';
 import type { Cue, PetState } from '../sim/types';
 import { drawWorld } from './skia/world';
 
@@ -72,6 +73,8 @@ type Props = {
   onDrank?: (fromBowl: boolean) => void;
   onAte?: () => void;
   onTraveling?: (active: boolean) => void;
+  onEnergyPop?: (x: number, y: number) => void;
+  onTummyPop?: (x: number, y: number, amount: number) => void;
 };
 
 function sourceOf(pet: PetState) {
@@ -118,6 +121,8 @@ export function PetView({
   onDrank,
   onAte,
   onTraveling,
+  onEnergyPop,
+  onTummyPop,
 }: Props) {
   const { viewWidth, viewHeight } = useStageSize();
   const widthRef = useRef(viewWidth);
@@ -434,6 +439,16 @@ export function PetView({
   useEffect(() => {
     onAteRef.current = onAte;
   }, [onAte]);
+  const onEnergyPopRef = useRef(onEnergyPop);
+  useEffect(() => {
+    onEnergyPopRef.current = onEnergyPop;
+  }, [onEnergyPop]);
+  const onTummyPopRef = useRef(onTummyPop);
+  useEffect(() => {
+    onTummyPopRef.current = onTummyPop;
+  }, [onTummyPop]);
+  const hungerRef = useRef(pet.needs.hunger);
+  hungerRef.current = pet.needs.hunger;
   const statusRef = useRef('');
 
   const step = useCallback(
@@ -476,6 +491,16 @@ export function PetView({
       }
       const meals = takeMeals(world);
       for (let i = 0; i < meals; i += 1) {
+        const hunger = hungerRef.current;
+        if (hunger > 0 && actor) {
+          const gain = Math.min(feedHungerDrop, hunger);
+          const sc = actor.anchors.scale || 1;
+          onTummyPopRef.current?.(
+            actor.x + actor.face * sc * actor.anchors.head.x,
+            actor.y - actor.z + sc * (actor.anchors.head.y - actor.anchors.head.radius) - 18,
+            gain,
+          );
+        }
         onAteRef.current?.();
       }
       const drinks = takeBowlDrinks(world);
@@ -499,6 +524,15 @@ export function PetView({
         flushHunger(false);
         pendingThirst.current += takeThirstDelta(actor);
         flushThirst(false);
+        const pops = takeEnergyPops(actor);
+        if (pops > 0) {
+          const sc = actor.anchors.scale || 1;
+          const x = actor.x + actor.face * sc * actor.anchors.head.x;
+          const y = actor.y - actor.z + sc * (actor.anchors.head.y - actor.anchors.head.radius) - 18;
+          for (let i = 0; i < pops; i += 1) {
+            onEnergyPopRef.current?.(x, y);
+          }
+        }
         const status = statusOf(actor);
         if (status !== statusRef.current) {
           statusRef.current = status;

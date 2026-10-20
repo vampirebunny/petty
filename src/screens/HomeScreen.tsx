@@ -746,6 +746,14 @@ export default function HomeScreen({ petApi }: Props) {
               onDrank={reportDrank}
               onAte={reportAte}
               onTraveling={setTraveling}
+              onEnergyPop={(x, y) => {
+                const view = stageToView({ x, y });
+                feedback.current?.energyGain(view.x, view.y);
+              }}
+              onTummyPop={(x, y, amount) => {
+                const view = stageToView({ x, y });
+                feedback.current?.tummyGain(view.x, view.y, amount);
+              }}
             />
             {!traveling &&
               state.care.messes

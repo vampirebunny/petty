@@ -208,6 +208,9 @@ export function spawnActor(source: ActorSource, at?: Vec): Actor {
     variant: variantFor(source.seed, source.breedId),
     asleep: source.asleep,
     collapseLeft: 0,
+    sleepSec: 0,
+    restBonusPaid: false,
+    energyPops: 0,
     mouth: { x, y },
     anchors: emptyAnchors(),
     cuddleAffinity: source.cuddleAffinity ?? 0.5,
@@ -304,6 +307,8 @@ export function syncActor(actor: Actor, source: ActorSource): void {
   actor.thirst = source.thirst ?? actor.thirst;
   actor.stats = source.stats ? { ...source.stats } : actor.stats;
   if (actor.collapseLeft <= 0 && actor.asleep !== source.asleep) {
+    actor.sleepSec = 0;
+    actor.restBonusPaid = false;
     actor.asleep = source.asleep;
     actor.task = taskOf(source.asleep ? 'sleep' : 'idle', source.asleep ? 'sleeping' : '');
     actor.pantT = 0;
@@ -630,6 +635,18 @@ function goIdle(world: World, actor: Actor): void {
   beginIdle(world, actor, 'still');
 }
 
+function grantRestEnergy(actor: Actor): void {
+  actor.pendingEnergy += collapseWakeEnergy;
+  actor.energy = Math.max(actor.energy, Math.min(1, actor.energy + collapseWakeEnergy / 100));
+  actor.energyPops += 1;
+}
+
+export function takeEnergyPops(actor: Actor): number {
+  const count = actor.energyPops;
+  actor.energyPops = 0;
+  return count;
+}
+
 export function startUserTask(
   world: World,
   actor: Actor,
@@ -643,6 +660,8 @@ export function startUserTask(
   }
   if (task === 'wake') {
     actor.asleep = false;
+    actor.sleepSec = 0;
+    actor.restBonusPaid = false;
     goIdle(world, actor);
     return true;
   }
@@ -651,6 +670,8 @@ export function startUserTask(
     const bed = nearestPoi(world.scene, 'bed', actor);
     releaseCarried(world, actor);
     actor.asleep = true;
+    actor.sleepSec = 0;
+    actor.restBonusPaid = false;
     actor.task = taskOf('sleep', bed ? 'go' : 'sleeping');
     actor.task.poi = bed ?? undefined;
     actor.pantT = 0;
@@ -659,6 +680,8 @@ export function startUserTask(
   // Any other request wakes a sleeper, then continues into that action.
   if (actor.asleep) {
     actor.asleep = false;
+    actor.sleepSec = 0;
+    actor.restBonusPaid = false;
   }
   // Another request ends Cuddle. A voice rides on top of it, so speak leaves it alone.
   if (task !== 'cuddle' && task !== 'speak' && actor.cuddle) {
@@ -965,8 +988,7 @@ function beginCollapse(world: World, actor: Actor): void {
 function finishCollapse(world: World, actor: Actor): void {
   actor.collapseLeft = 0;
   actor.asleep = false;
-  actor.pendingEnergy += collapseWakeEnergy;
-  actor.energy = Math.max(actor.energy, collapseWakeEnergy / 100);
+  grantRestEnergy(actor);
   goIdle(world, actor);
 }
 
@@ -982,6 +1004,13 @@ function updateActor(world: World, actor: Actor, dt: number): void {
     }
   } else if (!actor.asleep && actor.energy * 100 + actor.pendingEnergy <= 0) {
     beginCollapse(world, actor);
+  }
+  if (actor.asleep && actor.collapseLeft <= 0 && actor.task.type === 'sleep' && actor.task.stage === 'sleeping') {
+    actor.sleepSec += dt;
+    if (!actor.restBonusPaid && actor.sleepSec >= collapseSleepSec) {
+      actor.restBonusPaid = true;
+      grantRestEnergy(actor);
+    }
   }
   const floor = world.scene.floor;
   actor.task.t += dt;
