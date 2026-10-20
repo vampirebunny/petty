@@ -1,5 +1,7 @@
+import { careConfig } from '../sim/careConfig';
 import { dayMs, treatDailyCap } from '../sim/config';
 import { applyEffects } from '../sim/effects';
+import type { Effects } from '../sim/effects';
 import type { PetState } from '../sim/types';
 import { treatById } from './kinds';
 
@@ -54,6 +56,25 @@ export function giveTreat(state: PetState, treatId: string, now: number): TreatR
   return { ok: true, state: next, reaction: kind.reaction };
 }
 
-export function onTreatReward(_event: TreatRewardEvent): void {
-  // Training hook placeholder.
+function scaled(effects: Effects, fraction: number): Effects {
+  return {
+    hunger: effects.hunger == null ? undefined : effects.hunger * fraction,
+    weight: effects.weight == null ? undefined : effects.weight * fraction,
+    mood: effects.mood == null ? undefined : effects.mood * fraction,
+  };
+}
+
+// Reward treats skip the cap and the hunger gate. Only the calorie (weight) fraction is reduced;
+// hunger and mood are scaled by the same fraction so a training bite stays smaller than a casual treat.
+export function applyRewardTreat(state: PetState, treatId: string, now: number): TreatResult {
+  const kind = treatById(treatId);
+  if (!kind) {
+    return { ok: false, reason: 'unknown' };
+  }
+  const next = applyEffects(state, scaled(kind.effects, careConfig.rewardCalorieFraction), now);
+  return { ok: true, state: next, reaction: kind.reaction };
+}
+
+export function onTreatReward(state: PetState, treatId: string, now: number): TreatResult {
+  return applyRewardTreat(state, treatId, now);
 }

@@ -21,6 +21,15 @@ export const TREAT_KINDS: Record<string, TreatKind> = {
     reaction: 'wag_burst',
     tags: ['crunchy'],
   },
+  special: {
+    id: 'special',
+    name: 'Special treat',
+    species: ['dog', 'cat'],
+    rarity: 'special',
+    effects: { hunger: -treatHungerDrop, weight: treatWeightGain, mood: 6 },
+    reaction: 'spin',
+    tags: ['special'],
+  },
   softchew: {
     id: 'softchew',
     name: 'Soft Chew',
