@@ -1,7 +1,7 @@
 import { breedById, defaultLook } from '../../actor/breeds';
 import { testPet } from '../__fixtures__/pets';
 import { potentialTotal } from '../attributes';
-import { startingNeeds, startingWeight } from '../config';
+import { startingNeeds, startingThirst, startingWeight } from '../config';
 import { createPet } from '../createPet';
 import { attributesFor, generateOffers, startingCurrent } from '../offers';
 
@@ -22,6 +22,7 @@ it('starts at age 0, a balanced weight, and vitality near the care target', () =
   expect(pet.vitality).toBeCloseTo(0.75, 5);
   expect(pet.name).toBe('Maple');
   expect(pet.needs).toEqual(startingNeeds);
+  expect(pet.thirst).toBe(startingThirst);
   expect(pet.asleep).toBe(false);
   expect(pet.lastUpdatedAt).toBe(now);
   expect(pet.bornAt).toBe(now);

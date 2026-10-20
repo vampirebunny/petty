@@ -1,5 +1,5 @@
 import { attributeScore, withDerived } from '../attributes';
-import { clampMax, playHappinessGain } from '../config';
+import { clampMax, drinkThirstDrop, playHappinessGain } from '../config';
 import { applyEvent } from '../events';
 import { testPet } from '../__fixtures__/pets';
 import type { PetState } from '../types';
@@ -69,9 +69,15 @@ it('refills water without changing happiness', () => {
 
 it('drains the water bowl when the pet drinks from it', () => {
   const before = testPet(1, 'retriever', 0, 'Pup', 'pet');
+  before.thirst = 80;
   const result = applyEvent(before, { type: 'drank', fromBowl: true, now: 500 });
   expect(result.state.waterLevel).toBeCloseTo(0.9, 5);
   expect(result.state.waterEmptySince).toBeNull();
+  expect(result.state.thirst).toBe(80 - drinkThirstDrop);
+
+  const pond = applyEvent({ ...before, thirst: 40 }, { type: 'drank', fromBowl: false, now: 500 });
+  expect(pond.state.waterLevel).toBe(before.waterLevel);
+  expect(pond.state.thirst).toBe(0);
 
   const empty = applyEvent(
     { ...before, waterLevel: 0.05 },

@@ -1,4 +1,14 @@
-import { activityHungerPerHour, decayPerHour, runEnergyPerHour, weightBurnPerSec, weightRunSpeed } from '../sim/config';
+import {
+  activityEnergyPerHour,
+  activityHungerPerHour,
+  activityThirstPerHour,
+  decayPerHour,
+  healthyWeightBand,
+  overweightPlayWeightBonus,
+  playWeightPerHour,
+  weightBurnPerSec,
+  weightRunSpeed,
+} from '../sim/config';
 import type { Item } from '../items/types';
 import { stepItems } from '../items/physics';
 import { inactivePointer } from '../input/pointer';
@@ -189,6 +199,7 @@ export function spawnActor(source: ActorSource, at?: Vec): Actor {
     syncedWeight: source.weight,
     pendingEnergy: 0,
     pendingHunger: 0,
+    pendingThirst: 0,
     vitality: source.vitality,
     equipped: { ...source.equipped },
     look: source.look ? { ...source.look } : null,
@@ -205,6 +216,7 @@ export function spawnActor(source: ActorSource, at?: Vec): Actor {
     stats: { ...(source.stats ?? defaultStats) },
     energy: source.energy ?? 0.8,
     mood: source.mood ?? 0.8,
+    thirst: source.thirst ?? 0.15,
     play: null,
     zoom: null,
     land: 0,
@@ -286,6 +298,7 @@ export function syncActor(actor: Actor, source: ActorSource): void {
   actor.cuddleAffinity = source.cuddleAffinity ?? actor.cuddleAffinity;
   actor.energy = source.energy ?? actor.energy;
   actor.mood = source.mood ?? actor.mood;
+  actor.thirst = source.thirst ?? actor.thirst;
   actor.stats = source.stats ? { ...source.stats } : actor.stats;
   if (actor.asleep !== source.asleep) {
     actor.asleep = source.asleep;
@@ -309,6 +322,12 @@ export function takeEnergyDelta(actor: Actor): number {
 export function takeHungerDelta(actor: Actor): number {
   const delta = actor.pendingHunger;
   actor.pendingHunger = 0;
+  return delta;
+}
+
+export function takeThirstDelta(actor: Actor): number {
+  const delta = actor.pendingThirst;
+  actor.pendingThirst = 0;
   return delta;
 }
 
@@ -543,8 +562,8 @@ function nextIdle(world: World, actor: Actor): void {
     startUserTask(world, actor, 'eat');
     return;
   }
-  // Occasional autonomous drink when water is available.
-  if (canAutonomousDrink(world) && world.rng() < 0.18 && canBehave(actor, 'eat')) {
+  // Occasional autonomous drink when water is available. Thirst makes this much more likely.
+  if (canAutonomousDrink(world) && world.rng() < 0.08 + 0.72 * actor.thirst && canBehave(actor, 'eat')) {
     startUserTask(world, actor, 'drink');
     return;
   }
@@ -1583,21 +1602,32 @@ function updateActor(world: World, actor: Actor, dt: number): void {
   const tireState = stepStamina(actor.stamina, actor.tired, actor.gait.current, mods, dt);
   actor.stamina = tireState.stamina;
   actor.tired = tireState.tired;
-  // Running spends need-energy. An idle nap pays it back. User sleep is restored by the needs clock.
+  // Running or fetch spends need-energy. An idle nap pays it back. User sleep is restored by the needs clock.
   const napping =
     !actor.asleep && actor.task.type === 'idle' && actor.idle.mode === 'nap' && actor.idle.arrived && actor.speed < 15;
-  const runRate =
-    actor.gait.current === 'gallop' ? runEnergyPerHour.gallop : actor.gait.current === 'canter' ? runEnergyPerHour.canter : 0;
+  const playing = actor.task.type === 'fetch' || actor.task.type === 'winddown' || actor.task.type === 'travel';
+  const onTheMove = actor.speed > 14;
+  const busyRate = (rates: { walk: number; trot: number; canter: number; gallop: number; play: number }): number =>
+    Math.max(onTheMove ? rates[actor.gait.current] : 0, playing ? rates.play : 0);
+  const runRate = busyRate(activityEnergyPerHour);
   const energyPerHour = napping ? decayPerHour.asleep.energy - decayPerHour.awake.energy : actor.asleep ? 0 : -runRate;
   if (energyPerHour !== 0) {
     actor.pendingEnergy += (energyPerHour / 3600) * dt;
   }
-  // Moving or playing empties the tummy faster than sitting still.
-  const playing = actor.task.type === 'fetch' || actor.task.type === 'winddown' || actor.task.type === 'travel';
-  const moveHunger = actor.speed > 14 ? activityHungerPerHour[actor.gait.current] : 0;
-  const hungerPerHour = Math.max(moveHunger, playing ? activityHungerPerHour.play : 0);
+  // Moving or playing empties the tummy faster than sitting still, and works up a thirst.
+  const hungerPerHour = busyRate(activityHungerPerHour);
   if (hungerPerHour > 0 && !actor.asleep) {
     actor.pendingHunger += (hungerPerHour / 3600) * dt;
+  }
+  const thirstPerHour = busyRate(activityThirstPerHour);
+  if (thirstPerHour > 0 && !actor.asleep) {
+    actor.pendingThirst += (thirstPerHour / 3600) * dt;
+  }
+  // Fetch burns weight even when the pet is too heavy to sprint. A heavier pet works a bit harder.
+  if (!actor.asleep && (actor.task.type === 'fetch' || actor.task.type === 'winddown')) {
+    const over = clamp((actor.weight - healthyWeightBand) / (1 - healthyWeightBand), 0, 1);
+    const rate = playWeightPerHour * (1 + overweightPlayWeightBonus * over);
+    actor.weight = clamp(actor.weight - (rate / 3600) * dt, -1, 1);
   }
   const flow = streamOf(actor.gait);
   const moving = actor.speed > 14 && actor.z <= 0 ? 1 : 0;

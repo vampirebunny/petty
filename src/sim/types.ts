@@ -165,6 +165,8 @@ export type PetState = {
   foodInBowl: boolean;
   waterLevel: number;
   waterEmptySince: number | null;
+  // Hidden 0–100. Running and fetch raise it; drinking lowers it. Not shown on the need rings.
+  thirst: number;
   toys: string[];
   treats: TreatStack[];
   treatDay: TreatDay;

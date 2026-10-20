@@ -107,6 +107,7 @@ export default function HomeScreen({ petApi }: Props) {
     applyActorWeight,
     applyActorEnergy,
     applyActorHunger,
+    applyActorThirst,
     advanceBy,
     setAge,
     setVitalityValue,
@@ -741,6 +742,7 @@ export default function HomeScreen({ petApi }: Props) {
               onWeightDelta={applyActorWeight}
               onEnergyDelta={applyActorEnergy}
               onHungerDelta={applyActorHunger}
+              onThirstDelta={applyActorThirst}
               onDrank={reportDrank}
               onAte={reportAte}
               onTraveling={setTraveling}

@@ -90,6 +90,7 @@ export {
   takeMeals,
   takeEnergyDelta,
   takeHungerDelta,
+  takeThirstDelta,
   takeSounds,
   takeWeightDelta,
   throwFromEdge,

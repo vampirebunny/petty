@@ -124,6 +124,7 @@ export function DebugPanel({
       <Text style={styles.line}>Hunger {format(state.needs.hunger)}</Text>
       <Text style={styles.line}>Energy {format(state.needs.energy)}</Text>
       <Text style={styles.line}>Happiness {format(state.needs.happiness)}</Text>
+      <Text style={styles.line}>Thirst {format(state.thirst)}</Text>
       <Text style={styles.line}>Asleep {state.asleep ? 'yes' : 'no'}</Text>
       <Text style={styles.line}>Mood {mood}</Text>
       <Text style={styles.line}>Cue {cue.kind}</Text>

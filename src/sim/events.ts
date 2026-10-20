@@ -13,6 +13,7 @@ import {
   playHappinessGain,
   petPurrAtOrAbove,
   petXp,
+  drinkThirstDrop,
   startingWaterLevel,
   waterDrainPerDrink,
 } from './config';
@@ -233,6 +234,7 @@ export function applyEvent(state: PetState, event: PetEvent): EventResult {
 
   if (event.type === 'drank') {
     const next = copyState(state);
+    next.thirst = clampNeed(next.thirst - drinkThirstDrop);
     if (!event.fromBowl) {
       return { state: next, cue: { kind: 'none' } };
     }

@@ -14,6 +14,7 @@ import {
   startUserTask,
   takeEnergyDelta,
   takeHungerDelta,
+  takeThirstDelta,
   takeWeightDelta,
   update,
 } from '../sim';
@@ -231,6 +232,7 @@ it('spends energy while running and restores it during an idle nap', () => {
   }
   expect(takeEnergyDelta(runner)).toBeLessThan(0);
   expect(takeHungerDelta(runner)).toBeGreaterThan(0);
+  expect(takeThirstDelta(runner)).toBeGreaterThan(0);
 
   const sleeper = actor();
   const napping = createWorld([sleeper], 5);
@@ -243,6 +245,7 @@ it('spends energy while running and restores it during an idle nap', () => {
   expect(sleeper.idle.mode).toBe('nap');
   expect(takeEnergyDelta(sleeper)).toBeGreaterThan(0);
   expect(takeHungerDelta(sleeper)).toBe(0);
+  expect(takeThirstDelta(sleeper)).toBe(0);
 
   const resting = actor(true);
   const bed = createWorld([resting], 6);
@@ -251,6 +254,7 @@ it('spends energy while running and restores it during an idle nap', () => {
   }
   expect(takeEnergyDelta(resting)).toBe(0);
   expect(takeHungerDelta(resting)).toBe(0);
+  expect(takeThirstDelta(resting)).toBe(0);
 });
 
 it('empties the tummy while playing even if the pet is standing still', () => {
@@ -268,6 +272,23 @@ it('empties the tummy while playing even if the pet is standing still', () => {
     update(world, 0.05);
   }
   expect(takeHungerDelta(pup)).toBeGreaterThan(0);
+  expect(takeEnergyDelta(pup)).toBeLessThan(0);
+  expect(takeThirstDelta(pup)).toBeGreaterThan(0);
+});
+
+it('burns weight while playing even when the pet is too slow to sprint', () => {
+  const pup = actor();
+  pup.weight = 0.8;
+  pup.syncedWeight = 0.8;
+  const world = createWorld([pup], 9);
+  for (let step = 0; step < 40; step += 1) {
+    pup.task = { type: 'winddown', stage: 'groom', t: 0, bats: 0, cool: 0 };
+    pup.speed = 0;
+    pup.vx = 0;
+    pup.vy = 0;
+    update(world, 0.05);
+  }
+  expect(takeWeightDelta(pup)).toBeLessThan(0);
 });
 
 it('burns weight while running and maps a tap into the stage', () => {

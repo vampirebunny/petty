@@ -9,6 +9,7 @@ import {
   applyEvent,
   applyEnergyDelta,
   applyHungerDelta,
+  applyThirstDelta,
   applyWeightDelta,
   createPet,
   debugJump,
@@ -70,6 +71,7 @@ type PetApi = {
   applyActorWeight: (delta: number) => void;
   applyActorEnergy: (delta: number) => void;
   applyActorHunger: (delta: number) => void;
+  applyActorThirst: (delta: number) => void;
   advanceBy: (elapsedMs: number) => void;
   setAge: (ageDays: number) => void;
   setVitalityValue: (vitality: number) => void;
@@ -405,6 +407,20 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
     [publish],
   );
 
+  const applyActorThirst = useCallback(
+    (delta: number) => {
+      const current = stateRef.current;
+      if (!current) {
+        return;
+      }
+      const next = applyThirstDelta(current, delta);
+      if (next !== current) {
+        publish(next);
+      }
+    },
+    [publish],
+  );
+
   const idle = useCallback(() => dispatch({ type: 'idle' }), [dispatch]);
   const sit = useCallback(() => dispatch({ type: 'trickRep', trackId: 'sit', now: Date.now() }), [dispatch]);
   const givePaw = useCallback(() => dispatch({ type: 'trickRep', trackId: 'paw', now: Date.now() }), [dispatch]);
@@ -505,6 +521,7 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
     applyActorWeight,
     applyActorEnergy,
     applyActorHunger,
+    applyActorThirst,
     advanceBy,
     setAge,
     setVitalityValue,

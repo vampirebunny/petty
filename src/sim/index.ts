@@ -13,7 +13,7 @@ export {
   stageOf,
   trainingGain,
 } from './attributes';
-export { ageDaysAt, applyEnergyDelta, applyHungerDelta, applyWeightDelta, debugJump, resume, setAgeDays, setVitality, setWeight, tickForeground } from './clock';
+export { ageDaysAt, applyEnergyDelta, applyHungerDelta, applyThirstDelta, applyWeightDelta, debugJump, resume, setAgeDays, setVitality, setWeight, tickForeground } from './clock';
 export { careConfig } from './careConfig';
 export type { TreatTier, TrickTier } from './careConfig';
 export { advanceCare, armPotty, bathToleranceFor, beginPotty, ensureGame, headHome } from './potty';

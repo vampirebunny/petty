@@ -7,6 +7,7 @@ import {
   archetypes,
   dayMs,
   defaultSceneId,
+  startingThirst,
   startingToys,
   startingWaterLevel,
   traits,
@@ -207,6 +208,10 @@ function migratePet(value: unknown): PetState | null {
       : startingWaterLevel;
   const waterEmptySince =
     raw.waterEmptySince === null || typeof raw.waterEmptySince === 'number' ? raw.waterEmptySince : null;
+  const thirst =
+    typeof raw.thirst === 'number' && Number.isFinite(raw.thirst)
+      ? Math.max(0, Math.min(100, raw.thirst))
+      : startingThirst;
   const next: PetState = {
     ...(raw as unknown as PetState),
     breedId: migrateBreedId(raw.breedId),
@@ -222,6 +227,7 @@ function migratePet(value: unknown): PetState | null {
     foodInBowl: raw.foodInBowl === true,
     waterLevel,
     waterEmptySince,
+    thirst,
     toys: readToys(raw.toys),
     treats: readTreats(raw.treats),
     treatDay: readTreatDay(raw.treatDay),

@@ -384,6 +384,8 @@ export type Actor = {
   pendingEnergy: number;
   // Hunger gain (pet points) from moving or playing, waiting to be applied to pet state.
   pendingHunger: number;
+  // Hidden thirst gain (pet points) from moving or playing, waiting to be applied to pet state.
+  pendingThirst: number;
   vitality: number;
   equipped: Equipped;
   look: Look | null;
@@ -404,6 +406,8 @@ export type Actor = {
   // Needs as 0..1, used to size how lively play is.
   energy: number;
   mood: number;
+  // Hidden 0..1 thirst. High thirst makes the pet seek water on its own.
+  thirst: number;
   play: PlayState | null;
   zoom: ZoomState | null;
   // Seconds of landing absorb left after a jump, 0..1.
@@ -487,5 +491,6 @@ export type ActorSource = {
   // 0..1 energy and happiness, and the play attributes, for how the pet moves in play.
   energy?: number;
   mood?: number;
+  thirst?: number;
   stats?: LocoStats;
 };

@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { testPet } from '../../sim/__fixtures__/pets';
-import { dayMs } from '../../sim/config';
+import { dayMs, startingThirst } from '../../sim/config';
 import { asyncPetStorage } from '../asyncStorage';
 
 jest.mock('@react-native-async-storage/async-storage', () =>
@@ -99,6 +99,7 @@ it('migrates legacy breed ids and fullness into hunger', async () => {
   saved.breedId = 'black';
   saved.needs = { fullness: 70, energy: 70, happiness: 60 };
   delete saved.waterLevel;
+  delete saved.thirst;
   delete saved.toys;
   await AsyncStorage.setItem('petty.pet', JSON.stringify(saved));
 
@@ -106,6 +107,7 @@ it('migrates legacy breed ids and fullness into hunger', async () => {
   expect(loaded?.breedId).toBe('scottishFold');
   expect(loaded?.needs.hunger).toBe(30);
   expect(loaded?.waterLevel).toBe(1);
+  expect(loaded?.thirst).toBe(startingThirst);
   expect(loaded?.toys).toEqual(['ball']);
 });
 

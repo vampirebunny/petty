@@ -34,6 +34,9 @@ export const feedHungerDrop = 40;
 export const waterDrainPerDrink = 0.1;
 export const waterEmptyGraceMs = 3 * 60 * 60 * 1000;
 export const startingWaterLevel = 1;
+// Hidden 0–100 need. Not shown on the rings. Drinking brings it down.
+export const startingThirst = 15;
+export const drinkThirstDrop = 50;
 export const startingToys = ['ball'] as const;
 
 export const treatHungerDrop = 10;
@@ -124,10 +127,17 @@ export const weightCeil = 1;
 export const weightMealGain = 0.12;
 export const weightDecayPerDay = 0.12;
 export const weightBurnPerSec = 0.003;
-// Extra need-energy spent per hour while running. The passive awake drain still applies on top.
-export const runEnergyPerHour = { canter: 140, gallop: 280 } as const;
+// Weight lost per hour while the user plays (fetch). One minute cancels one meal.
+// Sprint burn still applies on top above weightRunSpeed.
+export const playWeightPerHour = 7.2;
+// Extra share of play burn when overweight, so a heavy pet still slims down by exercising.
+export const overweightPlayWeightBonus = 0.5;
+// Extra need-energy spent per hour while busy. The passive awake drain still applies on top.
+export const activityEnergyPerHour = { walk: 28, trot: 56, canter: 140, gallop: 280, play: 40 } as const;
 // Extra hunger per hour on top of the awake clock, so the tummy ring drops faster while busy.
 export const activityHungerPerHour = { walk: 28, trot: 48, canter: 72, gallop: 110, play: 40 } as const;
+// Extra hidden thirst per hour while busy. Drinking is how this comes back down.
+export const activityThirstPerHour = { walk: 50, trot: 80, canter: 120, gallop: 180, play: 70 } as const;
 export const weightRunSpeed = 80;
 export const healthyWeightBand = 0.25;
 export const defaultSceneId = 'livingroom';
