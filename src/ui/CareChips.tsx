@@ -8,21 +8,14 @@ type Props = {
   onPotty: () => void;
   cleanCount: number;
   onClean: () => void;
-  houseProgress: number | null;
 };
 
-export function CareChips({ potty, pottyLabel, onPotty, cleanCount, onClean, houseProgress }: Props) {
-  if (!potty && cleanCount <= 0 && houseProgress == null) {
+export function CareChips({ potty, pottyLabel, onPotty, cleanCount, onClean }: Props) {
+  if (!potty && cleanCount <= 0) {
     return null;
   }
   return (
     <View style={styles.row}>
-      {houseProgress != null ? (
-        <View style={styles.chip} accessibilityLabel={`House Training ${Math.round(houseProgress)} percent`}>
-          <Text style={styles.label}>House</Text>
-          <Text style={styles.value}>{Math.round(houseProgress)}</Text>
-        </View>
-      ) : null}
       {potty ? (
         <Pressable style={styles.chip} onPress={onPotty} accessibilityRole="button" accessibilityLabel={pottyLabel}>
           <Text style={styles.label}>{pottyLabel}</Text>

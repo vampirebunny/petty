@@ -737,7 +737,10 @@ export default function HomeScreen({ petApi }: Props) {
         </GestureDetector>
       </View>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <NeedRings needs={state.needs} />
+        <NeedRings
+          needs={state.needs}
+          housebroken={houseTrained(state) ? null : (state.training.house_training?.progress ?? 0)}
+        />
         {welcomeBack ? (
           <Pressable onPress={dismissWelcome} accessibilityRole="button">
             <Text style={styles.hint}>
@@ -775,7 +778,6 @@ export default function HomeScreen({ petApi }: Props) {
             }
             setCleanOn((on) => !on);
           }}
-          houseProgress={houseTrained(state) ? null : (state.training.house_training?.progress ?? 0)}
         />
         {state.care.pendingReward ? (
           <Pressable
