@@ -6,13 +6,15 @@ import { Bone, Heart, Zap } from 'lucide-react-native';
 
 import { playPointPop } from '../../audio/badge';
 import { theme } from '../theme';
+import { queuePointAdds } from './pointAdds';
+import type { PointAdd } from './pointAdds';
+
+export type { PointAdd };
 
 export type FeedbackHandle = {
   trail: (x: number, y: number) => void;
   heart: (x: number, y: number) => void;
-  energyGain: (x: number, y: number) => void;
-  tummyGain: (x: number, y: number, amount: number) => void;
-  moodGain: (x: number, y: number, amount: number) => void;
+  pointAdds: (adds: PointAdd[]) => void;
 };
 
 type Spark = {
@@ -133,6 +135,7 @@ export function CuddleFeedback({ feedbackRef, reducedMotion }: Props) {
   const [sparks, setSparks] = useState<Spark[]>([]);
   const nextId = useRef(1);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const queueCursor = useRef(0);
 
   useEffect(
     () => () => {
@@ -157,17 +160,31 @@ export function CuddleFeedback({ feedbackRef, reducedMotion }: Props) {
     () => ({
       trail: (x, y) => add({ kind: 'trail', x, y, dur: trailMs, drift: 0 }),
       heart: (x, y) => add({ kind: 'heart', x, y, dur: heartDuration(Math.random()), drift: (Math.random() - 0.5) * 18 }),
-      energyGain: (x, y) => {
-        playPointPop();
-        add({ kind: 'energy', x, y, dur: energyPopMs, drift: (Math.random() - 0.5) * 10, label: '+10' });
-      },
-      tummyGain: (x, y, amount) => {
-        playPointPop();
-        add({ kind: 'tummy', x, y, dur: energyPopMs, drift: (Math.random() - 0.5) * 10, label: `+${Math.round(amount)}` });
-      },
-      moodGain: (x, y, amount) => {
-        playPointPop();
-        add({ kind: 'mood', x, y, dur: energyPopMs, drift: (Math.random() - 0.5) * 10, label: `+${Math.round(amount)}` });
+      pointAdds: (adds) => {
+        const now = Date.now();
+        const queued = queuePointAdds(now, queueCursor.current, adds.length);
+        queueCursor.current = queued.cursor;
+        adds.forEach((gain, index) => {
+          const wait = queued.times[index] - now;
+          const fire = () => {
+            playPointPop();
+            const side = index % 2 === 1 ? 1 : -1;
+            const x = index === 0 ? gain.x : gain.x + side * 36 * Math.ceil(index / 2);
+            add({
+              kind: gain.kind,
+              x,
+              y: gain.y,
+              dur: energyPopMs,
+              drift: (Math.random() - 0.5) * 10,
+              label: `+${Math.round(gain.amount)}`,
+            });
+          };
+          if (wait <= 0) {
+            fire();
+            return;
+          }
+          timers.current.push(setTimeout(fire, wait));
+        });
       },
     }),
     [add],

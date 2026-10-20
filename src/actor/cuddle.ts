@@ -1,4 +1,4 @@
-import { cuddleMoodHoldSec } from '../sim/config';
+import { cuddleBellyMoodGain, cuddleMoodGain, cuddleMoodHoldSec } from '../sim/config';
 import { cuddleParamsFor } from './data/cuddle';
 import { breedById } from './breeds';
 import { geomOf, headFaceOf, headShift, noseOf, torsoPoint } from './geometry';
@@ -309,7 +309,10 @@ export function stepCuddle(
     c.gestureSec += dt;
     const due = Math.floor(c.gestureSec / cuddleMoodHoldSec);
     if (due > c.moodPaid) {
-      actor.moodPops += due - c.moodPaid;
+      const gain = c.phase === 'belly' ? cuddleBellyMoodGain : cuddleMoodGain;
+      for (let i = c.moodPaid; i < due; i += 1) {
+        actor.moodPops.push(gain);
+      }
       c.moodPaid = due;
     }
   }

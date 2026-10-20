@@ -4,6 +4,7 @@ import {
   clampMax,
   clampMin,
   feedDietGain,
+  feedEnergyGain,
   feedHungerDrop,
   feedStaminaDrift,
   feedXp,
@@ -204,6 +205,7 @@ export function applyEvent(state: PetState, event: PetEvent): EventResult {
     const next = copyState(state);
     next.foodInBowl = false;
     next.needs.hunger = clampNeed(next.needs.hunger - feedHungerDrop);
+    next.needs.energy = clampNeed(next.needs.energy + feedEnergyGain);
     next.xp += feedXp;
     next.drift.stamina = clampDrift(next.drift.stamina + feedStaminaDrift);
     next.careWindow = bumpDiet(next.careWindow);

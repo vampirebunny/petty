@@ -23,10 +23,13 @@ export { applyCareTime, applyMeal, clampWeight, decayWeight, vitalityTarget } fr
 export {
   clampMax,
   clampMin,
+  collapseWakeEnergy,
+  cuddleBellyMoodGain,
   cuddleMoodGain,
   cuddleMoodHoldSec,
   decayPerHour,
   extraHappinessDecayPerHour,
+  feedEnergyGain,
   feedHungerDrop,
   happyHappinessAtLeast,
   highHungerThreshold,

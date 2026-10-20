@@ -43,7 +43,8 @@ import {
 import { useStageSize } from './useStageSize';
 import type { CuddleOut, CuddleTouch, CuddleZone, Scene, TimeOfDay, World } from '../actor';
 import { playVoice } from '../audio/voice';
-import { attributeScore, cuddleMoodGain, feedHungerDrop } from '../sim';
+import { attributeScore, collapseWakeEnergy, feedEnergyGain, feedHungerDrop } from '../sim';
+import type { PointAdd } from './cuddle/pointAdds';
 import type { Cue, PetState } from '../sim/types';
 import { drawWorld } from './skia/world';
 
@@ -76,9 +77,7 @@ type Props = {
   onDrank?: (fromBowl: boolean) => void;
   onAte?: () => void;
   onTraveling?: (active: boolean) => void;
-  onEnergyPop?: (x: number, y: number) => void;
-  onTummyPop?: (x: number, y: number, amount: number) => void;
-  onMoodPop?: (x: number, y: number, amount: number) => void;
+  onPointAdds?: (adds: PointAdd[]) => void;
 };
 
 function sourceOf(pet: PetState) {
@@ -125,9 +124,7 @@ export function PetView({
   onDrank,
   onAte,
   onTraveling,
-  onEnergyPop,
-  onTummyPop,
-  onMoodPop,
+  onPointAdds,
 }: Props) {
   const { viewWidth, viewHeight } = useStageSize();
   const widthRef = useRef(viewWidth);
@@ -434,20 +431,14 @@ export function PetView({
   useEffect(() => {
     onAteRef.current = onAte;
   }, [onAte]);
-  const onEnergyPopRef = useRef(onEnergyPop);
+  const onPointAddsRef = useRef(onPointAdds);
   useEffect(() => {
-    onEnergyPopRef.current = onEnergyPop;
-  }, [onEnergyPop]);
-  const onTummyPopRef = useRef(onTummyPop);
-  useEffect(() => {
-    onTummyPopRef.current = onTummyPop;
-  }, [onTummyPop]);
-  const onMoodPopRef = useRef(onMoodPop);
-  useEffect(() => {
-    onMoodPopRef.current = onMoodPop;
-  }, [onMoodPop]);
+    onPointAddsRef.current = onPointAdds;
+  }, [onPointAdds]);
   const hungerRef = useRef(pet.needs.hunger);
   hungerRef.current = pet.needs.hunger;
+  const energyRef = useRef(pet.needs.energy);
+  energyRef.current = pet.needs.energy;
   const statusRef = useRef('');
 
   const step = useCallback(
@@ -488,17 +479,23 @@ export function PetView({
       for (const sound of takeSounds(world)) {
         playVoice(sound);
       }
+      const pointAdds: PointAdd[] = [];
       const meals = takeMeals(world);
       for (let i = 0; i < meals; i += 1) {
-        const hunger = hungerRef.current;
-        if (hunger > 0 && actor) {
-          const gain = Math.min(feedHungerDrop, hunger);
+        if (actor) {
           const sc = actor.anchors.scale || 1;
-          onTummyPopRef.current?.(
-            actor.x + actor.face * sc * actor.anchors.head.x,
-            actor.y - actor.z + sc * (actor.anchors.head.y - actor.anchors.head.radius) - 18,
-            gain,
-          );
+          const x = actor.x + actor.face * sc * actor.anchors.head.x;
+          const y = actor.y - actor.z + sc * (actor.anchors.head.y - actor.anchors.head.radius) - 18;
+          const tummy = Math.min(feedHungerDrop, Math.max(0, hungerRef.current));
+          if (tummy > 0) {
+            pointAdds.push({ kind: 'tummy', x, y, amount: tummy });
+            hungerRef.current = Math.max(0, hungerRef.current - tummy);
+          }
+          const energy = Math.min(feedEnergyGain, Math.max(0, 100 - energyRef.current));
+          if (energy > 0) {
+            pointAdds.push({ kind: 'energy', x, y, amount: energy });
+            energyRef.current = Math.min(100, energyRef.current + energy);
+          }
         }
         onAteRef.current?.();
       }
@@ -525,16 +522,19 @@ export function PetView({
         flushThirst(false);
         const pops = takeEnergyPops(actor);
         const moodPops = takeMoodPops(actor);
-        if (pops > 0 || moodPops > 0) {
+        if (pops > 0 || moodPops.length > 0) {
           const sc = actor.anchors.scale || 1;
           const x = actor.x + actor.face * sc * actor.anchors.head.x;
           const y = actor.y - actor.z + sc * (actor.anchors.head.y - actor.anchors.head.radius) - 18;
           for (let i = 0; i < pops; i += 1) {
-            onEnergyPopRef.current?.(x, y);
+            pointAdds.push({ kind: 'energy', x, y, amount: collapseWakeEnergy });
           }
-          for (let i = 0; i < moodPops; i += 1) {
-            onMoodPopRef.current?.(x, y, cuddleMoodGain);
+          for (const amount of moodPops) {
+            pointAdds.push({ kind: 'mood', x, y, amount });
           }
+        }
+        if (pointAdds.length > 0) {
+          onPointAddsRef.current?.(pointAdds);
         }
         const status = statusOf(actor);
         if (status !== statusRef.current) {

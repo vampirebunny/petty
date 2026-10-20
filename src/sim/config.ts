@@ -38,6 +38,8 @@ export const collapseWakeEnergy = 10;
 export const wakeAtEnergy = 100;
 
 export const feedHungerDrop = 40;
+// A finished meal also restores a little energy, shown as its own point burst after tummy.
+export const feedEnergyGain = 2;
 
 export const waterDrainPerDrink = 0.1;
 export const waterEmptyGraceMs = 3 * 60 * 60 * 1000;
@@ -55,6 +57,8 @@ export const petHappinessGain = 6;
 // A continuous cuddle stroke of this long pays a flat mood burst.
 export const cuddleMoodHoldSec = 5;
 export const cuddleMoodGain = 5;
+// The same hold pays more once the pet has rolled into a belly rub.
+export const cuddleBellyMoodGain = 10;
 export const petPurrAtOrAbove = 0.5;
 export const petStrokeIntervalMs = 400;
 export const openTickMs = 5000;

@@ -50,6 +50,7 @@ import { useStageSize } from '../ui/useStageSize';
 import type { CuddleHandle } from '../ui/PetView';
 import { CuddleFeedback } from '../ui/cuddle/CuddleFeedback';
 import type { FeedbackHandle } from '../ui/cuddle/CuddleFeedback';
+import type { PointAdd } from '../ui/cuddle/pointAdds';
 import { CoachMarks, CuddleHelpSheet, GhostFinger } from '../ui/cuddle/CuddleGuidance';
 
 const badgeLabels: Record<string, string> = {
@@ -792,20 +793,16 @@ export default function HomeScreen({ petApi }: Props) {
               onThirstDelta={applyActorThirst}
               onDrank={reportDrank}
               onAte={reportAte}
-              onEnergyPop={(x, y) => {
-                const view = stageToView({ x, y });
-                feedback.current?.energyGain(view.x, view.y);
-              }}
-              onTummyPop={(x, y, amount) => {
-                const view = stageToView({ x, y });
-                feedback.current?.tummyGain(view.x, view.y, amount);
-              }}
-              onMoodPop={(x, y, amount) => {
-                if (!applyActorHappiness(amount)) {
-                  return;
+              onPointAdds={(adds) => {
+                const shown: PointAdd[] = [];
+                for (const gain of adds) {
+                  if (gain.kind === 'mood' && !applyActorHappiness(gain.amount)) {
+                    continue;
+                  }
+                  const view = stageToView({ x: gain.x, y: gain.y });
+                  shown.push({ ...gain, x: view.x, y: view.y });
                 }
-                const view = stageToView({ x, y });
-                feedback.current?.moodGain(view.x, view.y, amount);
+                feedback.current?.pointAdds(shown);
               }}
             />
             <CuddleFeedback feedbackRef={feedback} reducedMotion={reducedMotion} />

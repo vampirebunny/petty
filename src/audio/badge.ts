@@ -4,7 +4,9 @@ import type { AudioPlayer } from 'expo-audio';
 import { soundEnabled } from './voice';
 
 let badgePlayer: AudioPlayer | null = null;
-let popPlayer: AudioPlayer | null = null;
+const popVoices = 4;
+const popPool: (AudioPlayer | null)[] = [null, null, null, null];
+let popCursor = 0;
 
 function playClip(player: AudioPlayer | null, load: () => AudioPlayer): void {
   if (!soundEnabled()) {
@@ -31,19 +33,25 @@ export function playBadgeChime(): void {
   });
 }
 
-// The +energy / +tummy burst. Same toggle as the other pet sounds.
+// One voice per in-flight point add, so a tummy pop and the energy pop after it both play.
 export function playPointPop(): void {
-  playClip(popPlayer, () => {
-    popPlayer = createAudioPlayer(
+  const index = popCursor;
+  popCursor = (popCursor + 1) % popVoices;
+  playClip(popPool[index] ?? null, () => {
+    const player = createAudioPlayer(
       require('../../assets/sounds/vadim_makes_sound-achievement-badge-pop-sound-1-547860.mp3'),
     );
-    return popPlayer;
+    popPool[index] = player;
+    return player;
   });
 }
 
 export function releaseBadgeChime(): void {
   badgePlayer?.release();
-  popPlayer?.release();
   badgePlayer = null;
-  popPlayer = null;
+  for (let i = 0; i < popPool.length; i += 1) {
+    popPool[i]?.release();
+    popPool[i] = null;
+  }
+  popCursor = 0;
 }

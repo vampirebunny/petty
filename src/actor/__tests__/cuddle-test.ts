@@ -2,6 +2,7 @@ import { cuddleTouch, cuddleZoneAt, endCuddle, setCuddleGesturing, takeCuddleOut
 import { cuddleParamsFor, stageFactor } from '../data/cuddle';
 import { breedsFor } from '../breeds';
 import { defaultPose, easeInOutSine, springUp } from '../pose';
+import { cuddleBellyMoodGain, cuddleMoodGain } from '../../sim/config';
 import { createWorld, spawnActor, startUserTask, takeMoodPops, takeSounds, update } from '../sim';
 import type { Actor, CuddleOut, Pose, World } from '../types';
 
@@ -281,16 +282,38 @@ describe('cuddle mood bursts', () => {
     const { world, actor } = settled();
     setCuddleGesturing(actor, true);
     run(world, 4.9);
-    expect(takeMoodPops(actor)).toBe(0);
+    expect(takeMoodPops(actor)).toEqual([]);
     run(world, 0.2);
-    expect(takeMoodPops(actor)).toBe(1);
+    expect(takeMoodPops(actor)).toEqual([cuddleMoodGain]);
   });
 
   it('pays again if the user keeps gesturing', () => {
     const { world, actor } = settled();
     setCuddleGesturing(actor, true);
     run(world, 10.1);
-    expect(takeMoodPops(actor)).toBe(2);
+    expect(takeMoodPops(actor)).toEqual([cuddleMoodGain, cuddleMoodGain]);
+  });
+
+  it('pays +10 once the pet is in a belly rub', () => {
+    const { world, actor } = setup('retriever');
+    startUserTask(world, actor, 'cuddle');
+    let guard = 0;
+    while (phaseOf(actor) !== 'belly' && guard < 60 * 120) {
+      guard += 1;
+      if (guard % 6 === 0) {
+        cuddleTouch(world, actor, { kind: 'move', zone: 'back', x: actor.x });
+      }
+      update(world, dt);
+    }
+    expect(phaseOf(actor)).toBe('belly');
+    setCuddleGesturing(actor, true);
+    run(world, 5.1, (frame) => {
+      if (frame % 6 === 0) {
+        cuddleTouch(world, actor, { kind: 'move', zone: 'belly', x: actor.x });
+      }
+    });
+    expect(phaseOf(actor)).toBe('belly');
+    expect(takeMoodPops(actor)).toEqual([cuddleBellyMoodGain]);
   });
 
   it('resets the streak when the user lifts', () => {
@@ -299,12 +322,12 @@ describe('cuddle mood bursts', () => {
     run(world, 4);
     setCuddleGesturing(actor, false);
     run(world, 2);
-    expect(takeMoodPops(actor)).toBe(0);
+    expect(takeMoodPops(actor)).toEqual([]);
     setCuddleGesturing(actor, true);
     run(world, 4.9);
-    expect(takeMoodPops(actor)).toBe(0);
+    expect(takeMoodPops(actor)).toEqual([]);
     run(world, 0.2);
-    expect(takeMoodPops(actor)).toBe(1);
+    expect(takeMoodPops(actor)).toEqual([cuddleMoodGain]);
   });
 
   it('does not count gestures before the pet is ready', () => {
@@ -313,7 +336,7 @@ describe('cuddle mood bursts', () => {
     setCuddleGesturing(actor, true);
     run(world, 0.4);
     expect(['approach', 'settle']).toContain(phaseOf(actor));
-    expect(takeMoodPops(actor)).toBe(0);
+    expect(takeMoodPops(actor)).toEqual([]);
     expect(actor.cuddle?.gestureSec ?? 0).toBe(0);
   });
 });

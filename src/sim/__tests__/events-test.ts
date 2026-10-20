@@ -40,6 +40,7 @@ it('finishing the bowl feeds the pet and empties it', () => {
   before.needs.hunger = 60;
   const done = eat(before);
   expect(done.needs.hunger).toBe(20);
+  expect(done.needs.energy).toBe(before.needs.energy + 2);
   expect(done.foodInBowl).toBe(false);
   expect(done.rngState).toBe(before.rngState);
   expect(applyEvent(done, { type: 'ate', now: 2 }).state).toBe(done);
@@ -53,6 +54,13 @@ it('lets a full pet eat when the bowl is filled, clamping hunger at 0', () => {
   const almost = testPet(1, 'retriever', 0, 'Pup', 'pet');
   almost.needs.hunger = 10;
   expect(eat(almost).needs.hunger).toBe(0);
+
+  const tired = testPet(1, 'retriever', 0, 'Pup', 'pet');
+  tired.needs.energy = 99;
+  expect(eat(tired).needs.energy).toBe(100);
+  const rested = testPet(1, 'retriever', 0, 'Pup', 'pet');
+  rested.needs.energy = 100;
+  expect(eat(rested).needs.energy).toBe(100);
 });
 
 it('refills water without changing happiness', () => {
