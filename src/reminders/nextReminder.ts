@@ -2,7 +2,7 @@ import { advanceNeeds } from '../sim/advance';
 import { dayMs, highHungerThreshold, lowEnergyThreshold, stepMs } from '../sim/config';
 import type { PetState } from '../sim/types';
 
-export type ReminderKind = 'meal' | 'rest';
+export type ReminderKind = 'meal' | 'rest' | 'potty' | 'mess' | 'training' | 'treats';
 
 export type Reminder = {
   at: number;
@@ -14,6 +14,18 @@ const searchLimitMs = 7 * dayMs;
 export function reminderCopy(name: string, kind: ReminderKind): string {
   if (kind === 'meal') {
     return `${name} could use a meal.`;
+  }
+  if (kind === 'potty') {
+    return `${name} needs to go out.`;
+  }
+  if (kind === 'mess') {
+    return `${name} left a mess.`;
+  }
+  if (kind === 'training') {
+    return `${name} can train again.`;
+  }
+  if (kind === 'treats') {
+    return `Treats are full again.`;
   }
   return `${name} could use a rest.`;
 }
@@ -60,4 +72,52 @@ export function nextReminder(state: PetState, now: number): Reminder | null {
     return { at: mealAt, kind: 'meal' };
   }
   return { at: restAt, kind: 'rest' };
+}
+
+const reminderPriority: ReminderKind[] = ['meal', 'rest', 'potty', 'mess', 'training', 'treats'];
+
+export function shiftQuietHours(at: number): number {
+  const date = new Date(at);
+  const hour = date.getHours();
+  if (hour < 8 || hour >= 21) {
+    if (hour >= 21) {
+      date.setDate(date.getDate() + 1);
+    }
+    date.setHours(8, 0, 0, 0);
+    return date.getTime();
+  }
+  return at;
+}
+
+export function planReminders(
+  state: PetState,
+  now: number,
+  options: { reminders: boolean; care: boolean; basicTreats: number },
+): Reminder[] {
+  const planned: Reminder[] = [];
+  if (options.reminders) {
+    const next = nextReminder(state, now);
+    if (next) {
+      planned.push(next);
+    }
+  }
+  if (options.care && state.care) {
+    const urge = state.care.potty.nextUrgeAt;
+    if (urge != null && urge > now && !state.training.house_training?.mastered) {
+      planned.push({ at: urge, kind: 'potty' });
+    }
+    if (state.care.messes.length > 0) {
+      planned.push({ at: now + 15 * 60 * 1000, kind: 'mess' });
+    }
+    const capped = Object.values(state.training).some((track) => track.repsToday >= 8);
+    if (capped) {
+      const day = Math.floor((now - state.bornAt) / dayMs);
+      planned.push({ at: state.bornAt + (day + 1) * dayMs, kind: 'training' });
+    }
+    if (options.basicTreats < 15) {
+      planned.push({ at: now + (15 - options.basicTreats) * 20 * 60 * 1000, kind: 'treats' });
+    }
+  }
+  planned.sort((a, b) => reminderPriority.indexOf(a.kind) - reminderPriority.indexOf(b.kind) || a.at - b.at);
+  return planned.slice(0, 3).map((item) => ({ ...item, at: shiftQuietHours(item.at) }));
 }

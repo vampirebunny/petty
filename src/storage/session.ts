@@ -5,6 +5,7 @@ import { migrateBreedId } from './migrateIds';
 
 const draftKey = 'petty.draft';
 const remindersKey = 'petty.reminders';
+const careRemindersKey = 'petty.careReminders';
 const soundKey = 'petty.sound';
 const musicKey = 'petty.music';
 
@@ -100,6 +101,15 @@ export async function loadRemindersEnabled(): Promise<boolean> {
 
 export async function saveRemindersEnabled(enabled: boolean): Promise<void> {
   await AsyncStorage.setItem(remindersKey, enabled ? 'on' : 'off');
+}
+
+export async function loadCareRemindersEnabled(): Promise<boolean> {
+  const raw = await AsyncStorage.getItem(careRemindersKey);
+  return raw === 'on';
+}
+
+export async function saveCareRemindersEnabled(enabled: boolean): Promise<void> {
+  await AsyncStorage.setItem(careRemindersKey, enabled ? 'on' : 'off');
 }
 
 export async function loadSoundEnabled(): Promise<boolean> {
