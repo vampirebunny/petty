@@ -358,6 +358,7 @@ it('burns weight while running and maps a tap into the stage', () => {
   }
   expect(takeWeightDelta(pup)).toBeCloseTo(-0.003, 5);
   expect(stagePoint(100, 50, 200, 100)).toEqual({ x: 320, y: 340 });
+  expect(stagePoint(150, 50, 300, 100, 200)).toEqual({ x: 320, y: 340 });
   dropBallAt(world, 10_000, -20, false);
   expect(world.items[0]?.z).toBe(130);
   expect(world.items[0]?.x).toBeLessThanOrEqual(world.scene.floor.xMax + 12);

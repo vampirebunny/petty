@@ -302,16 +302,18 @@ export function drawProp(c: SkCanvas, prop: Prop, env: Env): void {
   c.restore();
 }
 
-function drawFloorPattern(c: SkCanvas, scene: Scene): void {
+function drawFloorPattern(c: SkCanvas, scene: Scene, bleed = 0): void {
   const floor = scene.floor;
   const color = floor.lineColor ?? 'rgba(0,0,0,0.12)';
   const path = Skia.Path.Make();
+  const left = -bleed;
+  const right = stageWidth + bleed;
   let width = 1;
   if (floor.pattern === 'lines') {
     for (let i = 1; i < 4; i += 1) {
       const y = floor.horizon + i * i * 9 + 6;
-      path.moveTo(0, y);
-      path.lineTo(stageWidth, y);
+      path.moveTo(left, y);
+      path.lineTo(right, y);
     }
   } else if (floor.pattern === 'planks') {
     // Rows widen with depth for perspective, then settle at a fixed height so the near floor
@@ -324,13 +326,17 @@ function drawFloorPattern(c: SkCanvas, scene: Scene): void {
     }
     ys.push(stageHeight);
     for (const y of ys) {
-      path.moveTo(0, y);
-      path.lineTo(stageWidth, y);
+      path.moveTo(left, y);
+      path.lineTo(right, y);
     }
     for (let row = 0; row < ys.length - 1; row += 1) {
       const span = 40 + (ys[row + 1] - ys[row]) * 3.6;
       const offset = ((row % 2) * span) / 2;
-      for (let x = offset; x < stageWidth; x += span) {
+      for (let x = offset - span; x > left; x -= span) {
+        path.moveTo(x, ys[row]);
+        path.lineTo(x, ys[row + 1]);
+      }
+      for (let x = offset; x < right; x += span) {
         path.moveTo(x, ys[row]);
         path.lineTo(x, ys[row + 1]);
       }
@@ -352,16 +358,21 @@ function drawFloorPattern(c: SkCanvas, scene: Scene): void {
 }
 
 // Backdrop, back layers, floor and the flat `back` props. Everything here takes the full scene tint.
-export function drawBackdrop(c: SkCanvas, scene: Scene, env: Env): void {
+export function drawBackdrop(c: SkCanvas, scene: Scene, env: Env, bleed = 0): void {
   const floor = scene.floor;
+  const left = -bleed;
+  const span = stageWidth + bleed * 2;
   if (scene.time === 'outdoor') {
+    if (bleed > 0) {
+      fillGradient(c, left, 0, span, floor.horizon, env.tod.top, env.tod.bot);
+    }
     drawSkyPane(c, 0, 0, stageWidth, floor.horizon, env);
   } else {
-    fillGradient(c, 0, 0, stageWidth, floor.horizon, scene.sky[0], scene.sky[1]);
+    fillGradient(c, left, 0, span, floor.horizon, scene.sky[0], scene.sky[1]);
   }
   drawShapes(c, scene.layers, env);
-  fillGradient(c, 0, floor.horizon, stageWidth, stageHeight - floor.horizon, floor.color[0], floor.color[1]);
-  drawFloorPattern(c, scene);
+  fillGradient(c, left, floor.horizon, span, stageHeight - floor.horizon, floor.color[0], floor.color[1]);
+  drawFloorPattern(c, scene, bleed);
   for (const prop of scene.props) {
     if (prop.layer === 'back') {
       drawProp(c, prop, env);
@@ -371,7 +382,7 @@ export function drawBackdrop(c: SkCanvas, scene: Scene, env: Env): void {
 
 // Falling leaves, snow or rain, the scene's own color wash, and lamp glows. The glows use screen
 // blending and are drawn after the tint so they stay bright.
-export function drawAmbient(c: SkCanvas, world: World, env: Env): void {
+export function drawAmbient(c: SkCanvas, world: World, env: Env, bleed = 0): void {
   const ambient = world.scene.ambient;
   const particles = ambient?.particles;
   if (particles && !env.reduced && world.particles.length > 0) {
@@ -392,7 +403,7 @@ export function drawAmbient(c: SkCanvas, world: World, env: Env): void {
     }
   }
   if (ambient?.tint) {
-    fillRect(c, 0, 0, stageWidth, stageHeight, ambient.tint);
+    fillRect(c, -bleed, 0, stageWidth + bleed * 2, stageHeight, ambient.tint);
   }
   for (const glow of env.glows) {
     radialGlow(c, glow.x, glow.y, 2, glow.r, '#ffc464', 0.8 * glow.a, BlendMode.Screen);

@@ -11,8 +11,10 @@ import HomeScreen from './src/screens/HomeScreen';
 import { useAgeGate } from './src/state/useAgeGate';
 import { useIdentity } from './src/state/useIdentity';
 import { usePet } from './src/state/usePet';
+import { useDeviceOrientation } from './src/ui/useDeviceOrientation';
 
 export default function App() {
+  useDeviceOrientation();
   const pet = usePet();
   const { setOwnerId, setRemindersOn, adopt, ready: petReady, state: petState } = pet;
   const identity = useIdentity();

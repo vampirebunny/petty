@@ -20,7 +20,7 @@ type Props = {
 };
 
 export function PlaydateStage({ record, reducedMotion, onDone }: Props) {
-  const { viewWidth, viewHeight } = useStageSize();
+  const { contentWidth: viewWidth, viewHeight } = useStageSize();
   const beats = useMemo(() => replayBeats(record), [record]);
   const endMs = useMemo(() => playdateEndMs(beats), [beats]);
   const world = useMemo(() => {

@@ -129,7 +129,7 @@ export default function HomeScreen({ petApi }: Props) {
   const [inventoryOpen, setInventoryOpen] = useState(false);
   const [treatTier, setTreatTier] = useState<'basic' | 'special'>('basic');
   const lastStrokeAt = useRef(0);
-  const { viewWidth, viewHeight } = useStageSize();
+  const { viewWidth, viewHeight, contentWidth } = useStageSize();
   const [playdateOpen, setPlaydateOpen] = useState(false);
   const playdates = usePlaydates(state?.ownerId);
   const [hour, setHour] = useState<number | null>(null);
@@ -237,26 +237,35 @@ export default function HomeScreen({ petApi }: Props) {
 
   const softDropHere = useCallback(
     (x: number, y: number) => {
-      const point = stagePoint(x, y, viewWidth, viewHeight);
+      const point = stagePoint(x, y, viewWidth, viewHeight, contentWidth);
+      if (point.x < 0 || point.x > stageWidth) {
+        return;
+      }
       throwAt(point.x, point.y);
     },
-    [throwAt, viewHeight, viewWidth],
+    [contentWidth, throwAt, viewHeight, viewWidth],
   );
   const flickHere = useCallback(
     (x: number, y: number, vx: number, vy: number) => {
-      const point = stagePoint(x, y, viewWidth, viewHeight);
-      const scaleX = stageWidth / Math.max(viewWidth, 1);
+      const point = stagePoint(x, y, viewWidth, viewHeight, contentWidth);
+      if (point.x < 0 || point.x > stageWidth) {
+        return;
+      }
+      const scaleX = stageWidth / Math.max(contentWidth, 1);
       const scaleY = stageHeight / Math.max(viewHeight, 1);
       flickAt(point.x, point.y, vx * scaleX, vy * scaleY);
     },
-    [flickAt, viewHeight, viewWidth],
+    [contentWidth, flickAt, viewHeight, viewWidth],
   );
   const stageToView = useCallback(
-    (point: { x: number; y: number }) => ({
-      x: (point.x / stageWidth) * viewWidth,
-      y: (point.y / stageHeight) * viewHeight,
-    }),
-    [viewHeight, viewWidth],
+    (point: { x: number; y: number }) => {
+      const pad = (viewWidth - contentWidth) / 2;
+      return {
+        x: pad + (point.x / stageWidth) * contentWidth,
+        y: (point.y / stageHeight) * viewHeight,
+      };
+    },
+    [contentWidth, viewHeight, viewWidth],
   );
 
   const acceptingTouch = useCallback(() => {
@@ -274,7 +283,7 @@ export default function HomeScreen({ petApi }: Props) {
         rewardCuddle();
       }
       for (const event of events) {
-        const stage = stagePoint(event.x, event.y, viewWidth, viewHeight);
+        const stage = stagePoint(event.x, event.y, viewWidth, viewHeight, contentWidth);
         if (event.type === 'move') {
           touchedRef.current = true;
           handle.touch({ kind: 'move', zone: event.zone, x: stage.x });
@@ -296,7 +305,7 @@ export default function HomeScreen({ petApi }: Props) {
         }
       }
     },
-    [acceptingTouch, rewardCuddle, viewHeight, viewWidth],
+    [acceptingTouch, contentWidth, rewardCuddle, viewHeight, viewWidth],
   );
 
   const cuddleMove = useCallback(
@@ -310,10 +319,10 @@ export default function HomeScreen({ petApi }: Props) {
         tracker.current.begin();
         handle.setGesturing(true);
       }
-      const stage = stagePoint(x, y, viewWidth, viewHeight);
+      const stage = stagePoint(x, y, viewWidth, viewHeight, contentWidth);
       sendCuddleEvents(tracker.current.move(x, y, Date.now(), handle.zoneAt(stage.x, stage.y)));
     },
-    [sendCuddleEvents, viewHeight, viewWidth],
+    [contentWidth, sendCuddleEvents, viewHeight, viewWidth],
   );
   const cuddleTap = useCallback(
     (x: number, y: number) => {
@@ -321,14 +330,14 @@ export default function HomeScreen({ petApi }: Props) {
       if (!handle || !acceptingTouch()) {
         return;
       }
-      const stage = stagePoint(x, y, viewWidth, viewHeight);
+      const stage = stagePoint(x, y, viewWidth, viewHeight, contentWidth);
       if (handle.zoneAt(stage.x, stage.y) === 'nose') {
         touchedRef.current = true;
         rewardCuddle();
         handle.touch({ kind: 'boop', zone: 'nose', x: stage.x });
       }
     },
-    [acceptingTouch, rewardCuddle, viewHeight, viewWidth],
+    [acceptingTouch, contentWidth, rewardCuddle, viewHeight, viewWidth],
   );
   const cuddleEnd = useCallback(() => {
     touchActive.current = false;

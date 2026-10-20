@@ -63,6 +63,8 @@ export function drawWorld(
   const scene = world.scene;
   const floor = scene.floor;
   canvas.save();
+  // Extra stage units of sky and floor on each side when the view is wider than the stage.
+  let bleed = 0;
   if (camera) {
     const fit = Math.min(width / stageWidth, height / stageHeight);
     canvas.translate(width / 2, height * 0.62);
@@ -70,7 +72,16 @@ export function drawWorld(
     canvas.scale(scale, scale);
     canvas.translate(-camera.x, -camera.y);
   } else {
-    canvas.scale(width / stageWidth, height / visibleHeight);
+    const scaleY = height / visibleHeight;
+    const contentPx = stageWidth * scaleY;
+    if (width > contentPx + 0.5) {
+      const pad = (width - contentPx) / 2;
+      bleed = pad / scaleY;
+      canvas.translate(pad, 0);
+      canvas.scale(scaleY, scaleY);
+    } else {
+      canvas.scale(width / stageWidth, scaleY);
+    }
   }
   const feeding: Env['feeding'] = [];
   for (const actor of world.actors) {
@@ -90,7 +101,7 @@ export function drawWorld(
   const roomTint = sceneryTint(scene, tod);
   const bodyTint = actorTint(scene, tod);
 
-  drawTinted(canvas, roomTint, () => drawBackdrop(canvas, scene, env));
+  drawTinted(canvas, roomTint, () => drawBackdrop(canvas, scene, env, bleed));
   if (scene.time === 'indoor') {
     const glow = petLightAmount(tod.dark);
     if (glow > 0) {
@@ -153,6 +164,6 @@ export function drawWorld(
       drawTinted(canvas, roomTint, () => drawProp(canvas, prop, env));
     }
   }
-  drawAmbient(canvas, world, env);
+  drawAmbient(canvas, world, env, bleed);
   canvas.restore();
 }

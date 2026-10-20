@@ -160,9 +160,10 @@ function sceneSpeciesOf(actors: { breedId: string }[]): 'dog' | 'cat' {
   return actors.some((actor) => breedById(actor.breedId)?.species === 'cat') ? 'cat' : 'dog';
 }
 
-export function stagePoint(x: number, y: number, viewW: number, viewH: number): Vec {
+export function stagePoint(x: number, y: number, viewW: number, viewH: number, contentW = viewW): Vec {
+  const pad = (viewW - contentW) / 2;
   return {
-    x: (x / Math.max(viewW, 1)) * stageWidth,
+    x: ((x - pad) / Math.max(contentW, 1)) * stageWidth,
     y: (y / Math.max(viewH, 1)) * stageHeight,
   };
 }
