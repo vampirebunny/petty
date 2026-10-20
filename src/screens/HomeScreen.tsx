@@ -138,7 +138,6 @@ export default function HomeScreen({ petApi }: Props) {
   const [reducedMotion, setReducedMotion] = useState(false);
   const [wardrobeOpen, setWardrobeOpen] = useState(false);
   const [personalityOpen, setPersonalityOpen] = useState(false);
-  const [feedOpen, setFeedOpen] = useState(false);
   const [playOpen, setPlayOpen] = useState(false);
   const [cuddleOn, setCuddleOn] = useState(false);
   const [coachVisible, setCoachVisible] = useState(false);
@@ -517,7 +516,7 @@ export default function HomeScreen({ petApi }: Props) {
   const wallet = economyApi.economy;
   const unclaimedBasic = state?.care.unclaimed.basic ?? 0;
   const unclaimedSpecial = state?.care.unclaimed.special ?? 0;
-  const legacyTreats = state?.treats ?? [];
+  const legacyTreats = state?.treats;
 
   useEffect(() => {
     setCareTreatCount(stackQty(wallet ?? emptyEconomy(0), basicTreatId));
@@ -540,7 +539,7 @@ export default function HomeScreen({ petApi }: Props) {
   }, [claimGrants, economyApi, unclaimedBasic, unclaimedSpecial, wallet]);
 
   useEffect(() => {
-    if (!wallet || legacyTreats.length === 0 || migratedTreats.current) {
+    if (!wallet || !legacyTreats || legacyTreats.length === 0 || migratedTreats.current) {
       return;
     }
     migratedTreats.current = true;
@@ -596,7 +595,6 @@ export default function HomeScreen({ petApi }: Props) {
       ? archetypeNames[origin]
       : `Born: ${archetypeNames[origin]} · Style: ${archetypeStyleNames[style]}`;
   const species = breedById(state.breedId)?.species ?? 'dog';
-  const mealLabel = species === 'cat' ? 'Cat food' : 'Kibble';
   const ownsBall = state.toys.includes('ball');
 
   const actions: PetAction[] = [
@@ -613,10 +611,9 @@ export default function HomeScreen({ petApi }: Props) {
       label: 'Feed',
       onPress: () => {
         setPlayOpen(false);
-        setFeedOpen((open) => !open);
+        feed();
       },
-      active: feedOpen,
-      reason: actionReason(scene, 'feed'),
+      reason: actionReason(scene, 'feed') || (state.foodInBowl ? 'The food bowl is already full.' : ''),
     },
     {
       id: 'refill',
@@ -628,7 +625,6 @@ export default function HomeScreen({ petApi }: Props) {
       id: 'playdate',
       label: playdates.remaining > 0 ? formatCooldown(playdates.remaining) : 'Playdate',
       onPress: () => {
-        setFeedOpen(false);
         setPlayOpen(false);
         setWardrobeOpen(false);
         setPlaydateOpen(true);
@@ -638,7 +634,6 @@ export default function HomeScreen({ petApi }: Props) {
       id: 'play',
       label: 'Play',
       onPress: () => {
-        setFeedOpen(false);
         setPlayOpen((open) => !open);
       },
       active: playOpen,
@@ -890,19 +885,6 @@ export default function HomeScreen({ petApi }: Props) {
                 ))}
               </View>
             ) : null}
-          </View>
-        ) : null}
-        {feedOpen ? (
-          <View style={styles.scenes}>
-            <Pressable
-              style={styles.scene}
-              onPress={() => {
-                setFeedOpen(false);
-                feed();
-              }}
-            >
-              <Text style={styles.sceneLabel}>{mealLabel}</Text>
-            </Pressable>
           </View>
         ) : null}
         {playOpen ? (
