@@ -7,36 +7,51 @@ function asleep(state: PetState): PetState {
   return { ...state, asleep: true };
 }
 
-it('feeds an awake pet and wakes a sleeper to feed', () => {
+function eat(state: PetState): PetState {
+  return applyEvent(applyEvent(state, { type: 'feed' }).state, { type: 'ate', now: 1 }).state;
+}
+
+it('feed fills the empty bowl and sends the pet to eat, waking a sleeper', () => {
   const before = testPet(1, 'retriever', 0, 'Pup', 'pet');
   before.needs.hunger = 60;
   const fed = applyEvent(before, { type: 'feed' });
 
   expect(fed.cue).toEqual({ kind: 'eat' });
-  expect(fed.state.needs.hunger).toBe(35);
-  expect(fed.state.needs.energy).toBe(before.needs.energy);
-  expect(fed.state.rngState).toBe(before.rngState);
-  expect(before.needs.hunger).toBe(60);
+  expect(fed.state.foodInBowl).toBe(true);
+  expect(fed.state.needs.hunger).toBe(60);
+  expect(before.foodInBowl).toBe(false);
 
   const resting = applyEvent(asleep(before), { type: 'feed' });
   expect(resting.cue).toEqual({ kind: 'eat' });
-  expect(resting.state.needs.hunger).toBe(35);
   expect(resting.state.asleep).toBe(false);
 });
 
-it('refuses feed at hunger 0 with a head-turn cue', () => {
-  const full = testPet(1, 'retriever', 0, 'Pup', 'pet');
-  full.needs.hunger = 0;
-  const refused = applyEvent(full, { type: 'feed' });
-  expect(refused.cue).toEqual({ kind: 'refuse' });
-  expect(refused.state.needs.hunger).toBe(0);
-  expect(refused.state.weight).toBe(full.weight);
+it('does nothing when the bowl already has food', () => {
+  const before = testPet(1, 'retriever', 0, 'Pup', 'pet');
+  const full = applyEvent(before, { type: 'feed' }).state;
+  const again = applyEvent(full, { type: 'feed' });
+  expect(again.cue).toEqual({ kind: 'none' });
+  expect(again.state).toBe(full);
 });
 
-it('clamps feeding at hunger 0', () => {
+it('finishing the bowl feeds the pet and empties it', () => {
+  const before = testPet(1, 'retriever', 0, 'Pup', 'pet');
+  before.needs.hunger = 60;
+  const done = eat(before);
+  expect(done.needs.hunger).toBe(35);
+  expect(done.foodInBowl).toBe(false);
+  expect(done.rngState).toBe(before.rngState);
+  expect(applyEvent(done, { type: 'ate', now: 2 }).state).toBe(done);
+});
+
+it('lets a full pet eat when the bowl is filled, clamping hunger at 0', () => {
+  const full = testPet(1, 'retriever', 0, 'Pup', 'pet');
+  full.needs.hunger = 0;
+  expect(applyEvent(full, { type: 'feed' }).cue).toEqual({ kind: 'eat' });
+  expect(eat(full).needs.hunger).toBe(0);
   const almost = testPet(1, 'retriever', 0, 'Pup', 'pet');
   almost.needs.hunger = 10;
-  expect(applyEvent(almost, { type: 'feed' }).state.needs.hunger).toBe(0);
+  expect(eat(almost).needs.hunger).toBe(0);
 });
 
 it('refills water without changing happiness', () => {

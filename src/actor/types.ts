@@ -450,6 +450,9 @@ export type World = {
   waterLevel: number;
   bowlFill: number;
   pendingBowlDrinks: number;
+  // Food waiting in the bowl, and meals finished since the view last looked.
+  foodStocked: boolean;
+  pendingMeals: number;
   t: number;
   rng: () => number;
   scene: Scene;

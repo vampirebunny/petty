@@ -91,6 +91,7 @@ export default function HomeScreen({ petApi }: Props) {
     feed,
     refillWater,
     reportDrank,
+    reportAte,
     sit,
     givePaw,
     speak,
@@ -736,6 +737,7 @@ export default function HomeScreen({ petApi }: Props) {
               reducedMotion={reducedMotion}
               onWeightDelta={applyActorWeight}
               onDrank={reportDrank}
+              onAte={reportAte}
             />
             {state.care.messes
               .filter((mess) => mess.sceneId === state.sceneId)

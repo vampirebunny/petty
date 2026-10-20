@@ -55,6 +55,7 @@ type PetApi = {
   feed: () => void;
   refillWater: () => void;
   reportDrank: (fromBowl: boolean) => void;
+  reportAte: () => void;
   rest: () => void;
   pet: () => void;
   startCuddle: () => void;
@@ -400,6 +401,7 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
   const dismissWelcome = useCallback(() => setWelcomeBack(false), []);
   const feed = useCallback(() => dispatch({ type: 'feed' }), [dispatch]);
   const refillWater = useCallback(() => dispatch({ type: 'refillWater' }), [dispatch]);
+  const reportAte = useCallback(() => dispatch({ type: 'ate', now: Date.now() }), [dispatch]);
   const reportDrank = useCallback(
     (fromBowl: boolean) => dispatch({ type: 'drank', fromBowl, now: Date.now() }),
     [dispatch],
@@ -452,6 +454,7 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
     feed,
     refillWater,
     reportDrank,
+    reportAte,
     rest,
     pet,
     startCuddle,

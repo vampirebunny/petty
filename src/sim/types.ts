@@ -161,6 +161,8 @@ export type PetState = {
   asleep: boolean;
   lastUpdatedAt: number;
   rngState: number;
+  // True while the bowl holds food the pet has not eaten yet.
+  foodInBowl: boolean;
   waterLevel: number;
   waterEmptySince: number | null;
   toys: string[];
@@ -179,6 +181,7 @@ export type PetEvent =
   | { type: 'paw' }
   | { type: 'speak' }
   | { type: 'feed' }
+  | { type: 'ate'; now: number }
   | { type: 'refillWater' }
   | { type: 'drank'; fromBowl: boolean; now: number }
   | { type: 'toggleRest' }

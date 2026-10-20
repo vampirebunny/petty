@@ -189,18 +189,30 @@ export function applyEvent(state: PetState, event: PetEvent): EventResult {
     return { state: next, cue: { kind: event.type } };
   }
 
+  // Feed only fills the bowl, and only when it is empty. The pet goes to eat even when it is not hungry.
   if (event.type === 'feed') {
+    if (state.foodInBowl) {
+      return { state, cue: { kind: 'none' } };
+    }
     const next = copyState(state);
     next.asleep = false;
-    if (next.needs.hunger <= 0) {
-      return { state: next, cue: { kind: 'refuse' } };
+    next.foodInBowl = true;
+    return { state: next, cue: { kind: 'eat' } };
+  }
+
+  // The pet finished the bowl: the meal lands now and the bowl is empty again.
+  if (event.type === 'ate') {
+    if (!state.foodInBowl) {
+      return { state, cue: { kind: 'none' } };
     }
+    const next = copyState(state);
+    next.foodInBowl = false;
     next.needs.hunger = clampNeed(next.needs.hunger - feedHungerDrop);
     next.xp += feedXp;
     next.drift.stamina = clampDrift(next.drift.stamina + feedStaminaDrift);
     next.careWindow = bumpDiet(next.careWindow);
     next.weight = applyMeal(next.weight);
-    return { state: withDerived(next), cue: { kind: 'eat' } };
+    return { state: withDerived(next), cue: { kind: 'none' } };
   }
 
   if (event.type === 'refillWater') {

@@ -71,6 +71,7 @@ export function createPet({ id, ownerId, name, breedId, look, attributes, now }:
     asleep: startingAsleep,
     lastUpdatedAt: now,
     rngState: rngSeed(attributes.seed, attributes.archetype),
+    foodInBowl: false,
     waterLevel: startingWaterLevel,
     waterEmptySince: null,
     toys: [...startingToys],

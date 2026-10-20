@@ -219,6 +219,7 @@ function migratePet(value: unknown): PetState | null {
     weightAppliedAt: legacy ? raw.lastUpdatedAt : (raw.weightAppliedAt as number),
     sceneId: typeof raw.sceneId === 'string' ? raw.sceneId : defaultSceneId,
     equipped,
+    foodInBowl: raw.foodInBowl === true,
     waterLevel,
     waterEmptySince,
     toys: readToys(raw.toys),

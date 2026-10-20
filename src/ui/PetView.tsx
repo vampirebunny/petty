@@ -19,8 +19,10 @@ import {
   startUserTask,
   statusOf,
   syncActor,
+  syncWorldFood,
   syncWorldWater,
   takeBowlDrinks,
+  takeMeals,
   takeCuddleOut,
   takeSounds,
   takeWeightDelta,
@@ -57,6 +59,7 @@ type Props = {
   onStatus?: (status: string) => void;
   onWeightDelta: (delta: number) => void;
   onDrank?: (fromBowl: boolean) => void;
+  onAte?: () => void;
 };
 
 function sourceOf(pet: PetState) {
@@ -97,6 +100,7 @@ export function PetView({
   onStatus,
   onWeightDelta,
   onDrank,
+  onAte,
 }: Props) {
   const { viewWidth, viewHeight } = useStageSize();
   const widthRef = useRef(viewWidth);
@@ -164,12 +168,14 @@ export function PetView({
       syncActor(actor, sourceOf(pet));
     }
     syncWorldWater(world, pet.waterLevel);
+    syncWorldFood(world, pet.foodInBowl);
     redraw();
   }, [
     pet.ageDays,
     pet.asleep,
     pet.breedId,
     pet.equipped,
+    pet.foodInBowl,
     pet.id,
     pet.look,
     pet.vitality,
@@ -307,6 +313,10 @@ export function PetView({
   useEffect(() => {
     onDrankRef.current = onDrank;
   }, [onDrank]);
+  const onAteRef = useRef(onAte);
+  useEffect(() => {
+    onAteRef.current = onAte;
+  }, [onAte]);
   const statusRef = useRef('');
 
   const step = useCallback(
@@ -315,6 +325,10 @@ export function PetView({
       update(world, frameDt(elapsedMs, activeRef.current));
       for (const sound of takeSounds(world)) {
         playVoice(sound);
+      }
+      const meals = takeMeals(world);
+      for (let i = 0; i < meals; i += 1) {
+        onAteRef.current?.();
       }
       const drinks = takeBowlDrinks(world);
       for (let i = 0; i < drinks; i += 1) {

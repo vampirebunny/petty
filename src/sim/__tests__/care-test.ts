@@ -17,7 +17,7 @@ function pet() {
 
 it('adds a meal to the weight index and leaves a water refill unchanged', () => {
   const before = trainedPet();
-  const fed = applyEvent(before, { type: 'feed' }).state;
+  const fed = applyEvent(applyEvent(before, { type: 'feed' }).state, { type: 'ate', now: 1 }).state;
   const watered = applyEvent(before, { type: 'refillWater' }).state;
 
   expect(fed.weight).toBeCloseTo(before.weight + 0.12, 5);

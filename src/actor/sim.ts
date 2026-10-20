@@ -246,6 +246,8 @@ export function createWorld(actors: Actor[], seed = 1, scene: Scene = scenes.liv
     waterLevel: 1,
     bowlFill: 1,
     pendingBowlDrinks: 0,
+    foodStocked: false,
+    pendingMeals: 0,
     t: 0,
     rng: makeRng(seed),
     scene,
@@ -412,6 +414,16 @@ export function takeBowlDrinks(world: World): number {
   return count;
 }
 
+export function takeMeals(world: World): number {
+  const count = world.pendingMeals;
+  world.pendingMeals = 0;
+  return count;
+}
+
+export function syncWorldFood(world: World, stocked: boolean): void {
+  world.foodStocked = stocked;
+}
+
 export function syncWorldWater(world: World, waterLevel: number): void {
   world.waterLevel = waterLevel;
 }
@@ -446,6 +458,11 @@ function beginIdle(world: World, actor: Actor, mode: IdleMode): void {
 
 function nextIdle(world: World, actor: Actor): void {
   const breed = breedById(actor.breedId);
+  // Food left in the bowl draws the pet over even if it was busy when the bowl was filled.
+  if (world.foodStocked && poiOf(world.scene, 'food') != null && canBehave(actor, 'eat')) {
+    startUserTask(world, actor, 'eat');
+    return;
+  }
   // Occasional autonomous drink when water is available.
   if (canAutonomousDrink(world) && world.rng() < 0.18 && canBehave(actor, 'eat')) {
     startUserTask(world, actor, 'drink');
@@ -1107,6 +1124,10 @@ function updateActor(world: World, actor: Actor, dt: number): void {
         if (actor.task.kind === 'drink' && hasRefillableBowl(world.scene)) {
           world.pendingBowlDrinks += 1;
         }
+        if (actor.task.kind !== 'drink' && world.foodStocked) {
+          world.pendingMeals += 1;
+          world.foodStocked = false;
+        }
         goIdle(world, actor);
       }
     } else {
@@ -1530,7 +1551,8 @@ export function update(world: World, dt: number): void {
   const eating = world.actors.some(
     (actor) => actor.task.type === 'eat' && actor.task.kind !== 'drink' && actor.task.stage === 'eating',
   );
-  world.bowlFill = clamp(world.bowlFill + (eating ? -1 / 6 : 0.4) * step, 0, 1);
+  // The bowl pours in when food is added, empties while the pet eats, and stays empty after.
+  world.bowlFill = clamp(world.bowlFill + (eating ? -1 / 6 : world.foodStocked ? 0.8 : -2) * step, 0, 1);
   for (const actor of world.actors) {
     updateActor(world, actor, step);
   }
