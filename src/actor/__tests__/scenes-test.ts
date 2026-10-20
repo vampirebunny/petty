@@ -1,4 +1,4 @@
-import { actionEnabled, actionReason, compileScene, loadScene, scenes, startUserTask } from '..';
+import { actionEnabled, actionReason, compileScene, loadScene, poiOf, sceneForSpecies, scenes, startUserTask } from '..';
 import { lighting } from '../lighting';
 import { phaseOf, todAt } from '../timeOfDay';
 import { createWorld, spawnActor } from '../sim';
@@ -78,4 +78,43 @@ it('enables an action only when the scene has its point', () => {
   // With no bed the pet sleeps where it stands.
   expect(startUserTask(park, pup, 'sleep')).toBe(true);
   expect(pup.task.type).toBe('sleep');
+});
+
+it('keeps the litter box for cats and drops it for dogs', () => {
+  expect(scenes.livingroom.props.some((prop) => prop.kind === 'litterbox')).toBe(true);
+  expect(poiOf(scenes.livingroom, 'litter')).not.toBeNull();
+  const forCat = sceneForSpecies(scenes.livingroom, 'cat');
+  const forDog = sceneForSpecies(scenes.livingroom, 'dog');
+  expect(forCat).toBe(scenes.livingroom);
+  expect(forDog.props.some((prop) => prop.kind === 'litterbox')).toBe(false);
+  expect(poiOf(forDog, 'litter')).toBeNull();
+  expect(sceneForSpecies(forDog, 'dog')).toBe(forDog);
+  expect(sceneForSpecies(scenes.park, 'dog')).toBe(scenes.park);
+
+  const pup = spawnActor({
+    id: 'pup',
+    breedId: 'retriever',
+    ageDays: 0,
+    weight: 0,
+    vitality: 1,
+    equipped: {},
+    asleep: false,
+  });
+  const kit = spawnActor({
+    id: 'kit',
+    breedId: 'domesticShorthair',
+    ageDays: 0,
+    weight: 0,
+    vitality: 1,
+    equipped: {},
+    asleep: false,
+  });
+  const dogWorld = createWorld([pup], 1, scenes.livingroom);
+  const catWorld = createWorld([kit], 1, scenes.livingroom);
+  expect(poiOf(dogWorld.scene, 'litter')).toBeNull();
+  expect(poiOf(catWorld.scene, 'litter')).not.toBeNull();
+  startUserTask(dogWorld, pup, 'potty');
+  startUserTask(catWorld, kit, 'potty');
+  expect(pup.task.poi).toBeUndefined();
+  expect(kit.task.poi).toEqual(poiOf(catWorld.scene, 'litter'));
 });

@@ -4,7 +4,7 @@ import { stepItems } from '../items/physics';
 import { inactivePointer } from '../input/pointer';
 import { toyAllows } from '../items/playRules';
 import type { PlayBehavior } from '../items/playRules';
-import { bodyFrame, headFaceOf, reachOf, speedMax, stageWidth, xRangeOf } from './geometry';
+import { bodyFrame, depthScale, geomOf, headFaceOf, PET_SIZE, reachOf, speedMax, stageWidth, travelGateX, xRangeOf } from './geometry';
 import {
   bowHold,
   gaitSpeedCap,
@@ -40,7 +40,7 @@ import { growthFor } from './growth';
 import { canBehave, reactionFor, type UserTask } from './behavior';
 import { defaultPose, easePose } from './pose';
 import { newCuddle, stepCuddle } from './cuddle';
-import { nearestPoi, poiOf, scenes, stageHeight } from './scenes';
+import { nearestPoi, poiOf, sceneForSpecies, scenes, stageHeight } from './scenes';
 import type { Scene } from './scenes';
 import { variantFor } from './variation';
 import type { Actor, ActorSource, Anchors, Direction, Idle, IdleMode, JumpKind, PlayState, Pose, SoundEvent, Task, TaskType, Vec, World } from './types';
@@ -142,6 +142,10 @@ function idleOf(mode: IdleMode = 'still'): Idle {
 
 function homeOf(scene: Scene): Vec {
   return poiOf(scene, 'home') ?? { x: 300, y: scene.floor.yMin + 40 };
+}
+
+function sceneSpeciesOf(actors: { breedId: string }[]): 'dog' | 'cat' {
+  return actors.some((actor) => breedById(actor.breedId)?.species === 'cat') ? 'cat' : 'dog';
 }
 
 export function stagePoint(x: number, y: number, viewW: number, viewH: number): Vec {
@@ -252,7 +256,7 @@ export function createWorld(actors: Actor[], seed = 1, scene: Scene = scenes.liv
     pendingMeals: 0,
     t: 0,
     rng: makeRng(seed),
-    scene,
+    scene: sceneForSpecies(scene, sceneSpeciesOf(actors)),
     reducedMotion: false,
     particles: [],
     sounds: [],
@@ -303,6 +307,10 @@ export function takeEnergyDelta(actor: Actor): number {
 
 // A new scene only moves the actors to its home spot. Pet state is untouched, so a sleeping pet keeps sleeping.
 export function setWorldScene(world: World, scene: Scene): void {
+  scene = sceneForSpecies(scene, sceneSpeciesOf(world.actors));
+  if (world.scene === scene) {
+    return;
+  }
   world.scene = scene;
   const home = homeOf(scene);
   const bed = poiOf(scene, 'bed');
@@ -325,6 +333,63 @@ export function setWorldScene(world: World, scene: Scene): void {
   }
   clearItems(world);
   seedParticles(world);
+}
+
+function travelScale(actor: Actor, floor: { yMin: number; yMax: number }): { geom: ReturnType<typeof geomOf>; scale: number } | null {
+  const breed = breedById(actor.breedId);
+  if (!breed) {
+    return null;
+  }
+  const geom = geomOf(breed, actor.displayAgeDays, actor.displayWeight, actor.vitality);
+  return { geom, scale: PET_SIZE * geom.sc * depthScale(actor.y, floor.yMin, floor.yMax) };
+}
+
+function clearActorForTravel(world: World, actor: Actor): void {
+  releaseCarried(world, actor);
+  actor.direction = null;
+  actor.play = null;
+  actor.zoom = null;
+  actor.cuddle = null;
+  actor.z = 0;
+  actor.vz = 0;
+  actor.jumpKind = null;
+}
+
+// Walks the pet off the right edge so a scene change can fade the empty room.
+export function startSceneExit(world: World, actor: Actor): void {
+  clearActorForTravel(world, actor);
+  const sized = travelScale(actor, world.scene.floor);
+  const x = sized ? travelGateX(sized.geom, sized.scale, 1) : stageWidth + 120;
+  actor.task = taskOf('travel', 'exit');
+  actor.task.poi = { x, y: actor.y };
+  actor.pantT = 0;
+}
+
+// Cuts to `scene` with the pet waiting off the left, then walking in to the home spot.
+export function startSceneEnter(world: World, actor: Actor, scene: Scene): void {
+  scene = sceneForSpecies(scene, sceneSpeciesOf(world.actors));
+  world.scene = scene;
+  clearItems(world);
+  seedParticles(world);
+  const home = homeOf(scene);
+  const floor = scene.floor;
+  const y = clamp(home.y, floor.yMin, floor.yMax);
+  actor.y = y;
+  const sized = travelScale(actor, floor);
+  actor.x = sized ? travelGateX(sized.geom, sized.scale, -1) : -120;
+  actor.vx = 0;
+  actor.vy = 0;
+  actor.speed = 0;
+  actor.face = 1;
+  actor.anchors.facing = 1;
+  clearActorForTravel(world, actor);
+  actor.task = taskOf('travel', 'enter');
+  actor.task.poi = home;
+  actor.pantT = 0;
+}
+
+export function isSceneTravel(actor: Actor): boolean {
+  return actor.task.type === 'travel';
 }
 
 export function frameDt(elapsedMs: number, active: boolean): number {
@@ -936,6 +1001,13 @@ function updateActor(world: World, actor: Actor, dt: number): void {
     vmax = directed.vmax;
     wagRate = directed.wagRate;
     faceCamera = directed.faceCamera;
+  } else if (actor.task.type === 'travel' && actor.task.poi) {
+    move = { x: actor.task.poi.x, y: actor.task.poi.y };
+    vmax = clamp(limit * 0.7, 170, 240);
+    wagRate = 10;
+    if (actor.task.stage === 'enter' && Math.hypot(actor.task.poi.x - actor.x, actor.task.poi.y - actor.y) < 8 && actor.speed < 16) {
+      goIdle(world, actor);
+    }
   } else if (actor.task.type === 'idle') {
     actor.idle.t += dt;
     if (actor.idle.mode === 'zoom') {
@@ -1439,10 +1511,12 @@ function updateActor(world: World, actor: Actor, dt: number): void {
   }
 
   // The larger body (head in front, tail behind) sticks out from its anchor, so keep all of it inside the stage.
+  // A scene change walks the pet off-screen, so that path is not clamped in x.
+  const traveling = actor.task.type === 'travel';
   const { lo: xLo, hi: xHi } = xRangeOf(floor, frame.geom, frame.scale);
   const desired = { x: 0, y: 0 };
   if (move) {
-    const tx = clamp(move.x, xLo, xHi);
+    const tx = traveling ? move.x : clamp(move.x, xLo, xHi);
     const ty = clamp(move.y, floor.yMin, floor.yMax);
     const dx = tx - actor.x;
     const dy = ty - actor.y;
@@ -1469,7 +1543,8 @@ function updateActor(world: World, actor: Actor, dt: number): void {
     actor.vx += dvx;
     actor.vy += dvy;
   }
-  actor.x = clamp(actor.x + actor.vx * dt, xLo, xHi);
+  const nextX = actor.x + actor.vx * dt;
+  actor.x = traveling ? nextX : clamp(nextX, xLo, xHi);
   actor.y = clamp(actor.y + actor.vy * dt, floor.yMin, floor.yMax);
   actor.speed = Math.hypot(actor.vx, actor.vy);
   // A fast turn: the pet brakes with its weight back and the forelegs reaching, and only then faces the new way.

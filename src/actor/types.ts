@@ -27,7 +27,8 @@ export type TaskType =
   | 'purr'
   | 'groom'
   | 'pounce'
-  | 'cuddle';
+  | 'cuddle'
+  | 'travel';
 
 // Silhouette vocabulary. Each breed picks one value per slot, and the renderer draws the matching shape.
 export type EarType =

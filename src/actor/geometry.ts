@@ -260,6 +260,12 @@ export function xRangeOf(floor: { xMin: number; xMax: number }, geom: Geom, scal
   return lo <= hi ? { lo, hi } : { lo: (lo + hi) / 2, hi: (lo + hi) / 2 };
 }
 
+// Anchor just past the stage so the whole drawn pet is off-screen. Right for an exit, left for an entrance.
+export function travelGateX(geom: Geom, scale: number, side: 1 | -1): number {
+  const pad = 36;
+  return side > 0 ? stageWidth + reachOf(geom) * scale + pad : -(rearOf(geom) * scale + pad);
+}
+
 export function torsoPoint(geom: Geom, theta: number, dy: number, x: number, y: number): Vec {
   const rx = x - geom.Px;
   const ry = y - geom.Py;

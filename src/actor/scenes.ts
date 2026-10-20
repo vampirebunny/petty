@@ -415,6 +415,30 @@ export function sceneById(id: string): Scene {
   return sceneList.find((scene) => scene.id === id) ?? scenes.livingroom;
 }
 
+const noLitterCache = new WeakMap<Scene, Scene>();
+
+function hasLitter(scene: Scene): boolean {
+  return scene.props.some((prop) => prop.kind === 'litterbox') || scene.pois.some((poi) => poi.type === 'litter');
+}
+
+// Indoor presets keep a litter box in the data. Dogs never see it: no prop, no potty spot.
+export function sceneForSpecies(scene: Scene, species: 'dog' | 'cat'): Scene {
+  if (species === 'cat' || !hasLitter(scene)) {
+    return scene;
+  }
+  const cached = noLitterCache.get(scene);
+  if (cached) {
+    return cached;
+  }
+  const next: Scene = {
+    ...scene,
+    props: scene.props.filter((prop) => prop.kind !== 'litterbox'),
+    pois: scene.pois.filter((poi) => poi.type !== 'litter'),
+  };
+  noLitterCache.set(scene, next);
+  return next;
+}
+
 export function poiOf(scene: Scene, type: string): Poi | null {
   return scene.pois.find((poi) => poi.type === type) ?? null;
 }

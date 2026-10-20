@@ -46,6 +46,9 @@ export function statusOf(actor: Actor): string {
   if (task.type === 'sleep') {
     return task.stage === 'go' ? 'Heading to bed' : 'Sleeping';
   }
+  if (task.type === 'travel') {
+    return task.stage === 'exit' ? 'Heading out' : 'Coming in';
+  }
   if (task.type === 'winddown') {
     if (task.stage === 'flop') {
       return 'Flopped down';

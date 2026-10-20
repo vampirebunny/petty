@@ -12,10 +12,15 @@ import {
   cuddleZoneAt,
   endCuddle,
   frameDt,
+  breedById,
+  isSceneTravel,
   sceneById,
+  sceneForSpecies,
   setWorldScene,
   settleOnResume,
   spawnActor,
+  startSceneEnter,
+  startSceneExit,
   startUserTask,
   statusOf,
   syncActor,
@@ -62,6 +67,7 @@ type Props = {
   onEnergyDelta: (delta: number) => void;
   onDrank?: (fromBowl: boolean) => void;
   onAte?: () => void;
+  onTraveling?: (active: boolean) => void;
 };
 
 function sourceOf(pet: PetState) {
@@ -104,13 +110,15 @@ export function PetView({
   onEnergyDelta,
   onDrank,
   onAte,
+  onTraveling,
 }: Props) {
   const { viewWidth, viewHeight } = useStageSize();
   const widthRef = useRef(viewWidth);
   const heightRef = useRef(viewHeight);
   widthRef.current = viewWidth;
   heightRef.current = viewHeight;
-  const scene = sceneOverride ?? sceneById(pet.sceneId);
+  const species = breedById(pet.breedId)?.species === 'cat' ? 'cat' : 'dog';
+  const scene = sceneForSpecies(sceneOverride ?? sceneById(pet.sceneId), species);
   const worldRef = useRef<World>(createWorld([spawnActor(sourceOf(pet))], 1, scene));
   const activeRef = useRef(AppState.currentState === 'active');
   const hourRef = useRef(hour);
@@ -131,6 +139,9 @@ export function PetView({
   );
   const livePicture = useRef<SkPicture | null>(null);
   const retired = useRef<{ picture: SkPicture; at: number }[]>([]);
+  const travelRef = useRef<{ dest: Scene; phase: 'exit' | 'fade' | 'enter'; fade: number; asleep: boolean } | null>(null);
+  const onTravelingRef = useRef(onTraveling);
+  onTravelingRef.current = onTraveling;
 
   const redraw = useCallback(() => {
     const recorder = Skia.PictureRecorder();
@@ -145,6 +156,12 @@ export function PetView({
     }
     worldRef.current.reducedMotion = reducedRef.current;
     drawWorld(canvas, worldRef.current, widthRef.current, heightRef.current, todRef.current, reducedRef.current);
+    const fade = travelRef.current?.fade ?? 0;
+    if (fade > 0.001) {
+      const paint = Skia.Paint();
+      paint.setColor(Skia.Color(`rgba(8,10,16,${fade})`));
+      canvas.drawRect(bounds, paint);
+    }
     const next = recorder.finishRecordingAsPicture();
     const previous = livePicture.current ?? picture.value;
     livePicture.current = next;
@@ -188,16 +205,87 @@ export function PetView({
     redraw,
   ]);
 
-  useEffect(() => {
-    const world = worldRef.current;
-    if (world.scene !== scene) {
-      setWorldScene(world, scene);
+  const pendingCue = useRef<{ kind: typeof cueKind; token: number; drop?: typeof drop; flick?: typeof flick } | null>(null);
+
+  const applyCue = useCallback(
+    (kind: typeof cueKind, nextDrop?: typeof drop, nextFlick?: typeof flick) => {
+      const actor = worldRef.current.actors[0];
+      if (!actor || kind === 'none') {
+        return;
+      }
+      const world = worldRef.current;
+      if (kind === 'idle') {
+        startUserTask(world, actor, 'idle');
+      } else if (kind === 'sit') {
+        startUserTask(world, actor, 'sit');
+      } else if (kind === 'paw') {
+        startUserTask(world, actor, 'paw');
+      } else if (kind === 'speak') {
+        startUserTask(world, actor, 'speak');
+      } else if (kind === 'confused') {
+        startUserTask(world, actor, 'confused');
+      } else if (kind === 'signal') {
+        startUserTask(world, actor, 'signal');
+      } else if (kind === 'potty') {
+        startUserTask(world, actor, 'potty');
+      } else if (kind === 'eat') {
+        startUserTask(world, actor, 'eat');
+      } else if (kind === 'refuse') {
+        startUserTask(world, actor, 'refuse');
+      } else if (kind === 'yawn') {
+        startUserTask(world, actor, 'sleep');
+      } else if (kind === 'purr') {
+        startUserTask(world, actor, 'react', 0.8);
+      } else if (kind === 'wiggle') {
+        startUserTask(world, actor, 'react', 0.2);
+      } else if (kind === 'fetch') {
+        startUserTask(world, actor, 'fetch', 1, nextDrop, nextFlick);
+      }
       redraw();
-    }
-  }, [scene, redraw]);
+    },
+    [redraw],
+  );
+
+  const beginTravel = useCallback(
+    (dest: Scene) => {
+      const world = worldRef.current;
+      const actor = world.actors[0];
+      if (world.scene === dest && travelRef.current == null) {
+        return;
+      }
+      if (travelRef.current?.dest === dest) {
+        return;
+      }
+      if (reducedRef.current || !actor) {
+        travelRef.current = null;
+        setWorldScene(world, dest);
+        onTravelingRef.current?.(false);
+        redraw();
+        return;
+      }
+      const asleep = actor.asleep || actor.task.type === 'sleep';
+      if (!travelRef.current || travelRef.current.phase === 'enter') {
+        startSceneExit(world, actor);
+        travelRef.current = { dest, phase: 'exit', fade: 0, asleep };
+        onTravelingRef.current?.(true);
+      } else {
+        travelRef.current.dest = dest;
+        travelRef.current.asleep = asleep || travelRef.current.asleep;
+      }
+      redraw();
+    },
+    [redraw],
+  );
+
+  useEffect(() => {
+    beginTravel(scene);
+  }, [beginTravel, scene]);
 
   const signalStartedAt = pet.care.potty.signal?.startedAt;
   useEffect(() => {
+    if (travelRef.current) {
+      return;
+    }
     const actor = worldRef.current.actors[0];
     if (actor && signalStartedAt != null) {
       startUserTask(worldRef.current, actor, 'signal');
@@ -206,40 +294,12 @@ export function PetView({
   }, [redraw, signalStartedAt]);
 
   useEffect(() => {
-    const actor = worldRef.current.actors[0];
-    if (!actor) {
+    if (travelRef.current) {
+      pendingCue.current = { kind: cueKind, token: cueToken, drop, flick };
       return;
     }
-    const world = worldRef.current;
-    if (cueKind === 'idle') {
-      startUserTask(world, actor, 'idle');
-    } else if (cueKind === 'sit') {
-      startUserTask(world, actor, 'sit');
-    } else if (cueKind === 'paw') {
-      startUserTask(world, actor, 'paw');
-    } else if (cueKind === 'speak') {
-      startUserTask(world, actor, 'speak');
-    } else if (cueKind === 'confused') {
-      startUserTask(world, actor, 'confused');
-    } else if (cueKind === 'signal') {
-      startUserTask(world, actor, 'signal');
-    } else if (cueKind === 'potty') {
-      startUserTask(world, actor, 'potty');
-    } else if (cueKind === 'eat') {
-      startUserTask(world, actor, 'eat');
-    } else if (cueKind === 'refuse') {
-      startUserTask(world, actor, 'refuse');
-    } else if (cueKind === 'yawn') {
-      startUserTask(world, actor, 'sleep');
-    } else if (cueKind === 'purr') {
-      startUserTask(world, actor, 'react', 0.8);
-    } else if (cueKind === 'wiggle') {
-      startUserTask(world, actor, 'react', 0.2);
-    } else if (cueKind === 'fetch') {
-      startUserTask(world, actor, 'fetch', 1, drop, flick);
-    }
-    redraw();
-  }, [cueKind, cueToken, drop, flick, redraw]);
+    applyCue(cueKind, drop, flick);
+  }, [applyCue, cueKind, cueToken, drop, flick]);
 
   useImperativeHandle(
     cuddleRef,
@@ -279,7 +339,7 @@ export function PetView({
     if (!actor) {
       return;
     }
-    if (cuddleActive && !cuddleLive.current) {
+    if (cuddleActive && !cuddleLive.current && !travelRef.current) {
       cuddleLive.current = true;
       actor.cuddleAffinity = sourceOf(petRef.current).cuddleAffinity;
       startUserTask(world, actor, 'cuddle');
@@ -341,7 +401,38 @@ export function PetView({
   const step = useCallback(
     (elapsedMs: number) => {
       const world = worldRef.current;
-      update(world, frameDt(elapsedMs, activeRef.current));
+      const dt = frameDt(elapsedMs, activeRef.current);
+      update(world, dt);
+      const travel = travelRef.current;
+      const actor = world.actors[0];
+      if (travel && actor) {
+        if (travel.phase === 'exit') {
+          const gate = actor.task.poi?.x ?? 0;
+          if (actor.x >= gate - 8) {
+            travel.phase = 'fade';
+          }
+        }
+        if (travel.phase === 'fade') {
+          travel.fade = Math.min(1, travel.fade + dt / 0.85);
+          if (travel.fade >= 1) {
+            startSceneEnter(world, actor, travel.dest);
+            travel.phase = 'enter';
+            travel.fade = 0;
+          }
+        }
+        if (travel.phase === 'enter' && !isSceneTravel(actor)) {
+          if (travel.asleep) {
+            startUserTask(world, actor, 'sleep');
+          }
+          travelRef.current = null;
+          onTravelingRef.current?.(false);
+          const queued = pendingCue.current;
+          pendingCue.current = null;
+          if (queued) {
+            applyCue(queued.kind, queued.drop, queued.flick);
+          }
+        }
+      }
       for (const sound of takeSounds(world)) {
         playVoice(sound);
       }
@@ -353,7 +444,6 @@ export function PetView({
       for (let i = 0; i < drinks; i += 1) {
         onDrankRef.current?.(true);
       }
-      const actor = world.actors[0];
       if (actor) {
         for (const out of takeCuddleOut(actor)) {
           onCuddleRef.current?.(out);
@@ -375,7 +465,7 @@ export function PetView({
       }
       redraw();
     },
-    [flushEnergy, flushWeight, redraw],
+    [applyCue, flushEnergy, flushWeight, redraw],
   );
 
   const kick = useRef<() => void>(() => undefined);

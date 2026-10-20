@@ -141,6 +141,7 @@ export default function HomeScreen({ petApi }: Props) {
   const [personalityOpen, setPersonalityOpen] = useState(false);
   const [playOpen, setPlayOpen] = useState(false);
   const [cuddleOn, setCuddleOn] = useState(false);
+  const [traveling, setTraveling] = useState(false);
   const [coachVisible, setCoachVisible] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [sessionNumber, setSessionNumber] = useState(0);
@@ -740,8 +741,10 @@ export default function HomeScreen({ petApi }: Props) {
               onEnergyDelta={applyActorEnergy}
               onDrank={reportDrank}
               onAte={reportAte}
+              onTraveling={setTraveling}
             />
-            {state.care.messes
+            {!traveling &&
+              state.care.messes
               .filter((mess) => mess.sceneId === state.sceneId)
               .map((mess) => {
                 const view = stageToView(mess);
