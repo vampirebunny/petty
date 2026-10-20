@@ -665,7 +665,9 @@ export default function HomeScreen({ petApi }: Props) {
     ...(species === 'dog' && state.training.paw?.mastered ? [{ id: 'paw', label: 'Give paw', onPress: givePaw }] : []),
     ...(state.training.speak?.mastered ? [{ id: 'speak', label: 'Speak', onPress: speak }] : []),
   ];
-  const badges = earnedBadges(state.milestones, species);
+  const badges = earnedBadges(state.milestones, species).filter(
+    (badge) => badge.id !== 'sit' && badge.id !== 'speak',
+  );
 
   const toggles: PetAction[] = [
     {
