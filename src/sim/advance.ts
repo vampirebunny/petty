@@ -43,29 +43,47 @@ function applyStep(needs: Needs, asleep: boolean, emptyWater: boolean): Needs {
   };
 }
 
-export function advanceNeeds(state: PetState, elapsedMs: number, cap: boolean): PetState {
+export function advanceNeedsDetail(
+  state: PetState,
+  elapsedMs: number,
+  cap: boolean,
+): { state: PetState; awakeMs: number } {
   const raw = Math.max(elapsedMs, 0);
   const elapsed = cap ? Math.min(raw, maxElapsedMs) : raw;
   const steps = Math.floor(elapsed / stepMs);
   let needs = { ...state.needs };
   let asleep = state.asleep;
+  let awakeMs = 0;
   let cursor = state.lastUpdatedAt;
 
   for (let i = 0; i < steps; i += 1) {
+    if (!asleep) {
+      awakeMs += stepMs;
+    }
     cursor += stepMs;
     needs = applyStep(needs, asleep, waterPenalty(state, cursor));
     if (asleep && needs.energy >= wakeAtEnergy) {
       asleep = false;
     }
   }
+  if (!asleep) {
+    awakeMs += elapsed - steps * stepMs;
+  }
 
   return {
-    ...state,
-    needs,
-    asleep,
-    lastUpdatedAt: state.lastUpdatedAt + steps * stepMs,
-    boosts: activeBoosts(state.boosts, state.lastUpdatedAt + steps * stepMs),
+    state: {
+      ...state,
+      needs,
+      asleep,
+      lastUpdatedAt: state.lastUpdatedAt + steps * stepMs,
+      boosts: activeBoosts(state.boosts, state.lastUpdatedAt + steps * stepMs),
+    },
+    awakeMs,
   };
+}
+
+export function advanceNeeds(state: PetState, elapsedMs: number, cap: boolean): PetState {
+  return advanceNeedsDetail(state, elapsedMs, cap).state;
 }
 
 export function advance(state: PetState, elapsedMs: number): PetState {

@@ -16,7 +16,10 @@ import {
   waterDrainPerDrink,
 } from './config';
 import { nextRng } from './rng';
-import type { CareSample, Cue, PetEvent, PetState } from './types';
+import { beginPotty, headHome, rememberScene } from './potty';
+import { cleanMess } from './messes';
+import { resolveReward, rollTrick } from './training';
+import type { CareSample, Cue, PetCareState, PetEvent, PetState, TrainingTrack } from './types';
 
 export type EventResult = {
   state: PetState;
@@ -27,10 +30,38 @@ function clampNeed(value: number): number {
   return Math.min(clampMax, Math.max(clampMin, value));
 }
 
+function copyCare(care: PetCareState): PetCareState {
+  return {
+    ...care,
+    messes: care.messes.map((mess) => ({ ...mess })),
+    potty: {
+      ...care.potty,
+      signal: care.potty.signal ? { ...care.potty.signal } : null,
+      outing: care.potty.outing ? { ...care.potty.outing } : null,
+    },
+    walk: { ...care.walk },
+    pendingReward: care.pendingReward ? { ...care.pendingReward } : null,
+    unclaimed: { ...care.unclaimed },
+    recentScenes: [...care.recentScenes],
+  };
+}
+
+function copyTraining(training: Record<string, TrainingTrack>): Record<string, TrainingTrack> {
+  const next: Record<string, TrainingTrack> = {};
+  for (const [id, track] of Object.entries(training)) {
+    next[id] = { ...track };
+  }
+  return next;
+}
+
 function copyState(state: PetState): PetState {
   return {
     ...state,
     needs: { ...state.needs },
+    care: copyCare(state.care),
+    training: copyTraining(state.training),
+    milestones: [...state.milestones],
+    seenCoachMarks: [...state.seenCoachMarks],
     careWindow: state.careWindow.map((sample) => ({ ...sample })),
     equipped: { ...state.equipped },
     look: { ...state.look },
@@ -77,8 +108,62 @@ function bumpAttention(samples: CareSample[]): CareSample[] {
 
 export function applyEvent(state: PetState, event: PetEvent): EventResult {
   if (event.type === 'setScene') {
-    const next = copyState(state);
+    const next = rememberScene(copyState(state), event.sceneId);
     next.sceneId = event.sceneId;
+    if (next.care.pendingReward) {
+      return { state: withDerived(resolveReward(next, state.lastUpdatedAt, null)), cue: { kind: 'none' } };
+    }
+    return { state: next, cue: { kind: 'none' } };
+  }
+
+  if (event.type === 'trickRep') {
+    const rolled = rollTrick(copyState(state), event.trackId, event.now);
+    const track = rolled.state.training[event.trackId];
+    if (!track?.unlocked) {
+      return { state, cue: { kind: 'none' } };
+    }
+    if (track.mastered && !rolled.state.care.pendingReward) {
+      const cue = event.trackId === 'paw' ? 'paw' : event.trackId === 'speak' ? 'speak' : 'sit';
+      return { state: withDerived(rolled.state), cue: { kind: cue } };
+    }
+    return { state: withDerived(rolled.state), cue: { kind: rolled.ok ? (event.trackId === 'paw' ? 'paw' : event.trackId === 'speak' ? 'speak' : 'sit') : 'confused' } };
+  }
+
+  if (event.type === 'rewardTreat') {
+    return { state: withDerived(resolveReward(copyState(state), event.now, event.tier)), cue: { kind: 'none' } };
+  }
+
+  if (event.type === 'goPotty') {
+    const next = beginPotty(copyState(state), event.now);
+    const moved = next.sceneId !== state.sceneId || next.care.potty.outing != null;
+    return { state: withDerived(next), cue: { kind: moved ? 'potty' : 'none' } };
+  }
+
+  if (event.type === 'returnHome') {
+    return { state: withDerived(headHome(copyState(state), event.now)), cue: { kind: 'none' } };
+  }
+
+  if (event.type === 'cleanMess') {
+    return { state: cleanMess(copyState(state), event.messId), cue: { kind: 'none' } };
+  }
+
+  if (event.type === 'claimGrants') {
+    const next = copyState(state);
+    next.care.unclaimed = { basic: 0, special: 0 };
+    return { state: next, cue: { kind: 'none' } };
+  }
+
+  if (event.type === 'clearTreats') {
+    const next = copyState(state);
+    next.treats = [];
+    return { state: next, cue: { kind: 'none' } };
+  }
+
+  if (event.type === 'seeCoach') {
+    const next = copyState(state);
+    if (!next.seenCoachMarks.includes(event.id)) {
+      next.seenCoachMarks.push(event.id);
+    }
     return { state: next, cue: { kind: 'none' } };
   }
 

@@ -1,7 +1,8 @@
 import { withDerived } from './attributes';
+import { advanceNeeds, advanceNeedsDetail } from './advance';
 import { applyCareTime, clampWeight, decayWeight } from './care';
 import { dayMs, maxElapsedMs } from './config';
-import { advanceNeeds } from './advance';
+import { advanceCare } from './potty';
 import type { PetState } from './types';
 
 export function ageDaysAt(bornAt: number, now: number): number {
@@ -10,10 +11,11 @@ export function ageDaysAt(bornAt: number, now: number): number {
 
 function settle(state: PetState, now: number, needElapsed: number, weightElapsed: number, absence: boolean): PetState {
   const ageDays = ageDaysAt(state.bornAt, now);
-  const needsNext = advanceNeeds({ ...state, ageDays }, needElapsed, true);
-  const cared = applyCareTime(needsNext, needElapsed, absence, true);
+  const stepped = advanceNeedsDetail({ ...state, ageDays }, needElapsed, true);
+  const cared = applyCareTime(stepped.state, needElapsed, absence, true);
+  const game = advanceCare(cared, now, needElapsed, stepped.awakeMs, absence ? 'away' : 'live');
   return withDerived({
-    ...cared,
+    ...game,
     ageDays,
     weight: decayWeight(state.weight, weightElapsed),
     lastUpdatedAt: now,
@@ -42,10 +44,13 @@ export function debugJump(state: PetState, elapsedMs: number): PetState {
     ageDays,
     bornAt: now - ageDays * dayMs,
   };
+  const careElapsed = Math.min(elapsed, maxElapsedMs);
+  const awake = advanceNeedsDetail(jumped, careElapsed, false).awakeMs;
   const needsNext = advanceNeeds(jumped, elapsed, false);
   const cared = applyCareTime(needsNext, elapsed, elapsed > 0, false);
+  const game = advanceCare(cared, now, careElapsed, awake, elapsed > 0 ? 'away' : 'live');
   return withDerived({
-    ...cared,
+    ...game,
     ageDays,
     bornAt: now - ageDays * dayMs,
     weight: decayWeight(state.weight, elapsed),

@@ -1,4 +1,6 @@
 import { rngSeed, withDerived, zeroStats } from './attributes';
+import { armPotty, bathToleranceFor, blankCare, blankTraining } from './potty';
+import { speciesOf } from './tracks';
 import {
   defaultSceneId,
   startingAsleep,
@@ -37,7 +39,9 @@ export function createPet({ id, ownerId, name, breedId, look, attributes, now }:
       attention: startingAttention,
     },
   ];
-  return withDerived({
+  const species = speciesOf(breedId);
+  const tolerance = bathToleranceFor(attributes.potential.boldness, breedId, species);
+  return armPotty(withDerived({
     id,
     ownerId,
     name,
@@ -73,5 +77,9 @@ export function createPet({ id, ownerId, name, breedId, look, attributes, now }:
     treats: [],
     treatDay: { day: 0, count: 0 },
     boosts: [],
-  });
+    care: blankCare(now, tolerance),
+    training: blankTraining(species, 0, false),
+    milestones: [],
+    seenCoachMarks: [],
+  }), now);
 }

@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { withDerived } from '../sim/attributes';
+import { ensureGame } from '../sim/potty';
 import { clampWeight } from '../sim/care';
 import {
   archetypes,
@@ -232,7 +233,7 @@ function migratePet(value: unknown): PetState | null {
   }
   delete (next as { feedWindow?: unknown }).feedWindow;
   delete (next as { maturityAppliedAt?: unknown }).maturityAppliedAt;
-  return withDerived(next);
+  return withDerived(ensureGame(next));
 }
 
 export const asyncPetStorage: PetStorage = {

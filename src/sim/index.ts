@@ -14,6 +14,12 @@ export {
   trainingGain,
 } from './attributes';
 export { ageDaysAt, applyWeightDelta, debugJump, resume, setAgeDays, setVitality, setWeight, tickForeground } from './clock';
+export { careConfig } from './careConfig';
+export type { TreatTier, TrickTier } from './careConfig';
+export { advanceCare, armPotty, bathToleranceFor, beginPotty, ensureGame, headHome } from './potty';
+export { cleanMess, messDestination, messStage, messesIn, spawnMess } from './messes';
+export { intelligenceFactor, payRep, petDayIndex, resolveReward, rewardCredit, rollTrick, successChance } from './training';
+export { lockHint, speciesOf, trackDef, trackDefs, tracksFor } from './tracks';
 export { applyCareTime, applyMeal, clampWeight, decayWeight, vitalityTarget } from './care';
 export {
   clampMax,
