@@ -53,6 +53,12 @@ const tintFor: Record<string, keyof typeof tints> = {
   musicOff: 'lilac',
   personality: 'mint',
   help: 'lilac',
+  potty: 'butter',
+  clean: 'peach',
+  treat: 'butter',
+  inventory: 'lilac',
+  walk: 'mint',
+  train: 'sky',
 };
 
 export function ActionButtons({ actions, species = 'dog', onBlocked }: Props) {

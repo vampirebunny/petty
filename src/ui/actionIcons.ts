@@ -15,6 +15,11 @@ import {
   Volleyball,
   Volume2,
   VolumeX,
+  Cookie,
+  House,
+  Shovel,
+  Backpack,
+  Footprints,
 } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
 
@@ -40,6 +45,11 @@ export const actionIcons: Record<string, LucideIcon> = {
   musicOff: Music,
   personality: Sparkles,
   help: CircleQuestionMark,
+  potty: House,
+  clean: Shovel,
+  treat: Cookie,
+  inventory: Backpack,
+  walk: Footprints,
 };
 
 // Species variants: same layout, a different icon or label where the toy differs. Both species play

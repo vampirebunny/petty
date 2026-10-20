@@ -19,6 +19,11 @@ const actionIds = [
   'musicOff',
   'personality',
   'help',
+  'potty',
+  'clean',
+  'treat',
+  'inventory',
+  'walk',
 ];
 
 describe('actionIcons', () => {

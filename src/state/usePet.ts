@@ -3,6 +3,8 @@ import { AppState } from 'react-native';
 
 import { flickToThrow } from '../input/flick';
 import { cancelReminders, syncReminder } from '../reminders/notifications';
+import { careConfig } from '../sim/careConfig';
+import { applyRewardTreat } from '../treats/rules';
 import {
   applyEvent,
   applyWeightDelta,
@@ -23,7 +25,9 @@ import { asyncPetStorage } from '../storage/asyncStorage';
 import type { PetStorage } from '../storage/PetStorage';
 import {
   clearDraft,
+  loadCareRemindersEnabled,
   loadRemindersEnabled,
+  saveCareRemindersEnabled,
   saveRemindersEnabled,
 } from '../storage/session';
 
@@ -41,6 +45,9 @@ type PetApi = {
   cue: PetCue;
   remindersOn: boolean;
   setRemindersOn: (enabled: boolean) => void;
+  careRemindersOn: boolean;
+  setCareRemindersOn: (enabled: boolean) => void;
+  setCareTreatCount: (count: number) => void;
   idle: () => void;
   sit: () => void;
   givePaw: () => void;
@@ -64,6 +71,15 @@ type PetApi = {
   setWeightValue: (weight: number) => void;
   reset: () => void;
   release: () => void;
+  goPotty: () => void;
+  returnHome: () => void;
+  rewardTreat: (tier: 'basic' | 'special') => void;
+  cleanMess: (messId: string) => void;
+  seeCoach: (id: string) => void;
+  claimGrants: () => void;
+  clearTreats: () => void;
+  welcomeBack: boolean;
+  dismissWelcome: () => void;
   finishPlaydate: (happiness: number, attributes: Partial<Record<Trait, number>>) => void;
   adopt: (breedId: string, attributes: PetAttributes, look: Look, name: string, ownerId: string) => void;
   setOwnerId: (ownerId: string) => void;
@@ -74,6 +90,10 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
   const [state, setState] = useState<PetState | null>(null);
   const [cue, setCue] = useState<PetCue>({ kind: 'none', token: 0 });
   const [remindersOn, setRemindersOnState] = useState(true);
+  const [careRemindersOn, setCareRemindersOnState] = useState(false);
+  const careRef = useRef(false);
+  const treatCountRef = useRef(0);
+  const [welcomeBack, setWelcomeBack] = useState(false);
   const stateRef = useRef<PetState | null>(null);
   const tokenRef = useRef(0);
   const storageRef = useRef(storage);
@@ -101,7 +121,12 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
     saveQueue.current = saveQueue.current
       .catch(() => undefined)
       .then(() => storageRef.current.save(snapshot))
-      .then(() => syncReminder(snapshot, remindersRef.current))
+      .then(() =>
+        syncReminder(snapshot, remindersRef.current, Date.now(), {
+          enabled: careRef.current,
+          basicTreats: treatCountRef.current,
+        }),
+      )
       .then((allowed) => {
         if (remindersRef.current && !allowed) {
           remindersRef.current = false;
@@ -114,15 +139,22 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
 
   useEffect(() => {
     let cancelled = false;
-    void Promise.all([storage.load(), loadRemindersEnabled()]).then(([loaded, reminders]) => {
+    void Promise.all([storage.load(), loadRemindersEnabled(), loadCareRemindersEnabled()]).then(
+      ([loaded, reminders, care]) => {
       if (cancelled) {
         return;
       }
       remindersRef.current = reminders;
+      careRef.current = care;
       setRemindersOnState(reminders);
+      setCareRemindersOnState(care);
       setReady(true);
       if (loaded) {
-        publish(resume(loaded, Date.now()));
+        const now = Date.now();
+        if (now - loaded.lastUpdatedAt >= careConfig.welcomeBackMs) {
+          setWelcomeBack(true);
+        }
+        publish(resume(loaded, now));
       }
     });
     return () => {
@@ -148,7 +180,11 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
       activeRef.current = active;
       const current = stateRef.current;
       if (becameActive && current) {
-        publish(resume(current, Date.now()));
+        const now = Date.now();
+        if (now - current.lastUpdatedAt >= careConfig.welcomeBackMs) {
+          setWelcomeBack(true);
+        }
+        publish(resume(current, now));
       }
     });
     return () => subscription.remove();
@@ -291,7 +327,10 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
       if (!current) {
         return undefined;
       }
-      return syncReminder(current, enabled).then((allowed) => {
+      return syncReminder(current, enabled, Date.now(), {
+        enabled: careRef.current,
+        basicTreats: treatCountRef.current,
+      }).then((allowed) => {
         if (enabled && !allowed) {
           remindersRef.current = false;
           setRemindersOnState(false);
@@ -300,6 +339,25 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
         return undefined;
       });
     });
+  }, []);
+
+  const setCareRemindersOn = useCallback((enabled: boolean) => {
+    careRef.current = enabled;
+    setCareRemindersOnState(enabled);
+    void saveCareRemindersEnabled(enabled).then(() => {
+      const current = stateRef.current;
+      if (!current) {
+        return;
+      }
+      void syncReminder(current, remindersRef.current, Date.now(), {
+        enabled,
+        basicTreats: treatCountRef.current,
+      });
+    });
+  }, []);
+
+  const setCareTreatCount = useCallback((count: number) => {
+    treatCountRef.current = count;
   }, []);
 
   const applyActorWeight = useCallback(
@@ -314,9 +372,32 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
   );
 
   const idle = useCallback(() => dispatch({ type: 'idle' }), [dispatch]);
-  const sit = useCallback(() => dispatch({ type: 'sit' }), [dispatch]);
-  const givePaw = useCallback(() => dispatch({ type: 'paw' }), [dispatch]);
-  const speak = useCallback(() => dispatch({ type: 'speak' }), [dispatch]);
+  const sit = useCallback(() => dispatch({ type: 'trickRep', trackId: 'sit', now: Date.now() }), [dispatch]);
+  const givePaw = useCallback(() => dispatch({ type: 'trickRep', trackId: 'paw', now: Date.now() }), [dispatch]);
+  const speak = useCallback(() => dispatch({ type: 'trickRep', trackId: 'speak', now: Date.now() }), [dispatch]);
+  const goPotty = useCallback(() => dispatch({ type: 'goPotty', now: Date.now() }), [dispatch]);
+  const returnHome = useCallback(() => dispatch({ type: 'returnHome', now: Date.now() }), [dispatch]);
+  const rewardTreat = useCallback(
+    (tier: 'basic' | 'special') => {
+      const current = stateRef.current;
+      if (!current?.care.pendingReward) {
+        return;
+      }
+      const treatId = tier === 'special' ? 'special' : 'biscuit';
+      const paid = applyRewardTreat(current, treatId, Date.now());
+      if (!paid.ok) {
+        return;
+      }
+      const resolved = applyEvent(paid.state, { type: 'rewardTreat', tier, now: Date.now() });
+      publish(resolved.state, resolved.cue);
+    },
+    [publish],
+  );
+  const cleanMess = useCallback((messId: string) => dispatch({ type: 'cleanMess', messId }), [dispatch]);
+  const seeCoach = useCallback((id: string) => dispatch({ type: 'seeCoach', id }), [dispatch]);
+  const claimGrants = useCallback(() => dispatch({ type: 'claimGrants' }), [dispatch]);
+  const clearTreats = useCallback(() => dispatch({ type: 'clearTreats' }), [dispatch]);
+  const dismissWelcome = useCallback(() => setWelcomeBack(false), []);
   const feed = useCallback(() => dispatch({ type: 'feed' }), [dispatch]);
   const refillWater = useCallback(() => dispatch({ type: 'refillWater' }), [dispatch]);
   const reportDrank = useCallback(
@@ -361,6 +442,9 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
     cue,
     remindersOn,
     setRemindersOn,
+    careRemindersOn,
+    setCareRemindersOn,
+    setCareTreatCount,
     idle,
     sit,
     givePaw,
@@ -387,5 +471,14 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
     finishPlaydate,
     adopt,
     setOwnerId,
+    goPotty,
+    returnHome,
+    rewardTreat,
+    cleanMess,
+    seeCoach,
+    claimGrants,
+    clearTreats,
+    welcomeBack,
+    dismissWelcome,
   };
 }
