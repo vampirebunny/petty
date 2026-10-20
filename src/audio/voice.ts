@@ -23,6 +23,10 @@ export function setSoundEnabled(on: boolean): void {
   enabled = on;
 }
 
+export function soundEnabled(): boolean {
+  return enabled;
+}
+
 export function playbackRate(rate: number): number {
   return Math.min(2, Math.max(0.5, rate));
 }

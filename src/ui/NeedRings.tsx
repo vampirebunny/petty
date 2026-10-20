@@ -1,14 +1,12 @@
-import { Bone, Heart, House, Zap } from 'lucide-react-native';
+import { Bone, Heart, Zap } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 
 import type { Needs } from '../sim/types';
 
 type Props = {
   needs: Needs;
-  // House training progress, 0 to 100. Omit once the pet is housebroken.
-  housebroken?: number | null;
 };
 
 const size = 76;
@@ -25,7 +23,7 @@ const alarmTint: Tint = { bg: '#FFE0DC', edge: '#F2A9A0', strong: '#F2635A', ink
 
 // Captions from best to worst. A value gets the first caption whose `min` it reaches.
 type Tier = { min: number; text: string };
-type Need = { label: string; Icon: LucideIcon; tint: Tint; tiers: Tier[]; noAlarm?: boolean };
+export type Need = { label: string; Icon: LucideIcon; tint: Tint; tiers: Tier[]; noAlarm?: boolean };
 
 const tummy: Need = {
   label: 'Tummy',
@@ -51,19 +49,6 @@ const energy: Need = {
   ],
 };
 
-const housebroken: Need = {
-  label: 'Housebroken',
-  Icon: House,
-  noAlarm: true,
-  tint: { bg: '#E8E2FF', edge: '#C4B8F2', strong: '#8E7BFF', ink: '#3A2A8A' },
-  tiers: [
-    { min: 75, text: 'Almost!' },
-    { min: 50, text: 'Getting it' },
-    { min: 25, text: 'Learning' },
-    { min: 0, text: 'Just starting' },
-  ],
-};
-
 const mood: Need = {
   label: 'Mood',
   Icon: Heart,
@@ -76,16 +61,29 @@ const mood: Need = {
   ],
 };
 
-function Ring({ need, value }: { need: Need; value: number }) {
+export function Ring({
+  need,
+  value,
+  onPress,
+  hint,
+}: {
+  need: Need;
+  value: number;
+  onPress?: () => void;
+  hint?: string;
+}) {
   const clamped = Math.max(0, Math.min(100, value));
   const filled = (clamped / 100) * circumference;
   const { label, Icon, tiers } = need;
   const tint = clamped < lowThreshold && !need.noAlarm ? alarmTint : need.tint;
-  const caption = (tiers.find((tier) => clamped >= tier.min) ?? tiers[tiers.length - 1]).text;
+  const caption = hint ?? (tiers.find((tier) => clamped >= tier.min) ?? tiers[tiers.length - 1]).text;
   return (
-    <View
+    <Pressable
+      disabled={!onPress}
+      onPress={onPress}
       style={[styles.card, { backgroundColor: tint.bg, borderBottomColor: tint.edge, shadowColor: tint.strong }]}
       accessible
+      accessibilityRole={onPress ? 'button' : undefined}
       accessibilityLabel={`${label} ${Math.round(clamped)} percent, ${caption.replace('!', '')}`}
     >
       <View style={styles.ring}>
@@ -119,11 +117,11 @@ function Ring({ need, value }: { need: Need; value: number }) {
           {caption}
         </Text>
       </View>
-    </View>
+    </Pressable>
   );
 }
 
-export function NeedRings({ needs, housebroken: progress }: Props) {
+export function NeedRings({ needs }: Props) {
   return (
     <View style={styles.row}>
       {/* The sim stores hunger (0 = not hungry, 100 = starving). The ring shows the inverse so a
@@ -131,7 +129,6 @@ export function NeedRings({ needs, housebroken: progress }: Props) {
       <Ring need={tummy} value={100 - needs.hunger} />
       <Ring need={energy} value={needs.energy} />
       <Ring need={mood} value={needs.happiness} />
-      {progress != null ? <Ring need={housebroken} value={progress} /> : null}
     </View>
   );
 }
