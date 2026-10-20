@@ -12,11 +12,12 @@ export type FeedbackHandle = {
   heart: (x: number, y: number) => void;
   energyGain: (x: number, y: number) => void;
   tummyGain: (x: number, y: number, amount: number) => void;
+  moodGain: (x: number, y: number, amount: number) => void;
 };
 
 type Spark = {
   id: number;
-  kind: 'trail' | 'heart' | 'energy' | 'tummy';
+  kind: 'trail' | 'heart' | 'energy' | 'tummy' | 'mood';
   x: number;
   y: number;
   dur: number;
@@ -164,6 +165,10 @@ export function CuddleFeedback({ feedbackRef, reducedMotion }: Props) {
         playPointPop();
         add({ kind: 'tummy', x, y, dur: energyPopMs, drift: (Math.random() - 0.5) * 10, label: `+${Math.round(amount)}` });
       },
+      moodGain: (x, y, amount) => {
+        playPointPop();
+        add({ kind: 'mood', x, y, dur: energyPopMs, drift: (Math.random() - 0.5) * 10, label: `+${Math.round(amount)}` });
+      },
     }),
     [add],
   );
@@ -188,6 +193,14 @@ export function CuddleFeedback({ feedbackRef, reducedMotion }: Props) {
             reduced={reducedMotion}
             tint={{ bg: '#FFE9D6', edge: '#F7C49A', strong: '#FF9F5A', ink: '#8A4210' }}
             icon={Bone}
+          />
+        ) : spark.kind === 'mood' ? (
+          <FloatingNeed
+            key={spark.id}
+            spark={spark}
+            reduced={reducedMotion}
+            tint={{ bg: '#FFE3EC', edge: '#F5B5C9', strong: '#FF7BA5', ink: '#8A1F4B' }}
+            icon={Heart}
           />
         ) : (
           <FloatingHeart key={spark.id} spark={spark} reduced={reducedMotion} />

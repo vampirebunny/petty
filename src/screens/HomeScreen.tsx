@@ -108,6 +108,7 @@ export default function HomeScreen({ petApi }: Props) {
     applyActorEnergy,
     applyActorHunger,
     applyActorThirst,
+    applyActorHappiness,
     advanceBy,
     setAge,
     setVitalityValue,
@@ -322,6 +323,7 @@ export default function HomeScreen({ petApi }: Props) {
       if (!touchActive.current) {
         touchActive.current = true;
         tracker.current.begin();
+        handle.setGesturing(true);
       }
       const stage = stagePoint(x, y, viewWidth, viewHeight);
       sendCuddleEvents(tracker.current.move(x, y, Date.now(), handle.zoneAt(stage.x, stage.y)));
@@ -345,6 +347,7 @@ export default function HomeScreen({ petApi }: Props) {
   );
   const cuddleEnd = useCallback(() => {
     touchActive.current = false;
+    cuddleHandle.current?.setGesturing(false);
   }, []);
   const cuddleMoveRef = useRef(cuddleMove);
   const cuddleTapRef = useRef(cuddleTap);
@@ -420,6 +423,8 @@ export default function HomeScreen({ petApi }: Props) {
   const toggleCuddle = useCallback(() => {
     if (cuddleOnRef.current) {
       cuddleOnRef.current = false;
+      touchActive.current = false;
+      cuddleHandle.current?.setGesturing(false);
       setCuddleOn(false);
       setCoachVisible(false);
       setGhost(null);
@@ -453,6 +458,7 @@ export default function HomeScreen({ petApi }: Props) {
     (event: CuddleOut | { type: 'interrupted' }) => {
       if (event.type === 'exit') {
         cuddleOnRef.current = false;
+        touchActive.current = false;
         setCuddleOn(false);
         setCoachVisible(false);
         setGhost(null);
@@ -463,6 +469,7 @@ export default function HomeScreen({ petApi }: Props) {
         );
       } else if (event.type === 'interrupted') {
         cuddleOnRef.current = false;
+        touchActive.current = false;
         setCuddleOn(false);
         setCoachVisible(false);
         setGhost(null);
@@ -753,6 +760,13 @@ export default function HomeScreen({ petApi }: Props) {
               onTummyPop={(x, y, amount) => {
                 const view = stageToView({ x, y });
                 feedback.current?.tummyGain(view.x, view.y, amount);
+              }}
+              onMoodPop={(x, y, amount) => {
+                if (!applyActorHappiness(amount)) {
+                  return;
+                }
+                const view = stageToView({ x, y });
+                feedback.current?.moodGain(view.x, view.y, amount);
               }}
             />
             {!traveling &&

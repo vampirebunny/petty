@@ -8,6 +8,7 @@ import { applyRewardTreat } from '../treats/rules';
 import {
   applyEvent,
   applyEnergyDelta,
+  applyHappinessDelta,
   applyHungerDelta,
   applyThirstDelta,
   applyWeightDelta,
@@ -72,6 +73,7 @@ type PetApi = {
   applyActorEnergy: (delta: number) => void;
   applyActorHunger: (delta: number) => void;
   applyActorThirst: (delta: number) => void;
+  applyActorHappiness: (delta: number) => boolean;
   advanceBy: (elapsedMs: number) => void;
   setAge: (ageDays: number) => void;
   setVitalityValue: (vitality: number) => void;
@@ -421,6 +423,22 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
     [publish],
   );
 
+  const applyActorHappiness = useCallback(
+    (delta: number) => {
+      const current = stateRef.current;
+      if (!current) {
+        return false;
+      }
+      const next = applyHappinessDelta(current, delta);
+      if (next === current) {
+        return false;
+      }
+      publish(next);
+      return true;
+    },
+    [publish],
+  );
+
   const idle = useCallback(() => dispatch({ type: 'idle' }), [dispatch]);
   const sit = useCallback(() => dispatch({ type: 'trickRep', trackId: 'sit', now: Date.now() }), [dispatch]);
   const givePaw = useCallback(() => dispatch({ type: 'trickRep', trackId: 'paw', now: Date.now() }), [dispatch]);
@@ -522,6 +540,7 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
     applyActorEnergy,
     applyActorHunger,
     applyActorThirst,
+    applyActorHappiness,
     advanceBy,
     setAge,
     setVitalityValue,

@@ -331,6 +331,10 @@ export type CuddleState = {
   sustained: number;
   tolerance: number;
   petted: number;
+  // True while the user is mid-gesture. Lifting the finger clears the mood streak.
+  gesturing: boolean;
+  gestureSec: number;
+  moodPaid: number;
   reaction: CuddleReaction | null;
   boopTimes: number[];
   kickT: number;
@@ -399,6 +403,8 @@ export type Actor = {
   restBonusPaid: boolean;
   // How many +10 energy pops are waiting to be shown.
   energyPops: number;
+  // How many +5 mood pops from a continuous cuddle are waiting to be shown.
+  moodPops: number;
   mouth: Vec;
   anchors: Anchors;
   // 0..1, how much this pet likes cuddling. It sets how soon it escalates and how long it stays.

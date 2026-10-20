@@ -1,5 +1,5 @@
 import { testPet } from '../__fixtures__/pets';
-import { resume, setAgeDays, setWeight, tickForeground } from '../clock';
+import { applyHappinessDelta, resume, setAgeDays, setWeight, tickForeground } from '../clock';
 import { dayMs, weightDecayPerDay } from '../config';
 
 const hourMs = 60 * 60 * 1000;
@@ -35,6 +35,17 @@ it('rewrites bornAt when debug age changes and clamps the weight index', () => {
   expect(aged.bornAt).toBe(aged.lastUpdatedAt - 10 * dayMs);
   expect(setWeight(pet(), 4).weight).toBe(1);
   expect(setWeight(pet(), -4).weight).toBe(-1);
+});
+
+it('adds a cuddle mood burst only when tummy and energy can raise mood', () => {
+  const before = pet();
+  before.needs.happiness = 40;
+  expect(applyHappinessDelta(before, 5).needs.happiness).toBe(45);
+  expect(applyHappinessDelta({ ...before, needs: { ...before.needs, happiness: 100 } }, 5).needs.happiness).toBe(100);
+  const tired = { ...before, needs: { ...before.needs, energy: 20 } };
+  expect(applyHappinessDelta(tired, 5)).toBe(tired);
+  const hungry = { ...before, needs: { ...before.needs, hunger: 80 } };
+  expect(applyHappinessDelta(hungry, 5)).toBe(hungry);
 });
 
 it('keeps aging after maturity reaches 1 and never lowers maturity', () => {

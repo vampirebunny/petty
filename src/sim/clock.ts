@@ -2,6 +2,7 @@ import { withDerived } from './attributes';
 import { advanceNeeds, advanceNeedsDetail } from './advance';
 import { applyCareTime, clampWeight, decayWeight } from './care';
 import { dayMs, maxElapsedMs } from './config';
+import { canRaiseMood } from './mood';
 import { advanceCare } from './potty';
 import type { PetState } from './types';
 
@@ -91,6 +92,20 @@ export function applyEnergyDelta(state: PetState, delta: number): PetState {
     return state;
   }
   return { ...state, needs: { ...state.needs, energy } };
+}
+
+export function applyHappinessDelta(state: PetState, delta: number): PetState {
+  if (delta === 0) {
+    return state;
+  }
+  if (delta > 0 && !canRaiseMood(state.needs)) {
+    return state;
+  }
+  const happiness = Math.max(0, Math.min(100, state.needs.happiness + delta));
+  if (happiness === state.needs.happiness) {
+    return state;
+  }
+  return { ...state, needs: { ...state.needs, happiness } };
 }
 
 export function applyHungerDelta(state: PetState, delta: number): PetState {

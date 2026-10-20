@@ -49,7 +49,7 @@ export {
 export { gaitDefs } from './data/locomotion';
 export { defaultPose, easeInOutSine, easePose, springUp } from './pose';
 export { cuddleParamsFor, stageFactor } from './data/cuddle';
-export { cuddleBackPath, cuddleTouch, cuddleZoneAt, endCuddle, isCuddling, takeCuddleOut } from './cuddle';
+export { cuddleBackPath, cuddleTouch, cuddleZoneAt, endCuddle, isCuddling, setCuddleGesturing, takeCuddleOut } from './cuddle';
 export type { CuddleTouch } from './cuddle';
 export {
   actionEnabled,
@@ -90,6 +90,7 @@ export {
   takeMeals,
   takeEnergyDelta,
   takeEnergyPops,
+  takeMoodPops,
   takeHungerDelta,
   takeThirstDelta,
   takeSounds,

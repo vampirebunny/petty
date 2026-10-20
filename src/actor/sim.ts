@@ -211,6 +211,7 @@ export function spawnActor(source: ActorSource, at?: Vec): Actor {
     sleepSec: 0,
     restBonusPaid: false,
     energyPops: 0,
+    moodPops: 0,
     mouth: { x, y },
     anchors: emptyAnchors(),
     cuddleAffinity: source.cuddleAffinity ?? 0.5,
@@ -644,6 +645,12 @@ function grantRestEnergy(actor: Actor): void {
 export function takeEnergyPops(actor: Actor): number {
   const count = actor.energyPops;
   actor.energyPops = 0;
+  return count;
+}
+
+export function takeMoodPops(actor: Actor): number {
+  const count = actor.moodPops;
+  actor.moodPops = 0;
   return count;
 }
 

@@ -52,6 +52,9 @@ export const treatWeightGain = 0.04;
 export const treatDailyCap = 3;
 
 export const petHappinessGain = 6;
+// A continuous cuddle stroke of this long pays a flat mood burst.
+export const cuddleMoodHoldSec = 5;
+export const cuddleMoodGain = 5;
 export const petPurrAtOrAbove = 0.5;
 export const petStrokeIntervalMs = 400;
 export const openTickMs = 5000;
@@ -142,8 +145,8 @@ export const playWeightPerHour = 7.2;
 export const overweightPlayWeightBonus = 0.5;
 // Extra need-energy spent per hour while busy. Five minutes of play spends as much as one meal of tummy.
 export const activityEnergyPerHour = { walk: 336, trot: 672, canter: 1680, gallop: 3360, play: 480 } as const;
-// Extra hunger per hour on top of the awake clock. One minute of play empties one meal.
-export const activityHungerPerHour = { walk: 1680, trot: 2880, canter: 4320, gallop: 6600, play: 2400 } as const;
+// Extra hunger per hour on top of the awake clock. Five minutes of play empties one meal.
+export const activityHungerPerHour = { walk: 336, trot: 576, canter: 864, gallop: 1320, play: 480 } as const;
 // Extra hidden thirst per hour while busy. Drinking is how this comes back down.
 export const activityThirstPerHour = { walk: 50, trot: 80, canter: 120, gallop: 180, play: 70 } as const;
 export const weightRunSpeed = 80;

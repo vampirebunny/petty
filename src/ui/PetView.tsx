@@ -10,6 +10,7 @@ import {
   cuddleBackPath,
   cuddleTouch,
   cuddleZoneAt,
+  setCuddleGesturing,
   endCuddle,
   frameDt,
   breedById,
@@ -32,6 +33,7 @@ import {
   takeSounds,
   takeEnergyDelta,
   takeEnergyPops,
+  takeMoodPops,
   takeHungerDelta,
   takeThirstDelta,
   takeWeightDelta,
@@ -41,7 +43,7 @@ import {
 import { useStageSize } from './useStageSize';
 import type { CuddleOut, CuddleTouch, CuddleZone, Scene, TimeOfDay, World } from '../actor';
 import { playVoice } from '../audio/voice';
-import { attributeScore, feedHungerDrop } from '../sim';
+import { attributeScore, cuddleMoodGain, feedHungerDrop } from '../sim';
 import type { Cue, PetState } from '../sim/types';
 import { drawWorld } from './skia/world';
 
@@ -51,6 +53,7 @@ export type CuddleHandle = {
   touch: (touch: CuddleTouch) => void;
   phase: () => string | null;
   backPath: () => { from: { x: number; y: number }; to: { x: number; y: number } } | null;
+  setGesturing: (on: boolean) => void;
 };
 
 type Props = {
@@ -75,6 +78,7 @@ type Props = {
   onTraveling?: (active: boolean) => void;
   onEnergyPop?: (x: number, y: number) => void;
   onTummyPop?: (x: number, y: number, amount: number) => void;
+  onMoodPop?: (x: number, y: number, amount: number) => void;
 };
 
 function sourceOf(pet: PetState) {
@@ -123,6 +127,7 @@ export function PetView({
   onTraveling,
   onEnergyPop,
   onTummyPop,
+  onMoodPop,
 }: Props) {
   const { viewWidth, viewHeight } = useStageSize();
   const widthRef = useRef(viewWidth);
@@ -333,6 +338,12 @@ export function PetView({
         const actor = worldRef.current.actors[0];
         return actor ? cuddleBackPath(actor) : null;
       },
+      setGesturing: (on) => {
+        const actor = worldRef.current.actors[0];
+        if (actor) {
+          setCuddleGesturing(actor, on);
+        }
+      },
     }),
     [],
   );
@@ -447,6 +458,10 @@ export function PetView({
   useEffect(() => {
     onTummyPopRef.current = onTummyPop;
   }, [onTummyPop]);
+  const onMoodPopRef = useRef(onMoodPop);
+  useEffect(() => {
+    onMoodPopRef.current = onMoodPop;
+  }, [onMoodPop]);
   const hungerRef = useRef(pet.needs.hunger);
   hungerRef.current = pet.needs.hunger;
   const statusRef = useRef('');
@@ -525,12 +540,16 @@ export function PetView({
         pendingThirst.current += takeThirstDelta(actor);
         flushThirst(false);
         const pops = takeEnergyPops(actor);
-        if (pops > 0) {
+        const moodPops = takeMoodPops(actor);
+        if (pops > 0 || moodPops > 0) {
           const sc = actor.anchors.scale || 1;
           const x = actor.x + actor.face * sc * actor.anchors.head.x;
           const y = actor.y - actor.z + sc * (actor.anchors.head.y - actor.anchors.head.radius) - 18;
           for (let i = 0; i < pops; i += 1) {
             onEnergyPopRef.current?.(x, y);
+          }
+          for (let i = 0; i < moodPops; i += 1) {
+            onMoodPopRef.current?.(x, y, cuddleMoodGain);
           }
         }
         const status = statusOf(actor);

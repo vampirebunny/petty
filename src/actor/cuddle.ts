@@ -1,3 +1,4 @@
+import { cuddleMoodHoldSec } from '../sim/config';
 import { cuddleParamsFor } from './data/cuddle';
 import { breedById } from './breeds';
 import { geomOf, headFaceOf, headShift, noseOf, torsoPoint } from './geometry';
@@ -38,6 +39,9 @@ export function newCuddle(actor: Actor, rng: () => number): CuddleState {
     sustained: 0,
     tolerance: 0,
     petted: 0,
+    gesturing: false,
+    gestureSec: 0,
+    moodPaid: 0,
     reaction: null,
     boopTimes: [],
     kickT: 0,
@@ -110,6 +114,18 @@ export function takeCuddleOut(actor: Actor): Actor['cuddleOut'] {
   const out = actor.cuddleOut;
   actor.cuddleOut = [];
   return out;
+}
+
+export function setCuddleGesturing(actor: Actor, on: boolean): void {
+  const c = actor.cuddle;
+  if (!c) {
+    return;
+  }
+  c.gesturing = on;
+  if (!on) {
+    c.gestureSec = 0;
+    c.moodPaid = 0;
+  }
 }
 
 function sideOf(actor: Actor, x: number | null): 1 | -1 {
@@ -288,6 +304,15 @@ export function stepCuddle(
   c.sinceTouch += dt;
   c.kickCool = Math.max(0, c.kickCool - dt);
   c.perkT += dt;
+
+  if (c.gesturing && accepting(c)) {
+    c.gestureSec += dt;
+    const due = Math.floor(c.gestureSec / cuddleMoodHoldSec);
+    if (due > c.moodPaid) {
+      actor.moodPops += due - c.moodPaid;
+      c.moodPaid = due;
+    }
+  }
 
   const touching = accepting(c) && c.touchT < tm.strokeHold;
   if (touching) {

@@ -1,8 +1,8 @@
-import { cuddleTouch, cuddleZoneAt, endCuddle, takeCuddleOut } from '../cuddle';
+import { cuddleTouch, cuddleZoneAt, endCuddle, setCuddleGesturing, takeCuddleOut } from '../cuddle';
 import { cuddleParamsFor, stageFactor } from '../data/cuddle';
 import { breedsFor } from '../breeds';
 import { defaultPose, easeInOutSine, springUp } from '../pose';
-import { createWorld, spawnActor, startUserTask, takeSounds, update } from '../sim';
+import { createWorld, spawnActor, startUserTask, takeMoodPops, takeSounds, update } from '../sim';
 import type { Actor, CuddleOut, Pose, World } from '../types';
 
 const dt = 1 / 60;
@@ -267,6 +267,55 @@ describe('cuddle sessions for every breed and life stage', () => {
       }
     });
   }
+});
+
+describe('cuddle mood bursts', () => {
+  function settled(breedId = 'retriever') {
+    const ctx = setup(breedId);
+    startUserTask(ctx.world, ctx.actor, 'cuddle');
+    run(ctx.world, 4);
+    return ctx;
+  }
+
+  it('pays +5 mood after five seconds of continuous gesturing', () => {
+    const { world, actor } = settled();
+    setCuddleGesturing(actor, true);
+    run(world, 4.9);
+    expect(takeMoodPops(actor)).toBe(0);
+    run(world, 0.2);
+    expect(takeMoodPops(actor)).toBe(1);
+  });
+
+  it('pays again if the user keeps gesturing', () => {
+    const { world, actor } = settled();
+    setCuddleGesturing(actor, true);
+    run(world, 10.1);
+    expect(takeMoodPops(actor)).toBe(2);
+  });
+
+  it('resets the streak when the user lifts', () => {
+    const { world, actor } = settled();
+    setCuddleGesturing(actor, true);
+    run(world, 4);
+    setCuddleGesturing(actor, false);
+    run(world, 2);
+    expect(takeMoodPops(actor)).toBe(0);
+    setCuddleGesturing(actor, true);
+    run(world, 4.9);
+    expect(takeMoodPops(actor)).toBe(0);
+    run(world, 0.2);
+    expect(takeMoodPops(actor)).toBe(1);
+  });
+
+  it('does not count gestures before the pet is ready', () => {
+    const { world, actor } = setup('retriever');
+    startUserTask(world, actor, 'cuddle');
+    setCuddleGesturing(actor, true);
+    run(world, 0.4);
+    expect(['approach', 'settle']).toContain(phaseOf(actor));
+    expect(takeMoodPops(actor)).toBe(0);
+    expect(actor.cuddle?.gestureSec ?? 0).toBe(0);
+  });
 });
 
 describe('cuddle interruption', () => {
