@@ -2,7 +2,7 @@ export { advance, advanceNeeds } from './advance';
 export { createPet } from './createPet';
 export type { NewPet } from './createPet';
 export { attributesFor, clampCurrent, currentStyle, generateOffers, startingCurrent, styleScores } from './offers';
-export { deriveMood } from './mood';
+export { canRaiseMood, deriveMood, needsMoodDrain, tummyOf } from './mood';
 export { applyEvent } from './events';
 export type { EventResult } from './events';
 export {

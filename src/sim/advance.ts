@@ -3,14 +3,13 @@ import {
   clampMin,
   decayPerHour,
   extraHappinessDecayPerHour,
-  highHungerThreshold,
-  lowEnergyThreshold,
   maxElapsedMs,
   stepMs,
   wakeAtEnergy,
   waterEmptyGraceMs,
 } from './config';
 import { activeBoosts } from './effects';
+import { needsMoodDrain } from './mood';
 import type { Needs, PetState } from './types';
 
 const hourMs = 60 * 60 * 1000;
@@ -29,11 +28,11 @@ function waterPenalty(state: PetState, stepNow: number): boolean {
 function applyInterval(needs: Needs, asleep: boolean, emptyWater: boolean, durationMs: number): Needs {
   const rates = asleep ? decayPerHour.asleep : decayPerHour.awake;
   const scale = durationMs / hourMs;
-  let happiness = needs.happiness + rates.happiness * scale;
-  if (
-    !asleep &&
-    (needs.hunger > highHungerThreshold || needs.energy < lowEnergyThreshold || emptyWater)
-  ) {
+  let happiness = needs.happiness;
+  if (asleep) {
+    happiness += rates.happiness * scale;
+  } else if (needsMoodDrain(needs) || emptyWater) {
+    happiness += rates.happiness * scale;
     happiness += extraHappinessDecayPerHour * scale;
   }
   return {

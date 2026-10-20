@@ -2,6 +2,8 @@ import {
   activityEnergyPerHour,
   activityHungerPerHour,
   activityThirstPerHour,
+  collapseSleepSec,
+  collapseWakeEnergy,
   decayPerHour,
   healthyWeightBand,
   overweightPlayWeightBonus,
@@ -205,6 +207,7 @@ export function spawnActor(source: ActorSource, at?: Vec): Actor {
     look: source.look ? { ...source.look } : null,
     variant: variantFor(source.seed, source.breedId),
     asleep: source.asleep,
+    collapseLeft: 0,
     mouth: { x, y },
     anchors: emptyAnchors(),
     cuddleAffinity: source.cuddleAffinity ?? 0.5,
@@ -300,7 +303,7 @@ export function syncActor(actor: Actor, source: ActorSource): void {
   actor.mood = source.mood ?? actor.mood;
   actor.thirst = source.thirst ?? actor.thirst;
   actor.stats = source.stats ? { ...source.stats } : actor.stats;
-  if (actor.asleep !== source.asleep) {
+  if (actor.collapseLeft <= 0 && actor.asleep !== source.asleep) {
     actor.asleep = source.asleep;
     actor.task = taskOf(source.asleep ? 'sleep' : 'idle', source.asleep ? 'sleeping' : '');
     actor.pantT = 0;
@@ -383,6 +386,9 @@ function clearActorForTravel(world: World, actor: Actor): void {
 
 // Walks the pet off the right edge so a scene change can fade the empty room.
 export function startSceneExit(world: World, actor: Actor): void {
+  if (actor.collapseLeft > 0) {
+    return;
+  }
   clearActorForTravel(world, actor);
   const sized = travelScale(actor, world.scene.floor);
   const x = sized ? travelGateX(sized.geom, sized.scale, 1) : stageWidth + 120;
@@ -632,6 +638,9 @@ export function startUserTask(
   drop?: Vec,
   flick?: { vx: number; vy: number; vz: number },
 ): boolean {
+  if (actor.collapseLeft > 0 && task !== 'wake') {
+    return false;
+  }
   if (task === 'wake') {
     actor.asleep = false;
     goIdle(world, actor);
@@ -943,10 +952,36 @@ function steerDirection(actor: Actor, limit: number, targets: Pose): { move: Vec
   return { move, vmax, wagRate, faceCamera };
 }
 
+function beginCollapse(world: World, actor: Actor): void {
+  releaseCarried(world, actor);
+  actor.asleep = true;
+  actor.task = taskOf('sleep', 'sleeping');
+  actor.collapseLeft = collapseSleepSec;
+  actor.pantT = 0;
+  actor.play = null;
+  actor.zoom = null;
+}
+
+function finishCollapse(world: World, actor: Actor): void {
+  actor.collapseLeft = 0;
+  actor.asleep = false;
+  actor.pendingEnergy += collapseWakeEnergy;
+  actor.energy = Math.max(actor.energy, collapseWakeEnergy / 100);
+  goIdle(world, actor);
+}
+
 function updateActor(world: World, actor: Actor, dt: number): void {
   const breed = breedById(actor.breedId);
   if (!breed) {
     return;
+  }
+  if (actor.collapseLeft > 0) {
+    actor.collapseLeft = Math.max(0, actor.collapseLeft - dt);
+    if (actor.collapseLeft <= 0) {
+      finishCollapse(world, actor);
+    }
+  } else if (!actor.asleep && actor.energy * 100 + actor.pendingEnergy <= 0) {
+    beginCollapse(world, actor);
   }
   const floor = world.scene.floor;
   actor.task.t += dt;

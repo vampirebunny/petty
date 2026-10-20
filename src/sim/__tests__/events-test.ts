@@ -192,3 +192,16 @@ it('raises happiness when the user throws a toy', () => {
   const full = applyEvent({ ...before, needs: { ...before.needs, happiness: 100 } }, { type: 'fetch' });
   expect(full.state.needs.happiness).toBe(100);
 });
+
+it('does not raise mood when tummy or energy is below 30', () => {
+  const tired = testPet(1, 'retriever', 0, 'Pup', 'pet');
+  tired.needs.happiness = 50;
+  tired.needs.energy = 20;
+  expect(applyEvent(tired, { type: 'fetch' }).state.needs.happiness).toBe(50);
+  expect(applyEvent(tired, { type: 'pet' }).state.needs.happiness).toBe(50);
+
+  const hungry = testPet(1, 'retriever', 0, 'Pup', 'pet');
+  hungry.needs.happiness = 50;
+  hungry.needs.hunger = 80;
+  expect(applyEvent(hungry, { type: 'cuddled', seconds: 10 }).state.needs.happiness).toBe(50);
+});

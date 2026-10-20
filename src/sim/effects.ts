@@ -1,6 +1,7 @@
 import { clampDrift, withDerived } from './attributes';
 import { clampWeight } from './care';
 import { clampMax, clampMin, traits } from './config';
+import { canRaiseMood } from './mood';
 import type { ActiveBoost, PetState, Trait } from './types';
 
 export type Effects = {
@@ -26,7 +27,7 @@ export function applyEffects(state: PetState, effects: Effects, now: number): Pe
   if (effects.hunger != null) {
     next.needs.hunger = clampNeed(next.needs.hunger + effects.hunger);
   }
-  if (effects.mood != null) {
+  if (effects.mood != null && (effects.mood < 0 || canRaiseMood(next.needs))) {
     next.needs.happiness = clampNeed(next.needs.happiness + effects.mood);
   }
   if (effects.weight != null) {

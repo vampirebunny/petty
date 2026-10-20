@@ -17,6 +17,7 @@ import {
   startingWaterLevel,
   waterDrainPerDrink,
 } from './config';
+import { canRaiseMood } from './mood';
 import { nextRng } from './rng';
 import { beginPotty, headHome, rememberScene } from './potty';
 import { cleanMess } from './messes';
@@ -30,6 +31,13 @@ export type EventResult = {
 
 function clampNeed(value: number): number {
   return Math.min(clampMax, Math.max(clampMin, value));
+}
+
+function addHappiness(state: PetState, delta: number): void {
+  if (delta <= 0 || !canRaiseMood(state.needs)) {
+    return;
+  }
+  state.needs.happiness = clampNeed(state.needs.happiness + delta);
 }
 
 function copyCare(care: PetCareState): PetCareState {
@@ -265,9 +273,7 @@ export function applyEvent(state: PetState, event: PetEvent): EventResult {
   if (event.type === 'cuddled') {
     const next = copyState(state);
     const weight = 1 + Math.min(1, Math.max(0, event.seconds) / 20);
-    next.needs.happiness = clampNeed(
-      next.needs.happiness + petHappinessGain * weight * (1 - next.needs.happiness / clampMax),
-    );
+    addHappiness(next, petHappinessGain * weight * (1 - next.needs.happiness / clampMax));
     next.xp += petXp;
     next.drift.affection = clampDrift(next.drift.affection + petAffectionDrift * weight);
     next.careWindow = bumpAttention(next.careWindow);
@@ -276,7 +282,7 @@ export function applyEvent(state: PetState, event: PetEvent): EventResult {
 
   if (event.type === 'playdate') {
     const next = copyState(state);
-    next.needs.happiness = clampNeed(next.needs.happiness + event.happiness);
+    addHappiness(next, event.happiness);
     next.attributes.current = grantFlatAttributes(
       next.attributes.current,
       next.attributes.potential,
@@ -289,9 +295,7 @@ export function applyEvent(state: PetState, event: PetEvent): EventResult {
   if (event.type === 'fetch') {
     const next = copyState(state);
     next.asleep = false;
-    next.needs.happiness = clampNeed(
-      next.needs.happiness + playHappinessGain * (1 - next.needs.happiness / clampMax),
-    );
+    addHappiness(next, playHappinessGain * (1 - next.needs.happiness / clampMax));
     return { state: withDerived(next), cue: { kind: 'fetch', drop: event.drop, flick: event.flick } };
   }
 
@@ -299,9 +303,7 @@ export function applyEvent(state: PetState, event: PetEvent): EventResult {
   const next = copyState(state);
   next.asleep = false;
   next.rngState = rng.state;
-  next.needs.happiness = clampNeed(
-    next.needs.happiness + petHappinessGain * (1 - next.needs.happiness / clampMax),
-  );
+  addHappiness(next, petHappinessGain * (1 - next.needs.happiness / clampMax));
   next.xp += petXp;
   next.drift.affection = clampDrift(next.drift.affection + petAffectionDrift);
   next.careWindow = bumpAttention(next.careWindow);

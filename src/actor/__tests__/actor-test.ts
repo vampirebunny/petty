@@ -276,6 +276,22 @@ it('empties the tummy while playing even if the pet is standing still', () => {
   expect(takeThirstDelta(pup)).toBeGreaterThan(0);
 });
 
+it('collapses to sleep at empty energy and wakes with a little energy', () => {
+  const pup = actor();
+  pup.energy = 0;
+  const world = createWorld([pup], 11);
+  update(world, 0.05);
+  expect(pup.asleep).toBe(true);
+  expect(pup.task.type).toBe('sleep');
+  expect(pup.collapseLeft).toBeGreaterThan(0);
+  expect(startUserTask(world, pup, 'fetch')).toBe(false);
+  for (let step = 0; step < 120; step += 1) {
+    update(world, 0.05);
+  }
+  expect(pup.asleep).toBe(false);
+  expect(takeEnergyDelta(pup)).toBeCloseTo(10, 5);
+});
+
 it('burns weight while playing even when the pet is too slow to sprint', () => {
   const pup = actor();
   pup.weight = 0.8;

@@ -28,7 +28,7 @@ it('applies one awake hour of decay', () => {
   expectNeeds(after.needs, {
     hunger: 20 + decayPerHour.awake.hunger,
     energy: 80 + decayPerHour.awake.energy,
-    happiness: 80 + decayPerHour.awake.happiness,
+    happiness: 80,
   });
   expect(after.asleep).toBe(false);
   expect(after.lastUpdatedAt).toBe(before.lastUpdatedAt + hourMs);
@@ -49,9 +49,26 @@ it('applies an extra happiness penalty while awake and hunger is high', () => {
   });
 });
 
-it('lets idle happiness keep falling below 50', () => {
-  const after = advance(pet({ needs: { hunger: 20, energy: 80, happiness: 80 } }), 2 * hourMs);
-  expect(after.needs.happiness).toBeLessThan(50);
+it('holds mood when tummy and energy stay above 30', () => {
+  const after = advance(pet({ needs: { hunger: 20, energy: 80, happiness: 80 } }), hourMs);
+  expect(after.needs.happiness).toBe(80);
+});
+
+it('drains mood only when tummy or energy is below 30', () => {
+  const healthy = advance(pet({ needs: { hunger: 20, energy: 80, happiness: 80 } }), hourMs);
+  expect(healthy.needs.happiness).toBe(80);
+
+  const tired = advance(pet({ needs: { hunger: 20, energy: 20, happiness: 80 } }), hourMs);
+  expect(tired.needs.happiness).toBeCloseTo(
+    80 + decayPerHour.awake.happiness + extraHappinessDecayPerHour,
+    5,
+  );
+
+  const hungry = advance(pet({ needs: { hunger: 80, energy: 80, happiness: 80 } }), hourMs);
+  expect(hungry.needs.happiness).toBeCloseTo(
+    80 + decayPerHour.awake.happiness + extraHappinessDecayPerHour,
+    5,
+  );
 });
 
 it('restores energy during a nap and stays asleep below 100', () => {
@@ -69,7 +86,7 @@ it('wakes at full energy and uses awake decay for the rest of the call', () => {
   expectNeeds(after.needs, {
     hunger: 20 + 12 * (5 / 60) + 40 * (55 / 60),
     energy: 100 - 24 * (55 / 60),
-    happiness: 80 + decayPerHour.asleep.happiness * (5 / 60) + decayPerHour.awake.happiness * (55 / 60),
+    happiness: 80 + decayPerHour.asleep.happiness * (5 / 60),
   });
 });
 
@@ -102,7 +119,7 @@ it('applies time shorter than a step, including across foreground ticks', () => 
   expectNeeds(once.needs, {
     hunger: 20 + decayPerHour.awake.hunger * (gap / hourMs),
     energy: 80 + decayPerHour.awake.energy * (gap / hourMs),
-    happiness: 80 + decayPerHour.awake.happiness * (gap / hourMs),
+    happiness: 80,
   });
 
   let ticked = before;

@@ -1,5 +1,6 @@
 import { attributeScore, grantFlatAttributes, maturityOf, withDerived } from '../sim/attributes';
 import { clampMax, clampMin, traits } from '../sim/config';
+import { canRaiseMood } from '../sim/mood';
 import type { PetState, Trait } from '../sim/types';
 import { playdateConfig } from './config';
 import type { PlaydateOutcome, RareEvent } from './types';
@@ -16,7 +17,9 @@ export function applyPlaydateRewards(pet: PetState, outcome: PlaydateOutcome): P
     maturity,
     needs: {
       ...pet.needs,
-      happiness: clampNeed(pet.needs.happiness + outcome.moodDelta),
+      happiness: clampNeed(
+        pet.needs.happiness + (outcome.moodDelta > 0 && !canRaiseMood(pet.needs) ? 0 : outcome.moodDelta),
+      ),
     },
     attributes: {
       ...pet.attributes,

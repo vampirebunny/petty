@@ -23,9 +23,17 @@ export const decayPerHour: { awake: Needs; asleep: Needs } = {
 
 export const highHungerThreshold = 75;
 export const lowEnergyThreshold = 20;
-export const extraHappinessDecayPerHour = -10;
+// Extra on top of awake happiness decay while tummy or energy is below moodNeedFloor.
+// Together this is -720/hour, about 12 mood points a minute.
+export const extraHappinessDecayPerHour = -684;
+// Tummy (100 - hunger) and energy must both be at least this for mood to rise.
+// Below this on either ring, awake mood starts draining.
+export const moodNeedFloor = 30;
 // A throw or fetch. Uses the same diminishing curve as a stroke.
 export const playHappinessGain = 10;
+// Empty energy drops the pet for this long, then they wake with a little energy back.
+export const collapseSleepSec = 5;
+export const collapseWakeEnergy = 10;
 
 export const wakeAtEnergy = 100;
 
@@ -132,10 +140,10 @@ export const weightBurnPerSec = 0.003;
 export const playWeightPerHour = 7.2;
 // Extra share of play burn when overweight, so a heavy pet still slims down by exercising.
 export const overweightPlayWeightBonus = 0.5;
-// Extra need-energy spent per hour while busy. The passive awake drain still applies on top.
-export const activityEnergyPerHour = { walk: 28, trot: 56, canter: 140, gallop: 280, play: 40 } as const;
-// Extra hunger per hour on top of the awake clock, so the tummy ring drops faster while busy.
-export const activityHungerPerHour = { walk: 28, trot: 48, canter: 72, gallop: 110, play: 40 } as const;
+// Extra need-energy spent per hour while busy. Five minutes of play spends as much as one meal of tummy.
+export const activityEnergyPerHour = { walk: 336, trot: 672, canter: 1680, gallop: 3360, play: 480 } as const;
+// Extra hunger per hour on top of the awake clock. One minute of play empties one meal.
+export const activityHungerPerHour = { walk: 1680, trot: 2880, canter: 4320, gallop: 6600, play: 2400 } as const;
 // Extra hidden thirst per hour while busy. Drinking is how this comes back down.
 export const activityThirstPerHour = { walk: 50, trot: 80, canter: 120, gallop: 180, play: 70 } as const;
 export const weightRunSpeed = 80;

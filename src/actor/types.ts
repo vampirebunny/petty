@@ -391,6 +391,8 @@ export type Actor = {
   look: Look | null;
   variant: Variant;
   asleep: boolean;
+  // Seconds left in a collapse nap after energy hits 0. 0 means not collapsing.
+  collapseLeft: number;
   mouth: Vec;
   anchors: Anchors;
   // 0..1, how much this pet likes cuddling. It sets how soon it escalates and how long it stays.
