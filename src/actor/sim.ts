@@ -17,6 +17,7 @@ import { inactivePointer } from '../input/pointer';
 import { toyAllows } from '../items/playRules';
 import type { PlayBehavior } from '../items/playRules';
 import { bodyFrame, depthScale, geomOf, headFaceOf, PET_SIZE, reachOf, speedMax, stageWidth, travelGateX, xRangeOf } from './geometry';
+import { applyGesture, gestureOwns, gestureWantsCamera } from './gestures';
 import { GREET, greetClip, motionMods, planGreeting, scriptFor } from './greetings';
 import type { GreetPlan } from './greetings';
 import { cancelJump, jump, jumpConfig, jumpOwnsMotion, resolveJump, stepJump } from './jump';
@@ -250,6 +251,9 @@ export function spawnActor(source: ActorSource, at?: Vec): Actor {
     share: 0,
     direction: null,
     directionJump: -1,
+    gesture: null,
+    headMark: null,
+    mouthMark: null,
   };
 }
 
@@ -263,6 +267,7 @@ export function setDirection(actor: Actor, direction: Direction | null): void {
   actor.zoom = null;
   actor.cuddle = null;
   actor.asleep = false;
+  // A playdate gesture keeps running across direction changes. The stage starts and replaces it.
 }
 
 function seedParticles(world: World): void {
@@ -955,7 +960,7 @@ function steerDirection(
   let wagRate = 6;
   let faceCamera = false;
   const arrived = move != null && Math.hypot(move.x - actor.x, move.y - actor.y) < 10 && actor.speed < 16;
-  const traveling = pose === 'walk' || pose === 'run' || pose === 'sniff' || pose === 'stalk';
+  const traveling = pose === 'walk' || pose === 'run' || pose === 'sniff' || pose === 'stalk' || pose === 'skid' || pose === 'zoomies';
   if (!traveling || arrived) {
     move = null;
     vmax = 0;
@@ -992,6 +997,18 @@ function steerDirection(
     targets.bow = 1;
     targets.wagAmp = 0.65;
     wagRate = 16;
+  }
+  if (pose === 'zoomies') {
+    targets.tailLift = 1;
+  }
+  if (pose === 'roll_over') {
+    targets.side = 1;
+    targets.belly = 1;
+    targets.legPedal = 1;
+  }
+  if (pose === 'flop') {
+    targets.lie = 1;
+    targets.land = 1;
   }
   if (pose === 'sleep') {
     targets.lie = 1;
@@ -1995,10 +2012,16 @@ function updateActor(world: World, actor: Actor, dt: number): void {
   if (actor.task.greet?.skid) {
     targets.skid = 1;
   }
+  if (actor.direction?.pose === 'skid') {
+    targets.skid = 1;
+  }
   if (!actor.jump) {
     stepFacing(actor, dt, !!actor.task.ownsFacing);
   }
   actor.anchors.facing = actor.face >= 0 ? 1 : -1;
+  if (gestureWantsCamera(actor)) {
+    faceCamera = true;
+  }
   const greeting = actor.task.type === 'greet';
   const autoCam =
     !greeting && actor.vy > 0 && Math.abs(actor.vy) > 1.5 * Math.abs(actor.vx) ? 0.5 : 0;
@@ -2019,26 +2042,28 @@ function updateActor(world: World, actor: Actor, dt: number): void {
   }
   // The 3/4 head is a pose target set by the state machine, vetoed whenever the pet moves or acts.
   // Cuddle may hold the turned head while the pet lies down. It never turns while the pet moves.
-  const cuddling = actor.task.type === 'cuddle';
-  const stationary =
-    move == null && actor.speed <= 14 && actor.z <= 0 && !actor.bark.active && (actor.pose.lie < 0.05 || cuddling);
-  const leadHead = actor.lead > 0 || (actor.turning && Math.abs(baseYaw(actor.face) - actor.yaw) > 0.45);
-  if (greeting) {
-    targets.headTurn = Math.max(actor.task.greet?.headFront ?? 0, leadHead ? 1 : 0);
-  } else if (actor.speed > 14) {
-    targets.headTurn = 0;
-  } else {
-    targets.headTurn = faceCamera && stationary ? 1 : 0;
-    if (leadHead) {
-      targets.headTurn = 1;
+  if (!gestureOwns(actor, 'headTurn')) {
+    const cuddling = actor.task.type === 'cuddle';
+    const stationary =
+      move == null && actor.speed <= 14 && actor.z <= 0 && !actor.bark.active && (actor.pose.lie < 0.05 || cuddling);
+    const leadHead = actor.lead > 0 || (actor.turning && Math.abs(baseYaw(actor.face) - actor.yaw) > 0.45);
+    if (greeting) {
+      targets.headTurn = Math.max(actor.task.greet?.headFront ?? 0, leadHead ? 1 : 0);
+    } else if (actor.speed > 14) {
+      targets.headTurn = 0;
+    } else {
+      targets.headTurn = faceCamera && stationary ? 1 : 0;
+      if (leadHead) {
+        targets.headTurn = 1;
+      }
     }
-  }
-  if (actor.jump && actor.jump.phase !== 'turn') {
-    targets.headTurn = 0;
-    actor.pose.headTurn = 0;
-  }
-  if (!greeting && actor.speed > 14 && actor.pose.headTurn > 0.15) {
-    actor.pose.headTurn = 0.15;
+    if (actor.jump && actor.jump.phase !== 'turn') {
+      targets.headTurn = 0;
+      actor.pose.headTurn = 0;
+    }
+    if (!greeting && actor.speed > 14 && actor.pose.headTurn > 0.15) {
+      actor.pose.headTurn = 0.15;
+    }
   }
   // Gait: chosen from the speed with hysteresis, blended over ~150 ms, and limited by stamina and age.
   actor.share = topSpeed > 0 ? clamp(actor.speed / topSpeed, 0, 1.2) : 0;
@@ -2091,7 +2116,12 @@ function updateActor(world: World, actor: Actor, dt: number): void {
     cycle = Math.max(cycle, Math.PI * 2 * 1.8);
     targets.walk = Math.max(targets.walk, 0.55);
   }
-  actor.pose = easePose(actor.pose, targets, dt, profile.slowStand, actor.task.greet?.poseRates);
+  if (actor.direction?.pose === 'zoomies' && actor.turning) {
+    targets.shake = 1;
+  }
+  const gestureRates = applyGesture(actor, dt, targets);
+  const greetRates = actor.task.greet?.poseRates;
+  actor.pose = easePose(actor.pose, targets, dt, profile.slowStand, gestureRates ? { ...greetRates, ...gestureRates } : greetRates);
   actor.phase += dt * cycle;
   // Match jaw/tongue cadence to breath while panting so a slower idle pant reads as one motion.
   actor.panPh += dt * Math.PI * 2 * (actor.pose.pant > 0.05 ? actor.pose.breathRate : 5);

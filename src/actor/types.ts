@@ -327,7 +327,18 @@ export type DirectionPose =
   | 'stalk'
   | 'pounce'
   | 'celebrate'
-  | 'sniff';
+  | 'sniff'
+  | 'skid'
+  | 'zoomies'
+  | 'roll_over'
+  | 'flop';
+
+// A playdate gesture playing on top of a directed pose. Steps are not saved.
+export type GestureRun = {
+  id: string;
+  index: number;
+  elapsed: number;
+};
 
 export type Direction = {
   target: Vec | null;
@@ -523,6 +534,12 @@ export type Actor = {
   direction: Direction | null;
   // The direction token that already launched a jump, so a held jump fires once.
   directionJump: number;
+  // Playdate gesture. setDirection does not clear it.
+  gesture: GestureRun | null;
+  // Head point in stage space, written while drawing, for marks that must sit above the weather.
+  headMark: { x: number; y: number } | null;
+  // Mouth point in stage space, written while drawing, so a rope can meet the toy.
+  mouthMark: { x: number; y: number } | null;
 };
 
 export type Anchors = {
@@ -551,7 +568,7 @@ export type CuddleSound = 'cuddle_purr' | 'cuddle_happy' | 'cuddle_pant';
 
 export type SoundEvent = {
   actorId: string;
-  sound: 'bark' | 'meow' | CuddleSound;
+  sound: 'bark' | 'meow' | 'growl' | 'sneeze' | 'sneeze_cat' | 'trill' | CuddleSound;
   rate: number;
 };
 

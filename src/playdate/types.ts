@@ -88,14 +88,34 @@ export type BeatParams = {
   spread?: 'x' | 'y';
 };
 
+export type BeatTempo = 'snap' | 'normal' | 'linger';
+
+export type BeatProp = {
+  kind: 'ball' | 'frisbee' | 'squeaky' | 'stick' | 'rope';
+  holder?: 'A' | 'B' | 'both' | null;
+  throwTo?: { x: number; y: number };
+  at?: { x: number; y: number };
+};
+
 export type Beat = {
   t: number;
   actor: 'A' | 'B' | 'both';
   action: string;
   params?: BeatParams;
+  // Set only when the step that produced this beat named them. Replay reads the stored values.
+  emote?: string;
+  fx?: string;
+  sfx?: string;
+  camera?: string;
+  tag?: string;
+  gesture?: string;
+  prop?: BeatProp;
+  tempo?: BeatTempo;
+  holdBefore?: number;
+  delay?: number;
 };
 
-export type RareEvent = { type: 'trick_shown'; trickId: PartyTrick };
+export type RareEvent = { type: 'trick_shown'; trickId: PartyTrick } | { type: 'upset' };
 
 export type PlaydateOutcome = {
   moodDelta: number;
@@ -105,7 +125,7 @@ export type PlaydateOutcome = {
 };
 
 export type PlaydateRecord = {
-  version: 1;
+  version: 1 | 2;
   playdateId: string;
   ownerId: string;
   createdAt: string;

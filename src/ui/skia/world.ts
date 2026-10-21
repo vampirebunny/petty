@@ -6,8 +6,10 @@ import type { TimeOfDay, World } from '../../actor';
 import { stageHeight, stageWidth } from '../../actor/geometry';
 import { actorTint, lighting, petLightAmount, sceneryTint } from '../../actor/lighting';
 import type { Rgba } from '../../actor/timeOfDay';
-import { clamp, fillOval } from './draw';
+import { clamp, fillOval, paintOf } from './draw';
 import { drawActor } from './pet';
+import type { OverlayBurst } from '../../playdate/overlay';
+import { drawOverlay } from './marks';
 import { drawAmbient, drawBackdrop, drawProp, drawToyShape } from './scenery';
 import type { Env } from './scenery';
 
@@ -59,6 +61,12 @@ export function drawWorld(
   reduced: boolean,
   visibleHeight: number = stageHeight,
   camera?: { x: number; y: number; zoom: number },
+  overlay?: {
+    bursts: readonly OverlayBurst[];
+    rope?: { sag: number } | null;
+    butterfly?: { x: number; y: number } | null;
+    zzz?: readonly { x: number; y: number; phase: number }[];
+  },
 ): void {
   const scene = world.scene;
   const floor = scene.floor;
@@ -140,6 +148,24 @@ export function drawWorld(
       draw: () => drawTinted(canvas, bodyTint, () => drawActor(canvas, actor, breed, floor, world.t, carrying, world.silhouette === true)),
     });
   }
+  if (overlay?.rope && world.actors.length >= 2) {
+    const lower = Math.max(world.actors[0]?.y ?? 0, world.actors[1]?.y ?? 0);
+    const sag = overlay.rope.sag;
+    items.push({
+      y: lower + 0.01,
+      draw: () => {
+        const left = world.actors[0]?.mouthMark;
+        const right = world.actors[1]?.mouthMark;
+        if (!left || !right) {
+          return;
+        }
+        const curve = Skia.Path.Make();
+        curve.moveTo(left.x, left.y);
+        curve.quadTo((left.x + right.x) / 2, (left.y + right.y) / 2 + sag, right.x, right.y);
+        canvas.drawPath(curve, paintOf('#c4553a', 1, 3.2));
+      },
+    });
+  }
   for (const toy of world.items) {
     if (toy.state !== 'free') {
       continue;
@@ -165,5 +191,8 @@ export function drawWorld(
     }
   }
   drawAmbient(canvas, world, env, bleed);
+  if (overlay && (overlay.bursts.length > 0 || overlay.butterfly || (overlay.zzz?.length ?? 0) > 0)) {
+    drawOverlay(canvas, overlay.bursts, { butterfly: overlay.butterfly, zzz: overlay.zzz, t: world.t });
+  }
   canvas.restore();
 }

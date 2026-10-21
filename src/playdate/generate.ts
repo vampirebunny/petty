@@ -3,194 +3,141 @@ import type { Trait } from '../sim/types';
 import { activityById, speciesPair } from './activities';
 import { closingActions, closingHoldMs, maxDurationMs, minDurationMs, playdateConfig, warmupActions } from './config';
 import { rngFrom } from './rng';
+import { stories } from './stories';
+import { pickVariant, s, tagAct } from './story';
+import type { Place, Step, StepProp, StoryContext, Who } from './story';
+import { assignSfx } from './sfx';
+import { insertTwists } from './twists';
 import type {
   ActivityDefinition,
   Beat,
   BeatParams,
-  BeatTemplateId,
-  BeatToward,
+  BeatProp,
+  BeatTempo,
   PetSnapshot,
   PlaydateOutcome,
   Species,
 } from './types';
 
-type Who = 'A' | 'B' | 'both' | 'bolder' | 'shyer' | 'winner' | 'loser' | 'dog' | 'cat';
+export type { Step, StoryContext } from './story';
 
-// Named spots on the floor. 'left' and 'right' swap on a coin flip so a race does not always run the same way.
-type Place = 'random' | 'center' | 'left' | 'right' | 'far' | 'near';
+const tempoScale: Record<BeatTempo, number> = {
+  snap: 0.45,
+  normal: 1,
+  linger: 1.8,
+};
 
-type Step = {
-  who: Who;
-  action: string;
-  // Follow the partner instead of heading to a fixed spot.
-  toward?: BeatToward;
-  gap?: number;
-  pace?: number;
-  lane?: number;
-  spread?: 'x' | 'y';
-  place?: Place;
-  // Share of the playdate this step takes. Default 1.
-  weight?: number;
-  // Starts with the step before it, so one pet can chase while the other runs.
+export type SlotStep = {
   parallel?: boolean;
+  weight?: number;
+  tempo?: BeatTempo;
+  holdBefore?: number;
+  delay?: number;
 };
 
-const s = (who: Who, action: string, extra: Omit<Step, 'who' | 'action'> = {}): Step => ({ who, action, ...extra });
+// One start time per step. Parallel steps share the slot unless they set delay.
+export function slotTimes(steps: readonly SlotStep[], lastT: number, tempoRng: () => number): number[] {
+  type Group = { indexes: number[]; weight: number; hold: number };
+  const groups: Group[] = [];
+  steps.forEach((step, index) => {
+    if (step.parallel === true && groups.length > 0) {
+      groups[groups.length - 1].indexes.push(index);
+      return;
+    }
+    const tempo = tempoScale[step.tempo ?? 'normal'];
+    const jitter = (tempoRng() * 2 - 1) * 0.18;
+    groups.push({
+      indexes: [index],
+      weight: Math.max(0, (step.weight ?? 1) * tempo * (1 + jitter)),
+      hold: Math.max(0, step.holdBefore ?? 0),
+    });
+  });
 
-const templates: Record<BeatTemplateId, Step[]> = {
-  // One pet runs out to fetch and brings it back, then they swap.
-  'fetch-dogs': [
-    s('A', 'play_bow', { weight: 0.7 }),
-    s('B', 'run_to', { place: 'far', pace: 0.9, weight: 1.3 }),
-    s('A', 'sit', { parallel: true }),
-    s('B', 'run_to', { toward: 'partner', gap: 1.15, pace: 0.8, weight: 1.2 }),
-    s('A', 'celebrate', { parallel: true }),
-    s('B', 'play_bow', { weight: 0.7 }),
-    s('A', 'run_to', { place: 'far', pace: 0.9, weight: 1.3 }),
-    s('B', 'sit', { parallel: true }),
-    s('A', 'run_to', { toward: 'partner', gap: 1.15, pace: 0.8, weight: 1.2 }),
-    s('B', 'celebrate', { parallel: true }),
-  ],
-  // The cat stalks while the dog fetches, then pounces as the dog returns.
-  'fetch-cross': [
-    s('cat', 'approach', { toward: 'partner', gap: 1.6, weight: 1 }),
-    s('dog', 'run_to', { place: 'far', pace: 0.9, weight: 1.3 }),
-    s('cat', 'stalk', { toward: 'partner', gap: 1.7, parallel: true }),
-    s('dog', 'run_to', { toward: 'partner', gap: 1.2, pace: 0.85, weight: 1.1 }),
-    s('cat', 'pounce', { parallel: true }),
-    s('dog', 'play_bow', { weight: 0.8 }),
-    s('cat', 'jump', { parallel: true }),
-  ],
-  // They meet in the middle, bow, then pull back and forth until one wins.
-  'tug-dogs': [
-    s('both', 'run_to', { toward: 'meet', gap: 1.3, pace: 0.8, weight: 1.2 }),
-    s('bolder', 'play_bow', { weight: 0.6 }),
-    s('both', 'approach', { toward: 'meet', gap: 1.05, pace: 0.3, weight: 0.5 }),
-    s('both', 'tug', { weight: 3 }),
-    s('winner', 'win', { weight: 1 }),
-    s('loser', 'pant', { parallel: true }),
-  ],
-  // Line up, sit ready, then run to the far side in separate lanes. The faster one wins.
-  'race-dogs': [
-    s('both', 'approach', { place: 'left', spread: 'y', pace: 0.45, weight: 1 }),
-    s('both', 'sit', { weight: 0.5 }),
-    s('winner', 'run_to', { place: 'right', spread: 'y', pace: 0.95, weight: 2 }),
-    s('loser', 'run_to', { place: 'right', spread: 'y', pace: 0.78, parallel: true }),
-    s('winner', 'win', { weight: 1 }),
-    s('loser', 'pant', { parallel: true }),
-    s('both', 'approach', { toward: 'meet', gap: 1.3, pace: 0.35, weight: 1 }),
-  ],
-  'race-cats': [
-    s('both', 'approach', { place: 'left', spread: 'y', pace: 0.45, weight: 1 }),
-    s('both', 'sit', { weight: 0.5 }),
-    s('winner', 'run_to', { place: 'right', spread: 'y', pace: 0.95, weight: 2 }),
-    s('loser', 'run_to', { place: 'right', spread: 'y', pace: 0.78, parallel: true }),
-    s('winner', 'win', { weight: 1 }),
-    s('loser', 'sit', { parallel: true }),
-  ],
-  'race-cross': [
-    s('dog', 'play_bow', { weight: 0.7 }),
-    s('cat', 'sit', { parallel: true }),
-    s('both', 'approach', { place: 'left', spread: 'y', pace: 0.45, weight: 1 }),
-    s('winner', 'run_to', { place: 'right', spread: 'y', pace: 0.95, weight: 2 }),
-    s('loser', 'run_to', { place: 'right', spread: 'y', pace: 0.78, parallel: true }),
-    s('cat', 'jump', { weight: 0.6 }),
-    s('winner', 'win', { weight: 1 }),
-    s('loser', 'pant', { parallel: true }),
-  ],
-  // One chases, the other runs. Then they switch.
-  'chase-dogs': [
-    s('bolder', 'run_to', { toward: 'partner', gap: 1.05, pace: 0.9, weight: 1.6 }),
-    s('shyer', 'run_to', { toward: 'away', pace: 0.85, parallel: true }),
-    s('bolder', 'play_bow', { weight: 0.5 }),
-    s('shyer', 'sit', { parallel: true }),
-    s('shyer', 'run_to', { toward: 'partner', gap: 1.05, pace: 0.9, weight: 1.6 }),
-    s('bolder', 'run_to', { toward: 'away', pace: 0.85, parallel: true }),
-    s('winner', 'win', { weight: 1 }),
-    s('loser', 'pant', { parallel: true }),
-  ],
-  'chase-cats': [
-    s('bolder', 'stalk', { toward: 'partner', gap: 1.3, weight: 1.3 }),
-    s('shyer', 'sit', { parallel: true }),
-    s('bolder', 'pounce', { weight: 0.5 }),
-    s('shyer', 'run_to', { toward: 'away', pace: 0.9, parallel: true }),
-    s('shyer', 'stalk', { toward: 'partner', gap: 1.3, weight: 1.3 }),
-    s('bolder', 'run_to', { toward: 'away', pace: 0.9, parallel: true }),
-    s('shyer', 'pounce', { weight: 0.5 }),
-    s('winner', 'win', { weight: 1 }),
-    s('loser', 'sit', { parallel: true }),
-  ],
-  'chase-cross': [
-    s('dog', 'run_to', { toward: 'partner', gap: 1.1, pace: 0.9, weight: 1.5 }),
-    s('cat', 'run_to', { toward: 'away', pace: 0.9, parallel: true }),
-    s('cat', 'jump', { weight: 0.6 }),
-    s('dog', 'play_bow', { parallel: true }),
-    s('cat', 'stalk', { toward: 'partner', gap: 1.4, weight: 1.3 }),
-    s('dog', 'sit', { parallel: true }),
-    s('cat', 'pounce', { weight: 0.5 }),
-    s('dog', 'run_to', { toward: 'away', pace: 0.85, parallel: true }),
-    s('winner', 'win', { weight: 1 }),
-    s('loser', 'pant', { parallel: true }),
-  ],
-  // The shy one sneaks off, the bold one counts then searches, and finds them.
-  'hide-any': [
-    s('shyer', 'hide', { place: 'far', pace: 0.55, weight: 1.4 }),
-    s('bolder', 'sit', { parallel: true }),
-    s('bolder', 'sniff', { place: 'random', weight: 1.1 }),
-    s('bolder', 'sniff', { place: 'random', weight: 1.1 }),
-    s('bolder', 'run_to', { toward: 'partner', gap: 1.1, pace: 0.8, weight: 1 }),
-    s('shyer', 'celebrate', { weight: 0.8 }),
-    s('bolder', 'play_bow', { parallel: true }),
-  ],
-  // Come together, sniff nose to nose, circle each other, then sit side by side.
-  'sniff-any': [
-    s('both', 'approach', { toward: 'meet', gap: 1.5, pace: 0.4, weight: 1.2 }),
-    s('both', 'sniff', { toward: 'partner', gap: 1.1, weight: 1 }),
-    s('bolder', 'sniff', { toward: 'partner', gap: 1.1, lane: 34, weight: 1 }),
-    s('shyer', 'sit', { parallel: true }),
-    s('bolder', 'sniff', { toward: 'partner', gap: 1.1, lane: -34, weight: 1 }),
-    s('both', 'approach', { toward: 'meet', gap: 1.35, pace: 0.3, weight: 0.8 }),
-    s('both', 'sit', { weight: 0.8 }),
-  ],
-  // Charge in together, hop around, and one leads a victory lap.
-  'splash-dogs': [
-    s('both', 'run_to', { place: 'center', spread: 'x', pace: 0.9, weight: 1.2 }),
-    s('both', 'jump', { weight: 0.6 }),
-    s('both', 'jump', { weight: 0.6 }),
-    s('bolder', 'run_to', { place: 'random', pace: 0.85, weight: 1.1 }),
-    s('shyer', 'run_to', { toward: 'partner', gap: 1.2, pace: 0.85, parallel: true }),
-    s('both', 'jump', { weight: 0.6 }),
-    s('winner', 'celebrate', { weight: 0.9 }),
-  ],
-  // Settle down side by side and sleep.
-  'nap-any': [
-    s('both', 'approach', { toward: 'meet', gap: 1.3, pace: 0.35, weight: 1.2 }),
-    s('both', 'sit', { weight: 0.7 }),
-    s('both', 'nap', { weight: 3 }),
-  ],
-  // They take turns showing off while the other watches and cheers.
-  'trick-any': [
-    s('both', 'approach', { toward: 'meet', gap: 1.5, pace: 0.4, weight: 1 }),
-    s('B', 'trick', { weight: 1.6 }),
-    s('A', 'sit', { parallel: true }),
-    s('A', 'celebrate', { weight: 0.8 }),
-    s('B', 'play_bow', { parallel: true }),
-    s('A', 'trick', { weight: 1.4 }),
-    s('B', 'sit', { parallel: true }),
-    s('B', 'celebrate', { weight: 0.8 }),
-    s('A', 'play_bow', { parallel: true }),
-  ],
-  'trick-cross': [
-    s('cat', 'approach', { toward: 'partner', gap: 1.5, pace: 0.4, weight: 1 }),
-    s('dog', 'sit', { parallel: true }),
-    s('dog', 'play_bow', { weight: 0.8 }),
-    s('cat', 'trick', { weight: 1.5 }),
-    s('dog', 'sit', { parallel: true }),
-    s('dog', 'trick', { weight: 1.4 }),
-    s('cat', 'sit', { parallel: true }),
-    s('both', 'celebrate', { weight: 0.8 }),
-  ],
-};
+  let holds = groups.map((group) => group.hold);
+  let totalHold = holds.reduce((sum, hold) => sum + hold, 0);
+  const holdCap = lastT * 0.35;
+  if (totalHold > holdCap && totalHold > 0) {
+    const holdScale = holdCap / totalHold;
+    holds = holds.map((hold) => hold * holdScale);
+    totalHold = holdCap;
+  }
+  const weightSum = groups.reduce((sum, group) => sum + group.weight, 0);
+  const available = Math.max(0, lastT - totalHold);
+  const unit = weightSum > 0 ? available / weightSum : 0;
+
+  const starts: number[] = [];
+  let cursor = 0;
+  for (let i = 0; i < groups.length; i += 1) {
+    cursor += holds[i] ?? 0;
+    starts.push(cursor);
+    cursor += groups[i].weight * unit;
+  }
+
+  const times = steps.map(() => 0);
+  for (let i = 0; i < groups.length; i += 1) {
+    const start = Math.min(lastT, Math.max(0, Math.round(starts[i] ?? 0)));
+    const nextStart = i + 1 < groups.length ? Math.round(starts[i + 1] ?? lastT) : lastT + 1;
+    const group = groups[i];
+    for (const index of group.indexes) {
+      const step = steps[index];
+      let t = start;
+      const delay = step?.delay ?? 0;
+      if (step?.parallel && delay > 0) {
+        const latest = Math.max(start, nextStart - 1);
+        t = Math.min(start + delay, latest);
+      }
+      times[index] = Math.min(lastT, Math.max(0, t));
+    }
+  }
+  return times;
+}
+
+function specified(step: Step): Partial<Beat> {
+  const beat: Partial<Beat> = {};
+  if (step.emote != null) {
+    beat.emote = step.emote;
+  }
+  if (step.fx != null) {
+    beat.fx = step.fx;
+  }
+  if (step.sfx != null) {
+    beat.sfx = step.sfx;
+  }
+  if (step.camera != null) {
+    beat.camera = step.camera;
+  }
+  if (step.tag != null) {
+    beat.tag = step.tag;
+  }
+  if (step.gesture != null) {
+    beat.gesture = step.gesture;
+  }
+  if (step.tempo != null) {
+    beat.tempo = step.tempo;
+  }
+  if (step.holdBefore != null) {
+    beat.holdBefore = step.holdBefore;
+  }
+  if (step.delay != null) {
+    beat.delay = step.delay;
+  }
+  return beat;
+}
+
+function assertTimeline(beats: readonly Beat[], lastT: number): void {
+  if (typeof __DEV__ !== 'undefined' && !__DEV__) {
+    return;
+  }
+  for (let i = 0; i < beats.length; i += 1) {
+    const beat = beats[i];
+    if (beat.t > lastT) {
+      throw new Error(`playdate beat ${i} is past the end`);
+    }
+    if (i > 0 && beat.t < beats[i - 1].t) {
+      throw new Error(`playdate beats are not sorted at ${i}`);
+    }
+  }
+}
 
 function score(pet: PetSnapshot, trait: Trait): number {
   return pet.attributes[trait];
@@ -218,7 +165,23 @@ function speciesActor(petA: PetSnapshot, petB: PetSnapshot, species: Species): '
   return 'A';
 }
 
-function resolveWho(step: Step, petA: PetSnapshot, petB: PetSnapshot, activity: ActivityDefinition): 'A' | 'B' | 'both' {
+export function favoriteChance(gap: number): number {
+  return 0.5 + 0.38 * Math.tanh(Math.abs(gap) / 25);
+}
+
+type Contest = { winner: 'A' | 'B'; upset: boolean };
+
+function decideContest(petA: PetSnapshot, petB: PetSnapshot, activity: ActivityDefinition, rng: () => number): Contest {
+  const trait = activity.id === 'race' ? 'agility' : 'stamina';
+  const a = score(petA, trait);
+  const b = score(petB, trait);
+  const higher: 'A' | 'B' | null = a === b ? null : a > b ? 'A' : 'B';
+  const favoriteWins = rng() < favoriteChance(a - b);
+  const winner: 'A' | 'B' = higher == null ? (favoriteWins ? 'A' : 'B') : favoriteWins ? higher : higher === 'A' ? 'B' : 'A';
+  return { winner, upset: higher != null && winner !== higher };
+}
+
+function resolveWho(step: Step, petA: PetSnapshot, petB: PetSnapshot, contest: Contest): 'A' | 'B' | 'both' {
   if (step.who === 'both' || step.who === 'A' || step.who === 'B') {
     return step.who;
   }
@@ -231,12 +194,10 @@ function resolveWho(step: Step, petA: PetSnapshot, petB: PetSnapshot, activity: 
   if (step.who === 'shyer') {
     return byTrait(petA, petB, 'boldness', false);
   }
-  const trait = activity.id === 'race' ? 'agility' : 'stamina';
-  const winner = byTrait(petA, petB, trait, true);
   if (step.who === 'winner') {
-    return winner;
+    return contest.winner;
   }
-  return winner === 'A' ? 'B' : 'A';
+  return contest.winner === 'A' ? 'B' : 'A';
 }
 
 function warmupCount(petA: PetSnapshot, petB: PetSnapshot): number {
@@ -285,7 +246,23 @@ function placeAt(place: Place, rng: () => number, floor: Floor, flip: boolean): 
   return random;
 }
 
-function paramsFor(step: Step, rng: () => number, floor: Floor, flip: boolean): BeatParams {
+const placeNames = new Set<Place>(['random', 'center', 'left', 'right', 'far', 'near']);
+
+function isPlace(value: Place | 'throwTo' | { x: number; y: number }): value is Place {
+  return typeof value === 'string' && placeNames.has(value as Place);
+}
+
+function paramsFor(step: Step, rng: () => number, floor: Floor, flip: boolean, thrown: { x: number; y: number } | null): BeatParams {
+  if (step.placeFrom === 'throwTo' && thrown) {
+    const params: BeatParams = { ...thrown };
+    if (step.pace != null) {
+      params.pace = step.pace;
+    }
+    if (step.spread) {
+      params.spread = step.spread;
+    }
+    return params;
+  }
   if (step.toward) {
     const params: BeatParams = { toward: step.toward };
     if (step.gap != null) {
@@ -309,6 +286,236 @@ function paramsFor(step: Step, rng: () => number, floor: Floor, flip: boolean): 
   return params;
 }
 
+function resolveHolder(holder: Who, petA: PetSnapshot, petB: PetSnapshot, contest: Contest): 'A' | 'B' | 'both' {
+  if (holder === 'A' || holder === 'B' || holder === 'both') {
+    return holder;
+  }
+  return resolveWho({ who: holder, action: 'sit' }, petA, petB, contest);
+}
+
+function resolvePoint(value: Place | { x: number; y: number }, rng: () => number, floor: Floor, flip: boolean): { x: number; y: number } {
+  return isPlace(value) ? placeAt(value, rng, floor, flip) : value;
+}
+
+function resolveProp(
+  prop: StepProp,
+  rng: () => number,
+  floor: Floor,
+  flip: boolean,
+  thrown: { x: number; y: number } | null,
+  petA: PetSnapshot,
+  petB: PetSnapshot,
+  contest: Contest,
+): { prop: BeatProp; thrown: { x: number; y: number } | null } {
+  const beatProp: BeatProp = { kind: prop.kind };
+  if (prop.holder === null) {
+    beatProp.holder = null;
+  } else if (prop.holder != null) {
+    beatProp.holder = resolveHolder(prop.holder, petA, petB, contest);
+  }
+  let next = thrown;
+  if (prop.throwTo) {
+    beatProp.throwTo = resolvePoint(prop.throwTo, rng, floor, flip);
+    next = beatProp.throwTo;
+  }
+  if (prop.at === 'throwTo' && next) {
+    beatProp.at = { ...next };
+  } else if (prop.at != null && prop.at !== 'throwTo') {
+    beatProp.at = resolvePoint(prop.at, rng, floor, flip);
+  }
+  return { prop: beatProp, thrown: next };
+}
+
+const fullBodyGestures = new Set(['double_take', 'startle', 'look_at_camera', 'butt_wiggle']);
+
+function otherActor(actor: 'A' | 'B'): 'A' | 'B' {
+  return actor === 'A' ? 'B' : 'A';
+}
+
+function reactionDelay(rng: () => number): number {
+  return 150 + Math.floor(rng() * 251);
+}
+
+function watcherBusy(beats: readonly Beat[], actor: 'A' | 'B', start: number, end: number): boolean {
+  return beats.some((beat) => beat.t >= start && beat.t <= end && (beat.actor === actor || beat.actor === 'both'));
+}
+
+function actionAt(beats: readonly Beat[], actor: 'A' | 'B', t: number): string {
+  let action = 'sit';
+  let at = -1;
+  for (const beat of beats) {
+    if (beat.t < t && beat.t >= at && (beat.actor === actor || beat.actor === 'both')) {
+      at = beat.t;
+      action = beat.action;
+    }
+  }
+  return action;
+}
+
+function pushReaction(
+  beats: Beat[],
+  watcher: 'A' | 'B',
+  pet: PetSnapshot,
+  t: number,
+  spec: { action?: string; gesture?: string; emote?: string },
+): void {
+  let action = spec.action;
+  let gesture = spec.gesture;
+  const shy = score(pet, 'boldness') < playdateConfig.shyBoldness;
+  const fullBody = (gesture != null && fullBodyGestures.has(gesture)) || action === 'celebrate' || action === 'play_bow';
+  if (shy && fullBody) {
+    gesture = 'glance';
+    action = undefined;
+  }
+  const beat: Beat = {
+    t,
+    actor: watcher,
+    action: action ?? actionAt(beats, watcher, t),
+    tag: 'reaction',
+  };
+  if (gesture) {
+    beat.gesture = gesture;
+  }
+  if (spec.emote) {
+    beat.emote = spec.emote;
+  }
+  beats.push(beat);
+}
+
+function chaseAnchor(beats: readonly Beat[], watcher: 'A' | 'B', fleeT: number): number {
+  let earlier: number | null = null;
+  for (const beat of beats) {
+    if (beat.actor !== watcher && beat.actor !== 'both') {
+      continue;
+    }
+    if (beat.params?.toward === 'partner' && beat.t < fleeT && (earlier == null || beat.t > earlier)) {
+      earlier = beat.t;
+    }
+  }
+  return earlier ?? fleeT;
+}
+
+function notableOf(beat: Beat): 'win' | 'startle' | 'trick' | 'slip' | 'away' | null {
+  if (beat.action === 'win') {
+    return 'win';
+  }
+  if (beat.action === 'pounce' || beat.gesture === 'startle') {
+    return 'startle';
+  }
+  if (beat.action === 'trick') {
+    return 'trick';
+  }
+  if (beat.action === 'skid' || beat.action === 'flop') {
+    return 'slip';
+  }
+  if (beat.params?.toward === 'away') {
+    return 'away';
+  }
+  return null;
+}
+
+// Reactions and fidgets for the pet who is not the one doing the notable move.
+// Call only after the scene rng has already placed every original beat.
+export function addReactions(beats: Beat[], petA: PetSnapshot, petB: PetSnapshot, rng: () => number): Beat[] {
+  const lastT = beats.reduce((end, beat) => Math.max(end, beat.t), 0);
+  const petFor = (actor: 'A' | 'B') => (actor === 'A' ? petA : petB);
+  const notables = beats.filter((beat) => beat.tag !== 'reaction' && beat.tag !== 'fidget' && beat.actor !== 'both');
+  for (const beat of notables) {
+    if (beat.actor !== 'A' && beat.actor !== 'B') {
+      continue;
+    }
+    const kind = notableOf(beat);
+    if (!kind) {
+      continue;
+    }
+    const watcher = otherActor(beat.actor);
+    const pet = petFor(watcher);
+    const lead = kind === 'away' ? chaseAnchor(beats, watcher, beat.t) : beat.t;
+    const windowStart = kind === 'away' ? lead - 400 : beat.t + 150;
+    const windowEnd = kind === 'away' ? lead - 150 : beat.t + 400;
+    if (watcherBusy(beats, watcher, windowStart, windowEnd)) {
+      continue;
+    }
+    const delay = reactionDelay(rng);
+    const t = kind === 'away' ? lead - delay : beat.t + delay;
+    if (t < 0 || t >= lastT) {
+      continue;
+    }
+    if (kind === 'win') {
+      if (score(pet, 'affection') < 50) {
+        pushReaction(beats, watcher, pet, t, { gesture: 'double_take' });
+      } else {
+        pushReaction(beats, watcher, pet, t, { action: 'pant', emote: 'sweat' });
+      }
+    } else if (kind === 'startle') {
+      pushReaction(beats, watcher, pet, t, { gesture: 'startle', emote: 'exclaim' });
+    } else if (kind === 'trick') {
+      const emote = score(pet, 'affection') >= 50 ? 'heart' : score(pet, 'intelligence') < 35 ? 'question' : undefined;
+      pushReaction(beats, watcher, pet, t, { action: 'sit', emote });
+      const celebrateT = t + 500;
+      if (celebrateT < lastT && !watcherBusy(beats, watcher, celebrateT - 150, celebrateT + 150)) {
+        pushReaction(beats, watcher, pet, celebrateT, { action: 'celebrate' });
+      }
+    } else if (kind === 'slip') {
+      if (rng() < 0.2) {
+        pushReaction(beats, watcher, pet, t, { gesture: 'look_at_camera' });
+      } else {
+        pushReaction(beats, watcher, pet, t, { gesture: 'head_tilt', emote: 'question' });
+      }
+    } else if (pet.species === 'cat') {
+      pushReaction(beats, watcher, pet, t, { gesture: 'butt_wiggle' });
+    } else {
+      pushReaction(beats, watcher, pet, t, { action: 'play_bow' });
+    }
+  }
+
+  const fidgets: Beat[] = [];
+  for (const actor of ['A', 'B'] as const) {
+    const times = beats.filter((beat) => beat.actor === actor || beat.actor === 'both').map((beat) => beat.t);
+    const marks = [...new Set([0, ...times, lastT])].sort((a, b) => a - b);
+    for (let i = 0; i < marks.length - 1; i += 1) {
+      const left = marks[i];
+      const right = marks[i + 1];
+      if (right - left <= 2500 || rng() >= 0.25) {
+        continue;
+      }
+      const t = Math.round((left + right) / 2);
+      if (t < left + 150 || t > right - 150 || t >= lastT) {
+        continue;
+      }
+      const roll = rng();
+      const gesture = roll < 1 / 3 ? 'scratch' : roll < 2 / 3 ? 'glance' : 'tail_up';
+      fidgets.push({
+        t,
+        actor,
+        action: actionAt(beats, actor, t),
+        gesture,
+        tag: 'fidget',
+      });
+    }
+  }
+  beats.push(...fidgets);
+  beats.sort((a, b) => a.t - b.t);
+  return beats;
+}
+
+function finaleTrickTime(beats: readonly Beat[], lastT: number): number {
+  const startIndex = beats.findIndex((beat) => beat.tag?.startsWith('variant:finale:'));
+  const start = startIndex >= 0 ? beats[startIndex].t : 0;
+  let end = start;
+  for (let i = Math.max(0, startIndex); i < beats.length; i += 1) {
+    const beat = beats[i];
+    if (beat.t >= lastT || beat.tag === 'upset') {
+      break;
+    }
+    if (i > startIndex && beat.action === 'nuzzle') {
+      break;
+    }
+    end = beat.t;
+  }
+  return Math.min(Math.max(Math.round((start + end) / 2), 0), Math.max(0, lastT - 1));
+}
+
 export type GeneratedPlaydate = {
   beats: Beat[];
   outcome: PlaydateOutcome;
@@ -320,14 +527,26 @@ export function generatePlaydate(input: {
   activity: ActivityDefinition;
   sceneId: string;
   seed: number;
+  recentTags?: readonly string[];
+  latestTags?: readonly string[];
+  bond?: number;
 }): GeneratedPlaydate {
   const { petA, petB, activity, sceneId, seed } = input;
+  const recentTags = input.recentTags ?? [];
+  const latestTags = input.latestTags ?? [];
+  const bond = input.bond ?? 0;
   const rng = rngFrom(seed, activity.id, sceneId, petA.snapshotId, petB.snapshotId);
+  const tempoRng = rngFrom(seed, 'tempo');
+  const storyRng = rngFrom(seed, 'story');
   const floor = sceneById(sceneId).floor;
   const flip = rng() < 0.5;
   const pair = speciesPair(petA.species, petB.species);
   const templateId = activity.templates[pair] ?? 'nap-any';
-  const body = templates[templateId].slice();
+  const ctx: StoryContext = { petA, petB, activity, pair, recentTags, latestTags, bond };
+  const story = stories[templateId];
+  const intro = tagAct(pickVariant(story.intro, ctx, storyRng), 'intro');
+  const main = insertTwists(tagAct(pickVariant(story.main, ctx, storyRng), 'main'), ctx, storyRng);
+  const finale = tagAct(pickVariant(story.finale, ctx, storyRng), 'finale');
   const shyCount = warmupCount(petA, petB);
   const shy = byTrait(petA, petB, 'boldness', false);
   const warmup: Step[] = [];
@@ -340,51 +559,108 @@ export function generatePlaydate(input: {
     const action = warmupActions[Math.min(i, warmupActions.length - 1)];
     warmup.push(s(i === shyCount - 1 && shyCount > 1 ? 'bolder' : shy, action, warmupSteps[action]));
   }
+  const steps = [...warmup, ...intro, ...main, ...finale];
   const affection = (score(petA, 'affection') + score(petB, 'affection')) / 2;
   if (affection >= 55) {
-    body.push(s('both', 'nuzzle', { toward: 'partner', gap: 1.05, weight: 0.8 }));
+    steps.push(s('both', 'nuzzle', { toward: 'partner', gap: 1.05, weight: 0.8 }));
   }
-  const steps = [...warmup, ...body];
+  const winnerRng = rngFrom(seed, 'winner');
+  const contest = decideContest(petA, petB, activity, winnerRng);
+  const contested = steps.some((step) => step.who === 'winner' || step.who === 'loser');
+  if (contested && contest.upset) {
+    steps.push(s('winner', 'celebrate', { emote: 'sparkle', fx: 'confetti', weight: 0.6, tag: 'upset' }));
+    steps.push(s('loser', 'sit', { gesture: 'double_take', emote: 'exclaim', parallel: true, tag: 'upset' }));
+  }
+  const hadZoomies = steps.some((step) => step.action === 'zoomies');
   const stamina = Math.min(1, Math.max(0, (score(petA, 'stamina') + score(petB, 'stamina')) / 200));
   const extra = Math.floor(rng() * Math.max(1, Math.round((maxDurationMs - minDurationMs) * (0.45 + 0.55 * stamina))));
   const durationMs = Math.min(maxDurationMs, minDurationMs + extra);
   const lastT = durationMs - closingHoldMs;
-  // Steps that share a start (parallel) take their time from the step they join.
-  const totalWeight = steps.reduce((sum, step) => (step.parallel ? sum : sum + (step.weight ?? 1)), 0);
-  const unit = totalWeight > 0 ? lastT / totalWeight : lastT;
+  const times = slotTimes(steps, lastT, tempoRng);
   const beats: Beat[] = [];
-  let elapsedWeight = 0;
-  let currentT = 0;
-  for (const step of steps) {
-    if (!step.parallel) {
-      currentT = Math.round(elapsedWeight * unit);
-      elapsedWeight += step.weight ?? 1;
+  let thrown: { x: number; y: number } | null = null;
+  steps.forEach((step, index) => {
+    let prop: BeatProp | undefined;
+    if (step.prop) {
+      const resolved = resolveProp(step.prop, rng, floor, flip, thrown, petA, petB, contest);
+      prop = resolved.prop;
+      thrown = resolved.thrown;
     }
-    beats.push({
-      t: currentT,
-      actor: resolveWho(step, petA, petB, activity),
+    const params = paramsFor(step, rng, floor, flip, thrown);
+    if (prop?.throwTo && prop.at == null && params.x != null && params.y != null) {
+      prop.at = { x: params.x, y: params.y };
+    }
+    const beat: Beat = {
+      t: times[index] ?? 0,
+      actor: resolveWho(step, petA, petB, contest),
       action: step.action,
-      params: paramsFor(step, rng, floor, flip),
-    });
-  }
-  // A nap playdate ends asleep. Anything else closes on a random wrap-up.
-  const closing =
-    activity.id === 'nap'
-      ? 'nap'
-      : closingActions[Math.min(closingActions.length - 1, Math.floor(rng() * closingActions.length))];
-  beats.push({
-    t: lastT,
-    actor: 'both',
-    action: closing,
-    params: point(rng, floor),
+      params,
+      ...specified(step),
+    };
+    if (prop) {
+      beat.prop = prop;
+    }
+    if (contest.upset && step.action === 'win' && beat.camera == null) {
+      beat.camera = 'punch';
+    }
+    beats.push(beat);
   });
-
+  // One closing roll, then the closing place, then the trick rolls. The roll's meaning depends on the playdate.
+  const roll = rng();
+  const place = point(rng, floor);
+  const goldenCurl = roll < 1 / 50;
+  const goldenWatch = roll < 1 / 25;
+  if (activity.id === 'nap') {
+    beats.push({ t: lastT, actor: 'both', action: 'nap', params: place });
+  } else if (goldenCurl) {
+    beats.push({
+      t: lastT,
+      actor: 'both',
+      action: 'nap',
+      params: { ...place, toward: 'partner', gap: 1.05 },
+      emote: 'heart',
+      tag: 'golden',
+    });
+  } else if (goldenWatch) {
+    beats.push({
+      t: lastT,
+      actor: 'both',
+      action: 'celebrate',
+      params: place,
+      gesture: 'look_at_camera',
+      tag: 'golden',
+    });
+  } else if (contested && contest.upset && affection >= 55) {
+    beats.push({
+      t: lastT,
+      actor: contest.winner === 'A' ? 'B' : 'A',
+      action: 'nuzzle',
+      params: { ...place, toward: 'partner', gap: 1.05 },
+    });
+  } else if (hadZoomies) {
+    beats.push({ t: lastT, actor: 'both', action: 'flop', params: place });
+  } else {
+    const span = 1 - 1 / 25;
+    const index = Math.min(closingActions.length - 1, Math.floor(((roll - 1 / 25) / span) * closingActions.length));
+    beats.push({ t: lastT, actor: 'both', action: closingActions[index] ?? 'celebrate', params: place });
+  }
   const rareEvents: PlaydateOutcome['rareEvents'] = [];
+  if (contested && contest.upset) {
+    rareEvents.push({ type: 'upset' });
+  }
   const chance = 0.05 + (score(petA, 'intelligence') / 100) * 0.22;
   if (petB.partyTricks.length > 0 && rng() < chance) {
     const trickId = petB.partyTricks[Math.min(petB.partyTricks.length - 1, Math.floor(rng() * petB.partyTricks.length))];
     rareEvents.push({ type: 'trick_shown', trickId });
+    const shown = finaleTrickTime(beats, lastT);
+    const action = trickId === 'speak' ? 'speak' : trickId;
+    beats.push({ t: shown, actor: 'B', action, emote: 'sparkle', tag: 'trick_shown' });
+    beats.push({ t: shown, actor: 'A', action: 'celebrate' });
+    beats.sort((a, b) => a.t - b.t);
   }
+  addReactions(beats, petA, petB, rng);
+  assignSfx(beats, petA, petB, contested && contest.upset);
+  assertTimeline(beats, lastT);
 
   return {
     beats,
@@ -403,6 +679,9 @@ export function generateForActivity(input: {
   activityId: string;
   sceneId: string;
   seed: number;
+  recentTags?: readonly string[];
+  latestTags?: readonly string[];
+  bond?: number;
 }): GeneratedPlaydate | null {
   const activity = activityById(input.activityId);
   if (!activity) {

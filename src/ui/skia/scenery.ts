@@ -430,6 +430,22 @@ export function drawToyShape(c: SkCanvas, kind: string, x: number, y: number, ra
     c.drawPath(thread, paintOf('#d9628f', 1, 1.4));
     return;
   }
+  if (kind === 'stick') {
+    c.save();
+    c.translate(x, y);
+    c.rotate(28, 0, 0);
+    c.drawLine(-radius * 1.5, 0, radius * 1.5, 0, paintOf('#8a5a32', 1, 3));
+    c.drawLine(-radius * 1.2, -radius * 0.25, -radius * 0.4, radius * 0.15, paintOf('#6b4424', 1, 1.6));
+    c.restore();
+    return;
+  }
+  if (kind === 'rope') {
+    const lying = Skia.Path.Make();
+    lying.moveTo(x - radius * 1.8, y);
+    lying.quadTo(x - radius * 0.2, y + radius * 0.9, x + radius * 1.6, y + radius * 0.15);
+    c.drawPath(lying, paintOf('#c4553a', 1, 2.6));
+    return;
+  }
   if (kind === 'squeaky') {
     fillOval(c, x, y, radius * 1.1, radius * 0.75, '#f2c230');
     fillCircle(c, x + radius * 0.85, y - radius * 0.3, radius * 0.5, '#f2c230');

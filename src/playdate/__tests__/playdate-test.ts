@@ -2,19 +2,25 @@ import { attributeScore, withDerived } from '../../sim/attributes';
 import { createWorld, sceneById, setDirection, spawnActor, update } from '../../actor';
 import { testPet } from '../../sim/__fixtures__/pets';
 import type { Stats } from '../../sim/types';
-import { activityById, legalActivities, offerActivities, speciesCanPlay } from '../activities';
-import { closingActions, playdateConfig, warmupActions } from '../config';
+import { activities, activityById, legalActivities, offerActivities, speciesCanPlay } from '../activities';
+import { closingHoldMs, playdateConfig, warmupActions } from '../config';
 import { bodyOf, separate } from '../contact';
 import { getCooldownRemaining } from '../cooldown';
 import { beatAt, directionFor, playdateEndMs, poseFor, replayBeats, targetFor } from '../direct';
-import { generatePlaydate } from '../generate';
+import { addReactions, favoriteChance, generatePlaydate, slotTimes } from '../generate';
+import { burstFor } from '../overlay';
+import { propAt } from '../props';
 import { dailyCast, generateCast } from '../npcs';
 import { createPlaydateRecord } from '../record';
 import { applyPlaydateRewards, attributeGains } from '../rewards';
-import { clearPet, emptyPlaydateSave, settlePlaydate } from '../save';
+import { clearPet, emptyPlaydateSave, recentPlaydateTags, settlePlaydate } from '../save';
+import replayFixture from './fixtures/v1-replay.json';
+import { stageHeight, stageWidth } from '../../actor/geometry';
+import { cameraAt } from '../camera';
+import { ambientCues, crossBeats, resolveSfx, sfxShots } from '../sfx';
 import { voiceCues } from '../voice';
 import { actorSourceOf, snapshotPet } from '../snapshot';
-import type { ActivityDefinition, PetSnapshot, PlaydateRecord } from '../types';
+import type { ActivityDefinition, PetSnapshot, PlaydateRecord, SpeciesPair } from '../types';
 
 const stats = (value: number): Stats => ({
   stamina: value,
@@ -92,9 +98,20 @@ describe('playdate generator', () => {
     attributes: { ...stats(50), boldness: 80, affection: 20 },
   });
 
-  it('returns the same beats for the same inputs and seed', () => {
-    const input = { petA: bold, petB: shy, activity: activity('race'), sceneId: 'park', seed: 7 };
+  it('returns the same beats for the same inputs, seed, and recent tags', () => {
+    const input = {
+      petA: bold,
+      petB: shy,
+      activity: activity('race'),
+      sceneId: 'park',
+      seed: 7,
+      recentTags: ['spin', 'bow'],
+      latestTags: ['twist:zoomies'],
+      bond: 30,
+    };
     expect(generatePlaydate(input).beats).toEqual(generatePlaydate(input).beats);
+    const again = { ...input, recentTags: ['spin', 'bow'] };
+    expect(generatePlaydate(again).beats).toEqual(generatePlaydate(input).beats);
   });
 
   it('replays the saved beats without generating them again', () => {
@@ -110,6 +127,7 @@ describe('playdate generator', () => {
       ownerId: 'owner',
     });
     expect(record.hour).toBe(14);
+    expect(record.version).toBe(2);
     expect(replayBeats(record)).toBe(record.beats);
     expect(generatePlaydate({ petA: record.petA, petB: record.petB, activity: activity('nap'), sceneId: 'park', seed: 11 }).beats).toEqual(
       record.beats,
@@ -121,14 +139,15 @@ describe('playdate generator', () => {
     const end = playdateEndMs(generated.beats);
     expect(end).toBeGreaterThanOrEqual(45_000);
     expect(end).toBeLessThanOrEqual(90_000);
-    expect(closingActions).toContain(generated.beats[generated.beats.length - 1].action);
+    expect(['nap', 'celebrate', 'walk_off', 'flop', 'nuzzle']).toContain(generated.beats[generated.beats.length - 1].action);
   });
 
   it('opens a shy pairing with warm-up beats', () => {
     const generated = generatePlaydate({ petA: shy, petB: shy, activity: activity('race'), sceneId: 'park', seed: 2 });
-    expect(generated.beats.slice(0, 3).map((beat) => beat.action)).toEqual(['sniff', 'hide', 'approach']);
-    expect(warmupActions).toContain(generated.beats[0].action);
-    expect(closingActions).toContain(generated.beats[generated.beats.length - 1].action);
+    const scripted = generated.beats.filter((beat) => beat.tag == null);
+    expect(scripted.slice(0, 3).map((beat) => beat.action)).toEqual(['sniff', 'hide', 'approach']);
+    expect(warmupActions).toContain(scripted[0].action);
+    expect(['nap', 'celebrate', 'walk_off', 'flop', 'nuzzle']).toContain(generated.beats[generated.beats.length - 1].action);
   });
 
   it('uses a different template for a dog and a cat', () => {
@@ -137,6 +156,273 @@ describe('playdate generator', () => {
     expect(mixed.beats.map((beat) => beat.action)).toContain('pounce');
     expect(dogs.beats.map((beat) => beat.action)).not.toContain('pounce');
     expect(mixed.beats.map((beat) => beat.action).join()).not.toBe(dogs.beats.map((beat) => beat.action).join());
+  });
+
+  it('reacts to a win when the watcher is free, and stays quiet when that window is taken', () => {
+    const proud = snap({ snapshotId: 'proud', attributes: { ...stats(80), affection: 20, boldness: 80 } });
+    const calm = snap({ snapshotId: 'calm', attributes: { ...stats(80), affection: 80, boldness: 80 } });
+    const open = [
+      { t: 1000, actor: 'A' as const, action: 'win' },
+      { t: 8000, actor: 'both' as const, action: 'celebrate' },
+    ];
+    const reacted = addReactions(open.map((beat) => ({ ...beat })), calm, proud, () => 0);
+    const added = reacted.filter((beat) => beat.tag === 'reaction');
+    expect(added).toHaveLength(1);
+    expect(added[0]?.actor).toBe('B');
+    expect(added[0]?.t).toBe(1150);
+    expect(added[0]?.gesture).toBe('double_take');
+    expect(reacted[reacted.length - 1]?.t).toBe(8000);
+    expect(reacted[reacted.length - 1]?.action).toBe('celebrate');
+    for (let i = 1; i < reacted.length; i += 1) {
+      expect(reacted[i].t).toBeGreaterThanOrEqual(reacted[i - 1].t);
+    }
+
+    const shyWatcher = snap({ snapshotId: 'shy-watch', attributes: { ...stats(10), affection: 10, boldness: 10 } });
+    const glanced = addReactions(open.map((beat) => ({ ...beat })), calm, shyWatcher, () => 0);
+    expect(glanced.find((beat) => beat.tag === 'reaction')?.gesture).toBe('glance');
+
+    const blocked = addReactions(
+      [
+        { t: 1000, actor: 'A' as const, action: 'win' },
+        { t: 1200, actor: 'B' as const, action: 'sit' },
+        { t: 8000, actor: 'both' as const, action: 'celebrate' },
+      ],
+      calm,
+      proud,
+      () => 0,
+    );
+    expect(blocked.some((beat) => beat.tag === 'reaction')).toBe(false);
+  });
+
+  it('varies twists and variants without moving the closing beat', () => {
+    const floor = sceneById('park').floor;
+    const dog = (id: string, boldness: number, agility: number) =>
+      snap({ snapshotId: id, attributes: { ...stats(50), boldness, agility, affection: 20 } });
+    const kitty = (id: string, boldness: number) =>
+      snap({
+        snapshotId: id,
+        species: 'cat',
+        breedId: 'domesticShorthair',
+        attributes: { ...stats(50), boldness, affection: 20 },
+      });
+    const pets: Record<SpeciesPair, [PetSnapshot, PetSnapshot]> = {
+      'dog-dog': [dog('dog-a', 80, 70), dog('dog-b', 40, 55)],
+      'cat-cat': [kitty('cat-a', 70), kitty('cat-b', 30)],
+      'dog-cat': [dog('dog-c', 60, 50), kitty('cat-c', 65)],
+    };
+    const twistIds = new Set<string>();
+    const perActivity = new Map<string, Set<string>>();
+    for (const played of activities) {
+      const seen = new Set<string>();
+      for (const pair of played.speciesPairs) {
+        const [petA, petB] = pets[pair];
+        for (let seed = 0; seed < 50; seed += 1) {
+          const beats = generatePlaydate({ petA, petB, activity: played, sceneId: 'park', seed, bond: 10 }).beats;
+          const last = beats[beats.length - 1];
+          expect(['nap', 'celebrate', 'walk_off', 'flop', 'nuzzle']).toContain(last.action);
+          expect(last.t).toBe(playdateEndMs(beats) - closingHoldMs);
+          expect(beats.some((beat) => beat.tag?.startsWith('twist:'))).toBe(true);
+          expect(beats.some((beat) => beat.tag?.startsWith('variant:intro:'))).toBe(true);
+          expect(beats.some((beat) => beat.tag?.startsWith('variant:main:'))).toBe(true);
+          expect(beats.some((beat) => beat.tag?.startsWith('variant:finale:'))).toBe(true);
+          for (let i = 1; i < beats.length; i += 1) {
+            expect(beats[i].t).toBeGreaterThanOrEqual(beats[i - 1].t);
+            if (beats[i].tag?.startsWith('twist:')) {
+              expect(beats[i].t).not.toBe(beats[i - 1].t);
+              const id = beats[i].tag?.slice('twist:'.length) ?? '';
+              twistIds.add(id);
+              seen.add(id);
+            }
+            const point = beats[i].params;
+            if (point?.x != null && point.y != null) {
+              expect(point.x).toBeGreaterThanOrEqual(floor.xMin);
+              expect(point.x).toBeLessThanOrEqual(floor.xMax);
+              expect(point.y).toBeGreaterThanOrEqual(floor.yMin);
+              expect(point.y).toBeLessThanOrEqual(floor.yMax);
+            }
+          }
+          if (played.id === 'fetch') {
+            const runs = beats.filter((beat) => beat.action === 'run_to' && beat.params?.x != null && beat.params.toward == null);
+            for (const beat of beats) {
+              if (!beat.prop?.throwTo) {
+                continue;
+              }
+              const runner = runs.find((other) => other.t >= beat.t && beats.indexOf(other) > beats.indexOf(beat));
+              expect(runner?.params?.x).toBe(beat.prop.throwTo.x);
+              expect(runner?.params?.y).toBe(beat.prop.throwTo.y);
+            }
+          }
+        }
+      }
+      perActivity.set(played.id, seen);
+    }
+    expect(twistIds.size).toBeGreaterThanOrEqual(6);
+    for (const ids of perActivity.values()) {
+      expect(ids.size).toBeGreaterThan(0);
+    }
+  });
+
+  it('skips the twist that just played when another one is eligible', () => {
+    for (let seed = 0; seed < 30; seed += 1) {
+      const beats = generatePlaydate({
+        petA: bold,
+        petB: shy,
+        activity: activity('sniff'),
+        sceneId: 'park',
+        seed,
+        latestTags: ['butterfly'],
+        bond: 0,
+      }).beats;
+      expect(beats.some((beat) => beat.tag === 'twist:butterfly')).toBe(false);
+    }
+  });
+
+  it('derives the prop from the latest beat at that time', () => {
+    const beats = [
+      { t: 0, actor: 'A' as const, action: 'play_bow', prop: { kind: 'ball' as const, holder: 'A' as const, throwTo: { x: 400, y: 200 }, at: { x: 100, y: 200 } } },
+      { t: 1000, actor: 'B' as const, action: 'run_to', prop: { kind: 'ball' as const, holder: 'B' as const } },
+    ];
+    expect(propAt(beats, 0)?.holder).toBeNull();
+    expect(propAt(beats, 0)?.z).toBe(0);
+    expect(propAt(beats, 250)?.holder).toBeNull();
+    expect(propAt(beats, 250)?.z).toBeGreaterThan(0);
+    expect(propAt(beats, 500)).toMatchObject({ holder: null, x: 400, y: 200, z: 0 });
+    expect(propAt(beats, 1000)?.holder).toBe('B');
+  });
+
+  it('lets a close contest go either way and keeps a long shot rare', () => {
+    expect(favoriteChance(0)).toBe(0.5);
+    expect(favoriteChance(10_000)).toBeCloseTo(0.88, 2);
+    const even = snap({ snapshotId: 'even-a', attributes: stats(40) });
+    const twin = snap({ snapshotId: 'even-b', attributes: stats(40) });
+    const winners = new Set<string>();
+    for (let seed = 0; seed < 40; seed += 1) {
+      const beats = generatePlaydate({ petA: even, petB: twin, activity: activity('chase'), sceneId: 'park', seed }).beats;
+      const win = beats.find((beat) => beat.action === 'win');
+      if (win) {
+        winners.add(win.actor);
+      }
+      expect(generatePlaydate({ petA: even, petB: twin, activity: activity('chase'), sceneId: 'park', seed }).beats).toEqual(beats);
+    }
+    expect(winners.has('A')).toBe(true);
+    expect(winners.has('B')).toBe(true);
+
+    const star = snap({ snapshotId: 'star', attributes: { ...stats(5), stamina: 100 } });
+    const pup = snap({ snapshotId: 'pup', attributes: { ...stats(5), stamina: 0 } });
+    let upsets = 0;
+    let played = 0;
+    for (let seed = 0; seed < 80; seed += 1) {
+      const generated = generatePlaydate({ petA: star, petB: pup, activity: activity('chase'), sceneId: 'park', seed });
+      played += 1;
+      if (generated.outcome.rareEvents.some((event) => event.type === 'upset')) {
+        upsets += 1;
+      }
+    }
+    expect(upsets / played).toBeLessThan(0.5);
+  });
+
+  it('celebrates an upset and shows a trick in the finale', () => {
+    const star = snap({ snapshotId: 'star-2', attributes: { ...stats(90), stamina: 100, affection: 80 } });
+    const pup = snap({ snapshotId: 'pup-2', attributes: { ...stats(10), stamina: 0, affection: 80 }, partyTricks: ['speak'] });
+    let upset = null as ReturnType<typeof generatePlaydate> | null;
+    let shown = null as ReturnType<typeof generatePlaydate> | null;
+    for (let seed = 0; seed < 200 && (!upset || !shown); seed += 1) {
+      const generated = generatePlaydate({ petA: star, petB: pup, activity: activity('chase'), sceneId: 'park', seed });
+      if (!upset && generated.outcome.rareEvents.some((event) => event.type === 'upset')) {
+        upset = generated;
+      }
+      if (!shown && generated.beats.some((beat) => beat.tag === 'trick_shown')) {
+        shown = generated;
+      }
+    }
+    expect(upset?.beats.some((beat) => beat.tag === 'upset' && beat.emote === 'sparkle' && beat.fx === 'confetti')).toBe(true);
+    expect(upset?.beats.some((beat) => beat.tag === 'upset' && beat.gesture === 'double_take' && beat.emote === 'exclaim')).toBe(true);
+    const trick = shown?.beats.find((beat) => beat.tag === 'trick_shown');
+    expect(trick?.actor).toBe('B');
+    expect(trick?.action).toBe('speak');
+    expect(trick?.emote).toBe('sparkle');
+    expect(shown?.beats.some((beat) => beat.actor === 'A' && beat.action === 'celebrate' && beat.t === trick?.t)).toBe(true);
+    const finale = shown?.beats.find((beat) => beat.tag?.startsWith('variant:finale:'));
+    const closing = shown?.beats[shown.beats.length - 1];
+    expect(trick && finale && closing && trick.t >= finale.t && trick.t < closing.t).toBe(true);
+  });
+
+  it('tags a golden closing when that rare roll hits', () => {
+    let golden = 0;
+    for (let seed = 0; seed < 150; seed += 1) {
+      const beats = generatePlaydate({ petA: bold, petB: shy, activity: activity('sniff'), sceneId: 'park', seed }).beats;
+      if (beats[beats.length - 1]?.tag === 'golden') {
+        golden += 1;
+        expect(['nap', 'celebrate']).toContain(beats[beats.length - 1]?.action);
+      }
+    }
+    expect(golden).toBeGreaterThan(0);
+  });
+
+  it('lands the closing beat at lastT for every activity', () => {
+    for (let seed = 0; seed < 50; seed += 1) {
+      for (const played of activities) {
+        const beats = generatePlaydate({ petA: bold, petB: shy, activity: played, sceneId: 'park', seed }).beats;
+        const last = beats[beats.length - 1];
+        expect(last.t).toBe(playdateEndMs(beats) - closingHoldMs);
+        for (let i = 1; i < beats.length; i += 1) {
+          expect(beats[i].t).toBeGreaterThanOrEqual(beats[i - 1].t);
+          expect(beats[i].t).toBeLessThanOrEqual(last.t);
+        }
+      }
+    }
+  });
+
+  it('replays a stored version 1 record at the same beatAt samples', () => {
+    const record = replayFixture.record as PlaydateRecord;
+    const beats = record.beats;
+    expect(record.version).toBe(1);
+    expect(replayBeats(record)).toBe(beats);
+    for (const sample of replayFixture.samples) {
+      expect(beatAt(beats, sample.ms, 'A')).toEqual(sample.A);
+      expect(beatAt(beats, sample.ms, 'B')).toEqual(sample.B);
+    }
+  });
+
+  it('keeps the camera off until a punch or shake is inside its window', () => {
+    const quiet = [{ t: 0, actor: 'A' as const, action: 'sit' }];
+    expect(cameraAt(quiet, 500, new Map(), false, 1)).toBeUndefined();
+    const punch = [{ t: 1000, actor: 'both' as const, action: 'win', camera: 'punch' }];
+    expect(cameraAt(punch, 1000, new Map(), false, 1)?.zoom).toBeCloseTo(1);
+    expect(cameraAt(punch, 1180, new Map(), false, 1)?.zoom).toBeCloseTo(1.06);
+    expect(cameraAt(punch, 1580, new Map(), false, 1)?.zoom).toBeCloseTo(1.06);
+    expect(cameraAt(punch, 1780, new Map(), false, 1)?.zoom).toBeCloseTo(1);
+    expect(cameraAt(punch, 1781, new Map(), false, 1)).toBeUndefined();
+    expect(cameraAt(punch, 1100, new Map(), true, 1)).toBeUndefined();
+    const edge = cameraAt(punch, 1180, new Map([[0, { x: 0, y: 0 }]]), false, 1);
+    const half = stageWidth / 1.06 / 2;
+    const top = (stageHeight * 0.62) / 1.06;
+    expect(edge?.x).toBeCloseTo(half);
+    expect(edge?.y).toBeCloseTo(top);
+    const shake = [{ t: 400, actor: 'both' as const, action: 'flop', camera: 'shake' }];
+    expect(cameraAt(shake, 480, new Map(), false, 9)).toEqual(cameraAt(shake, 480, new Map(), false, 9));
+  });
+
+  it('fires each sfx beat index once and stays quiet on an unknown name', () => {
+    const beats = [
+      { t: 1000, actor: 'A' as const, action: 'sit', sfx: 'bark' },
+      { t: 1000, actor: 'B' as const, action: 'sit', sfx: 'meow' },
+    ];
+    const fired = new Set<number>();
+    expect(crossBeats(beats, 1000, fired)).toEqual([0, 1]);
+    expect(crossBeats(beats, 1000, fired)).toEqual([]);
+    expect(sfxShots(beats[0], () => 'dog').map((shot) => shot.speak)).toEqual([true]);
+    expect(sfxShots(beats[1], () => 'cat').map((shot) => shot.speak)).toEqual([true]);
+    expect(resolveSfx('honk', 'dog')).toBeNull();
+    expect(resolveSfx('squeak', 'cat')).toBeNull();
+    expect(sfxShots({ t: 0, actor: 'A', action: 'sit', sfx: 'honk' }, () => 'dog')).toEqual([]);
+    const cues = [
+      { t: 10_000, actor: 'A' as const },
+      { t: 30_000, actor: 'B' as const },
+    ];
+    expect(ambientCues(2, cues, [])).toEqual([cues[0]]);
+    expect(ambientCues(2, cues, [{ t: 9000, actor: 'A', action: 'win', sfx: 'bark' }])).toEqual([]);
+    expect(ambientCues(1, cues, [{ t: 9000, actor: 'A', action: 'win', sfx: 'bark' }])).toEqual(cues);
   });
 
   it('places a few voices inside the playdate, the same way each time', () => {
@@ -228,6 +514,19 @@ describe('playdate roster and activities', () => {
 });
 
 describe('playdate rewards, cooldown, and history', () => {
+  it('reads twist tags from version 2 history only', () => {
+    const older = recordFor('pd-1', 'npc-1');
+    const newer = {
+      ...recordFor('pd-2', 'npc-2'),
+      version: 2 as const,
+      beats: [
+        { t: 0, actor: 'A' as const, action: 'sit', tag: 'spin' },
+        { t: 1000, actor: 'both' as const, action: 'nap' },
+      ],
+    };
+    expect(recentPlaydateTags([older, newer])).toEqual(['spin']);
+  });
+
   it('caps happiness and attributes and leaves level, bond, and outfit alone', () => {
     const pet = testPet(8, 'corgi', 50, 'Pip', 'pet');
     pet.needs.happiness = 95;
@@ -327,6 +626,35 @@ describe('playdate rewards, cooldown, and history', () => {
 });
 
 describe('playdate choreography', () => {
+  it('gives zoomies its own pace and leaves a run at the old pace', () => {
+    const floor = sceneById('park').floor;
+    const context = { self: { x: 200, y: 300 }, other: { x: 400, y: 300 }, reach: 80, floor };
+    const run = directionFor({ t: 0, actor: 'A', action: 'run_to' }, 'A', context);
+    const zoom = directionFor({ t: 0, actor: 'A', action: 'zoomies' }, 'A', context);
+    expect(run.pose).toBe('run');
+    expect(run.pace).toBe(0.92);
+    expect(zoom.pose).toBe('zoomies');
+    expect(zoom.pace).toBe(1);
+    expect(poseFor('skid')).toBe('skid');
+    expect(poseFor('roll_over')).toBe('roll_over');
+    expect(poseFor('flop')).toBe('flop');
+  });
+
+  it('spawns emotes and fx only for a version 2 beat that asks for them', () => {
+    const at = { version: 2 as const, seed: 3, actor: 'A' as const, beatT: 1200, x: 10, y: 20, reduced: false };
+    expect(burstFor({ ...at, version: 1, emote: 'heart' })).toBeNull();
+    expect(burstFor(at)).toBeNull();
+    const heart = burstFor({ ...at, emote: 'heart' });
+    expect(heart?.emote).toBe('heart');
+    expect(heart?.particles).toEqual([]);
+    const confetti = burstFor({ ...at, fx: 'confetti', reduced: true });
+    expect(confetti?.particles.length).toBeLessThanOrEqual(6);
+    expect(confetti?.particles.every((bit) => bit.spin === 0)).toBe(true);
+    expect(burstFor({ ...at, fx: 'confetti' })?.particles.length).toBe(12);
+  });
+});
+
+describe('playdate choreography', () => {
   const dogA = snap({ snapshotId: 'dog-a', attributes: { ...stats(50), boldness: 80, agility: 70 } });
   const dogB = snap({ snapshotId: 'dog-b', attributes: { ...stats(50), boldness: 60, agility: 40 } });
   const ids = ['fetch', 'tug', 'race', 'chase', 'hide', 'sniff', 'splash', 'nap', 'trick'];
@@ -344,25 +672,47 @@ describe('playdate choreography', () => {
     expect(new Set(shapes).size).toBe(ids.length);
   });
 
-  it('sends the pets at each other: a chase has one following while the other runs away', () => {
+  it('sends the pets at each other, and an undelayed chase pair shares a start', () => {
     const beats = play('chase');
-    const follows = beats.filter((beat) => beat.params?.toward === 'partner');
-    const flees = beats.filter((beat) => beat.params?.toward === 'away');
-    expect(follows.length).toBeGreaterThanOrEqual(2);
-    expect(flees.length).toBeGreaterThanOrEqual(2);
-    for (const run of follows) {
-      expect(flees.some((other) => other.t === run.t && other.actor !== run.actor)).toBe(true);
+    let shared = 0;
+    for (let i = 1; i < beats.length; i += 1) {
+      if (beats[i].tag?.startsWith('twist:')) {
+        expect(beats[i].t).not.toBe(beats[i - 1].t);
+      }
+      if (beats[i].t === beats[i - 1].t && beats[i].params?.toward && beats[i - 1].params?.toward) {
+        shared += 1;
+      }
     }
+    expect(shared).toBeGreaterThan(0);
   });
 
-  it('runs a race in two lanes to one finish, the winner faster', () => {
-    const runs = play('race').filter((beat) => beat.action === 'run_to');
-    expect(runs).toHaveLength(2);
-    expect(runs[0].actor).not.toBe(runs[1].actor);
-    expect(runs[0].t).toBe(runs[1].t);
-    expect(runs[0].params?.x).toBe(runs[1].params?.x);
-    expect(runs[0].params?.spread).toBe('y');
-    expect(runs[0].params?.pace).toBeGreaterThan(runs[1].params?.pace ?? 1);
+  it('runs a race in two lanes that share a start when neither step is delayed', () => {
+    const beats = play('race');
+    for (let i = 1; i < beats.length; i += 1) {
+      if (beats[i].tag?.startsWith('twist:')) {
+        expect(beats[i].t).not.toBe(beats[i - 1].t);
+      }
+    }
+    const lanes = beats.filter((beat) => beat.action === 'run_to' && beat.params?.spread === 'y');
+    const groups = new Map<number, number>();
+    for (const beat of lanes) {
+      groups.set(beat.t, (groups.get(beat.t) ?? 0) + 1);
+    }
+    const paired = [...groups.values()].some((count) => count >= 2) || lanes.some((beat) => beat.actor === 'both');
+    expect(paired).toBe(true);
+  });
+
+  it('starts a delayed parallel step exactly that many milliseconds later', () => {
+    const still = () => 0.5;
+    const times = slotTimes(
+      [{ weight: 1 }, { parallel: true, delay: 250 }, { weight: 1 }, { parallel: true }],
+      10_000,
+      still,
+    );
+    expect(times[1] - times[0]).toBe(250);
+    expect(times[2]).toBe(times[3]);
+    const clamped = slotTimes([{ weight: 1 }, { parallel: true, delay: 9_000 }, { weight: 1 }], 10_000, still);
+    expect(clamped[1]).toBe(clamped[2] - 1);
   });
 
   it('follows the partner, meets halfway, and runs away inside the floor', () => {

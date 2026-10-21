@@ -11,6 +11,10 @@ const clips: Partial<Record<SoundEvent['sound'], number>> = {
   cuddle_happy: require('../../assets/sounds/yodguard-friendly-small-dog-bark-1-535470.mp3'),
   // Short cut of the 9 s pant: about 2.2 s with a fade-out. Keep the full file for later idle use.
   cuddle_pant: require('../../assets/sounds/fnx_sound-animated-dog-panting-287307-short.mp3'),
+  growl: require('../../assets/sounds/freesound_community-dog-growl-61002-short.mp3'),
+  sneeze: require('../../assets/sounds/dragon-studio-sneeze-390286-short.mp3'),
+  sneeze_cat: require('../../assets/sounds/arunangshubanerjee-sick-cat-sneezing-realistic-pet-sound-332672-short.mp3'),
+  trill: require('../../assets/sounds/arunangshubanerjee-excited-cat-meowing-anticipating-food-331462-short.mp3'),
 };
 
 // Two players per clip so the second bark of a pair can start while the first is still ringing.

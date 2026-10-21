@@ -86,3 +86,34 @@ export function clearPet(save: PlaydateSave, petId: string): PlaydateSave {
 export function castOf(save: PlaydateSave): PetSnapshot[] {
   return save.cast;
 }
+
+// Twist ids from the records still kept. Version 1 beats have none.
+function tagsOf(record: PlaydateRecord): string[] {
+  const tags: string[] = [];
+  for (const beat of record.beats) {
+    if (beat.tag) {
+      tags.push(beat.tag);
+    }
+  }
+  return tags;
+}
+
+export function recentPlaydateTags(history: readonly PlaydateRecord[]): string[] {
+  const tags: string[] = [];
+  for (const record of history) {
+    if (record.version < 2) {
+      continue;
+    }
+    tags.push(...tagsOf(record));
+  }
+  return tags;
+}
+
+// Tags from the newest record only. Version 1 contributes nothing, so a twist just played can be avoided.
+export function latestPlaydateTags(history: readonly PlaydateRecord[]): string[] {
+  const record = history[0];
+  if (!record || record.version < 2) {
+    return [];
+  }
+  return tagsOf(record);
+}

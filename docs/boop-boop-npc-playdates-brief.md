@@ -23,8 +23,8 @@ Everything is local and works offline. Saved data is keyed to `ownerId`.
 4. Activity picker. Up to 3 activities that fit the pair, the place, and both ages, with the attributes each one trains.
 5. "Choose {name}'s playdate outfit!" The starter wardrobe, opening on the everyday outfit. The choice is stored on the playdate only.
 6. Playback at hour 14.
-7. Results: happiness, a bar for each trained attribute, bond, and any rare line. Each bar shows the score before (the app's dark color), the gain (green, right after it), and the potential (a pale bar behind). The row also shows the new total over potential and the gain as numbers. Replay or finish. A replay from history shows no bars.
-8. Recent playdates, newest first, at most 3. Opening one replays the saved beats and does not pay rewards again.
+7. Results: happiness, a bar for each trained attribute, bond, and any rare line. Each bar shows the score before (the app's dark color), the gain (green, right after it), and the potential (a pale bar behind). The row also shows the new total over potential and the gain as numbers. An upset and a golden closing each get a line when the record has them. Replay or finish. A replay from history shows no bars.
+8. Recent playdates, newest first, at most 3. Opening one replays the saved beats and does not pay rewards again. The row names an upset or a golden moment when the stored record has one.
 
 ## Data model
 
@@ -82,7 +82,7 @@ Dog-cat pairings use their own templates. Cats get a longer approach, a pounce o
 
 ```ts
 type PlaydateRecord = {
-  version: 1;
+  version: 1 | 2;                  // new records are 2. A version 1 replay uses the stored beats as they were
   playdateId: string;
   ownerId: string;
   createdAt: string;
@@ -110,17 +110,29 @@ type Beat = {
     lane?: number;                 // sideways shift, so pets can circle
     spread?: 'x' | 'y';            // two pets sent to one spot line up in x or in y (lanes)
   };
+  emote?: string;                  // set only when the step named it
+  fx?: string;
+  sfx?: string;
+  camera?: 'punch' | 'shake';
+  tag?: string;
+  gesture?: string;
+  prop?: { kind: 'ball' | 'frisbee' | 'squeaky' | 'stick' | 'rope'; holder?: 'A' | 'B' | 'both' | null };
+  tempo?: 'snap' | 'normal' | 'linger';
+  holdBefore?: number;
+  delay?: number;
 };
 
 type PlaydateOutcome = {
   moodDelta: number;               // happiness points
   attributeXp: Partial<Record<Trait, number>>;
   bondDelta: number;
-  rareEvents: Array<{ type: 'trick_shown'; trickId: 'sit' | 'paw' | 'speak' }>;
+  rareEvents: Array<
+    { type: 'trick_shown'; trickId: 'sit' | 'paw' | 'speak' } | { type: 'upset' }
+  >;
 };
 ```
 
-Save the beats. Replays read `beats` and never re-run the generator.
+Save the beats. Replays read `beats` and never re-run the generator. A version 1 record keeps today's voice-cue timing and does not play emotes, effects, or camera. New action names are added beside old ones. `tug` still rocks the old way. `tug_rope` is the rope tug.
 
 ### Relationship
 
@@ -144,19 +156,21 @@ For a partner and a place, offer every legal activity up to 3. Weight the pick t
 
 ### Timeline
 
-`generatePlaydate({ petA, petB, activity, scene, seed })` returns beats and an outcome. The RNG is seeded. No `Math.random()` and no `Date.now()` on this path.
+`generatePlaydate({ petA, petB, activity, sceneId, seed, recentTags, latestTags, bond })` returns beats and an outcome. The RNG is seeded. No `Math.random()` and no `Date.now()` on this path. Scene placement, tempo, story picks, and the winner each use their own stream, so a new roll does not move the others.
 
+- Each activity template has intro, main, and finale variants. A twist can replace or follow part of the main act. A twist that just played is not picked again while another one fits.
 - Boldness chooses who moves first. If either pet's boldness is under 40, the timeline opens with 1 to 3 beats: sniff, hide, then approach. It still ends in play.
-- Affection can add a nuzzle before the close.
-- Agility picks the race winner. Stamina picks the chase or tug winner and stretches the timeline toward 90 seconds.
-- Intelligence raises the chance of a `trick_shown` result. The line is display-only.
-- The timeline ends on nap, celebrate, or walk off together. A nap playdate always ends asleep.
-- Length, including a short hold on the last beat, is 45 to 90 seconds.
+- Affection at 55 or more adds a nuzzle before the close.
+- A race compares agility. Anything else compares stamina. The favorite's chance is `0.5 + 0.38 * tanh(gap / 25)`. A tie is the roll, and a tie is not an upset. One winner roll covers every winner and loser beat. When the underdog wins, the winner celebrates and the loser does a double-take, and the results call it an upset.
+- Intelligence raises the chance of a `trick_shown` result. When it hits, the guest shows sit, paw, or speak in the finale and the host celebrates. Speak opens the mouth. The line is display-only.
+- One closing roll, then the closing place. A nap playdate always ends asleep. Otherwise, about 1 in 50 is a shared nap with one heart, and about 1 in 25 is both pets celebrating toward the camera. Both are tagged golden. After an upset with affection at 55 or more, the loser nuzzles. After zoomies, both flop. The rest end on nap, celebrate, or walk off together.
+- The watcher reacts when a beat leaves them free. A shy watcher glances instead of a full-body reaction.
+- Length, including a short hold on the last beat, is 45 to 90 seconds. The closing beat stays at the end.
 
 Each activity has its own choreography. Steps carry a weight (share of the time) and can start together with the step before, so one pet can chase while the other runs. Beats that follow the partner are worked out again every frame.
 
-- Fetch: one pet runs out and brings it back, then they swap. With a cat, the cat stalks and pounces.
-- Tug: they meet in the middle, bow, then the pair rocks back and forth until one wins.
+- Fetch: one pet throws a ball, stick, or squeaky and the other brings it back, then they swap. With a cat, the cat stalks and pounces. A squeak stays silent until that clip exists.
+- Tug: they meet in the middle and pull a rope until one wins. The rope is a curve between their mouths, and the tug gets one growl.
 - Race: line up, sit ready, then run in separate lanes to one finish. The faster pet runs faster. Left and right swap by seed.
 - Chase: one follows the other, who runs away (a cornered pet doubles back). Then they swap.
 - Hide-and-seek: the shy pet sneaks off, the bold one waits, searches, and finds them.
@@ -167,9 +181,13 @@ Each activity has its own choreography. Steps carry a weight (share of the time)
 
 ### Player
 
-A separate world spawns both snapshots. Hour 14 goes through `todAt`. Directed mode maps a known action onto the existing pose channels (walk, run, sit, sleep, jump, pant, paw, bow, stalk, pounce) and does not let idle, zoomies, or fetch take over. An unknown action is skipped. Home play never sets directed mode.
+A separate world spawns both snapshots. Hour 14 goes through `todAt`. Directed mode maps a known action onto the existing pose channels (walk, run, sit, sleep, jump, pant, paw, bow, stalk, pounce, and the later skid, zoomies, roll, and flop) and does not let idle or fetch take over. An unknown action is skipped. A gesture plays on top of the action. Home play never sets directed mode.
 
-Contact: each frame the player works out body size for both pets, aims follow-the-partner beats at the partner's live position, then pushes overlapping bodies apart (a limited speed, so nothing pops). The floor is wide front to back and shallow side to side, so pets in different rows pass in front of or behind one another, and a head-on pair slips past. Pets are not pushed while one is airborne. A stopped pet faces its partner. A tug rocks both pets the same way.
+Version 2 fires each beat once, by its index, the first time playback passes that time. Two beats that share a time both fire. Sound comes from the beat: bark and meow use the speak path, a yip is the bark a little faster, and purr, pant, happy, sneeze, growl, and trill play their clips. Squeak, boing, and whoosh stay silent. Version 2 keeps only the first ambient voice cue, and drops it when a sound beat is within 1.5 seconds. Version 1 still plays the full cue list.
+
+A punch or a shake runs only while that beat's window is open, and only for version 2. Reduced motion ignores both. With no camera beat active, the frame is the same as before. A photo finish and an upset punch in. A tug flip shakes. Zoomies punches once at the skid.
+
+Contact: each frame the player works out body size for both pets, aims follow-the-partner beats at the partner's live position, then pushes overlapping bodies apart (a limited speed, so nothing pops). The floor is wide front to back and shallow side to side, so pets in different rows pass in front of or behind one another, and a head-on pair slips past. Pets are not pushed while one is airborne. A stopped pet faces its partner. A `tug` beat rocks both pets the same way.
 
 Skip and a natural ending share one completion path. Replay uses the saved beats only.
 
@@ -181,7 +199,7 @@ Applied once, on complete or skip:
 - Flat attribute points from `attributesTrained`, which are the attributes the activity card lists. They are added on top of the score the pet shows (the higher of stored current and natural growth), stored in current, and clamped at potential. No `trainingGain`, no level XP, no change to `pet.bond`.
 - The results bars use the shown score before and after, worked out from the pet before the rewards are paid. Aging or a cap can make the shown gain smaller than the points.
 - Partner bond `+8`, clamped at 100.
-- A rare "showed off a trick" line when the roll hits. Nothing is stored on the pet.
+- A rare "showed off a trick" line when the roll hits, and an upset line when the underdog won. Nothing is stored on the pet.
 
 ### Cooldown
 
@@ -208,7 +226,10 @@ One local blob per `ownerId`: cast, relationships, history (newest first, max 3)
 - Each day's NPCs include at least one dog and one cat.
 - A senior is never offered a race. Splash appears only in the park, and only for two dogs.
 - A dog-cat playdate is never offered tug-of-war or splash, and its beats are not the dog-dog template.
-- A low-boldness pairing opens with warm-up beats and still ends on nap, celebrate, or walk off.
+- A low-boldness pairing opens with warm-up beats and still ends warmly: nap, celebrate, walk off, flop, or nuzzle. A golden closing is tagged golden.
+- The same seed repeats a contest. A tie is an even chance. A huge stat gap still leaves the underdog a small chance, and an upset record includes the celebration and the double-take.
+- A shown trick has a finale beat and a partner celebrate. The closing beat stays at the end of the timeline.
+- Version 1 replays match the stored beat samples. Version 2 uses at most one ambient cue. Parallel sound beats at the same time each fire once. An unknown sound stays silent. With no camera beat active, the stage passes no camera. A punch follows the zoom curve, and the same seed shakes the same way.
 - Rewards apply once, including after skip. Happiness never passes 100. Attribute current never passes potential. A second settle of the same id does not pay again.
 - Each activity plays a different sequence of moves. A chase has one pet following while the other runs away. A race runs in two lanes to one finish. Pets never overlap in any activity, and pets get close in tug, chase, sniff, nap, and hide-and-seek.
 - Results show a bar for each trained attribute with the before, the gain, and the potential, plus the new total and the gain as numbers.

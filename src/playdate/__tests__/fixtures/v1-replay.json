@@ -1,0 +1,2367 @@
+{
+  "record": {
+    "version": 1,
+    "playdateId": "v1-fixture",
+    "ownerId": "owner",
+    "createdAt": "2026-10-19T12:00:00.000Z",
+    "sceneId": "park",
+    "hour": 14,
+    "petA": {
+      "source": "npc",
+      "name": "bold",
+      "species": "dog",
+      "breedId": "retriever",
+      "look": {
+        "coat": "#d9a441"
+      },
+      "equipped": {},
+      "ageDays": 16,
+      "weight": 0,
+      "vitality": 1,
+      "seed": 1,
+      "originArchetype": "athlete",
+      "currentStyle": "athlete",
+      "attributes": {
+        "stamina": 50,
+        "agility": 50,
+        "intelligence": 50,
+        "boldness": 80,
+        "affection": 20,
+        "obedience": 50
+      },
+      "potential": {
+        "stamina": 80,
+        "agility": 80,
+        "intelligence": 80,
+        "boldness": 80,
+        "affection": 80,
+        "obedience": 80
+      },
+      "favoriteActivities": [],
+      "partyTricks": [
+        "paw"
+      ],
+      "createdAt": "t",
+      "snapshotId": "bold"
+    },
+    "petB": {
+      "source": "npc",
+      "name": "shy",
+      "species": "dog",
+      "breedId": "retriever",
+      "look": {
+        "coat": "#d9a441"
+      },
+      "equipped": {},
+      "ageDays": 16,
+      "weight": 0,
+      "vitality": 1,
+      "seed": 1,
+      "originArchetype": "athlete",
+      "currentStyle": "athlete",
+      "attributes": {
+        "stamina": 50,
+        "agility": 50,
+        "intelligence": 50,
+        "boldness": 10,
+        "affection": 20,
+        "obedience": 50
+      },
+      "potential": {
+        "stamina": 80,
+        "agility": 80,
+        "intelligence": 80,
+        "boldness": 80,
+        "affection": 80,
+        "obedience": 80
+      },
+      "favoriteActivities": [],
+      "partyTricks": [
+        "paw"
+      ],
+      "createdAt": "t",
+      "snapshotId": "shy"
+    },
+    "activityId": "chase",
+    "outfit": {},
+    "seed": 42,
+    "beats": [
+      {
+        "t": 0,
+        "actor": "B",
+        "action": "sniff",
+        "params": {
+          "toward": "partner",
+          "gap": 2,
+          "pace": 0.3
+        }
+      },
+      {
+        "t": 5537,
+        "actor": "B",
+        "action": "hide",
+        "params": {
+          "x": 147,
+          "y": 280,
+          "pace": 0.5
+        }
+      },
+      {
+        "t": 11074,
+        "actor": "A",
+        "action": "approach",
+        "params": {
+          "toward": "partner",
+          "gap": 1.6,
+          "pace": 0.35
+        }
+      },
+      {
+        "t": 16611,
+        "actor": "A",
+        "action": "run_to",
+        "params": {
+          "toward": "partner",
+          "gap": 1.05,
+          "pace": 0.9
+        }
+      },
+      {
+        "t": 16611,
+        "actor": "B",
+        "action": "run_to",
+        "params": {
+          "toward": "away",
+          "pace": 0.85
+        }
+      },
+      {
+        "t": 27685,
+        "actor": "A",
+        "action": "play_bow",
+        "params": {
+          "x": 390,
+          "y": 274
+        }
+      },
+      {
+        "t": 27685,
+        "actor": "B",
+        "action": "sit",
+        "params": {
+          "x": 109,
+          "y": 425
+        }
+      },
+      {
+        "t": 31145,
+        "actor": "B",
+        "action": "run_to",
+        "params": {
+          "toward": "partner",
+          "gap": 1.05,
+          "pace": 0.9
+        }
+      },
+      {
+        "t": 31145,
+        "actor": "A",
+        "action": "run_to",
+        "params": {
+          "toward": "away",
+          "pace": 0.85
+        }
+      },
+      {
+        "t": 42219,
+        "actor": "A",
+        "action": "win",
+        "params": {
+          "x": 368,
+          "y": 347
+        }
+      },
+      {
+        "t": 42219,
+        "actor": "B",
+        "action": "pant",
+        "params": {
+          "x": 494,
+          "y": 235
+        }
+      },
+      {
+        "t": 49140,
+        "actor": "both",
+        "action": "celebrate",
+        "params": {
+          "x": 464,
+          "y": 372
+        }
+      }
+    ],
+    "outcome": {
+      "moodDelta": 12,
+      "attributeXp": {
+        "stamina": 3,
+        "agility": 2
+      },
+      "bondDelta": 8,
+      "rareEvents": []
+    }
+  },
+  "samples": [
+    {
+      "ms": 0,
+      "A": null,
+      "B": {
+        "t": 0,
+        "actor": "B",
+        "action": "sniff",
+        "params": {
+          "toward": "partner",
+          "gap": 2,
+          "pace": 0.3
+        }
+      }
+    },
+    {
+      "ms": 500,
+      "A": null,
+      "B": {
+        "t": 0,
+        "actor": "B",
+        "action": "sniff",
+        "params": {
+          "toward": "partner",
+          "gap": 2,
+          "pace": 0.3
+        }
+      }
+    },
+    {
+      "ms": 1000,
+      "A": null,
+      "B": {
+        "t": 0,
+        "actor": "B",
+        "action": "sniff",
+        "params": {
+          "toward": "partner",
+          "gap": 2,
+          "pace": 0.3
+        }
+      }
+    },
+    {
+      "ms": 1500,
+      "A": null,
+      "B": {
+        "t": 0,
+        "actor": "B",
+        "action": "sniff",
+        "params": {
+          "toward": "partner",
+          "gap": 2,
+          "pace": 0.3
+        }
+      }
+    },
+    {
+      "ms": 2000,
+      "A": null,
+      "B": {
+        "t": 0,
+        "actor": "B",
+        "action": "sniff",
+        "params": {
+          "toward": "partner",
+          "gap": 2,
+          "pace": 0.3
+        }
+      }
+    },
+    {
+      "ms": 2500,
+      "A": null,
+      "B": {
+        "t": 0,
+        "actor": "B",
+        "action": "sniff",
+        "params": {
+          "toward": "partner",
+          "gap": 2,
+          "pace": 0.3
+        }
+      }
+    },
+    {
+      "ms": 3000,
+      "A": null,
+      "B": {
+        "t": 0,
+        "actor": "B",
+        "action": "sniff",
+        "params": {
+          "toward": "partner",
+          "gap": 2,
+          "pace": 0.3
+        }
+      }
+    },
+    {
+      "ms": 3500,
+      "A": null,
+      "B": {
+        "t": 0,
+        "actor": "B",
+        "action": "sniff",
+        "params": {
+          "toward": "partner",
+          "gap": 2,
+          "pace": 0.3
+        }
+      }
+    },
+    {
+      "ms": 4000,
+      "A": null,
+      "B": {
+        "t": 0,
+        "actor": "B",
+        "action": "sniff",
+        "params": {
+          "toward": "partner",
+          "gap": 2,
+          "pace": 0.3
+        }
+      }
+    },
+    {
+      "ms": 4500,
+      "A": null,
+      "B": {
+        "t": 0,
+        "actor": "B",
+        "action": "sniff",
+        "params": {
+          "toward": "partner",
+          "gap": 2,
+          "pace": 0.3
+        }
+      }
+    },
+    {
+      "ms": 5000,
+      "A": null,
+      "B": {
+        "t": 0,
+        "actor": "B",
+        "action": "sniff",
+        "params": {
+          "toward": "partner",
+          "gap": 2,
+          "pace": 0.3
+        }
+      }
+    },
+    {
+      "ms": 5500,
+      "A": null,
+      "B": {
+        "t": 0,
+        "actor": "B",
+        "action": "sniff",
+        "params": {
+          "toward": "partner",
+          "gap": 2,
+          "pace": 0.3
+        }
+      }
+    },
+    {
+      "ms": 6000,
+      "A": null,
+      "B": {
+        "t": 5537,
+        "actor": "B",
+        "action": "hide",
+        "params": {
+          "x": 147,
+          "y": 280,
+          "pace": 0.5
+        }
+      }
+    },
+    {
+      "ms": 6500,
+      "A": null,
+      "B": {
+        "t": 5537,
+        "actor": "B",
+        "action": "hide",
+        "params": {
+          "x": 147,
+          "y": 280,
+          "pace": 0.5
+        }
+      }
+    },
+    {
+      "ms": 7000,
+      "A": null,
+      "B": {
+        "t": 5537,
+        "actor": "B",
+        "action": "hide",
+        "params": {
+          "x": 147,
+          "y": 280,
+          "pace": 0.5
+        }
+      }
+    },
+    {
+      "ms": 7500,
+      "A": null,
+      "B": {
+        "t": 5537,
+        "actor": "B",
+        "action": "hide",
+        "params": {
+          "x": 147,
+          "y": 280,
+          "pace": 0.5
+        }
+      }
+    },
+    {
+      "ms": 8000,
+      "A": null,
+      "B": {
+        "t": 5537,
+        "actor": "B",
+        "action": "hide",
+        "params": {
+          "x": 147,
+          "y": 280,
+          "pace": 0.5
+        }
+      }
+    },
+    {
+      "ms": 8500,
+      "A": null,
+      "B": {
+        "t": 5537,
+        "actor": "B",
+        "action": "hide",
+        "params": {
+          "x": 147,
+          "y": 280,
+          "pace": 0.5
+        }
+      }
+    },
+    {
+      "ms": 9000,
+      "A": null,
+      "B": {
+        "t": 5537,
+        "actor": "B",
+        "action": "hide",
+        "params": {
+          "x": 147,
+          "y": 280,
+          "pace": 0.5
+        }
+      }
+    },
+    {
+      "ms": 9500,
+      "A": null,
+      "B": {
+        "t": 5537,
+        "actor": "B",
+        "action": "hide",
+        "params": {
+          "x": 147,
+          "y": 280,
+          "pace": 0.5
+        }
+      }
+    },
+    {
+      "ms": 10000,
+      "A": null,
+      "B": {
+        "t": 5537,
+        "actor": "B",
+        "action": "hide",
+        "params": {
+          "x": 147,
+          "y": 280,
+          "pace": 0.5
+        }
+      }
+    },
+    {
+      "ms": 10500,
+      "A": null,
+      "B": {
+        "t": 5537,
+        "actor": "B",
+        "action": "hide",
+        "params": {
+          "x": 147,
+          "y": 280,
+          "pace": 0.5
+        }
+      }
+    },
+    {
+      "ms": 11000,
+      "A": null,
+      "B": {
+        "t": 5537,
+        "actor": "B",
+        "action": "hide",
+        "params": {
+          "x": 147,
+          "y": 280,
+          "pace": 0.5
+        }
+      }
+    },
+    {
+      "ms": 11500,
+      "A": {
+        "t": 11074,
+        "actor": "A",
+        "action": "approach",
+        "params": {
+          "toward": "partner",
+          "gap": 1.6,
+          "pace": 0.35
+        }
+      },
+      "B": {
+        "t": 5537,
+        "actor": "B",
+        "action": "hide",
+        "params": {
+          "x": 147,
+          "y": 280,
+          "pace": 0.5
+        }
+      }
+    },
+    {
+      "ms": 12000,
+      "A": {
+        "t": 11074,
+        "actor": "A",
+        "action": "approach",
+        "params": {
+          "toward": "partner",
+          "gap": 1.6,
+          "pace": 0.35
+        }
+      },
+      "B": {
+        "t": 5537,
+        "actor": "B",
+        "action": "hide",
+        "params": {
+          "x": 147,
+          "y": 280,
+          "pace": 0.5
+        }
+      }
+    },
+    {
+      "ms": 12500,
+      "A": {
+        "t": 11074,
+        "actor": "A",
+        "action": "approach",
+        "params": {
+          "toward": "partner",
+          "gap": 1.6,
+          "pace": 0.35
+        }
+      },
+      "B": {
+        "t": 5537,
+        "actor": "B",
+        "action": "hide",
+        "params": {
+          "x": 147,
+          "y": 280,
+          "pace": 0.5
+        }
+      }
+    },
+    {
+      "ms": 13000,
+      "A": {
+        "t": 11074,
+        "actor": "A",
+        "action": "approach",
+        "params": {
+          "toward": "partner",
+          "gap": 1.6,
+          "pace": 0.35
+        }
+      },
+      "B": {
+        "t": 5537,
+        "actor": "B",
+        "action": "hide",
+        "params": {
+          "x": 147,
+          "y": 280,
+          "pace": 0.5
+        }
+      }
+    },
+    {
+      "ms": 13500,
+      "A": {
+        "t": 11074,
+        "actor": "A",
+        "action": "approach",
+        "params": {
+          "toward": "partner",
+          "gap": 1.6,
+          "pace": 0.35
+        }
+      },
+      "B": {
+        "t": 5537,
+        "actor": "B",
+        "action": "hide",
+        "params": {
+          "x": 147,
+          "y": 280,
+          "pace": 0.5
+        }
+      }
+    },
+    {
+      "ms": 14000,
+      "A": {
+        "t": 11074,
+        "actor": "A",
+        "action": "approach",
+        "params": {
+          "toward": "partner",
+          "gap": 1.6,
+          "pace": 0.35
+        }
+      },
+      "B": {
+        "t": 5537,
+        "actor": "B",
+        "action": "hide",
+        "params": {
+          "x": 147,
+          "y": 280,
+          "pace": 0.5
+        }
+      }
+    },
+    {
+      "ms": 14500,
+      "A": {
+        "t": 11074,
+        "actor": "A",
+        "action": "approach",
+        "params": {
+          "toward": "partner",
+          "gap": 1.6,
+          "pace": 0.35
+        }
+      },
+      "B": {
+        "t": 5537,
+        "actor": "B",
+        "action": "hide",
+        "params": {
+          "x": 147,
+          "y": 280,
+          "pace": 0.5
+        }
+      }
+    },
+    {
+      "ms": 15000,
+      "A": {
+        "t": 11074,
+        "actor": "A",
+        "action": "approach",
+        "params": {
+          "toward": "partner",
+          "gap": 1.6,
+          "pace": 0.35
+        }
+      },
+      "B": {
+        "t": 5537,
+        "actor": "B",
+        "action": "hide",
+        "params": {
+          "x": 147,
+          "y": 280,
+          "pace": 0.5
+        }
+      }
+    },
+    {
+      "ms": 15500,
+      "A": {
+        "t": 11074,
+        "actor": "A",
+        "action": "approach",
+        "params": {
+          "toward": "partner",
+          "gap": 1.6,
+          "pace": 0.35
+        }
+      },
+      "B": {
+        "t": 5537,
+        "actor": "B",
+        "action": "hide",
+        "params": {
+          "x": 147,
+          "y": 280,
+          "pace": 0.5
+        }
+      }
+    },
+    {
+      "ms": 16000,
+      "A": {
+        "t": 11074,
+        "actor": "A",
+        "action": "approach",
+        "params": {
+          "toward": "partner",
+          "gap": 1.6,
+          "pace": 0.35
+        }
+      },
+      "B": {
+        "t": 5537,
+        "actor": "B",
+        "action": "hide",
+        "params": {
+          "x": 147,
+          "y": 280,
+          "pace": 0.5
+        }
+      }
+    },
+    {
+      "ms": 16500,
+      "A": {
+        "t": 11074,
+        "actor": "A",
+        "action": "approach",
+        "params": {
+          "toward": "partner",
+          "gap": 1.6,
+          "pace": 0.35
+        }
+      },
+      "B": {
+        "t": 5537,
+        "actor": "B",
+        "action": "hide",
+        "params": {
+          "x": 147,
+          "y": 280,
+          "pace": 0.5
+        }
+      }
+    },
+    {
+      "ms": 17000,
+      "A": {
+        "t": 16611,
+        "actor": "A",
+        "action": "run_to",
+        "params": {
+          "toward": "partner",
+          "gap": 1.05,
+          "pace": 0.9
+        }
+      },
+      "B": {
+        "t": 16611,
+        "actor": "B",
+        "action": "run_to",
+        "params": {
+          "toward": "away",
+          "pace": 0.85
+        }
+      }
+    },
+    {
+      "ms": 17500,
+      "A": {
+        "t": 16611,
+        "actor": "A",
+        "action": "run_to",
+        "params": {
+          "toward": "partner",
+          "gap": 1.05,
+          "pace": 0.9
+        }
+      },
+      "B": {
+        "t": 16611,
+        "actor": "B",
+        "action": "run_to",
+        "params": {
+          "toward": "away",
+          "pace": 0.85
+        }
+      }
+    },
+    {
+      "ms": 18000,
+      "A": {
+        "t": 16611,
+        "actor": "A",
+        "action": "run_to",
+        "params": {
+          "toward": "partner",
+          "gap": 1.05,
+          "pace": 0.9
+        }
+      },
+      "B": {
+        "t": 16611,
+        "actor": "B",
+        "action": "run_to",
+        "params": {
+          "toward": "away",
+          "pace": 0.85
+        }
+      }
+    },
+    {
+      "ms": 18500,
+      "A": {
+        "t": 16611,
+        "actor": "A",
+        "action": "run_to",
+        "params": {
+          "toward": "partner",
+          "gap": 1.05,
+          "pace": 0.9
+        }
+      },
+      "B": {
+        "t": 16611,
+        "actor": "B",
+        "action": "run_to",
+        "params": {
+          "toward": "away",
+          "pace": 0.85
+        }
+      }
+    },
+    {
+      "ms": 19000,
+      "A": {
+        "t": 16611,
+        "actor": "A",
+        "action": "run_to",
+        "params": {
+          "toward": "partner",
+          "gap": 1.05,
+          "pace": 0.9
+        }
+      },
+      "B": {
+        "t": 16611,
+        "actor": "B",
+        "action": "run_to",
+        "params": {
+          "toward": "away",
+          "pace": 0.85
+        }
+      }
+    },
+    {
+      "ms": 19500,
+      "A": {
+        "t": 16611,
+        "actor": "A",
+        "action": "run_to",
+        "params": {
+          "toward": "partner",
+          "gap": 1.05,
+          "pace": 0.9
+        }
+      },
+      "B": {
+        "t": 16611,
+        "actor": "B",
+        "action": "run_to",
+        "params": {
+          "toward": "away",
+          "pace": 0.85
+        }
+      }
+    },
+    {
+      "ms": 20000,
+      "A": {
+        "t": 16611,
+        "actor": "A",
+        "action": "run_to",
+        "params": {
+          "toward": "partner",
+          "gap": 1.05,
+          "pace": 0.9
+        }
+      },
+      "B": {
+        "t": 16611,
+        "actor": "B",
+        "action": "run_to",
+        "params": {
+          "toward": "away",
+          "pace": 0.85
+        }
+      }
+    },
+    {
+      "ms": 20500,
+      "A": {
+        "t": 16611,
+        "actor": "A",
+        "action": "run_to",
+        "params": {
+          "toward": "partner",
+          "gap": 1.05,
+          "pace": 0.9
+        }
+      },
+      "B": {
+        "t": 16611,
+        "actor": "B",
+        "action": "run_to",
+        "params": {
+          "toward": "away",
+          "pace": 0.85
+        }
+      }
+    },
+    {
+      "ms": 21000,
+      "A": {
+        "t": 16611,
+        "actor": "A",
+        "action": "run_to",
+        "params": {
+          "toward": "partner",
+          "gap": 1.05,
+          "pace": 0.9
+        }
+      },
+      "B": {
+        "t": 16611,
+        "actor": "B",
+        "action": "run_to",
+        "params": {
+          "toward": "away",
+          "pace": 0.85
+        }
+      }
+    },
+    {
+      "ms": 21500,
+      "A": {
+        "t": 16611,
+        "actor": "A",
+        "action": "run_to",
+        "params": {
+          "toward": "partner",
+          "gap": 1.05,
+          "pace": 0.9
+        }
+      },
+      "B": {
+        "t": 16611,
+        "actor": "B",
+        "action": "run_to",
+        "params": {
+          "toward": "away",
+          "pace": 0.85
+        }
+      }
+    },
+    {
+      "ms": 22000,
+      "A": {
+        "t": 16611,
+        "actor": "A",
+        "action": "run_to",
+        "params": {
+          "toward": "partner",
+          "gap": 1.05,
+          "pace": 0.9
+        }
+      },
+      "B": {
+        "t": 16611,
+        "actor": "B",
+        "action": "run_to",
+        "params": {
+          "toward": "away",
+          "pace": 0.85
+        }
+      }
+    },
+    {
+      "ms": 22500,
+      "A": {
+        "t": 16611,
+        "actor": "A",
+        "action": "run_to",
+        "params": {
+          "toward": "partner",
+          "gap": 1.05,
+          "pace": 0.9
+        }
+      },
+      "B": {
+        "t": 16611,
+        "actor": "B",
+        "action": "run_to",
+        "params": {
+          "toward": "away",
+          "pace": 0.85
+        }
+      }
+    },
+    {
+      "ms": 23000,
+      "A": {
+        "t": 16611,
+        "actor": "A",
+        "action": "run_to",
+        "params": {
+          "toward": "partner",
+          "gap": 1.05,
+          "pace": 0.9
+        }
+      },
+      "B": {
+        "t": 16611,
+        "actor": "B",
+        "action": "run_to",
+        "params": {
+          "toward": "away",
+          "pace": 0.85
+        }
+      }
+    },
+    {
+      "ms": 23500,
+      "A": {
+        "t": 16611,
+        "actor": "A",
+        "action": "run_to",
+        "params": {
+          "toward": "partner",
+          "gap": 1.05,
+          "pace": 0.9
+        }
+      },
+      "B": {
+        "t": 16611,
+        "actor": "B",
+        "action": "run_to",
+        "params": {
+          "toward": "away",
+          "pace": 0.85
+        }
+      }
+    },
+    {
+      "ms": 24000,
+      "A": {
+        "t": 16611,
+        "actor": "A",
+        "action": "run_to",
+        "params": {
+          "toward": "partner",
+          "gap": 1.05,
+          "pace": 0.9
+        }
+      },
+      "B": {
+        "t": 16611,
+        "actor": "B",
+        "action": "run_to",
+        "params": {
+          "toward": "away",
+          "pace": 0.85
+        }
+      }
+    },
+    {
+      "ms": 24500,
+      "A": {
+        "t": 16611,
+        "actor": "A",
+        "action": "run_to",
+        "params": {
+          "toward": "partner",
+          "gap": 1.05,
+          "pace": 0.9
+        }
+      },
+      "B": {
+        "t": 16611,
+        "actor": "B",
+        "action": "run_to",
+        "params": {
+          "toward": "away",
+          "pace": 0.85
+        }
+      }
+    },
+    {
+      "ms": 25000,
+      "A": {
+        "t": 16611,
+        "actor": "A",
+        "action": "run_to",
+        "params": {
+          "toward": "partner",
+          "gap": 1.05,
+          "pace": 0.9
+        }
+      },
+      "B": {
+        "t": 16611,
+        "actor": "B",
+        "action": "run_to",
+        "params": {
+          "toward": "away",
+          "pace": 0.85
+        }
+      }
+    },
+    {
+      "ms": 25500,
+      "A": {
+        "t": 16611,
+        "actor": "A",
+        "action": "run_to",
+        "params": {
+          "toward": "partner",
+          "gap": 1.05,
+          "pace": 0.9
+        }
+      },
+      "B": {
+        "t": 16611,
+        "actor": "B",
+        "action": "run_to",
+        "params": {
+          "toward": "away",
+          "pace": 0.85
+        }
+      }
+    },
+    {
+      "ms": 26000,
+      "A": {
+        "t": 16611,
+        "actor": "A",
+        "action": "run_to",
+        "params": {
+          "toward": "partner",
+          "gap": 1.05,
+          "pace": 0.9
+        }
+      },
+      "B": {
+        "t": 16611,
+        "actor": "B",
+        "action": "run_to",
+        "params": {
+          "toward": "away",
+          "pace": 0.85
+        }
+      }
+    },
+    {
+      "ms": 26500,
+      "A": {
+        "t": 16611,
+        "actor": "A",
+        "action": "run_to",
+        "params": {
+          "toward": "partner",
+          "gap": 1.05,
+          "pace": 0.9
+        }
+      },
+      "B": {
+        "t": 16611,
+        "actor": "B",
+        "action": "run_to",
+        "params": {
+          "toward": "away",
+          "pace": 0.85
+        }
+      }
+    },
+    {
+      "ms": 27000,
+      "A": {
+        "t": 16611,
+        "actor": "A",
+        "action": "run_to",
+        "params": {
+          "toward": "partner",
+          "gap": 1.05,
+          "pace": 0.9
+        }
+      },
+      "B": {
+        "t": 16611,
+        "actor": "B",
+        "action": "run_to",
+        "params": {
+          "toward": "away",
+          "pace": 0.85
+        }
+      }
+    },
+    {
+      "ms": 27500,
+      "A": {
+        "t": 16611,
+        "actor": "A",
+        "action": "run_to",
+        "params": {
+          "toward": "partner",
+          "gap": 1.05,
+          "pace": 0.9
+        }
+      },
+      "B": {
+        "t": 16611,
+        "actor": "B",
+        "action": "run_to",
+        "params": {
+          "toward": "away",
+          "pace": 0.85
+        }
+      }
+    },
+    {
+      "ms": 28000,
+      "A": {
+        "t": 27685,
+        "actor": "A",
+        "action": "play_bow",
+        "params": {
+          "x": 390,
+          "y": 274
+        }
+      },
+      "B": {
+        "t": 27685,
+        "actor": "B",
+        "action": "sit",
+        "params": {
+          "x": 109,
+          "y": 425
+        }
+      }
+    },
+    {
+      "ms": 28500,
+      "A": {
+        "t": 27685,
+        "actor": "A",
+        "action": "play_bow",
+        "params": {
+          "x": 390,
+          "y": 274
+        }
+      },
+      "B": {
+        "t": 27685,
+        "actor": "B",
+        "action": "sit",
+        "params": {
+          "x": 109,
+          "y": 425
+        }
+      }
+    },
+    {
+      "ms": 29000,
+      "A": {
+        "t": 27685,
+        "actor": "A",
+        "action": "play_bow",
+        "params": {
+          "x": 390,
+          "y": 274
+        }
+      },
+      "B": {
+        "t": 27685,
+        "actor": "B",
+        "action": "sit",
+        "params": {
+          "x": 109,
+          "y": 425
+        }
+      }
+    },
+    {
+      "ms": 29500,
+      "A": {
+        "t": 27685,
+        "actor": "A",
+        "action": "play_bow",
+        "params": {
+          "x": 390,
+          "y": 274
+        }
+      },
+      "B": {
+        "t": 27685,
+        "actor": "B",
+        "action": "sit",
+        "params": {
+          "x": 109,
+          "y": 425
+        }
+      }
+    },
+    {
+      "ms": 30000,
+      "A": {
+        "t": 27685,
+        "actor": "A",
+        "action": "play_bow",
+        "params": {
+          "x": 390,
+          "y": 274
+        }
+      },
+      "B": {
+        "t": 27685,
+        "actor": "B",
+        "action": "sit",
+        "params": {
+          "x": 109,
+          "y": 425
+        }
+      }
+    },
+    {
+      "ms": 30500,
+      "A": {
+        "t": 27685,
+        "actor": "A",
+        "action": "play_bow",
+        "params": {
+          "x": 390,
+          "y": 274
+        }
+      },
+      "B": {
+        "t": 27685,
+        "actor": "B",
+        "action": "sit",
+        "params": {
+          "x": 109,
+          "y": 425
+        }
+      }
+    },
+    {
+      "ms": 31000,
+      "A": {
+        "t": 27685,
+        "actor": "A",
+        "action": "play_bow",
+        "params": {
+          "x": 390,
+          "y": 274
+        }
+      },
+      "B": {
+        "t": 27685,
+        "actor": "B",
+        "action": "sit",
+        "params": {
+          "x": 109,
+          "y": 425
+        }
+      }
+    },
+    {
+      "ms": 31500,
+      "A": {
+        "t": 31145,
+        "actor": "A",
+        "action": "run_to",
+        "params": {
+          "toward": "away",
+          "pace": 0.85
+        }
+      },
+      "B": {
+        "t": 31145,
+        "actor": "B",
+        "action": "run_to",
+        "params": {
+          "toward": "partner",
+          "gap": 1.05,
+          "pace": 0.9
+        }
+      }
+    },
+    {
+      "ms": 32000,
+      "A": {
+        "t": 31145,
+        "actor": "A",
+        "action": "run_to",
+        "params": {
+          "toward": "away",
+          "pace": 0.85
+        }
+      },
+      "B": {
+        "t": 31145,
+        "actor": "B",
+        "action": "run_to",
+        "params": {
+          "toward": "partner",
+          "gap": 1.05,
+          "pace": 0.9
+        }
+      }
+    },
+    {
+      "ms": 32500,
+      "A": {
+        "t": 31145,
+        "actor": "A",
+        "action": "run_to",
+        "params": {
+          "toward": "away",
+          "pace": 0.85
+        }
+      },
+      "B": {
+        "t": 31145,
+        "actor": "B",
+        "action": "run_to",
+        "params": {
+          "toward": "partner",
+          "gap": 1.05,
+          "pace": 0.9
+        }
+      }
+    },
+    {
+      "ms": 33000,
+      "A": {
+        "t": 31145,
+        "actor": "A",
+        "action": "run_to",
+        "params": {
+          "toward": "away",
+          "pace": 0.85
+        }
+      },
+      "B": {
+        "t": 31145,
+        "actor": "B",
+        "action": "run_to",
+        "params": {
+          "toward": "partner",
+          "gap": 1.05,
+          "pace": 0.9
+        }
+      }
+    },
+    {
+      "ms": 33500,
+      "A": {
+        "t": 31145,
+        "actor": "A",
+        "action": "run_to",
+        "params": {
+          "toward": "away",
+          "pace": 0.85
+        }
+      },
+      "B": {
+        "t": 31145,
+        "actor": "B",
+        "action": "run_to",
+        "params": {
+          "toward": "partner",
+          "gap": 1.05,
+          "pace": 0.9
+        }
+      }
+    },
+    {
+      "ms": 34000,
+      "A": {
+        "t": 31145,
+        "actor": "A",
+        "action": "run_to",
+        "params": {
+          "toward": "away",
+          "pace": 0.85
+        }
+      },
+      "B": {
+        "t": 31145,
+        "actor": "B",
+        "action": "run_to",
+        "params": {
+          "toward": "partner",
+          "gap": 1.05,
+          "pace": 0.9
+        }
+      }
+    },
+    {
+      "ms": 34500,
+      "A": {
+        "t": 31145,
+        "actor": "A",
+        "action": "run_to",
+        "params": {
+          "toward": "away",
+          "pace": 0.85
+        }
+      },
+      "B": {
+        "t": 31145,
+        "actor": "B",
+        "action": "run_to",
+        "params": {
+          "toward": "partner",
+          "gap": 1.05,
+          "pace": 0.9
+        }
+      }
+    },
+    {
+      "ms": 35000,
+      "A": {
+        "t": 31145,
+        "actor": "A",
+        "action": "run_to",
+        "params": {
+          "toward": "away",
+          "pace": 0.85
+        }
+      },
+      "B": {
+        "t": 31145,
+        "actor": "B",
+        "action": "run_to",
+        "params": {
+          "toward": "partner",
+          "gap": 1.05,
+          "pace": 0.9
+        }
+      }
+    },
+    {
+      "ms": 35500,
+      "A": {
+        "t": 31145,
+        "actor": "A",
+        "action": "run_to",
+        "params": {
+          "toward": "away",
+          "pace": 0.85
+        }
+      },
+      "B": {
+        "t": 31145,
+        "actor": "B",
+        "action": "run_to",
+        "params": {
+          "toward": "partner",
+          "gap": 1.05,
+          "pace": 0.9
+        }
+      }
+    },
+    {
+      "ms": 36000,
+      "A": {
+        "t": 31145,
+        "actor": "A",
+        "action": "run_to",
+        "params": {
+          "toward": "away",
+          "pace": 0.85
+        }
+      },
+      "B": {
+        "t": 31145,
+        "actor": "B",
+        "action": "run_to",
+        "params": {
+          "toward": "partner",
+          "gap": 1.05,
+          "pace": 0.9
+        }
+      }
+    },
+    {
+      "ms": 36500,
+      "A": {
+        "t": 31145,
+        "actor": "A",
+        "action": "run_to",
+        "params": {
+          "toward": "away",
+          "pace": 0.85
+        }
+      },
+      "B": {
+        "t": 31145,
+        "actor": "B",
+        "action": "run_to",
+        "params": {
+          "toward": "partner",
+          "gap": 1.05,
+          "pace": 0.9
+        }
+      }
+    },
+    {
+      "ms": 37000,
+      "A": {
+        "t": 31145,
+        "actor": "A",
+        "action": "run_to",
+        "params": {
+          "toward": "away",
+          "pace": 0.85
+        }
+      },
+      "B": {
+        "t": 31145,
+        "actor": "B",
+        "action": "run_to",
+        "params": {
+          "toward": "partner",
+          "gap": 1.05,
+          "pace": 0.9
+        }
+      }
+    },
+    {
+      "ms": 37500,
+      "A": {
+        "t": 31145,
+        "actor": "A",
+        "action": "run_to",
+        "params": {
+          "toward": "away",
+          "pace": 0.85
+        }
+      },
+      "B": {
+        "t": 31145,
+        "actor": "B",
+        "action": "run_to",
+        "params": {
+          "toward": "partner",
+          "gap": 1.05,
+          "pace": 0.9
+        }
+      }
+    },
+    {
+      "ms": 38000,
+      "A": {
+        "t": 31145,
+        "actor": "A",
+        "action": "run_to",
+        "params": {
+          "toward": "away",
+          "pace": 0.85
+        }
+      },
+      "B": {
+        "t": 31145,
+        "actor": "B",
+        "action": "run_to",
+        "params": {
+          "toward": "partner",
+          "gap": 1.05,
+          "pace": 0.9
+        }
+      }
+    },
+    {
+      "ms": 38500,
+      "A": {
+        "t": 31145,
+        "actor": "A",
+        "action": "run_to",
+        "params": {
+          "toward": "away",
+          "pace": 0.85
+        }
+      },
+      "B": {
+        "t": 31145,
+        "actor": "B",
+        "action": "run_to",
+        "params": {
+          "toward": "partner",
+          "gap": 1.05,
+          "pace": 0.9
+        }
+      }
+    },
+    {
+      "ms": 39000,
+      "A": {
+        "t": 31145,
+        "actor": "A",
+        "action": "run_to",
+        "params": {
+          "toward": "away",
+          "pace": 0.85
+        }
+      },
+      "B": {
+        "t": 31145,
+        "actor": "B",
+        "action": "run_to",
+        "params": {
+          "toward": "partner",
+          "gap": 1.05,
+          "pace": 0.9
+        }
+      }
+    },
+    {
+      "ms": 39500,
+      "A": {
+        "t": 31145,
+        "actor": "A",
+        "action": "run_to",
+        "params": {
+          "toward": "away",
+          "pace": 0.85
+        }
+      },
+      "B": {
+        "t": 31145,
+        "actor": "B",
+        "action": "run_to",
+        "params": {
+          "toward": "partner",
+          "gap": 1.05,
+          "pace": 0.9
+        }
+      }
+    },
+    {
+      "ms": 40000,
+      "A": {
+        "t": 31145,
+        "actor": "A",
+        "action": "run_to",
+        "params": {
+          "toward": "away",
+          "pace": 0.85
+        }
+      },
+      "B": {
+        "t": 31145,
+        "actor": "B",
+        "action": "run_to",
+        "params": {
+          "toward": "partner",
+          "gap": 1.05,
+          "pace": 0.9
+        }
+      }
+    },
+    {
+      "ms": 40500,
+      "A": {
+        "t": 31145,
+        "actor": "A",
+        "action": "run_to",
+        "params": {
+          "toward": "away",
+          "pace": 0.85
+        }
+      },
+      "B": {
+        "t": 31145,
+        "actor": "B",
+        "action": "run_to",
+        "params": {
+          "toward": "partner",
+          "gap": 1.05,
+          "pace": 0.9
+        }
+      }
+    },
+    {
+      "ms": 41000,
+      "A": {
+        "t": 31145,
+        "actor": "A",
+        "action": "run_to",
+        "params": {
+          "toward": "away",
+          "pace": 0.85
+        }
+      },
+      "B": {
+        "t": 31145,
+        "actor": "B",
+        "action": "run_to",
+        "params": {
+          "toward": "partner",
+          "gap": 1.05,
+          "pace": 0.9
+        }
+      }
+    },
+    {
+      "ms": 41500,
+      "A": {
+        "t": 31145,
+        "actor": "A",
+        "action": "run_to",
+        "params": {
+          "toward": "away",
+          "pace": 0.85
+        }
+      },
+      "B": {
+        "t": 31145,
+        "actor": "B",
+        "action": "run_to",
+        "params": {
+          "toward": "partner",
+          "gap": 1.05,
+          "pace": 0.9
+        }
+      }
+    },
+    {
+      "ms": 42000,
+      "A": {
+        "t": 31145,
+        "actor": "A",
+        "action": "run_to",
+        "params": {
+          "toward": "away",
+          "pace": 0.85
+        }
+      },
+      "B": {
+        "t": 31145,
+        "actor": "B",
+        "action": "run_to",
+        "params": {
+          "toward": "partner",
+          "gap": 1.05,
+          "pace": 0.9
+        }
+      }
+    },
+    {
+      "ms": 42500,
+      "A": {
+        "t": 42219,
+        "actor": "A",
+        "action": "win",
+        "params": {
+          "x": 368,
+          "y": 347
+        }
+      },
+      "B": {
+        "t": 42219,
+        "actor": "B",
+        "action": "pant",
+        "params": {
+          "x": 494,
+          "y": 235
+        }
+      }
+    },
+    {
+      "ms": 43000,
+      "A": {
+        "t": 42219,
+        "actor": "A",
+        "action": "win",
+        "params": {
+          "x": 368,
+          "y": 347
+        }
+      },
+      "B": {
+        "t": 42219,
+        "actor": "B",
+        "action": "pant",
+        "params": {
+          "x": 494,
+          "y": 235
+        }
+      }
+    },
+    {
+      "ms": 43500,
+      "A": {
+        "t": 42219,
+        "actor": "A",
+        "action": "win",
+        "params": {
+          "x": 368,
+          "y": 347
+        }
+      },
+      "B": {
+        "t": 42219,
+        "actor": "B",
+        "action": "pant",
+        "params": {
+          "x": 494,
+          "y": 235
+        }
+      }
+    },
+    {
+      "ms": 44000,
+      "A": {
+        "t": 42219,
+        "actor": "A",
+        "action": "win",
+        "params": {
+          "x": 368,
+          "y": 347
+        }
+      },
+      "B": {
+        "t": 42219,
+        "actor": "B",
+        "action": "pant",
+        "params": {
+          "x": 494,
+          "y": 235
+        }
+      }
+    },
+    {
+      "ms": 44500,
+      "A": {
+        "t": 42219,
+        "actor": "A",
+        "action": "win",
+        "params": {
+          "x": 368,
+          "y": 347
+        }
+      },
+      "B": {
+        "t": 42219,
+        "actor": "B",
+        "action": "pant",
+        "params": {
+          "x": 494,
+          "y": 235
+        }
+      }
+    },
+    {
+      "ms": 45000,
+      "A": {
+        "t": 42219,
+        "actor": "A",
+        "action": "win",
+        "params": {
+          "x": 368,
+          "y": 347
+        }
+      },
+      "B": {
+        "t": 42219,
+        "actor": "B",
+        "action": "pant",
+        "params": {
+          "x": 494,
+          "y": 235
+        }
+      }
+    },
+    {
+      "ms": 45500,
+      "A": {
+        "t": 42219,
+        "actor": "A",
+        "action": "win",
+        "params": {
+          "x": 368,
+          "y": 347
+        }
+      },
+      "B": {
+        "t": 42219,
+        "actor": "B",
+        "action": "pant",
+        "params": {
+          "x": 494,
+          "y": 235
+        }
+      }
+    },
+    {
+      "ms": 46000,
+      "A": {
+        "t": 42219,
+        "actor": "A",
+        "action": "win",
+        "params": {
+          "x": 368,
+          "y": 347
+        }
+      },
+      "B": {
+        "t": 42219,
+        "actor": "B",
+        "action": "pant",
+        "params": {
+          "x": 494,
+          "y": 235
+        }
+      }
+    },
+    {
+      "ms": 46500,
+      "A": {
+        "t": 42219,
+        "actor": "A",
+        "action": "win",
+        "params": {
+          "x": 368,
+          "y": 347
+        }
+      },
+      "B": {
+        "t": 42219,
+        "actor": "B",
+        "action": "pant",
+        "params": {
+          "x": 494,
+          "y": 235
+        }
+      }
+    },
+    {
+      "ms": 47000,
+      "A": {
+        "t": 42219,
+        "actor": "A",
+        "action": "win",
+        "params": {
+          "x": 368,
+          "y": 347
+        }
+      },
+      "B": {
+        "t": 42219,
+        "actor": "B",
+        "action": "pant",
+        "params": {
+          "x": 494,
+          "y": 235
+        }
+      }
+    },
+    {
+      "ms": 47500,
+      "A": {
+        "t": 42219,
+        "actor": "A",
+        "action": "win",
+        "params": {
+          "x": 368,
+          "y": 347
+        }
+      },
+      "B": {
+        "t": 42219,
+        "actor": "B",
+        "action": "pant",
+        "params": {
+          "x": 494,
+          "y": 235
+        }
+      }
+    },
+    {
+      "ms": 48000,
+      "A": {
+        "t": 42219,
+        "actor": "A",
+        "action": "win",
+        "params": {
+          "x": 368,
+          "y": 347
+        }
+      },
+      "B": {
+        "t": 42219,
+        "actor": "B",
+        "action": "pant",
+        "params": {
+          "x": 494,
+          "y": 235
+        }
+      }
+    },
+    {
+      "ms": 48500,
+      "A": {
+        "t": 42219,
+        "actor": "A",
+        "action": "win",
+        "params": {
+          "x": 368,
+          "y": 347
+        }
+      },
+      "B": {
+        "t": 42219,
+        "actor": "B",
+        "action": "pant",
+        "params": {
+          "x": 494,
+          "y": 235
+        }
+      }
+    },
+    {
+      "ms": 49000,
+      "A": {
+        "t": 42219,
+        "actor": "A",
+        "action": "win",
+        "params": {
+          "x": 368,
+          "y": 347
+        }
+      },
+      "B": {
+        "t": 42219,
+        "actor": "B",
+        "action": "pant",
+        "params": {
+          "x": 494,
+          "y": 235
+        }
+      }
+    },
+    {
+      "ms": 49500,
+      "A": {
+        "t": 49140,
+        "actor": "both",
+        "action": "celebrate",
+        "params": {
+          "x": 464,
+          "y": 372
+        }
+      },
+      "B": {
+        "t": 49140,
+        "actor": "both",
+        "action": "celebrate",
+        "params": {
+          "x": 464,
+          "y": 372
+        }
+      }
+    },
+    {
+      "ms": 50000,
+      "A": {
+        "t": 49140,
+        "actor": "both",
+        "action": "celebrate",
+        "params": {
+          "x": 464,
+          "y": 372
+        }
+      },
+      "B": {
+        "t": 49140,
+        "actor": "both",
+        "action": "celebrate",
+        "params": {
+          "x": 464,
+          "y": 372
+        }
+      }
+    },
+    {
+      "ms": 50500,
+      "A": {
+        "t": 49140,
+        "actor": "both",
+        "action": "celebrate",
+        "params": {
+          "x": 464,
+          "y": 372
+        }
+      },
+      "B": {
+        "t": 49140,
+        "actor": "both",
+        "action": "celebrate",
+        "params": {
+          "x": 464,
+          "y": 372
+        }
+      }
+    },
+    {
+      "ms": 51000,
+      "A": {
+        "t": 49140,
+        "actor": "both",
+        "action": "celebrate",
+        "params": {
+          "x": 464,
+          "y": 372
+        }
+      },
+      "B": {
+        "t": 49140,
+        "actor": "both",
+        "action": "celebrate",
+        "params": {
+          "x": 464,
+          "y": 372
+        }
+      }
+    },
+    {
+      "ms": 51500,
+      "A": {
+        "t": 49140,
+        "actor": "both",
+        "action": "celebrate",
+        "params": {
+          "x": 464,
+          "y": 372
+        }
+      },
+      "B": {
+        "t": 49140,
+        "actor": "both",
+        "action": "celebrate",
+        "params": {
+          "x": 464,
+          "y": 372
+        }
+      }
+    },
+    {
+      "ms": 52000,
+      "A": {
+        "t": 49140,
+        "actor": "both",
+        "action": "celebrate",
+        "params": {
+          "x": 464,
+          "y": 372
+        }
+      },
+      "B": {
+        "t": 49140,
+        "actor": "both",
+        "action": "celebrate",
+        "params": {
+          "x": 464,
+          "y": 372
+        }
+      }
+    },
+    {
+      "ms": 52500,
+      "A": {
+        "t": 49140,
+        "actor": "both",
+        "action": "celebrate",
+        "params": {
+          "x": 464,
+          "y": 372
+        }
+      },
+      "B": {
+        "t": 49140,
+        "actor": "both",
+        "action": "celebrate",
+        "params": {
+          "x": 464,
+          "y": 372
+        }
+      }
+    },
+    {
+      "ms": 53000,
+      "A": {
+        "t": 49140,
+        "actor": "both",
+        "action": "celebrate",
+        "params": {
+          "x": 464,
+          "y": 372
+        }
+      },
+      "B": {
+        "t": 49140,
+        "actor": "both",
+        "action": "celebrate",
+        "params": {
+          "x": 464,
+          "y": 372
+        }
+      }
+    }
+  ]
+}

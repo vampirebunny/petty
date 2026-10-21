@@ -3,7 +3,7 @@ import { clampMax, clampMin, traits } from '../sim/config';
 import { canRaiseMood } from '../sim/mood';
 import type { PetState, Trait } from '../sim/types';
 import { playdateConfig } from './config';
-import type { PlaydateOutcome, RareEvent } from './types';
+import type { PartyTrick, PlaydateOutcome, RareEvent } from './types';
 
 function clampNeed(value: number): number {
   return Math.min(clampMax, Math.max(clampMin, value));
@@ -60,13 +60,16 @@ export function attributeGains(pet: PetState, outcome: PlaydateOutcome): Attribu
     });
 }
 
-const trickLabel: Record<RareEvent['trickId'], string> = {
+const trickLabel: Record<PartyTrick, string> = {
   sit: 'a sit',
   paw: 'a paw',
   speak: 'a speak',
 };
 
 export function rareEventLine(event: RareEvent, petName: string, partnerName: string): string {
+  if (event.type === 'upset') {
+    return `An upset. The underdog took it, and ${petName} is still thinking about it.`;
+  }
   return `${partnerName} showed off ${trickLabel[event.trickId]}. ${petName} is watching.`;
 }
 

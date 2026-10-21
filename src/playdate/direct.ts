@@ -12,6 +12,7 @@ const poses: Record<string, DirectionPose> = {
   drop_item: 'sit',
   pick_up: 'bow',
   tug: 'bow',
+  tug_rope: 'bow',
   win: 'celebrate',
   nuzzle: 'sniff',
   sit: 'sit',
@@ -22,6 +23,11 @@ const poses: Record<string, DirectionPose> = {
   pounce: 'pounce',
   stalk: 'stalk',
   pant: 'pant',
+  speak: 'pant',
+  skid: 'skid',
+  zoomies: 'zoomies',
+  roll_over: 'roll_over',
+  flop: 'flop',
 };
 
 export function poseFor(action: string): DirectionPose | null {
@@ -117,7 +123,7 @@ export function targetFor(beat: Beat, side: 'A' | 'B', context: DirectContext): 
 
 export function directionFor(beat: Beat, side: 'A' | 'B', context: DirectContext): Direction {
   const pose = poseFor(beat.action) ?? 'sit';
-  const pace = beat.params?.pace ?? (pose === 'run' ? 0.92 : pose === 'walk' ? 0.45 : pose === 'stalk' ? 0.28 : 0.35);
+  const pace = beat.params?.pace ?? (pose === 'zoomies' ? 1 : pose === 'run' ? 0.92 : pose === 'walk' ? 0.45 : pose === 'stalk' ? 0.28 : 0.35);
   return {
     target: targetFor(beat, side, context),
     pace,

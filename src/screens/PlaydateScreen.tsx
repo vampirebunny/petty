@@ -12,7 +12,7 @@ import { dailyCast } from '../playdate/npcs';
 import { createPlaydateRecord } from '../playdate/record';
 import { attributeGains, bondHint, rareEventLine, traitName } from '../playdate/rewards';
 import type { AttributeGain } from '../playdate/rewards';
-import { relationshipFor, rememberPlaydate } from '../playdate/save';
+import { latestPlaydateTags, recentPlaydateTags, relationshipFor, rememberPlaydate } from '../playdate/save';
 import { snapshotPet } from '../playdate/snapshot';
 import type { ActivityDefinition, PetSnapshot, PlaydateRecord, PlaydateSave } from '../playdate/types';
 import type { Equipped, PetState, Trait } from '../sim/types';
@@ -121,6 +121,9 @@ export function PlaydateScreen({ pet, save, now, remaining, reducedMotion, onSav
       seed,
       createdAt,
       ownerId,
+      recentTags: recentPlaydateTags(save.history),
+      latestTags: latestPlaydateTags(save.history),
+      bond: relationshipFor(save, pet.id, partner.snapshotId)?.bond ?? 0,
     });
     finished.current = false;
     setReplay(false);
@@ -197,6 +200,8 @@ export function PlaydateScreen({ pet, save, now, remaining, reducedMotion, onSav
                   >
                     <Text style={styles.choiceLabel}>
                       {saved.petB.name} · {activityById(saved.activityId)?.name ?? 'Playdate'}
+                      {saved.outcome.rareEvents.some((event) => event.type === 'upset') ? ' · Upset' : ''}
+                      {saved.beats.some((beat) => beat.tag === 'golden') ? ' · Golden' : ''}
                     </Text>
                   </Pressable>
                 ))}
@@ -338,10 +343,11 @@ export function PlaydateScreen({ pet, save, now, remaining, reducedMotion, onSav
             )}
             <Text style={styles.cardMeta}>Bond +{record.outcome.bondDelta}</Text>
             {record.outcome.rareEvents.map((event) => (
-              <Text key={event.trickId} style={styles.rare}>
+              <Text key={event.type === 'trick_shown' ? event.trickId : event.type} style={styles.rare}>
                 {rareEventLine(event, pet.name, record.petB.name)}
               </Text>
             ))}
+            {record.beats.some((beat) => beat.tag === 'golden') ? <Text style={styles.rare}>A golden moment.</Text> : null}
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Replay"

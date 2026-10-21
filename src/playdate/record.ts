@@ -13,6 +13,9 @@ export function createPlaydateRecord(input: {
   seed: number;
   createdAt: string;
   ownerId: string;
+  recentTags?: readonly string[];
+  latestTags?: readonly string[];
+  bond?: number;
 }): PlaydateRecord {
   const snapshotId = `${input.pet.id}-${input.seed}`;
   const petA = snapshotPet(input.pet, input.outfit, input.createdAt, snapshotId);
@@ -22,9 +25,12 @@ export function createPlaydateRecord(input: {
     activity: input.activity,
     sceneId: input.sceneId,
     seed: input.seed,
+    recentTags: input.recentTags,
+    latestTags: input.latestTags,
+    bond: input.bond ?? 0,
   });
   return {
-    version: 1,
+    version: 2,
     playdateId: snapshotId,
     ownerId: input.ownerId,
     createdAt: input.createdAt,

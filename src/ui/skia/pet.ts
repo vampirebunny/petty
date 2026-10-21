@@ -89,6 +89,28 @@ function drawLeg(
   return { x: paw.x, y: paw.y, shin: Math.atan2(paw.y - knee.y, paw.x - knee.x), knee };
 }
 
+// The carried toy sits just behind the nose tip. Species and size already move this through geom.
+export function toyMouthLocal(head: { x: number; y: number }, pitch: number, tipX: number, tipY: number): { x: number; y: number } {
+  const cs = Math.cos(pitch);
+  const sn = Math.sin(pitch);
+  return {
+    x: head.x + tipX * cs - tipY * sn - 4,
+    y: head.y + tipX * sn + tipY * cs + 1,
+  };
+}
+
+export function toyMouthStage(
+  actor: { x: number; y: number; z: number; pose: { closeUp: number } },
+  local: { x: number; y: number },
+  facing: number,
+  scale: number,
+): { x: number; y: number } {
+  return {
+    x: actor.x + facing * scale * local.x,
+    y: actor.y + 18 * actor.pose.closeUp - actor.z + scale * local.y,
+  };
+}
+
 export function drawActor(
   c: SkCanvas,
   actor: Actor,
@@ -673,12 +695,10 @@ export function drawActor(
   }
   c.restore();
 
+  const mouth = toyMouthLocal(head, pitch, geom.tipX, geom.tipY);
+  actor.mouthMark = toyMouthStage(actor, mouth, turned.dir, scale);
   if (carrying !== null) {
-    const cs = Math.cos(pitch);
-    const sn = Math.sin(pitch);
-    const mouthX = head.x + geom.tipX * cs - geom.tipY * sn;
-    const mouthY = head.y + geom.tipX * sn + geom.tipY * cs;
-    drawToyShape(c, carrying, mouthX - 4, mouthY + 1, 8);
+    drawToyShape(c, carrying, mouth.x, mouth.y, 8);
   }
   for (const heart of actor.hearts) {
     const k = 1 - heart.t / heart.life;
@@ -689,6 +709,12 @@ export function drawActor(
   if (silhouette) {
     c.restore();
   }
+
+  // Head point in stage space, unflipped, so a mark can sit above the weather.
+  actor.headMark = {
+    x: actor.x + turned.dir * scale * head.x,
+    y: actor.y - actor.z + scale * head.y,
+  };
 
   // sleep marks float up from the head in screen space, so they never mirror
   const sleepy = pose.lie * pose.eyes;
