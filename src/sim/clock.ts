@@ -1,7 +1,9 @@
 import { withDerived } from './attributes';
 import { advanceNeeds, advanceNeedsDetail } from './advance';
+import { applyAwayDecay, applyAwayWeight, awayElapsedHours, awayElapsedMs } from './awayDecay';
 import { applyCareTime, clampWeight, decayWeight } from './care';
 import { dayMs, maxElapsedMs } from './config';
+import { activeBoosts } from './effects';
 import { canRaiseMood } from './mood';
 import { advanceCare } from './game';
 import type { PetState } from './types';
@@ -31,9 +33,38 @@ export function tickForeground(state: PetState, now: number): PetState {
 }
 
 export function resume(state: PetState, now: number): PetState {
-  const needElapsed = Math.min(Math.max(0, now - state.lastUpdatedAt), maxElapsedMs);
-  const weightElapsed = Math.max(0, now - state.weightAppliedAt);
-  return settle(state, now, needElapsed, weightElapsed, needElapsed > 0);
+  const elapsedH = awayElapsedHours(state.lastUpdatedAt, now);
+  const elapsedMs = awayElapsedMs(state.lastUpdatedAt, now);
+  const away = applyAwayDecay(
+    {
+      tummy: 100 - state.needs.hunger,
+      mood: state.needs.happiness,
+      energy: state.needs.energy,
+    },
+    elapsedH,
+  );
+  const needs = {
+    hunger: 100 - away.tummy,
+    energy: away.energy,
+    happiness: away.mood,
+  };
+  const ageDays = ageDaysAt(state.bornAt, now);
+  const cared = applyCareTime(
+    { ...state, ageDays, needs, asleep: state.asleep, boosts: activeBoosts(state.boosts, now) },
+    elapsedMs,
+    elapsedH > 0,
+    true,
+  );
+  const game = advanceCare(cared, now, elapsedMs, 0, elapsedH > 0 ? 'away' : 'live');
+  return withDerived({
+    ...game,
+    ageDays,
+    needs,
+    asleep: state.asleep,
+    weight: applyAwayWeight(state.weight, elapsedH),
+    lastUpdatedAt: now,
+    weightAppliedAt: now,
+  });
 }
 
 export function debugJump(state: PetState, elapsedMs: number): PetState {

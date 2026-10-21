@@ -28,7 +28,7 @@ Update the PRD to mark F5 as superseded by this brief:
 ---
 
 ## 1. Principles
-1. **Timestamp simulation.** `simulate(pet, user, now)` advances everything from `PetState.lastUpdatedAt`. The same code path handles a 5-second gap and a 3-day gap.
+1. **Timestamp simulation.** Open time and closed time both start from `PetState.lastUpdatedAt`. A 5-second open gap uses the live rates. A closed gap uses the away model once (§11).
 2. **Nothing succeeds or fails while the app is closed.** Signals and reward windows only happen in the foreground. Away time only produces capped, passive outcomes (§11).
 3. **Time of day is visual only** (R4.7). It never writes pet state. Overnight protection comes from the existing **Rest** state.
 4. **No lockouts from vitality** (R2.11).
@@ -91,7 +91,7 @@ interface UserEconomy {
 ## 3. Clock, RNG, attribute wiring
 
 ### Clock
-- One clock: `simulate` advances the existing **`PetState.lastUpdatedAt`**. No second timestamp.
+- One clock: the existing **`PetState.lastUpdatedAt`**. No second timestamp. It is stamped when the app leaves the foreground, and advanced by the live tick while the app is open. On return, the gap since that stamp is closed time.
 - **Pet-scoped daily limits** (per-track `repsToday`, the casual treat cap of 3) reset on the **pet-age day** boundary.
 - **User-scoped daily limits** (daily login bonus) reset on the **device local calendar date**.
 - **"Awake time"** means sim time while the pet is **not in Rest**. All care timers below run on awake time unless stated otherwise.
@@ -322,20 +322,20 @@ The hard stack ceiling is 99 per tier. Other sources can push the stack past the
 ## 11. Away simulation and welcome back
 
 ### Away simulation
-This runs in `simulate()` on return, in awake time only, with **the same rules as live play** for the pet's state:
+This runs once on return. It does **not** use the live decay rates. There are no accidents, messes, or training changes.
 
-| Pet state | Away outcome |
+Needs are applied in ring space (tummy is 100 − hunger). Elapsed hours are `(now - lastUpdatedAt) / 3.6e6`, or 0 if the clock moved backward, and capped at 30 days.
+
+| Need | Closed-time rule |
 |---|---|
-| Not house trained | Random accidents at `randomAccidentRatePerHour`. No urges, signals or penalties. |
-| House-trained cat | Litter fill accrues. Accidents only above the threshold, checked every `careCheckInterval`. |
-| House-trained dog | The walk comes due. Overdue accidents and drain follow §7.2. |
-| All | Hygiene decay, mess neglect drains, and existing need decay (unchanged). Mess cap 3. No training changes. |
+| Tummy | 0–12h drifts toward 60. After that, half-life 24h toward a floor of 10. A value already below the grace target is not raised. |
+| Mood | 0–12h drifts toward 70. After that, half-life 36h toward a floor of 20. A value already below the grace target is not raised. |
+| Energy | Recovers toward 90 with a 2-hour half-life. The pet is resting, so energy is not drained. |
 
-### Happiness floor
-Apply `awayHappinessFloor` (40) **once, at the end of a catch-up pass** in which the gap was ≥ `welcomeBackGap`, after all existing drains. It is **not** a live floor.
+No need reaches 0 from closed time alone. Weight is unchanged for 24 hours, then approaches its existing floor of -1 with a 96-hour half-life and never reaches it. Open-app thinning stays 0.12 per day. Age uses the full closed gap.
 
 ### Welcome back
-When the gap is ≥ `welcomeBackGap` (8 h), the greeting is "{Name} missed you!" There is no mess line.
+When the gap is ≥ 12 hours, the greeting is "{Name} missed you!" and the pet plays one greeting reaction, then a hungry idle if tummy is under 40. There is no happiness floor and no mess line.
 
 ---
 
@@ -450,8 +450,12 @@ When the gap is ≥ `welcomeBackGap` (8 h), the greeting is "{Name} missed you!"
 ### Away and notifications
 | Key | Default |
 |---|---|
-| welcomeBackGap | 8 h |
-| awayHappinessFloor | 40 |
+| welcomeBackThresholdH | 12 h |
+| away tummy grace / target / floor / half-life | 12 h / 60 / 10 / 24 h |
+| away mood grace / target / floor / half-life | 12 h / 70 / 20 / 36 h |
+| away energy recover target / half-life | 90 / 2 h |
+| away max elapsed | 30 days |
+| away weight grace / half-life | 24 h / 96 h toward -1 |
 | notificationDailyMax (all types) | 3 |
 | quietHours | 21:00–08:00 device local |
 

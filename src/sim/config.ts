@@ -12,6 +12,7 @@ export const clampMin = 0;
 export const clampMax = 100;
 
 export const stepMs = 5 * 60 * 1000;
+// Guard on the live step loop only. Closed time uses the away model.
 export const maxElapsedMs = 48 * 60 * 60 * 1000;
 
 // A sitting should change a caption within minutes, and a real "please help" state

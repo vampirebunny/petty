@@ -221,6 +221,8 @@ export function PetView({
   ]);
 
   const pendingCue = useRef<{ kind: typeof cueKind; token: number; drop?: typeof drop; flick?: typeof flick } | null>(null);
+  // Seconds left in the welcome greeting before a hungry idle, when tummy is under 40.
+  const greetIdleLeft = useRef(0);
 
   const applyCue = useCallback(
     (kind: typeof cueKind, nextDrop?: typeof drop, nextFlick?: typeof flick) => {
@@ -248,7 +250,9 @@ export function PetView({
       } else if (kind === 'purr') {
         startUserTask(world, actor, 'react', 0.8);
       } else if (kind === 'wiggle') {
+        // TODO: replace react with a dedicated hop / tail-wag greet pose.
         startUserTask(world, actor, 'react', 0.2);
+        greetIdleLeft.current = 100 - hungerRef.current < 40 ? 4.5 : 0;
       } else if (kind === 'fetch') {
         startUserTask(world, actor, 'fetch', 1, nextDrop, nextFlick);
       }
@@ -446,6 +450,13 @@ export function PetView({
       const world = worldRef.current;
       const dt = frameDt(elapsedMs, activeRef.current);
       update(world, dt);
+      if (greetIdleLeft.current > 0) {
+        greetIdleLeft.current -= dt;
+        const actorNow = world.actors[0];
+        if (greetIdleLeft.current <= 0 && actorNow) {
+          startUserTask(world, actorNow, 'idle');
+        }
+      }
       const travel = travelRef.current;
       const actor = world.actors[0];
       if (travel && actor) {

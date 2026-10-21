@@ -21,8 +21,6 @@ export const careConfig = {
   rawAttrOnMastery: 3,
   trainingRepXp: 2,
   masteryXp: 20,
-  welcomeBackMs: 8 * 60 * 60_000,
-  awayHappinessFloor: 40,
   regenMs: 20 * 60_000,
   regenCap: 15,
   loginBonus: 10,

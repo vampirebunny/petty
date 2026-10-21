@@ -1,6 +1,8 @@
 import { breedAttributes } from '../../actor/breedAttributes';
 import { addStack, emptyEconomy, settleEconomy, stackQty } from '../../economy/state';
 import { reconcileBand, attributeScore } from '../attributes';
+import { applyAwayDecay, applyAwayWeight } from '../awayDecay';
+import { AWAY_DECAY } from '../awayDecayConfig';
 import { applyCareTime } from '../care';
 import { careConfig } from '../careConfig';
 import { testPet } from '../__fixtures__/pets';
@@ -31,7 +33,7 @@ it('adds a meal to the weight index and leaves a water refill unchanged', () => 
 it('thins the pet across missed days and leaves a scene change alone', () => {
   const before = trainedPet();
   const missed = resume(before, before.lastUpdatedAt + 7 * dayMs);
-  expect(missed.weight).toBeCloseTo(before.weight - 0.12 * 7, 5);
+  expect(missed.weight).toBeCloseTo(applyAwayWeight(before.weight, 7 * 24), 5);
 
   const moved = applyEvent(before, { type: 'setScene', sceneId: 'park' }).state;
   expect(moved.sceneId).toBe('park');
@@ -40,13 +42,21 @@ it('thins the pet across missed days and leaves a scene change alone', () => {
   expect(moved.needs).toEqual(before.needs);
 });
 
-it('keeps thinning through a long absence after needs have stopped', () => {
+it('keeps thinning through a long absence without zeroing needs', () => {
   const before = trainedPet();
-  const longGap = resume(before, before.lastUpdatedAt + 100 * 60 * 60 * 1000);
-  const capped = resume(before, before.lastUpdatedAt + 48 * 60 * 60 * 1000);
+  const longGap = resume(before, before.lastUpdatedAt + 100 * hourMs);
+  const twoDays = resume(before, before.lastUpdatedAt + 48 * hourMs);
+  const atCap = resume(before, before.lastUpdatedAt + AWAY_DECAY.maxElapsedH * hourMs);
+  const pastCap = resume(before, before.lastUpdatedAt + (AWAY_DECAY.maxElapsedH + 200) * hourMs);
 
-  expect(longGap.weight).toBeLessThan(capped.weight);
-  expect(longGap.needs).toEqual(capped.needs);
+  expect(longGap.weight).toBeLessThan(twoDays.weight);
+  expect(longGap.weight).toBeGreaterThan(-1);
+  expect(100 - longGap.needs.hunger).toBeGreaterThan(0);
+  expect(longGap.needs.happiness).toBeGreaterThan(0);
+  expect(longGap.needs.energy).toBeGreaterThan(0);
+  expect(pastCap.needs).toEqual(atCap.needs);
+  expect(pastCap.weight).toBeCloseTo(atCap.weight, 5);
+  expect(pastCap.ageDays).toBeGreaterThan(atCap.ageDays);
 });
 
 it('keeps care vitality at or above 0.35 and remembers band hysteresis', () => {
@@ -150,13 +160,19 @@ it('unlocks Paw after Sit and Speak are mastered, and calls it High five for cat
   expect(repaired.milestones).toEqual(['sit']);
 });
 
-it('keeps a resting pet asleep and still floors happiness after a long absence', () => {
+it('keeps a resting pet asleep and applies away mood without raising it', () => {
   const resting = pet();
   const before = { ...resting, asleep: true, needs: { ...resting.needs, energy: 0 } };
   const after = resume(before, before.lastUpdatedAt + 20 * 60 * 1000);
   expect(after.asleep).toBe(true);
-  const away = resume(trainedPet(), trainedPet().lastUpdatedAt + 72 * hourMs);
-  expect(away.needs.happiness).toBeGreaterThanOrEqual(careConfig.awayHappinessFloor);
+  const start = trainedPet();
+  const away = resume(start, start.lastUpdatedAt + 72 * hourMs);
+  const expected = applyAwayDecay(
+    { tummy: 100 - start.needs.hunger, mood: start.needs.happiness, energy: start.needs.energy },
+    72,
+  );
+  expect(away.needs.happiness).toBeCloseTo(expected.mood, 5);
+  expect(away.needs.happiness).toBeGreaterThan(AWAY_DECAY.needs.mood.floor);
 });
 
 it('resolves an open reward when the treat arrives inside the window', () => {

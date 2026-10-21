@@ -1,6 +1,7 @@
 import { testPet } from '../__fixtures__/pets';
+import { applyAwayWeight } from '../awayDecay';
 import { applyHappinessDelta, resume, setAgeDays, setWeight, tickForeground } from '../clock';
-import { dayMs, daysToSenior, weightDecayPerDay } from '../config';
+import { dayMs, daysToSenior, healthyWeightBand, weightDecayPerDay } from '../config';
 
 const hourMs = 60 * 60 * 1000;
 
@@ -17,16 +18,26 @@ it('ages and loses weight for the whole hour the app stays open', () => {
   expect(after.bornAt).toBe(before.bornAt);
 });
 
-it('ages and thins across a full absence while needs stop at 48 hours', () => {
+it('ages across a full absence and thins weight on the away curve', () => {
   const before = pet();
   const longGap = resume(before, before.lastUpdatedAt + 100 * hourMs);
-  const capped = resume(before, before.lastUpdatedAt + 48 * hourMs);
+  const weekend = resume(before, before.lastUpdatedAt + 48 * hourMs);
 
   expect(longGap.ageDays).toBeCloseTo(100 / 24, 5);
-  expect(capped.ageDays).toBeCloseTo(2, 5);
-  expect(longGap.weight).toBeCloseTo(before.weight - weightDecayPerDay * (100 / 24), 5);
-  expect(capped.weight).toBeCloseTo(before.weight - weightDecayPerDay * 2, 5);
-  expect(longGap.needs).toEqual(capped.needs);
+  expect(weekend.ageDays).toBeCloseTo(2, 5);
+  expect(weekend.weight).toBeCloseTo(applyAwayWeight(before.weight, 48), 5);
+  expect(longGap.weight).toBeCloseTo(applyAwayWeight(before.weight, 100), 5);
+  expect(weekend.weight).toBeGreaterThan(-healthyWeightBand);
+  expect(longGap.needs).not.toEqual(weekend.needs);
+});
+
+it('leaves needs and weight unchanged when the clock moves backward', () => {
+  const before = pet();
+  const after = resume(before, before.lastUpdatedAt - hourMs);
+
+  expect(after.needs).toEqual(before.needs);
+  expect(after.weight).toBe(before.weight);
+  expect(after.lastUpdatedAt).toBe(before.lastUpdatedAt - hourMs);
 });
 
 it('rewrites bornAt when debug age changes and clamps the weight index', () => {

@@ -3,7 +3,8 @@ import { AppState } from 'react-native';
 
 import { flickToThrow } from '../input/flick';
 import { cancelReminders, syncReminder } from '../reminders/notifications';
-import { careConfig } from '../sim/careConfig';
+import { AWAY_DECAY } from '../sim/awayDecayConfig';
+import { awayElapsedHours } from '../sim/awayDecay';
 import { applyRewardTreat } from '../treats/rules';
 import {
   applyEvent,
@@ -107,6 +108,7 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
   const remindersRef = useRef(true);
   const saveQueue = useRef(Promise.resolve());
   const activeRef = useRef(AppState.currentState === 'active');
+  const returningRef = useRef(false);
 
   useEffect(() => {
     storageRef.current = storage;
@@ -144,6 +146,26 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
       });
   }, []);
 
+  const settleReturn = useCallback(
+    (current: PetState, now: number) => {
+      if (returningRef.current) {
+        return;
+      }
+      returningRef.current = true;
+      try {
+        const elapsedH = awayElapsedHours(current.lastUpdatedAt, now);
+        const cue = elapsedH >= AWAY_DECAY.welcomeBackThresholdH ? ({ kind: 'wiggle' } as const) : undefined;
+        if (cue) {
+          setWelcomeBack(true);
+        }
+        publish(resume(current, now), cue);
+      } finally {
+        returningRef.current = false;
+      }
+    },
+    [publish],
+  );
+
   useEffect(() => {
     let cancelled = false;
     void Promise.all([storage.load(), loadRemindersEnabled(), loadCareRemindersEnabled()]).then(
@@ -157,17 +179,13 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
       setCareRemindersOnState(care);
       setReady(true);
       if (loaded) {
-        const now = Date.now();
-        if (now - loaded.lastUpdatedAt >= careConfig.welcomeBackMs) {
-          setWelcomeBack(true);
-        }
-        publish(resume(loaded, now));
+        settleReturn(loaded, Date.now());
       }
     });
     return () => {
       cancelled = true;
     };
-  }, [publish, storage]);
+  }, [settleReturn, storage]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -184,18 +202,23 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
     const subscription = AppState.addEventListener('change', (status) => {
       const active = status === 'active';
       const becameActive = active && !activeRef.current;
+      const left = !active && activeRef.current;
       activeRef.current = active;
       const current = stateRef.current;
-      if (becameActive && current) {
-        const now = Date.now();
-        if (now - current.lastUpdatedAt >= careConfig.welcomeBackMs) {
-          setWelcomeBack(true);
-        }
-        publish(resume(current, now));
+      if (!current) {
+        return;
+      }
+      const now = Date.now();
+      if (left) {
+        publish({ ...current, lastUpdatedAt: now, weightAppliedAt: now });
+        return;
+      }
+      if (becameActive) {
+        settleReturn(current, now);
       }
     });
     return () => subscription.remove();
-  }, [publish]);
+  }, [publish, settleReturn]);
 
   const dispatch = useCallback(
     (event: PetEvent) => {

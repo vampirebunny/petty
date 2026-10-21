@@ -47,27 +47,18 @@ export function blankTraining(species: 'dog' | 'cat', petDay: number): Record<st
   return training;
 }
 
-// Foreground and return both come through here. Expired trick rewards resolve, and a long absence
-// keeps happiness from bottoming out.
+// Foreground and return both come through here. Expired trick rewards resolve.
+// Away needs are applied before this runs, so a long absence does not raise happiness.
 export function advanceCare(
   state: PetState,
   now: number,
-  wallMs: number,
+  _wallMs: number,
   _awakeMs: number,
   mode: 'live' | 'away',
 ): PetState {
   let next = state;
   if (next.care.pendingReward && (mode === 'away' || now - next.care.pendingReward.openedAt >= careConfig.rewardLateMs)) {
     next = resolveReward(next, now, null);
-  }
-  if (mode === 'away' && wallMs >= careConfig.welcomeBackMs) {
-    next = {
-      ...next,
-      needs: {
-        ...next.needs,
-        happiness: Math.max(next.needs.happiness, careConfig.awayHappinessFloor),
-      },
-    };
   }
   return refreshUnlocks(next).state;
 }
