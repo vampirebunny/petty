@@ -1,5 +1,6 @@
 import { breedById } from '../actor/breeds';
 import type { ActorSource } from '../actor/types';
+import { styleBasis } from '../sim/attributes';
 import { currentStyle } from '../sim/offers';
 import type { Equipped, PetState } from '../sim/types';
 import type { PetSnapshot } from './types';
@@ -20,7 +21,7 @@ export function snapshotPet(pet: PetState, outfit: Equipped, createdAt: string, 
     vitality: pet.vitality,
     seed: pet.attributes.seed,
     originArchetype: pet.attributes.archetype,
-    currentStyle: currentStyle(pet.attributes.archetype, pet.attributes.current, pet.attributes.potential),
+    currentStyle: currentStyle(pet.attributes.archetype, styleBasis(pet), pet.attributes.potential),
     attributes: { ...pet.attributes.current },
     potential: { ...pet.attributes.potential },
     favoriteActivities: [],

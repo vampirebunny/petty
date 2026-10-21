@@ -531,6 +531,10 @@ describe('playdate rewards, cooldown, and history', () => {
     const pet = testPet(8, 'corgi', 50, 'Pip', 'pet');
     pet.needs.happiness = 95;
     pet.attributes.current.agility = pet.attributes.potential.agility - 1;
+    pet.attributes.trained = {
+      ...(pet.attributes.trained ?? { stamina: 0, agility: 0, intelligence: 0, boldness: 0, affection: 0, obedience: 0 }),
+      agility: pet.attributes.potential.agility,
+    };
     const xp = pet.xp;
     const bond = pet.bond;
     const equipped = { ...pet.equipped };
@@ -541,7 +545,8 @@ describe('playdate rewards, cooldown, and history', () => {
       rareEvents: [],
     });
     expect(next.needs.happiness).toBe(100);
-    expect(next.attributes.current.agility).toBe(pet.attributes.potential.agility);
+    expect(attributeScore(next, 'agility')).toBeLessThanOrEqual(pet.attributes.potential.agility);
+    expect(next.attributes.current.agility).toBe(pet.attributes.current.agility);
     expect(next.xp).toBe(xp);
     expect(next.bond).toBe(bond);
     expect(next.equipped).toEqual(equipped);
@@ -775,7 +780,10 @@ describe('playdate attribute gains', () => {
 
   it('shows no gain once the attribute is at its cap', () => {
     const pet = withDerived({ ...testPet(8, 'corgi', 50, 'Pip', 'pet'), ageDays: 400 });
-    pet.attributes.current.affection = pet.attributes.potential.affection;
+    pet.attributes.trained = {
+      ...(pet.attributes.trained ?? { stamina: 0, agility: 0, intelligence: 0, boldness: 0, affection: 0, obedience: 0 }),
+      affection: pet.attributes.potential.affection,
+    };
     pet.drift.affection = 0;
     const [entry] = attributeGains(pet, { moodDelta: 0, attributeXp: { affection: 3 }, bondDelta: 0, rareEvents: [] });
     expect(entry.gain).toBeGreaterThanOrEqual(0);

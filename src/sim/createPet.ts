@@ -67,6 +67,7 @@ export function createPet({ id, ownerId, name, breedId, look, attributes, now }:
       archetype: attributes.archetype,
       potential: { ...attributes.potential },
       current: startingCurrent(attributes.potential),
+      trained: zeroStats(),
     },
     drift: zeroStats(),
     level: 1,
@@ -87,7 +88,7 @@ export function createPet({ id, ownerId, name, breedId, look, attributes, now }:
     treatDay: { day: 0, count: 0 },
     boosts: [],
     care: blankCare(now, tolerance),
-    training: blankTraining(species, 0),
+    training: blankTraining(species),
     milestones: [],
     seenCoachMarks: [],
   });

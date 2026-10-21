@@ -52,6 +52,8 @@ export type PetAttributes = {
   archetype: Archetype;
   potential: Stats;
   current: Stats;
+  // Points above natural growth from training and playdates. Missing on a save means "not migrated yet".
+  trained?: Stats;
 };
 
 export type AttributeSet = {
@@ -82,11 +84,6 @@ export type PendingReward = {
   openedAt: number;
 };
 
-export type TreatGrant = {
-  basic: number;
-  special: number;
-};
-
 export type PetCareState = {
   hygiene: number;
   lastBathAt: number | null;
@@ -94,7 +91,6 @@ export type PetCareState = {
   bathTolerance: number;
   bathToleranceStart: number;
   pendingReward: PendingReward | null;
-  unclaimed: TreatGrant;
   recentScenes: string[];
 };
 
@@ -103,8 +99,9 @@ export type TrainingTrack = {
   progress: number;
   unlocked: boolean;
   mastered: boolean;
-  repsToday: number;
-  repsPetDay: number;
+  focusUsed: number;
+  restUntil: number | null;
+  hadNoTreat: boolean;
   pendingPenalty: boolean;
   lastPracticedAt: number | null;
 };
@@ -175,9 +172,7 @@ export type PetEvent =
   | { type: 'equip'; slot: OutfitSlot; itemId: string | null }
   | { type: 'playdate'; happiness: number; attributes: Partial<Record<Trait, number>> }
   | { type: 'trickRep'; trackId: string; now: number }
-  | { type: 'rewardTreat'; tier: 'basic' | 'special'; now: number }
-  | { type: 'rewardCuddle'; now: number }
-  | { type: 'claimGrants' }
+  | { type: 'rewardTreat'; choice: 'treat' | 'none'; now: number }
   | { type: 'clearTreats' }
   | { type: 'seeCoach'; id: string }
   | { type: 'moveFurniture'; pieceId: string; sceneId: string; x: number; y: number };
@@ -199,6 +194,7 @@ export type Cue = {
     | 'yawn'
     | 'fetch'
     | 'confused'
+    | 'praise'
     | 'greet';
   drop?: { x: number; y: number };
   flick?: { vx: number; vy: number; vz: number };

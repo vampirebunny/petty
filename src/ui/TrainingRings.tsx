@@ -1,11 +1,12 @@
 import { useEffect, useId, useState } from 'react';
 import type { ReactNode } from 'react';
-import { ChevronsDown, Hand, Lock, Volume2 } from 'lucide-react-native';
+import { ChevronsDown, Hand, Lock, Moon, Volume2 } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
+import { formatRest, isResting, restRemainingMs } from '../sim/training';
 import { trackDef, trackName } from '../sim/tracks';
 import type { PetState } from '../sim/types';
 import { iconFor } from './actionIcons';
@@ -19,6 +20,8 @@ type Props = {
   onPractice: (trackId: string) => void;
   highlightId?: string | null;
   reducedMotion?: boolean;
+  now: number;
+  disabled?: boolean;
 };
 
 type Card = {
@@ -150,20 +153,25 @@ function TrainingCard({
   card,
   value,
   locked,
+  resting,
+  restLabel,
   fresh,
   onPress,
 }: {
   card: Card;
   value: number;
   locked: boolean;
+  resting: boolean;
+  restLabel: string;
   fresh: boolean;
   onPress?: () => void;
 }) {
   const uid = useId().replace(/:/g, '');
-  const tint = locked ? GRAY : tints[card.tint];
+  const tint = locked || resting ? GRAY : tints[card.tint];
   const ink = candyInk(tint);
   const tier = card.tiers.find((entry) => value >= entry.min) ?? card.tiers[card.tiers.length - 1];
-  const caption = locked ? 'Locked' : value <= 0 ? tier.text : `${tier.text} · ${Math.round(value)}%`;
+  const caption = locked ? 'Locked' : resting ? restLabel : value <= 0 ? tier.text : `${tier.text} · ${Math.round(value)}%`;
+  const Icon = locked ? Lock : resting ? Moon : card.Icon;
   return (
     <Pressable
       disabled={locked || !onPress}
@@ -175,7 +183,7 @@ function TrainingCard({
     >
       {({ pressed }) => (
         <CandyShell tint={tint} radius={24} selected={fresh} pressed={pressed && !locked} uid={uid} style={styles.face}>
-          <IconBubble tint={tint} Icon={locked ? Lock : card.Icon} />
+          <IconBubble tint={tint} Icon={Icon} />
           <Text style={[styles.name, { color: ink }]} numberOfLines={1}>
             {card.label}
           </Text>
@@ -194,7 +202,7 @@ function TrainingCard({
   );
 }
 
-export function TrainingRings({ pet, species, onPractice, highlightId, reducedMotion = false }: Props) {
+export function TrainingRings({ pet, species, onPractice, highlightId, reducedMotion = false, now, disabled = false }: Props) {
   const ids = trainingIds(pet, species);
   if (ids.length === 0) {
     return null;
@@ -210,15 +218,20 @@ export function TrainingRings({ pet, species, onPractice, highlightId, reducedMo
             return null;
           }
           const locked = !track.unlocked;
-          const fresh = id === highlightId && !locked;
+          const resting = isResting(track, now);
+          const justReady =
+            track.restUntil != null && now >= track.restUntil && now - track.restUntil < 1600;
+          const fresh = (id === highlightId && !locked) || justReady;
           return (
             <Spotlight key={id} active={fresh} reducedMotion={reducedMotion}>
               <TrainingCard
                 card={cardFor(id, species)}
                 value={track.progress}
                 locked={locked}
+                resting={resting}
+                restLabel={`Rest ${formatRest(restRemainingMs(track, now))}`}
                 fresh={fresh}
-                onPress={locked ? undefined : () => onPractice(id)}
+                onPress={locked || disabled ? undefined : () => onPractice(id)}
               />
             </Spotlight>
           );

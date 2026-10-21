@@ -64,12 +64,14 @@ function readAttributes(value: unknown): PetAttributes | null {
   ) {
     return null;
   }
+  const trained = readStats(value.trained);
   return {
     seed: value.seed,
     rulesVersion: value.rulesVersion,
     archetype: value.archetype as PetAttributes['archetype'],
     potential,
     current,
+    trained: trained ?? undefined,
   };
 }
 

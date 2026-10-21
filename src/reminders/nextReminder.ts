@@ -96,13 +96,11 @@ export function planReminders(
     }
   }
   if (options.care && state.care) {
-    const capped = Object.values(state.training).some((track) => track.repsToday >= 8);
-    if (capped) {
-      const day = Math.floor((now - state.bornAt) / dayMs);
-      planned.push({ at: state.bornAt + (day + 1) * dayMs, kind: 'training' });
-    }
-    if (options.basicTreats < 15) {
-      planned.push({ at: now + (15 - options.basicTreats) * 20 * 60 * 1000, kind: 'treats' });
+    const rests = Object.values(state.training)
+      .map((track) => track.restUntil)
+      .filter((at): at is number => at != null && at > now);
+    if (rests.length > 0) {
+      planned.push({ at: Math.min(...rests), kind: 'training' });
     }
   }
   planned.sort((a, b) => reminderPriority.indexOf(a.kind) - reminderPriority.indexOf(b.kind) || a.at - b.at);

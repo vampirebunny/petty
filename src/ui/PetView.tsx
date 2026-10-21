@@ -276,6 +276,8 @@ export function PetView({
         startUserTask(world, actor, 'paw');
       } else if (kind === 'speak') {
         startUserTask(world, actor, 'speak');
+      } else if (kind === 'praise') {
+        actor.bark = { active: true, t: 0, fired: [false, false], open: 0, sound: true };
       } else if (kind === 'confused') {
         startUserTask(world, actor, 'confused');
       } else if (kind === 'eat') {

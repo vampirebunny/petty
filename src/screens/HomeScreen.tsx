@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 import { AccessibilityInfo, AppState, Image, Platform, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector, Pressable, ScrollView } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
@@ -17,7 +18,7 @@ import { stageHeight, stageWidth } from '../actor/geometry';
 import { flickSpeedThreshold } from '../input/flick';
 import { CuddleGesture } from '../input/cuddleGesture';
 import type { GestureEvent } from '../input/cuddleGesture';
-import { archetypeNames, archetypeStyleNames, attributeScore, currentStyle, petStrokeIntervalMs, traits } from '../sim';
+import { archetypeNames, archetypeStyleNames, attributeScore, currentStyle, petStrokeIntervalMs, shownAttributeSteps, styleBasis, traits } from '../sim';
 import type { Trait } from '../sim';
 import {
   loadHasSeenSilentModeHint,
@@ -28,12 +29,13 @@ import {
   saveSoundEnabled,
 } from '../storage/session';
 import { PlacesScreen } from './PlacesScreen';
+import { PantryScreen } from './PantryScreen';
 import { placeFlavors, placeIcons, speciesLabel } from '../ui/actionIcons';
 import { CandyShell, candyInk, tints } from '../ui/candy';
 import { iconStroke } from '../ui/theme';
 import { usePet } from '../state/usePet';
 import { useEconomy } from '../economy/useEconomy';
-import { basicTreatId, emptyEconomy, minutesUntilTreat, rewardTierAvailable, specialTreatId, stackQty } from '../economy/state';
+import { basicTreatId, emptyEconomy, stackQty } from '../economy/state';
 import { trackName } from '../sim/tracks';
 import {
   ghostDelayMs,
@@ -53,8 +55,11 @@ import { formatCooldown } from '../playdate/cooldown';
 import { DebugPanel } from '../ui/DebugPanel';
 import { NeedRings } from '../ui/NeedRings';
 import { TrainingRings } from '../ui/TrainingRings';
+import { FunModal } from '../ui/FunModal';
+import { AttributePops } from '../ui/AttributePops';
+import { formatRest, isResting, restRemainingMs } from '../sim/training';
 import { BadgeCelebration } from '../ui/BadgeCelebration';
-import { ChevronRight, Sparkles } from 'lucide-react-native';
+import { Bone, ChevronRight, CircleHelp, Cookie, Moon, Sparkles } from 'lucide-react-native';
 import { playBadgeChime } from '../audio/badge';
 import { GREET } from '../actor/greetings';
 import { PetView } from '../ui/PetView';
@@ -131,11 +136,10 @@ export default function HomeScreen({ petApi }: Props) {
     reset,
     release,
     finishPlaydate,
-    rewardTreat,
-    rewardCuddle,
+    attemptTrick,
+    resolveTraining,
     seeCoach,
     moveFurniture,
-    claimGrants,
     clearTreats,
     welcomeBack,
     dismissWelcome,
@@ -144,8 +148,14 @@ export default function HomeScreen({ petApi }: Props) {
     setCareTreatCount,
   } = petApi;
   const economyApi = useEconomy(state?.ownerId);
-  const [inventoryOpen, setInventoryOpen] = useState(false);
-  const [treatTier, setTreatTier] = useState<'basic' | 'special'>('basic');
+  const [clock, setClock] = useState(() => Date.now());
+  const [pantryOpen, setPantryOpen] = useState(false);
+  const [pops, setPops] = useState<{ trait: Trait; delta: number }[] | null>(null);
+  const clearPops = useCallback(() => setPops(null), []);
+  const [dialog, setDialog] = useState<
+    | { kind: 'good' | 'miss' | 'out' | 'break'; trackId: string }
+    | null
+  >(null);
   const lastStrokeAt = useRef(0);
   const { viewWidth, viewHeight, contentWidth } = useStageSize();
   const [playdateOpen, setPlaydateOpen] = useState(false);
@@ -342,9 +352,6 @@ export default function HomeScreen({ petApi }: Props) {
       if (!handle || !acceptingTouch()) {
         return;
       }
-      if (events.length > 0) {
-        rewardCuddle();
-      }
       for (const event of events) {
         const stage = stagePoint(event.x, event.y, viewWidth, viewHeight, contentWidth);
         if (event.type === 'move') {
@@ -368,7 +375,7 @@ export default function HomeScreen({ petApi }: Props) {
         }
       }
     },
-    [acceptingTouch, contentWidth, rewardCuddle, viewHeight, viewWidth],
+    [acceptingTouch, contentWidth, viewHeight, viewWidth],
   );
 
   const cuddleMove = useCallback(
@@ -396,11 +403,10 @@ export default function HomeScreen({ petApi }: Props) {
       const stage = stagePoint(x, y, viewWidth, viewHeight, contentWidth);
       if (handle.zoneAt(stage.x, stage.y) === 'nose') {
         touchedRef.current = true;
-        rewardCuddle();
         handle.touch({ kind: 'boop', zone: 'nose', x: stage.x });
       }
     },
-    [acceptingTouch, contentWidth, rewardCuddle, viewHeight, viewWidth],
+    [acceptingTouch, contentWidth, viewHeight, viewWidth],
   );
   const cuddleEnd = useCallback(() => {
     touchActive.current = false;
@@ -679,32 +685,18 @@ export default function HomeScreen({ petApi }: Props) {
     return () => clearInterval(timer);
   }, [coachVisible, stageToView]);
 
-  const grantedKey = useRef('');
   const migratedTreats = useRef(false);
   const wallet = economyApi.economy;
-  const unclaimedBasic = state?.care.unclaimed.basic ?? 0;
-  const unclaimedSpecial = state?.care.unclaimed.special ?? 0;
   const legacyTreats = state?.treats;
+
+  useEffect(() => {
+    const id = setInterval(() => setClock(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     setCareTreatCount(stackQty(wallet ?? emptyEconomy(0), basicTreatId));
   }, [setCareTreatCount, wallet]);
-
-  useEffect(() => {
-    if (!wallet || (unclaimedBasic <= 0 && unclaimedSpecial <= 0)) {
-      return;
-    }
-    const key = `${unclaimedBasic}:${unclaimedSpecial}`;
-    if (grantedKey.current === key) {
-      return;
-    }
-    grantedKey.current = key;
-    economyApi.grantMany([
-      { itemId: basicTreatId, qty: unclaimedBasic },
-      { itemId: specialTreatId, qty: unclaimedSpecial },
-    ]);
-    claimGrants();
-  }, [claimGrants, economyApi, unclaimedBasic, unclaimedSpecial, wallet]);
 
   useEffect(() => {
     if (!wallet || !legacyTreats || legacyTreats.length === 0 || migratedTreats.current) {
@@ -794,16 +786,12 @@ export default function HomeScreen({ petApi }: Props) {
     return <FacingLab reducedMotion={reducedMotion} onClose={() => setFacingOpen(false)} />;
   }
 
-  if (placesOpen) {
-    const placeSpecies = breedById(state.breedId)?.species ?? 'dog';
+  if (pantryOpen) {
     return (
-      <PlacesScreen
-        species={placeSpecies}
-        currentSceneId={preset.id}
-        petName={state.name}
-        onPick={setScene}
-        onClose={() => setPlacesOpen(false)}
+      <PantryScreen
+        economy={economyApi.economy}
         reducedMotion={reducedMotion}
+        onClose={() => setPantryOpen(false)}
       />
     );
   }
@@ -822,7 +810,7 @@ export default function HomeScreen({ petApi }: Props) {
   }
 
   const origin = state.attributes.archetype;
-  const style = currentStyle(origin, state.attributes.current, state.attributes.potential);
+  const style = currentStyle(origin, styleBasis(state), state.attributes.potential);
   const styleLine =
     style === origin
       ? archetypeNames[origin]
@@ -886,14 +874,46 @@ export default function HomeScreen({ petApi }: Props) {
     },
   ];
 
+  const notePops = (before: typeof state, after: typeof state) => {
+    const steps = shownAttributeSteps(before, after);
+    const ordered = [
+      ...steps.filter((step) => step.trait !== 'intelligence'),
+      ...steps.filter((step) => step.trait === 'intelligence'),
+    ];
+    if (ordered.length > 0) {
+      setPops(ordered);
+    }
+  };
+  const afterPayout = (trackId: string, before: typeof state, after: typeof state) => {
+    notePops(before, after);
+    const track = after.training[trackId];
+    if (track && !track.mastered && isResting(track, Date.now())) {
+      setDialog({ kind: 'break', trackId });
+    } else {
+      setDialog(null);
+    }
+  };
+  const dialogLive = dialog != null && !(dialog.kind === 'good' && !state.care.pendingReward);
   const practice = (trackId: string) => {
-    if (trackId === 'sit') {
-      sit();
-    } else if (trackId === 'paw') {
-      givePaw();
-    } else if (trackId === 'speak') {
+    if (dialogLive) {
+      return;
+    }
+    const track = state.training[trackId];
+    if (track && isResting(track, clock)) {
+      setDialog({ kind: 'break', trackId });
+      return;
+    }
+    if (trackId === 'speak') {
       offerSilentHint();
-      speak();
+    }
+    const result = attemptTrick(trackId);
+    if (!result || result.mastered) {
+      return;
+    }
+    if (result.ok) {
+      setDialog({ kind: 'good', trackId });
+    } else if (result.confused) {
+      setDialog({ kind: 'miss', trackId });
     }
   };
   const learned: PetAction[] = [
@@ -950,12 +970,6 @@ export default function HomeScreen({ petApi }: Props) {
       active: helpOpen,
     },
     {
-      id: 'inventory',
-      label: 'Treats',
-      onPress: () => setInventoryOpen((open) => !open),
-      active: inventoryOpen,
-    },
-    {
       id: 'potty',
       label: 'Care alerts',
       onPress: () => setCareRemindersOn(!careRemindersOn),
@@ -963,7 +977,126 @@ export default function HomeScreen({ petApi }: Props) {
     },
   ];
 
+  const trickTitle = (trackId: string) => trackName(trackId, species);
+  const shownDialog = dialogLive ? dialog : null;
+  let trainingDialog: ReactNode = null;
+  if (shownDialog?.kind === 'good') {
+    const trackId = shownDialog.trackId;
+    const label = trickTitle(trackId);
+    trainingDialog = (
+      <FunModal
+        title={`Good job, ${state.name}!`}
+        body={`${state.name} nailed ${label}! Give a treat?\nTreats help ${state.name} learn faster!`}
+        icon={Bone}
+        tint="butter"
+        sparkle
+        reducedMotion={reducedMotion}
+        primary={{
+          label: 'Yes, give treat',
+          onPress: () => {
+            if (!economyApi.give(basicTreatId)) {
+              const paid = resolveTraining('none');
+              if (paid) {
+                notePops(paid.before, paid.after);
+              }
+              setDialog({ kind: 'out', trackId });
+              return;
+            }
+            const paid = resolveTraining('treat');
+            if (paid) {
+              afterPayout(trackId, paid.before, paid.after);
+            }
+          },
+        }}
+        secondary={{
+          label: 'No',
+          onPress: () => {
+            const paid = resolveTraining('none');
+            if (paid) {
+              afterPayout(trackId, paid.before, paid.after);
+            }
+          },
+        }}
+      />
+    );
+  } else if (shownDialog?.kind === 'miss') {
+    const trackId = shownDialog.trackId;
+    const label = trickTitle(trackId);
+    trainingDialog = (
+      <FunModal
+        title="Not quite!"
+        body={`${state.name} didn't get ${label} this time. Try again?`}
+        icon={CircleHelp}
+        tint="lilac"
+        reducedMotion={reducedMotion}
+        primary={{
+          label: 'Try again',
+          onPress: () => {
+            if (trackId === 'speak') {
+              offerSilentHint();
+            }
+            const result = attemptTrick(trackId);
+            if (!result || result.mastered) {
+              setDialog(null);
+              return;
+            }
+            if (result.ok) {
+              setDialog({ kind: 'good', trackId });
+            } else if (result.confused) {
+              setDialog({ kind: 'miss', trackId });
+            } else {
+              setDialog(null);
+            }
+          },
+        }}
+        secondary={{ label: 'Not now', onPress: () => setDialog(null) }}
+      />
+    );
+  } else if (shownDialog?.kind === 'out') {
+    const trackId = shownDialog.trackId;
+    trainingDialog = (
+      <FunModal
+        title="Uh oh, no treats left!"
+        body={`The Pet Store is opening soon. ${state.name} still had fun practicing.`}
+        icon={Cookie}
+        tint="peach"
+        reducedMotion={reducedMotion}
+        primary={{
+          label: 'OK',
+          onPress: () => {
+            const track = state.training[trackId];
+            if (track && !track.mastered && isResting(track, clock)) {
+              setDialog({ kind: 'break', trackId });
+            } else {
+              setDialog(null);
+            }
+          },
+        }}
+      />
+    );
+  } else if (shownDialog?.kind === 'break') {
+    const track = state.training[shownDialog.trackId];
+    const remain = track ? formatRest(restRemainingMs(track, clock)) : '0:00';
+    const label = trickTitle(shownDialog.trackId);
+    const body = track?.hadNoTreat
+      ? `${state.name} lost focus! Treats help ${state.name} stay focused longer. ${state.name} can practice again in ${remain}.`
+      : `Great work on ${label}! ${state.name} can practice again in ${remain}.`;
+    trainingDialog = (
+      <FunModal
+        title={`${state.name} needs a break!`}
+        body={body}
+        icon={Moon}
+        tint="sky"
+        reducedMotion={reducedMotion}
+        primary={{ label: 'OK', onPress: () => setDialog(null) }}
+      />
+    );
+  }
+
+  const placeSpecies = breedById(state.breedId)?.species ?? 'dog';
+
   return (
+    <View style={styles.screen}>
     <View style={styles.root}>
       {celebrating ? (
         <BadgeCelebration
@@ -1056,40 +1189,19 @@ export default function HomeScreen({ petApi }: Props) {
             <Text style={styles.hint}>{state.name} missed you!</Text>
           </Pressable>
         ) : null}
-        {state.care.pendingReward ? (
-          <Pressable
-            onPress={() => {
-              const wallet = economyApi.economy ?? emptyEconomy(Date.now());
-              const tier = rewardTierAvailable(wallet, treatTier);
-              if (!tier) {
-                flash(`Out of treats — next in ${minutesUntilTreat(wallet, Date.now())}m`);
-                return;
-              }
-              const itemId = tier === 'special' ? specialTreatId : basicTreatId;
-              if (!economyApi.give(itemId)) {
-                return;
-              }
-              rewardTreat(tier);
-              setTreatTier('basic');
-            }}
-            accessibilityRole="button"
-          >
-            <Text style={styles.hint}>
-              Treat ({treatTier}) ·{' '}
-              {stackQty(economyApi.economy ?? emptyEconomy(0), treatTier === 'special' ? specialTreatId : basicTreatId)}
-            </Text>
-          </Pressable>
-        ) : null}
-        {inventoryOpen ? (
-          <Text style={styles.hint}>
-            Biscuits {stackQty(economyApi.economy ?? emptyEconomy(0), basicTreatId)} · Special{' '}
-            {stackQty(economyApi.economy ?? emptyEconomy(0), specialTreatId)}
-          </Text>
-        ) : null}
         <View style={styles.where}>
           <Text style={styles.sectionTitle}>Where</Text>
           <Pressable
-            onPress={() => setPlacesOpen(true)}
+            onPress={() => {
+              if (state.care.pendingReward) {
+                const paid = resolveTraining('none');
+                if (paid) {
+                  notePops(paid.before, paid.after);
+                }
+                setDialog(null);
+              }
+              setPlacesOpen(true);
+            }}
             accessibilityRole="button"
             accessibilityLabel={`Go somewhere. ${state.name} is in the ${preset.name}`}
           >
@@ -1124,6 +1236,8 @@ export default function HomeScreen({ petApi }: Props) {
           onPractice={practice}
           highlightId={unlocking}
           reducedMotion={reducedMotion}
+          now={clock}
+          disabled={dialogLive}
         />
         {playdates.remaining > 0 ? (
           <Text style={styles.hint}>Next playdate in {formatCooldown(playdates.remaining)}</Text>
@@ -1199,11 +1313,40 @@ export default function HomeScreen({ petApi }: Props) {
           onFacing={() => setFacingOpen(true)}
         />
       </ScrollView>
+      {pops ? <AttributePops steps={pops} reducedMotion={reducedMotion} onDone={clearPops} /> : null}
+      {trainingDialog}
+    </View>
+    {placesOpen ? (
+      <View style={styles.placesCover}>
+        <PlacesScreen
+          species={placeSpecies}
+          currentSceneId={preset.id}
+          petName={state.name}
+          reducedMotion={reducedMotion}
+          onPick={setScene}
+          onClose={() => setPlacesOpen(false)}
+          onPantry={() => {
+            setPlacesOpen(false);
+            setPantryOpen(true);
+          }}
+          onCloset={() => {
+            setPlacesOpen(false);
+            setWardrobeOpen(true);
+          }}
+        />
+      </View>
+    ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+  },
+  placesCover: {
+    ...StyleSheet.absoluteFillObject,
+  },
   root: {
     flex: 1,
     backgroundColor: '#F4F7FB',

@@ -1,4 +1,4 @@
-import { attributeScore, grantFlatAttributes, maturityOf, withDerived } from '../sim/attributes';
+import { addFlatTrained, attributeScore, withDerived } from '../sim/attributes';
 import { clampMax, clampMin, traits } from '../sim/config';
 import { canRaiseMood } from '../sim/mood';
 import type { PetState, Trait } from '../sim/types';
@@ -11,19 +11,14 @@ function clampNeed(value: number): number {
 
 // Flat happiness and flat attribute points. No training taper, no level XP, no pet.bond.
 export function applyPlaydateRewards(pet: PetState, outcome: PlaydateOutcome): PetState {
-  const maturity = maturityOf(pet.ageDays);
+  const granted = addFlatTrained(pet, outcome.attributeXp);
   return withDerived({
-    ...pet,
-    maturity,
+    ...granted,
     needs: {
-      ...pet.needs,
+      ...granted.needs,
       happiness: clampNeed(
         pet.needs.happiness + (outcome.moodDelta > 0 && !canRaiseMood(pet.needs) ? 0 : outcome.moodDelta),
       ),
-    },
-    attributes: {
-      ...pet.attributes,
-      current: grantFlatAttributes(pet.attributes.current, pet.attributes.potential, maturity, outcome.attributeXp),
     },
   });
 }

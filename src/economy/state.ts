@@ -1,4 +1,4 @@
-import { careConfig, type TreatTier } from '../sim/careConfig';
+import { careConfig } from '../sim/careConfig';
 
 export type InventoryStack = { itemId: string; qty: number };
 
@@ -12,7 +12,19 @@ export const basicTreatId = 'biscuit';
 export const specialTreatId = 'special';
 
 export function emptyEconomy(now: number): UserEconomy {
-  return { inventory: [], lastTreatRegenAt: now, lastDailyBonusLocalDate: null };
+  return {
+    inventory: [{ itemId: basicTreatId, qty: careConfig.startingTreats }],
+    lastTreatRegenAt: now,
+    lastDailyBonusLocalDate: null,
+  };
+}
+
+export function spendTreat(economy: UserEconomy, itemId: string): { economy: UserEconomy; ok: boolean } {
+  const next = takeStack(economy, itemId);
+  if (!next) {
+    return { economy, ok: false };
+  }
+  return { economy: next, ok: true };
 }
 
 export function stackQty(economy: UserEconomy, itemId: string): number {
@@ -43,61 +55,9 @@ export function takeStack(economy: UserEconomy, itemId: string): UserEconomy | n
   return { ...economy, inventory };
 }
 
-function localDate(now: number): string {
-  const date = new Date(now);
-  const month = `${date.getMonth() + 1}`.padStart(2, '0');
-  const day = `${date.getDate()}`.padStart(2, '0');
-  return `${date.getFullYear()}-${month}-${day}`;
-}
-
-// Regen is real time and pauses at the basic cap. The login bonus is once per local calendar date.
-export function settleEconomy(economy: UserEconomy, now: number): UserEconomy {
-  let next = economy;
-  const elapsed = Math.max(0, now - next.lastTreatRegenAt);
-  const steps = Math.floor(elapsed / careConfig.regenMs);
-  if (steps > 0) {
-    let qty = stackQty(next, basicTreatId);
-    let granted = 0;
-    for (let i = 0; i < steps && qty < careConfig.regenCap; i += 1) {
-      qty += 1;
-      granted += 1;
-    }
-    next = addStack(next, basicTreatId, granted);
-    next = { ...next, lastTreatRegenAt: next.lastTreatRegenAt + steps * careConfig.regenMs };
-  }
-  const today = localDate(now);
-  if (next.lastDailyBonusLocalDate !== today) {
-    next = addStack(next, basicTreatId, careConfig.loginBonus);
-    next = { ...next, lastDailyBonusLocalDate: today };
-  }
-  return next;
-}
-
-export function rewardTierAvailable(economy: UserEconomy, tier: TreatTier): TreatTier | null {
-  const basic = stackQty(economy, basicTreatId);
-  const special = stackQty(economy, specialTreatId);
-  if (tier === 'special' && special > 0) {
-    return 'special';
-  }
-  if (tier === 'basic' && basic > 0) {
-    return 'basic';
-  }
-  if (special > 0) {
-    return 'special';
-  }
-  if (basic > 0) {
-    return 'basic';
-  }
-  return null;
-}
-
-export function minutesUntilTreat(economy: UserEconomy, now: number): number {
-  if (stackQty(economy, basicTreatId) >= careConfig.regenCap) {
-    return 0;
-  }
-  const elapsed = Math.max(0, now - economy.lastTreatRegenAt);
-  const remain = careConfig.regenMs - (elapsed % careConfig.regenMs);
-  return Math.max(1, Math.ceil(remain / 60000));
+// Treats do not regenerate. Settlement keeps the wallet as it was saved.
+export function settleEconomy(economy: UserEconomy, _now: number): UserEconomy {
+  return economy;
 }
 
 // Stub for a future store. It does not grant items.

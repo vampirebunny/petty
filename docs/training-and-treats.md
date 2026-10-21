@@ -1,0 +1,51 @@
+# Training, treats, and visible attributes
+
+This is the current training and treat spec. It replaces the trick tracks, treat window, house training, and treat regen in `docs/boop-boop-care-training-brief-v2.md`.
+
+## Treats
+
+Treats belong to the owner, in the existing economy wallet, and work offline.
+
+- A new wallet starts with 10 basic treats and 0 special treats.
+- Treats do not regenerate, and there is no daily login bonus.
+- Training spends basic treats only. Special treats stay in the model for later.
+- Mastering a trick does not grant treats. The only source until the Pet Store exists is the starting 10.
+- The count never goes below 0.
+
+**Pantry** and **Closet** are choices on Go somewhere. They are not rooms. Pantry lists consumables (Treats × N, and special treats only when the count is above 0). At 0 basic treats it says the Pet Store is opening soon. The Pet Store button opens a Coming soon modal. Closet opens the wardrobe.
+
+## Training flow
+
+Tapping a trick that is not resting rolls success the same way as before: `clamp(0.55 + 0.003 × obedience + 0.004 × progress, 0.50, 0.97)`. A mastered trick always performs, with no modal and no payout.
+
+- A miss plays the confused reaction and opens **Not quite**. Try again rolls the same trick. Not now closes. Misses pay nothing and cost no focus.
+- A success plays the trick and opens **Good job**. Yes spends 1 basic treat and pays credit `1`, then plays an extra bark or meow on top of the trick. No, leaving the scene, or backgrounding the app pays credit `0.25` and plays no extra sound. Yes with no treats left opens **Out of treats** and pays credit `0.25`.
+- Only one training modal is open at a time. Other trick rings are disabled while it is open.
+
+## Focus and rest
+
+Each trick has its own session. A treated success costs 1 focus. A success without a treat costs 2. Misses cost 0.
+
+Session length is `round(5 + 5 × clamp(stamina / 100, 0, 1))` from the shown stamina score, about 5 to 10 treated reps. It is read live. When focus used reaches that length, the trick rests until `restUntil` (10 minutes, `trickRestMs`). Other tricks stay available.
+
+The break modal shows a live countdown. If any rep in the session was unpaid, the copy says the pet lost focus and that treats help it stay focused longer. Otherwise it is the normal "needs a break" copy. The ring shows `Rest 9:42`, or `Rest 1h 12m` once the wait is an hour or more. Tapping a resting trick reopens the modal and does not roll. When the timer ends, focus resets and the ring pulses once.
+
+The rep that fills the session still shows Good job first. The break modal follows that choice, unless the trick just became mastered.
+
+## Attributes
+
+| Trick | Raises |
+|---|---|
+| Sit | obedience |
+| Speak | boldness |
+| Paw / High five | affection |
+
+A treated rep passes 1.0 raw into the linked attribute. An untreated rep passes 0.25. Mastery passes 5 raw into the linked attribute, then 2 raw into intelligence, plus mastery XP. Intelligence only speeds later progress. The success roll is still obedience for every trick.
+
+Training diminishing returns use exponent 1: `raw × (potential − shown) / potential`. Other callers of `trainingGain` keep exponent 2. Gain is 0 at potential.
+
+Shown score is natural growth plus `attributes.trained`, plus drift, then the existing weight and aging multipliers, capped at potential. Training and playdate grants both add to `trained`, on top of natural growth. Playdate grants stay flat. A save that has no `trained` field copies `max(0, current − natural)` into it once.
+
+The style label uses natural growth plus `trained`, as a fraction of potential. It does not use drift, weight, or aging. Another style still has to lead the birth archetype by 5%.
+
+When a payout moves the rounded shown score up by a whole point, a `+N Attribute` pop appears near the pet. Fractional steps stay quiet. Mastery staggers the linked attribute and intelligence.

@@ -1,5 +1,7 @@
 # Boop Boop — Care & Training Systems Brief v2 (for Cursor)
 
+**Retired for training and treats.** Trick flow, the timed treat window, house training, treat regen, and attribute gains now live in [training-and-treats.md](training-and-treats.md). The notes below are historical.
+
 **Status:** This document **supersedes** the original brief and Addendums 1–3. Discard those. The v2.2 trick-pacing patch is folded in below: trick tiers, unlock days, `pSuccess`, and the treat regen numbers.
 
 **Shipped change:** Potty, messes, cleanup, house training, and the post-mastery walk are not in the game. Sections 6, 7, and 8 below are retired. Shipped tricks are Sit, Speak, and Paw. Paw (High five for cats) unlocks when Sit and Speak are both mastered. A new unlock plays "New trick!" and the training ring becomes a New! button. Mastered tricks are candy buttons in Learned Tricks, with no extra text pill.

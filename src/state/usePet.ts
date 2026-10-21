@@ -17,6 +17,7 @@ import {
   debugJump,
   deriveMood,
   openTickMs,
+  resolveReward,
   resume,
   setAgeDays,
   setVitality,
@@ -82,12 +83,11 @@ type PetApi = {
   setWeightValue: (weight: number) => void;
   reset: () => void;
   release: () => void;
-  rewardTreat: (tier: 'basic' | 'special') => void;
-  rewardCuddle: () => void;
+  attemptTrick: (trackId: string) => { ok: boolean; mastered: boolean; confused: boolean } | null;
+  resolveTraining: (choice: 'treat' | 'none') => { before: PetState; after: PetState } | null;
   seeCoach: (id: string) => void;
   moveFurniture: (pieceId: string, sceneId: string, x: number, y: number) => void;
   rememberGreeting: (id: string) => void;
-  claimGrants: () => void;
   clearTreats: () => void;
   welcomeBack: boolean;
   dismissWelcome: () => void;
@@ -215,7 +215,8 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
       }
       const now = Date.now();
       if (left) {
-        publish({ ...current, lastUpdatedAt: now, weightAppliedAt: now });
+        const resolved = current.care.pendingReward ? resolveReward(current, now, 'none') : current;
+        publish({ ...resolved, lastUpdatedAt: now, weightAppliedAt: now });
         return;
       }
       if (becameActive) {
@@ -468,33 +469,48 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
   const sit = useCallback(() => dispatch({ type: 'trickRep', trackId: 'sit', now: Date.now() }), [dispatch]);
   const givePaw = useCallback(() => dispatch({ type: 'trickRep', trackId: 'paw', now: Date.now() }), [dispatch]);
   const speak = useCallback(() => dispatch({ type: 'trickRep', trackId: 'speak', now: Date.now() }), [dispatch]);
-  const rewardTreat = useCallback(
-    (tier: 'basic' | 'special') => {
+  const attemptTrick = useCallback(
+    (trackId: string) => {
       const current = stateRef.current;
-      if (!current?.care.pendingReward) {
-        return;
+      if (!current) {
+        return null;
       }
-      const treatId = tier === 'special' ? 'special' : 'biscuit';
-      const paid = applyRewardTreat(current, treatId, Date.now());
-      if (!paid.ok) {
-        return;
-      }
-      const resolved = applyEvent(paid.state, { type: 'rewardTreat', tier, now: Date.now() });
-      publish(resolved.state, resolved.cue);
+      const result = applyEvent(current, { type: 'trickRep', trackId, now: Date.now() });
+      publish(result.state, result.cue);
+      const track = result.state.training[trackId];
+      return {
+        ok: result.cue.kind !== 'confused' && result.cue.kind !== 'none',
+        mastered: track?.mastered === true && result.state.care.pendingReward == null,
+        confused: result.cue.kind === 'confused',
+      };
     },
     [publish],
   );
-  const rewardCuddle = useCallback(() => {
-    if (stateRef.current?.care.pendingReward) {
-      dispatch({ type: 'rewardCuddle', now: Date.now() });
-    }
-  }, [dispatch]);
+  const resolveTraining = useCallback(
+    (choice: 'treat' | 'none') => {
+      const current = stateRef.current;
+      if (!current?.care.pendingReward) {
+        return null;
+      }
+      let next = current;
+      if (choice === 'treat') {
+        const paid = applyRewardTreat(current, 'biscuit', Date.now());
+        if (!paid.ok) {
+          return null;
+        }
+        next = paid.state;
+      }
+      const resolved = applyEvent(next, { type: 'rewardTreat', choice, now: Date.now() });
+      publish(resolved.state, choice === 'treat' ? { kind: 'praise' } : undefined);
+      return { before: current, after: resolved.state };
+    },
+    [publish],
+  );
   const seeCoach = useCallback((id: string) => dispatch({ type: 'seeCoach', id }), [dispatch]);
   const moveFurniture = useCallback(
     (pieceId: string, sceneId: string, x: number, y: number) => dispatch({ type: 'moveFurniture', pieceId, sceneId, x, y }),
     [dispatch],
   );
-  const claimGrants = useCallback(() => dispatch({ type: 'claimGrants' }), [dispatch]);
   const clearTreats = useCallback(() => dispatch({ type: 'clearTreats' }), [dispatch]);
   const dismissWelcome = useCallback(() => setWelcomeBack(false), []);
   const feed = useCallback(() => dispatch({ type: 'feed' }), [dispatch]);
@@ -588,11 +604,10 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
     finishPlaydate,
     adopt,
     setOwnerId,
-    rewardTreat,
-    rewardCuddle,
+    attemptTrick,
+    resolveTraining,
     seeCoach,
     moveFurniture,
-    claimGrants,
     clearTreats,
     welcomeBack,
     dismissWelcome,

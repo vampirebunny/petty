@@ -91,12 +91,12 @@ export function grantFlatAttributes(
   return clampCurrent(next, potential);
 }
 
-export function trainingGain(current: number, potential: number, raw: number): number {
+export function trainingGain(current: number, potential: number, raw: number, exponent = 2): number {
   if (potential <= 0 || raw <= 0 || current >= potential) {
     return 0;
   }
   const fraction = (potential - current) / potential;
-  return raw * fraction * fraction;
+  return raw * Math.pow(fraction, exponent);
 }
 
 export function shownLevel(xp: number, stage: Stage): number {
@@ -123,14 +123,63 @@ function agingModifier(stage: Stage, vitality: number, trait: Trait): number {
   return 1;
 }
 
-// Effective score: the larger of the stored current score and natural growth for this maturity,
-// plus care drift, times the aging and weight modifiers, capped at potential. Aging and weight
-// change only this derived value, never the stored current score or potential.
+function trainedOf(state: PetState, trait: Trait): number {
+  return state.attributes.trained?.[trait] ?? 0;
+}
+
+function clampTrained(trained: Stats, potential: Stats, maturity: number): Stats {
+  const next = { ...trained };
+  for (const trait of traits) {
+    const room = Math.max(0, potential[trait] - naturalGrowth(potential[trait], maturity));
+    next[trait] = Math.max(0, Math.min(room, trained[trait] ?? 0));
+  }
+  return next;
+}
+
+// Raised score used for the style label: natural growth plus training and playdate points.
+// Drift, weight, and aging stay out so a heavy or elderly pet does not change style.
+export function styleBasis(state: PetState): Stats {
+  const trained = state.attributes.trained ?? zeroStats();
+  const { potential } = state.attributes;
+  const out = zeroStats();
+  for (const trait of traits) {
+    const natural = naturalGrowth(potential[trait], state.maturity);
+    out[trait] = Math.min(potential[trait], natural + (trained[trait] ?? 0));
+  }
+  return out;
+}
+
+// Flat playdate points, added on top of natural growth. Training uses trainingGain instead.
+export function addFlatTrained(state: PetState, gains: Partial<Record<Trait, number>>): PetState {
+  const trained = { ...(state.attributes.trained ?? zeroStats()) };
+  for (const trait of traits) {
+    const gain = gains[trait];
+    if (!gain) {
+      continue;
+    }
+    trained[trait] = Math.max(0, (trained[trait] ?? 0) + gain);
+  }
+  return { ...state, attributes: { ...state.attributes, trained } };
+}
+
+export function shownAttributeSteps(before: PetState, after: PetState): { trait: Trait; delta: number }[] {
+  const gains: { trait: Trait; delta: number }[] = [];
+  for (const trait of traits) {
+    const delta = Math.round(attributeScore(after, trait)) - Math.round(attributeScore(before, trait));
+    if (delta > 0) {
+      gains.push({ trait, delta });
+    }
+  }
+  return gains;
+}
+
+// Effective score: natural growth plus the trained bonus, plus care drift, times the aging and
+// weight modifiers, capped at potential. Aging and weight change only this derived value.
 export function attributeScore(state: PetState, trait: Trait): number {
   const stage = stageOf(state.ageDays);
-  const { potential, current } = state.attributes;
+  const { potential } = state.attributes;
   const natural = naturalGrowth(potential[trait], state.maturity);
-  const combined = Math.max(current[trait], natural) + state.drift[trait];
+  const combined = natural + trainedOf(state, trait) + state.drift[trait];
   const weighted =
     trait === 'stamina' || trait === 'agility' ? combined * weightModifier(state.weight) : combined;
   const aged = weighted * agingModifier(stage, state.vitality, trait);
@@ -171,6 +220,7 @@ export function reconcileBand(state: PetState): SeniorBand | undefined {
 
 export function withDerived(state: PetState): PetState {
   const maturity = maturityOf(state.ageDays);
+  const trained = state.attributes.trained;
   return {
     ...state,
     maturity,
@@ -179,6 +229,7 @@ export function withDerived(state: PetState): PetState {
     attributes: {
       ...state.attributes,
       current: clampCurrent(state.attributes.current, state.attributes.potential),
+      trained: trained ? clampTrained(trained, state.attributes.potential, maturity) : undefined,
     },
   };
 }

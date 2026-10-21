@@ -1,5 +1,5 @@
 import { testPet } from '../__fixtures__/pets';
-import { attributeScore, naturalGrowth, shownLevel, trainingGain, withDerived } from '../attributes';
+import { attributeScore, naturalGrowth, shownLevel, trainingGain, withDerived, zeroStats } from '../attributes';
 import { applyCareTime } from '../care';
 import { GEN, dayMs, daysToSenior } from '../config';
 import { debugJump } from '../clock';
@@ -35,26 +35,27 @@ it('changes only the effective score for aging and weight', () => {
   expect(attributeScore(fit, 'obedience')).toBeGreaterThan(attributeScore(adult, 'obedience'));
 });
 
-it('uses the stored current score when it is above natural growth, and never exceeds potential', () => {
+it('adds the trained bonus on top of natural growth and never exceeds potential', () => {
   const base = pet();
   const potential = base.attributes.potential.intelligence;
+  const natural = naturalGrowth(potential, base.maturity);
   const trained = {
     ...base,
     attributes: {
       ...base.attributes,
-      current: { ...base.attributes.current, intelligence: potential - 1 },
+      trained: { ...zeroStats(), intelligence: 4 },
     },
   };
-  expect(attributeScore(trained, 'intelligence')).toBe(potential - 1);
+  expect(attributeScore(trained, 'intelligence')).toBeCloseTo(Math.min(potential, natural + 4), 5);
 
   const overshoot = withDerived({
     ...base,
     attributes: {
       ...base.attributes,
-      current: { ...base.attributes.current, intelligence: potential + 50 },
+      trained: { ...zeroStats(), intelligence: potential + 50 },
     },
   });
-  expect(overshoot.attributes.current.intelligence).toBe(potential);
+  expect(overshoot.attributes.trained?.intelligence).toBeLessThanOrEqual(Math.max(0, potential - naturalGrowth(potential, overshoot.maturity)));
   expect(attributeScore(overshoot, 'intelligence')).toBeLessThanOrEqual(potential);
 });
 

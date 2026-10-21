@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import { addStack, emptyEconomy, settleEconomy, takeStack, type UserEconomy } from './state';
+import { addStack, emptyEconomy, settleEconomy, spendTreat, type UserEconomy } from './state';
 import { loadEconomy, saveEconomy } from './storage';
 
 export function useEconomy(ownerId: string | undefined) {
@@ -49,11 +49,11 @@ export function useEconomy(ownerId: string | undefined) {
       if (!current) {
         return false;
       }
-      const next = takeStack(settleEconomy(current, Date.now()), itemId);
-      if (!next) {
+      const spent = spendTreat(settleEconomy(current, Date.now()), itemId);
+      if (!spent.ok) {
         return false;
       }
-      commit(next);
+      commit(spent.economy);
       return true;
     },
     [commit, current],

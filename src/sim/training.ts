@@ -1,12 +1,37 @@
-import { attributeScore, trainingGain } from './attributes';
-import { careConfig, type TreatTier } from './careConfig';
+import { attributeScore, trainingGain, zeroStats } from './attributes';
+import { careConfig } from './careConfig';
 import { nextRng } from './rng';
 import { refreshUnlocks, speciesOf, trackDef } from './tracks';
 import type { PetState, TrainingTrack, Trait } from './types';
 
-export function petDayIndex(state: PetState, now: number): number {
-  const dayMs = 24 * 60 * 60 * 1000;
-  return Math.floor(Math.max(0, now - state.bornAt) / dayMs);
+export type RewardChoice = 'treat' | 'none';
+
+export function isResting(track: TrainingTrack, now: number): boolean {
+  return track.restUntil != null && now < track.restUntil;
+}
+
+export function restRemainingMs(track: TrainingTrack, now: number): number {
+  if (track.restUntil == null) {
+    return 0;
+  }
+  return Math.max(0, track.restUntil - now);
+}
+
+export function formatRest(ms: number): string {
+  const total = Math.max(0, Math.ceil(ms / 1000));
+  if (total >= 3600) {
+    const hours = Math.floor(total / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    return `${hours}h ${minutes}m`;
+  }
+  const minutes = Math.floor(total / 60);
+  const seconds = total % 60;
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+}
+
+export function sessionLength(state: PetState): number {
+  const stamina = Math.max(0, Math.min(1, attributeScore(state, 'stamina') / 100));
+  return Math.round(careConfig.sessionBase + careConfig.sessionStaminaSpan * stamina);
 }
 
 export function intelligenceFactor(state: PetState): number {
@@ -29,27 +54,34 @@ function withTrack(state: PetState, track: TrainingTrack): PetState {
   return { ...state, training: { ...state.training, [track.id]: track } };
 }
 
-function rollDay(track: TrainingTrack, day: number): TrainingTrack {
-  if (track.repsPetDay === day) {
-    return track;
+export function refreshTraining(state: PetState, now: number): PetState {
+  let changed = false;
+  const training = { ...state.training };
+  for (const [id, track] of Object.entries(training)) {
+    if (track.restUntil != null && now >= track.restUntil) {
+      training[id] = { ...track, focusUsed: 0, hadNoTreat: false, restUntil: null };
+      changed = true;
+    }
   }
-  return { ...track, repsToday: 0, repsPetDay: day };
+  return changed ? { ...state, training } : state;
 }
 
 function addAttribute(state: PetState, trait: Trait, raw: number): PetState {
   if (raw <= 0) {
     return state;
   }
-  const current = state.attributes.current[trait];
-  const potential = state.attributes.potential[trait];
-  const gain = trainingGain(current, potential, raw);
-  return {
-    ...state,
-    attributes: {
-      ...state.attributes,
-      current: { ...state.attributes.current, [trait]: current + gain },
-    },
-  };
+  const gain = trainingGain(
+    attributeScore(state, trait),
+    state.attributes.potential[trait],
+    raw,
+    careConfig.trainingGainExponent,
+  );
+  if (gain <= 0) {
+    return state;
+  }
+  const trained = { ...(state.attributes.trained ?? zeroStats()) };
+  trained[trait] = (trained[trait] ?? 0) + gain;
+  return { ...state, attributes: { ...state.attributes, trained } };
 }
 
 function grantMastery(state: PetState, trackId: string): PetState {
@@ -62,72 +94,51 @@ function grantMastery(state: PetState, trackId: string): PetState {
   for (const trait of def.linked) {
     next = addAttribute(next, trait, share);
   }
+  next = addAttribute(next, 'intelligence', careConfig.masteryIntelligenceRaw);
   const milestones = next.milestones.includes(trackId) ? next.milestones : [...next.milestones, trackId];
-  return {
-    ...next,
-    xp: next.xp + careConfig.masteryXp,
-    milestones,
-    care: {
-      ...next.care,
-      unclaimed: {
-        basic: next.care.unclaimed.basic + careConfig.milestoneBasic,
-        special: next.care.unclaimed.special + careConfig.milestoneSpecial,
-      },
-    },
-  };
+  return { ...next, xp: next.xp + careConfig.masteryXp, milestones };
 }
 
-// A resolved successful rep. Credit is 1, 0.5, or 0.25. Fatigued reps still move the bar a little.
-export function payRep(state: PetState, trackId: string, credit: number, now: number): PetState {
+// A resolved successful rep. Choice is a treat or none. Resting tricks are blocked before this runs.
+export function payRep(state: PetState, trackId: string, choice: RewardChoice, now: number): PetState {
   const def = trackDef(trackId);
   const existing = state.training[trackId];
-  if (!def || !existing || existing.mastered) {
+  if (!def || !existing || existing.mastered || def.tier == null) {
     return state;
   }
-  const day = petDayIndex(state, now);
-  let track = rollDay(existing, day);
-  if (def.tier == null) {
-    return state;
+  const awake = refreshTraining(state, now);
+  const track = awake.training[trackId] ?? existing;
+  if (isResting(track, now)) {
+    return awake;
   }
-  const fatigued = track.repsToday >= careConfig.dailyRepCap;
-  const fatigue = fatigued ? careConfig.fatigueMultiplier : 1;
-  const gain = careConfig.tierGain[def.tier] * intelligenceFactor(state) * credit * fatigue;
+  const credit = choice === 'treat' ? careConfig.creditTreat : careConfig.creditNoTreat;
+  const gain = careConfig.tierGain[def.tier] * intelligenceFactor(awake) * credit;
   const progress = Math.min(100, track.progress + gain);
   const mastered = progress >= 100;
-  track = {
+  const focusCost = choice === 'treat' ? careConfig.focusCostTreat : careConfig.focusCostNoTreat;
+  const focusUsed = track.focusUsed + focusCost;
+  const resting = focusUsed >= sessionLength(awake);
+  const nextTrack: TrainingTrack = {
     ...track,
     progress,
     mastered,
-    repsToday: track.repsToday + 1,
+    focusUsed,
+    hadNoTreat: track.hadNoTreat || choice === 'none',
+    restUntil: resting ? now + careConfig.trickRestMs : null,
     pendingPenalty: false,
     lastPracticedAt: now,
   };
-  let next = withTrack(state, track);
-  if (!fatigued) {
-    const share = (careConfig.rawAttrPerRep * credit) / def.linked.length;
-    for (const trait of def.linked) {
-      next = addAttribute(next, trait, share);
-    }
-    next = { ...next, xp: next.xp + careConfig.trainingRepXp };
+  let next = withTrack(awake, nextTrack);
+  const share = (careConfig.rawAttrPerRep * credit) / def.linked.length;
+  for (const trait of def.linked) {
+    next = addAttribute(next, trait, share);
   }
+  next = { ...next, xp: next.xp + careConfig.trainingRepXp };
   if (mastered) {
     next = grantMastery(next, trackId);
     next = refreshUnlocks(next).state;
   }
   return next;
-}
-
-export function rewardCredit(elapsedMs: number, tier: TreatTier | null): number {
-  if (tier == null) {
-    return careConfig.creditNone;
-  }
-  if (elapsedMs <= careConfig.rewardFullMs) {
-    return careConfig.creditFull * careConfig.tierFactor[tier];
-  }
-  if (elapsedMs <= careConfig.rewardLateMs) {
-    return careConfig.creditLate;
-  }
-  return careConfig.creditNone;
 }
 
 export function openReward(state: PetState, trackId: string, now: number): PetState {
@@ -137,13 +148,12 @@ export function openReward(state: PetState, trackId: string, now: number): PetSt
   };
 }
 
-export function resolveReward(state: PetState, now: number, tier: TreatTier | null): PetState {
+export function resolveReward(state: PetState, now: number, choice: RewardChoice): PetState {
   const pending = state.care.pendingReward;
   if (!pending) {
     return state;
   }
-  const credit = rewardCredit(now - pending.openedAt, tier);
-  const paid = payRep(state, pending.trackId, credit, now);
+  const paid = payRep(state, pending.trackId, choice, now);
   return {
     ...paid,
     care: { ...paid.care, pendingReward: null },
@@ -157,9 +167,13 @@ export function rollTrick(state: PetState, trackId: string, now: number): { stat
   if (!def || !track || !def.species.includes(species) || !track.unlocked) {
     return { state, ok: false };
   }
-  let next = state.care.pendingReward ? resolveReward(state, now, null) : state;
-  const current = rollDay(next.training[trackId] ?? track, petDayIndex(next, now));
+  let next = state.care.pendingReward ? resolveReward(state, now, 'none') : state;
+  next = refreshTraining(next, now);
+  const current = next.training[trackId] ?? track;
   next = withTrack(next, current);
+  if (isResting(current, now)) {
+    return { state: next, ok: false };
+  }
   if (current.mastered) {
     return { state: next, ok: true };
   }
@@ -171,4 +185,3 @@ export function rollTrick(state: PetState, trackId: string, now: number): { stat
   }
   return { state: openReward(next, trackId, now), ok: true };
 }
-

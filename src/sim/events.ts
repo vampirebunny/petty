@@ -1,4 +1,4 @@
-import { clampDrift, grantFlatAttributes, maturityOf, withDerived } from './attributes';
+import { addFlatTrained, clampDrift, withDerived } from './attributes';
 import { applyMeal } from './care';
 import {
   clampMax,
@@ -22,7 +22,7 @@ import { canRaiseMood } from './mood';
 import { nextRng } from './rng';
 import { sceneById } from '../actor/scenes';
 import { rememberScene } from './game';
-import { resolveReward, rollTrick } from './training';
+import { isResting, resolveReward, rollTrick } from './training';
 import type { CareSample, Cue, PetCareState, PetEvent, PetState, TrainingTrack } from './types';
 
 export type EventResult = {
@@ -45,7 +45,6 @@ function copyCare(care: PetCareState): PetCareState {
   return {
     ...care,
     pendingReward: care.pendingReward ? { ...care.pendingReward } : null,
-    unclaimed: { ...care.unclaimed },
     recentScenes: [...care.recentScenes],
   };
 }
@@ -73,6 +72,7 @@ function copyState(state: PetState): PetState {
       ...state.attributes,
       potential: { ...state.attributes.potential },
       current: { ...state.attributes.current },
+      trained: state.attributes.trained ? { ...state.attributes.trained } : undefined,
     },
     drift: { ...state.drift },
     toys: [...state.toys],
@@ -117,7 +117,7 @@ export function applyEvent(state: PetState, event: PetEvent): EventResult {
     const next = rememberScene(copyState(state), event.sceneId);
     next.sceneId = event.sceneId;
     if (next.care.pendingReward) {
-      return { state: withDerived(resolveReward(next, state.lastUpdatedAt, null)), cue: { kind: 'none' } };
+      return { state: withDerived(resolveReward(next, state.lastUpdatedAt, 'none')), cue: { kind: 'none' } };
     }
     return { state: next, cue: { kind: 'none' } };
   }
@@ -125,32 +125,18 @@ export function applyEvent(state: PetState, event: PetEvent): EventResult {
   if (event.type === 'trickRep') {
     const rolled = rollTrick(copyState(state), event.trackId, event.now);
     const track = rolled.state.training[event.trackId];
-    if (!track?.unlocked) {
-      return { state, cue: { kind: 'none' } };
+    if (!track?.unlocked || (isResting(track, event.now) && !rolled.state.care.pendingReward)) {
+      return { state: withDerived(rolled.state), cue: { kind: 'none' } };
     }
+    const pose = event.trackId === 'paw' ? 'paw' : event.trackId === 'speak' ? 'speak' : 'sit';
     if (track.mastered && !rolled.state.care.pendingReward) {
-      const cue = event.trackId === 'paw' ? 'paw' : event.trackId === 'speak' ? 'speak' : 'sit';
-      return { state: withDerived(rolled.state), cue: { kind: cue } };
+      return { state: withDerived(rolled.state), cue: { kind: pose } };
     }
-    return { state: withDerived(rolled.state), cue: { kind: rolled.ok ? (event.trackId === 'paw' ? 'paw' : event.trackId === 'speak' ? 'speak' : 'sit') : 'confused' } };
+    return { state: withDerived(rolled.state), cue: { kind: rolled.ok ? pose : 'confused' } };
   }
 
   if (event.type === 'rewardTreat') {
-    return { state: withDerived(resolveReward(copyState(state), event.now, event.tier)), cue: { kind: 'none' } };
-  }
-
-  // A cuddle is worth a basic treat: same window, same credit, nothing to spend.
-  if (event.type === 'rewardCuddle') {
-    if (!state.care.pendingReward) {
-      return { state, cue: { kind: 'none' } };
-    }
-    return { state: withDerived(resolveReward(copyState(state), event.now, 'basic')), cue: { kind: 'none' } };
-  }
-
-  if (event.type === 'claimGrants') {
-    const next = copyState(state);
-    next.care.unclaimed = { basic: 0, special: 0 };
-    return { state: next, cue: { kind: 'none' } };
+    return { state: withDerived(resolveReward(copyState(state), event.now, event.choice)), cue: { kind: 'none' } };
   }
 
   if (event.type === 'clearTreats') {
@@ -269,13 +255,7 @@ export function applyEvent(state: PetState, event: PetEvent): EventResult {
   if (event.type === 'playdate') {
     const next = copyState(state);
     addHappiness(next, event.happiness);
-    next.attributes.current = grantFlatAttributes(
-      next.attributes.current,
-      next.attributes.potential,
-      maturityOf(next.ageDays),
-      event.attributes,
-    );
-    return { state: withDerived(next), cue: { kind: 'none' } };
+    return { state: withDerived(addFlatTrained(next, event.attributes)), cue: { kind: 'none' } };
   }
 
   if (event.type === 'moveFurniture') {

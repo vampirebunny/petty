@@ -1,17 +1,17 @@
-import { breedAttributes } from '../../actor/breedAttributes';
-import { addStack, emptyEconomy, settleEconomy, stackQty } from '../../economy/state';
-import { reconcileBand, attributeScore } from '../attributes';
+import { addStack, emptyEconomy, settleEconomy, spendTreat, stackQty } from '../../economy/state';
+import { attributeScore, naturalGrowth, reconcileBand, styleBasis } from '../attributes';
+import { currentStyle } from '../offers';
 import { applyAwayDecay, applyAwayWeight } from '../awayDecay';
 import { AWAY_DECAY } from '../awayDecayConfig';
 import { applyCareTime } from '../care';
 import { careConfig } from '../careConfig';
 import { testPet } from '../__fixtures__/pets';
 import { resume, setVitality } from '../clock';
-import { dayMs, daysToSenior, GEN } from '../config';
+import { dayMs, daysToSenior } from '../config';
 import { applyEvent } from '../events';
-import { payRep, resolveReward, rewardCredit, rollTrick, successChance } from '../training';
+import { isResting, payRep, resolveReward, rollTrick, sessionLength, successChance } from '../training';
 import { ensureGame } from '../game';
-import { lockHint, refreshUnlocks, trackDef, trackDefs, trackName } from '../tracks';
+import { lockHint, refreshUnlocks, trackDef, trackName } from '../tracks';
 import type { PetState, TrainingTrack } from '../types';
 import { planReminders } from '../../reminders/nextReminder';
 
@@ -80,30 +80,24 @@ function trainedPet(breedId = 'retriever', now = 1_000_000) {
   return testPet(1, breedId, now, 'Pup', 'pet');
 }
 
-it('keeps every shipped trick inside three daily caps at the lowest starting intelligence', () => {
-  let lowest = 100;
-  for (const breed of Object.values(breedAttributes)) {
-    lowest = Math.min(lowest, breed.ranges.intelligence[0]);
-  }
-  const start = Math.max(1, Math.round(lowest * GEN.START_FRACTION));
-  const factor = careConfig.intelligenceBase + careConfig.intelligenceSpan * Math.min(1, start / 100);
-  for (const def of trackDefs) {
-    if (def.tier == null) {
-      continue;
-    }
-    const gain = careConfig.tierGain[def.tier] * factor;
-    const reps = Math.ceil(100 / gain);
-    expect(reps).toBeLessThanOrEqual(careConfig.dailyRepCap * 3);
-  }
+it('sizes a session from stamina, between 5 and 10 treated reps', () => {
+  const before = trainedPet();
+  const length = sessionLength(before);
+  const stamina = Math.max(0, Math.min(1, attributeScore(before, 'stamina') / 100));
+  expect(length).toBe(Math.round(careConfig.sessionBase + careConfig.sessionStaminaSpan * stamina));
+  expect(length).toBeGreaterThanOrEqual(careConfig.sessionBase);
+  expect(length).toBeLessThanOrEqual(careConfig.sessionBase + careConfig.sessionStaminaSpan);
 });
 
 it('pays a full-credit sit rep from the tier gain and the intelligence factor', () => {
   const before = trainedPet();
   const factor = careConfig.intelligenceBase + careConfig.intelligenceSpan * Math.min(1, attributeScore(before, 'intelligence') / 100);
-  const after = payRep(before, 'sit', 1, before.lastUpdatedAt);
+  const after = payRep(before, 'sit', 'treat', before.lastUpdatedAt);
   expect(after.training.sit?.progress).toBeCloseTo(careConfig.tierGain[1] * factor, 5);
-  expect(after.training.sit?.repsToday).toBe(1);
+  expect(after.training.sit?.focusUsed).toBe(careConfig.focusCostTreat);
   expect(after.xp).toBe(before.xp + careConfig.trainingRepXp);
+  expect(after.attributes.trained?.obedience ?? 0).toBeGreaterThan(0);
+  expect(after.attributes.trained?.boldness ?? 0).toBe(0);
 });
 
 it('clamps success chance and treats a mastered trick as certain', () => {
@@ -112,12 +106,19 @@ it('clamps success chance and treats a mastered trick as certain', () => {
   expect(successChance(0, 0, true)).toBe(1);
 });
 
-it('scores a treat by how soon it arrives', () => {
-  expect(rewardCredit(1_000, 'basic')).toBe(1);
-  expect(rewardCredit(1_000, 'special')).toBe(1.5);
-  expect(rewardCredit(8_000, 'special')).toBe(0.5);
-  expect(rewardCredit(20_000, 'basic')).toBe(0.25);
-  expect(rewardCredit(1_000, null)).toBe(0.25);
+it('pays a treat at full credit and a skipped treat at a quarter', () => {
+  const before = trainedPet();
+  const opened = {
+    ...before,
+    care: { ...before.care, pendingReward: { trackId: 'sit', openedAt: before.lastUpdatedAt } },
+  };
+  const treated = resolveReward(opened, opened.lastUpdatedAt, 'treat');
+  const skipped = resolveReward(opened, opened.lastUpdatedAt, 'none');
+  expect(treated.training.sit?.progress).toBeGreaterThan(skipped.training.sit?.progress ?? 0);
+  expect(treated.training.sit?.focusUsed).toBe(careConfig.focusCostTreat);
+  expect(skipped.training.sit?.focusUsed).toBe(careConfig.focusCostNoTreat);
+  expect(skipped.training.sit?.hadNoTreat).toBe(true);
+  expect(treated.care.pendingReward).toBeNull();
 });
 
 it('unlocks Paw after Sit and Speak are mastered, and calls it High five for cats', () => {
@@ -149,7 +150,7 @@ it('unlocks Paw after Sit and Speak are mastered, and calls it High five for cat
   const cat = trainedPet('domesticShorthair');
   expect(cat.training.paw?.unlocked).toBe(false);
   const ready = mastered(mastered(cat, 'sit'), 'speak', 99);
-  const learned = payRep(ready, 'speak', 1, ready.lastUpdatedAt);
+  const learned = payRep(ready, 'speak', 'treat', ready.lastUpdatedAt);
   expect(learned.training.speak?.mastered).toBe(true);
   expect(learned.training.paw?.unlocked).toBe(true);
 
@@ -181,22 +182,31 @@ it('resolves an open reward when the treat arrives inside the window', () => {
     ...before,
     care: { ...before.care, pendingReward: { trackId: 'sit', openedAt: before.lastUpdatedAt } },
   };
-  const paid = resolveReward(opened, opened.lastUpdatedAt + 1_000, 'basic');
+  const paid = resolveReward(opened, opened.lastUpdatedAt + 1_000, 'treat');
   expect(paid.care.pendingReward).toBeNull();
   expect(paid.training.sit?.progress).toBeGreaterThan(0);
   const missed = rollTrick(before, 'paw', before.lastUpdatedAt);
   expect(missed.ok).toBe(false);
 });
 
-it('caps treat regen, the login bonus, and the stack ceiling', () => {
+it('starts with 10 treats and does not regenerate or add a daily bonus', () => {
   const now = Date.UTC(2026, 9, 19, 15, 0, 0);
-  const start = { ...emptyEconomy(now - 15 * careConfig.regenMs), lastDailyBonusLocalDate: '2026-10-19' };
-  const regenerated = settleEconomy(start, now);
-  expect(stackQty(regenerated, 'biscuit')).toBe(careConfig.regenCap);
-  const topped = addStack(regenerated, 'biscuit', 200);
+  const start = emptyEconomy(now);
+  expect(stackQty(start, 'biscuit')).toBe(careConfig.startingTreats);
+  const later = settleEconomy(start, now + 24 * hourMs);
+  expect(stackQty(later, 'biscuit')).toBe(careConfig.startingTreats);
+  const topped = addStack(start, 'biscuit', 200);
   expect(stackQty(topped, 'biscuit')).toBe(careConfig.stackCeiling);
-  const nextDay = settleEconomy(topped, now + 24 * hourMs);
-  expect(stackQty(nextDay, 'biscuit')).toBe(careConfig.stackCeiling);
+  const spent = spendTreat(emptyEconomy(now), 'biscuit');
+  expect(spent.ok).toBe(true);
+  let wallet = spent.economy;
+  for (let i = 1; i < careConfig.startingTreats; i += 1) {
+    const next = spendTreat(wallet, 'biscuit');
+    expect(next.ok).toBe(true);
+    wallet = next.economy;
+  }
+  expect(spendTreat(wallet, 'biscuit').ok).toBe(false);
+  expect(stackQty(wallet, 'biscuit')).toBe(0);
 });
 
 it('keeps the notification plan inside the daily cap and quiet hours', () => {
@@ -210,16 +220,78 @@ it('keeps the notification plan inside the daily cap and quiet hours', () => {
   }
 });
 
-it('pays a cuddle like a basic treat inside the reward window and ignores it otherwise', () => {
+it('rests a trick when focus is spent and blocks another roll', () => {
+  let state = trainedPet();
+  const length = sessionLength(state);
+  const now = state.lastUpdatedAt;
+  let guard = 0;
+  while ((state.training.sit?.focusUsed ?? 0) + careConfig.focusCostNoTreat < length && guard < 20) {
+    state = payRep(state, 'sit', 'none', now);
+    expect(isResting(state.training.sit!, now)).toBe(false);
+    guard += 1;
+  }
+  state = payRep(state, 'sit', 'none', now);
+  expect(state.training.sit?.mastered).toBe(false);
+  expect(state.training.sit?.restUntil).toBe(now + careConfig.trickRestMs);
+  const blocked = payRep(state, 'sit', 'treat', now);
+  expect(blocked.training.sit?.progress).toBe(state.training.sit?.progress);
+  const speak = payRep(state, 'speak', 'treat', now);
+  expect(speak.training.speak?.progress).toBeGreaterThan(0);
+
+  const awake = payRep(state, 'sit', 'treat', now + careConfig.trickRestMs);
+  expect(awake.training.sit?.focusUsed).toBe(careConfig.focusCostTreat);
+  expect(isResting(awake.training.sit!, now + careConfig.trickRestMs)).toBe(false);
+});
+
+it('raises boldness for speak, affection for paw, and intelligence on mastery', () => {
   const before = trainedPet();
-  const opened = {
+  const spoken = payRep(before, 'speak', 'treat', before.lastUpdatedAt);
+  expect(spoken.attributes.trained?.boldness ?? 0).toBeGreaterThan(0);
+  expect(spoken.attributes.trained?.obedience ?? 0).toBe(0);
+  const paw = payRep(before, 'paw', 'none', before.lastUpdatedAt);
+  expect(paw.attributes.trained?.affection ?? 0).toBeGreaterThan(0);
+  expect(paw.training.paw?.focusUsed).toBe(careConfig.focusCostNoTreat);
+
+  const almost = {
     ...before,
-    care: { ...before.care, pendingReward: { trackId: 'sit', openedAt: before.lastUpdatedAt } },
+    training: {
+      ...before.training,
+      sit: { ...before.training.sit!, progress: 99 },
+    },
   };
-  const cuddled = applyEvent(opened, { type: 'rewardCuddle', now: opened.lastUpdatedAt + 1_000 }).state;
-  const treated = applyEvent(opened, { type: 'rewardTreat', tier: 'basic', now: opened.lastUpdatedAt + 1_000 }).state;
-  expect(cuddled.care.pendingReward).toBeNull();
-  expect(cuddled.training.sit?.progress).toBe(treated.training.sit?.progress);
-  const idle = applyEvent(before, { type: 'rewardCuddle', now: before.lastUpdatedAt });
-  expect(idle.state).toBe(before);
+  const mastered = payRep(almost, 'sit', 'treat', almost.lastUpdatedAt);
+  expect(mastered.training.sit?.mastered).toBe(true);
+  expect(mastered.attributes.trained?.intelligence ?? 0).toBeGreaterThan(0);
+  expect(mastered.milestones).toContain('sit');
+});
+
+it('shows training above natural growth and keeps style free of weight', () => {
+  const before = trainedPet();
+  const natural = attributeScore(before, 'obedience');
+  const trained = payRep(before, 'sit', 'treat', before.lastUpdatedAt);
+  expect(attributeScore(trained, 'obedience')).toBeGreaterThan(natural);
+
+  const heavy = { ...before, weight: 1 };
+  expect(styleBasis(heavy)).toEqual(styleBasis(before));
+  expect(currentStyle(before.attributes.archetype, styleBasis(heavy), before.attributes.potential)).toBe(
+    currentStyle(before.attributes.archetype, styleBasis(before), before.attributes.potential),
+  );
+  expect(attributeScore(heavy, 'stamina')).toBeLessThan(attributeScore(before, 'stamina'));
+});
+
+it('copies surplus current into trained once', () => {
+  const before = trainedPet();
+  const natural = naturalGrowth(before.attributes.potential.obedience, before.maturity);
+  const legacy = {
+    ...before,
+    attributes: {
+      ...before.attributes,
+      trained: undefined,
+      current: { ...before.attributes.current, obedience: natural + 5 },
+    },
+  };
+  const fixed = ensureGame(legacy);
+  expect(fixed.attributes.trained?.obedience).toBeCloseTo(5, 5);
+  const again = ensureGame(fixed);
+  expect(again.attributes.trained?.obedience).toBeCloseTo(5, 5);
 });

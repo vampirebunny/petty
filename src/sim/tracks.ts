@@ -43,7 +43,7 @@ export const trackDefs: TrackDef[] = [
     prerequisites: {},
     unlock: {},
     tier: 1,
-    linked: ['obedience'],
+    linked: ['boldness'],
     button: 'main',
   },
   {
@@ -54,7 +54,7 @@ export const trackDefs: TrackDef[] = [
     prerequisites: { dog: ['sit', 'speak'], cat: ['sit', 'speak'] },
     unlock: {},
     tier: 2,
-    linked: ['obedience'],
+    linked: ['affection'],
     button: 'main',
   },
 ];
@@ -80,14 +80,15 @@ export function tracksFor(species: SpeciesId): TrackDef[] {
   return trackDefs.filter((def) => def.species.includes(species));
 }
 
-export function emptyTrack(def: TrackDef, petDay: number, unlocked: boolean): TrainingTrack {
+export function emptyTrack(def: TrackDef, unlocked: boolean): TrainingTrack {
   return {
     id: def.id,
     progress: 0,
     unlocked,
     mastered: false,
-    repsToday: 0,
-    repsPetDay: petDay,
+    focusUsed: 0,
+    restUntil: null,
+    hadNoTreat: false,
     pendingPenalty: false,
     lastPracticedAt: null,
   };

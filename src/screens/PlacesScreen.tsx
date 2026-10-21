@@ -1,12 +1,12 @@
 import { useId } from 'react';
-import { ChevronLeft } from 'lucide-react-native';
+import { ChevronLeft, Cookie, Shirt } from 'lucide-react-native';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { scenesFor } from '../actor';
 import type { Scene } from '../actor';
 import { placeFlavors, placeIcons } from '../ui/actionIcons';
 import { CandyShell, GRAY, Sparkle, WHITE, candyInk, tints } from '../ui/candy';
-import type { Tint } from '../ui/candy';
+import type { Tint, TintName } from '../ui/candy';
 import { iconStroke } from '../ui/theme';
 
 type Props = {
@@ -15,10 +15,12 @@ type Props = {
   petName: string;
   onPick: (sceneId: string) => void;
   onClose: () => void;
+  onPantry: () => void;
+  onCloset: () => void;
   reducedMotion: boolean;
 };
 
-export function PlacesScreen({ species, currentSceneId, petName, onPick, onClose }: Props) {
+export function PlacesScreen({ species, currentSceneId, petName, onPick, onClose, onPantry, onCloset }: Props) {
   const backUid = useId().replace(/:/g, '');
   const places = scenesFor(species).filter((scene) => scene.group === 'home');
   return (
@@ -51,6 +53,8 @@ export function PlacesScreen({ species, currentSceneId, petName, onPick, onClose
               }}
             />
           ))}
+          <DestinationCard label="Pantry" blurb="Treats and snacks" tintName="butter" Icon={Cookie} onPress={onPantry} />
+          <DestinationCard label="Closet" blurb={`${petName}'s clothes`} tintName="orchid" Icon={Shirt} onPress={onCloset} />
         </View>
       </ScrollView>
     </View>
@@ -89,6 +93,39 @@ function PlaceCard({ scene, current, onPress }: { scene: Scene; current: boolean
           ) : (
             <Sparkle style={styles.sparkle} opacity={0.9} />
           )}
+        </CandyShell>
+      )}
+    </Pressable>
+  );
+}
+
+function DestinationCard({
+  label,
+  blurb,
+  tintName,
+  Icon,
+  onPress,
+}: {
+  label: string;
+  blurb: string;
+  tintName: TintName;
+  Icon: (typeof placeIcons)['livingroom'];
+  onPress: () => void;
+}) {
+  const uid = useId().replace(/:/g, '');
+  const tint = tints[tintName];
+  const ink = candyInk(tint);
+  return (
+    <Pressable style={styles.cardHit} onPress={onPress} accessibilityRole="button" accessibilityLabel={label}>
+      {({ pressed }) => (
+        <CandyShell tint={tint} radius={28} pressed={pressed} uid={uid} style={styles.card}>
+          <IconBubble tint={tint} Icon={Icon} />
+          <Text style={[styles.name, { color: ink }]} numberOfLines={1}>
+            {label}
+          </Text>
+          <Text style={[styles.blurb, { color: ink }]} numberOfLines={2}>
+            {blurb}
+          </Text>
         </CandyShell>
       )}
     </Pressable>

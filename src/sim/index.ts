@@ -10,14 +10,16 @@ export {
   maturityOf,
   naturalGrowth,
   potentialTotal,
+  shownAttributeSteps,
   stageOf,
+  styleBasis,
   trainingGain,
 } from './attributes';
 export { ageDaysAt, applyEnergyDelta, applyHappinessDelta, applyHungerDelta, applyHydrationDelta, applyWeightDelta, debugJump, resume, setAgeDays, setVitality, setWeight, tickForeground } from './clock';
 export { careConfig } from './careConfig';
 export type { TreatTier, TrickTier } from './careConfig';
 export { advanceCare, bathToleranceFor, ensureGame } from './game';
-export { intelligenceFactor, payRep, petDayIndex, resolveReward, rewardCredit, rollTrick, successChance } from './training';
+export { formatRest, intelligenceFactor, isResting, payRep, resolveReward, restRemainingMs, rollTrick, sessionLength, successChance } from './training';
 export { lockHint, speciesOf, trackDef, trackDefs, trackName, tracksFor } from './tracks';
 export { applyCareTime, applyMeal, clampWeight, decayWeight, vitalityTarget } from './care';
 export {
