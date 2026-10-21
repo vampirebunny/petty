@@ -1022,11 +1022,10 @@ export default function HomeScreen({ petApi }: Props) {
             )}
           </View>
         ) : null}
-        <Text style={styles.hint}>
-          {note ||
-            'With no action running, the pet idles on its own. Tap the stage to soft-drop a ball, or flick to throw.'}
-        </Text>
-        <ActionButtons actions={toggles} species={species} />
+        {note ? <Text style={styles.hint}>{note}</Text> : null}
+        <View style={styles.utilityButtons}>
+          <ActionButtons actions={toggles} species={species} />
+        </View>
         {personalityOpen ? (
           <View style={styles.personality}>
             <Text style={styles.personalityMeta}>{styleLine}</Text>
@@ -1140,6 +1139,9 @@ const styles = StyleSheet.create({
   },
   learned: {
     gap: 8,
+  },
+  utilityButtons: {
+    marginTop: 16,
   },
   sectionTitle: {
     color: '#243044',
