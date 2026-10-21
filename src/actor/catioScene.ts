@@ -24,7 +24,6 @@ export function createCatioScene(stageWidth: number, stageHeight: number): Scene
     { kind: 'catTree', id: 'catio-tree', x: stageWidth * 0.8, y: horizon + 70 },
     { kind: 'planter', id: 'catio-grass', x: stageWidth * 0.2, y: horizon + 48, w: 64, plant: 'catgrass' },
     { kind: 'planter', id: 'catio-flowers', x: stageWidth * 0.42, y: horizon + 40, w: 48, plant: 'flowers' },
-    { kind: 'hammock', x: stageWidth * 0.35, y: stageHeight - 120, w: 96 },
     { kind: 'scratcher', x: stageWidth * 0.06, y: stageHeight - 150, h: 74 },
     { kind: 'bowl', id: 'catio-water', x: bowlX, y: bowlY, contents: 'water', color: '#5aa1c9' },
     // Corner posts in front, so it reads as an enclosure.

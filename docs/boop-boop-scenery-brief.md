@@ -51,7 +51,7 @@ The `previews/` PNGs were rendered from this exact code through CanvasKit, using
 - **Catio**
   - A new cats-only scene: a screened, roofed porch with a translucent roof.
   - A garden beyond the mesh with a birdbath where birds visit.
-  - Furniture: cat tree, post shelves, a hammock, a cat-grass planter, a scratcher.
+  - Furniture: cat tree, post shelves, a cat-grass planter, a scratcher.
   - Rain falls beyond the mesh and drips from the roof edge; the deck stays dry.
 - **Redrawn props**
   - Bowl: paw emblem; kibble heaps up when full and jiggles while the pet eats.
