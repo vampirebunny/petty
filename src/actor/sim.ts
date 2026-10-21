@@ -19,6 +19,7 @@ import type { PlayBehavior } from '../items/playRules';
 import { bodyFrame, depthScale, geomOf, headFaceOf, PET_SIZE, reachOf, speedMax, stageWidth, travelGateX, xRangeOf } from './geometry';
 import { GREET, greetClip, motionMods, planGreeting, scriptFor } from './greetings';
 import type { GreetPlan } from './greetings';
+import { cancelJump, jump, jumpConfig, jumpOwnsMotion, resolveJump, stepJump } from './jump';
 import { baseYaw, reversingTurn, stepFacing, stepYaw, TURN_SPEED, visualYaw } from './turn';
 import {
   bowHold,
@@ -29,7 +30,6 @@ import {
   stalkWiggle,
 } from './data/locomotion';
 import {
-  airTime,
   burstLength,
   chooseGait,
   jumpSpeed,
@@ -244,6 +244,8 @@ export function spawnActor(source: ActorSource, at?: Vec): Actor {
     zoom: null,
     land: 0,
     jumpKind: null,
+    jump: null,
+    jumpOut: [],
     topT: 0,
     share: 0,
     direction: null,
@@ -408,6 +410,7 @@ function clearActorForTravel(world: World, actor: Actor): void {
   actor.cuddle = null;
   actor.z = 0;
   actor.vz = 0;
+  cancelJump(actor);
   actor.jumpKind = null;
 }
 
@@ -858,20 +861,16 @@ function launch(actor: Actor, kind: JumpKind, vz: number, vx?: number, vy?: numb
   }
 }
 
-// Jumps from here onto a toy: the landing puts the toy at the mouth or paws.
-function pounceAt(actor: Actor, toy: Item, reach: number, mods: LocoMods): void {
-  const height = jumpHeights.pounce * mods.jumpHeight;
-  const time = Math.max(0.12, airTime(height));
+// Jumps from here onto a toy. The pet is already on the toy's depth; the arc is sideways.
+function pounceAt(world: World, actor: Actor, toy: Item, reach: number): boolean {
+  if (actor.jump || Math.abs(toy.y - actor.y) > 18) {
+    return false;
+  }
   const dir = toy.x >= actor.x ? 1 : -1;
-  const landX = toy.x - dir * reach * 0.75;
   actor.face = dir;
-  launch(
-    actor,
-    'pounce',
-    jumpSpeed(height),
-    clamp((landX - actor.x) / time, -420, 420),
-    clamp((toy.y - actor.y) / time, -200, 200),
-  );
+  const landX = toy.x - dir * reach * 0.75;
+  // The stalk already wiggled, so the jump crouches without a second one.
+  return jump(actor, { targetX: landX, wiggle: false, reduced: world.reducedMotion });
 }
 
 function windDown(world: World, actor: Actor, profile: StageProfile): Task {
@@ -940,7 +939,12 @@ function poseTargets(actor: Actor): Pose {
   };
 }
 
-function steerDirection(actor: Actor, limit: number, targets: Pose): { move: Vec | null; vmax: number; wagRate: number; faceCamera: boolean } {
+function steerDirection(
+  actor: Actor,
+  limit: number,
+  targets: Pose,
+  reduced: boolean,
+): { move: Vec | null; vmax: number; wagRate: number; faceCamera: boolean } {
   const direction = actor.direction;
   if (!direction) {
     return { move: null, vmax: 0, wagRate: 5, faceCamera: false };
@@ -995,10 +999,16 @@ function steerDirection(actor: Actor, limit: number, targets: Pose): { move: Vec
     targets.eyes = 1;
     targets.wagAmp = 0;
   }
-  if ((pose === 'jump' || pose === 'pounce') && actor.z <= 0 && actor.directionJump !== direction.token) {
+  if ((pose === 'jump' || pose === 'pounce') && !actor.jump && actor.z <= 0 && actor.directionJump !== direction.token) {
     actor.directionJump = direction.token;
-    const kind = pose === 'pounce' ? 'pounce' : 'hop';
-    launch(actor, kind, jumpSpeed(jumpHeights[kind]));
+    // Keep the speed the pet already has. A directed hop is not the long fetch leap.
+    const plan = resolveJump(actor, { reduced, fast: true });
+    const carry = actor.vx * (plan?.airTime ?? 0.4);
+    jump(actor, {
+      reduced,
+      fast: true,
+      targetX: Math.abs(carry) > 6 ? actor.x + carry : actor.x,
+    });
   }
   return { move, vmax, wagRate, faceCamera };
 }
@@ -1011,6 +1021,7 @@ function beginCollapse(world: World, actor: Actor): void {
   actor.pantT = 0;
   actor.play = null;
   actor.zoom = null;
+  cancelJump(actor);
 }
 
 function finishCollapse(world: World, actor: Actor): void {
@@ -1339,7 +1350,8 @@ function updateActor(world: World, actor: Actor, dt: number): void {
   const profile = profileOf(actor);
   const mods = modsOf(actor, profile);
   actor.land = Math.max(0, actor.land - dt / landSeconds);
-  if (actor.z > 0 || actor.vz !== 0) {
+  // Greeting hops and the small play pops still integrate here. A phase jump owns its own arc.
+  if (!actor.jump && (actor.z > 0 || actor.vz !== 0)) {
     actor.vz -= gravity * dt;
     actor.z += actor.vz * dt;
     if (actor.z <= 0) {
@@ -1410,7 +1422,7 @@ function updateActor(world: World, actor: Actor, dt: number): void {
     vmax = steered.vmax;
     wagRate = steered.wagRate;
   } else if (actor.direction) {
-    const directed = steerDirection(actor, limit, targets);
+    const directed = steerDirection(actor, limit, targets, world.reducedMotion);
     move = directed.move;
     vmax = directed.vmax;
     wagRate = directed.wagRate;
@@ -1699,21 +1711,26 @@ function updateActor(world: World, actor: Actor, dt: number): void {
           actor.face = dir;
         }
         // Leap-catch: predict where the toy comes down through the catch height and time the jump to meet it.
-        if (!cat && play.leap && allows('leapCatch') && toy.z > 18 && actor.z === 0 && actor.jumpKind === null) {
-          const maxHeight = jumpHeights.leap * mods.jumpHeight;
-          const catchZ = mouthH0 + maxHeight * 0.7;
-          const crossing = maxHeight > 10 ? predictCrossing(toy, world.scene, catchZ, 2.5) : null;
-          if (crossing && crossing.t > 0.1) {
+        if (!cat && play.leap && allows('leapCatch') && toy.z > 18 && actor.z === 0 && !actor.jump) {
+          const ceiling = resolveJump(actor, { reduced: world.reducedMotion })?.heightPx ?? 0;
+          const catchZ = mouthH0 + ceiling * 0.7;
+          const needed = Math.max(6, catchZ - mouthH0);
+          const plan = ceiling > 10 ? resolveJump(actor, { reduced: world.reducedMotion, heightPx: needed }) : null;
+          const crossing = plan ? predictCrossing(toy, world.scene, catchZ, 2.5) : null;
+          if (crossing && plan && crossing.t > 0.1) {
             const side = crossing.x >= actor.x ? 1 : -1;
             const spot = { x: crossing.x - side * reach * 0.8, y: crossing.y };
-            const height = Math.max(6, catchZ - mouthH0);
-            const rise = jumpSpeed(height) / gravity;
+            const rise = plan.airTime / 2;
             move = spot;
             vmax = limit;
             leaping = true;
-            if (Math.hypot(spot.x - actor.x, spot.y - actor.y) < 26 && crossing.t <= rise + 0.04) {
+            if (
+              Math.abs(spot.y - actor.y) < 18 &&
+              Math.hypot(spot.x - actor.x, spot.y - actor.y) < 26 &&
+              crossing.t <= rise + plan.prep + 0.04
+            ) {
               actor.face = side;
-              launch(actor, 'leap', jumpSpeed(height));
+              jump(actor, { targetX: spot.x, heightPx: needed, reduced: world.reducedMotion });
             }
           }
         }
@@ -1721,11 +1738,12 @@ function updateActor(world: World, actor: Actor, dt: number): void {
         if (cat && allows('stalk') && !play.stalked && !toyMoving && toyDist > 60 && toyDist < 280 && actor.z === 0) {
           play.stalked = true;
           setStage(actor, 'stalk');
-        } else if (!cat && allows('pounce') && !play.pounced && !toyMoving && toyDist > 35 && toyDist < 110 && actor.z === 0) {
-          // A playful dog pounces on a toy that is lying still.
-          play.pounced = true;
-          pounceAt(actor, toy, reach, mods);
-          setStage(actor, 'pounce');
+        } else if (!cat && allows('pounce') && !play.pounced && !toyMoving && toyDist > 35 && toyDist < 110 && actor.z === 0 && !actor.jump) {
+          // A playful dog pounces on a toy that is lying still, once it is on the toy's depth.
+          if (pounceAt(world, actor, toy, reach)) {
+            play.pounced = true;
+            setStage(actor, 'pounce');
+          }
         } else if (!cat && !play.bowed && toy.z < 6 && !toyMoving && toyDist < 130 && world.rng() < dt * profile.bow * 0.5) {
           // Now and then a dog stops to bow at a toy that is just lying there.
           setStage(actor, 'bow');
@@ -1806,12 +1824,13 @@ function updateActor(world: World, actor: Actor, dt: number): void {
       wagRate = 22;
       faceToy();
       if (task.t > (task.hold ?? 1)) {
-        pounceAt(actor, toy, reach, mods);
-        setStage(actor, 'pounce');
+        if (pounceAt(world, actor, toy, reach)) {
+          setStage(actor, 'pounce');
+        }
       }
     } else if (stage === 'pounce') {
       faceToy();
-      if (actor.z <= 0 && task.t > 0.12) {
+      if (!actor.jump && actor.z <= 0 && task.t > 0.12) {
         setStage(actor, 'chase');
       }
     } else if (stage === 'tumble') {
@@ -1936,7 +1955,7 @@ function updateActor(world: World, actor: Actor, dt: number): void {
     vmax *= TURN_SPEED;
   }
   const desired = { x: 0, y: 0 };
-  if (move) {
+  if (move && !(actor.jump && jumpOwnsMotion(actor))) {
     const tx = traveling ? move.x : clamp(move.x, xClampLo, xClampHi);
     const ty = clamp(move.y, floor.yMin, floor.yMax);
     const dx = tx - actor.x;
@@ -1950,7 +1969,7 @@ function updateActor(world: World, actor: Actor, dt: number): void {
   }
   // Velocity eases toward the wish, but no faster than the pet can speed up or brake (agility, weight, age).
   // A jump keeps the velocity it left the ground with.
-  if (!(actor.z > 0 && actor.jumpKind)) {
+  if (!(actor.z > 0 && actor.jumpKind) && !(actor.jump && (actor.jump.phase === 'airborne' || actor.jump.phase === 'bounce'))) {
     const ease = 1 - Math.exp(-dt * 7);
     let dvx = (desired.x - actor.vx) * ease;
     let dvy = (desired.y - actor.vy) * ease;
@@ -1974,19 +1993,25 @@ function updateActor(world: World, actor: Actor, dt: number): void {
   if (actor.task.greet?.skid) {
     targets.skid = 1;
   }
-  stepFacing(actor, dt, !!actor.task.ownsFacing);
+  if (!actor.jump) {
+    stepFacing(actor, dt, !!actor.task.ownsFacing);
+  }
   actor.anchors.facing = actor.face >= 0 ? 1 : -1;
   const greeting = actor.task.type === 'greet';
   const autoCam =
     !greeting && actor.vy > 0 && Math.abs(actor.vy) > 1.5 * Math.abs(actor.vx) ? 0.5 : 0;
   const idleCam = !greeting && faceCamera ? 0.5 : 0;
   targets.faceCam = greeting ? (actor.task.greet?.faceCam ?? 0) : Math.max(autoCam, idleCam);
+  if (actor.jump && actor.jump.phase !== 'turn') {
+    targets.faceCam = 0;
+    actor.pose.faceCam = 0;
+  }
   stepYaw(actor, dt, actor.pose.faceCam);
   const seen = visualYaw(actor.yaw);
   const signed = actor.face >= 0 ? 1 : -1;
   const mouthLocal = (actor.mouth.x - actor.x) / (signed * Math.max(frame.scale, 0.01));
   actor.mouth.x = actor.x + seen.dir * frame.scale * mouthLocal;
-  targets.walk = actor.speed > 14 ? 1 : 0;
+  targets.walk = actor.speed > 14 || actor.jump?.running ? 1 : 0;
   if (actor.bark.open > 0.05 && targets.eyes > 0) {
     targets.eyes = 0;
   }
@@ -2005,6 +2030,10 @@ function updateActor(world: World, actor: Actor, dt: number): void {
     if (leadHead) {
       targets.headTurn = 1;
     }
+  }
+  if (actor.jump && actor.jump.phase !== 'turn') {
+    targets.headTurn = 0;
+    actor.pose.headTurn = 0;
   }
   if (!greeting && actor.speed > 14 && actor.pose.headTurn > 0.15) {
     actor.pose.headTurn = 0.15;
@@ -2047,7 +2076,7 @@ function updateActor(world: World, actor: Actor, dt: number): void {
   const moving = actor.speed > 14 && actor.z <= 0 ? 1 : 0;
   targets.stretch = flow.stretch * moving;
   targets.stream = flow.stream * moving;
-  targets.tuck = actor.z > 0 ? 1 : 0;
+  targets.tuck = actor.z > 0 && !actor.jump ? 1 : 0;
   // Short hops and landings read as one: the legs come under the body in the air.
   const localSpeed = actor.speed / Math.max(frame.scale, 0.01);
   let cycle = phaseRate(actor.gait, localSpeed, frame.geom.L, actor.share);
@@ -2071,6 +2100,44 @@ function updateActor(world: World, actor: Actor, dt: number): void {
   if (actor.blinkT <= 0) {
     actor.blinkT = world.rng() < 0.18 ? 0.32 : 1.6 + world.rng() * 2.6;
   }
+  considerHurdle(world, actor);
+  stepJump(actor, dt);
+  if (actor.task.type !== 'travel') {
+    actor.x = clamp(actor.x, xClampLo, xClampHi);
+  }
+}
+
+function considerHurdle(world: World, actor: Actor): void {
+  if (actor.jump || actor.z > 0 || actor.speed < 50 || actor.asleep) {
+    return;
+  }
+  const busy = actor.task.type;
+  if (busy === 'greet' || busy === 'cuddle' || busy === 'sleep' || busy === 'eat') {
+    return;
+  }
+  const face = actor.face >= 0 ? 1 : -1;
+  let best: { x: number; h: number; ahead: number } | null = null;
+  for (const prop of world.scene.props) {
+    if (!prop.hurdle || Math.abs(prop.y - actor.y) > 28) {
+      continue;
+    }
+    const ahead = (prop.x - actor.x) * face;
+    if (ahead < 6 || ahead > jumpConfig.hurdleApproach) {
+      continue;
+    }
+    if (!best || ahead < best.ahead) {
+      best = { x: prop.x, h: prop.h ?? 22, ahead };
+    }
+  }
+  if (!best) {
+    return;
+  }
+  jump(actor, {
+    obstacleHeight: best.h,
+    targetX: best.x + face * jumpConfig.hurdlePast,
+    fast: true,
+    reduced: world.reducedMotion,
+  });
 }
 
 function updateParticles(world: World, dt: number): void {

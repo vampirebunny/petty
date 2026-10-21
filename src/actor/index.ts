@@ -23,7 +23,9 @@ export type { CoatStyle, LookOption } from './breeds';
 export { canBehave, isUserTask, reactionFor, userTasks } from './behavior';
 export { bagAmount, bodyFrame, depthScale, geomOf, thickOf } from './geometry';
 export { easeOut, growthFor, smoothstep, visualProgress } from './growth';
-export { gaitFoot, jumpArc, solveKnee } from './legs';
+export { gaitFoot, solveKnee } from './legs';
+export { ageJumpMods, cancelJump, jump, jumpPrepSeconds, resolveJump, stepJump, takeJumpOut } from './jump';
+export type { JumpParams, JumpRequest } from './jump';
 export {
   airTime,
   blendedFoot,

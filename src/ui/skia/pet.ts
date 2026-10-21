@@ -4,6 +4,7 @@ import type { SkCanvas } from '@shopify/react-native-skia';
 import { blendedFoot, bodyFrame, isDarkCoat, solveKnee, wearItem } from '../../actor';
 import type { Actor, Breed, Geom } from '../../actor';
 import { headFaceOf, headShift, noseOf, torsoPoint } from '../../actor/geometry';
+import { jumpConfig } from '../../actor/jump';
 import { visualYaw } from '../../actor/turn';
 import { frostColorOf } from '../../actor/color';
 import { baseColorOf, markingOf, resolveMarkings } from '../../actor/markings';
@@ -97,6 +98,13 @@ export function drawActor(
   carrying: string | null,
   silhouette = false,
 ): void {
+  const posed = actor.jump && actor.jump.phase !== 'turn' ? actor.jump.visual : null;
+  if (actor.jump) {
+    for (const puff of actor.jump.dust) {
+      const k = 1 - puff.t / Math.max(puff.life, 0.01);
+      fillCircle(c, puff.x, puff.y, puff.r * (1 + (1 - k) * 1.6), '#d8d0c6', 0.4 * k);
+    }
+  }
   const frame = bodyFrame(
     breed,
     actor.displayAgeDays,
@@ -120,9 +128,13 @@ export function drawActor(
   const cat = breed.species === 'cat';
   let theta = frame.theta - 0.35 * pose.rearUp + Math.sin(t * 9 + 1) * 0.03 * pose.rubSway;
   let dy = frame.dy + geom.dLie * pose.side;
+  if (posed) {
+    theta += posed.pitch;
+    dy += posed.dy;
+  }
   const barkOpen = actor.bark.open;
   // Streaming back at a gallop pulls the ears flat and stretches the tail out behind the body.
-  const earBackNow = pose.earBack + 0.35 * pose.stream;
+  const earBackNow = pose.earBack + 0.35 * pose.stream + (posed?.ear ?? 0);
   const wag = Math.sin(actor.wagPh) * pose.wagAmp * (1 - 0.7 * pose.stream);
   let eyeClosed = Math.max(pose.eyes, pose.squint, actor.blinkT < 0.12 ? 1 : 0);
   if (barkOpen > 0.05) {
@@ -173,16 +185,22 @@ export function drawActor(
     c.rotate(deg(Math.sin(t * 42) * 0.07 * pose.shake), 0, 0);
     c.translate(Math.sin(t * 37) * 2.2 * pose.shake, 0);
   }
-  // The shadow stays on the ground and shrinks and fades with height.
-  const shadowK = clamp(1 - actor.z / 150, 0.45, 1);
+  // The shadow stays on the ground. A jump shrinks it to 60% and fades it to half at the apex.
+  const jumpRise =
+    actor.jump && (actor.jump.phase === 'airborne' || actor.jump.phase === 'bounce')
+      ? clamp(actor.z / Math.max(actor.jump.apex, 1), 0, 1)
+      : 0;
+  const shadowK = actor.jump ? 1 : clamp(1 - actor.z / 150, 0.45, 1);
+  const shadowSize = actor.jump ? 1 - (1 - jumpConfig.shadow.size) * jumpRise : shadowK;
+  const shadowFade = actor.jump ? 1 - (1 - jumpConfig.shadow.opacity) * jumpRise : shadowK;
   fillOval(
     c,
     (geom.bodyLen * 0.05 + 10 * pose.lie) * turned.yc,
     2,
-    geom.bodyLen * (0.52 + 0.08 * pose.lie) * shadowK * Math.max(turned.yc, 0.55),
-    7 * shadowK,
+    geom.bodyLen * (0.52 + 0.08 * pose.lie) * shadowSize * Math.max(turned.yc, 0.55),
+    7 * shadowSize,
     '#000000',
-    0.13 * shadowK,
+    0.13 * shadowFade,
   );
   c.translate(0, -actor.z / scale);
 
@@ -252,6 +270,13 @@ export function drawActor(
       x += Math.sin(t * 9 + leg * 1.7) * 0.16 * geom.L * pose.legPedal;
       y += Math.cos(t * 9 + leg * 1.7) * 0.08 * geom.L * pose.legPedal;
     }
+    if (posed && posed.blend > 0.001) {
+      const spec = fore ? posed.fore : posed.hind;
+      const jx = hip.x + spec.x * geom.L;
+      const jy = spec.plant ? 0 : hip.y + spec.y * geom.L;
+      x = x * (1 - posed.blend) + jx * posed.blend;
+      y = y * (1 - posed.blend) + jy * posed.blend;
+    }
     return { x, y };
   };
 
@@ -274,6 +299,9 @@ export function drawActor(
   const bellyScale = 1 - 2 * pose.belly;
   const bodyCenterY = geom.bodyY + dy;
   c.save();
+  if (posed && posed.hip !== 0) {
+    c.translate(posed.hip, 0);
+  }
   if (pose.belly > 0.001) {
     c.translate(0, bodyCenterY);
     c.scale(1, bellyScale);
@@ -335,8 +363,12 @@ export function drawActor(
   c.translate(geom.Px, geom.Py);
     c.scale(Math.max(turned.yc, 0.001), 1);
   c.translate(-geom.Px, -geom.Py);
-  drawTail(c, breed, geom, wag, tailColor, pose.tailLift - 0.45 * pose.stream, tailDeco);
+  drawTail(c, breed, geom, wag, tailColor, pose.tailLift - 0.45 * pose.stream + (posed?.tail ?? 0), tailDeco);
   const breath = 1 + pose.breathAmp * Math.sin(actor.breathPh);
+  c.save();
+  c.translate(0, geom.bodyY);
+  c.scale(posed?.scaleX ?? 1, posed?.scaleY ?? 1);
+  c.translate(0, -geom.bodyY);
   fillOval(c, 0, geom.bodyY, geom.bodyLen / 2, (geom.bodyH / 2) * breath, baseColor);
   fillOval(
     c,
@@ -385,6 +417,7 @@ export function drawActor(
   }
   c.restore();
   c.restore();
+  c.restore();
 
   if (turned.ys <= 0.5) {
     paws.push(hindNearPaw(), foreNearPaw());
@@ -396,8 +429,20 @@ export function drawActor(
 
   // neck, bandana, collar
   const shift = headShift(geom, frame.head.y, pose);
-  const head = { x: (frame.head.x + shift.x) * turned.yc, y: frame.head.y + shift.y + pose.headPush * geom.headR * 0.15 };
-  const pitch = (frame.pitch + pose.headRot - 0.9 * pose.headUp + Math.sin(t * 9) * 0.12 * pose.rubSway) * (1 - 0.7 * turned.ys);
+  let headX = frame.head.x;
+  let headY = frame.head.y;
+  if (posed && (posed.pitch !== 0 || posed.dy !== 0)) {
+    const rx = headX - geom.Px;
+    const ry = headY - geom.Py - frame.dy;
+    const cs = Math.cos(posed.pitch);
+    const sn = Math.sin(posed.pitch);
+    headX = geom.Px + rx * cs - ry * sn;
+    headY = geom.Py + frame.dy + rx * sn + ry * cs + posed.dy;
+  }
+  const head = { x: (headX + shift.x) * turned.yc, y: headY + shift.y + pose.headPush * geom.headR * 0.15 };
+  const pitch =
+    (frame.pitch + pose.headRot - 0.9 * pose.headUp + Math.sin(t * 9) * 0.12 * pose.rubSway + (posed?.head ?? 0)) *
+    (1 - 0.7 * turned.ys);
   const base = torsoPoint(geom, theta, dy, geom.bodyLen / 2 - 14, geom.bodyY - 2);
   if (pose.belly > 0.001) {
     base.y = bodyCenterY + (base.y - bodyCenterY) * bellyScale;

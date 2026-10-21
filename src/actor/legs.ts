@@ -23,11 +23,3 @@ export function gaitFoot(phase: number, offset: number, stride: number, lift: nu
   const swing = (u - plant) / (1 - plant);
   return { x: stride * (swing - 0.5), y: -lift * Math.sin(Math.PI * swing) };
 }
-
-export function jumpArc(t: number, duration: number, height: number): number {
-  if (duration <= 0) {
-    return 0;
-  }
-  const u = Math.min(1, Math.max(0, t / duration));
-  return Math.sin(Math.PI * u) * height;
-}

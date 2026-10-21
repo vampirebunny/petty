@@ -3,6 +3,7 @@ import type { PointerTarget } from '../input/pointer';
 import type { BreedRanges, Equipped, Look } from '../sim/types';
 import type { Scene } from './scenes';
 import type { CuddleParams } from './data/cuddle';
+import type { JumpOut, JumpState } from './jump';
 import type { Variant } from './variation';
 
 export type Vec = { x: number; y: number };
@@ -506,9 +507,13 @@ export type Actor = {
   thirst: number;
   play: PlayState | null;
   zoom: ZoomState | null;
-  // Seconds of landing absorb left after a jump, 0..1.
+  // Seconds of landing absorb left after a hop, 0..1. Phase jumps use `jump` instead.
   land: number;
   jumpKind: JumpKind | null;
+  // Phase jump. Null while the pet is on the ground between jumps.
+  jump: JumpState | null;
+  // Landing events waiting for the screen that started the jump.
+  jumpOut: JumpOut[];
   // Seconds the current gait has been at canter or faster.
   topT: number;
   // Speed as a share of the pet's own top speed, for the legs.

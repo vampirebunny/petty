@@ -3,7 +3,7 @@ import { canBehave, isUserTask, reactionFor } from '../behavior';
 import { breedsFor, dogBreeds } from '../breeds';
 import { bagAmount, geomOf, headFaceOf, thickOf } from '../geometry';
 import { growthFor } from '../growth';
-import { gaitFoot, jumpArc, solveKnee } from '../legs';
+import { gaitFoot, solveKnee } from '../legs';
 import { defaultPose, easePose } from '../pose';
 import {
   createWorld,
@@ -166,9 +166,6 @@ it('steps two actors and pauses the frame clock', () => {
   first.task = { type: 'eat', stage: 'eating', t: 1, bats: 0, cool: 0 };
   settleOnResume(world);
   expect(first.task.type).toBe('idle');
-  expect(jumpArc(0, 0.6, 40)).toBe(0);
-  expect(jumpArc(0.3, 0.6, 40)).toBeGreaterThan(30);
-  expect(jumpArc(0.6, 0.6, 40)).toBeCloseTo(0, 5);
 });
 
 it('picks another idle and skips a walk when motion is reduced', () => {
