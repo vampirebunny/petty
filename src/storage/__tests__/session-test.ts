@@ -1,6 +1,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { loadDraft, loadSoundEnabled, saveDraft, saveSoundEnabled } from '../session';
+import {
+  loadDraft,
+  loadHasSeenSilentModeHint,
+  loadSoundEnabled,
+  saveDraft,
+  saveHasSeenSilentModeHint,
+  saveSoundEnabled,
+} from '../session';
 
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock'),
@@ -56,6 +63,12 @@ it('migrates legacy cat breed ids in a draft', async () => {
     look: null,
     step: 'design',
   });
+});
+
+it('remembers the silent-mode hint only after it is dismissed', async () => {
+  await expect(loadHasSeenSilentModeHint()).resolves.toBe(false);
+  await saveHasSeenSilentModeHint();
+  await expect(loadHasSeenSilentModeHint()).resolves.toBe(true);
 });
 
 it('keeps the sound setting, on by default', async () => {

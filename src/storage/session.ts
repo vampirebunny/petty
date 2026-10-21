@@ -8,6 +8,7 @@ const remindersKey = 'petty.reminders';
 const careRemindersKey = 'petty.careReminders';
 const soundKey = 'petty.sound';
 const musicKey = 'petty.music';
+const silentModeHintKey = 'petty.hasSeenSilentModeHint';
 
 // Species, look, and breed share one design screen. Offers (choose a pup) and name follow.
 export type AdoptionStep = 'design' | 'offers' | 'name';
@@ -128,4 +129,12 @@ export async function loadMusicEnabled(): Promise<boolean> {
 
 export async function saveMusicEnabled(enabled: boolean): Promise<void> {
   await AsyncStorage.setItem(musicKey, enabled ? 'on' : 'off');
+}
+
+export async function loadHasSeenSilentModeHint(): Promise<boolean> {
+  return (await AsyncStorage.getItem(silentModeHintKey)) === 'yes';
+}
+
+export async function saveHasSeenSilentModeHint(): Promise<void> {
+  await AsyncStorage.setItem(silentModeHintKey, 'yes');
 }

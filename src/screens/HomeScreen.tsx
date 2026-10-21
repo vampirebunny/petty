@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AccessibilityInfo, AppState, Image, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, AppState, Image, Platform, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector, Pressable, ScrollView } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
@@ -21,7 +21,14 @@ import { CuddleGesture } from '../input/cuddleGesture';
 import type { GestureEvent } from '../input/cuddleGesture';
 import { archetypeNames, archetypeStyleNames, attributeScore, currentStyle, petStrokeIntervalMs, traits } from '../sim';
 import type { OutfitSlot, Trait } from '../sim';
-import { loadMusicEnabled, loadSoundEnabled, saveMusicEnabled, saveSoundEnabled } from '../storage/session';
+import {
+  loadHasSeenSilentModeHint,
+  loadMusicEnabled,
+  loadSoundEnabled,
+  saveHasSeenSilentModeHint,
+  saveMusicEnabled,
+  saveSoundEnabled,
+} from '../storage/session';
 import { usePet } from '../state/usePet';
 import { useEconomy } from '../economy/useEconomy';
 import { basicTreatId, emptyEconomy, minutesUntilTreat, rewardTierAvailable, specialTreatId, stackQty } from '../economy/state';
@@ -53,6 +60,7 @@ import { CuddleFeedback } from '../ui/cuddle/CuddleFeedback';
 import type { FeedbackHandle } from '../ui/cuddle/CuddleFeedback';
 import type { PointAdd } from '../ui/cuddle/pointAdds';
 import { CoachMarks, CuddleHelpSheet, GhostFinger } from '../ui/cuddle/CuddleGuidance';
+import { SilentModeHint } from '../ui/SilentModeHint';
 
 const badgeLabels: Record<string, string> = {
   sit: 'Sit',
@@ -159,6 +167,9 @@ export default function HomeScreen({ petApi }: Props) {
   const [note, setNote] = useState('');
   const [soundOn, setSoundOn] = useState(true);
   const [musicOn, setMusicOn] = useState(true);
+  const [silentHintOpen, setSilentHintOpen] = useState(false);
+  // null until storage answers. true once shown or already dismissed this install.
+  const [silentHintSeen, setSilentHintSeen] = useState<boolean | null>(null);
   const noteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -188,12 +199,48 @@ export default function HomeScreen({ petApi }: Props) {
     };
   }, []);
 
+  useEffect(() => {
+    let mounted = true;
+    void loadHasSeenSilentModeHint().then((seen) => {
+      if (mounted) {
+        setSilentHintSeen((current) => current ?? seen);
+      }
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // iOS cannot read the silent switch. Offer the hint once, and let the tap's sound start immediately.
+  const offerSilentHint = useCallback(() => {
+    if (Platform.OS !== 'ios' || silentHintSeen === true) {
+      return;
+    }
+    setSilentHintSeen(true);
+    if (silentHintSeen === false) {
+      setSilentHintOpen(true);
+      return;
+    }
+    void loadHasSeenSilentModeHint().then((seen) => {
+      if (!seen) {
+        setSilentHintOpen(true);
+      }
+    });
+  }, [silentHintSeen]);
+
+  const dismissSilentHint = useCallback(() => {
+    setSilentHintOpen(false);
+    setSilentHintSeen(true);
+    void saveHasSeenSilentModeHint();
+  }, []);
+
   const toggleSound = useCallback(() => {
+    offerSilentHint();
     const next = !soundOn;
     setSoundOn(next);
     setSoundEnabled(next);
     void saveSoundEnabled(next);
-  }, [soundOn]);
+  }, [offerSilentHint, soundOn]);
 
   const toggleMusic = useCallback(() => {
     const next = !musicOn;
@@ -701,6 +748,7 @@ export default function HomeScreen({ petApi }: Props) {
     } else if (trackId === 'paw') {
       givePaw();
     } else if (trackId === 'speak') {
+      offerSilentHint();
       speak();
     }
   };
@@ -709,7 +757,18 @@ export default function HomeScreen({ petApi }: Props) {
     ...(state.training.paw?.mastered
       ? [{ id: 'paw', label: speciesLabel('paw', species) ?? 'Give paw', onPress: givePaw }]
       : []),
-    ...(state.training.speak?.mastered ? [{ id: 'speak', label: 'Speak', onPress: speak }] : []),
+    ...(state.training.speak?.mastered
+      ? [
+          {
+            id: 'speak',
+            label: 'Speak',
+            onPress: () => {
+              offerSilentHint();
+              speak();
+            },
+          },
+        ]
+      : []),
   ];
   const badges = earnedBadges(state.milestones, species).filter(
     (badge) => badge.id !== 'sit' && badge.id !== 'speak' && badge.id !== 'paw',
@@ -975,6 +1034,7 @@ export default function HomeScreen({ petApi }: Props) {
           </View>
         ) : null}
         <CuddleHelpSheet visible={helpOpen} onClose={() => setHelpOpen(false)} />
+        <SilentModeHint visible={silentHintOpen} onClose={dismissSilentHint} />
         <DebugPanel
           state={state}
           mood={mood}
