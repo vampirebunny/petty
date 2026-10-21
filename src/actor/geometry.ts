@@ -2,6 +2,7 @@ import { bagSpanDays, bagStartDay } from '../sim/config';
 import { limbSize } from './breeds';
 import { earProfiles } from './data/breedShapes';
 import { grayAmountsOf } from './data/graying';
+import { petStyle } from './data/petStyle';
 import type { GrayAmounts } from './data/graying';
 import { growthFor, smoothstep, visualProgress } from './growth';
 import { stageHeight, stageWidth } from './scenes';
@@ -87,7 +88,7 @@ export function geomOf(breed: Breed, ageDays: number, weight: number, vitality =
   const foreX = bodyLen / 2 - 16;
   const span = foreX - Px;
   const aSit = Math.asin(clamp(span === 0 ? 0 : (0.9 * L - 4) / span, 0, 0.95));
-  return {
+  const geom: Geom = {
     sc: (0.62 + 0.38 * growth.scale) * breed.size,
     L,
     bodyH,
@@ -114,6 +115,48 @@ export function geomOf(breed: Breed, ageDays: number, weight: number, vitality =
     bags: bagAmount(ageDays, vitality),
     gray: grayAmountsOf(breed.species, ageDays),
     thick,
+  };
+  return applyProportions(geom);
+}
+
+// Chibi multipliers, after breed, age and weight are already combined. Derived leg and body
+// values are rebuilt from the new lengths so the feet, hips and lie drop stay consistent.
+function applyProportions(geom: Geom): Geom {
+  const p = petStyle.proportions;
+  if (!p.enabled) {
+    return geom;
+  }
+  const L = geom.L * p.legLength;
+  const bodyH = geom.bodyH * p.bodyH;
+  const bodyLen = geom.bodyLen * p.bodyLen;
+  const headR = geom.headR * p.headR;
+  const bodyH0 = geom.bodyH / geom.thick;
+  const sag = (geom.thick - 1) * bodyH0 * 0.4;
+  const bottom = Math.min(-2, -(0.93 * L - 8) + sag);
+  const bodyY = bottom - bodyH / 2;
+  const Px = -bodyLen / 2 + 8;
+  const Py = bodyY + bodyH / 2 - 4;
+  const foreX = bodyLen / 2 - 16;
+  const span = foreX - Px;
+  return {
+    ...geom,
+    L,
+    bodyH,
+    bodyLen,
+    bodyY,
+    hipY: -0.93 * L,
+    headR,
+    Px,
+    Py,
+    foreX,
+    hindX: -bodyLen / 2 + 16,
+    aSit: Math.asin(clamp(span === 0 ? 0 : (0.9 * L - 4) / span, 0, 0.95)),
+    dLie: -bodyH / 2 + 3 - bodyY,
+    tipX: headR * 0.85 + geom.snout * 1.15,
+    tipY: headR * 0.3 + headR * 0.15,
+    legWidth: geom.legWidth * p.legWidth,
+    pawRx: geom.pawRx * p.paw,
+    pawRy: geom.pawRy * p.paw,
   };
 }
 
@@ -387,7 +430,18 @@ export function bodyFrame(
   // The body drops for a stalking crouch, a play bow and a landing absorb.
   const dy =
     -geom.Py * pose.sit + geom.dLie * (pose.lie + 0.65 * (pose.stalk ?? 0) + 0.25 * (pose.bow ?? 0) + 0.5 * (pose.land ?? 0)) + bounce;
-  const natural = torsoPoint(geom, theta, dy, geom.bodyLen / 2 + 4, geom.bodyY - geom.bodyH * 0.32 - 4);
+  // Resting head. With chibi proportions the neck shortens by sliding this point toward the
+  // neck base (bodyLen / 2 - 14), which is the same point the neck stroke and collar use.
+  const neckX = geom.bodyLen / 2 - 14;
+  const neckY = geom.bodyY - 2;
+  let headX = geom.bodyLen / 2 + 4;
+  let headY = geom.bodyY - geom.bodyH * 0.32 - 4;
+  if (petStyle.proportions.enabled) {
+    const neck = petStyle.proportions.neck;
+    headX = neckX + (headX - neckX) * neck;
+    headY = neckY + (headY - neckY) * neck;
+  }
+  const natural = torsoPoint(geom, theta, dy, headX, headY);
   natural.x += 10 * pose.sit;
   natural.y += Math.sin(phase * 2) * 1.4 * pose.walk;
   const pitchBase = -0.1 * pose.sit - 0.3 * barkOpen;

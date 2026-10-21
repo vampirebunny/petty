@@ -1,4 +1,4 @@
-import { Skia, StrokeCap } from '@shopify/react-native-skia';
+import { BlendMode, Skia, StrokeCap } from '@shopify/react-native-skia';
 import type { SkCanvas } from '@shopify/react-native-skia';
 
 import { blendedFoot, bodyFrame, isDarkCoat, solveKnee, wearItem } from '../../actor';
@@ -10,6 +10,7 @@ import { frostColorOf } from '../../actor/color';
 import { baseColorOf, markingOf, resolveMarkings } from '../../actor/markings';
 import { earProfiles } from '../../actor/data/breedShapes';
 import { cuddleDefaults } from '../../actor/data/cuddle';
+import { petStyle } from '../../actor/data/petStyle';
 import {
   drawBodyMarkings,
   drawEar,
@@ -26,8 +27,10 @@ import {
 import type { HeadCtx } from './breedParts';
 import {
   chinAnchor,
+  collarJawOf,
   drawBoot,
-  drawGlasses,
+  drawGlassesBack,
+  drawGlassesFront,
   drawHat,
   drawHood,
   drawJacket,
@@ -50,6 +53,21 @@ import {
 import { jacketHasSleeves, type WearItem } from '../../actor/wardrobe';
 import { frostOval } from './frost';
 import { drawToyShape } from './scenery';
+import { shadeOval } from './shade';
+
+// A layer paint that draws a tinted, dilated copy of the layer behind it: one outline for the whole pet.
+// The radius is in the pet's local units, so it stays the same thickness relative to the pet when the
+// stage is zoomed (wardrobe tiles, playdate camera).
+function outlineLayerPaint(baseColor: string) {
+  const { width, ink, inkMix } = petStyle.outline;
+  const color = Skia.Color(mix(baseColor, ink, inkMix));
+  const grown = Skia.ImageFilter.MakeDilate(width, width, null);
+  const tinted = Skia.ImageFilter.MakeColorFilter(Skia.ColorFilter.MakeBlend(color, BlendMode.SrcIn), grown);
+  const paint = Skia.Paint();
+  // `null` in the merge list is the layer itself, drawn on top of the outline.
+  paint.setImageFilter(Skia.ImageFilter.MakeMerge([tinted, null]));
+  return paint;
+}
 
 type Pt = { x: number; y: number };
 
@@ -82,6 +100,15 @@ function drawLeg(
   leg.lineTo(knee.x, knee.y);
   leg.lineTo(paw.x, paw.y);
   c.drawPath(leg, paintOf(color, 1, geom.legWidth));
+  if (petStyle.shade.enabled) {
+    const s = petStyle.shade;
+    const back = -geom.legWidth * s.legOffset;
+    const stripe = Skia.Path.Make();
+    stripe.moveTo(hip.x + back, hip.y);
+    stripe.lineTo(knee.x + back, knee.y);
+    stripe.lineTo(paw.x + back, paw.y);
+    c.drawPath(stripe, paintOf('#000000', s.legAlpha, geom.legWidth * s.legStripe));
+  }
   // A boot foot replaces the paw oval, which would poke out once the boot tilts with the shin.
   if (!boot) {
     fillOval(c, paw.x + 3, paw.y - 3, geom.pawRx, geom.pawRy, color);
@@ -103,6 +130,9 @@ function drawLeg(
     for (const f of [0.5, 0.75]) {
       frostOval(c, knee.x + (paw.x - knee.x) * f, knee.y + (paw.y - knee.y) * f, geom.legWidth * 0.8, geom.legWidth * 0.8, frostColor, frost * 0.85);
     }
+  }
+  if (!boot) {
+    shadeOval(c, paw.x + 3, paw.y - 3, geom.pawRx, geom.pawRy);
   }
   if (sleeve) {
     drawSleeve(c, hip, knee, geom, sleeve, far, fur);
@@ -249,6 +279,11 @@ export function drawActor(
     0.13 * shadowFade,
   );
   c.translate(0, -actor.z / scale);
+
+  const outlined = petStyle.outline.enabled && !silhouette;
+  if (outlined) {
+    c.saveLayer(outlineLayerPaint(baseColor));
+  }
 
   const footAt = (hip: Pt, fore: boolean, leg: 0 | 1 | 2 | 3, nearFore: boolean, kicker = false): Pt => {
     const offset = leg === 1 || leg === 2 ? Math.PI : 0;
@@ -423,6 +458,16 @@ export function drawActor(
       const bib = points ? (breed.accent ?? muzzleColorOf(breed, markings)) : mix(baseColor, '#ffffff', 0.18);
       fillOval(c, 0.3 * geom.bodyLen * turned.yc, geom.bodyY + geom.bodyH * 0.12, geom.bodyH * 0.28 * turned.ys, geom.bodyH * 0.22, bib, turned.ys);
     }
+    for (const k of [-0.3, 0, 0.3]) {
+      const end = k === 0 ? 1 : 0.9;
+      shadeOval(
+        c,
+        k * geom.bodyLen * turned.yc,
+        geom.bodyY,
+        geom.bodyH * 0.56 * turned.ys * end,
+        (geom.bodyH / 2) * (k === 0 ? 1 : 0.92),
+      );
+    }
   }
   c.save();
   c.translate(geom.Px, geom.Py);
@@ -468,6 +513,7 @@ export function drawActor(
       geom.gray.chest,
     );
   }
+  shadeOval(c, 0, geom.bodyY, geom.bodyLen / 2, (geom.bodyH / 2) * breath);
   if (actor.displayWeight < -0.35) {
     const ribs = Skia.Path.Make();
     for (let r = 0; r < 4; r += 1) {
@@ -543,16 +589,17 @@ export function drawActor(
   // 3/4 head turn: all eye, snout and far-ear positions come from one layout shared with the anchors.
   const turn = clamp(pose.headTurn, 0, 1);
   const face = headFaceOf(breed, geom, turn, pose.faceFront);
-  const underHead = Boolean(neckwear && neckwearUnderHead(along));
+  const view = Math.max(face.turn, face.front);
+  // Sleep lays the strap under the jaw. A turned face is drawn over the collar and bandana so they do not cover the muzzle.
+  const underHead = Boolean(neckwear && (neckwearUnderHead(along) || view > 0.001));
   const wearNeck = () => {
     if (!neckwear) {
       return;
     }
-    const view = Math.max(face.turn, face.front);
-    const chin = chinAnchor(head, base, R, pitch, cat, view);
+    const chin = chinAnchor(head, base, R, pitch, cat, view, collarJawOf(face, R));
     const sway = Math.sin(t * 3) * 0.08 + Math.sin(t * 11) * clamp(actor.speed / 120, 0, 1) * 0.12;
     const chest = markingOf(markings, 'chest')?.color ?? baseColor;
-    drawNeckwear(c, chin, perp, along, neckwear, sway, R, chest);
+    drawNeckwear(c, chin, perp, along, neckwear, sway, R, chest, view, pitch);
   };
   if (underHead) {
     wearNeck();
@@ -620,6 +667,7 @@ export function drawActor(
     c.drawPath(marks, paintOf(mix(baseColor, '#000000', 0.5), 0.6, 2.6));
   }
   drawHeadMarkingsBelow(c, headCtx);
+  shadeOval(c, 0, 0, cat ? R * 1.06 : R, cat ? R * 0.96 : R);
   // The muzzle comes from breed data: its 3/4 shape (visible length, width, drop) is already in the layout.
   const mrx = face.muzzle.rx;
   const mry = face.muzzle.ry * pose.snoutScale;
@@ -641,6 +689,12 @@ export function drawActor(
     fillRRect(c, mx - mrx, my - mry, mrx * 2, mry * 2, Math.min(mrx, mry) * 0.45, muzzleColor);
   } else {
     fillOval(c, mx, my, mrx, mry, muzzleColor);
+  }
+  if (petStyle.shade.enabled) {
+    c.save();
+    clipOval(c, mx, my, mrx, mry);
+    fillOval(c, mx, my + mry * 0.85, mrx * 1.2, mry * 0.6, '#000000', petStyle.shade.shadowAlpha * 0.6);
+    c.restore();
   }
   if (geom.gray.muzzle > 0.01) {
     // Senior frosting on the muzzle and chin, over the muzzle's own color (a pug's mask or Siamese points too).
@@ -738,9 +792,12 @@ export function drawActor(
   }
   withHead(() => {
     // near ear (slides back in 3/4 so the ears spread apart). Hanging ears overlap neckwear.
+    if (glasses) {
+      drawGlassesBack(c, glasses, face, R, baseColor);
+    }
     nearEar();
     if (glasses) {
-      drawGlasses(c, glasses, face, R, baseColor);
+      drawGlassesFront(c, glasses, face, R, baseColor);
     }
     if (hat) {
       drawHat(c, hat, R, face, baseColor);
@@ -759,6 +816,9 @@ export function drawActor(
   actor.mouthMark = toyMouthStage(actor, mouth, turned.dir, scale);
   if (carrying !== null) {
     drawToyShape(c, carrying, mouth.x, mouth.y, 8);
+  }
+  if (outlined) {
+    c.restore();
   }
   for (const heart of actor.hearts) {
     const k = 1 - heart.t / heart.life;

@@ -11,6 +11,8 @@ Files:
 - `src/ui/skia/pet.ts` (`drawActor`, `drawLeg`, draw order)
 - `src/actor/wardrobe.ts` (slots, items, `wearItem`)
 - `src/actor/data/wardrobeSizes.ts` (tunable size multipliers, same pattern as `actor/data/cuddle.ts` and `jumpConfig`)
+- `src/actor/data/petStyle.ts` (the pet's own outline, cel shading, and chibi proportions)
+- `src/ui/skia/shade.ts` (shadow and highlight helpers shared by the body, ears, and tail)
 - `src/actor/closet.ts` and `src/storage/wardrobeStorage.ts` (owned items)
 - `src/ui/WardrobePicker.tsx`, `src/screens/WardrobeScreen.tsx`, `src/screens/WardrobeLab.tsx`
 
@@ -45,7 +47,7 @@ New slot list: `hat`, `glasses`, `neckwear`, `jacket` (rename from `coat`), `boo
 Add once and use for every item:
 
 - `outlineOf(color)`: `mix(color, '#000000', 0.45)`.
-- `outlined(c, path, fill, width)`: fill, then stroke with `outlineOf(fill)` at `sizes.outline` (start at 2.5 stage units). Round joins and caps.
+- `outlined(c, path, fill, width)`: fill, then stroke with `outlineOf(fill)` at `sizes.outline` (1.6 stage units). Round joins and caps, via `edgePaint`. Item strokes only mark internal edges. The pet's shared sticker outline is separate (`petStyle.outline`).
 - `needsTrim(itemColor, furColor)`: true when RGB distance is under about 110. When true, draw a thin white trim (or a dark trim on very light fur) between the outline and the fill. Use the pet's resolved base color and, for neckwear, the chest marking color if the breed has one (`markingOf(markings, 'chest')`).
 
 ## 3. Sizes come from the pet, not fixed numbers
@@ -61,17 +63,17 @@ Put all multipliers in `wardrobeSizes.ts`. Starting values:
 
 | Item | Value |
 |---|---|
-| Outline width | 2.5 units |
+| Item outline width | 1.6 units (internal edges only; the sticker outline is `petStyle.outline.width`, 2.4) |
 | Collar band thickness | 0.22 R |
 | Collar tag radius | 0.30 R |
+| Turned collar | `collarJawBack` 0.45 of a muzzle radius back from the muzzle center, `collarJawDrop` 0.16 R below the muzzle |
 | Bell radius | 0.33 R |
-| Bandana width / drop | 1.7 R / 1.15 R |
-| Bandana hem | darker stroke along the two lower edges |
+| Bandana band span / thickness | 0.62 R / 0.16 R |
+| Bandana drop / hem / knot | 1.0 R / 0.1 R / 0.26 R |
 | Bow wing length / height | 0.62 R / 0.40 R |
 | Scarf band / tail width | 0.34 R / 0.30 R, tails about 1.15 R and 0.9 R long |
 | Hat base scale | 1.12 (multiply with the existing 3/4 widen `1 + 0.12 * turn`) |
-| Glasses frame width | 0.5 eyeR |
-| Glasses lens half-size | 1.85 eyeR, corner radius 0.45 of half-size |
+| Glasses | per style in `glassesStyles`: wayfarer shades, round gold, soft-square red. Temple arm is 0.75 of the frame and reaches 0.6 R back |
 | Jacket puff | `0.05 * bodyH` (vest/puffer `0.09 * bodyH`) |
 | Jacket rear / front | `0.34` / `0.36` of bodyLen |
 | Jacket buttons | radius 0.13 R |
@@ -94,26 +96,28 @@ const chin = {
 };
 ```
 
-Draw order inside `drawActor`:
+Draw order inside `drawActor`. The ground shadow, jump dust, hearts, and sleep marks stay outside the sticker-outline layer. Everything from the legs through the carried toy is inside it.
+
 1. Far legs (with boots and sleeves)
-2. Torso: tail, body, markings, **jacket** (coat body only; no collar yet)
+2. Torso: tail, body, markings, cel shade, **jacket** (coat body only; no collar yet)
 3. Near legs (with boots and sleeves)
 4. Neck stroke
 5. Rain hood (if raincoat), then **jacket roll collar** (`drawJacketCollar`)
-6. Head: far ear, ruff, skull, face, eyes, markings
-7. **Neckwear at `chin`**
-8. Near ear, glasses, hat (with the existing beanie ear-poke logic)
+6. When the neck is flat, or the head is turned (`face.turn` or `face.front` above 0): **neckwear at `chin`**, then the head. The face covers any neckwear that would cross the muzzle. The tag or triangle that hangs below the chin stays visible.
+7. Otherwise: head first, then **neckwear at `chin`**, so a side-view collar sits on the neck.
+8. Head contents, whenever they draw: far ear, ruff, skull, face, eyes, markings
+9. Glasses temple arms (`drawGlassesBack`), near ear, glasses lenses and bridge (`drawGlassesFront`), hat (with the existing beanie ear-poke logic)
 
-Neckwear must sit under the near ear, so hanging ears overlap the bandana or collar rather than being covered by it. The simplest way: split the head block so the head transform is restored, neckwear is drawn in body space, then the head transform is re-applied for the near ear, glasses and hat. Keep `actor.anchors.neck` for anything else that uses it.
+Neckwear sits under the near ear, so hanging ears overlap the bandana or collar. The head transform is restored, neckwear is drawn in body space, then the head transform is re-applied for the arms, near ear, lenses, and hat. Keep `actor.anchors.neck` for anything else that uses it.
 
 Item shapes:
-- **Collar:** a curved band across the neck at `chin` (a slight arc bowing toward the body, not a straight line), outlined. The tag hangs from the lower end and swings with speed plus a small idle sway. The `gold` variant gets a gold band and larger studs (0.08 R), or drop the studs.
+- **Collar:** a curved band across the neck at `chin` (a slight arc bowing toward the body, not a straight line), outlined. In side view the tag hangs from the lower end. In the 3/4 and front views the band sits under the jaw, runs across the throat, and the tag hangs straight down from the middle so it does not cover the mouth. It swings with speed plus a small idle sway. The `gold` variant gets studs (0.08 R).
 - **Bell:** same band, a bell instead of a tag: outlined circle, slot line, clapper dot, highlight. Hook a jingle sound to fast movement and greetings if easy; otherwise leave a TODO.
-- **Bandana:** a triangle hanging over the chest from `chin`, tip slightly forward. Outlined, a darker hem along the two lower edges, a darker knot band along the top edge. No dots. Flutter from speed plus a slow idle sway (not speed only).
+- **Bandana:** a tied band around the neck plus a triangle that hangs from the front of the band, tip pointing down. Side view shows a knot and two short tails at the back of the neck, and the cloth hangs from the throat half of the band. In the 3/4 and front views the triangle is centered under the chin and the knot is hidden. Lying and sleeping use a short strap under the jaw and a smaller triangle. One color plus a darker hem. No dots. The tip sways with speed and a slow idle sway.
 - **Bow tie:** thin band plus two outlined triangle wings and a knot, centered just below the chin.
 - **Scarf:** thick band plus two tails trailing behind the neck that wave with speed.
 
-In the 3/4 head turn (`face.turn`, `face.front` > 0), neckwear shifts toward the front and centers under the muzzle, matching how `drawHat` and `drawGlasses` already respond to the turn.
+In the 3/4 head turn (`face.turn`, `face.front` > 0), neckwear moves under the jaw and centers as the face turns fully forward. The face is drawn over it. Hats still widen with the turn, and glasses switch to two lenses with an arched bridge.
 
 When the neck is nearly horizontal (sleep and lie, especially with `headRest`), the head often sits on the shoulders and a normal across-the-neck band would slash through the face. In that case: park the chin on the short head→body segment, draw a short strap under the jaw along the neck, shrink tags and hanging tips, and paint neckwear under the head so the face covers any leftover overlap.
 
@@ -127,12 +131,13 @@ When the neck is nearly horizontal (sleep and lie, especially with `headRest`), 
 
 ## 6. Glasses
 
-- Lens becomes a rounded square (sizes from the table) with a thick frame in the item color and an outline.
-- **Sunglasses lens is semi-transparent** (dark tint, alpha about 0.55) so the eye and its highlight still show. The eye is the cutest feature and must not be fully hidden.
-- Bold diagonal glare (about 2.6 units, alpha 0.75).
-- Temple arm and front arm use the frame width with outline.
-- `square` (gold frames): gold rim at the frame width with a dark gold outline, light blue lens at about 0.28 alpha.
-- Keep the existing two-lens 3/4 logic, `fit` for close-set and wide-set eyes, and far-lens fade.
+Each id in `glassesStyles` has its own shape. `classic` is a wayfarer (flat brow, rounded bottom, dark lens, two glare streaks). `square` is a thin round gold wire with a light blue lens. `red-rim` is a soft square with a pale lens. A saved `round` id still resolves to `square`.
+
+- Lenses are sized from `eyeR` (`w` and `h` in the style row) and shrink at the 3/4 and front views when the eyes are close-set, so they do not overlap.
+- Every lens is translucent and gets at least one white glare streak, so the eye still shows through shades.
+- Temple arms draw before the near ear (`drawGlassesBack`) and tuck under hanging and erect ears. In side view the arm runs back toward the ear and a short nose pad leaves the front of the lens. Nothing extends onto the muzzle.
+- Lenses and the bridge draw after the near ear (`drawGlassesFront`). In the 3/4 and front views the far lens uses the far eye's scale and fade, and the bridge arches over the snout. Full front adds short stubs from the outer edges.
+- A frame close to the fur color gets the light or dark trim, so classic shades stay visible on a black coat.
 
 ## 7. Hats
 
@@ -162,7 +167,7 @@ All of this must work from geometry already in `geom`, `face`, `breed`, and `ear
 - **Life stages:** puppy and kitten through senior. Items must scale with growth. Senior frosting must not draw over items.
 - **Weight index:** jackets follow underweight to overweight body thickness through `bodyH` and `breath`.
 - **Poses:** walk, run, gallop stream, jump, sit, lie, side lie, belly up, play bow, eat at bowl (head down), bark, petting reactions, carrying a toy.
-- **3/4 idle turn:** neckwear centered, glasses with two lenses, hat widened.
+- **3/4 and front:** neckwear under the jaw and behind the muzzle, glasses with two lenses and an arched bridge, hat widened. Side view keeps the bandana knot visible and the glasses arm under the ear.
 
 If a breed still fails after the shared rules, add a small per-breed override in breed data (for example a neckwear offset or hat scale), not branching in draw code.
 
@@ -170,11 +175,19 @@ If a breed still fails after the shared rules, add a small per-breed override in
 
 A button under Settings opens a page that does not write the save. It chooses species and breed, any catalog item with text buttons, and age with a slider, and shows that pet in the same zoomed 3/4 idle preview as the wardrobe picker. The user-facing picker is the animated closet (sticky pet, owned items below), not a breed grid.
 
+## 11. The pet's own look
+
+Tunables live in `src/actor/data/petStyle.ts`. Shading helpers live in `src/ui/skia/shade.ts`.
+
+- **Sticker outline.** One Skia layer dilates the pet and tints that copy with the coat mixed toward `outline.ink`. Legs, body, head, ears, tail, worn items, and a carried toy share that one edge. The ground shadow, jump dust, hearts, and sleep marks are outside the layer. The radius is in the pet's local units, so wardrobe zoom and the playdate camera do not change its thickness relative to the pet.
+- **Cel shading.** Each body, head, muzzle, paw, ear, and tail gets one translucent shadow on the underside and, where the part reads as round, one highlight near the top. Markings and senior frost are shaded with the coat. Erect ears get only the base shadow. Eyes, nose, and blush are not shaded. The overlays sit under the scene's `bodyTint`, so they darken with the pet at night.
+- **Chibi proportions.** `proportions.enabled` is false. Turning it on multiplies leg length, leg width, paws, body height, body length, neck, and head radius after breed, age, and weight are combined, and rebuilds hip height, lie drop, and the resting head from the new values. Leave it off until every breed and life stage has been checked in the gallery.
+
 ## Acceptance criteria
 
-- Every item is clearly identifiable at normal phone scale on every breed of both species, in every life stage, in side view and 3/4 view.
-- No neckwear is hidden by the head.
-- Sunglasses never fully hide the eye.
+- Every item is clearly identifiable at normal phone scale on every breed of both species, in every life stage, in side view, 3/4 view, and full front.
+- In side view the collar and bandana read on the neck, with the bandana's knot at the back. In 3/4 and front they sit under the chin and do not cover the muzzle. Hanging ears still overlap the band.
+- The three glasses styles are recognizable from shape alone. Sunglasses never fully hide the eye, and the temple arm does not cross the ear or the muzzle.
 - Items stay attached through every pose and animation, with no gaps or popping.
 - No fixed stroke sizes left in `cosmetics.ts`; all sizes come from `wardrobeSizes.ts` multipliers.
 - Existing saves keep their owned and equipped items after the slot migration.

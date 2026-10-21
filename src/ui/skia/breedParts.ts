@@ -6,7 +6,9 @@ import { earProfiles } from '../../actor/data/breedShapes';
 import type { HeadFace } from '../../actor/geometry';
 import { markingOf } from '../../actor/markings';
 import type { Breed, ResolvedMarking } from '../../actor/types';
+import { petStyle } from '../../actor/data/petStyle';
 import { clipOval, deg, fillCircle, fillOval, mix, oval, paintOf, strokeLine } from './draw';
+import { shadeOval, shadePath, shadeTail } from './shade';
 
 type Pt = { x: number; y: number };
 
@@ -65,6 +67,7 @@ export function drawTail(c: SkCanvas, breed: Breed, geom: Geom, wag: number, col
         path.cubicTo(p1.x, p1.y, p2.x, p2.y, p3.x, p3.y);
         width = 13 * fluff;
         c.drawPath(path, paintOf(color, 1, width));
+        shadeTail(c, path, width);
         tuftsAlong(c, [bez3(p0, p1, p2, p3, 0.3), bez3(p0, p1, p2, p3, 0.55), bez3(p0, p1, p2, p3, 0.8)].map((p) => ({ x: p.x - 3, y: p.y })), 5, color, 0);
         fillCircle(c, p3.x, p3.y, 7, color);
         tip = p3;
@@ -75,6 +78,7 @@ export function drawTail(c: SkCanvas, breed: Breed, geom: Geom, wag: number, col
         const cx = tx + 3;
         const cy = ty + 2;
         fillOval(c, cx, cy, 11 * fluff, 10 * fluff, color);
+        shadeOval(c, cx, cy, 11 * fluff, 10 * fluff);
         for (let i = 0; i < 6; i += 1) {
           const a = rad(110 + i * 28);
           fillCircle(c, cx + Math.cos(a) * 10, cy + Math.sin(a) * 9, 4.6, color);
@@ -93,6 +97,7 @@ export function drawTail(c: SkCanvas, breed: Breed, geom: Geom, wag: number, col
         path.moveTo(p0.x, p0.y);
         path.quadTo(p1.x, p1.y, p2.x, p2.y);
         c.drawPath(path, paintOf(color, 1, 9));
+        shadeTail(c, path, 9);
         for (let k = 1; k <= 6; k += 1) {
           const p = bez2(p0, p1, p2, k / 7);
           fillOval(c, p.x, p.y + 5, 5, 6.5 - k * 0.3, deco.feather);
@@ -111,7 +116,12 @@ export function drawTail(c: SkCanvas, breed: Breed, geom: Geom, wag: number, col
         for (let i = 0; i < steps; i += 1) {
           const a = bez2(p0, p1, p2, i / steps);
           const b = bez2(p0, p1, p2, (i + 1) / steps);
-          strokeLine(c, a.x, a.y, b.x, b.y, color, 8 - (i / (steps - 1)) * 6.4);
+          const w = 8 - (i / (steps - 1)) * 6.4;
+          strokeLine(c, a.x, a.y, b.x, b.y, color, w);
+          if (petStyle.shade.enabled) {
+            const s = petStyle.shade;
+            strokeLine(c, a.x, a.y + w * s.legOffset, b.x, b.y + w * s.legOffset, '#000000', w * s.legStripe, s.legAlpha);
+          }
         }
         width = 3;
         tip = p2;
@@ -124,6 +134,7 @@ export function drawTail(c: SkCanvas, breed: Breed, geom: Geom, wag: number, col
         const outer = Skia.Path.Make();
         outer.addArc(oval(cx, cy, 11, 11), 80, 300);
         c.drawPath(outer, paintOf(color, 1, 7));
+        shadeTail(c, outer, 7);
         const inner = Skia.Path.Make();
         inner.addArc(oval(cx + 1, cy + 1, 5.5, 5.5), 80, 300);
         c.drawPath(inner, paintOf(mix(color, '#000000', 0.18), 1, 4.6));
@@ -145,6 +156,7 @@ export function drawTail(c: SkCanvas, breed: Breed, geom: Geom, wag: number, col
           tip = { x: tx - 34 + sway, y: ty - 38 };
         }
         c.drawPath(path, paintOf(color, 1, width));
+        shadeTail(c, path, width);
         break;
       }
       case 'catPlume':
@@ -161,6 +173,7 @@ export function drawTail(c: SkCanvas, breed: Breed, geom: Geom, wag: number, col
         path.moveTo(p0.x, p0.y);
         path.cubicTo(p1.x, p1.y, p2.x, p2.y, p3.x, p3.y);
         c.drawPath(path, paintOf(color, 1, width));
+        shadeTail(c, path, width);
         const samples = bushy ? [0.2, 0.34, 0.48, 0.62, 0.76, 0.9] : [0.35, 0.6, 0.85];
         for (const sample of samples) {
           const p = bez3(p0, p1, p2, p3, sample);
@@ -414,6 +427,8 @@ export function drawEar(c: SkCanvas, breed: Breed, geom: Geom, paint: EarPaint, 
     if (tuft) {
       c.drawPath(tuft, paintOf(color, args.alpha));
     }
+    // Erect ears take a shadow at the base and no highlight. Hanging ears are shaded below.
+    shadePath(c, outer, args.alpha, false);
     c.restore();
     return;
   }
@@ -433,6 +448,7 @@ export function drawEar(c: SkCanvas, breed: Breed, geom: Geom, paint: EarPaint, 
     if (!args.far || args.showInner) {
       fillOval(c, R * 0.02 * s, R * 0.05 * s, R * 0.16 * s, R * 0.11 * s, paint.inner, 0.7 * args.alpha);
     }
+    shadePath(c, cap, args.alpha);
     c.restore();
     return;
   }
@@ -449,6 +465,7 @@ export function drawEar(c: SkCanvas, breed: Breed, geom: Geom, paint: EarPaint, 
     path.quadTo(-R * 0.26 * s, R * 0.34 * s, -R * 0.34 * s, R * 0.02);
     path.close();
     c.drawPath(path, paintOf(color, args.alpha));
+    shadePath(c, path, args.alpha);
     c.restore();
     return;
   }
@@ -463,9 +480,11 @@ export function drawEar(c: SkCanvas, breed: Breed, geom: Geom, paint: EarPaint, 
     path.cubicTo(R * 0.45 * e, R * 1.5 * e, R * 0.5 * e, R * 0.5 * e, R * 0.2 * e, 0);
     path.close();
     c.drawPath(path, paintOf(color, args.alpha));
+    shadePath(c, path, args.alpha);
   } else {
     // Soft flop: a rounded ear with a feathered edge.
     fillOval(c, 0, R * 0.55 * e, R * 0.4 * e, R * 0.85 * e, color, args.alpha);
+    shadeOval(c, 0, R * 0.55 * e, R * 0.4 * e, R * 0.85 * e, args.alpha);
     if (breed.texture === 'feathered' && !args.far) {
       for (let i = 0; i < 4; i += 1) {
         fillCircle(c, (i - 1.5) * R * 0.2 * e, R * (1.28 - Math.abs(i - 1.5) * 0.14) * e, R * 0.13 * e, paint.feather);
