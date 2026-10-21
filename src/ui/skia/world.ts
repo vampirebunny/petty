@@ -196,3 +196,32 @@ export function drawWorld(
   }
   canvas.restore();
 }
+
+// The closet mirror paints its own wall and floor, so the preview draws the pet with no room.
+export function drawPetOnly(
+  canvas: SkCanvas,
+  world: World,
+  width: number,
+  height: number,
+  tod: TimeOfDay,
+  camera: { x: number; y: number; zoom: number },
+): void {
+  const scene = world.scene;
+  const floor = scene.floor;
+  canvas.save();
+  const fit = Math.min(width / stageWidth, height / stageHeight);
+  canvas.translate(width / 2, height * 0.62);
+  const scale = fit * camera.zoom;
+  canvas.scale(scale, scale);
+  canvas.translate(-camera.x, -camera.y);
+  const bodyTint = actorTint(scene, tod);
+  for (const actor of world.actors) {
+    const resolved = resolveBreedById(actor.breedId, actor.look);
+    if (!resolved) {
+      continue;
+    }
+    const breed = applyVariant(resolved, actor.variant);
+    drawTinted(canvas, bodyTint, () => drawActor(canvas, actor, breed, floor, world.t, null, world.silhouette === true));
+  }
+  canvas.restore();
+}

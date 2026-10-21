@@ -4,6 +4,7 @@ import { nameLimit, nameRejectMessage, validateName } from '../../adopt/name';
 import type { Breed } from '../../actor/types';
 import { archetypeNames } from '../../sim';
 import type { Archetype, Look } from '../../sim';
+import { fontFamily } from '../../ui/font';
 import { PetPreview } from '../../ui/PetPreview';
 import { BackButton } from './BackButton';
 import { StepIndicator } from './StepIndicator';
@@ -113,6 +114,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 16,
+    fontFamily: fontFamily.regular,
     color: '#243044',
   },
   hint: {

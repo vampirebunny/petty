@@ -1,10 +1,11 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { Pressable } from 'react-native-gesture-handler';
 
 import type { OwnedItem } from '../actor/closet';
 import type { Equipped, OutfitSlot, PetState } from '../sim/types';
+import { CandyButton } from '../ui/closet/CandyButton';
+import { closet } from '../ui/closet/closetStyle';
+import { fontFamily } from '../ui/font';
 import { WardrobePicker } from '../ui/WardrobePicker';
-import { minTouch, theme } from '../ui/theme';
 
 type Props = {
   pet: PetState;
@@ -20,10 +21,7 @@ export function WardrobeScreen({ pet, owned, equipped, onEquip, onClose, reduced
   return (
     <View style={styles.root}>
       <View style={styles.header}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={onClose} style={styles.back}>
-          <Text style={styles.backLabel}>Back</Text>
-        </Pressable>
-        <Text style={styles.title} numberOfLines={1}>
+        <Text accessibilityRole="header" style={styles.title} numberOfLines={1}>
           {title ?? `${pet.name}'s wardrobe`}
         </Text>
       </View>
@@ -40,6 +38,7 @@ export function WardrobeScreen({ pet, owned, equipped, onEquip, onClose, reduced
         equipped={equipped}
         onEquip={onEquip}
         reducedMotion={reducedMotion}
+        footer={<CandyButton label="Continue" onPress={onClose} />}
       />
     </View>
   );
@@ -48,29 +47,17 @@ export function WardrobeScreen({ pet, owned, equipped, onEquip, onClose, reduced
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#F4F7FB',
+    backgroundColor: closet.page,
     paddingTop: 64,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
     paddingHorizontal: 16,
-    gap: 12,
     minHeight: 52,
-  },
-  back: {
-    minWidth: minTouch,
-    minHeight: minTouch,
     justifyContent: 'center',
   },
-  backLabel: {
-    color: theme.accentDark,
-    fontSize: 16,
-  },
   title: {
-    flex: 1,
-    color: theme.ink,
+    color: closet.ink,
     fontSize: 20,
-    fontWeight: '700',
+    fontFamily: fontFamily.black,
   },
 });

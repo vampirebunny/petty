@@ -1,3 +1,5 @@
+// Before gesture-handler, which pulls in Text. Text locks its default face on first load.
+import './src/ui/installDefaultFont';
 import 'react-native-gesture-handler';
 import { registerRootComponent } from 'expo';
 

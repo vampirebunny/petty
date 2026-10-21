@@ -823,7 +823,7 @@ export function drawHat(c: SkCanvas, item: WearItem, r: number, face: HeadFace, 
   c.restore();
 }
 
-function drawHatShape(c: SkCanvas, item: WearItem, r: number, fur: string): void {
+export function drawHatShape(c: SkCanvas, item: WearItem, r: number, fur: string): void {
   if (item.id === 'beanie') {
     const cap = Skia.Path.Make();
     cap.moveTo(-r * 0.98, -r * 0.28);

@@ -451,6 +451,15 @@ export type Actor = {
   vy: number;
   speed: number;
   face: number;
+  // Displayed octant, the one being tweened from, and the one velocity or a pose wants.
+  octant: import('./data/facing').Facing;
+  octantFrom: import('./data/facing').Facing;
+  octantTarget: import('./data/facing').Facing;
+  // 0..1 blend of continuous view params. Draw order swaps at 1.
+  octantBlend: number;
+  octantHold: number;
+  // How many octants this target was when it was chosen. Above 1, the pet turns in place.
+  octantSpan: number;
   // The facing yaw is currently chasing. A change starts the head lead.
   yawFace: 1 | -1;
   yaw: number;

@@ -22,7 +22,9 @@ import { applyGesture, gestureOwns, gestureWantsCamera } from './gestures';
 import { GREET, greetClip, motionMods, planGreeting, scriptFor } from './greetings';
 import type { GreetPlan } from './greetings';
 import { cancelJump, jump, jumpConfig, jumpOwnsMotion, resolveJump, stepJump } from './jump';
-import { baseYaw, reversingTurn, stepFacing, stepYaw, visualYaw } from './turn';
+import { facingConfig } from './data/facing';
+import { aimOctant, holdForTurn, horizontalDir, octantFromVelocity, sideOctant, snapFacing, stepOctant } from './facing';
+import { baseYaw, reversingTurn, stepYaw } from './turn';
 import {
   bowHold,
   gaitSpeedCap,
@@ -191,6 +193,12 @@ export function spawnActor(source: ActorSource, at?: Vec): Actor {
     vy: 0,
     speed: 0,
     face: 1,
+    octant: 'E',
+    octantFrom: 'E',
+    octantTarget: 'E',
+    octantBlend: 1,
+    octantHold: 0,
+    octantSpan: 0,
     yawFace: 1,
     yaw: 0,
     lead: 0,
@@ -379,11 +387,7 @@ export function setWorldScene(world: World, scene: Scene): void {
     actor.z = 0;
     actor.vz = 0;
     actor.speed = 0;
-    actor.face = 1;
-    actor.yawFace = 1;
-    actor.yaw = 0;
-    actor.lead = 0;
-    actor.turning = false;
+    snapFacing(actor, 1);
     actor.spin = null;
     actor.bark = { active: false, t: 0, fired: [false, false], open: 0, sound: false };
     if (actor.asleep) {
@@ -446,8 +450,7 @@ export function startSceneEnter(world: World, actor: Actor, scene: Scene): void 
   actor.vx = 0;
   actor.vy = 0;
   actor.speed = 0;
-  actor.face = 1;
-  actor.anchors.facing = 1;
+  snapFacing(actor, 1);
   clearActorForTravel(world, actor);
   actor.task = taskOf('travel', 'enter');
   actor.task.poi = home;
@@ -880,7 +883,7 @@ function pounceAt(world: World, actor: Actor, toy: Item, reach: number): boolean
     return false;
   }
   const dir = toy.x >= actor.x ? 1 : -1;
-  actor.face = dir;
+  snapFacing(actor, dir);
   const landX = toy.x - dir * reach * 0.75;
   // The stalk already wiggled, so the jump crouches without a second one.
   return jump(actor, { targetX: landX, wiggle: false, reduced: world.reducedMotion });
@@ -1172,9 +1175,14 @@ function armGreet(world: World, actor: Actor, run: NonNullable<Task['greet']>, s
     const home = (actor.face >= 0 ? 1 : -1) as 1 | -1;
     const away = (home === 1 ? -1 : 1) as 1 | -1;
     const air = Math.max(0.25, run.hopAir || step.dur * actor.pace);
-    actor.face = away;
-    actor.yawFace = away;
-    actor.lead = 0;
+  actor.face = away;
+  actor.octant = away === 1 ? 'E' : 'W';
+  actor.octantFrom = actor.octant;
+  actor.octantTarget = actor.octant;
+  actor.octantBlend = 1;
+  actor.octantSpan = 0;
+  actor.yawFace = away;
+  actor.lead = 0;
     actor.spin = { rate: (Math.PI * 2) / (0.9 * air), far: baseYaw(away), home, returned: false };
   }
 }
@@ -1288,10 +1296,7 @@ export function beginGreeting(world: World, actor: Actor, plan: GreetPlan): void
     const useLeft = Math.abs(actor.x - left) <= Math.abs(actor.x - right);
     actor.x = useLeft ? left : right;
     actor.face = useLeft ? 1 : -1;
-    actor.yawFace = useLeft ? 1 : -1;
-    actor.yaw = baseYaw(actor.face);
-    actor.lead = 0;
-    actor.turning = false;
+    snapFacing(actor, useLeft ? 1 : -1);
   }
   actor.vx = 0;
   actor.vy = 0;
@@ -1347,7 +1352,7 @@ export function takePendingGreeting(actor: Actor): string | null {
 }
 
 export function debugFlipFace(actor: Actor): void {
-  actor.face = actor.face >= 0 ? -1 : 1;
+  snapFacing(actor, actor.face >= 0 ? -1 : 1);
 }
 
 export function debugGreeting(world: World, actor: Actor, id: string, ageDays: number, vitality: number, energy: number): void {
@@ -1451,6 +1456,8 @@ function updateActor(world: World, actor: Actor, dt: number): void {
   let wagRate = 5;
   // Set by the idle and sitting states that may show the 3/4 head. The gate below can still veto it.
   let faceCamera = false;
+  // Bowl side, sleep, and sit ask the ring to finish on E or W instead of snapping face.
+  let sideLock: 1 | -1 | null = null;
   // The pet's own top speed, from its life stage, attributes and weight. A tired or elderly pet is held to a
   // slower gait, which caps how fast it may be sent. Energy scales how much of that age speed it actually uses:
   // zoomy is already a run for the age, and a full bar is a sprint.
@@ -1663,7 +1670,7 @@ function updateActor(world: World, actor: Actor, dt: number): void {
       vmax = limit * 0.5;
       if (Math.hypot(spot.x - actor.x, spot.y - actor.y) < 4 && actor.speed < 15) {
         actor.task = { ...actor.task, stage: 'eating', t: 0 };
-        actor.face = face;
+        sideLock = face;
         // Stand exactly on the spot so the head lands on the bowl and the pet sorts in front of it.
         actor.x = spot.x;
         actor.y = spot.y;
@@ -1672,9 +1679,12 @@ function updateActor(world: World, actor: Actor, dt: number): void {
         actor.speed = 0;
       }
     } else if (spot) {
-      targets.headDown = 1;
-      targets.wagAmp = 0.35;
-      actor.face = face;
+      sideLock = face;
+      const atBowl = actor.octant === sideOctant(face) && actor.octantBlend >= 0.85;
+      if (atBowl) {
+        targets.headDown = 1;
+        targets.wagAmp = 0.35;
+      }
       if (actor.task.t > 6) {
         if (actor.task.kind === 'drink' && hasRefillableBowl(world.scene)) {
           world.pendingBowlDrinks += 1;
@@ -1892,7 +1902,7 @@ function updateActor(world: World, actor: Actor, dt: number): void {
     } else if (stage === 'return') {
       if (toy.state === 'carried' && toy.holderId === actor.id) {
         const home = homeOf(world.scene);
-        move = home;
+        move = { x: home.x, y: floor.yMax };
         vmax = limit * (0.45 + 0.3 * play.speedFrac);
         if (Math.hypot(home.x - actor.x, home.y - actor.y) < 8 && actor.speed < 20) {
           releaseCarried(world, actor);
@@ -2011,25 +2021,26 @@ function updateActor(world: World, actor: Actor, dt: number): void {
       desired.y = (dy / distance) * speed;
     }
   }
-  // A destination on the other side starts the yaw immediately. The pet turns in place
-  // until the drawn facing matches that direction, then walks. A fast stop still skids first.
-  const visual = visualYaw(actor.yaw).dir;
+  // Velocity picks the octant. A turn of more than one octant holds the pet until the ring arrives.
+  // A fast stop still skids on the old octant first.
   const eating = actor.task.type === 'eat' && actor.task.stage === 'eating';
+  const greetingStill = actor.task.type === 'greet' && move == null;
   const scriptedSkid = actor.direction?.pose === 'skid' || !!actor.task.greet?.skid;
   const skidding = Math.abs(desired.x) > 20 && desired.x * actor.face < 0 && actor.vx * actor.face > 55;
-  const aimed = Math.abs(desired.x) > faceDeadzone;
-  if (
-    aimed &&
-    desired.x * actor.face < 0 &&
-    !actor.task.ownsFacing &&
-    !eating &&
-    !actor.jump &&
-    !skidding &&
-    !scriptedSkid
-  ) {
-    actor.face = desired.x > 0 ? 1 : -1;
+  if (skidding || scriptedSkid) {
+    aimOctant(actor, actor.octant);
+  } else if (greetingStill || (eating && sideLock == null)) {
+    aimOctant(actor, sideOctant(actor.face));
+  } else if (sideLock != null) {
+    aimOctant(actor, sideOctant(sideLock));
+  } else if (Math.hypot(desired.x, desired.y) >= facingConfig.restSpeed) {
+    aimOctant(actor, octantFromVelocity(desired.x, desired.y, actor.octantTarget));
+  } else if (actor.speed >= facingConfig.restSpeed) {
+    aimOctant(actor, octantFromVelocity(actor.vx, actor.vy, actor.octantTarget));
+  } else {
+    aimOctant(actor, sideOctant(actor.face));
   }
-  if (aimed && desired.x * visual < 0 && !actor.task.ownsFacing && !actor.jump && !skidding && !scriptedSkid) {
+  if (holdForTurn(actor) && !actor.jump && !skidding && !scriptedSkid) {
     desired.x = 0;
     desired.y = 0;
     actor.vx = 0;
@@ -2067,27 +2078,24 @@ function updateActor(world: World, actor: Actor, dt: number): void {
   if (actor.direction?.pose === 'skid') {
     targets.skid = 1;
   }
-  if (!actor.jump) {
-    stepFacing(actor, dt, !!actor.task.ownsFacing);
-  }
-  actor.anchors.facing = actor.face >= 0 ? 1 : -1;
+  stepYaw(actor, dt, 0);
+  stepOctant(actor, dt);
   if (gestureWantsCamera(actor)) {
     faceCamera = true;
   }
   const greeting = actor.task.type === 'greet';
-  const autoCam =
-    !greeting && actor.vy > 0 && Math.abs(actor.vy) > 1.5 * Math.abs(actor.vx) ? 0.5 : 0;
-  const idleCam = !greeting && faceCamera ? 0.5 : 0;
-  targets.faceCam = greeting ? (actor.task.greet?.faceCam ?? 0) : Math.max(autoCam, idleCam);
+  const onSide = actor.octant === 'E' || actor.octant === 'W';
+  const settled = onSide && actor.octant === actor.octantTarget && actor.octantBlend >= 1;
+  targets.faceCam = greeting ? (onSide ? (actor.task.greet?.faceCam ?? 0) : 0) : !greeting && faceCamera && settled ? 0.5 : 0;
   if (actor.jump && actor.jump.phase !== 'turn') {
     targets.faceCam = 0;
     actor.pose.faceCam = 0;
   }
-  stepYaw(actor, dt, actor.pose.faceCam);
-  const seen = visualYaw(actor.yaw);
+  const shown = actor.octantBlend >= 1 ? actor.octant : actor.octantFrom;
+  const dir = horizontalDir(shown, actor.face);
   const signed = actor.face >= 0 ? 1 : -1;
   const mouthLocal = (actor.mouth.x - actor.x) / (signed * Math.max(frame.scale, 0.01));
-  actor.mouth.x = actor.x + seen.dir * frame.scale * mouthLocal;
+  actor.mouth.x = actor.x + dir * frame.scale * mouthLocal;
   targets.walk = actor.speed > 14 || actor.jump?.running ? 1 : 0;
   if (actor.bark.open > 0.05 && targets.eyes > 0) {
     targets.eyes = 0;
@@ -2098,16 +2106,12 @@ function updateActor(world: World, actor: Actor, dt: number): void {
     const cuddling = actor.task.type === 'cuddle';
     const stationary =
       move == null && actor.speed <= 14 && actor.z <= 0 && !actor.bark.active && (actor.pose.lie < 0.05 || cuddling);
-    const leadHead = actor.lead > 0 || (actor.turning && Math.abs(baseYaw(actor.face) - actor.yaw) > 0.45);
     if (greeting) {
-      targets.headTurn = Math.max(actor.task.greet?.headFront ?? 0, leadHead ? 1 : 0);
-    } else if (actor.speed > 14) {
+      targets.headTurn = onSide ? Math.max(actor.task.greet?.headFront ?? 0, actor.lead > 0 ? 1 : 0) : 0;
+    } else if (actor.speed > 14 || !settled) {
       targets.headTurn = 0;
     } else {
       targets.headTurn = faceCamera && stationary ? 1 : 0;
-      if (leadHead) {
-        targets.headTurn = 1;
-      }
     }
     if (actor.jump && actor.jump.phase !== 'turn') {
       targets.headTurn = 0;

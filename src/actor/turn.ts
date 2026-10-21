@@ -3,7 +3,6 @@ import type { Actor } from './types';
 export const TURN_DUR = 0.4;
 export const FLIP_V = 40;
 export const FLIP_T = 0.15;
-const LEAD_S = 0.18;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
@@ -43,35 +42,36 @@ export function stepFacing(actor: Actor, dt: number, ownsFacing: boolean): void 
   }
 }
 
-export function stepYaw(actor: Actor, dt: number, faceCam: number): void {
-  const face: 1 | -1 = actor.face >= 0 ? 1 : -1;
-  if (!actor.spin && face !== actor.yawFace) {
-    actor.yawFace = face;
-    actor.lead = LEAD_S;
-  }
-  const target = actor.spin ? baseYaw(actor.face) : yawTarget(actor.face, faceCam);
-  const pace = Math.max(0.5, actor.pace || 1);
-  const rate = actor.spin ? actor.spin.rate : Math.PI / (TURN_DUR * pace);
-  const reversing = Math.abs(baseYaw(actor.face) - actor.yaw) > 0.35;
-  if (actor.lead > 0 && reversing && !actor.spin) {
+export function stepYaw(actor: Actor, dt: number, _faceCam: number): void {
+  if (actor.lead > 0 && !actor.spin) {
     actor.lead = Math.max(0, actor.lead - dt);
-    actor.turning = true;
+  }
+  // Body facing is the octant ring. Yaw only still eases a greeting spin.
+  if (!actor.spin) {
+    actor.yaw = baseYaw(actor.face);
+    actor.yawFace = actor.face >= 0 ? 1 : -1;
     return;
   }
+  const target = baseYaw(actor.face);
+  const rate = actor.spin.rate;
   const delta = target - actor.yaw;
   const step = Math.min(Math.abs(delta), rate * dt);
-  actor.yaw = clamp(actor.yaw + Math.sign(delta) * step, 0, Math.PI);
-  if (actor.spin && !actor.spin.returned && Math.abs(actor.yaw - actor.spin.far) < 0.08) {
+  actor.yaw = clamp(actor.yaw + Math.sign(delta || 1) * step, 0, Math.PI);
+  if (!actor.spin.returned && Math.abs(actor.yaw - actor.spin.far) < 0.08) {
     actor.face = actor.spin.home;
     actor.yawFace = actor.spin.home;
+    actor.octant = actor.spin.home >= 0 ? 'E' : 'W';
+    actor.octantFrom = actor.octant;
+    actor.octantTarget = actor.octant;
+    actor.octantBlend = 1;
     actor.spin.returned = true;
   }
-  if (actor.spin?.returned && Math.abs(actor.yaw - baseYaw(actor.face)) < 0.08) {
+  if (actor.spin.returned && Math.abs(actor.yaw - baseYaw(actor.face)) < 0.08) {
     actor.spin = null;
   }
-  actor.turning = Math.abs(target - actor.yaw) > 0.05 || actor.spin != null || actor.lead > 0;
+  actor.turning = actor.spin != null || actor.lead > 0 || actor.turning;
 }
 
 export function reversingTurn(actor: Actor): boolean {
-  return actor.turning && Math.abs(baseYaw(actor.face) - actor.yaw) > 0.35 && actor.spin == null;
+  return actor.octantSpan > 1 && actor.octant !== actor.octantTarget && actor.spin == null;
 }

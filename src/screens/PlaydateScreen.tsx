@@ -19,6 +19,7 @@ import type { Equipped, PetState, Trait } from '../sim/types';
 import { GainBar, gainColors } from '../ui/GainBar';
 import { PlaydateStage } from '../ui/PlaydateStage';
 import { SnapshotStill } from '../ui/SnapshotStill';
+import { CandyButton } from '../ui/closet/CandyButton';
 import { WardrobePicker } from '../ui/WardrobePicker';
 import { minTouch } from '../ui/theme';
 
@@ -175,16 +176,12 @@ export function PlaydateScreen({ pet, save, now, remaining, reducedMotion, onSav
             });
           }}
           footer={
-            <Pressable
-              accessibilityRole="button"
+            <CandyButton
+              label={cooling ? countdown : 'Start'}
               accessibilityLabel={cooling ? countdown : 'Start playdate'}
-              accessibilityState={{ disabled: cooling }}
               disabled={cooling}
               onPress={start}
-              style={[styles.start, cooling && styles.startOff]}
-            >
-              <Text style={styles.startLabel}>{cooling ? countdown : 'Start'}</Text>
-            </Pressable>
+            />
           }
         />
       ) : (

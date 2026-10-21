@@ -1,6 +1,7 @@
 import { beginGreeting, createWorld, patGreeting, spawnActor, update } from '../sim';
 import { motionMods, planGreeting, scriptFor } from '../greetings';
 import { stepFacing } from '../turn';
+import { octantFromVelocity, stepToward } from '../facing';
 import type { ActorSource } from '../types';
 
 function source(overrides: Partial<ActorSource> = {}): ActorSource {
@@ -272,4 +273,46 @@ it('leaves the wiggle and crouch channels out of every greeting', () => {
   });
   expect(long?.ids).toHaveLength(2);
   expect(long?.ids).not.toContain('sitAndLook');
+});
+
+it('keeps the octant across a boundary and steps a reversal through south', () => {
+  const vel = (deg: number): { vx: number; vy: number } => {
+    const angle = (deg * Math.PI) / 180;
+    return { vx: Math.cos(angle) * 40, vy: -Math.sin(angle) * 40 };
+  };
+  expect(octantFromVelocity(vel(20).vx, vel(20).vy, 'E')).toBe('E');
+  expect(octantFromVelocity(vel(40).vx, vel(40).vy, 'E')).toBe('NE');
+  expect(octantFromVelocity(2, 2, 'W')).toBe('W');
+  expect(stepToward('E', 'W', 1)).toBe('SE');
+  expect(stepToward('SE', 'W', 1)).toBe('S');
+  expect(stepToward('S', 'W', 1)).toBe('SW');
+});
+
+it('does not pin a south greeting run to the side view', () => {
+  const world = createWorld([spawnActor(source())]);
+  const actor = world.actors[0];
+  actor.x = 320;
+  actor.y = world.scene.floor.yMin + 30;
+  actor.face = 1;
+  beginGreeting(world, actor, {
+    ids: ['run'],
+    steps: [{ dur: 3, move: { to: 'front', speed: 1 }, face: 1, untilArrive: true }],
+    storeId: null,
+    start: null,
+    label: 'run',
+  });
+  const run = actor.task.greet;
+  expect(run).toBeDefined();
+  if (!run) {
+    return;
+  }
+  run.delay = 0;
+  let sawSouth = false;
+  for (let step = 0; step < 50; step += 1) {
+    update(world, 0.05);
+    if (actor.speed > 20 && (actor.octant === 'S' || actor.octant === 'SE' || actor.octant === 'SW')) {
+      sawSouth = true;
+    }
+  }
+  expect(sawSouth).toBe(true);
 });

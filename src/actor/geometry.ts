@@ -1,6 +1,7 @@
 import { bagSpanDays, bagStartDay } from '../sim/config';
 import { limbSize } from './breeds';
 import { earProfiles } from './data/breedShapes';
+import { facingConfig } from './data/facing';
 import { grayAmountsOf } from './data/graying';
 import { petStyle } from './data/petStyle';
 import type { GrayAmounts } from './data/graying';
@@ -335,8 +336,13 @@ export function headShift(geom: Geom, headY: number, pose: { headDx: number; hea
 export const PET_SIZE = 1.5;
 
 export function depthScale(y: number, yMin: number, yMax: number): number {
+  const { enabled, min, max } = facingConfig.depth;
+  if (!enabled) {
+    return 1;
+  }
   const span = yMax - yMin;
-  return 0.82 + 0.18 * clamp(span === 0 ? 0 : (y - yMin) / span, 0, 1);
+  const t = clamp(span === 0 ? 0 : (y - yMin) / span, 0, 1);
+  return min + (max - min) * t;
 }
 
 export function speedMax(breed: Breed, ageDays: number, weight = 0): number {

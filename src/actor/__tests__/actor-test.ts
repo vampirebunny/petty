@@ -1,8 +1,9 @@
 import { bagSpanDays, bagStartDay, visualLifespanDays } from '../../sim/config';
 import { canBehave, isUserTask, reactionFor } from '../behavior';
 import { visualYaw } from '../turn';
+import { octantDistance, octantFromVelocity } from '../facing';
 import { breedsFor, dogBreeds } from '../breeds';
-import { bagAmount, geomOf, headFaceOf, noseOf, thickOf } from '../geometry';
+import { bagAmount, depthScale, geomOf, headFaceOf, noseOf, thickOf } from '../geometry';
 import { growthFor } from '../growth';
 import { gaitFoot, solveKnee } from '../legs';
 import { defaultPose, easePose } from '../pose';
@@ -457,11 +458,15 @@ describe('3/4 head turn', () => {
       update(world, 0.05);
       const walkingAway = pup.speed > 14 && Math.abs(pup.vx) > 8;
       if (walkingAway) {
-        expect(visualYaw(pup.yaw).dir).toBe(pup.vx > 0 ? 1 : -1);
-        expect(pup.face).toBe(visualYaw(pup.yaw).dir);
+        const aimed = octantFromVelocity(pup.vx, pup.vy, pup.octant);
+        expect(octantDistance(pup.octant, aimed)).toBeLessThanOrEqual(1);
+        if (pup.octant === 'E' || pup.octant === 'W') {
+          expect(pup.face).toBe(pup.vx > 0 ? 1 : -1);
+          expect(visualYaw(pup.yaw).dir).toBe(pup.face);
+        }
       }
       if (pup.x < 300 - 30) {
-        turned = visualYaw(pup.yaw).dir === -1;
+        turned = pup.vx < 0 && pup.octant !== 'E' && pup.octant !== 'NE';
         break;
       }
     }
@@ -504,5 +509,35 @@ describe('3/4 head turn', () => {
       expect(front.farEye.x - front.nearEye.x).toBeGreaterThanOrEqual(front.eyeR * 2.4 - 1e-6);
       expect(noseOf(breed, geom.headR, front).x).toBeCloseTo(0);
     }
+  });
+
+  it('settles a stopped north facing onto a side before the idle head', () => {
+    const pup = actor();
+    const world = createWorld([pup], 3);
+    pup.octant = 'N';
+    pup.octantFrom = 'N';
+    pup.octantTarget = 'N';
+    pup.octantBlend = 1;
+    pup.face = 1;
+    pup.vx = 0;
+    pup.vy = 0;
+    pup.speed = 0;
+    pup.task = { type: 'idle', stage: '', t: 0, bats: 0, cool: 0 };
+    pup.idle = { mode: 'still', t: 0, dur: 99, target: null, sit: false, arrived: true };
+    for (let step = 0; step < 40; step += 1) {
+      update(world, 0.05);
+    }
+    const settled = pup.octant as string;
+    expect(settled === 'E' || settled === 'W').toBe(true);
+    expect(pup.pose.headTurn).toBeGreaterThan(0.8);
+  });
+});
+
+describe('depth scale', () => {
+  it('shrinks slightly toward the back of the floor', () => {
+    expect(depthScale(0, 0, 100)).toBeCloseTo(0.9);
+    expect(depthScale(100, 0, 100)).toBeCloseTo(1);
+    expect(depthScale(50, 0, 100)).toBeGreaterThan(0.9);
+    expect(depthScale(50, 0, 100)).toBeLessThan(1);
   });
 });

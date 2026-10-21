@@ -1,6 +1,10 @@
 # Turning and greetings
 
-The pet no longer flips across its profile. Logical facing stays on `actor.face`. A visual yaw (0 right, π/2 toward the camera, π left) chases it at constant speed, compressing length and adding thickness so the body never becomes a sliver. The head stays on the existing 3/4 blend, except a greeting bark or meow, which eases the head to a symmetric front face for that step. On a reversal the head turns first, then the body follows, then the head settles back to profile. The body still stops at a 3/4 yaw.
+Facing is eight octants: E, NE, N, NW, W, SW, S, SE. N is up the screen (away from the camera) and S is toward the camera. West-side octants are horizontal mirrors of the east-side views. Five views are drawn: side (E/W), front 3/4 (SE/SW), front (S), back 3/4 (NE/NW), and back (N). The body is foreshortened per view. It is not a squashed side profile.
+
+Velocity picks the octant. The angle is `atan2(-vy, vx)`, quantized to 45°, and it switches only when the angle is more than 10° past the boundary. Below the rest speed (14) the last octant is kept. A turn moves at most one octant per step. Each step tweens foreshorten, shadow, hip spread, leg angle, and the head layout for 80ms on the outgoing draw order, then swaps that row once. The next octant waits until the tween has finished, so a step takes about 80ms (the hold is 75ms and runs during the tween). A tie on the ring, including E to W, goes through S. From pure N or S with equal paths, the last E/W sign picks the side. A change of more than one octant holds the pet in place until the displayed octant arrives. A one-octant change while moving tweens without stopping. A skid keeps the old octant until horizontal speed falls off.
+
+Stopped, the body walks the ring back to E or W, then the existing 3/4 head idle eases in. `faceCam` turns only the head, and only while the body is on E or W. `actor.face` stays the horizontal sign: it updates on E and W, and N/S keep the last sign. Timings and the depth range live in `src/actor/data/facing.ts`.
 
 ## Pace
 
@@ -16,13 +20,13 @@ The pet no longer flips across its profile. Logical facing stays on `actor.face`
 | senior | 1.30 | 0.65 | 0 |
 | elderly | 1.45 | 0.55 | 0 |
 
-`needs.energy` below 35 multiplies pace by 1.15 and hop by 0.75. A turn takes `0.4 * pace` seconds.
+`needs.energy` below 35 multiplies pace by 1.15 and hop by 0.75. Pace still scales greeting step durations and hop height. Octant steps use the fixed timings above, not `0.4 * pace`.
 
 ## Who writes facing
 
-Free movement facing a destination turns in place: `face` follows that destination as soon as the step is real, and the pet does not walk until the drawn yaw faces the same way. A fast stop still skids with the old facing until horizontal speed falls off. Coasting with no destination still flips only after speed has pointed the other way faster than 40 for 0.15 s. Fetch and eat still set `face` immediately, which starts the same turn. A greeting owns facing: only the script writes `face`, and the in-place hold does not apply. A scripted face change waits until the turn finishes before the step moves. A spin is the exception: its own flips happen in the air with the hop, after any previous turn has finished.
+While speed is above the rest threshold, the desired velocity owns the octant, including a greeting step that is moving. A greeting step with no translation uses the scripted `face` (`1`, `-1`, `flip`, `toward`, `keep`) to choose E or W, and the ring turns there before that step moves. `ownsFacing` means the greeting writes that horizontal sign and the head channels. It does not pin a run to the side view. `to: 'front'` is still the bottom center of the floor, so a pet off to the side approaches on SE or SW and a pet near center runs S. Fetch faces the toy on the way out and aims at the front of the floor on the way back. Eat, drink, sit, and sleep set the target octant to the bowl or body side and let the ring get there. They do not snap `face` on the arrival frame.
 
-`faceCam` has one writer. During a greeting it is the step value, or 0 when the step omits it. Otherwise it is 0.5 when the pet walks down the screen or is idle in still, pant, or purr. Idle still, pant, and purr also keep today's 3/4 head while stationary. A greeting may hold `headFront` while walking.
+`faceCam` is the greeting step value, or 0 when the step omits it. Outside a greeting it is 0.5 for idle still, pant, and purr, and for sit, once the body is settled on E or W. It does not yaw the body, and it is ignored on every other octant. Idle still, pant, and purr keep the 3/4 head after that settle. A greeting may hold `headFront` on E or W. Depth scale is 0.9 at the back of the floor and 1.0 at the front, shared with the toy, and it can be turned off in the facing config.
 
 One gait driver takes the max of locomotion, the turn shuffle, and a greeting march. Reduced motion keeps the turn and skips the shuffle.
 

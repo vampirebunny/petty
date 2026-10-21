@@ -4,7 +4,7 @@ import { Canvas, Picture, Skia } from '@shopify/react-native-skia';
 
 import { createWorld, sceneById, spawnActor, todAt } from '../actor';
 import type { Equipped, Look } from '../sim/types';
-import { drawWorld } from './skia/world';
+import { drawPetOnly, drawWorld } from './skia/world';
 
 export type OutfitSubject = {
   breedId: string;
@@ -22,6 +22,10 @@ type Props = OutfitSubject & {
   t: number;
   zoom?: number;
   pose?: OutfitPose;
+  // Skip the room so a caller can paint its own backdrop behind the pet.
+  bare?: boolean;
+  // World y placed at 62% of the canvas height. The closet lowers this so the pet sits on the rug.
+  cameraY?: number;
 };
 
 export type OutfitPose = 'idle' | 'sit' | 'lie' | 'walk';
@@ -55,6 +59,8 @@ export function OutfitPreview({
   t,
   zoom = 3.2,
   pose = 'sit',
+  bare = false,
+  cameraY = 400,
 }: Props) {
   const picture = useMemo(() => {
     const actor = spawnActor(
@@ -77,9 +83,15 @@ export function OutfitPreview({
     world.t = t;
     const recorder = Skia.PictureRecorder();
     const canvas = recorder.beginRecording(Skia.XYWHRect(0, 0, Math.max(width, 1), Math.max(height, 1)));
-    drawWorld(canvas, world, width, height, todAt(14), true, undefined, { x: 320, y: 400, zoom });
+    const camera = { x: 320, y: cameraY, zoom };
+    const tod = todAt(14);
+    if (bare) {
+      drawPetOnly(canvas, world, width, height, tod, camera);
+    } else {
+      drawWorld(canvas, world, width, height, tod, true, undefined, camera);
+    }
     return recorder.finishRecordingAsPicture();
-  }, [ageDays, breedId, equipped, height, look, pose, seed, t, vitality, weight, width, zoom]);
+  }, [ageDays, bare, breedId, cameraY, equipped, height, look, pose, seed, t, vitality, weight, width, zoom]);
 
   useEffect(() => () => picture.dispose(), [picture]);
 
