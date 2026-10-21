@@ -115,6 +115,8 @@ Item shapes:
 
 In the 3/4 head turn (`face.turn`, `face.front` > 0), neckwear shifts toward the front and centers under the muzzle, matching how `drawHat` and `drawGlasses` already respond to the turn.
 
+When the neck is nearly horizontal (sleep and lie, especially with `headRest`), the head often sits on the shoulders and a normal across-the-neck band would slash through the face. In that case: park the chin on the short head→body segment, draw a short strap under the jaw along the neck, shrink tags and hanging tips, and paint neckwear under the head so the face covers any leftover overlap.
+
 ## 5. Jacket
 
 - Shaped like a dog coat from the body oval (puff `0.05 * bodyH`, vest/puffer `0.09 * bodyH`): follows the back, stops before the rump (`jacketRear`), front edge behind the shoulder (`jacketFront`), belly line rising toward the hind legs. Never a full-body slab. Outlined.

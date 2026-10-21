@@ -24,7 +24,18 @@ import {
   muzzleColorOf,
 } from './breedParts';
 import type { HeadCtx } from './breedParts';
-import { chinAnchor, drawBoot, drawGlasses, drawHat, drawHood, drawJacket, drawJacketCollar, drawNeckwear, drawSleeve } from './cosmetics';
+import {
+  chinAnchor,
+  drawBoot,
+  drawGlasses,
+  drawHat,
+  drawHood,
+  drawJacket,
+  drawJacketCollar,
+  drawNeckwear,
+  drawSleeve,
+  neckwearUnderHead,
+} from './cosmetics';
 import {
   clamp,
   clipOval,
@@ -532,6 +543,20 @@ export function drawActor(
   // 3/4 head turn: all eye, snout and far-ear positions come from one layout shared with the anchors.
   const turn = clamp(pose.headTurn, 0, 1);
   const face = headFaceOf(breed, geom, turn, pose.faceFront);
+  const underHead = Boolean(neckwear && neckwearUnderHead(along));
+  const wearNeck = () => {
+    if (!neckwear) {
+      return;
+    }
+    const view = Math.max(face.turn, face.front);
+    const chin = chinAnchor(head, base, R, pitch, cat, view);
+    const sway = Math.sin(t * 3) * 0.08 + Math.sin(t * 11) * clamp(actor.speed / 120, 0, 1) * 0.12;
+    const chest = markingOf(markings, 'chest')?.color ?? baseColor;
+    drawNeckwear(c, chin, perp, along, neckwear, sway, R, chest);
+  };
+  if (underHead) {
+    wearNeck();
+  }
   const eyeR = face.eyeR;
   const ex = face.nearEye.x;
   const ey = face.nearEye.y;
@@ -708,12 +733,8 @@ export function drawActor(
   }
   drawHeadMarkingsAbove(c, headCtx);
   });
-  if (neckwear) {
-    const view = Math.max(face.turn, face.front);
-    const chin = chinAnchor(head, base, R, pitch, cat, view);
-    const sway = Math.sin(t * 3) * 0.08 + Math.sin(t * 11) * clamp(actor.speed / 120, 0, 1) * 0.12;
-    const chest = markingOf(markings, 'chest')?.color ?? baseColor;
-    drawNeckwear(c, chin, perp, along, neckwear, sway, R, chest);
+  if (!underHead) {
+    wearNeck();
   }
   withHead(() => {
     // near ear (slides back in 3/4 so the ears spread apart). Hanging ears overlap neckwear.

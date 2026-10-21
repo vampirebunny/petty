@@ -6,10 +6,22 @@ export const wardrobeSizes = {
   trim: 1.15,
   trimDistance: 110,
   chin: 0.85,
+  // When the neck lies flat (sleep/lie), park the chin just past the head rim toward the body.
+  chinFlatAlong: 0.28,
+  chinFlatClear: 1.08,
+  // When the head sits on the shoulders, put the chin this far along the short head→body segment.
+  chinShort: 0.55,
+  // Collar/bandana span across the neck shrinks this much when the neck is horizontal (avoids a tall face slash).
+  neckFlatShrink: 0.85,
+  // Tag/bell hang and bandana tip shrink when the neck is flat so they do not sit on the floor.
+  neckFlatHang: 0.8,
   neckShift: 0.28,
   collarBand: 0.22,
   collarTag: 0.3,
   collarStud: 0.08,
+  // Sleep / lie collar: drop under the jaw and length along the neck (fractions of headR).
+  collarFlatDrop: 0.95,
+  collarFlatLen: 0.32,
   bell: 0.33,
   bandanaWidth: 1.7,
   bandanaDrop: 1.15,

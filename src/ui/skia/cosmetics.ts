@@ -154,12 +154,26 @@ function roundStroke(color: string, alpha: number, width: number) {
   return paint;
 }
 
+// How flat the neck is (0 upright, 1 horizontal). Sleep and lie put the head on the floor.
+function neckFlat(along: Pt): number {
+  return 1 - clamp(Math.abs(along.y) / 0.7, 0, 1);
+}
+
+// Sleep / lie: paint neckwear under the head so the face covers any leftover overlap.
+export function neckwearUnderHead(along: Pt): boolean {
+  return neckFlat(along) > 0.45;
+}
+
 export function chinAnchor(head: Pt, base: Pt, r: number, pitch: number, cat: boolean, view: number): Pt {
   const toBaseX = base.x - head.x;
   const toBaseY = base.y - head.y;
   const len = Math.hypot(toBaseX, toBaseY) || 1;
   const dx = toBaseX / len;
   const dy = toBaseY / len;
+  const flat = neckFlat({ x: -dx, y: -dy });
+  // Sleep parks the head on the shoulders: the neck segment is shorter than the head, so the chin
+  // must stay on that short segment or the band lands in the face or past the chest.
+  const short = clamp(1 - len / (r * 1.25), 0, 1);
   let dist = r * sizes.chin;
   if (cat) {
     const cs = Math.cos(pitch);
@@ -173,7 +187,15 @@ export function chinAnchor(head: Pt, base: Pt, r: number, pitch: number, cat: bo
     const ry = r * 0.96;
     dist = (rx * ry) / (Math.hypot(ry * ux, rx * uy) || 1);
   }
-  return { x: head.x + dx * dist + r * sizes.neckShift * view, y: head.y + dy * dist };
+  if (short > 0.001) {
+    dist = dist * (1 - short) + len * sizes.chinShort * short;
+  } else if (flat > 0.001) {
+    const along = Math.max(r * sizes.chinFlatClear, len * sizes.chinFlatAlong);
+    dist = dist * (1 - flat) + Math.min(along, len * 0.55) * flat;
+  }
+  // Do not shift toward the muzzle when the neck is flat or short.
+  const shift = r * sizes.neckShift * view * (1 - Math.max(flat, short));
+  return { x: head.x + dx * dist + shift, y: head.y + dy * dist };
 }
 
 // The sleeve covers the upper leg bone, so it bends with the knee. Sweaters get a light cuff, raincoats a dark one.
@@ -399,14 +421,32 @@ export function drawJacketCollar(c: SkCanvas, base: Pt, perp: Pt, along: Pt, ite
 }
 
 function bandEnds(chin: Pt, perp: Pt, along: Pt, r: number, reach: number): { a: Pt; b: Pt; mid: Pt; lower: Pt } {
-  const a = offset(chin, perp, -reach);
-  const b = offset(chin, perp, reach);
-  const mid = { x: chin.x - along.x * r * 0.16, y: chin.y - along.y * r * 0.16 };
+  // Flat or short necks make a full-size band read as a tall slash through the face; keep it small.
+  const flat = neckFlat(along);
+  const span = reach * (1 - sizes.neckFlatShrink * flat);
+  const a = offset(chin, perp, -span);
+  const b = offset(chin, perp, span);
+  const mid = { x: chin.x - along.x * r * (0.16 + 0.12 * flat), y: chin.y - along.y * r * (0.16 + 0.12 * flat) };
   const lower = a.y >= b.y ? a : b;
   return { a, b, mid, lower };
 }
 
 function drawCollarBand(c: SkCanvas, chin: Pt, perp: Pt, along: Pt, item: WearItem, r: number, fur: string, studs: boolean): Pt {
+  const flat = neckFlat(along);
+  // Sleep / lie: the neck is nearly horizontal and often shorter than the head, so a perp-spanning
+  // band becomes a tall slash through the face. Draw a short strap under the jaw along the neck instead.
+  if (flat > 0.45) {
+    const at = offset(chin, perp, r * sizes.collarFlatDrop);
+    const half = r * sizes.collarFlatLen;
+    const a = offset(at, along, -half);
+    const b = offset(at, along, half * 0.4);
+    const mid = offset(at, perp, r * 0.1);
+    outlinedQuad(c, a, mid, b, item.c, r * sizes.collarBand, fur);
+    if (studs && item.d) {
+      paintShape(c, circlePath(at.x, at.y, r * sizes.collarStud), item.d);
+    }
+    return offset(at, perp, r * 0.1);
+  }
   const { a, b, mid, lower } = bandEnds(chin, perp, along, r, r * 0.62);
   outlinedQuad(c, a, mid, b, item.c, r * sizes.collarBand, fur);
   if (studs && item.d) {
@@ -419,28 +459,40 @@ function drawCollarBand(c: SkCanvas, chin: Pt, perp: Pt, along: Pt, item: WearIt
 }
 
 export function drawNeckwear(c: SkCanvas, chin: Pt, perp: Pt, along: Pt, item: WearItem, sway: number, r: number, fur: string): void {
+  const flat = neckFlat(along);
+  const hangK = 1 - sizes.neckFlatHang * flat;
   if (item.id === 'collar' || item.id === 'gold' || item.id === 'bell') {
     const lower = drawCollarBand(c, chin, perp, along, item, r, fur, item.id === 'gold');
-    const hang = { x: lower.x + perp.x * r * 0.28 + sway * r, y: lower.y + perp.y * r * 0.28 };
+    const hang = { x: lower.x + perp.x * r * 0.28 * hangK + sway * r * hangK, y: lower.y + perp.y * r * 0.28 * hangK };
     if (item.id === 'bell') {
       const bell = item.d ?? '#f0c94a';
-      paintShape(c, circlePath(hang.x, hang.y, r * sizes.bell), bell, fur);
-      strokeLine(c, hang.x - r * 0.16, hang.y - r * 0.04, hang.x + r * 0.16, hang.y - r * 0.04, outlineOf(bell), sizes.outline * 0.7);
-      paintShape(c, circlePath(hang.x, hang.y + r * 0.12, r * 0.06), outlineOf(bell));
-      fillCircle(c, hang.x - r * 0.1, hang.y - r * 0.12, r * 0.06, '#ffffff', 0.75);
+      const bellR = r * sizes.bell * (0.55 + 0.45 * hangK);
+      paintShape(c, circlePath(hang.x, hang.y, bellR), bell, fur);
+      strokeLine(c, hang.x - bellR * 0.5, hang.y - bellR * 0.12, hang.x + bellR * 0.5, hang.y - bellR * 0.12, outlineOf(bell), sizes.outline * 0.7);
+      paintShape(c, circlePath(hang.x, hang.y + bellR * 0.35, bellR * 0.18), outlineOf(bell));
+      fillCircle(c, hang.x - bellR * 0.3, hang.y - bellR * 0.35, bellR * 0.18, '#ffffff', 0.75);
     } else {
       const tag = item.d ?? '#f0c94a';
-      paintShape(c, circlePath(hang.x, hang.y, r * sizes.collarTag), tag);
-      fillCircle(c, hang.x - r * 0.08, hang.y - r * 0.08, r * 0.08, '#ffffff', 0.7);
+      const tagR = r * sizes.collarTag * (0.55 + 0.45 * hangK);
+      paintShape(c, circlePath(hang.x, hang.y, tagR), tag);
+      fillCircle(c, hang.x - tagR * 0.35, hang.y - tagR * 0.35, tagR * 0.35, '#ffffff', 0.7);
     }
     return;
   }
   if (item.id === 'bandana') {
-    const reach = r * sizes.bandanaWidth * 0.5;
-    const { a, b } = bandEnds(chin, perp, along, r, reach);
+    const drop = r * sizes.bandanaDrop * hangK;
+    // Sleep / lie: hang the triangle from a short knot under the jaw, not a tall vertical band across the face.
+    const knot = flat > 0.45 ? offset(chin, perp, r * sizes.collarFlatDrop) : chin;
+    const reach = r * sizes.bandanaWidth * 0.5 * (flat > 0.45 ? 0.55 : 1);
+    const { a, b } = flat > 0.45
+      ? {
+          a: offset(knot, along, -reach),
+          b: offset(knot, along, reach * 0.45),
+        }
+      : bandEnds(chin, perp, along, r, reach);
     const tip = {
-      x: chin.x + perp.x * r * sizes.bandanaDrop + sway * r * 1.4 + r * 0.12,
-      y: chin.y + perp.y * r * sizes.bandanaDrop,
+      x: knot.x + perp.x * drop + sway * r * 1.4 * hangK + r * 0.12 * hangK,
+      y: knot.y + perp.y * drop,
     };
     const cloth = Skia.Path.Make();
     cloth.moveTo(a.x, a.y);
@@ -459,31 +511,42 @@ export function drawNeckwear(c: SkCanvas, chin: Pt, perp: Pt, along: Pt, item: W
     return;
   }
   if (item.id === 'bow') {
-    const reach = r * 0.34;
-    const { a, b, mid } = bandEnds(chin, perp, along, r, reach);
-    outlinedQuad(c, a, mid, b, item.c, r * 0.08, fur);
-    const wing = r * sizes.bowWing;
-    const drop = r * sizes.bowHeight;
+    const knot = flat > 0.45 ? offset(chin, perp, r * sizes.collarFlatDrop) : chin;
+    const reach = r * 0.34 * (flat > 0.45 ? 0.55 : 1);
+    if (flat > 0.45) {
+      outlinedQuad(c, offset(knot, along, -reach), offset(knot, perp, r * 0.08), offset(knot, along, reach * 0.4), item.c, r * 0.08, fur);
+    } else {
+      const { a, b, mid } = bandEnds(chin, perp, along, r, reach);
+      outlinedQuad(c, a, mid, b, item.c, r * 0.08, fur);
+    }
+    const wing = r * sizes.bowWing * hangK;
+    const drop = r * sizes.bowHeight * hangK;
     const left = polygon([
-      [chin.x, chin.y + perp.y * r * 0.08],
-      [chin.x - perp.x * wing, chin.y - perp.y * drop * 0.2],
-      [chin.x - perp.x * wing * 0.7, chin.y + perp.y * drop],
+      [knot.x, knot.y + perp.y * r * 0.08],
+      [knot.x - perp.x * wing, knot.y - perp.y * drop * 0.2],
+      [knot.x - perp.x * wing * 0.7, knot.y + perp.y * drop],
     ]);
     const right = polygon([
-      [chin.x, chin.y + perp.y * r * 0.08],
-      [chin.x + perp.x * wing, chin.y - perp.y * drop * 0.2],
-      [chin.x + perp.x * wing * 0.7, chin.y + perp.y * drop],
+      [knot.x, knot.y + perp.y * r * 0.08],
+      [knot.x + perp.x * wing, knot.y - perp.y * drop * 0.2],
+      [knot.x + perp.x * wing * 0.7, knot.y + perp.y * drop],
     ]);
     paintShape(c, left, item.c, fur);
     paintShape(c, right, item.c, fur);
-    paintShape(c, circlePath(chin.x, chin.y + perp.y * r * 0.1, r * 0.12), mix(item.c, '#000000', 0.2));
+    paintShape(c, circlePath(knot.x, knot.y + perp.y * r * 0.1, r * 0.12 * hangK), mix(item.c, '#000000', 0.2));
     return;
   }
-  const { a, b, mid } = bandEnds(chin, perp, along, r, r * 0.58);
-  outlinedQuad(c, a, mid, b, item.c, r * sizes.scarfBand, fur);
-  const wave = sway * r;
+  const knot = flat > 0.45 ? offset(chin, perp, r * sizes.collarFlatDrop) : chin;
+  if (flat > 0.45) {
+    const half = r * 0.35;
+    outlinedQuad(c, offset(knot, along, -half), offset(knot, perp, r * 0.1), offset(knot, along, half * 0.4), item.c, r * sizes.scarfBand, fur);
+  } else {
+    const { a, b, mid } = bandEnds(chin, perp, along, r, r * 0.58);
+    outlinedQuad(c, a, mid, b, item.c, r * sizes.scarfBand, fur);
+  }
+  const wave = sway * r * hangK;
   const tail = (length: number, spread: number) => {
-    const start = offset(chin, perp, spread);
+    const start = offset(knot, perp, spread * hangK);
     const path = Skia.Path.Make();
     path.moveTo(start.x, start.y);
     path.quadTo(start.x - r * 0.35 + wave, start.y + length * 0.45, start.x - r * 0.15 + wave * 1.4, start.y + perp.y * length);
@@ -494,8 +557,8 @@ export function drawNeckwear(c: SkCanvas, chin: Pt, perp: Pt, along: Pt, item: W
     path.close();
     paintShape(c, path, item.c, fur);
   };
-  tail(r * sizes.scarfTailLong, -r * 0.12);
-  tail(r * sizes.scarfTailShort, r * 0.16);
+  tail(r * sizes.scarfTailLong * hangK, -r * 0.12);
+  tail(r * sizes.scarfTailShort * hangK, r * 0.16);
 }
 
 function drawLens(c: SkCanvas, item: WearItem, ex: number, ey: number, eyeR: number, k: number, sx: number, sy: number, alpha: number, fur: string): void {
