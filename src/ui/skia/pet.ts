@@ -24,7 +24,7 @@ import {
   muzzleColorOf,
 } from './breedParts';
 import type { HeadCtx } from './breedParts';
-import { chinAnchor, drawBoot, drawGlasses, drawHat, drawJacket, drawNeckwear, drawSleeve } from './cosmetics';
+import { chinAnchor, drawBoot, drawGlasses, drawHat, drawHood, drawJacket, drawJacketCollar, drawNeckwear, drawSleeve } from './cosmetics';
 import {
   clamp,
   clipOval,
@@ -58,6 +58,7 @@ function drawLeg(
   frost = 0,
   sleeve: WearItem | null = null,
   fur = '#888888',
+  tilt = 0,
 ): Paw {
   const bone = geom.L / 2;
   const knee = solveKnee(hip, target, bone, side);
@@ -70,26 +71,33 @@ function drawLeg(
   leg.lineTo(knee.x, knee.y);
   leg.lineTo(paw.x, paw.y);
   c.drawPath(leg, paintOf(color, 1, geom.legWidth));
-  fillOval(c, paw.x + 3, paw.y - 3, geom.pawRx, geom.pawRy, color);
+  // A boot foot replaces the paw oval, which would poke out once the boot tilts with the shin.
+  if (!boot) {
+    fillOval(c, paw.x + 3, paw.y - 3, geom.pawRx, geom.pawRy, color);
+  }
   if (sock) {
     // Socks or tan lower legs: the lower half of the leg and the paw in the marking color.
     const sockColor = far ? mix(sock, '#000000', 0.32) : sock;
     strokeLine(c, knee.x + (paw.x - knee.x) * 0.45, knee.y + (paw.y - knee.y) * 0.45, paw.x, paw.y, sockColor, geom.legWidth);
-    fillOval(c, paw.x + 3, paw.y - 3, geom.pawRx, geom.pawRy, sockColor);
+    if (!boot) {
+      fillOval(c, paw.x + 3, paw.y - 3, geom.pawRx, geom.pawRy, sockColor);
+    }
   }
   if (frost > 0.01) {
     // Senior frosting on the paw and the lower leg, over the sock color when there is one.
     const frostColor = frostColorOf(sock ? (far ? mix(sock, '#000000', 0.32) : sock) : color);
-    frostOval(c, paw.x + 3, paw.y - 3, geom.pawRx * 1.05, geom.pawRy * 1.1, frostColor, frost);
+    if (!boot) {
+      frostOval(c, paw.x + 3, paw.y - 3, geom.pawRx * 1.05, geom.pawRy * 1.1, frostColor, frost);
+    }
     for (const f of [0.5, 0.75]) {
       frostOval(c, knee.x + (paw.x - knee.x) * f, knee.y + (paw.y - knee.y) * f, geom.legWidth * 0.8, geom.legWidth * 0.8, frostColor, frost * 0.85);
     }
   }
   if (sleeve) {
-    drawSleeve(c, hip, paw, geom, sleeve, far, fur);
+    drawSleeve(c, hip, knee, geom, sleeve, far, fur);
   }
   if (boot) {
-    drawBoot(c, knee, paw, geom, boot, far, fur);
+    drawBoot(c, knee, paw, geom, boot, far, fur, tilt);
   }
   return { x: paw.x, y: paw.y, shin: Math.atan2(paw.y - knee.y, paw.x - knee.x), knee };
 }
@@ -334,6 +342,11 @@ export function drawActor(
     c.scale(1, bellyScale);
     c.translate(0, -bodyCenterY);
   }
+  const footTilt = (fore: boolean): number => {
+    const spec = posed ? (fore ? posed.fore : posed.hind) : null;
+    const jump = posed && spec && !spec.plant ? posed.blend : 0;
+    return Math.max(fore ? 0 : pose.sit, pose.lie, pose.belly, pose.side, pose.tuck, jump);
+  };
   const drawOne = (raw: Pt, hip: Pt, fore: boolean, leg: 0 | 1 | 2 | 3, near: boolean, side: number, kicker = false) =>
     drawLeg(
       c,
@@ -348,6 +361,7 @@ export function drawActor(
       geom.gray.chest,
       fore ? sleeve : null,
       legColor,
+      footTilt(fore),
     );
   const fadeFar = pose.side > 0.02;
   const withFar = (draw: () => { x: number; y: number; shin: number }) => {
@@ -497,6 +511,12 @@ export function drawActor(
   const perp = along.x >= 0 ? { x: -along.y, y: along.x } : { x: along.y, y: -along.x };
   const neck = { x: base.x + nx * 0.62, y: base.y + ny * 0.62 };
   actor.anchors.neck = neck;
+  if (jacket?.id === 'rain') {
+    drawHood(c, base, perp, along, jacket, geom.headR, neckWidth, baseColor);
+  }
+  if (jacket) {
+    drawJacketCollar(c, base, perp, along, jacket, geom.headR, neckWidth, baseColor);
+  }
 
   // head
   const R = geom.headR;

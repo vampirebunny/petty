@@ -25,7 +25,7 @@ These override the slot list, the dev gallery, and the wardrobe screen notes bel
 - The full catalog also has `bell`, `bow`, gold `gold` collar, `party` and `top` hats, `classic` and `square` glasses, `sweater`, `rain`, `vest`, rain boots, and `sneaker` (a low shoe, not the calf boot). NPCs and the lab use the full catalog. The picker shows only what that user owns, plus None.
 - Ownership is a set of `{ slot, id }` stored locally at `petty.wardrobe.${ownerId}`. It is not the treat inventory. Migration maps `equipped.collar` / `equipped.bandana` to `neckwear` (bandana wins if both were worn; `gold` stays `gold`; any other collar becomes `collar`) and `equipped.coat` to `jacket`. A still-valid equipped item is added to the closet.
 - Home wardrobe and the playdate outfit step use the same animated picker. The playdate outfit is stored on the playdate record and does not change the pet's everyday clothes.
-- The dev gallery is a Wardrobe lab button under Settings. It picks species, breed, any catalog item (text buttons), and age. It does not write the save.
+- The dev gallery is a Wardrobe lab button under Settings. It picks species, breed, any catalog item (text buttons), age (with Puppy and Adult presets), and a pose (idle, sit, lie, walk). The wardrobe gallery's sticky preview has the same pose buttons. It does not write the save.
 
 TODO: After account creation, store wardrobe inventory per user in Supabase. A playdate between two accounts must replay the exact worn items (slot, id, and colors) from the record itself, not from either user's current closet.
 
@@ -36,7 +36,7 @@ TODO: After account creation, store wardrobe inventory per user in Supabase. A p
 New slot list: `hat`, `glasses`, `neckwear`, `jacket` (rename from `coat`), `boots`.
 
 - `neckwear` items: `collar`, `bell` (new), `bandana`, `bow` (new), `scarf` (new).
-- `jacket` items: `rain`, `sweater`, `vest`, and orange `puffer` (quilted, sleeved, vest-level puff).
+- `jacket` items: `rain`, `sweater`, `vest`, and orange `puffer` (quilted, vest-level puff, no sleeves).
 - Save migration: if a saved pet has `equipped.collar`, map it to `neckwear: 'collar'` (keep the `gold` variant as a collar variant). If it has only `equipped.bandana`, map it to `neckwear: 'bandana'`. If it has both, keep the bandana. Rename `equipped.coat` to `equipped.jacket`. Owned inventory must not be lost.
 - Give each item its own default color in the wardrobe data instead of everything falling back to `#d64545`.
 
@@ -66,16 +66,18 @@ Put all multipliers in `wardrobeSizes.ts`. Starting values:
 | Collar tag radius | 0.30 R |
 | Bell radius | 0.33 R |
 | Bandana width / drop | 1.7 R / 1.15 R |
-| Bandana dots | 3 dots, radius 0.13 R |
+| Bandana hem | darker stroke along the two lower edges |
 | Bow wing length / height | 0.62 R / 0.40 R |
 | Scarf band / tail width | 0.34 R / 0.30 R, tails about 1.15 R and 0.9 R long |
 | Hat base scale | 1.12 (multiply with the existing 3/4 widen `1 + 0.12 * turn`) |
 | Glasses frame width | 0.5 eyeR |
 | Glasses lens half-size | 1.85 eyeR, corner radius 0.45 of half-size |
-| Jacket puff past body | 3 units (vest 5) |
+| Jacket puff | `0.05 * bodyH` (vest/puffer `0.09 * bodyH`) |
+| Jacket rear / front | `0.34` / `0.36` of bodyLen |
 | Jacket buttons | radius 0.13 R |
-| Boot outline extra | +3.5 on width, sole 3.4 tall |
-| Boot cuff length | 0.2 of the knee-to-paw segment |
+| Boot shaft top | 0.45 of knee-to-paw (sneaker 0.78) |
+| Boot toe | `pawRx * 1.3`, `pawRy * 1.25` |
+| Sleeve upper bone | 0.9 of hip-to-knee |
 
 ## 4. Neckwear: chin anchor and draw order
 
@@ -94,19 +96,20 @@ const chin = {
 
 Draw order inside `drawActor`:
 1. Far legs (with boots and sleeves)
-2. Torso: tail, body, markings, **jacket**
+2. Torso: tail, body, markings, **jacket** (coat body only; no collar yet)
 3. Near legs (with boots and sleeves)
 4. Neck stroke
-5. Head: far ear, ruff, skull, face, eyes, markings
-6. **Neckwear at `chin`**
-7. Near ear, glasses, hat (with the existing beanie ear-poke logic)
+5. Rain hood (if raincoat), then **jacket roll collar** (`drawJacketCollar`)
+6. Head: far ear, ruff, skull, face, eyes, markings
+7. **Neckwear at `chin`**
+8. Near ear, glasses, hat (with the existing beanie ear-poke logic)
 
 Neckwear must sit under the near ear, so hanging ears overlap the bandana or collar rather than being covered by it. The simplest way: split the head block so the head transform is restored, neckwear is drawn in body space, then the head transform is re-applied for the near ear, glasses and hat. Keep `actor.anchors.neck` for anything else that uses it.
 
 Item shapes:
 - **Collar:** a curved band across the neck at `chin` (a slight arc bowing toward the body, not a straight line), outlined. The tag hangs from the lower end and swings with speed plus a small idle sway. The `gold` variant gets a gold band and larger studs (0.08 R), or drop the studs.
 - **Bell:** same band, a bell instead of a tag: outlined circle, slot line, clapper dot, highlight. Hook a jingle sound to fast movement and greetings if easy; otherwise leave a TODO.
-- **Bandana:** a triangle hanging over the chest from `chin`, tip slightly forward. Outlined, three large dots, a darker knot band along the top edge. Flutter from speed plus a slow idle sway (not speed only).
+- **Bandana:** a triangle hanging over the chest from `chin`, tip slightly forward. Outlined, a darker hem along the two lower edges, a darker knot band along the top edge. No dots. Flutter from speed plus a slow idle sway (not speed only).
 - **Bow tie:** thin band plus two outlined triangle wings and a knot, centered just below the chin.
 - **Scarf:** thick band plus two tails trailing behind the neck that wave with speed.
 
@@ -114,12 +117,11 @@ In the 3/4 head turn (`face.turn`, `face.front` > 0), neckwear shifts toward the
 
 ## 5. Jacket
 
-- Remove the `clipOval` to the body. Draw the jacket as its own shape slightly larger than the body oval (puff from the table), with a straight-ish back edge at about `-0.38 * bodyLen`, outlined. Keep it inside the torso transform so it follows breathing, weight, sit, lie and roll-over.
-- Still clip **details** (stripes, quilting, hem) to the jacket shape.
-- **Raincoat:** darker hem band, big buttons (0.13 R) with outline, a soft highlight, and a small hood at the neck base drawn behind the head.
-- **Sweater:** three wide stripes (about 6 units), a darker ribbed hem.
-- **Vest:** extra puff, three quilt lines, a zipper line with a pull tab. No sleeves.
-- **Sleeves (raincoat and sweater only):** in `drawLeg`, for fore legs only, draw the jacket color over the upper 45% of the leg (hip to 0.45 toward the paw), width `legWidth + 2`, outlined. Far sleeve darkened like far legs. Sweater sleeves get a light cuff. Sleeves must follow every leg pose (sit, lie, bow, paw, knead, belly up, jump tuck), since they reuse the leg's computed knee and paw.
+- Shaped like a dog coat from the body oval (puff `0.05 * bodyH`, vest/puffer `0.09 * bodyH`): follows the back, stops before the rump (`jacketRear`), front edge behind the shoulder (`jacketFront`), belly line rising toward the hind legs. Never a full-body slab. Outlined.
+- Draw it inside the same torso transforms as the body, including the `posed.scaleX/scaleY` block.
+- Clip **details** to the jacket shape. Signature details: puffer baffles with soft highlights; sweater ribbing and wide stripes; vest diamond quilting, piping, and zip; raincoat gloss, piping, and toggles. No heavy dark band around the whole oval.
+- **Roll collar:** drawn after the neck stroke via `drawJacketCollar`, so the neck comes out of the coat. Raincoat also gets a folded hood along the back of the neck (`drawHood`) before the collar.
+- **Sleeves (raincoat and sweater only):** cover the upper leg bone (hip to knee, `sleeveUpper`), with a cuff. Far sleeve darkened like far legs. Follows every leg pose because it uses the computed knee.
 
 ## 6. Glasses
 
@@ -139,10 +141,10 @@ In the 3/4 head turn (`face.turn`, `face.front` > 0), neckwear shifts toward the
 
 ## 8. Boots
 
-- Outline the shaft and foot.
-- Chunky dark sole (about 3.4 units tall) under the paw.
-- Wide white cuff at the top (0.2 of the knee-to-paw segment) with outline. Far boots use a light gray cuff.
-- Small shine on near boots.
+- One rounded silhouette: shaft (capsule from ~45% of the knee-to-paw segment) unioned with an oversized toe oval, single outline. Bare paw is not drawn under a boot.
+- Toe stays on the same ground line as the bare paw (`pawOffsetX/Y`). Sole band is clipped inside the shape.
+- Red boots: a rounded cuff in a darker red (no white). Rain boots: gloss shine and dark rim. Sneakers: side stripe, lace dots, light sole; shaft from ~78%, no cuff.
+- The foot rotates with the shin when the paw is not planted: sitting hind legs, lying, side lying, belly up, and the jump tuck.
 - Sizes from `legWidth`, `pawRx`, `pawRy`, so cats and puppies get proportionally smaller boots.
 
 ---

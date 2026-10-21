@@ -1,11 +1,11 @@
-import { useMemo, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Pressable } from 'react-native-gesture-handler';
 
 import type { OwnedItem } from '../actor/closet';
 import { outfitSlots, wardrobe, wearItem } from '../actor/wardrobe';
 import type { Equipped, OutfitSlot } from '../sim/types';
-import { OutfitPreview, useOutfitClock, type OutfitSubject } from './OutfitPreview';
+import { OutfitPreview, outfitPoses, useOutfitClock, type OutfitPose, type OutfitSubject } from './OutfitPreview';
 import { minTouch, theme } from './theme';
 
 type Props = {
@@ -22,16 +22,37 @@ function TilePreview({ subject, slot, itemId, t, width }: { subject: OutfitSubje
   return <OutfitPreview {...subject} equipped={equipped} width={width} height={128} t={t} zoom={2.8} />;
 }
 
+export function PoseChips({ pose, onPose }: { pose: OutfitPose; onPose: (pose: OutfitPose) => void }) {
+  return (
+    <View style={styles.poses}>
+      {outfitPoses.map((entry) => (
+        <Pressable
+          key={entry}
+          accessibilityRole="button"
+          accessibilityLabel={`Pose ${entry}`}
+          accessibilityState={{ selected: pose === entry }}
+          onPress={() => onPose(entry)}
+          style={[styles.pose, pose === entry && styles.poseSelected]}
+        >
+          <Text style={[styles.noneLabel, pose === entry && styles.poseSelectedLabel]}>{entry}</Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
 export function WardrobePicker({ subject, owned, equipped, onEquip, reducedMotion, footer }: Props) {
   const t = useOutfitClock(reducedMotion);
   const { width } = useWindowDimensions();
   const previewWidth = Math.min(420, Math.max(260, width - 32));
   const tileWidth = 108;
+  const [pose, setPose] = useState<OutfitPose>('sit');
 
   return (
     <View style={styles.root}>
       <View style={styles.sticky}>
-        <OutfitPreview {...subject} equipped={equipped} width={previewWidth} height={230} t={t} />
+        <OutfitPreview {...subject} equipped={equipped} width={previewWidth} height={230} t={t} pose={pose} />
+        <PoseChips pose={pose} onPose={setPose} />
       </View>
       <ScrollView contentContainerStyle={styles.scroll}>
         {outfitSlots.map((slot) => {
@@ -141,5 +162,25 @@ const styles = StyleSheet.create({
   selectedLabel: {
     color: theme.accentDark,
     fontWeight: '600',
+  },
+  poses: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingTop: 8,
+  },
+  pose: {
+    minWidth: 64,
+    minHeight: minTouch,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    backgroundColor: theme.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  poseSelected: {
+    backgroundColor: theme.accentDark,
+  },
+  poseSelectedLabel: {
+    color: '#fff',
   },
 });

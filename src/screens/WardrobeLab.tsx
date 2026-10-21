@@ -6,11 +6,17 @@ import { catBreeds, dogBreeds } from '../actor';
 import { outfitSlots, wardrobe } from '../actor/wardrobe';
 import { visualLifespanDays } from '../sim/config';
 import type { Equipped, Look, OutfitSlot } from '../sim/types';
-import { OutfitPreview, useOutfitClock } from '../ui/OutfitPreview';
+import { OutfitPreview, useOutfitClock, type OutfitPose } from '../ui/OutfitPreview';
 import { RangeControl } from '../ui/DebugPanel';
 import { minTouch, theme } from '../ui/theme';
+import { PoseChips } from '../ui/WardrobePicker';
 
 type Species = 'dog' | 'cat';
+
+const ages = [
+  { label: 'Puppy', days: 0.5 },
+  { label: 'Adult', days: 16 },
+];
 
 type Props = {
   look: Look;
@@ -26,6 +32,7 @@ export function WardrobeLab({ look, reducedMotion, onClose }: Props) {
   const [breedId, setBreedId] = useState(dogs[0]?.id ?? 'retriever');
   const [ageDays, setAgeDays] = useState(16);
   const [equipped, setEquipped] = useState<Equipped>({});
+  const [pose, setPose] = useState<OutfitPose>('sit');
   const t = useOutfitClock(reducedMotion);
   const { width } = useWindowDimensions();
   const previewWidth = Math.min(420, Math.max(260, width - 32));
@@ -70,8 +77,23 @@ export function WardrobeLab({ look, reducedMotion, onClose }: Props) {
             width={previewWidth}
             height={230}
             t={t}
+            pose={pose}
           />
         ) : null}
+        <PoseChips pose={pose} onPose={setPose} />
+        <View style={styles.row}>
+          {ages.map((entry) => (
+            <Pressable
+              key={entry.label}
+              accessibilityRole="button"
+              accessibilityState={{ selected: ageDays === entry.days }}
+              onPress={() => setAgeDays(entry.days)}
+              style={[styles.button, ageDays === entry.days && styles.selected]}
+            >
+              <Text style={[styles.buttonLabel, ageDays === entry.days && styles.selectedLabel]}>{entry.label}</Text>
+            </Pressable>
+          ))}
+        </View>
         <View style={styles.row}>
           {(['dog', 'cat'] as const).map((entry) => (
             <Pressable

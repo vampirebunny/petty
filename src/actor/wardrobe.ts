@@ -28,7 +28,7 @@ export const wardrobe: Record<OutfitSlot, { label: string; items: WearItem[] }> 
     label: 'Neckwear',
     items: [
       { id: 'collar', label: 'Red collar', c: '#d64545', d: '#f0c94a' },
-      { id: 'bandana', label: 'Blue bandana', c: '#3b6fc4', d: '#ffffff' },
+      { id: 'bandana', label: 'Blue bandana', c: '#3b6fc4' },
       { id: 'scarf', label: 'Yellow scarf', c: '#e8c53a' },
       { id: 'bell', label: 'Bell', c: '#6b3a2a', d: '#f0c94a' },
       { id: 'bow', label: 'Bow', c: '#e85a8c' },
@@ -47,7 +47,7 @@ export const wardrobe: Record<OutfitSlot, { label: string; items: WearItem[] }> 
   boots: {
     label: 'Boots',
     items: [
-      { id: 'red', label: 'Red boots', c: '#d64545', d: '#f7f7f7' },
+      { id: 'red', label: 'Red boots', c: '#d64545' },
       { id: 'rain', label: 'Rain boots', c: '#f2c230', d: '#f7f7f7' },
       { id: 'sneaker', label: 'Sneakers', c: '#f4f4f4', d: '#d64545' },
     ],
@@ -66,5 +66,5 @@ export function wearItem(slot: OutfitSlot, id: string | undefined): WearItem | n
 }
 
 export function jacketHasSleeves(id: string): boolean {
-  return id === 'sweater' || id === 'rain' || id === 'puffer';
+  return id === 'sweater' || id === 'rain';
 }
