@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { testPet } from '../../sim/__fixtures__/pets';
-import { dayMs, startingThirst } from '../../sim/config';
+import { dayMs, daysToSenior, legacyDaysToSenior, startingThirst } from '../../sim/config';
 import { asyncPetStorage } from '../asyncStorage';
 
 jest.mock('@react-native-async-storage/async-storage', () =>
@@ -33,13 +33,27 @@ it('maps an old weight and keeps a saved age', async () => {
   saved.ageDays = 10;
   delete saved.weightAppliedAt;
   delete saved.bornAt;
+  delete saved.agingCalendar;
   await AsyncStorage.setItem('petty.pet', JSON.stringify(saved));
 
   const loaded = await asyncPetStorage.load();
+  const scaled = 10 * (daysToSenior / legacyDaysToSenior);
   expect(loaded?.weight).toBe(0);
+  expect(loaded?.ageDays).toBeCloseTo(scaled, 5);
+  expect(loaded?.agingCalendar).toBe('month');
+  expect(loaded?.bornAt).toBeCloseTo(50 - scaled * dayMs, 5);
+  expect(loaded?.sceneId).toBe('livingroom');
+});
+
+it('leaves a month-calendar age alone', async () => {
+  const pet = testPet(3, 'retriever', 50, 'Pup', 'pet');
+  pet.ageDays = 10;
+  pet.bornAt = 50 - 10 * dayMs;
+  await asyncPetStorage.save(pet);
+
+  const loaded = await asyncPetStorage.load();
   expect(loaded?.ageDays).toBe(10);
   expect(loaded?.bornAt).toBe(50 - 10 * dayMs);
-  expect(loaded?.sceneId).toBe('livingroom');
 });
 
 it('drops a phase 0 pet that is missing the new fields', async () => {

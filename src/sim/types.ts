@@ -112,6 +112,8 @@ export type PetState = {
   name: string;
   breedId: string;
   ageDays: number;
+  /** 'month' means ageDays already uses the 22-day senior calendar. Missing means the 180-day calendar. */
+  agingCalendar?: 'month';
   maturity: number;
   vitality: number;
   careWindow: CareSample[];

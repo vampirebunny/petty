@@ -1,9 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { agingCalendar, scaleLegacyAgeDays } from '../sim/config';
 import { generateCast } from './npcs';
 import { clearPet, emptyPlaydateSave } from './save';
 import { playdateConfig } from './config';
-import type { PlaydateSave } from './types';
+import type { PetSnapshot, PlaydateSave } from './types';
 
 const listeners = new Set<() => void>();
 
@@ -24,6 +25,26 @@ function keyFor(ownerId: string): string {
   return `petty.playdates.${ownerId}`;
 }
 
+function scaleSnapshot(snapshot: PetSnapshot): PetSnapshot {
+  return { ...snapshot, ageDays: scaleLegacyAgeDays(snapshot.ageDays) };
+}
+
+function migrateSave(save: PlaydateSave): PlaydateSave {
+  if (save.agingCalendar === agingCalendar) {
+    return save;
+  }
+  return {
+    ...save,
+    agingCalendar,
+    cast: save.cast.map(scaleSnapshot),
+    history: save.history.map((record) => ({
+      ...record,
+      petA: scaleSnapshot(record.petA),
+      petB: scaleSnapshot(record.petB),
+    })),
+  };
+}
+
 function isSave(value: unknown): value is PlaydateSave {
   if (!value || typeof value !== 'object') {
     return false;
@@ -39,7 +60,7 @@ export async function loadPlaydateSave(ownerId: string): Promise<PlaydateSave> {
   }
   try {
     const parsed: unknown = JSON.parse(raw);
-    return isSave(parsed) ? parsed : emptyPlaydateSave();
+    return isSave(parsed) ? migrateSave(parsed) : emptyPlaydateSave();
   } catch {
     return emptyPlaydateSave();
   }

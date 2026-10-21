@@ -7,7 +7,7 @@ function source(overrides: Partial<ActorSource> = {}): ActorSource {
   return {
     id: 'pup',
     breedId: 'retriever',
-    ageDays: 100,
+    ageDays: 16,
     weight: 0,
     vitality: 1,
     equipped: {},

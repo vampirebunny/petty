@@ -5,6 +5,7 @@ import {
   archetypes,
   daysToSenior,
   driftLimit,
+  stageDayThresholds,
   levelCeilingByStage,
   healthyWeightBand,
   puppyGrowthFraction,
@@ -49,16 +50,17 @@ export function maturityOf(ageDays: number): number {
 }
 
 export function stageOf(ageDays: number): Stage {
-  if (ageDays < 7) {
+  const [puppyEnd, olderPuppyEnd, adolescentEnd, seniorStart] = stageDayThresholds;
+  if (ageDays < puppyEnd) {
     return 'puppy';
   }
-  if (ageDays < 21) {
+  if (ageDays < olderPuppyEnd) {
     return 'olderPuppy';
   }
-  if (ageDays < 45) {
+  if (ageDays < adolescentEnd) {
     return 'adolescent';
   }
-  if (ageDays < daysToSenior) {
+  if (ageDays < seniorStart) {
     return 'adult';
   }
   return 'senior';

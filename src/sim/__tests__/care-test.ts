@@ -5,7 +5,7 @@ import { applyCareTime } from '../care';
 import { careConfig } from '../careConfig';
 import { testPet } from '../__fixtures__/pets';
 import { resume, setVitality } from '../clock';
-import { dayMs, GEN } from '../config';
+import { dayMs, daysToSenior, GEN } from '../config';
 import { applyEvent } from '../events';
 import { payRep, resolveReward, rewardCredit, rollTrick, successChance } from '../training';
 import { ensureGame } from '../game';
@@ -53,7 +53,7 @@ it('keeps care vitality at or above 0.35 and remembers band hysteresis', () => {
   const drained = applyCareTime(pet(), 40 * dayMs, true, false);
   expect(drained.vitality).toBeGreaterThanOrEqual(0.35);
 
-  const senior = setVitality({ ...pet(), ageDays: 200 }, 0.5);
+  const senior = setVitality({ ...pet(), ageDays: daysToSenior }, 0.5);
   expect(senior.seniorBand).toBe('senior');
   const inside = setVitality(senior, 0.72);
   expect(inside.seniorBand).toBe('senior');

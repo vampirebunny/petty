@@ -54,7 +54,9 @@ export function separate(a: Actor, b: Actor, floor: Floor, dt: number): void {
   const wantY = (ny / length) * depthRadius;
   const moveX = wantX - dx;
   const moveY = wantY - dy;
-  const limit = pushSpeed * dt;
+  // Push at least as fast as the pets are closing, so a grown pet cannot run through its partner.
+  const closing = Math.abs(b.speed * b.face - a.speed * a.face);
+  const limit = (pushSpeed + closing) * dt;
   const size = Math.hypot(moveX, moveY);
   const k = size > limit && size > 0 ? limit / size : 1;
   const stepX = (moveX * k) / 2;

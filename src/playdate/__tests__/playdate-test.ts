@@ -33,7 +33,7 @@ function snap(patch: Partial<PetSnapshot> & { snapshotId: string }): PetSnapshot
     breedId: 'retriever',
     look: { coat: '#d9a441' },
     equipped: {},
-    ageDays: 100,
+    ageDays: 16,
     weight: 0,
     vitality: 1,
     seed: 1,
@@ -187,8 +187,8 @@ describe('playdate roster and activities', () => {
   });
 
   it('hides a race from a senior and splash from anywhere but the park', () => {
-    const adult = snap({ snapshotId: 'adult', ageDays: 100 });
-    const senior = snap({ snapshotId: 'senior', ageDays: 200 });
+    const adult = snap({ snapshotId: 'adult', ageDays: 16 });
+    const senior = snap({ snapshotId: 'senior', ageDays: 24 });
     const park = legalActivities(adult, senior, 'park').map((entry) => entry.id);
     const room = legalActivities(adult, adult, 'livingroom').map((entry) => entry.id);
     expect(park).not.toContain('race');
@@ -198,8 +198,8 @@ describe('playdate roster and activities', () => {
   });
 
   it('offers a dog and a cat their own activities', () => {
-    const dog = snap({ snapshotId: 'dog', ageDays: 100 });
-    const kitten = snap({ snapshotId: 'kitten', species: 'cat', breedId: 'siamese', ageDays: 100 });
+    const dog = snap({ snapshotId: 'dog', ageDays: 16 });
+    const kitten = snap({ snapshotId: 'kitten', species: 'cat', breedId: 'siamese', ageDays: 16 });
     const ids = legalActivities(dog, kitten, 'park').map((entry) => entry.id);
     expect(ids).not.toContain('tug');
     expect(ids).not.toContain('splash');
@@ -464,7 +464,11 @@ describe('playdate playback', () => {
       update(world, dt);
       separate(left, right, floor, dt);
       const rx = reach * 0.88;
-      overlap = Math.min(overlap, Math.hypot((right.x - left.x) / rx, (right.y - left.y) / 20));
+      const gap = Math.hypot((right.x - left.x) / rx, (right.y - left.y) / 20);
+      // A jump is not a walk-through: separation only applies while both pets are on the floor.
+      if (left.z <= 8 && right.z <= 8) {
+        overlap = Math.min(overlap, gap);
+      }
       closest = Math.min(closest, Math.abs(right.x - left.x) / reach);
     }
     return { closest, overlap };

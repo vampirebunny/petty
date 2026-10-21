@@ -4,9 +4,11 @@ import { withDerived } from '../sim/attributes';
 import { ensureGame } from '../sim/game';
 import { clampWeight } from '../sim/care';
 import {
+  agingCalendar,
   archetypes,
   dayMs,
   defaultSceneId,
+  scaleLegacyAgeDays,
   startingThirst,
   startingToys,
   startingWaterLevel,
@@ -196,11 +198,14 @@ function migratePet(value: unknown): PetState | null {
   const legacy = typeof raw.weightAppliedAt !== 'number';
   const storedWeight = raw.weight;
   const weight = storedWeight < -1 || storedWeight > 1 ? (storedWeight - 50) / 50 : storedWeight;
-  const bornAt = legacy
+  const storedBornAt = legacy
     ? raw.lastUpdatedAt - raw.ageDays * dayMs
     : typeof raw.bornAt === 'number'
       ? raw.bornAt
       : raw.lastUpdatedAt - raw.ageDays * dayMs;
+  const onMonthCalendar = raw.agingCalendar === agingCalendar;
+  const ageDays = onMonthCalendar ? raw.ageDays : scaleLegacyAgeDays(raw.ageDays);
+  const bornAt = onMonthCalendar ? storedBornAt : raw.lastUpdatedAt - ageDays * dayMs;
   const equipped = isRecord(raw.equipped) ? (raw.equipped as Equipped) : {};
   const waterLevel =
     typeof raw.waterLevel === 'number' && Number.isFinite(raw.waterLevel)
@@ -215,6 +220,8 @@ function migratePet(value: unknown): PetState | null {
   const next: PetState = {
     ...(raw as unknown as PetState),
     breedId: migrateBreedId(raw.breedId),
+    ageDays,
+    agingCalendar,
     attributes,
     look,
     drift,

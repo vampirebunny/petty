@@ -1,7 +1,7 @@
 import { testPet } from '../__fixtures__/pets';
 import { attributeScore, naturalGrowth, shownLevel, trainingGain, withDerived } from '../attributes';
 import { applyCareTime } from '../care';
-import { GEN, dayMs } from '../config';
+import { GEN, dayMs, daysToSenior } from '../config';
 import { debugJump } from '../clock';
 
 function pet() {
@@ -25,13 +25,13 @@ it('tapers a gain much harder near potential', () => {
 });
 
 it('changes only the effective score for aging and weight', () => {
-  const fit = { ...pet(), ageDays: 200, maturity: 1, vitality: 0.35, weight: 0 };
+  const fit = { ...pet(), ageDays: daysToSenior, maturity: 1, vitality: 0.35, weight: 0 };
   const heavy = { ...fit, weight: 1 };
   expect(attributeScore(heavy, 'stamina')).toBeLessThan(attributeScore(fit, 'stamina'));
   expect(heavy.attributes.potential).toEqual(fit.attributes.potential);
   expect(heavy.attributes.current).toEqual(fit.attributes.current);
 
-  const adult = { ...pet(), ageDays: 100, maturity: 100 / 180, vitality: 0.35, weight: 0 };
+  const adult = { ...pet(), ageDays: 16, maturity: 16 / daysToSenior, vitality: 0.35, weight: 0 };
   expect(attributeScore(fit, 'obedience')).toBeGreaterThan(attributeScore(adult, 'obedience'));
 });
 
@@ -68,6 +68,6 @@ it('pulls drift toward 0 on a capped absence and respects the level ceiling', ()
   const experienced = debugJump({ ...pet(), xp: 1000 }, 0);
   expect(shownLevel(1000, 'puppy')).toBe(6);
   expect(experienced.level).toBe(6);
-  const senior = debugJump({ ...pet(), xp: 1000, ageDays: 180 }, 0);
+  const senior = debugJump({ ...pet(), xp: 1000, ageDays: daysToSenior }, 0);
   expect(senior.level).toBe(shownLevel(1000, 'senior'));
 });

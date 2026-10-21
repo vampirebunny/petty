@@ -36,7 +36,7 @@ const names = [
   'Rudy',
 ];
 
-const ages = [4, 12, 28, 70, 120, 200, 320, 8, 40, 90, 160, 450];
+const ages = [1, 3, 8, 14, 18, 24, 32, 4, 10, 16, 20, 38];
 
 const partyTricks: PartyTrick[] = ['sit', 'paw', 'speak'];
 

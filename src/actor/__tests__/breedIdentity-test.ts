@@ -1,3 +1,4 @@
+import { visualLifespanDays } from '../../sim/config';
 import { breedsFor, defaultLook, resolveBreed } from '../breeds';
 import { earProfiles } from '../data/breedShapes';
 import { geomOf, headFaceOf, noseOf } from '../geometry';
@@ -9,8 +10,8 @@ const dogs = breedsFor('dog');
 const cats = breedsFor('cat');
 const stages = [
   { name: 'puppy', age: 0 },
-  { name: 'adult', age: 500 },
-  { name: 'senior', age: 1000 },
+  { name: 'adult', age: visualLifespanDays / 2 },
+  { name: 'senior', age: visualLifespanDays },
 ];
 
 function withCoat(breed: Breed, coat: string): Breed {

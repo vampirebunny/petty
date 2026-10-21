@@ -1,3 +1,4 @@
+import { grayEndDay, grayStartDay } from '../../sim/config';
 import type { Species } from '../types';
 
 // Senior graying. It follows age only: care, vitality and rejuvenation never change it.
@@ -12,8 +13,8 @@ export type GrayConfig = {
 };
 
 export const grayingBySpecies: Record<Species, GrayConfig> = {
-  dog: { startDay: 550, endDay: 850, max: 1, from: { muzzle: 0, brows: 0.4, chest: 0.75 } },
-  cat: { startDay: 550, endDay: 850, max: 0.4, from: { muzzle: 0, brows: null, chest: null } },
+  dog: { startDay: grayStartDay, endDay: grayEndDay, max: 1, from: { muzzle: 0, brows: 0.4, chest: 0.75 } },
+  cat: { startDay: grayStartDay, endDay: grayEndDay, max: 0.4, from: { muzzle: 0, brows: null, chest: null } },
 };
 
 export type GrayAmounts = {

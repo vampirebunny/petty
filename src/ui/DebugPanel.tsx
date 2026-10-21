@@ -5,6 +5,7 @@ import { runOnJS } from 'react-native-reanimated';
 
 import { phaseOf } from '../actor';
 import { attributeScore, stageOf, traits } from '../sim';
+import { visualLifespanDays } from '../sim/config';
 import type { Mood, PetState, Trait } from '../sim/types';
 import type { PetCue } from '../state/usePet';
 
@@ -145,7 +146,13 @@ export function DebugPanel({
           {traitLabel[trait]} {format(attributeScore(state, trait))} / {state.attributes.potential[trait]}
         </Text>
       ))}
-      <RangeControl label="Age" min={0} max={1000} value={Math.min(1000, state.ageDays)} onChange={onAge} />
+      <RangeControl
+        label="Age"
+        min={0}
+        max={visualLifespanDays}
+        value={Math.min(visualLifespanDays, state.ageDays)}
+        onChange={onAge}
+      />
       <RangeControl label="Vitality" min={0} max={1} value={state.vitality} onChange={onVitality} />
       <RangeControl label="Weight" min={-1} max={1} value={state.weight} onChange={onWeight} />
       <RangeControl

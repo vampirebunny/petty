@@ -127,6 +127,8 @@ export type Relationship = {
 };
 
 export type PlaydateSave = {
+  /** 'month' means snapshot ages already use the 22-day senior calendar. */
+  agingCalendar?: 'month';
   cast: PetSnapshot[];
   relationships: Record<string, Record<string, Relationship>>;
   history: PlaydateRecord[];

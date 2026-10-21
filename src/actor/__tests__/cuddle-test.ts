@@ -8,9 +8,9 @@ import type { Actor, CuddleOut, Pose, World } from '../types';
 
 const dt = 1 / 60;
 const breedIds = [...breedsFor('dog'), ...breedsFor('cat')].map((breed) => breed.id);
-const ages = [0, 30, 100, 300, 800];
+const ages = [0, 8, 16, 28, 40];
 
-function setup(breedId: string, ageDays = 100, at?: { x: number; y: number }, affinity = 1) {
+function setup(breedId: string, ageDays = 16, at?: { x: number; y: number }, affinity = 1) {
   const actor = spawnActor(
     { id: 'pet', breedId, ageDays, weight: 0, vitality: 1, equipped: {}, asleep: false, cuddleAffinity: affinity },
     at,
@@ -46,12 +46,12 @@ function channelDelta(a: Pose, b: Pose): number {
 
 describe('cuddle data', () => {
   it('scales durations by life stage and keeps thresholds', () => {
-    const young = cuddleParamsFor('retriever', 'dog', 100);
-    const senior = cuddleParamsFor('retriever', 'dog', 400, 0);
+    const young = cuddleParamsFor('retriever', 'dog', 16);
+    const senior = cuddleParamsFor('retriever', 'dog', 30, 0);
     expect(senior.timing.settle).toBeGreaterThan(young.timing.settle);
     expect(senior.timing.waitTimeout).toBe(young.timing.waitTimeout);
-    expect(stageFactor(400, 0)).toBeGreaterThan(stageFactor(400, 1));
-    expect(stageFactor(400, 1)).toBeGreaterThan(stageFactor(100));
+    expect(stageFactor(30, 0)).toBeGreaterThan(stageFactor(30, 1));
+    expect(stageFactor(30, 1)).toBeGreaterThan(stageFactor(16));
   });
 
   it('applies species and breed overrides', () => {

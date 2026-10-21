@@ -2,6 +2,7 @@ import { rngSeed, withDerived, zeroStats } from './attributes';
 import { bathToleranceFor, blankCare, blankTraining } from './game';
 import { speciesOf } from './tracks';
 import {
+  agingCalendar,
   defaultSceneId,
   startingAsleep,
   startingAttention,
@@ -48,6 +49,7 @@ export function createPet({ id, ownerId, name, breedId, look, attributes, now }:
     name,
     breedId,
     ageDays: 0,
+    agingCalendar,
     maturity: 0,
     vitality: vitalityTarget(careWindow),
     careWindow,

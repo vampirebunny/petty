@@ -5,6 +5,7 @@ import type { PetState } from '../sim/types';
 
 export function emptyPlaydateSave(): PlaydateSave {
   return {
+    agingCalendar: 'month',
     cast: [],
     relationships: {},
     history: [],

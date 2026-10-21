@@ -25,7 +25,7 @@ import type { ActorSource } from '../types';
 const stats = { stamina: 0.5, agility: 0.5, boldness: 0.5, obedience: 0.5 };
 
 function source(overrides: Partial<ActorSource> = {}): ActorSource {
-  return { id: 'pet', breedId: 'retriever', ageDays: 100, weight: 0, vitality: 1, equipped: {}, asleep: false, ...overrides };
+  return { id: 'pet', breedId: 'retriever', ageDays: 16, weight: 0, vitality: 1, equipped: {}, asleep: false, ...overrides };
 }
 
 describe('gaits', () => {
@@ -181,7 +181,7 @@ describe('play in the sim', () => {
   };
 
   it('keeps the head out of 3/4 view and the legs in a defined gait through a whole fetch', () => {
-    const pup = spawnActor(source({ ageDays: 30 }));
+    const pup = spawnActor(source({ ageDays: 8 }));
     const world = createWorld([pup], 9);
     startUserTask(world, pup, 'fetch', 1, { x: pup.x, y: pup.y });
     const gaits = new Set<string>();
@@ -197,7 +197,7 @@ describe('play in the sim', () => {
   });
 
   it('bows before the chase and holds for 0.5 to 1.5 seconds', () => {
-    const pup = spawnActor(source({ ageDays: 3 }));
+    const pup = spawnActor(source({ ageDays: 1 }));
     const world = createWorld([pup], 4);
     pup.task = { type: 'fetch', stage: 'bow', t: 0, bats: 0, cool: 0 };
     world.items = [{ id: 'ball-1', kind: 'ball', state: 'free', x: pup.x + 200, y: pup.y, z: 0, vx: 0, vy: 0, vz: 0 }];
@@ -213,7 +213,7 @@ describe('play in the sim', () => {
   });
 
   it('has a cat stalk, wiggle and pounce at a toy lying still', () => {
-    const kit = spawnActor(source({ id: 'kit', breedId: 'domesticShorthair', ageDays: 100 }));
+    const kit = spawnActor(source({ id: 'kit', breedId: 'domesticShorthair', ageDays: 16 }));
     const world = createWorld([kit], 6);
     world.toyKind = 'yarn';
     kit.x = 100;
@@ -228,7 +228,7 @@ describe('play in the sim', () => {
   });
 
   it('never leaves the stage while zooming a lap', () => {
-    const pup = spawnActor(source({ ageDays: 30 }));
+    const pup = spawnActor(source({ ageDays: 8 }));
     const world = createWorld([pup], 2);
     pup.task = { type: 'idle', stage: '', t: 0, bats: 0, cool: 0 } as typeof pup.task;
     pup.idle.mode = 'zoom';

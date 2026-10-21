@@ -1,3 +1,4 @@
+import { bagSpanDays, bagStartDay, visualLifespanDays } from '../../sim/config';
 import { canBehave, isUserTask, reactionFor } from '../behavior';
 import { breedsFor, dogBreeds } from '../breeds';
 import { bagAmount, geomOf, headFaceOf, thickOf } from '../geometry';
@@ -62,22 +63,22 @@ it('plants a foot on the ground and lifts it through the swing', () => {
   expect(lifted.y).toBeLessThan(0);
 });
 
-it('raises leg length on an S-curve and clamps after day 1000', () => {
+it('raises leg length on an S-curve and clamps after the visual lifespan', () => {
   let previous = -1;
-  for (let day = 0; day <= 1000; day += 25) {
+  for (let day = 0; day <= visualLifespanDays; day += visualLifespanDays / 8) {
     const leg = growthFor(day).leg;
     expect(leg).toBeGreaterThanOrEqual(previous);
     previous = leg;
   }
-  expect(growthFor(1000)).toEqual(growthFor(1400));
-  expect(growthFor(0).head).toBeLessThan(growthFor(1000).head);
+  expect(growthFor(visualLifespanDays)).toEqual(growthFor(visualLifespanDays + 40));
+  expect(growthFor(0).head).toBeLessThan(growthFor(visualLifespanDays).head);
   expect(thickOf(0)).toBeCloseTo(1);
   expect(thickOf(1)).toBeCloseTo(1.5);
   expect(thickOf(-1)).toBeCloseTo(0.7);
   expect(bagAmount(0, 1)).toBe(0);
-  expect(bagAmount(700, 0)).toBeCloseTo(0.5, 5);
-  expect(bagAmount(1000, 0)).toBe(1);
-  expect(bagAmount(1000, 1)).toBe(0);
+  expect(bagAmount(bagStartDay + bagSpanDays / 2, 0)).toBeCloseTo(0.5, 5);
+  expect(bagAmount(bagStartDay + bagSpanDays, 0)).toBe(1);
+  expect(bagAmount(visualLifespanDays, 1)).toBe(0);
 });
 
 it('loads five dog breeds and leaves cat tasks unassigned', () => {

@@ -1,46 +1,49 @@
+import { grayEndDay, grayStartDay } from '../../sim/config';
 import { breedById, defaultLook, resolveBreed } from '../breeds';
 import { frostColorOf, luminance } from '../color';
 import { grayAmountsOf, grayLevelOf } from '../data/graying';
 import { geomOf } from '../geometry';
 
+const span = grayEndDay - grayStartDay;
+
 describe('senior graying', () => {
-  it('is zero before day 550, eases up, and is 1 by day 850', () => {
+  it('is zero before gray starts, eases up, and is 1 by the end day', () => {
     for (const species of ['dog', 'cat'] as const) {
       expect(grayLevelOf(species, 0)).toBe(0);
-      expect(grayLevelOf(species, 550)).toBe(0);
-      expect(grayLevelOf(species, 850)).toBe(1);
-      expect(grayLevelOf(species, 1000)).toBe(1);
+      expect(grayLevelOf(species, grayStartDay)).toBe(0);
+      expect(grayLevelOf(species, grayEndDay)).toBe(1);
+      expect(grayLevelOf(species, grayEndDay + 10)).toBe(1);
       let last = -1;
-      for (let age = 500; age <= 900; age += 10) {
+      for (let age = grayStartDay - 4; age <= grayEndDay + 6; age += 1) {
         const level = grayLevelOf(species, age);
         expect(level).toBeGreaterThanOrEqual(last);
         last = level;
       }
       // S-curve: slow at both ends.
-      expect(grayLevelOf(species, 580)).toBeLessThan(0.1);
-      expect(grayLevelOf(species, 820)).toBeGreaterThan(0.9);
+      expect(grayLevelOf(species, grayStartDay + span * 0.1)).toBeLessThan(0.1);
+      expect(grayLevelOf(species, grayStartDay + span * 0.9)).toBeGreaterThan(0.9);
     }
   });
 
   it('fades regions in on their own thresholds: muzzle, then brows, then chest and paws', () => {
     const at = (age: number) => grayAmountsOf('dog', age);
-    // Level 0.2: muzzle only.
-    const early = at(550 + 300 * 0.3);
+    // Early on the curve: muzzle only.
+    const early = at(grayStartDay + span * 0.3);
     expect(early.muzzle).toBeGreaterThan(0);
     expect(early.brows).toBe(0);
     expect(early.chest).toBe(0);
-    // Level just over 0.5: brows have started, chest has not.
-    const mid = at(550 + 300 * 0.6);
+    // Past halfway: brows have started, chest has not.
+    const mid = at(grayStartDay + span * 0.6);
     expect(mid.brows).toBeGreaterThan(0);
     expect(mid.chest).toBe(0);
-    const late = at(850);
+    const late = at(grayEndDay);
     expect(late.muzzle).toBe(1);
     expect(late.brows).toBe(1);
     expect(late.chest).toBe(1);
   });
 
   it('cats gray the muzzle only, at about 0.4 of a dog', () => {
-    const cat = grayAmountsOf('cat', 850);
+    const cat = grayAmountsOf('cat', grayEndDay);
     expect(cat.muzzle).toBeCloseTo(0.4, 5);
     expect(cat.brows).toBe(0);
     expect(cat.chest).toBe(0);
@@ -48,8 +51,9 @@ describe('senior graying', () => {
 
   it('follows age only: vitality and weight do not change it', () => {
     const breed = breedById('retriever')!;
-    const low = geomOf(breed, 800, 0, 0).gray;
-    const high = geomOf(breed, 800, 0.4, 1).gray;
+    const age = grayStartDay + span * 0.8;
+    const low = geomOf(breed, age, 0, 0).gray;
+    const high = geomOf(breed, age, 0.4, 1).gray;
     expect(low).toEqual(high);
   });
 

@@ -1,3 +1,4 @@
+import { bagSpanDays, bagStartDay } from '../sim/config';
 import { limbSize } from './breeds';
 import { earProfiles } from './data/breedShapes';
 import { grayAmountsOf } from './data/graying';
@@ -56,7 +57,7 @@ export function thickOf(weight: number): number {
 export const earRiseEnd = 0.5;
 
 export function bagAmount(ageDays: number, vitality: number): number {
-  const grown = smoothstep((ageDays - 600) / 200);
+  const grown = smoothstep((ageDays - bagStartDay) / bagSpanDays);
   return grown * (1 - clamp(vitality, 0, 1));
 }
 

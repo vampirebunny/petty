@@ -67,10 +67,24 @@ export const happyHappinessAtLeast = 70;
 export const sadHappinessBelow = 30;
 
 export const dayMs = 24 * 60 * 60 * 1000;
-export const daysToSenior = 180;
-export const visualLifespanDays = 1000;
+// Puppy, older puppy, adolescent, then adult until senior. A month of play reaches senior
+// with gray and bags still arriving after that label.
+export const stageDayThresholds = [2, 5, 12, 22] as const;
+export const daysToSenior = stageDayThresholds[3];
+export const visualLifespanDays = 40;
+export const bagStartDay = 24;
+export const bagSpanDays = 10;
+export const grayStartDay = 22;
+export const grayEndDay = 34;
+// Saves written before this calendar used a 180-day senior. Load scales those ages once.
+export const legacyDaysToSenior = 180;
+export const agingCalendar = 'month' as const;
+
+export function scaleLegacyAgeDays(ageDays: number): number {
+  return Math.max(0, ageDays) * (daysToSenior / legacyDaysToSenior);
+}
+
 export const careMultiplier = 1;
-export const stageDayThresholds = [7, 21, 45, 180] as const;
 
 export const traits: Trait[] = [
   'stamina',
