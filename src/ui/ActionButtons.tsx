@@ -197,7 +197,7 @@ function ActionButton({ action, Icon, onBlocked }: ButtonProps) {
                 </LinearGradient>
                 {/* Light passing through the jelly pools at the bottom edge. */}
                 <RadialGradient id={`glow${uid}`} cx="50%" cy="100%" rx="55%" ry="45%">
-                  <Stop offset="0" stopColor={WHITE} stopOpacity={on ? 0.55 : 0.4} />
+                  <Stop offset="0" stopColor={WHITE} stopOpacity={on ? 0.3 : 0.2} />
                   <Stop offset="1" stopColor={WHITE} stopOpacity="0" />
                 </RadialGradient>
                 {/* A soft darkening under the gloss gives the body some depth. */}
@@ -227,7 +227,7 @@ function ActionButton({ action, Icon, onBlocked }: ButtonProps) {
               </View>
             ) : null}
 
-            <Text style={[styles.label, { color: tint.ink }]} numberOfLines={1}>
+            <Text style={[styles.label, { color: mixHexColor(tint.ink, '#1A1A1A', 0.35) }]} numberOfLines={1}>
               {action.label}
             </Text>
 
@@ -316,13 +316,10 @@ const styles = StyleSheet.create({
     left: 0,
   },
   label: {
-    fontSize: 12.5,
-    fontWeight: '900',
-    letterSpacing: 0.2,
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0.1,
     textAlign: 'center',
-    textShadowColor: 'rgba(255,255,255,0.95)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 0.01,
   },
   sparkleBig: {
     position: 'absolute',

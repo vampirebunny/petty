@@ -4,7 +4,7 @@ import { ChevronsDown, Hand, Volume2 } from 'lucide-react-native';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 
-import { lockHint, trackDef, trackName } from '../sim/tracks';
+import { trackDef, trackName } from '../sim/tracks';
 import type { PetState } from '../sim/types';
 import { iconFor } from './actionIcons';
 import { Ring } from './NeedRings';
@@ -130,23 +130,12 @@ export function TrainingRings({ pet, species, onPractice, highlightId, reducedMo
           );
         })}
       </View>
-      {ids
-        .filter((id) => !pet.training[id]?.unlocked)
-        .map((id) => {
-          const def = trackDef(id);
-          const hint = def ? lockHint(pet, def) : null;
-          return hint ? (
-            <Text key={id} style={styles.hint}>
-              {hint}
-            </Text>
-          ) : null;
-        })}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: { gap: 8 },
+  wrap: { gap: 8, marginBottom: 16 },
   title: { color: '#243044', fontSize: 15, fontWeight: '800' },
   row: { flexDirection: 'row', justifyContent: 'flex-start', gap: 10 },
   spot: { flex: 1, maxWidth: 112 },
@@ -157,5 +146,4 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 0 },
   },
-  hint: { fontSize: 12.5, color: '#5C6B80' },
 });

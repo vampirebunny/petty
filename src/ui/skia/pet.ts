@@ -399,8 +399,6 @@ export function drawActor(
 
   const half = geom.bodyH * 0.3;
   const liftScale = liftScaleOf(actor.displayAgeDays);
-  const foreHip = torsoPoint(geom, theta, dy, geom.foreX, geom.hipY);
-  const hindHip = torsoPoint(geom, theta, dy, geom.hindX, geom.hipY);
   const foreSide = pose.lie > 0.5 ? -1 : 1;
   const depthSpan = Math.max(geom.bodyLen, 1);
 
@@ -421,20 +419,32 @@ export function drawActor(
     const jump = posed && spec && !spec.plant ? posed.blend : 0;
     return Math.max(fore ? 0 : pose.sit, pose.lie, pose.belly, pose.side, pose.tuck, jump);
   };
-  const specs: { hip: Pt; fore: boolean; leg: 0 | 1 | 2 | 3; l: number; kick: boolean }[] = [
-    { hip: hindHip, fore: false, leg: 0, l: -half * 1.12, kick: false },
-    { hip: foreHip, fore: true, leg: 1, l: -half, kick: false },
-    { hip: hindHip, fore: false, leg: 2, l: half * 1.12, kick: true },
-    { hip: foreHip, fore: true, leg: 3, l: half, kick: false },
+  const specs: { localX: number; localY: number; fore: boolean; leg: 0 | 1 | 2 | 3; l: number; kick: boolean }[] = [
+    { localX: geom.hindX, localY: geom.hipY, fore: false, leg: 0, l: -half, kick: false },
+    { localX: geom.foreX, localY: geom.hipY, fore: true, leg: 1, l: -half, kick: false },
+    { localX: geom.hindX, localY: geom.hipY, fore: false, leg: 2, l: half, kick: true },
+    { localX: geom.foreX, localY: geom.hipY, fore: true, leg: 3, l: half, kick: false },
   ];
   const planned = specs.map((spec) => {
-    const foot = footAt(spec.hip, spec.fore, spec.leg, spec.l > 0, spec.kick);
-    if (foot.y < 0) {
-      foot.y *= liftScale;
-    }
-    const hipP = projectLocal({ f: spec.hip.x, l: spec.l, h: -spec.hip.y }, thetaFacing);
-    const footP = projectLocal({ f: foot.x, l: spec.l, h: -foot.y }, thetaFacing);
-    return { ...spec, hipP, footP, depth: footP.depth };
+    const hip = torsoPoint(geom, theta, dy, spec.localX, spec.localY);
+    const foot = footAt(hip, spec.fore, spec.leg, spec.l > 0, spec.kick);
+    const df = foot.x - hip.x;
+    const lift = foot.y < 0 ? -foot.y * liftScale : 0;
+    // Hips collapse toward the body center with the facing angle. A front view keeps the
+    // hind pair under the rump, a small step behind the chest, instead of out at the tail.
+    const axialView = rig.view === 'front' || rig.view === 'back';
+    const fs = axialView ? 1 : rig.foreshorten;
+    const cos = Math.cos(thetaFacing);
+    const sin = Math.sin(thetaFacing);
+    const visualCenter = axialView ? 0 : geom.Px * (1 - fs);
+    const hipLocalX = visualCenter + spec.localX * fs * cos + spec.l * sin;
+    const hipLocalY = spec.localY - (spec.fore ? 0 : Math.abs(sin) * geom.bodyH * 0.1);
+    const hipP = torsoPoint(geom, theta, dy, hipLocalX, hipLocalY);
+    const stepped = projectLocal({ f: df, l: 0, h: lift }, thetaFacing);
+    const origin = projectLocal({ f: 0, l: 0, h: 0 }, thetaFacing);
+    const footP = { x: hipP.x + stepped.x - origin.x, y: stepped.y - origin.y };
+    const depth = projectLocal({ f: spec.localX, l: spec.l, h: 0 }, thetaFacing).depth;
+    return { ...spec, hipP, footP, depth };
   });
   planned.sort((a, b) => a.depth - b.depth);
   const bodyDepth = projectLocal({ f: 0, l: 0, h: 0 }, thetaFacing).depth;
@@ -494,8 +504,8 @@ export function drawActor(
       const tx = -geom.bodyLen / 2 + 6;
       const ty = geom.bodyY - geom.bodyH * 0.1;
       c.save();
-      c.translate(0, geom.bodyY - geom.bodyH * 0.55);
-      c.rotate(deg(-90), 0, 0);
+      c.translate(0, geom.bodyY - geom.bodyH * 0.42);
+      c.rotate(90, 0, 0);
       c.translate(-tx, -ty);
       drawTail(c, breed, geom, wag, tailColor, pose.tailLift - 0.45 * pose.stream + (posed?.tail ?? 0), tailDeco);
       c.restore();
@@ -586,8 +596,10 @@ export function drawActor(
   c.restore();
   c.restore();
 
-  for (const spec of ahead) {
-    drawnPaws.push(paintLeg(spec));
+  if (rig.view !== 'back') {
+    for (const spec of ahead) {
+      drawnPaws.push(paintLeg(spec));
+    }
   }
   actor.anchors.paws = drawnPaws.map((paw) => ({ x: paw.x, y: paw.y, shin: paw.shin }));
   c.restore();
@@ -925,6 +937,11 @@ export function drawActor(
     fillOval(c, 0, geom.bodyY, geom.bodyH * 0.52, geom.bodyH * 0.48, mix(baseColor, '#000000', 0.12));
     shadeOval(c, 0, geom.bodyY, geom.bodyH * 0.52, geom.bodyH * 0.48);
     c.restore();
+    for (const spec of ahead) {
+      const paw = paintLeg(spec);
+      drawnPaws.push(paw);
+    }
+    actor.anchors.paws = drawnPaws.map((paw) => ({ x: paw.x, y: paw.y, shin: paw.shin }));
   }
 
   if (rig.tail === 'top' && rig.view !== 'back') {
