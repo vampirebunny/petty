@@ -45,9 +45,10 @@ import { BadgeCelebration } from '../ui/BadgeCelebration';
 import { speciesLabel } from '../ui/actionIcons';
 import { Sparkles } from 'lucide-react-native';
 import { playBadgeChime } from '../audio/badge';
+import { GREET } from '../actor/greetings';
 import { PetView } from '../ui/PetView';
 import { useStageSize } from '../ui/useStageSize';
-import type { CuddleHandle } from '../ui/PetView';
+import type { CuddleHandle, StageHandle } from '../ui/PetView';
 import { CuddleFeedback } from '../ui/cuddle/CuddleFeedback';
 import type { FeedbackHandle } from '../ui/cuddle/CuddleFeedback';
 import type { PointAdd } from '../ui/cuddle/pointAdds';
@@ -97,6 +98,7 @@ export default function HomeScreen({ petApi }: Props) {
     speak,
     rest,
     pet,
+    rememberGreeting,
     startCuddle,
     finishCuddle,
     fetchBall,
@@ -147,6 +149,7 @@ export default function HomeScreen({ petApi }: Props) {
   );
   const [coachTarget, setCoachTarget] = useState<{ x: number; y: number } | null>(null);
   const cuddleHandle = useRef<CuddleHandle>(null);
+  const stageHandle = useRef<StageHandle>(null);
   const feedback = useRef<FeedbackHandle>(null);
   const tracker = useRef(new CuddleGesture());
   const touchedRef = useRef(false);
@@ -640,7 +643,20 @@ export default function HomeScreen({ petApi }: Props) {
     {
       id: 'cuddle',
       label: 'Cuddle',
-      onPress: toggleCuddle,
+      onPress: () => {
+        if (!cuddleOnRef.current) {
+          const result = stageHandle.current?.pat() ?? 'none';
+          if (result === 'bonus') {
+            pet();
+            applyActorHappiness(GREET.PAT_BONUS);
+            return;
+          }
+          if (result === 'repeat') {
+            return;
+          }
+        }
+        toggleCuddle();
+      },
       onLongPress: () => setHelpOpen(true),
       active: cuddleOn,
     },
@@ -779,6 +795,9 @@ export default function HomeScreen({ petApi }: Props) {
             <PetView
               cuddleActive={cuddleOn}
               cuddleRef={cuddleHandle}
+              stageRef={stageHandle}
+              elapsedH={cue.elapsedH}
+              onGreeting={rememberGreeting}
               onCuddleEvent={onCuddleEvent}
               pet={state}
               cueKind={cue.kind}
@@ -968,6 +987,11 @@ export default function HomeScreen({ petApi }: Props) {
           onHour={setHour}
           onReset={reset}
           onNewPet={release}
+          onFlip={() => stageHandle.current?.flipFace()}
+          onTimeScale={(scale) => stageHandle.current?.setTimeScale(scale)}
+          onPlayGreeting={(id) => stageHandle.current?.playGreeting(id)}
+          greetingIds={() => stageHandle.current?.greetingIds() ?? []}
+          greetingLabel={() => stageHandle.current?.label() ?? ''}
         />
       </ScrollView>
     </View>

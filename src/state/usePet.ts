@@ -41,6 +41,7 @@ export type PetCue = {
   token: number;
   drop?: { x: number; y: number };
   flick?: { vx: number; vy: number; vz: number };
+  elapsedH?: number;
 };
 
 type PetApi = {
@@ -84,6 +85,7 @@ type PetApi = {
   rewardTreat: (tier: 'basic' | 'special') => void;
   rewardCuddle: () => void;
   seeCoach: (id: string) => void;
+  rememberGreeting: (id: string) => void;
   claimGrants: () => void;
   clearTreats: () => void;
   welcomeBack: boolean;
@@ -124,6 +126,7 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
         token: tokenRef.current,
         drop: nextCue.drop,
         flick: nextCue.flick,
+        elapsedH: nextCue.elapsedH,
       });
     }
     const snapshot = next;
@@ -154,10 +157,11 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
       returningRef.current = true;
       try {
         const elapsedH = awayElapsedHours(current.lastUpdatedAt, now);
-        const cue = elapsedH >= AWAY_DECAY.welcomeBackThresholdH ? ({ kind: 'wiggle' } as const) : undefined;
-        if (cue) {
+        if (elapsedH >= AWAY_DECAY.welcomeBackThresholdH) {
           setWelcomeBack(true);
         }
+        const awayMin = elapsedH * 60;
+        const cue = awayMin >= 2 ? ({ kind: 'greet', elapsedH } as const) : undefined;
         publish(resume(current, now), cue);
       } finally {
         returningRef.current = false;
@@ -497,6 +501,17 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
   );
   const rest = useCallback(() => dispatch({ type: 'toggleRest' }), [dispatch]);
   const pet = useCallback(() => dispatch({ type: 'pet' }), [dispatch]);
+
+  const rememberGreeting = useCallback(
+    (id: string) => {
+      const current = stateRef.current;
+      if (!current || current.lastGreetingId === id) {
+        return;
+      }
+      publish({ ...current, lastGreetingId: id });
+    },
+    [publish],
+  );
   const startCuddle = useCallback(() => dispatch({ type: 'cuddleStart' }), [dispatch]);
   const finishCuddle = useCallback((seconds: number) => dispatch({ type: 'cuddled', seconds }), [dispatch]);
   const fetchBall = useCallback(() => dispatch({ type: 'fetch' }), [dispatch]);
@@ -546,6 +561,7 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
     reportAte,
     rest,
     pet,
+    rememberGreeting,
     startCuddle,
     finishCuddle,
     fetchBall,

@@ -21,6 +21,11 @@ type Props = {
   onHour: (hour: number | null) => void;
   onReset: () => void;
   onNewPet: () => void;
+  onFlip?: () => void;
+  onTimeScale?: (scale: number) => void;
+  onPlayGreeting?: (id: string) => void;
+  greetingIds?: () => string[];
+  greetingLabel?: () => string;
 };
 
 const hourMs = 60 * 60 * 1000;
@@ -111,9 +116,19 @@ export function DebugPanel({
   onHour,
   onReset,
   onNewPet,
+  onFlip,
+  onTimeScale,
+  onPlayGreeting,
+  greetingIds,
+  greetingLabel,
 }: Props) {
   const [open, setOpen] = useState(false);
+  const [shownGreeting, setShownGreeting] = useState('');
   const care = state.careWindow[state.careWindow.length - 1];
+  const play = (id: string) => {
+    onPlayGreeting?.(id);
+    setShownGreeting(greetingLabel?.() ?? '');
+  };
 
   return (
     <View style={styles.panel}>
@@ -129,6 +144,30 @@ export function DebugPanel({
       <Text style={styles.line}>Asleep {state.asleep ? 'yes' : 'no'}</Text>
       <Text style={styles.line}>Mood {mood}</Text>
       <Text style={styles.line}>Cue {cue.kind}</Text>
+      <Text style={styles.line}>Greeting {shownGreeting || 'none'}</Text>
+      <View style={styles.actions}>
+        <Pressable style={styles.button} onPress={onFlip}>
+          <Text style={styles.buttonLabel}>Turn</Text>
+        </Pressable>
+        {[1, 0.5, 0.2].map((scale) => (
+          <Pressable key={scale} style={styles.button} onPress={() => onTimeScale?.(scale)}>
+            <Text style={styles.buttonLabel}>{scale}×</Text>
+          </Pressable>
+        ))}
+      </View>
+      <View style={styles.actions}>
+        <Pressable style={styles.button} onPress={() => play('short')}>
+          <Text style={styles.buttonLabel}>Short</Text>
+        </Pressable>
+        <Pressable style={styles.button} onPress={() => play('long')}>
+          <Text style={styles.buttonLabel}>Long</Text>
+        </Pressable>
+        {(greetingIds?.() ?? []).map((id) => (
+          <Pressable key={id} style={styles.button} onPress={() => play(id)}>
+            <Text style={styles.buttonLabel}>{id}</Text>
+          </Pressable>
+        ))}
+      </View>
       <Text style={styles.line}>Stage {stageOf(state.ageDays)}</Text>
       <Text style={styles.line}>Senior band {state.seniorBand ?? 'none'}</Text>
       <Text style={styles.line}>Age days {format(state.ageDays)}</Text>

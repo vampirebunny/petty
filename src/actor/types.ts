@@ -28,7 +28,8 @@ export type TaskType =
   | 'groom'
   | 'pounce'
   | 'cuddle'
-  | 'travel';
+  | 'travel'
+  | 'greet';
 
 // Silhouette vocabulary. Each breed picks one value per slot, and the renderer draws the matching shape.
 export type EarType =
@@ -205,6 +206,18 @@ export type Pose = {
   stretch: number;
   // Braking hard to turn: weight back, front feet forward.
   skid: number;
+  // Greeting channels. side is a flop and does not roll the belly.
+  side: number;
+  rearUp: number;
+  headUp: number;
+  headPush: number;
+  jawHold: number;
+  pupils: number;
+  closeUp: number;
+  rubSway: number;
+  legPedal: number;
+  faceCam: number;
+  headFront: number;
 };
 
 export type IdleMode = 'still' | 'pant' | 'purr' | 'nap' | 'walk' | 'zoom';
@@ -219,6 +232,62 @@ export type Task = {
   // How long the current hold lasts (play bow, stalk wiggle, shake, chew), in seconds.
   hold?: number;
   poi?: { x: number; y: number; face?: 1 | -1 };
+  // True while a greeting is the only writer of actor.face.
+  ownsFacing?: boolean;
+  greet?: GreetRun;
+};
+
+export type HeartBit = { x: number; y: number; t: number; life: number };
+
+export type GreetSound = 'yip' | 'woof' | 'howl' | 'whine' | 'meow' | 'trill' | 'purr' | 'yawn';
+
+export type GreetFace = 1 | -1 | 'flip' | 'toward' | 'keep';
+
+export type GreetMove =
+  | { to: 'center' | 'front' | 'left' | 'right' | 'offLeft' | 'offRight' | 'bowl' | 'offEdge'; speed: number }
+  | { dx: number; dy?: number; speed: number };
+
+export type GreetStep = {
+  dur: number;
+  untilArrive?: boolean;
+  pose?: Partial<Pose>;
+  rate?: Partial<Record<keyof Pose, number>>;
+  move?: GreetMove;
+  face?: GreetFace;
+  spin?: boolean;
+  hop?: number;
+  sound?: GreetSound;
+  wag?: { amp: number; rate: number };
+  march?: boolean;
+  toy?: 'pickup' | 'drop';
+  skid?: boolean;
+  hearts?: boolean;
+  patWindow?: boolean;
+};
+
+export type Spin = { rate: number; far: number; home: 1 | -1; returned: boolean };
+
+// Runtime greeting cursor. Steps are not saved.
+export type GreetRun = {
+  steps: GreetStep[];
+  index: number;
+  stepT: number;
+  extra: number;
+  delay: number;
+  storeId: string | null;
+  phase: 'delay' | 'wait' | 'run';
+  armed: boolean;
+  patUsed: boolean;
+  march: boolean;
+  faceCam: number;
+  headFront: number;
+  patWindow: boolean;
+  move: Vec | null;
+  speed: number;
+  untilArrive: boolean;
+  hopAir: number;
+  skid: boolean;
+  poseRates?: Partial<Record<keyof Pose, number>>;
 };
 
 export type Idle = {
@@ -368,6 +437,19 @@ export type Actor = {
   vy: number;
   speed: number;
   face: number;
+  // The facing yaw is currently chasing. A change starts the head lead.
+  yawFace: 1 | -1;
+  yaw: number;
+  // Seconds left before a reversal may rotate the body.
+  lead: number;
+  turning: boolean;
+  // Seconds vx has pointed against face, for the free-movement flip.
+  faceHold: number;
+  spin: Spin | null;
+  pace: number;
+  hopScale: number;
+  hearts: HeartBit[];
+  pendingGreetId: string | null;
   pose: Pose;
   task: Task;
   idle: Idle;
@@ -488,6 +570,12 @@ export type World = {
   noNap?: boolean;
   // The toy a play session uses. Default is the ball.
   toyKind?: string;
+  // Multiplies sim dt. Debug scrubbing uses 0.5 and 0.2.
+  timeScale?: number;
+  // Toys a greeting may carry. Always includes ball.
+  toyPool?: string[];
+  // Id of the greeting currently showing, for the debug panel.
+  greetLabel?: string;
 };
 
 export type ActorSource = {

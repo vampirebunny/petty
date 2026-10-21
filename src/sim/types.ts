@@ -147,6 +147,8 @@ export type PetState = {
   training: Record<string, TrainingTrack>;
   milestones: string[];
   seenCoachMarks: string[];
+  // Second greeting of the last long combo. Shorts and closers are not stored.
+  lastGreetingId?: string;
 };
 
 export type PetEvent =
@@ -189,7 +191,9 @@ export type Cue = {
     | 'stir'
     | 'yawn'
     | 'fetch'
-    | 'confused';
+    | 'confused'
+    | 'greet';
   drop?: { x: number; y: number };
   flick?: { vx: number; vy: number; vz: number };
+  elapsedH?: number;
 };

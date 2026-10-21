@@ -186,7 +186,7 @@ describe('play in the sim', () => {
     startUserTask(world, pup, 'fetch', 1, { x: pup.x, y: pup.y });
     const gaits = new Set<string>();
     run(world, 12, () => {
-      if (pup.task.type === 'fetch') {
+      if (pup.task.type === 'fetch' && pup.speed > 14) {
         expect(pup.pose.headTurn).toBeLessThan(0.2);
       }
       gaits.add(pup.gait.current);

@@ -17,6 +17,9 @@ import { inactivePointer } from '../input/pointer';
 import { toyAllows } from '../items/playRules';
 import type { PlayBehavior } from '../items/playRules';
 import { bodyFrame, depthScale, geomOf, headFaceOf, PET_SIZE, reachOf, speedMax, stageWidth, travelGateX, xRangeOf } from './geometry';
+import { GREET, greetClip, motionMods, planGreeting, scriptFor } from './greetings';
+import type { GreetPlan } from './greetings';
+import { baseYaw, reversingTurn, stepFacing, stepYaw, TURN_SPEED, visualYaw } from './turn';
 import {
   bowHold,
   gaitSpeedCap,
@@ -186,6 +189,16 @@ export function spawnActor(source: ActorSource, at?: Vec): Actor {
     vy: 0,
     speed: 0,
     face: 1,
+    yawFace: 1,
+    yaw: 0,
+    lead: 0,
+    turning: false,
+    faceHold: 0,
+    spin: null,
+    pace: 1,
+    hopScale: 1,
+    hearts: [],
+    pendingGreetId: null,
     pose: defaultPose(),
     task: taskOf(source.asleep ? 'sleep' : 'idle', source.asleep ? 'sleeping' : ''),
     idle: idleOf(),
@@ -361,6 +374,11 @@ export function setWorldScene(world: World, scene: Scene): void {
     actor.vz = 0;
     actor.speed = 0;
     actor.face = 1;
+    actor.yawFace = 1;
+    actor.yaw = 0;
+    actor.lead = 0;
+    actor.turning = false;
+    actor.spin = null;
     actor.bark = { active: false, t: 0, fired: [false, false], open: 0, sound: false };
     if (actor.asleep) {
       actor.task = taskOf('sleep', bed ? 'go' : 'sleeping');
@@ -1002,6 +1020,290 @@ function finishCollapse(world: World, actor: Actor): void {
   goIdle(world, actor);
 }
 
+function spawnHearts(actor: Actor, world: World): void {
+  if (!GREET.HEARTS || world.reducedMotion) {
+    return;
+  }
+  for (let i = 0; i < 3; i += 1) {
+    actor.hearts.push({ x: (world.rng() - 0.5) * 28, y: -36 - world.rng() * 16, t: 0, life: 0.7 + world.rng() * 0.3 });
+  }
+}
+
+function playGreetSound(world: World, actor: Actor, breedId: string, ageDays: number, kind: NonNullable<import('./types').GreetStep['sound']>): void {
+  const clip = greetClip(kind);
+  const breed = breedById(breedId);
+  const rate = (breed ? voiceRate(breed, growthFor(ageDays).scale) : 1) * clip.rate;
+  if (world.sounds.length < 8) {
+    world.sounds.push({ actorId: actor.id, sound: clip.sound, rate });
+  }
+  if (clip.jaw) {
+    actor.bark = { active: true, t: 0, fired: [true, true], open: 0, sound: false };
+  }
+}
+
+function greetPoint(world: World, actor: Actor, step: import('./types').GreetStep): Vec | null {
+  const move = step.move;
+  if (!move) {
+    return null;
+  }
+  const floor = world.scene.floor;
+  const home = homeOf(world.scene);
+  if ('dx' in move) {
+    return { x: actor.x + move.dx, y: actor.y + (move.dy ?? 0) };
+  }
+  if (move.to === 'center') {
+    return home;
+  }
+  if (move.to === 'front') {
+    return { x: home.x, y: floor.yMax };
+  }
+  if (move.to === 'left') {
+    return { x: floor.xMin + 30, y: actor.y };
+  }
+  if (move.to === 'right') {
+    return { x: floor.xMax - 30, y: actor.y };
+  }
+  if (move.to === 'offLeft') {
+    return { x: floor.xMin - 90, y: actor.y };
+  }
+  if (move.to === 'offRight') {
+    return { x: floor.xMax + 90, y: actor.y };
+  }
+  if (move.to === 'offEdge') {
+    const left = floor.xMin - 90;
+    const right = floor.xMax + 90;
+    return { x: Math.abs(actor.x - left) <= Math.abs(actor.x - right) ? left : right, y: actor.y };
+  }
+  const food = poiOf(world.scene, 'food');
+  return food ? { x: food.x, y: food.y } : home;
+}
+
+function faceGreet(actor: Actor, step: import('./types').GreetStep, at: Vec | null): boolean {
+  const before = actor.face >= 0 ? 1 : -1;
+  let next = before;
+  const command = step.face ?? (step.move && !step.spin ? 'toward' : 'keep');
+  if (command === 'flip') {
+    next = before === 1 ? -1 : 1;
+  } else if (command === 1 || command === -1) {
+    next = command;
+  } else if (command === 'toward' && at && Math.abs(at.x - actor.x) > 20) {
+    next = at.x >= actor.x ? 1 : -1;
+  }
+  if (next !== before) {
+    actor.face = next;
+    return true;
+  }
+  return false;
+}
+
+function armGreet(world: World, actor: Actor, run: NonNullable<Task['greet']>, step: import('./types').GreetStep): void {
+  if (step.hop) {
+    actor.vz = step.hop;
+    actor.z = Math.max(actor.z, 0.01);
+    run.hopAir = (2 * step.hop) / gravity;
+  }
+  if (step.sound) {
+    playGreetSound(world, actor, actor.breedId, actor.displayAgeDays, step.sound);
+  }
+  if (step.hearts) {
+    spawnHearts(actor, world);
+  }
+  if (step.toy === 'pickup') {
+    const pool = world.toyPool && world.toyPool.length > 0 ? world.toyPool : ['ball'];
+    world.toyKind = pool[Math.floor(world.rng() * pool.length)] ?? 'ball';
+    world.items = [makeToyItem(world, { state: 'carried', holderId: actor.id, x: actor.x, y: actor.y })];
+  } else if (step.toy === 'drop') {
+    releaseCarried(world, actor);
+  }
+  if (step.spin) {
+    const home = (actor.face >= 0 ? 1 : -1) as 1 | -1;
+    const away = (home === 1 ? -1 : 1) as 1 | -1;
+    const air = Math.max(0.25, run.hopAir || step.dur * actor.pace);
+    actor.face = away;
+    actor.yawFace = away;
+    actor.lead = 0;
+    actor.spin = { rate: (Math.PI * 2) / (0.9 * air), far: baseYaw(away), home, returned: false };
+  }
+}
+
+function runGreet(world: World, actor: Actor, dt: number, targets: Pose, limit: number): { move: Vec | null; vmax: number; wagRate: number } {
+  const run = actor.task.greet;
+  if (!run) {
+    return { move: null, vmax: 0, wagRate: 5 };
+  }
+  if (run.delay > 0) {
+    run.delay = Math.max(0, run.delay - dt);
+    (Object.keys(targets) as (keyof Pose)[]).forEach((key) => {
+      targets[key] = actor.pose[key];
+    });
+    run.faceCam = actor.pose.faceCam;
+    run.headFront = actor.pose.headFront;
+    run.march = false;
+    return { move: null, vmax: 0, wagRate: 5 };
+  }
+  const step = run.steps[run.index];
+  if (!step) {
+    if (run.storeId) {
+      actor.pendingGreetId = run.storeId;
+    }
+    actor.spin = null;
+    world.greetLabel = undefined;
+    goIdle(world, actor);
+    return { move: null, vmax: 0, wagRate: 5 };
+  }
+  const at = greetPoint(world, actor, step);
+  if (!run.armed) {
+    if (step.spin && (actor.turning || actor.lead > 0)) {
+      run.phase = 'wait';
+    } else {
+    const changed = step.spin ? false : faceGreet(actor, step, at);
+    run.armed = true;
+    run.patUsed = false;
+    run.hopAir = 0;
+    if (changed) {
+      run.phase = 'wait';
+    } else {
+      armGreet(world, actor, run, step);
+      run.phase = 'run';
+      run.stepT = 0;
+    }
+    }
+  } else if (run.phase === 'wait' && !actor.turning && actor.lead <= 0 && !step.spin) {
+    armGreet(world, actor, run, step);
+    run.phase = 'run';
+    run.stepT = 0;
+  }
+  if (run.phase === 'run') {
+    run.stepT += dt;
+  }
+  const pose = { ...defaultPose(), ...step.pose };
+  (Object.keys(pose) as (keyof Pose)[]).forEach((key) => {
+    if (key === 'breathAmp' || key === 'breathRate') {
+      return;
+    }
+    targets[key] = pose[key];
+  });
+  targets.wagAmp = step.wag?.amp ?? defaultPose().wagAmp;
+  run.poseRates = step.rate;
+  run.faceCam = step.pose?.faceCam ?? 0;
+  run.headFront = step.pose?.headFront ?? 0;
+  run.march = run.phase === 'run' && !!step.march;
+  run.patWindow = !!step.patWindow;
+  run.skid = !!step.skid && run.phase === 'run';
+  const dur = step.dur * actor.pace + run.extra;
+  const limitDur = run.hopAir > 0 ? Math.max(dur, run.hopAir + 0.05) : dur;
+  const arrived = at != null && Math.hypot(at.x - actor.x, at.y - actor.y) < 14 && actor.speed < 20;
+  const finished = run.phase === 'run' && run.stepT >= limitDur;
+  const arrivedEarly = run.phase === 'run' && !!step.untilArrive && arrived && run.stepT > 0.05;
+  if (finished || arrivedEarly) {
+    run.index += 1;
+    run.stepT = 0;
+    run.extra = 0;
+    run.armed = false;
+    run.phase = 'run';
+    run.hopAir = 0;
+  }
+  const moving = run.phase === 'run' && at != null && !arrived;
+  const speed = step.move ? limit * step.move.speed : 0;
+  const wagRate = step.wag?.rate ?? 5;
+  if (run.skid && step.untilArrive && run.stepT > limitDur * 0.6) {
+    targets.skid = 1;
+  }
+  return { move: moving ? at : null, vmax: moving ? speed : 0, wagRate };
+}
+
+export function beginGreeting(world: World, actor: Actor, plan: GreetPlan): void {
+  const sleeping = actor.asleep || actor.task.type === 'sleep';
+  if (sleeping) {
+    actor.asleep = false;
+    actor.sleepSec = 0;
+    actor.restBonusPaid = false;
+  }
+  goIdle(world, actor);
+  if (plan.start === 'bed') {
+    const bed = poiOf(world.scene, 'bed');
+    if (bed) {
+      actor.x = bed.x;
+      actor.y = bed.y;
+    }
+    actor.pose = { ...actor.pose, lie: 1, headRest: 1, eyes: 1 };
+  } else if (plan.start === 'edge') {
+    const floor = world.scene.floor;
+    const left = floor.xMin - 90;
+    const right = floor.xMax + 90;
+    const useLeft = Math.abs(actor.x - left) <= Math.abs(actor.x - right);
+    actor.x = useLeft ? left : right;
+    actor.face = useLeft ? 1 : -1;
+    actor.yawFace = useLeft ? 1 : -1;
+    actor.yaw = baseYaw(actor.face);
+    actor.lead = 0;
+    actor.turning = false;
+  }
+  actor.vx = 0;
+  actor.vy = 0;
+  actor.task = taskOf('greet');
+  actor.task.ownsFacing = true;
+  actor.task.greet = {
+    steps: plan.steps,
+    index: 0,
+    stepT: 0,
+    extra: 0,
+    delay: GREET.START_DELAY,
+    storeId: plan.storeId,
+    phase: 'delay',
+    armed: false,
+    patUsed: false,
+    march: false,
+    faceCam: 0,
+    headFront: 0,
+    patWindow: false,
+    move: null,
+    speed: 0,
+    untilArrive: false,
+    hopAir: 0,
+    skid: false,
+  };
+  world.greetLabel = plan.label;
+}
+
+export function patGreeting(world: World, actor: Actor): 'bonus' | 'repeat' | 'interrupt' | 'none' {
+  const run = actor.task.type === 'greet' ? actor.task.greet : undefined;
+  if (!run) {
+    return 'none';
+  }
+  if (!run.patWindow) {
+    return 'interrupt';
+  }
+  const kind = breedById(actor.breedId)?.species === 'cat' ? 'purr' : 'whine';
+  playGreetSound(world, actor, actor.breedId, actor.displayAgeDays, kind);
+  spawnHearts(actor, world);
+  if (!run.patUsed) {
+    run.patUsed = true;
+    run.extra += 1.2;
+    return 'bonus';
+  }
+  return 'repeat';
+}
+
+export function takePendingGreeting(actor: Actor): string | null {
+  const id = actor.pendingGreetId;
+  actor.pendingGreetId = null;
+  return id;
+}
+
+export function debugFlipFace(actor: Actor): void {
+  actor.face = actor.face >= 0 ? -1 : 1;
+}
+
+export function debugGreeting(world: World, actor: Actor, id: string, ageDays: number, vitality: number, energy: number): void {
+  const plan = scriptFor(id, ageDays, vitality, energy, world.rng);
+  if (plan) {
+    beginGreeting(world, actor, plan);
+  }
+}
+
+export { planGreeting };
+
 function updateActor(world: World, actor: Actor, dt: number): void {
   const breed = breedById(actor.breedId);
   if (!breed) {
@@ -1023,6 +1325,13 @@ function updateActor(world: World, actor: Actor, dt: number): void {
     }
   }
   const floor = world.scene.floor;
+  const motion = motionMods(actor.displayAgeDays, actor.vitality, actor.energy * 100);
+  actor.pace = motion.pace;
+  actor.hopScale = motion.hop;
+  actor.hearts = actor.hearts.filter((heart) => {
+    heart.t += dt;
+    return heart.t < heart.life;
+  });
   actor.task.t += dt;
   actor.task.cool = Math.max(0, actor.task.cool - dt);
   actor.displayAgeDays = easeDisplay(actor.displayAgeDays, actor.ageDays, dt);
@@ -1095,7 +1404,12 @@ function updateActor(world: World, actor: Actor, dt: number): void {
     actor.weight = clamp(actor.weight - weightBurnPerSec * dt, -1, 1);
   }
 
-  if (actor.direction) {
+  if (actor.task.type === 'greet' && actor.task.greet) {
+    const steered = runGreet(world, actor, dt, targets, limit);
+    move = steered.move;
+    vmax = steered.vmax;
+    wagRate = steered.wagRate;
+  } else if (actor.direction) {
     const directed = steerDirection(actor, limit, targets);
     move = directed.move;
     vmax = directed.vmax;
@@ -1615,9 +1929,15 @@ function updateActor(world: World, actor: Actor, dt: number): void {
   // A scene change walks the pet off-screen, so that path is not clamped in x.
   const traveling = actor.task.type === 'travel';
   const { lo: xLo, hi: xHi } = xRangeOf(floor, frame.geom, frame.scale);
+  const greetWide = actor.task.type === 'greet';
+  const xClampLo = greetWide ? xLo - 110 : xLo;
+  const xClampHi = greetWide ? xHi + 110 : xHi;
+  if (!actor.task.ownsFacing && reversingTurn(actor)) {
+    vmax *= TURN_SPEED;
+  }
   const desired = { x: 0, y: 0 };
   if (move) {
-    const tx = traveling ? move.x : clamp(move.x, xLo, xHi);
+    const tx = traveling ? move.x : clamp(move.x, xClampLo, xClampHi);
     const ty = clamp(move.y, floor.yMin, floor.yMax);
     const dx = tx - actor.x;
     const dy = ty - actor.y;
@@ -1645,18 +1965,27 @@ function updateActor(world: World, actor: Actor, dt: number): void {
     actor.vy += dvy;
   }
   const nextX = actor.x + actor.vx * dt;
-  actor.x = traveling ? nextX : clamp(nextX, xLo, xHi);
+  actor.x = traveling ? nextX : clamp(nextX, xClampLo, xClampHi);
   actor.y = clamp(actor.y + actor.vy * dt, floor.yMin, floor.yMax);
   actor.speed = Math.hypot(actor.vx, actor.vy);
-  // A fast stop skids while the body is still sliding the old way. Facing follows that slide,
-  // and flips as soon as horizontal speed changes sign, so the walk never plays backward.
+  // A fast stop skids while the body is still sliding the old way.
   const reversing = Math.abs(desired.x) > 20 && desired.x * actor.face < 0 && actor.vx * actor.face > 55;
   targets.skid = reversing && actor.z <= 0 ? clamp(actor.speed / 200, 0.4, 1) : 0;
-  const eating = actor.task.type === 'eat' && actor.task.stage === 'eating';
-  if (!eating && Math.abs(actor.vx) > faceDeadzone) {
-    actor.face = actor.vx > 0 ? 1 : -1;
-    actor.anchors.facing = actor.face >= 0 ? 1 : -1;
+  if (actor.task.greet?.skid) {
+    targets.skid = 1;
   }
+  stepFacing(actor, dt, !!actor.task.ownsFacing);
+  actor.anchors.facing = actor.face >= 0 ? 1 : -1;
+  const greeting = actor.task.type === 'greet';
+  const autoCam =
+    !greeting && actor.vy > 0 && Math.abs(actor.vy) > 1.5 * Math.abs(actor.vx) ? 0.5 : 0;
+  const idleCam = !greeting && faceCamera ? 0.5 : 0;
+  targets.faceCam = greeting ? (actor.task.greet?.faceCam ?? 0) : Math.max(autoCam, idleCam);
+  stepYaw(actor, dt, actor.pose.faceCam);
+  const seen = visualYaw(actor.yaw);
+  const signed = actor.face >= 0 ? 1 : -1;
+  const mouthLocal = (actor.mouth.x - actor.x) / (signed * Math.max(frame.scale, 0.01));
+  actor.mouth.x = actor.x + seen.dir * frame.scale * mouthLocal;
   targets.walk = actor.speed > 14 ? 1 : 0;
   if (actor.bark.open > 0.05 && targets.eyes > 0) {
     targets.eyes = 0;
@@ -1666,8 +1995,18 @@ function updateActor(world: World, actor: Actor, dt: number): void {
   const cuddling = actor.task.type === 'cuddle';
   const stationary =
     move == null && actor.speed <= 14 && actor.z <= 0 && !actor.bark.active && (actor.pose.lie < 0.05 || cuddling);
-  targets.headTurn = faceCamera && stationary ? 1 : 0;
-  if (actor.speed > 14 && actor.pose.headTurn > 0.15) {
+  const leadHead = actor.lead > 0 || (actor.turning && Math.abs(baseYaw(actor.face) - actor.yaw) > 0.45);
+  if (greeting) {
+    targets.headTurn = Math.max(actor.task.greet?.headFront ?? 0, leadHead ? 1 : 0);
+  } else if (actor.speed > 14) {
+    targets.headTurn = 0;
+  } else {
+    targets.headTurn = faceCamera && stationary ? 1 : 0;
+    if (leadHead) {
+      targets.headTurn = 1;
+    }
+  }
+  if (!greeting && actor.speed > 14 && actor.pose.headTurn > 0.15) {
     actor.pose.headTurn = 0.15;
   }
   // Gait: chosen from the speed with hysteresis, blended over ~150 ms, and limited by stamina and age.
@@ -1710,9 +2049,19 @@ function updateActor(world: World, actor: Actor, dt: number): void {
   targets.stream = flow.stream * moving;
   targets.tuck = actor.z > 0 ? 1 : 0;
   // Short hops and landings read as one: the legs come under the body in the air.
-  actor.pose = easePose(actor.pose, targets, dt, profile.slowStand);
   const localSpeed = actor.speed / Math.max(frame.scale, 0.01);
-  actor.phase += dt * phaseRate(actor.gait, localSpeed, frame.geom.L, actor.share);
+  let cycle = phaseRate(actor.gait, localSpeed, frame.geom.L, actor.share);
+  const shuffling = !world.reducedMotion && reversingTurn(actor) && actor.speed < 20 && actor.spin == null;
+  if (shuffling) {
+    cycle = Math.max(cycle, Math.PI * 2 * 1.6);
+    targets.walk = Math.max(targets.walk, 0.5);
+  }
+  if (actor.task.greet?.march && !world.reducedMotion) {
+    cycle = Math.max(cycle, Math.PI * 2 * 1.8);
+    targets.walk = Math.max(targets.walk, 0.55);
+  }
+  actor.pose = easePose(actor.pose, targets, dt, profile.slowStand, actor.task.greet?.poseRates);
+  actor.phase += dt * cycle;
   // Match jaw/tongue cadence to breath while panting so a slower idle pant reads as one motion.
   actor.panPh += dt * Math.PI * 2 * (actor.pose.pant > 0.05 ? actor.pose.breathRate : 5);
   actor.chewPh += dt * Math.PI * 2 * 3;
@@ -1757,7 +2106,7 @@ export function update(world: World, dt: number): void {
   if (dt <= 0) {
     return;
   }
-  const step = Math.min(dt, 0.05);
+  const step = Math.min(dt * (world.timeScale ?? 1), 0.05);
   world.t += step;
   updateItems(world, step);
   updateParticles(world, step);

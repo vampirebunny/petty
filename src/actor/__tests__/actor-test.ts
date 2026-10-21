@@ -392,12 +392,16 @@ describe('3/4 head turn', () => {
     pup.task = { type: 'idle', stage: '', t: 0, bats: 0, cool: 0 };
     pup.idle = { mode: 'walk', t: 0, dur: 99, target: { x: pup.x - 220, y: pup.y }, sit: false, arrived: false };
     let reversed = false;
+    let opposed = 0;
     for (let step = 0; step < 100; step += 1) {
       update(world, 0.05);
-      if (pup.speed > 14 && Math.abs(pup.vx) > 8) {
+      const against = pup.speed > 14 && pup.vx * pup.face < 0 && Math.abs(pup.vx) > 40;
+      opposed = against ? opposed + 0.05 : 0;
+      expect(opposed).toBeLessThan(0.2);
+      if (pup.speed > 14 && Math.abs(pup.vx) > 40 && !against) {
         expect(pup.face).toBe(pup.vx > 0 ? 1 : -1);
-        expect(pup.anchors.facing).toBe(pup.face);
       }
+      expect(pup.anchors.facing).toBe(pup.face);
       if (pup.vx < -8) {
         reversed = true;
       }

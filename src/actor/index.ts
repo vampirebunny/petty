@@ -48,6 +48,7 @@ export {
 } from './locomotion';
 export { gaitDefs } from './data/locomotion';
 export { defaultPose, easeInOutSine, easePose, springUp } from './pose';
+export { greetingIds, motionMods, GREET } from './greetings';
 export { cuddleParamsFor, stageFactor } from './data/cuddle';
 export { cuddleBackPath, cuddleTouch, cuddleZoneAt, endCuddle, isCuddling, setCuddleGesturing, takeCuddleOut } from './cuddle';
 export type { CuddleTouch } from './cuddle';
@@ -95,6 +96,12 @@ export {
   takeThirstDelta,
   takeSounds,
   takeWeightDelta,
+  beginGreeting,
+  patGreeting,
+  takePendingGreeting,
+  debugFlipFace,
+  debugGreeting,
+  planGreeting,
   throwFromEdge,
   update,
 } from './sim';

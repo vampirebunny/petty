@@ -36,6 +36,17 @@ export const poseRate: Record<keyof Pose, number> = {
   stream: 6,
   stretch: 8,
   skid: 10,
+  side: 4,
+  rearUp: 8,
+  headUp: 6,
+  headPush: 12,
+  jawHold: 8,
+  pupils: 8,
+  closeUp: 4,
+  rubSway: 6,
+  legPedal: 6,
+  faceCam: 6,
+  headFront: 6,
 };
 
 export function defaultPose(): Pose {
@@ -75,6 +86,17 @@ export function defaultPose(): Pose {
     stream: 0,
     stretch: 0,
     skid: 0,
+    side: 0,
+    rearUp: 0,
+    headUp: 0,
+    headPush: 0,
+    jawHold: 0,
+    pupils: 0,
+    closeUp: 0,
+    rubSway: 0,
+    legPedal: 0,
+    faceCam: 0,
+    headFront: 0,
   };
 }
 
@@ -92,10 +114,16 @@ export function springUp(t: number, damping = 9, freq = 22): number {
 }
 
 // `slow` below 1 makes the sit, lie and stand transitions slower (a late senior lies down and stands up slowly).
-export function easePose(pose: Pose, targets: Pose, dt: number, slow = 1): Pose {
+export function easePose(
+  pose: Pose,
+  targets: Pose,
+  dt: number,
+  slow = 1,
+  rates?: Partial<Record<keyof Pose, number>>,
+): Pose {
   const next = { ...pose };
   (Object.keys(pose) as (keyof Pose)[]).forEach((key) => {
-    const rate = poseRate[key] * (key === 'sit' || key === 'lie' ? slow : 1);
+    const rate = (rates?.[key] ?? poseRate[key]) * (key === 'sit' || key === 'lie' ? slow : 1);
     next[key] = pose[key] + (targets[key] - pose[key]) * (1 - Math.exp(-dt * rate));
   });
   return next;

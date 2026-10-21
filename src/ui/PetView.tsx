@@ -23,6 +23,13 @@ import {
   startSceneEnter,
   startSceneExit,
   startUserTask,
+  beginGreeting,
+  patGreeting,
+  takePendingGreeting,
+  debugFlipFace,
+  debugGreeting,
+  planGreeting,
+  greetingIds,
   statusOf,
   syncActor,
   syncWorldFood,
@@ -49,6 +56,15 @@ import type { Cue, PetState } from '../sim/types';
 import { drawWorld } from './skia/world';
 
 // What the home screen can ask of the pet while Cuddle is on. Points are stage coordinates.
+export type StageHandle = {
+  pat: () => 'bonus' | 'repeat' | 'interrupt' | 'none';
+  flipFace: () => void;
+  setTimeScale: (scale: number) => void;
+  playGreeting: (id: string) => void;
+  greetingIds: () => string[];
+  label: () => string;
+};
+
 export type CuddleHandle = {
   zoneAt: (x: number, y: number) => CuddleZone | null;
   touch: (touch: CuddleTouch) => void;
@@ -60,12 +76,14 @@ export type CuddleHandle = {
 type Props = {
   cuddleActive?: boolean;
   cuddleRef?: Ref<CuddleHandle>;
+  stageRef?: Ref<StageHandle>;
   onCuddleEvent?: (event: CuddleOut | { type: 'interrupted' }) => void;
   pet: PetState;
   cueKind: Cue['kind'];
   cueToken: number;
   drop?: { x: number; y: number };
   flick?: { vx: number; vy: number; vz: number };
+  elapsedH?: number;
   hour: number | null;
   reducedMotion: boolean;
   sceneOverride?: Scene | null;
@@ -78,6 +96,7 @@ type Props = {
   onAte?: () => void;
   onTraveling?: (active: boolean) => void;
   onPointAdds?: (adds: PointAdd[]) => void;
+  onGreeting?: (id: string) => void;
 };
 
 function sourceOf(pet: PetState) {
@@ -113,6 +132,7 @@ export function PetView({
   cueToken,
   drop,
   flick,
+  elapsedH,
   hour,
   reducedMotion,
   sceneOverride,
@@ -125,6 +145,8 @@ export function PetView({
   onAte,
   onTraveling,
   onPointAdds,
+  onGreeting,
+  stageRef,
 }: Props) {
   const { viewWidth, viewHeight } = useStageSize();
   const widthRef = useRef(viewWidth);
@@ -220,9 +242,10 @@ export function PetView({
     redraw,
   ]);
 
-  const pendingCue = useRef<{ kind: typeof cueKind; token: number; drop?: typeof drop; flick?: typeof flick } | null>(null);
-  // Seconds left in the welcome greeting before a hungry idle, when tummy is under 40.
-  const greetIdleLeft = useRef(0);
+  const pendingCue = useRef<{ kind: typeof cueKind; token: number; drop?: typeof drop; flick?: typeof flick; elapsedH?: number } | null>(null);
+  const petRef = useRef(pet);
+  const elapsedRef = useRef(elapsedH);
+  const onGreetingRef = useRef(onGreeting);
 
   const applyCue = useCallback(
     (kind: typeof cueKind, nextDrop?: typeof drop, nextFlick?: typeof flick) => {
@@ -250,9 +273,30 @@ export function PetView({
       } else if (kind === 'purr') {
         startUserTask(world, actor, 'react', 0.8);
       } else if (kind === 'wiggle') {
-        // TODO: replace react with a dedicated hop / tail-wag greet pose.
         startUserTask(world, actor, 'react', 0.2);
-        greetIdleLeft.current = 100 - hungerRef.current < 40 ? 4.5 : 0;
+      } else if (kind === 'greet') {
+        const current = petRef.current;
+        const sleeping = actor.asleep || actor.task.type === 'sleep' || actor.idle.mode === 'nap';
+        const plan = planGreeting({
+          species: breedById(current.breedId)?.species === 'cat' ? 'cat' : 'dog',
+          elapsedH: elapsedRef.current ?? 0,
+          energy: current.needs.energy,
+          affection: current.attributes.current.affection,
+          boldness: current.attributes.current.boldness,
+          affectionPotential: current.attributes.potential.affection,
+          boldnessPotential: current.attributes.potential.boldness,
+          ageDays: current.ageDays,
+          vitality: current.vitality,
+          asleep: sleeping,
+          reduced: reducedRef.current,
+          lastId: current.lastGreetingId ?? null,
+          rng: world.rng,
+        });
+        if (plan) {
+          const pool = current.toys.includes('ball') ? current.toys : ['ball', ...current.toys];
+          world.toyPool = pool;
+          beginGreeting(world, actor, plan);
+        }
       } else if (kind === 'fetch') {
         startUserTask(world, actor, 'fetch', 1, nextDrop, nextFlick);
       }
@@ -298,11 +342,11 @@ export function PetView({
 
   useEffect(() => {
     if (travelRef.current) {
-      pendingCue.current = { kind: cueKind, token: cueToken, drop, flick };
+      pendingCue.current = { kind: cueKind, token: cueToken, drop, flick, elapsedH };
       return;
     }
     applyCue(cueKind, drop, flick);
-  }, [applyCue, cueKind, cueToken, drop, flick]);
+  }, [applyCue, cueKind, cueToken, drop, elapsedH, flick]);
 
   useImperativeHandle(
     cuddleRef,
@@ -333,11 +377,67 @@ export function PetView({
     [],
   );
 
+  useImperativeHandle(
+    stageRef,
+    () => ({
+      pat: () => {
+        const actor = worldRef.current.actors[0];
+        return actor ? patGreeting(worldRef.current, actor) : 'none';
+      },
+      flipFace: () => {
+        const actor = worldRef.current.actors[0];
+        if (actor) {
+          debugFlipFace(actor);
+        }
+      },
+      setTimeScale: (scale: number) => {
+        worldRef.current.timeScale = scale;
+      },
+      playGreeting: (id: string) => {
+        const actor = worldRef.current.actors[0];
+        const current = petRef.current;
+        if (!actor) {
+          return;
+        }
+        if (id === 'short' || id === 'long') {
+          const plan = planGreeting({
+            species: breedById(current.breedId)?.species === 'cat' ? 'cat' : 'dog',
+            elapsedH: id === 'long' ? 13 : 1,
+            energy: current.needs.energy,
+            affection: current.attributes.current.affection,
+            boldness: current.attributes.current.boldness,
+            affectionPotential: current.attributes.potential.affection,
+            boldnessPotential: current.attributes.potential.boldness,
+            ageDays: current.ageDays,
+            vitality: current.vitality,
+            asleep: false,
+            reduced: false,
+            lastId: null,
+            rng: worldRef.current.rng,
+          });
+          if (plan) {
+            beginGreeting(worldRef.current, actor, plan);
+          }
+          return;
+        }
+        debugGreeting(worldRef.current, actor, id, current.ageDays, current.vitality, current.needs.energy);
+      },
+      greetingIds: () => greetingIds(breedById(petRef.current.breedId)?.species === 'cat' ? 'cat' : 'dog'),
+      label: () => worldRef.current.greetLabel ?? '',
+    }),
+    [],
+  );
+
   const cuddleLive = useRef(false);
-  const petRef = useRef(pet);
   useEffect(() => {
     petRef.current = pet;
   }, [pet]);
+  useEffect(() => {
+    elapsedRef.current = elapsedH;
+  }, [elapsedH]);
+  useEffect(() => {
+    onGreetingRef.current = onGreeting;
+  }, [onGreeting]);
   const onCuddleRef = useRef(onCuddleEvent);
   useEffect(() => {
     onCuddleRef.current = onCuddleEvent;
@@ -450,12 +550,9 @@ export function PetView({
       const world = worldRef.current;
       const dt = frameDt(elapsedMs, activeRef.current);
       update(world, dt);
-      if (greetIdleLeft.current > 0) {
-        greetIdleLeft.current -= dt;
-        const actorNow = world.actors[0];
-        if (greetIdleLeft.current <= 0 && actorNow) {
-          startUserTask(world, actorNow, 'idle');
-        }
+      const greeted = world.actors[0] ? takePendingGreeting(world.actors[0]) : null;
+      if (greeted) {
+        onGreetingRef.current?.(greeted);
       }
       const travel = travelRef.current;
       const actor = world.actors[0];
@@ -483,6 +580,9 @@ export function PetView({
           const queued = pendingCue.current;
           pendingCue.current = null;
           if (queued) {
+            if (queued.elapsedH != null) {
+              elapsedRef.current = queued.elapsedH;
+            }
             applyCue(queued.kind, queued.drop, queued.flick);
           }
         }

@@ -1,0 +1,78 @@
+import type { Actor } from './types';
+
+export const TURN_DUR = 0.4;
+export const FLIP_V = 40;
+export const FLIP_T = 0.15;
+export const TURN_SPEED = 0.35;
+const LEAD_S = 0.18;
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+export function baseYaw(face: number): number {
+  return face >= 0 ? 0 : Math.PI;
+}
+
+export function yawTarget(face: number, faceCam: number): number {
+  const cam = clamp(faceCam, 0, 1);
+  const shift = (face >= 0 ? 1 : -1) * cam * (Math.PI / 2 - 0.3);
+  return clamp(baseYaw(face) + shift, 0, Math.PI);
+}
+
+export function visualYaw(yaw: number): { dir: 1 | -1; yc: number; ys: number } {
+  const dir: 1 | -1 = Math.cos(yaw) >= 0 ? 1 : -1;
+  return { dir, yc: Math.abs(Math.cos(yaw)), ys: Math.max(0, Math.sin(yaw)) };
+}
+
+// Free movement only. A greeting owns facing and skips this.
+export function stepFacing(actor: Actor, dt: number, ownsFacing: boolean): void {
+  if (ownsFacing) {
+    actor.faceHold = 0;
+    return;
+  }
+  const eating = actor.task.type === 'eat' && actor.task.stage === 'eating';
+  if (eating) {
+    actor.faceHold = 0;
+    return;
+  }
+  const against = actor.vx * actor.face < 0 && Math.abs(actor.vx) > FLIP_V;
+  actor.faceHold = against ? actor.faceHold + dt : 0;
+  if (actor.faceHold >= FLIP_T) {
+    actor.face = actor.vx > 0 ? 1 : -1;
+    actor.faceHold = 0;
+  }
+}
+
+export function stepYaw(actor: Actor, dt: number, faceCam: number): void {
+  const face: 1 | -1 = actor.face >= 0 ? 1 : -1;
+  if (!actor.spin && face !== actor.yawFace) {
+    actor.yawFace = face;
+    actor.lead = LEAD_S;
+  }
+  const target = actor.spin ? baseYaw(actor.face) : yawTarget(actor.face, faceCam);
+  const pace = Math.max(0.5, actor.pace || 1);
+  const rate = actor.spin ? actor.spin.rate : Math.PI / (TURN_DUR * pace);
+  const reversing = Math.abs(baseYaw(actor.face) - actor.yaw) > 0.35;
+  if (actor.lead > 0 && reversing && !actor.spin) {
+    actor.lead = Math.max(0, actor.lead - dt);
+    actor.turning = true;
+    return;
+  }
+  const delta = target - actor.yaw;
+  const step = Math.min(Math.abs(delta), rate * dt);
+  actor.yaw = clamp(actor.yaw + Math.sign(delta) * step, 0, Math.PI);
+  if (actor.spin && !actor.spin.returned && Math.abs(actor.yaw - actor.spin.far) < 0.08) {
+    actor.face = actor.spin.home;
+    actor.yawFace = actor.spin.home;
+    actor.spin.returned = true;
+  }
+  if (actor.spin?.returned && Math.abs(actor.yaw - baseYaw(actor.face)) < 0.08) {
+    actor.spin = null;
+  }
+  actor.turning = Math.abs(target - actor.yaw) > 0.05 || actor.spin != null || actor.lead > 0;
+}
+
+export function reversingTurn(actor: Actor): boolean {
+  return actor.turning && Math.abs(baseYaw(actor.face) - actor.yaw) > 0.35 && actor.spin == null;
+}
