@@ -14,17 +14,16 @@ type Props = {
   slot: OutfitSlot;
   item: WearItem;
   worn: boolean;
-  tray: boolean;
   onPress: () => void;
   reducedMotion: boolean;
 };
 
 const iconCap = { hat: 60, jacket: 64, glasses: 66, neckwear: 66, boots: 66 };
 
-function ClosetTileInner({ slot, item, worn, tray, onPress, reducedMotion }: Props) {
+function ClosetTileInner({ slot, item, worn, onPress, reducedMotion }: Props) {
   const [lift] = useState(() => new Animated.Value(worn ? -3 : 0));
   const [width, setWidth] = useState(0);
-  const bg = tray ? closet.tray.tile : closet.section.bg;
+  const bg = closet.section.bg;
   const cap = iconCap[slot];
   const size = width > 0 ? Math.min(cap, Math.max(0, width - 8)) : cap;
 
@@ -46,7 +45,7 @@ function ClosetTileInner({ slot, item, worn, tray, onPress, reducedMotion }: Pro
           accessibilityLabel={worn ? `${item.label}, wearing` : item.label}
           accessibilityState={{ selected: worn }}
           onPress={onPress}
-          style={[styles.tile, tray && !worn && styles.tray, worn && styles.worn]}
+          style={[styles.tile, worn && styles.worn]}
         >
           {worn ? (
             <View style={styles.badge}>
@@ -62,7 +61,7 @@ function ClosetTileInner({ slot, item, worn, tray, onPress, reducedMotion }: Pro
           ) : null}
           <Text
             numberOfLines={2}
-            style={[styles.label, tray && !worn && styles.trayLabel, worn && styles.wornLabel]}
+            style={[styles.label, worn && styles.wornLabel]}
           >
             {item.label}
           </Text>
@@ -77,7 +76,6 @@ export const ClosetTile = memo(ClosetTileInner, (prev, next) => {
     prev.slot === next.slot &&
     prev.item.id === next.item.id &&
     prev.worn === next.worn &&
-    prev.tray === next.tray &&
     prev.reducedMotion === next.reducedMotion
   );
 });
@@ -113,9 +111,6 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     gap: 2,
   },
-  tray: {
-    backgroundColor: closet.tray.tile,
-  },
   worn: {
     backgroundColor: closet.tile.selectedBg,
     borderColor: closet.accent,
@@ -136,9 +131,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: fontFamily.extraBold,
     textAlign: 'center',
-  },
-  trayLabel: {
-    color: closet.tray.label,
   },
   wornLabel: {
     color: closet.accentDark,
