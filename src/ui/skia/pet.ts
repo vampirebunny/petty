@@ -623,11 +623,18 @@ export function drawActor(
   const pitch =
     (frame.pitch + pose.headRot - 0.9 * pose.headUp + Math.sin(t * 9) * 0.12 * pose.rubSway + (posed?.head ?? 0)) *
     (1 - 0.7 * Math.max(rig.headFront, rig.rear));
-  const base = torsoPoint(geom, theta, dy, geom.bodyLen / 2 - 14, geom.bodyY - 2);
+  // Side view joins the neck at the front of the chest. Front and back replace that
+  // body with a centered oval, so the same shoulder sits out to the side. A thick
+  // stroke from there flares past the oval and reads as a wide body.
+  const axialK = Math.max(rig.chest, rig.rear);
+  const neckX = geom.bodyLen / 2 - 14;
+  const scaledNeckX = geom.Px + (neckX - geom.Px) * rig.foreshorten;
+  const neckLocalX = scaledNeckX + (0 - scaledNeckX) * axialK;
+  const neckWidth = geom.headR * (1.35 - 0.62 * axialK);
+  const base = torsoPoint(geom, theta, dy, neckLocalX, geom.bodyY - 2);
   if (pose.belly > 0.001) {
     base.y = bodyCenterY + (base.y - bodyCenterY) * bellyScale;
   }
-  const neckWidth = geom.headR * 1.35;
   strokeLine(c, base.x, base.y, head.x - 2, head.y + 3, baseColor, neckWidth);
   const nx = head.x - 2 - base.x;
   const ny = head.y + 3 - base.y;
