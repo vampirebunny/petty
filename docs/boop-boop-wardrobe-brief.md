@@ -117,7 +117,7 @@ Item shapes:
 - **Bow tie:** thin band plus two outlined triangle wings and a knot, centered just below the chin.
 - **Scarf:** thick band plus two tails trailing behind the neck that wave with speed.
 
-In the 3/4 head turn (`face.turn`, `face.front` > 0), neckwear moves under the jaw and centers as the face turns fully forward. The face is drawn over it. Hats still widen with the turn, and glasses switch to two lenses with an arched bridge.
+In the 3/4 head turn (`face.turn`, `face.front` > 0), neckwear eases from the neck toward the throat under the jaw (`collarJawBlend`, never a full jump to the muzzle tip — that put sit bandanas out on the chest). The face is drawn over it. Hats still widen with the turn, and glasses switch to two lenses with an arched bridge.
 
 When the neck is nearly horizontal (sleep and lie, especially with `headRest`), the head often sits on the shoulders and a normal across-the-neck band would slash through the face. In that case: park the chin on the short head→body segment, draw a short strap under the jaw along the neck, shrink tags and hanging tips, and paint neckwear under the head so the face covers any leftover overlap.
 

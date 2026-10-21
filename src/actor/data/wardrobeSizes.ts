@@ -15,10 +15,12 @@ export const wardrobeSizes = {
   neckFlatShrink: 0.85,
   // Tag/bell hang and bandana tip shrink when the neck is flat so they do not sit on the floor.
   neckFlatHang: 0.8,
-  // Turned collar sits this far back from the muzzle center, in muzzle radii, so the tag clears the mouth.
-  collarJawBack: 0.45,
+  // Turned collar sits this far back from the muzzle tip, in muzzle radii (1 ≈ rear of the muzzle / throat).
+  collarJawBack: 1.05,
   // Extra drop below the muzzle underside, fraction of headR. Clears the mouth, tag still meets the band.
-  collarJawDrop: 0.16,
+  collarJawDrop: 0.12,
+  // How far a turned head pulls the chin from the neck toward the jaw. Keep below 1 so sit/3/4 stays on the neck.
+  collarJawBlend: 0.38,
   collarBand: 0.22,
   collarTag: 0.3,
   collarStud: 0.08,

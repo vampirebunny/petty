@@ -208,7 +208,8 @@ export function chinAnchor(head: Pt, base: Pt, r: number, pitch: number, cat: bo
     dist = dist * (1 - flat) + Math.min(along, len * 0.55) * flat;
   }
   const neck = { x: head.x + dx * dist, y: head.y + dy * dist };
-  // Sleep and lie keep the strap on the neck. A turned head, even with a short neck, wears it under the jaw.
+  // Sleep and lie keep the strap on the neck. A turned head eases toward the throat under the jaw,
+  // but never leaves the neck entirely — full blend put sit/3/4 bandanas out on the chest.
   if (!jaw || view <= 0.001 || flat > 0.45) {
     return neck;
   }
@@ -216,9 +217,10 @@ export function chinAnchor(head: Pt, base: Pt, r: number, pitch: number, cat: bo
   const sn = Math.sin(pitch);
   const jx = jaw.x * cs - jaw.y * sn;
   const jy = jaw.x * sn + jaw.y * cs;
+  const blend = view * sizes.collarJawBlend;
   return {
-    x: neck.x + (head.x + jx - neck.x) * view,
-    y: neck.y + (head.y + jy - neck.y) * view,
+    x: neck.x + (head.x + jx - neck.x) * blend,
+    y: neck.y + (head.y + jy - neck.y) * blend,
   };
 }
 
