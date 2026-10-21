@@ -1,5 +1,6 @@
 import { bagSpanDays, bagStartDay, visualLifespanDays } from '../../sim/config';
 import { canBehave, isUserTask, reactionFor } from '../behavior';
+import { visualYaw } from '../turn';
 import { breedsFor, dogBreeds } from '../breeds';
 import { bagAmount, geomOf, headFaceOf, noseOf, thickOf } from '../geometry';
 import { growthFor } from '../growth';
@@ -289,7 +290,7 @@ it('gives energy after a user sleep of at least five seconds', () => {
   }
   expect(pup.task.stage).toBe('go');
   expect(takeEnergyDelta(pup)).toBe(0);
-  expect(takeEnergyPops(pup)).toBe(0);
+  expect(takeEnergyPops(pup)).toEqual([]);
 
   pup.x = 110;
   pup.y = 542;
@@ -306,13 +307,47 @@ it('gives energy after a user sleep of at least five seconds', () => {
     update(world, 0.05);
   }
   expect(takeEnergyDelta(pup)).toBe(0);
-  expect(takeEnergyPops(pup)).toBe(0);
+  expect(takeEnergyPops(pup)).toEqual([]);
 
-  for (let step = 0; step < 120; step += 1) {
+  for (let step = 0; step < 100; step += 1) {
     update(world, 0.05);
   }
-  expect(takeEnergyDelta(pup)).toBeCloseTo(10, 5);
-  expect(takeEnergyPops(pup)).toBe(1);
+  expect(takeEnergyDelta(pup)).toBeCloseTo(5, 5);
+  expect(takeEnergyPops(pup)).toEqual([5]);
+
+  for (let step = 0; step < 100; step += 1) {
+    update(world, 0.05);
+  }
+  expect(takeEnergyDelta(pup)).toBeCloseTo(5, 5);
+  expect(takeEnergyPops(pup)).toEqual([5]);
+});
+
+it('tops up the last sleep tick so energy stops at 100', () => {
+  const pup = actor();
+  pup.energy = 0.97;
+  const world = createWorld([pup], 13);
+  pup.x = 110;
+  pup.y = 542;
+  startUserTask(world, pup, 'sleep');
+  for (let step = 0; step < 20 && pup.task.stage !== 'sleeping'; step += 1) {
+    update(world, 0.05);
+  }
+  expect(pup.task.stage).toBe('sleeping');
+  takeEnergyDelta(pup);
+  takeEnergyPops(pup);
+  for (let step = 0; step < 100; step += 1) {
+    update(world, 0.05);
+  }
+  expect(takeEnergyDelta(pup)).toBeCloseTo(3, 5);
+  expect(takeEnergyPops(pup)).toEqual([3]);
+  expect(pup.energy).toBeCloseTo(1, 5);
+
+  for (let step = 0; step < 200; step += 1) {
+    update(world, 0.05);
+  }
+  expect(takeEnergyDelta(pup)).toBe(0);
+  expect(takeEnergyPops(pup)).toEqual([]);
+  expect(pup.energy).toBeCloseTo(1, 5);
 });
 
 it('collapses to sleep at empty energy and wakes with a little energy', () => {
@@ -392,11 +427,12 @@ describe('3/4 head turn', () => {
     let opposed = 0;
     for (let step = 0; step < 100; step += 1) {
       update(world, 0.05);
-      const against = pup.speed > 14 && pup.vx * pup.face < 0 && Math.abs(pup.vx) > 40;
+      const against = pup.speed > 14 && pup.vx * visualYaw(pup.yaw).dir < 0 && Math.abs(pup.vx) > 8;
       opposed = against ? opposed + 0.05 : 0;
-      expect(opposed).toBeLessThan(0.2);
-      if (pup.speed > 14 && Math.abs(pup.vx) > 40 && !against) {
+      expect(opposed).toBeLessThan(0.05);
+      if (pup.speed > 14 && Math.abs(pup.vx) > 8) {
         expect(pup.face).toBe(pup.vx > 0 ? 1 : -1);
+        expect(visualYaw(pup.yaw).dir).toBe(pup.vx > 0 ? 1 : -1);
       }
       expect(pup.anchors.facing).toBe(pup.face);
       if (pup.vx < -8) {
@@ -404,6 +440,32 @@ describe('3/4 head turn', () => {
       }
     }
     expect(reversed).toBe(true);
+  });
+
+  it('turns toward the bed before walking there to sleep', () => {
+    const pup = actor();
+    const world = createWorld([pup], 1);
+    pup.x = 300;
+    pup.face = 1;
+    pup.yaw = 0;
+    pup.yawFace = 1;
+    startUserTask(world, pup, 'sleep');
+    const bedX = pup.task.poi?.x ?? 0;
+    expect(bedX).toBeLessThan(pup.x);
+    let turned = false;
+    for (let step = 0; step < 80; step += 1) {
+      update(world, 0.05);
+      const walkingAway = pup.speed > 14 && Math.abs(pup.vx) > 8;
+      if (walkingAway) {
+        expect(visualYaw(pup.yaw).dir).toBe(pup.vx > 0 ? 1 : -1);
+        expect(pup.face).toBe(visualYaw(pup.yaw).dir);
+      }
+      if (pup.x < 300 - 30) {
+        turned = visualYaw(pup.yaw).dir === -1;
+        break;
+      }
+    }
+    expect(turned).toBe(true);
   });
 
   it('never shows a turned head while the pet is moving', () => {

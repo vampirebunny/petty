@@ -4,6 +4,7 @@ import {
   activityThirstPerHour,
   collapseSleepSec,
   collapseWakeEnergy,
+  sleepEnergyGain,
   decayPerHour,
   healthyWeightBand,
   overweightPlayWeightBonus,
@@ -21,7 +22,7 @@ import { applyGesture, gestureOwns, gestureWantsCamera } from './gestures';
 import { GREET, greetClip, motionMods, planGreeting, scriptFor } from './greetings';
 import type { GreetPlan } from './greetings';
 import { cancelJump, jump, jumpConfig, jumpOwnsMotion, resolveJump, stepJump } from './jump';
-import { baseYaw, reversingTurn, stepFacing, stepYaw, TURN_SPEED, visualYaw } from './turn';
+import { baseYaw, reversingTurn, stepFacing, stepYaw, visualYaw } from './turn';
 import {
   bowHold,
   gaitSpeedCap,
@@ -226,8 +227,7 @@ export function spawnActor(source: ActorSource, at?: Vec): Actor {
     asleep: source.asleep,
     collapseLeft: 0,
     sleepSec: 0,
-    restBonusPaid: false,
-    energyPops: 0,
+    energyPops: [],
     moodPops: [],
     mouth: { x, y },
     anchors: emptyAnchors(),
@@ -332,7 +332,6 @@ export function syncActor(actor: Actor, source: ActorSource): void {
   actor.stats = source.stats ? { ...source.stats } : actor.stats;
   if (actor.collapseLeft <= 0 && actor.asleep !== source.asleep) {
     actor.sleepSec = 0;
-    actor.restBonusPaid = false;
     actor.asleep = source.asleep;
     actor.task = taskOf(source.asleep ? 'sleep' : 'idle', source.asleep ? 'sleeping' : '');
     actor.pantT = 0;
@@ -665,16 +664,28 @@ function goIdle(world: World, actor: Actor): void {
   beginIdle(world, actor, 'still');
 }
 
-function grantRestEnergy(actor: Actor): void {
-  actor.pendingEnergy += collapseWakeEnergy;
-  actor.energy = Math.max(actor.energy, Math.min(1, actor.energy + collapseWakeEnergy / 100));
-  actor.energyPops += 1;
+// Pays up to `requested` energy points, never past 100. Returns the points actually added.
+function grantEnergyPop(actor: Actor, requested: number): number {
+  const room = 100 - actor.energy * 100;
+  if (room <= 0.001 || requested <= 0) {
+    return 0;
+  }
+  const raw = Math.min(requested, room);
+  const gain = Math.abs(raw - Math.round(raw)) < 1e-4 ? Math.round(raw) : raw;
+  actor.pendingEnergy += gain;
+  actor.energy = Math.min(1, actor.energy + gain / 100);
+  actor.energyPops.push(gain);
+  return gain;
 }
 
-export function takeEnergyPops(actor: Actor): number {
-  const count = actor.energyPops;
-  actor.energyPops = 0;
-  return count;
+function grantRestEnergy(actor: Actor): void {
+  grantEnergyPop(actor, collapseWakeEnergy);
+}
+
+export function takeEnergyPops(actor: Actor): number[] {
+  const amounts = actor.energyPops;
+  actor.energyPops = [];
+  return amounts;
 }
 
 export function takeMoodPops(actor: Actor): number[] {
@@ -697,7 +708,6 @@ export function startUserTask(
   if (task === 'wake') {
     actor.asleep = false;
     actor.sleepSec = 0;
-    actor.restBonusPaid = false;
     goIdle(world, actor);
     return true;
   }
@@ -707,7 +717,6 @@ export function startUserTask(
     releaseCarried(world, actor);
     actor.asleep = true;
     actor.sleepSec = 0;
-    actor.restBonusPaid = false;
     actor.task = taskOf('sleep', bed ? 'go' : 'sleeping');
     actor.task.poi = bed ?? undefined;
     actor.pantT = 0;
@@ -717,7 +726,6 @@ export function startUserTask(
   if (actor.asleep) {
     actor.asleep = false;
     actor.sleepSec = 0;
-    actor.restBonusPaid = false;
   }
   // Another request ends Cuddle. A voice rides on top of it, so speak leaves it alone.
   if (task !== 'cuddle' && task !== 'speak' && actor.cuddle) {
@@ -1264,7 +1272,6 @@ export function beginGreeting(world: World, actor: Actor, plan: GreetPlan): void
   if (sleeping) {
     actor.asleep = false;
     actor.sleepSec = 0;
-    actor.restBonusPaid = false;
   }
   goIdle(world, actor);
   if (plan.start === 'bed') {
@@ -1367,9 +1374,12 @@ function updateActor(world: World, actor: Actor, dt: number): void {
   }
   if (actor.asleep && actor.collapseLeft <= 0 && actor.task.type === 'sleep' && actor.task.stage === 'sleeping') {
     actor.sleepSec += dt;
-    if (!actor.restBonusPaid && actor.sleepSec >= collapseSleepSec) {
-      actor.restBonusPaid = true;
-      grantRestEnergy(actor);
+    while (actor.sleepSec + 1e-6 >= collapseSleepSec) {
+      actor.sleepSec -= collapseSleepSec;
+      if (grantEnergyPop(actor, sleepEnergyGain) <= 0) {
+        actor.sleepSec = 0;
+        break;
+      }
     }
   }
   const floor = world.scene.floor;
@@ -1988,9 +1998,6 @@ function updateActor(world: World, actor: Actor, dt: number): void {
   const greetWide = actor.task.type === 'greet';
   const xClampLo = greetWide ? xLo - 110 : xLo;
   const xClampHi = greetWide ? xHi + 110 : xHi;
-  if (!actor.task.ownsFacing && reversingTurn(actor)) {
-    vmax *= TURN_SPEED;
-  }
   const desired = { x: 0, y: 0 };
   if (move && !(actor.jump && jumpOwnsMotion(actor))) {
     const tx = traveling ? move.x : clamp(move.x, xClampLo, xClampHi);
@@ -2003,6 +2010,30 @@ function updateActor(world: World, actor: Actor, dt: number): void {
       desired.x = (dx / distance) * speed;
       desired.y = (dy / distance) * speed;
     }
+  }
+  // A destination on the other side starts the yaw immediately. The pet turns in place
+  // until the drawn facing matches that direction, then walks. A fast stop still skids first.
+  const visual = visualYaw(actor.yaw).dir;
+  const eating = actor.task.type === 'eat' && actor.task.stage === 'eating';
+  const scriptedSkid = actor.direction?.pose === 'skid' || !!actor.task.greet?.skid;
+  const skidding = Math.abs(desired.x) > 20 && desired.x * actor.face < 0 && actor.vx * actor.face > 55;
+  const aimed = Math.abs(desired.x) > faceDeadzone;
+  if (
+    aimed &&
+    desired.x * actor.face < 0 &&
+    !actor.task.ownsFacing &&
+    !eating &&
+    !actor.jump &&
+    !skidding &&
+    !scriptedSkid
+  ) {
+    actor.face = desired.x > 0 ? 1 : -1;
+  }
+  if (aimed && desired.x * visual < 0 && !actor.task.ownsFacing && !actor.jump && !skidding && !scriptedSkid) {
+    desired.x = 0;
+    desired.y = 0;
+    actor.vx = 0;
+    actor.vy = 0;
   }
   // Velocity eases toward the wish, but no faster than the pet can speed up or brake (agility, weight, age).
   // A jump keeps the velocity it left the ground with.

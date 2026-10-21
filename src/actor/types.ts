@@ -495,12 +495,10 @@ export type Actor = {
   asleep: boolean;
   // Seconds left in a collapse nap after energy hits 0. 0 means not collapsing.
   collapseLeft: number;
-  // Seconds the current user-requested sleep has lasted, for the rest energy bonus.
+  // Seconds toward the next rest-energy tick. A user sleep pays every 5 seconds.
   sleepSec: number;
-  // True after this nap has already paid the +10 energy, so it only fires once.
-  restBonusPaid: boolean;
-  // How many +10 energy pops are waiting to be shown.
-  energyPops: number;
+  // Energy-point amounts waiting to be shown, one per rest or collapse burst.
+  energyPops: number[];
   // Mood-point amounts waiting to be shown, one per cuddle burst.
   moodPops: number[];
   mouth: Vec;

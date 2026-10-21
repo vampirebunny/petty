@@ -35,6 +35,8 @@ export const playHappinessGain = 3;
 // Empty energy drops the pet for this long, then they wake with a little energy back.
 export const collapseSleepSec = 5;
 export const collapseWakeEnergy = 10;
+// User sleep pays this much energy on each 5 second mark, until energy is full.
+export const sleepEnergyGain = 5;
 
 export const wakeAtEnergy = 100;
 

@@ -20,7 +20,7 @@ The pet no longer flips across its profile. Logical facing stays on `actor.face`
 
 ## Who writes facing
 
-Free movement flips `face` only after horizontal speed has pointed the other way faster than 40 for 0.15 s, and it caps speed at 0.35 while that turn lasts. Fetch and eat still set `face` immediately, which starts the same turn. A greeting owns facing: only the script writes `face`, and the speed cap does not apply. A scripted face change waits until the turn finishes before the step moves. A spin is the exception: its own flips happen in the air with the hop, after any previous turn has finished.
+Free movement facing a destination turns in place: `face` follows that destination as soon as the step is real, and the pet does not walk until the drawn yaw faces the same way. A fast stop still skids with the old facing until horizontal speed falls off. Coasting with no destination still flips only after speed has pointed the other way faster than 40 for 0.15 s. Fetch and eat still set `face` immediately, which starts the same turn. A greeting owns facing: only the script writes `face`, and the in-place hold does not apply. A scripted face change waits until the turn finishes before the step moves. A spin is the exception: its own flips happen in the air with the hop, after any previous turn has finished.
 
 `faceCam` has one writer. During a greeting it is the step value, or 0 when the step omits it. Otherwise it is 0.5 when the pet walks down the screen or is idle in still, pant, or purr. Idle still, pant, and purr also keep today's 3/4 head while stationary. A greeting may hold `headFront` while walking.
 

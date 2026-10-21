@@ -50,7 +50,7 @@ import {
 import { useStageSize } from './useStageSize';
 import type { CuddleOut, CuddleTouch, CuddleZone, Scene, TimeOfDay, World } from '../actor';
 import { playVoice } from '../audio/voice';
-import { attributeScore, collapseWakeEnergy, feedEnergyGain, feedHungerDrop } from '../sim';
+import { attributeScore, feedEnergyGain, feedHungerDrop } from '../sim';
 import type { PointAdd } from './cuddle/pointAdds';
 import type { Cue, PetState } from '../sim/types';
 import { drawWorld } from './skia/world';
@@ -634,12 +634,13 @@ export function PetView({
         flushThirst(false);
         const pops = takeEnergyPops(actor);
         const moodPops = takeMoodPops(actor);
-        if (pops > 0 || moodPops.length > 0) {
+        if (pops.length > 0 || moodPops.length > 0) {
           const sc = actor.anchors.scale || 1;
           const x = actor.x + actor.face * sc * actor.anchors.head.x;
           const y = actor.y - actor.z + sc * (actor.anchors.head.y - actor.anchors.head.radius) - 18;
-          for (let i = 0; i < pops; i += 1) {
-            pointAdds.push({ kind: 'energy', x, y, amount: collapseWakeEnergy });
+          for (const amount of pops) {
+            pointAdds.push({ kind: 'energy', x, y, amount });
+            energyRef.current = Math.min(100, energyRef.current + amount);
           }
           for (const amount of moodPops) {
             pointAdds.push({ kind: 'mood', x, y, amount });

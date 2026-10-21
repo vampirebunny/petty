@@ -3,7 +3,6 @@ import type { Actor } from './types';
 export const TURN_DUR = 0.4;
 export const FLIP_V = 40;
 export const FLIP_T = 0.15;
-export const TURN_SPEED = 0.35;
 const LEAD_S = 0.18;
 
 function clamp(value: number, min: number, max: number): number {
