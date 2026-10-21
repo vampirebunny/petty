@@ -414,7 +414,23 @@ export function steerAim(from: Vec, goal: Vec, obstacles: Obstacle[], floor: Flo
     }
   }
   if (blocked) {
-    return clampToFloor(outsidePoint(blocked, from.x - blocked.x, from.y - blocked.y), floor);
+    // Step out toward the goal, not only straight away from the middle. A straight-out step
+    // beside a wall points off the floor, and the pet stays inside and never reaches the bowl.
+    const gx = goal.x - from.x;
+    const gy = goal.y - from.y;
+    const rx = (from.x - blocked.x) / blocked.hw;
+    const ry = (from.y - blocked.y) / blocked.hd;
+    const rlen = Math.hypot(rx, ry);
+    let vx = gx;
+    let vy = gy;
+    if (rlen > 0.15) {
+      const tx = -ry / rlen;
+      const ty = rx / rlen;
+      const sign = tx * gx + ty * gy >= 0 ? 1 : -1;
+      vx = rx / rlen + sign * tx;
+      vy = ry / rlen + sign * ty;
+    }
+    return clampToFloor(outsidePoint(blocked, vx, vy), floor);
   }
 
   let nearest: Obstacle | null = null;

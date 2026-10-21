@@ -92,6 +92,7 @@ export {
   syncWorldFood,
   syncWorldWater,
   takeBowlDrinks,
+  takePondDrinks,
   takeMeals,
   takeEnergyDelta,
   takeEnergyPops,

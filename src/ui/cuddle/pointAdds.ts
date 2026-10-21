@@ -1,4 +1,4 @@
-export type PointKind = 'energy' | 'tummy' | 'mood';
+export type PointKind = 'energy' | 'tummy' | 'mood' | 'hydration';
 
 export type PointAdd = {
   kind: PointKind;

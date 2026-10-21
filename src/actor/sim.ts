@@ -307,6 +307,7 @@ export function createWorld(actors: Actor[], seed = 1, scene: Scene = scenes.liv
     waterLevel: 1,
     bowlFill: 1,
     pendingBowlDrinks: 0,
+    pendingPondDrinks: 0,
     foodStocked: false,
     pendingMeals: 0,
     t: 0,
@@ -558,6 +559,12 @@ export function flickBallAt(
 export function takeBowlDrinks(world: World): number {
   const count = world.pendingBowlDrinks;
   world.pendingBowlDrinks = 0;
+  return count;
+}
+
+export function takePondDrinks(world: World): number {
+  const count = world.pendingPondDrinks;
+  world.pendingPondDrinks = 0;
   return count;
 }
 
@@ -1695,8 +1702,12 @@ function updateActor(world: World, actor: Actor, dt: number): void {
         targets.wagAmp = 0.35;
       }
       if (actor.task.t > 6) {
-        if (actor.task.kind === 'drink' && hasRefillableBowl(world.scene)) {
-          world.pendingBowlDrinks += 1;
+        if (actor.task.kind === 'drink') {
+          if (hasRefillableBowl(world.scene)) {
+            world.pendingBowlDrinks += 1;
+          } else {
+            world.pendingPondDrinks += 1;
+          }
         }
         if (actor.task.kind !== 'drink' && world.foodStocked) {
           world.pendingMeals += 1;

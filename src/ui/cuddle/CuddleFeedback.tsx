@@ -2,7 +2,7 @@ import { useCallback, useEffect, useImperativeHandle, useRef, useState } from 'r
 import type { Ref } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
-import { Bone, Heart, Zap } from 'lucide-react-native';
+import { Bone, Droplet, Heart, Zap } from 'lucide-react-native';
 
 import { playPointPop } from '../../audio/badge';
 import { theme } from '../theme';
@@ -19,7 +19,7 @@ export type FeedbackHandle = {
 
 type Spark = {
   id: number;
-  kind: 'trail' | 'heart' | 'energy' | 'tummy' | 'mood';
+  kind: 'trail' | 'heart' | 'energy' | 'tummy' | 'mood' | 'hydration';
   x: number;
   y: number;
   dur: number;
@@ -218,6 +218,14 @@ export function CuddleFeedback({ feedbackRef, reducedMotion }: Props) {
             reduced={reducedMotion}
             tint={{ bg: '#FFE3EC', edge: '#F5B5C9', strong: '#FF7BA5', ink: '#8A1F4B' }}
             icon={Heart}
+          />
+        ) : spark.kind === 'hydration' ? (
+          <FloatingNeed
+            key={spark.id}
+            spark={spark}
+            reduced={reducedMotion}
+            tint={{ bg: '#E4F9F8', edge: '#9DE5E2', strong: '#1CA39D', ink: '#0D4A47' }}
+            icon={Droplet}
           />
         ) : (
           <FloatingHeart key={spark.id} spark={spark} reduced={reducedMotion} />

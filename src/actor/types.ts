@@ -595,6 +595,8 @@ export type World = {
   waterLevel: number;
   bowlFill: number;
   pendingBowlDrinks: number;
+  // Drinks from water that is not a bowl, such as the pond.
+  pendingPondDrinks: number;
   // Food waiting in the bowl, and meals finished since the view last looked.
   foodStocked: boolean;
   pendingMeals: number;

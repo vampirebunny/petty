@@ -15,13 +15,16 @@ import {
   spawnActor,
   stagePoint,
   startUserTask,
+  takeBowlDrinks,
   takeEnergyDelta,
   takeEnergyPops,
   takeHungerDelta,
   takeHydrationDelta,
+  takePondDrinks,
   takeWeightDelta,
   update,
 } from '../sim';
+import { scenes } from '../scenes';
 import type { ActorSource } from '../types';
 
 function source(overrides: Partial<ActorSource> = {}): ActorSource {
@@ -527,6 +530,24 @@ describe('3/4 head turn', () => {
     expect(settled === 'E' || settled === 'W').toBe(true);
     expect(pup.pose.headTurn).toBeGreaterThan(0.8);
   });
+});
+
+it('counts a finished drink from a bowl and from the pond', () => {
+  const finish = (scene: typeof scenes.livingroom) => {
+    const pup = actor();
+    const world = createWorld([pup], 1, scene);
+    expect(startUserTask(world, pup, 'drink')).toBe(true);
+    pup.task.stage = 'eating';
+    pup.task.t = 6;
+    update(world, 0.05);
+    return world;
+  };
+  const bowl = finish(scenes.livingroom);
+  expect(takeBowlDrinks(bowl)).toBe(1);
+  expect(takePondDrinks(bowl)).toBe(0);
+  const pond = finish(scenes.park);
+  expect(takeBowlDrinks(pond)).toBe(0);
+  expect(takePondDrinks(pond)).toBe(1);
 });
 
 describe('depth scale', () => {

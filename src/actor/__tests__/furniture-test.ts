@@ -1,10 +1,41 @@
 import { applyEvent } from '../../sim/events';
 import { testPet } from '../../sim/__fixtures__/pets';
-import { sceneForSpecies, scenes } from '../scenes';
 import { applyFurniture, furnitureAt, starterFurniture, steerAim } from '../furniture';
+import { sceneForSpecies, scenes } from '../scenes';
+import { createWorld, spawnActor, startUserTask, update } from '../sim';
 
 const floor = { xMin: 0, xMax: 640, yMin: 200, yMax: 650 };
 const bowl = { id: 'bowl', x: 300, y: 400, hw: 34, hd: 28 };
+
+it('reaches the food bowl from inside the litter box and the water bowl', () => {
+  const pet = testPet(1, 'domesticShorthair', 10, 'Kit', 'cat');
+  const scene = applyFurniture(scenes.livingroom, pet.furniture, pet.furniturePlaced);
+  for (const [x, y] of [
+    [80, 360],
+    [143, 360],
+    [500, 560],
+    [560, 560],
+  ] as const) {
+    const actor = spawnActor({
+      id: 'pet',
+      breedId: 'domesticShorthair',
+      ageDays: 80,
+      weight: 0,
+      vitality: 1,
+      equipped: {},
+      asleep: false,
+    });
+    actor.x = x;
+    actor.y = y;
+    const world = createWorld([actor], 1, scene);
+    world.foodStocked = true;
+    expect(startUserTask(world, actor, 'eat')).toBe(true);
+    for (let i = 0; i < 900 && actor.task.stage !== 'eating'; i += 1) {
+      update(world, 0.05);
+    }
+    expect(actor.task.stage).toBe('eating');
+  }
+});
 
 it('walks onto a bowl it is using and around one that is in the way', () => {
   const open = steerAim({ x: 100, y: 400 }, { x: 300, y: 400 }, [], floor);

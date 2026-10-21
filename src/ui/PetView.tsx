@@ -36,6 +36,7 @@ import {
   syncWorldWater,
   takeBowlDrinks,
   takeMeals,
+  takePondDrinks,
   takeCuddleOut,
   takeSounds,
   takeEnergyDelta,
@@ -50,7 +51,7 @@ import {
 import { useStageSize } from './useStageSize';
 import type { CuddleOut, CuddleTouch, CuddleZone, Scene, TimeOfDay, World } from '../actor';
 import { playVoice } from '../audio/voice';
-import { attributeScore, feedEnergyGain, feedHungerDrop } from '../sim';
+import { attributeScore, drinkHydrationGain, feedEnergyGain, feedHungerDrop } from '../sim';
 import type { PointAdd } from './cuddle/pointAdds';
 import type { Cue, PetState } from '../sim/types';
 import { applyFurniture, furnitureAt, movePiece, syncFurniture } from '../actor/furniture';
@@ -564,6 +565,8 @@ export function PetView({
   hungerRef.current = pet.needs.hunger;
   const energyRef = useRef(pet.needs.energy);
   energyRef.current = pet.needs.energy;
+  const hydrationRef = useRef(pet.hydration);
+  hydrationRef.current = pet.hydration;
   const statusRef = useRef('');
 
   const step = useCallback(
@@ -631,9 +634,26 @@ export function PetView({
         }
         onAteRef.current?.();
       }
-      const drinks = takeBowlDrinks(world);
-      for (let i = 0; i < drinks; i += 1) {
+      const bowlDrinks = takeBowlDrinks(world);
+      const pondDrinks = takePondDrinks(world);
+      const drinkCount = bowlDrinks + pondDrinks;
+      if (actor && drinkCount > 0) {
+        const sc = actor.anchors.scale || 1;
+        const x = actor.x + actor.face * sc * actor.anchors.head.x;
+        const y = actor.y - actor.z + sc * (actor.anchors.head.y - actor.anchors.head.radius) - 18;
+        for (let i = 0; i < drinkCount; i += 1) {
+          const hydration = Math.min(drinkHydrationGain, Math.max(0, 100 - hydrationRef.current));
+          if (hydration > 0) {
+            pointAdds.push({ kind: 'hydration', x, y, amount: hydration });
+            hydrationRef.current = Math.min(100, hydrationRef.current + hydration);
+          }
+        }
+      }
+      for (let i = 0; i < bowlDrinks; i += 1) {
         onDrankRef.current?.(true);
+      }
+      for (let i = 0; i < pondDrinks; i += 1) {
+        onDrankRef.current?.(false);
       }
       if (actor) {
         for (const out of takeCuddleOut(actor)) {

@@ -29,6 +29,7 @@ export {
   cuddleMoodHoldSec,
   decayPerHour,
   extraHappinessDecayPerHour,
+  drinkHydrationGain,
   feedEnergyGain,
   feedHungerDrop,
   happyHappinessAtLeast,
