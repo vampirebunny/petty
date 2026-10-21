@@ -21,6 +21,10 @@ import {
   Backpack,
   Footprints,
   Hand,
+  Sofa,
+  Bed,
+  TreePine,
+  Cat,
 } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
 
@@ -64,6 +68,20 @@ const speciesIcons: Record<ActionSpecies, Record<string, LucideIcon>> = {
 const speciesLabels: Record<ActionSpecies, Record<string, string>> = {
   dog: { paw: 'Give paw' },
   cat: { paw: 'High five' },
+};
+
+export const placeIcons: Record<string, LucideIcon> = {
+  livingroom: Sofa,
+  bedroom: Bed,
+  park: TreePine,
+  catio: Cat,
+};
+
+export const placeFlavors: Record<string, 'peach' | 'periwinkle' | 'pistachio' | 'orchid'> = {
+  livingroom: 'peach',
+  bedroom: 'periwinkle',
+  park: 'pistachio',
+  catio: 'orchid',
 };
 
 export function iconFor(actionId: string, species: ActionSpecies = 'dog'): LucideIcon | null {

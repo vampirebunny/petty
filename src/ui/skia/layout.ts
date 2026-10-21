@@ -41,6 +41,7 @@ export function footprint(prop: Prop): number {
     planter: 30,
     scratcher: 22,
     pumpkin: 14,
+    catioPost: 16,
   };
   const w = prop.w ? prop.w / 2 : defaults[kind] ?? 30;
   return w * scale;

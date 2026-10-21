@@ -9,7 +9,7 @@ import {
   dayMs,
   defaultSceneId,
   scaleLegacyAgeDays,
-  startingThirst,
+  startingHydration,
   startingToys,
   startingWaterLevel,
   traits,
@@ -213,10 +213,14 @@ function migratePet(value: unknown): PetState | null {
       : startingWaterLevel;
   const waterEmptySince =
     raw.waterEmptySince === null || typeof raw.waterEmptySince === 'number' ? raw.waterEmptySince : null;
-  const thirst =
-    typeof raw.thirst === 'number' && Number.isFinite(raw.thirst)
-      ? Math.max(0, Math.min(100, raw.thirst))
-      : startingThirst;
+  const savedHydration = raw.hydration;
+  const savedThirst = raw.thirst;
+  const hydration =
+    typeof savedHydration === 'number' && Number.isFinite(savedHydration)
+      ? Math.max(0, Math.min(100, savedHydration))
+      : typeof savedThirst === 'number' && Number.isFinite(savedThirst)
+        ? 100 - Math.max(0, Math.min(100, savedThirst))
+        : startingHydration;
   const next: PetState = {
     ...(raw as unknown as PetState),
     breedId: migrateBreedId(raw.breedId),
@@ -234,7 +238,7 @@ function migratePet(value: unknown): PetState | null {
     foodInBowl: raw.foodInBowl === true,
     waterLevel,
     waterEmptySince,
-    thirst,
+    hydration,
     toys: readToys(raw.toys),
     treats: readTreats(raw.treats),
     treatDay: readTreatDay(raw.treatDay),
@@ -245,6 +249,7 @@ function migratePet(value: unknown): PetState | null {
   } else {
     delete next.ownerId;
   }
+  delete (next as { thirst?: unknown }).thirst;
   delete (next as { feedWindow?: unknown }).feedWindow;
   delete (next as { maturityAppliedAt?: unknown }).maturityAppliedAt;
   return withDerived(ensureGame(next));

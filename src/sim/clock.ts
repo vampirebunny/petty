@@ -150,15 +150,15 @@ export function applyHungerDelta(state: PetState, delta: number): PetState {
   return { ...state, needs: { ...state.needs, hunger } };
 }
 
-export function applyThirstDelta(state: PetState, delta: number): PetState {
+export function applyHydrationDelta(state: PetState, delta: number): PetState {
   if (delta === 0) {
     return state;
   }
-  const thirst = Math.max(0, Math.min(100, state.thirst + delta));
-  if (thirst === state.thirst) {
+  const hydration = Math.max(0, Math.min(100, state.hydration + delta));
+  if (hydration === state.hydration) {
     return state;
   }
-  return { ...state, thirst };
+  return { ...state, hydration };
 }
 
 export function applyWeightDelta(state: PetState, delta: number): PetState {

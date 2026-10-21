@@ -97,7 +97,7 @@ export {
   takeEnergyPops,
   takeMoodPops,
   takeHungerDelta,
-  takeThirstDelta,
+  takeHydrationDelta,
   takeSounds,
   takeWeightDelta,
   beginGreeting,

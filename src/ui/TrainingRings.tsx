@@ -1,14 +1,17 @@
-import { useEffect } from 'react';
+import { useEffect, useId } from 'react';
 import type { ReactNode } from 'react';
-import { ChevronsDown, Hand, Volume2 } from 'lucide-react-native';
-import { StyleSheet, Text, View } from 'react-native';
+import { ChevronsDown, Hand, Lock, Volume2 } from 'lucide-react-native';
+import type { LucideIcon } from 'lucide-react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
+import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import { trackDef, trackName } from '../sim/tracks';
 import type { PetState } from '../sim/types';
 import { iconFor } from './actionIcons';
-import { Ring } from './NeedRings';
-import type { Need } from './NeedRings';
+import { CandyShell, GRAY, WHITE, candyInk, tints } from './candy';
+import type { Tint, TintName } from './candy';
+import { iconStroke } from './theme';
 
 type Props = {
   pet: PetState;
@@ -18,13 +21,18 @@ type Props = {
   reducedMotion?: boolean;
 };
 
-// Same candy cards as the need rings. Alarm red never applies: a low ring just means not learned yet.
-const rings: Record<string, Need> = {
+type Card = {
+  label: string;
+  Icon: LucideIcon;
+  tint: TintName;
+  tiers: { min: number; text: string }[];
+};
+
+const cards: Record<string, Card> = {
   sit: {
     label: 'Sit',
     Icon: ChevronsDown,
-    noAlarm: true,
-    tint: { bg: '#DDF0FF', edge: '#A8D4F2', strong: '#4FA8E8', ink: '#134A78' },
+    tint: 'sky',
     tiers: [
       { min: 75, text: 'Almost!' },
       { min: 50, text: 'Getting it' },
@@ -35,8 +43,7 @@ const rings: Record<string, Need> = {
   speak: {
     label: 'Speak',
     Icon: Volume2,
-    noAlarm: true,
-    tint: { bg: '#FFF1CC', edge: '#F2D98A', strong: '#F2B632', ink: '#7A5200' },
+    tint: 'lilac',
     tiers: [
       { min: 75, text: 'Almost!' },
       { min: 50, text: 'Getting it' },
@@ -47,8 +54,7 @@ const rings: Record<string, Need> = {
   paw: {
     label: 'Paw',
     Icon: Hand,
-    noAlarm: true,
-    tint: { bg: '#FFE3EC', edge: '#F5B5C9', strong: '#FF7BA5', ink: '#8A1F4B' },
+    tint: 'pistachio',
     tiers: [
       { min: 75, text: 'Almost!' },
       { min: 50, text: 'Getting it' },
@@ -68,12 +74,12 @@ export function trainingIds(pet: PetState, species: 'dog' | 'cat'): string[] {
   });
 }
 
-function needFor(id: string, species: 'dog' | 'cat'): Need {
-  const need = rings[id];
+function cardFor(id: string, species: 'dog' | 'cat'): Card {
+  const card = cards[id];
   if (id !== 'paw') {
-    return need;
+    return card;
   }
-  return { ...need, label: trackName(id, species), Icon: iconFor(id, species) ?? Hand };
+  return { ...card, label: trackName(id, species), Icon: iconFor(id, species) ?? Hand };
 }
 
 function Spotlight({
@@ -101,6 +107,100 @@ function Spotlight({
   return <Animated.View style={[styles.spot, active && styles.spotOn, style]}>{children}</Animated.View>;
 }
 
+function IconBubble({ tint, Icon }: { tint: Tint; Icon: LucideIcon }) {
+  const uid = useId().replace(/:/g, '');
+  return (
+    <View style={[styles.bubble, { shadowColor: tint.lip }]}>
+      <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" pointerEvents="none">
+        <Defs>
+          <LinearGradient id={`bubble${uid}`} x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor={WHITE} />
+            <Stop offset="1" stopColor={WHITE} stopOpacity={0.6} />
+          </LinearGradient>
+        </Defs>
+        <Rect x="0" y="0" width="100%" height="100%" rx="22" fill={`url(#bubble${uid})`} />
+      </Svg>
+      <Icon size={24} strokeWidth={iconStroke + 1} color={tint.icon} />
+    </View>
+  );
+}
+
+function ProgressBar({ tint, value, uid }: { tint: Tint; value: number; uid: string }) {
+  const width = Math.max(0, Math.min(100, value));
+  return (
+    <View style={styles.track}>
+      {width > 0 ? (
+        <View style={[styles.fill, { width: `${width}%` }]}>
+          <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" pointerEvents="none">
+            <Defs>
+              <LinearGradient id={`bar${uid}`} x1="0" y1="0" x2="0" y2="1">
+                <Stop offset="0" stopColor={WHITE} stopOpacity={0.45} />
+                <Stop offset="1" stopColor={tint.icon} />
+              </LinearGradient>
+              <LinearGradient id={`stripes${uid}`} x1="0" y1="0" x2="1" y2="1">
+                <Stop offset="0" stopColor={WHITE} stopOpacity={0.3} />
+                <Stop offset="0.5" stopColor={WHITE} stopOpacity={0} />
+                <Stop offset="1" stopColor={WHITE} stopOpacity={0.3} />
+              </LinearGradient>
+            </Defs>
+            <Rect x="0" y="0" width="100%" height="100%" fill={tint.icon} />
+            <Rect x="0" y="0" width="100%" height="50%" fill={`url(#bar${uid})`} />
+            <Rect x="0" y="0" width="100%" height="100%" fill={`url(#stripes${uid})`} />
+          </Svg>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+function TrainingCard({
+  card,
+  value,
+  locked,
+  fresh,
+  onPress,
+}: {
+  card: Card;
+  value: number;
+  locked: boolean;
+  fresh: boolean;
+  onPress?: () => void;
+}) {
+  const uid = useId().replace(/:/g, '');
+  const tint = locked ? GRAY : tints[card.tint];
+  const ink = candyInk(tint);
+  const tier = card.tiers.find((entry) => value >= entry.min) ?? card.tiers[card.tiers.length - 1];
+  const caption = locked ? 'Locked' : value <= 0 ? tier.text : `${tier.text} · ${Math.round(value)}%`;
+  return (
+    <Pressable
+      disabled={locked || !onPress}
+      onPress={onPress}
+      style={styles.card}
+      accessibilityRole="button"
+      accessibilityState={{ disabled: locked, selected: fresh }}
+      accessibilityLabel={`${card.label}, ${caption}`}
+    >
+      {({ pressed }) => (
+        <CandyShell tint={tint} radius={24} selected={fresh} pressed={pressed && !locked} uid={uid} style={styles.face}>
+          <IconBubble tint={tint} Icon={locked ? Lock : card.Icon} />
+          <Text style={[styles.name, { color: ink }]} numberOfLines={1}>
+            {card.label}
+          </Text>
+          <ProgressBar tint={tint} value={locked ? 0 : value} uid={uid} />
+          <Text style={[styles.caption, { color: ink }]} numberOfLines={1}>
+            {caption}
+          </Text>
+          {fresh ? (
+            <View style={styles.sticker}>
+              <Text style={[styles.stickerText, { color: ink }]}>New!</Text>
+            </View>
+          ) : null}
+        </CandyShell>
+      )}
+    </Pressable>
+  );
+}
+
 export function TrainingRings({ pet, species, onPractice, highlightId, reducedMotion = false }: Props) {
   const ids = trainingIds(pet, species);
   if (ids.length === 0) {
@@ -120,10 +220,11 @@ export function TrainingRings({ pet, species, onPractice, highlightId, reducedMo
           const fresh = id === highlightId && !locked;
           return (
             <Spotlight key={id} active={fresh} reducedMotion={reducedMotion}>
-              <Ring
-                need={needFor(id, species)}
+              <TrainingCard
+                card={cardFor(id, species)}
                 value={track.progress}
-                hint={locked ? 'Locked' : fresh ? 'New!' : undefined}
+                locked={locked}
+                fresh={fresh}
                 onPress={locked ? undefined : () => onPractice(id)}
               />
             </Spotlight>
@@ -137,7 +238,7 @@ export function TrainingRings({ pet, species, onPractice, highlightId, reducedMo
 const styles = StyleSheet.create({
   wrap: { gap: 8, marginBottom: 16 },
   title: { color: '#243044', fontSize: 15, fontWeight: '800' },
-  row: { flexDirection: 'row', justifyContent: 'flex-start', gap: 10 },
+  row: { flexDirection: 'row', justifyContent: 'center', gap: 12 },
   spot: { flex: 1, maxWidth: 112 },
   spotOn: {
     borderRadius: 28,
@@ -146,4 +247,50 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 0 },
   },
+  card: { flex: 1 },
+  face: {
+    alignItems: 'center',
+    gap: 6,
+    paddingTop: 12,
+    paddingHorizontal: 10,
+    paddingBottom: 10,
+  },
+  bubble: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    backgroundColor: WHITE,
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
+  },
+  name: { fontSize: 14, fontWeight: '900' },
+  track: {
+    alignSelf: 'stretch',
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: 'rgba(255,255,255,0.78)',
+    overflow: 'hidden',
+  },
+  fill: {
+    height: '100%',
+    borderRadius: 6,
+    overflow: 'hidden',
+  },
+  caption: { fontSize: 11, fontWeight: '800' },
+  sticker: {
+    position: 'absolute',
+    top: 8,
+    right: 6,
+    backgroundColor: WHITE,
+    borderRadius: 8,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    transform: [{ rotate: '8deg' }],
+  },
+  stickerText: { fontSize: 10, fontWeight: '900' },
 });

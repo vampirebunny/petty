@@ -13,7 +13,7 @@ export {
   stageOf,
   trainingGain,
 } from './attributes';
-export { ageDaysAt, applyEnergyDelta, applyHappinessDelta, applyHungerDelta, applyThirstDelta, applyWeightDelta, debugJump, resume, setAgeDays, setVitality, setWeight, tickForeground } from './clock';
+export { ageDaysAt, applyEnergyDelta, applyHappinessDelta, applyHungerDelta, applyHydrationDelta, applyWeightDelta, debugJump, resume, setAgeDays, setVitality, setWeight, tickForeground } from './clock';
 export { careConfig } from './careConfig';
 export type { TreatTier, TrickTier } from './careConfig';
 export { advanceCare, bathToleranceFor, ensureGame } from './game';
@@ -51,7 +51,6 @@ export {
   treatHungerDrop,
   treatWeightGain,
   waterDrainPerDrink,
-  waterEmptyGraceMs,
   weightMealGain,
   stepMs,
   traits,

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { AccessibilityInfo, AppState, Image, Platform, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector, Pressable, ScrollView } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
@@ -8,7 +8,6 @@ import {
   actionReason,
   breedById,
   sceneById,
-  scenesFor,
   stagePoint,
 } from '../actor';
 import { releaseMusic, setMusicEnabled, suspendMusic } from '../audio/music';
@@ -28,6 +27,10 @@ import {
   saveMusicEnabled,
   saveSoundEnabled,
 } from '../storage/session';
+import { PlacesScreen } from './PlacesScreen';
+import { placeFlavors, placeIcons, speciesLabel } from '../ui/actionIcons';
+import { CandyShell, candyInk, tints } from '../ui/candy';
+import { iconStroke } from '../ui/theme';
 import { usePet } from '../state/usePet';
 import { useEconomy } from '../economy/useEconomy';
 import { basicTreatId, emptyEconomy, minutesUntilTreat, rewardTierAvailable, specialTreatId, stackQty } from '../economy/state';
@@ -51,8 +54,7 @@ import { DebugPanel } from '../ui/DebugPanel';
 import { NeedRings } from '../ui/NeedRings';
 import { TrainingRings } from '../ui/TrainingRings';
 import { BadgeCelebration } from '../ui/BadgeCelebration';
-import { speciesLabel } from '../ui/actionIcons';
-import { Sparkles } from 'lucide-react-native';
+import { ChevronRight, Sparkles } from 'lucide-react-native';
 import { playBadgeChime } from '../audio/badge';
 import { GREET } from '../actor/greetings';
 import { PetView } from '../ui/PetView';
@@ -119,7 +121,7 @@ export default function HomeScreen({ petApi }: Props) {
     applyActorWeight,
     applyActorEnergy,
     applyActorHunger,
-    applyActorThirst,
+    applyActorHydration,
     applyActorHappiness,
     advanceBy,
     setAge,
@@ -149,6 +151,8 @@ export default function HomeScreen({ petApi }: Props) {
   const [hour, setHour] = useState<number | null>(null);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [wardrobeOpen, setWardrobeOpen] = useState(false);
+  const [placesOpen, setPlacesOpen] = useState(false);
+  const whereUid = useId().replace(/:/g, '');
   const [facingOpen, setFacingOpen] = useState(false);
   const [personalityOpen, setPersonalityOpen] = useState(false);
   const [playOpen, setPlayOpen] = useState(false);
@@ -686,6 +690,20 @@ export default function HomeScreen({ petApi }: Props) {
     return <FacingLab reducedMotion={reducedMotion} onClose={() => setFacingOpen(false)} />;
   }
 
+  if (placesOpen) {
+    const placeSpecies = breedById(state.breedId)?.species ?? 'dog';
+    return (
+      <PlacesScreen
+        species={placeSpecies}
+        currentSceneId={preset.id}
+        petName={state.name}
+        onPick={setScene}
+        onClose={() => setPlacesOpen(false)}
+        reducedMotion={reducedMotion}
+      />
+    );
+  }
+
   if (wardrobeOpen) {
     return (
       <WardrobeScreen
@@ -890,7 +908,7 @@ export default function HomeScreen({ petApi }: Props) {
               onWeightDelta={applyActorWeight}
               onEnergyDelta={applyActorEnergy}
               onHungerDelta={applyActorHunger}
-              onThirstDelta={applyActorThirst}
+              onHydrationDelta={applyActorHydration}
               onDrank={reportDrank}
               onAte={reportAte}
               onPointAdds={(adds) => {
@@ -928,9 +946,7 @@ export default function HomeScreen({ petApi }: Props) {
         </GestureDetector>
       </View>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <NeedRings
-          needs={state.needs}
-        />
+        <NeedRings needs={state.needs} hydration={state.hydration} />
         {welcomeBack ? (
           <Pressable onPress={dismissWelcome} accessibilityRole="button">
             <Text style={styles.hint}>{state.name} missed you!</Text>
@@ -966,18 +982,37 @@ export default function HomeScreen({ petApi }: Props) {
             {stackQty(economyApi.economy ?? emptyEconomy(0), specialTreatId)}
           </Text>
         ) : null}
-        <View style={styles.scenes}>
-          {scenesFor(species).map((entry) => (
-            <Pressable
-              key={entry.id}
-              style={[styles.scene, entry.id === preset.id && styles.sceneSelected]}
-              onPress={() => setScene(entry.id)}
-            >
-              <Text style={[styles.sceneLabel, entry.id === preset.id && styles.sceneSelectedLabel]}>
-                {entry.name}
-              </Text>
-            </Pressable>
-          ))}
+        <View style={styles.where}>
+          <Text style={styles.sectionTitle}>Where</Text>
+          <Pressable
+            onPress={() => setPlacesOpen(true)}
+            accessibilityRole="button"
+            accessibilityLabel={`Go somewhere. ${state.name} is in the ${preset.name}`}
+          >
+            {({ pressed }) => {
+              const flavor = placeFlavors[preset.iconId ?? preset.id] ?? 'peach';
+              const tint = tints[flavor];
+              const Icon = placeIcons[preset.iconId ?? preset.id] ?? placeIcons.livingroom;
+              const ink = candyInk(tint);
+              return (
+                <CandyShell tint={tint} radius={24} pressed={pressed} uid={whereUid} style={styles.whereRow}>
+                  <View style={[styles.whereBubble, { shadowColor: tint.lip }]}>
+                    <Icon size={24} strokeWidth={iconStroke + 1} color={tint.icon} />
+                  </View>
+                  <View style={styles.whereCopy}>
+                    <Text style={[styles.whereKicker, { color: ink }]}>{state.name} is in the</Text>
+                    <Text style={[styles.whereName, { color: ink }]} numberOfLines={1}>
+                      {preset.name}
+                    </Text>
+                  </View>
+                  <View style={[styles.wherePill, { shadowColor: tint.lip }]}>
+                    <Text style={[styles.wherePillText, { color: ink }]}>Go somewhere</Text>
+                    <ChevronRight size={16} strokeWidth={iconStroke + 1} color={ink} />
+                  </View>
+                </CandyShell>
+              );
+            }}
+          </Pressable>
         </View>
         <TrainingRings
           pet={state}
@@ -1147,6 +1182,56 @@ const styles = StyleSheet.create({
     color: '#243044',
     fontSize: 15,
     fontWeight: '800',
+  },
+  where: {
+    gap: 8,
+  },
+  whereRow: {
+    height: 64,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 12,
+  },
+  whereBubble: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    shadowOpacity: 0.35,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  whereCopy: {
+    flex: 1,
+    gap: 1,
+  },
+  whereKicker: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  whereName: {
+    fontSize: 17,
+    fontWeight: '900',
+  },
+  wherePill: {
+    height: 36,
+    borderRadius: 999,
+    backgroundColor: '#FFFFFF',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    paddingHorizontal: 12,
+    shadowOpacity: 0.35,
+    shadowRadius: 0,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  wherePillText: {
+    fontSize: 13,
+    fontWeight: '900',
   },
   badge: {
     backgroundColor: '#FFF3C4',

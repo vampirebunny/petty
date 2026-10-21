@@ -6,7 +6,6 @@ import {
   maxElapsedMs,
   stepMs,
   wakeAtEnergy,
-  waterEmptyGraceMs,
 } from './config';
 import { activeBoosts } from './effects';
 import { needsMoodDrain } from './mood';
@@ -18,20 +17,13 @@ function clampNeed(value: number): number {
   return Math.min(clampMax, Math.max(clampMin, value));
 }
 
-function waterPenalty(state: PetState, stepNow: number): boolean {
-  if (state.waterLevel > 0 || state.waterEmptySince == null) {
-    return false;
-  }
-  return stepNow - state.waterEmptySince > waterEmptyGraceMs;
-}
-
-function applyInterval(needs: Needs, asleep: boolean, emptyWater: boolean, durationMs: number): Needs {
+function applyInterval(needs: Needs, asleep: boolean, durationMs: number): Needs {
   const rates = asleep ? decayPerHour.asleep : decayPerHour.awake;
   const scale = durationMs / hourMs;
   let happiness = needs.happiness;
   if (asleep) {
     happiness += rates.happiness * scale;
-  } else if (needsMoodDrain(needs) || emptyWater) {
+  } else if (needsMoodDrain(needs)) {
     happiness += rates.happiness * scale;
     happiness += extraHappinessDecayPerHour * scale;
   }
@@ -54,14 +46,12 @@ export function advanceNeedsDetail(
   let needs = { ...state.needs };
   let asleep = state.asleep;
   let awakeMs = 0;
-  let cursor = state.lastUpdatedAt;
 
   const take = (durationMs: number) => {
     if (!asleep) {
       awakeMs += durationMs;
     }
-    cursor += durationMs;
-    needs = applyInterval(needs, asleep, waterPenalty(state, cursor), durationMs);
+    needs = applyInterval(needs, asleep, durationMs);
     if (asleep && needs.energy >= wakeAtEnergy) {
       asleep = false;
     }

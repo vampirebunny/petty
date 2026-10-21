@@ -1,6 +1,6 @@
 import { advance } from '../advance';
 import { tickForeground } from '../clock';
-import { decayPerHour, extraHappinessDecayPerHour } from '../config';
+import { decayPerHour } from '../config';
 import { testPet } from '../__fixtures__/pets';
 import type { Needs, PetState } from '../types';
 
@@ -45,7 +45,7 @@ it('applies an extra happiness penalty while awake and hunger is high', () => {
   expectNeeds(after.needs, {
     hunger: 100,
     energy: 80 + decayPerHour.awake.energy,
-    happiness: 50 + decayPerHour.awake.happiness + extraHappinessDecayPerHour,
+    happiness: 0,
   });
 });
 
@@ -59,16 +59,10 @@ it('drains mood only when tummy or energy is below 30', () => {
   expect(healthy.needs.happiness).toBe(80);
 
   const tired = advance(pet({ needs: { hunger: 20, energy: 20, happiness: 80 } }), hourMs);
-  expect(tired.needs.happiness).toBeCloseTo(
-    80 + decayPerHour.awake.happiness + extraHappinessDecayPerHour,
-    5,
-  );
+  expect(tired.needs.happiness).toBe(0);
 
   const hungry = advance(pet({ needs: { hunger: 80, energy: 80, happiness: 80 } }), hourMs);
-  expect(hungry.needs.happiness).toBeCloseTo(
-    80 + decayPerHour.awake.happiness + extraHappinessDecayPerHour,
-    5,
-  );
+  expect(hungry.needs.happiness).toBe(0);
 });
 
 it('restores energy during a nap and stays asleep below 100', () => {

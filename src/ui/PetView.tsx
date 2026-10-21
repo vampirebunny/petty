@@ -42,7 +42,7 @@ import {
   takeEnergyPops,
   takeMoodPops,
   takeHungerDelta,
-  takeThirstDelta,
+  takeHydrationDelta,
   takeWeightDelta,
   todAt,
   update,
@@ -92,7 +92,7 @@ type Props = {
   onWeightDelta: (delta: number) => void;
   onEnergyDelta: (delta: number) => void;
   onHungerDelta: (delta: number) => void;
-  onThirstDelta: (delta: number) => void;
+  onHydrationDelta: (delta: number) => void;
   onDrank?: (fromBowl: boolean) => void;
   onAte?: () => void;
   onTraveling?: (active: boolean) => void;
@@ -114,7 +114,7 @@ function sourceOf(pet: PetState) {
     cuddleAffinity: Math.min(1, Math.max(0, attributeScore(pet, 'affection') / 100)),
     energy: Math.min(1, Math.max(0, pet.needs.energy / 100)),
     mood: Math.min(1, Math.max(0, pet.needs.happiness / 100)),
-    thirst: Math.min(1, Math.max(0, pet.thirst / 100)),
+    hydration: Math.min(1, Math.max(0, pet.hydration / 100)),
     stats: {
       stamina: Math.min(1, Math.max(0, attributeScore(pet, 'stamina') / 100)),
       agility: Math.min(1, Math.max(0, attributeScore(pet, 'agility') / 100)),
@@ -141,7 +141,7 @@ export function PetView({
   onWeightDelta,
   onEnergyDelta,
   onHungerDelta,
-  onThirstDelta,
+  onHydrationDelta,
   onDrank,
   onAte,
   onTraveling,
@@ -238,7 +238,7 @@ export function PetView({
     pet.look,
     pet.vitality,
     pet.needs.energy,
-    pet.thirst,
+    pet.hydration,
     pet.waterLevel,
     pet.weight,
     redraw,
@@ -466,17 +466,17 @@ export function PetView({
   const pendingWeight = useRef(0);
   const pendingEnergy = useRef(0);
   const pendingHunger = useRef(0);
-  const pendingThirst = useRef(0);
+  const pendingHydration = useRef(0);
   const onWeightRef = useRef(onWeightDelta);
   const onEnergyRef = useRef(onEnergyDelta);
   const onHungerRef = useRef(onHungerDelta);
-  const onThirstRef = useRef(onThirstDelta);
+  const onHydrationRef = useRef(onHydrationDelta);
   useEffect(() => {
     onWeightRef.current = onWeightDelta;
     onEnergyRef.current = onEnergyDelta;
     onHungerRef.current = onHungerDelta;
-    onThirstRef.current = onThirstDelta;
-  }, [onEnergyDelta, onHungerDelta, onThirstDelta, onWeightDelta]);
+    onHydrationRef.current = onHydrationDelta;
+  }, [onEnergyDelta, onHungerDelta, onHydrationDelta, onWeightDelta]);
   const flushWeight = useCallback((force: boolean) => {
     const delta = pendingWeight.current;
     if (Math.abs(delta) <= 0.00001) {
@@ -513,17 +513,17 @@ export function PetView({
     pendingHunger.current = 0;
     onHungerRef.current(delta);
   }, []);
-  const flushThirst = useCallback((force: boolean) => {
-    const delta = pendingThirst.current;
+  const flushHydration = useCallback((force: boolean) => {
+    const delta = pendingHydration.current;
     if (Math.abs(delta) <= 0.00001) {
-      pendingThirst.current = 0;
+      pendingHydration.current = 0;
       return;
     }
     if (!force && Math.abs(delta) < 0.4) {
       return;
     }
-    pendingThirst.current = 0;
-    onThirstRef.current(delta);
+    pendingHydration.current = 0;
+    onHydrationRef.current(delta);
   }, []);
 
   const onStatusRef = useRef(onStatus);
@@ -632,8 +632,8 @@ export function PetView({
         flushEnergy(false);
         pendingHunger.current += takeHungerDelta(actor);
         flushHunger(false);
-        pendingThirst.current += takeThirstDelta(actor);
-        flushThirst(false);
+        pendingHydration.current += takeHydrationDelta(actor);
+        flushHydration(false);
         const pops = takeEnergyPops(actor);
         const moodPops = takeMoodPops(actor);
         if (pops.length > 0 || moodPops.length > 0) {
@@ -659,7 +659,7 @@ export function PetView({
       }
       redraw();
     },
-    [applyCue, flushEnergy, flushHunger, flushThirst, flushWeight, redraw],
+    [applyCue, flushEnergy, flushHunger, flushHydration, flushWeight, redraw],
   );
 
   const kick = useRef<() => void>(() => undefined);
@@ -669,9 +669,9 @@ export function PetView({
       flushWeight(true);
       flushEnergy(true);
       flushHunger(true);
-      flushThirst(true);
+      flushHydration(true);
     };
-  }, [flushEnergy, flushHunger, flushThirst, flushWeight, pet.id]);
+  }, [flushEnergy, flushHunger, flushHydration, flushWeight, pet.id]);
 
   useEffect(() => {
     let raf = 0;

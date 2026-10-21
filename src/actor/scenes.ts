@@ -57,6 +57,8 @@ export type Shape = {
 
 export type Prop = {
   kind: string;
+  // Stable id on furniture, so a move keeps the point of interest attached.
+  id?: string;
   x: number;
   y: number;
   layer?: 'back' | 'sorted' | 'front';
@@ -85,6 +87,8 @@ export type Poi = {
   x: number;
   y: number;
   face?: 1 | -1;
+  // Furniture prop this spot follows when the player moves it.
+  propId?: string;
 };
 
 export type Scene = {
@@ -94,6 +98,9 @@ export type Scene = {
   time: SceneTime;
   // When set, only that species is offered the scene at home. Playdates include it when any pet matches.
   species?: 'cat' | 'dog';
+  group?: 'home' | 'town';
+  blurb?: string;
+  iconId?: string;
   // Rain and snow stay off the floor. The catio is roofed.
   shelter?: 'roofed';
   // Where the roof beam is, for garlands.
@@ -191,6 +198,16 @@ export function compileScene(def: unknown): Scene {
   if (species != null && species !== 'cat' && species !== 'dog') {
     throw new Error('"species" must be cat or dog.');
   }
+  const group = def.group == null ? 'home' : def.group;
+  if (group !== 'home' && group !== 'town') {
+    throw new Error('"group" must be home or town.');
+  }
+  if (def.blurb != null && typeof def.blurb !== 'string') {
+    throw new Error('"blurb" must be a string.');
+  }
+  if (def.iconId != null && typeof def.iconId !== 'string') {
+    throw new Error('"iconId" must be a string.');
+  }
   const shelter = def.shelter == null ? undefined : def.shelter;
   if (shelter != null && shelter !== 'roofed') {
     throw new Error('"shelter" must be roofed.');
@@ -226,13 +243,17 @@ export function compileScene(def: unknown): Scene {
     if (!isRecord(poi) || typeof poi.type !== 'string' || typeof poi.x !== 'number' || typeof poi.y !== 'number') {
       throw new Error(`pois[${index}]: needs type, x, and y.`);
     }
-    return {
+    const compiled: Poi = {
       id: typeof poi.id === 'string' ? poi.id : `${poi.type}-${index}`,
       type: poi.type,
       x: poi.x,
       y: poi.y,
       face: poi.face === -1 ? -1 : 1,
-    } satisfies Poi;
+    };
+    if (typeof poi.propId === 'string') {
+      compiled.propId = poi.propId;
+    }
+    return compiled;
   });
   return {
     v: 1,
@@ -240,6 +261,9 @@ export function compileScene(def: unknown): Scene {
     name: typeof def.name === 'string' ? def.name : typeof def.id === 'string' ? def.id : 'custom',
     time,
     species,
+    group,
+    blurb: typeof def.blurb === 'string' ? def.blurb : undefined,
+    iconId: typeof def.iconId === 'string' ? def.iconId : undefined,
     shelter,
     roofY: typeof def.roofY === 'number' ? def.roofY : undefined,
     sky: [sky[0] as string, sky[1] as string],
@@ -281,6 +305,9 @@ const sceneDefs = {
     v: 1,
     id: 'livingroom',
     name: 'Living room',
+    group: 'home',
+    blurb: 'Food & water',
+    iconId: 'livingroom',
     time: 'indoor',
     sky: ['#efe3d2', '#e2d2bb'],
     layers: [
@@ -297,16 +324,16 @@ const sceneDefs = {
       { kind: 'rug', x: 330, y: 440, w: 400, h: 130, color: '#7c5a8a', layer: 'back' },
       { kind: 'couch', x: 510, y: 204, w: 190, color: '#4f7c8a' },
       { kind: 'lamp', x: 604, y: 206 },
-      { kind: 'bed', x: 110, y: 540, w: 112, color: '#c2653d' },
-      { kind: 'bowl', x: 540, y: 330, color: '#2f7d5b', contents: 'kibble' },
-      { kind: 'bowl', x: 500, y: 560, color: '#3f78b5', contents: 'water' },
-      { kind: 'litterbox', x: 180, y: 360, w: 78, color: '#d9d3c7' },
+      { kind: 'bed', id: 'livingroom-bed', x: 110, y: 540, w: 112, color: '#c2653d' },
+      { kind: 'bowl', id: 'livingroom-food', x: 540, y: 330, color: '#2f7d5b', contents: 'kibble' },
+      { kind: 'bowl', id: 'livingroom-water', x: 500, y: 560, color: '#3f78b5', contents: 'water' },
+      { kind: 'litterbox', id: 'livingroom-litter', x: 180, y: 360, w: 78, color: '#d9d3c7' },
     ],
     pois: [
-      { id: 'bowl', type: 'food', x: 540, y: 330, face: 1 },
-      { id: 'water', type: 'water', x: 500, y: 560, face: 1 },
-      { id: 'bed', type: 'bed', x: 110, y: 542 },
-      { id: 'litter', type: 'litter', x: 180, y: 360, face: -1 },
+      { id: 'bowl', type: 'food', x: 540, y: 330, face: 1, propId: 'livingroom-food' },
+      { id: 'water', type: 'water', x: 500, y: 560, face: 1, propId: 'livingroom-water' },
+      { id: 'bed', type: 'bed', x: 110, y: 542, propId: 'livingroom-bed' },
+      { id: 'litter', type: 'litter', x: 180, y: 360, face: -1, propId: 'livingroom-litter' },
       { id: 'home', type: 'home', x: 300, y: 440 },
     ],
   },
@@ -314,6 +341,9 @@ const sceneDefs = {
     v: 1,
     id: 'park',
     name: 'Park',
+    group: 'home',
+    blurb: 'Room to play fetch',
+    iconId: 'park',
     time: 'outdoor',
     sky: ['#a9d8f0', '#e2f3f8'],
     layers: [
@@ -343,6 +373,9 @@ const sceneDefs = {
     v: 1,
     id: 'bedroom',
     name: 'Bedroom',
+    group: 'home',
+    blurb: 'Cozy nap spot',
+    iconId: 'bedroom',
     time: 'indoor',
     sky: ['#ddd5ee', '#cdc4e3'],
     layers: [
@@ -370,16 +403,16 @@ const sceneDefs = {
       },
       { kind: 'lamp', x: 540, y: 208 },
       { kind: 'rug', x: 330, y: 470, w: 380, h: 120, color: '#9a86c0', layer: 'back' },
-      { kind: 'bed', x: 520, y: 560, w: 112, color: '#d98b3a' },
-      { kind: 'bowl', x: 120, y: 340, color: '#c24d4d', contents: 'kibble' },
-      { kind: 'bowl', x: 130, y: 590, color: '#3f78b5', contents: 'water' },
-      { kind: 'litterbox', x: 220, y: 300, w: 78, color: '#d9d3c7' },
+      { kind: 'bed', id: 'bedroom-bed', x: 520, y: 560, w: 112, color: '#d98b3a' },
+      { kind: 'bowl', id: 'bedroom-food', x: 120, y: 340, color: '#c24d4d', contents: 'kibble' },
+      { kind: 'bowl', id: 'bedroom-water', x: 130, y: 590, color: '#3f78b5', contents: 'water' },
+      { kind: 'litterbox', id: 'bedroom-litter', x: 220, y: 300, w: 78, color: '#d9d3c7' },
     ],
     pois: [
-      { id: 'bowl', type: 'food', x: 120, y: 340, face: 1 },
-      { id: 'water', type: 'water', x: 130, y: 590, face: 1 },
-      { id: 'bed', type: 'bed', x: 520, y: 562 },
-      { id: 'litter', type: 'litter', x: 220, y: 300, face: -1 },
+      { id: 'bowl', type: 'food', x: 120, y: 340, face: 1, propId: 'bedroom-food' },
+      { id: 'water', type: 'water', x: 130, y: 590, face: 1, propId: 'bedroom-water' },
+      { id: 'bed', type: 'bed', x: 520, y: 562, propId: 'bedroom-bed' },
+      { id: 'litter', type: 'litter', x: 220, y: 300, face: -1, propId: 'bedroom-litter' },
       { id: 'home', type: 'home', x: 320, y: 470 },
     ],
   },

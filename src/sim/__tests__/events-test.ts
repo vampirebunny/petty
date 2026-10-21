@@ -1,5 +1,5 @@
 import { attributeScore, withDerived } from '../attributes';
-import { drinkThirstDrop, playHappinessGain } from '../config';
+import { drinkHydrationGain, playHappinessGain, waterDrainPerDrink } from '../config';
 import { applyEvent } from '../events';
 import { testPet } from '../__fixtures__/pets';
 import type { PetState } from '../types';
@@ -77,15 +77,15 @@ it('refills water without changing happiness', () => {
 
 it('drains the water bowl when the pet drinks from it', () => {
   const before = testPet(1, 'retriever', 0, 'Pup', 'pet');
-  before.thirst = 80;
+  before.hydration = 20;
   const result = applyEvent(before, { type: 'drank', fromBowl: true, now: 500 });
-  expect(result.state.waterLevel).toBeCloseTo(0.9, 5);
+  expect(result.state.waterLevel).toBeCloseTo(1 - waterDrainPerDrink, 5);
   expect(result.state.waterEmptySince).toBeNull();
-  expect(result.state.thirst).toBe(80 - drinkThirstDrop);
+  expect(result.state.hydration).toBe(20 + drinkHydrationGain);
 
-  const pond = applyEvent({ ...before, thirst: 40 }, { type: 'drank', fromBowl: false, now: 500 });
+  const pond = applyEvent({ ...before, hydration: 40 }, { type: 'drank', fromBowl: false, now: 500 });
   expect(pond.state.waterLevel).toBe(before.waterLevel);
-  expect(pond.state.thirst).toBe(0);
+  expect(pond.state.hydration).toBe(40 + drinkHydrationGain);
 
   const empty = applyEvent(
     { ...before, waterLevel: 0.05 },
@@ -93,6 +93,12 @@ it('drains the water bowl when the pet drinks from it', () => {
   );
   expect(empty.state.waterLevel).toBe(0);
   expect(empty.state.waterEmptySince).toBe(900);
+
+  let stepped = before;
+  for (let drink = 0; drink < 3; drink += 1) {
+    stepped = applyEvent(stepped, { type: 'drank', fromBowl: true, now: 1000 + drink }).state;
+  }
+  expect(stepped.waterLevel).toBe(0);
 });
 
 it('toggles rest with a yawn when falling asleep', () => {

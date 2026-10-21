@@ -234,7 +234,7 @@ export type Task = {
   cool: number;
   // How long the current hold lasts (play bow, stalk wiggle, shake, chew), in seconds.
   hold?: number;
-  poi?: { x: number; y: number; face?: 1 | -1 };
+  poi?: { x: number; y: number; face?: 1 | -1; propId?: string };
   // True while a greeting is the only writer of actor.face.
   ownsFacing?: boolean;
   greet?: GreetRun;
@@ -500,8 +500,8 @@ export type Actor = {
   pendingEnergy: number;
   // Hunger gain (pet points) from moving or playing, waiting to be applied to pet state.
   pendingHunger: number;
-  // Hidden thirst gain (pet points) from moving or playing, waiting to be applied to pet state.
-  pendingThirst: number;
+  // Hydration change in pet points, negative while busy, waiting to be applied to pet state.
+  pendingHydration: number;
   vitality: number;
   equipped: Equipped;
   // World time of the last bell jingle, so a run does not ring every frame.
@@ -532,8 +532,8 @@ export type Actor = {
   // Needs as 0..1, used to size how lively play is.
   energy: number;
   mood: number;
-  // Hidden 0..1 thirst. High thirst makes the pet seek water on its own.
-  thirst: number;
+  // 0..1 hydration. Low hydration makes the pet seek water on its own.
+  hydration: number;
   play: PlayState | null;
   zoom: ZoomState | null;
   // Seconds of landing absorb left after a hop, 0..1. Phase jumps use `jump` instead.
@@ -633,6 +633,6 @@ export type ActorSource = {
   // 0..1 energy and happiness, and the play attributes, for how the pet moves in play.
   energy?: number;
   mood?: number;
-  thirst?: number;
+  hydration?: number;
   stats?: LocoStats;
 };

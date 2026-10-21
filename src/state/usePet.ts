@@ -11,7 +11,7 @@ import {
   applyEnergyDelta,
   applyHappinessDelta,
   applyHungerDelta,
-  applyThirstDelta,
+  applyHydrationDelta,
   applyWeightDelta,
   createPet,
   debugJump,
@@ -74,7 +74,7 @@ type PetApi = {
   applyActorWeight: (delta: number) => void;
   applyActorEnergy: (delta: number) => void;
   applyActorHunger: (delta: number) => void;
-  applyActorThirst: (delta: number) => void;
+  applyActorHydration: (delta: number) => void;
   applyActorHappiness: (delta: number) => boolean;
   advanceBy: (elapsedMs: number) => void;
   setAge: (ageDays: number) => void;
@@ -433,13 +433,13 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
     [publish],
   );
 
-  const applyActorThirst = useCallback(
+  const applyActorHydration = useCallback(
     (delta: number) => {
       const current = stateRef.current;
       if (!current) {
         return;
       }
-      const next = applyThirstDelta(current, delta);
+      const next = applyHydrationDelta(current, delta);
       if (next !== current) {
         publish(next);
       }
@@ -572,7 +572,7 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
     applyActorWeight,
     applyActorEnergy,
     applyActorHunger,
-    applyActorThirst,
+    applyActorHydration,
     applyActorHappiness,
     advanceBy,
     setAge,

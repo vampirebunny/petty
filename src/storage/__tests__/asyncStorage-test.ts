@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { testPet } from '../../sim/__fixtures__/pets';
-import { dayMs, daysToSenior, legacyDaysToSenior, startingThirst } from '../../sim/config';
+import { dayMs, daysToSenior, legacyDaysToSenior, startingHydration } from '../../sim/config';
 import { asyncPetStorage } from '../asyncStorage';
 
 jest.mock('@react-native-async-storage/async-storage', () =>
@@ -113,6 +113,7 @@ it('migrates legacy breed ids and fullness into hunger', async () => {
   saved.breedId = 'black';
   saved.needs = { fullness: 70, energy: 70, happiness: 60 };
   delete saved.waterLevel;
+  delete saved.hydration;
   delete saved.thirst;
   delete saved.toys;
   await AsyncStorage.setItem('petty.pet', JSON.stringify(saved));
@@ -121,8 +122,19 @@ it('migrates legacy breed ids and fullness into hunger', async () => {
   expect(loaded?.breedId).toBe('scottishFold');
   expect(loaded?.needs.hunger).toBe(30);
   expect(loaded?.waterLevel).toBe(1);
-  expect(loaded?.thirst).toBe(startingThirst);
+  expect(loaded?.hydration).toBe(startingHydration);
   expect(loaded?.toys).toEqual(['ball']);
+});
+
+it('turns a saved thirst value into hydration', async () => {
+  const pet = testPet(3, 'retriever', 50, 'Pup', 'pet');
+  const saved = JSON.parse(JSON.stringify(pet)) as Record<string, unknown>;
+  delete saved.hydration;
+  saved.thirst = 80;
+  await AsyncStorage.setItem('petty.pet', JSON.stringify(saved));
+  const loaded = await asyncPetStorage.load();
+  expect(loaded?.hydration).toBe(20);
+  expect(loaded && 'thirst' in loaded).toBe(false);
 });
 
 it('drops legacy ear and tail choices from a saved look, so the pet takes its breed ears and tail', async () => {

@@ -14,12 +14,13 @@ import {
   playHappinessGain,
   petPurrAtOrAbove,
   petXp,
-  drinkThirstDrop,
+  drinkHydrationGain,
   startingWaterLevel,
   waterDrainPerDrink,
 } from './config';
 import { canRaiseMood } from './mood';
 import { nextRng } from './rng';
+import { sceneById } from '../actor/scenes';
 import { rememberScene } from './game';
 import { resolveReward, rollTrick } from './training';
 import type { CareSample, Cue, PetCareState, PetEvent, PetState, TrainingTrack } from './types';
@@ -75,6 +76,8 @@ function copyState(state: PetState): PetState {
     },
     drift: { ...state.drift },
     toys: [...state.toys],
+    furniture: state.furniture.map((piece) => ({ ...piece })),
+    furniturePlaced: state.furniturePlaced.map((place) => ({ ...place })),
     treats: state.treats.map((stack) => ({ ...stack })),
     treatDay: { ...state.treatDay },
     boosts: state.boosts.map((boost) => ({ ...boost })),
@@ -222,11 +225,14 @@ export function applyEvent(state: PetState, event: PetEvent): EventResult {
 
   if (event.type === 'drank') {
     const next = copyState(state);
-    next.thirst = clampNeed(next.thirst - drinkThirstDrop);
+    next.hydration = clampNeed(next.hydration + drinkHydrationGain);
     if (!event.fromBowl) {
       return { state: next, cue: { kind: 'none' } };
     }
     next.waterLevel = Math.max(0, next.waterLevel - waterDrainPerDrink);
+    if (next.waterLevel < 0.001) {
+      next.waterLevel = 0;
+    }
     if (next.waterLevel <= 0) {
       next.waterLevel = 0;
       if (next.waterEmptySince == null) {
@@ -270,6 +276,19 @@ export function applyEvent(state: PetState, event: PetEvent): EventResult {
       event.attributes,
     );
     return { state: withDerived(next), cue: { kind: 'none' } };
+  }
+
+  if (event.type === 'moveFurniture') {
+    if (!state.furniture.some((piece) => piece.id === event.pieceId)) {
+      return { state, cue: { kind: 'none' } };
+    }
+    const floor = sceneById(event.sceneId).floor;
+    const x = Math.min(floor.xMax, Math.max(floor.xMin, event.x));
+    const y = Math.min(floor.yMax, Math.max(floor.yMin, event.y));
+    const next = copyState(state);
+    next.furniturePlaced = next.furniturePlaced.filter((place) => place.pieceId !== event.pieceId);
+    next.furniturePlaced.push({ pieceId: event.pieceId, sceneId: event.sceneId, x, y });
+    return { state: next, cue: { kind: 'none' } };
   }
 
   if (event.type === 'fetch') {

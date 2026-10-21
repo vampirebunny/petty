@@ -44,12 +44,11 @@ export const feedHungerDrop = 40;
 // A finished meal also restores a little energy, shown as its own point burst after tummy.
 export const feedEnergyGain = 2;
 
-export const waterDrainPerDrink = 0.1;
-export const waterEmptyGraceMs = 3 * 60 * 60 * 1000;
+export const waterDrainPerDrink = 1 / 3;
 export const startingWaterLevel = 1;
-// Hidden 0–100 need. Not shown on the rings. Drinking brings it down.
-export const startingThirst = 15;
-export const drinkThirstDrop = 50;
+// 0–100. 100 is fully hydrated. Not part of the away clock.
+export const startingHydration = 85;
+export const drinkHydrationGain = 34;
 export const startingToys = ['ball'] as const;
 
 export const treatHungerDrop = 10;
@@ -168,8 +167,8 @@ export const overweightPlayWeightBonus = 0.5;
 export const activityEnergyPerHour = { walk: 336, trot: 672, canter: 1680, gallop: 3360, play: 480 } as const;
 // Extra hunger per hour on top of the awake clock. Five minutes of play empties one meal.
 export const activityHungerPerHour = { walk: 336, trot: 576, canter: 864, gallop: 1320, play: 480 } as const;
-// Extra hidden thirst per hour while busy. Drinking is how this comes back down.
-export const activityThirstPerHour = { walk: 50, trot: 80, canter: 120, gallop: 180, play: 70 } as const;
+// Hydration spent per hour while busy. Drinking is how this comes back up.
+export const activityHydrationPerHour = { walk: 50, trot: 80, canter: 120, gallop: 180, play: 70 } as const;
 export const weightRunSpeed = 80;
 export const healthyWeightBand = 0.25;
 export const defaultSceneId = 'livingroom';

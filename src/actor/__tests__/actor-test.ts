@@ -18,7 +18,7 @@ import {
   takeEnergyDelta,
   takeEnergyPops,
   takeHungerDelta,
-  takeThirstDelta,
+  takeHydrationDelta,
   takeWeightDelta,
   update,
 } from '../sim';
@@ -233,7 +233,7 @@ it('spends energy while running and restores it during an idle nap', () => {
   }
   expect(takeEnergyDelta(runner)).toBeLessThan(0);
   expect(takeHungerDelta(runner)).toBeGreaterThan(0);
-  expect(takeThirstDelta(runner)).toBeGreaterThan(0);
+  expect(takeHydrationDelta(runner)).toBeLessThan(0);
 
   const sleeper = actor();
   const napping = createWorld([sleeper], 5);
@@ -246,7 +246,7 @@ it('spends energy while running and restores it during an idle nap', () => {
   expect(sleeper.idle.mode).toBe('nap');
   expect(takeEnergyDelta(sleeper)).toBeGreaterThan(0);
   expect(takeHungerDelta(sleeper)).toBe(0);
-  expect(takeThirstDelta(sleeper)).toBe(0);
+  expect(takeHydrationDelta(sleeper)).toBe(0);
 
   const resting = actor(true);
   const bed = createWorld([resting], 6);
@@ -255,7 +255,7 @@ it('spends energy while running and restores it during an idle nap', () => {
   }
   expect(takeEnergyDelta(resting)).toBe(0);
   expect(takeHungerDelta(resting)).toBe(0);
-  expect(takeThirstDelta(resting)).toBe(0);
+  expect(takeHydrationDelta(resting)).toBe(0);
 });
 
 it('empties the tummy while playing even if the pet is standing still', () => {
@@ -274,7 +274,7 @@ it('empties the tummy while playing even if the pet is standing still', () => {
   }
   expect(takeHungerDelta(pup)).toBeGreaterThan(0);
   expect(takeEnergyDelta(pup)).toBeLessThan(0);
-  expect(takeThirstDelta(pup)).toBeGreaterThan(0);
+  expect(takeHydrationDelta(pup)).toBeLessThan(0);
 });
 
 it('gives energy after a user sleep of at least five seconds', () => {

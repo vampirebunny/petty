@@ -1,7 +1,7 @@
 import {
   activityEnergyPerHour,
   activityHungerPerHour,
-  activityThirstPerHour,
+  activityHydrationPerHour,
   collapseSleepSec,
   collapseWakeEnergy,
   sleepEnergyGain,
@@ -59,6 +59,7 @@ import { growthFor } from './growth';
 import { canBehave, reactionFor, type UserTask } from './behavior';
 import { defaultPose, easePose } from './pose';
 import { newCuddle, stepCuddle } from './cuddle';
+import { obstaclesIn, steerAim } from './furniture';
 import { nearestPoi, poiOf, sceneForSpecies, scenes, stageHeight } from './scenes';
 import type { Scene } from './scenes';
 import { variantFor } from './variation';
@@ -230,7 +231,7 @@ export function spawnActor(source: ActorSource, at?: Vec): Actor {
     syncedWeight: source.weight,
     pendingEnergy: 0,
     pendingHunger: 0,
-    pendingThirst: 0,
+    pendingHydration: 0,
     vitality: source.vitality,
     equipped: { ...source.equipped },
     look: source.look ? { ...source.look } : null,
@@ -251,7 +252,7 @@ export function spawnActor(source: ActorSource, at?: Vec): Actor {
     stats: { ...(source.stats ?? defaultStats) },
     energy: source.energy ?? 0.8,
     mood: source.mood ?? 0.8,
-    thirst: source.thirst ?? 0.15,
+    hydration: source.hydration ?? 0.85,
     play: null,
     zoom: null,
     land: 0,
@@ -339,7 +340,7 @@ export function syncActor(actor: Actor, source: ActorSource): void {
   actor.cuddleAffinity = source.cuddleAffinity ?? actor.cuddleAffinity;
   actor.energy = source.energy ?? actor.energy;
   actor.mood = source.mood ?? actor.mood;
-  actor.thirst = source.thirst ?? actor.thirst;
+  actor.hydration = source.hydration ?? actor.hydration;
   actor.stats = source.stats ? { ...source.stats } : actor.stats;
   if (actor.collapseLeft <= 0 && actor.asleep !== source.asleep) {
     actor.sleepSec = 0;
@@ -367,9 +368,9 @@ export function takeHungerDelta(actor: Actor): number {
   return delta;
 }
 
-export function takeThirstDelta(actor: Actor): number {
-  const delta = actor.pendingThirst;
-  actor.pendingThirst = 0;
+export function takeHydrationDelta(actor: Actor): number {
+  const delta = actor.pendingHydration;
+  actor.pendingHydration = 0;
   return delta;
 }
 
@@ -395,6 +396,7 @@ export function setWorldScene(world: World, scene: Scene): void {
     actor.bark = { active: false, t: 0, fired: [false, false], open: 0, sound: false };
     if (actor.asleep) {
       actor.task = taskOf('sleep', bed ? 'go' : 'sleeping');
+      actor.task.poi = bed ?? undefined;
     } else {
       actor.task = taskOf('idle');
       beginIdle(world, actor, 'still');
@@ -598,6 +600,9 @@ function beginIdle(world: World, actor: Actor, mode: IdleMode): void {
   if (bed) {
     actor.idle.target = { x: bed.x, y: bed.y };
     actor.idle.arrived = false;
+    actor.task.poi = bed;
+  } else {
+    actor.task.poi = undefined;
   }
 }
 
@@ -609,7 +614,7 @@ function nextIdle(world: World, actor: Actor): void {
     return;
   }
   // Occasional autonomous drink when water is available. Thirst makes this much more likely.
-  if (canAutonomousDrink(world) && world.rng() < 0.08 + 0.72 * actor.thirst && canBehave(actor, 'eat')) {
+  if (canAutonomousDrink(world) && world.rng() < 0.08 + 0.72 * (1 - actor.hydration) && canBehave(actor, 'eat')) {
     startUserTask(world, actor, 'drink');
     return;
   }
@@ -2016,8 +2021,12 @@ function updateActor(world: World, actor: Actor, dt: number): void {
   if (move && !(actor.jump && jumpOwnsMotion(actor))) {
     const tx = traveling ? move.x : clamp(move.x, xClampLo, xClampHi);
     const ty = clamp(move.y, floor.yMin, floor.yMax);
-    const dx = tx - actor.x;
-    const dy = ty - actor.y;
+    const aim =
+      traveling || actor.z > 1
+        ? { x: tx, y: ty }
+        : steerAim({ x: actor.x, y: actor.y }, { x: tx, y: ty }, obstaclesIn(world.scene, actor.task.poi?.propId ?? null), floor);
+    const dx = aim.x - actor.x;
+    const dy = aim.y - actor.y;
     const distance = Math.hypot(dx, dy);
     const speed = Math.min(vmax, distance * 5);
     if (distance > 1) {
@@ -2173,14 +2182,14 @@ function updateActor(world: World, actor: Actor, dt: number): void {
   if (energyPerHour !== 0) {
     actor.pendingEnergy += (energyPerHour / 3600) * dt;
   }
-  // Moving or playing empties the tummy faster than sitting still, and works up a thirst.
+  // Moving or playing empties the tummy faster than sitting still, and spends hydration.
   const hungerPerHour = busyRate(activityHungerPerHour);
   if (hungerPerHour > 0 && !actor.asleep) {
     actor.pendingHunger += (hungerPerHour / 3600) * dt;
   }
-  const thirstPerHour = busyRate(activityThirstPerHour);
-  if (thirstPerHour > 0 && !actor.asleep) {
-    actor.pendingThirst += (thirstPerHour / 3600) * dt;
+  const hydrationPerHour = busyRate(activityHydrationPerHour);
+  if (hydrationPerHour > 0 && !actor.asleep) {
+    actor.pendingHydration -= (hydrationPerHour / 3600) * dt;
   }
   // Fetch burns weight even when the pet is too heavy to sprint. A heavier pet works a bit harder.
   if (!actor.asleep && (actor.task.type === 'fetch' || actor.task.type === 'winddown')) {

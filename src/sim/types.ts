@@ -1,3 +1,7 @@
+import type { FurniturePiece, FurniturePlacement } from '../actor/furniture';
+
+export type { FurniturePiece, FurniturePlacement };
+
 export type Needs = {
   hunger: number;
   energy: number;
@@ -137,9 +141,11 @@ export type PetState = {
   foodInBowl: boolean;
   waterLevel: number;
   waterEmptySince: number | null;
-  // Hidden 0–100. Running and fetch raise it; drinking lowers it. Not shown on the need rings.
-  thirst: number;
+  // 0–100. 100 is fully hydrated. Activity spends it; drinking raises it. Not part of the away clock.
+  hydration: number;
   toys: string[];
+  furniture: FurniturePiece[];
+  furniturePlaced: FurniturePlacement[];
   treats: TreatStack[];
   treatDay: TreatDay;
   boosts: ActiveBoost[];
@@ -173,7 +179,8 @@ export type PetEvent =
   | { type: 'rewardCuddle'; now: number }
   | { type: 'claimGrants' }
   | { type: 'clearTreats' }
-  | { type: 'seeCoach'; id: string };
+  | { type: 'seeCoach'; id: string }
+  | { type: 'moveFurniture'; pieceId: string; sceneId: string; x: number; y: number };
 
 export type Mood = 'happy' | 'content' | 'hungry' | 'sleepy' | 'sad' | 'sleeping';
 
