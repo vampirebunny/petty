@@ -3,7 +3,7 @@ import type { GreetSound, GreetStep, SoundEvent } from './types';
 
 export const GREET = {
   MIN_AWAY_MIN: 2,
-  SHORT_MAX_H: 2,
+  SHORT_MAX_H: 5 / 60,
   MEDIUM_MAX_H: 12,
   TIRED: 35,
   MID: 50,

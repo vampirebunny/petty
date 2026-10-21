@@ -341,6 +341,7 @@ export function PetView({
   }, [beginTravel, scene]);
 
   useEffect(() => {
+    elapsedRef.current = elapsedH;
     if (travelRef.current) {
       pendingCue.current = { kind: cueKind, token: cueToken, drop, flick, elapsedH };
       return;
@@ -402,7 +403,7 @@ export function PetView({
         if (id === 'short' || id === 'long') {
           const plan = planGreeting({
             species: breedById(current.breedId)?.species === 'cat' ? 'cat' : 'dog',
-            elapsedH: id === 'long' ? 13 : 1,
+            elapsedH: id === 'long' ? 13 : 4 / 60,
             energy: current.needs.energy,
             affection: current.attributes.current.affection,
             boldness: current.attributes.current.boldness,

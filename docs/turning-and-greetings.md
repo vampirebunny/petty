@@ -30,7 +30,7 @@ One gait driver takes the max of locomotion, the turn shuffle, and a greeting ma
 
 Scripts live in `src/actor/greetings.ts`. The sim runs them as a `greet` task. Omitted step fields reset each step.
 
-Bands, from `lastUpdatedAt`: under 2 minutes, nothing; under 2 hours, the species short greeting (`wag`, `tailHello`); under 12 hours, one greeting; at 12 hours or more, two greetings. The second of a combo cannot teleport. `lastGreetingId` stores only that second greeting. The home "{name} missed you!" line stays. The old 12-hour wiggle cue does not.
+Bands, from `lastUpdatedAt`: under 2 minutes, nothing; under 5 minutes, the species short greeting (`wag`, `tailHello`); under 12 hours, one greeting; at 12 hours or more, two greetings. The second of a combo cannot teleport. `lastGreetingId` stores only that second greeting. The home "{name} missed you!" line stays. The old 12-hour wiggle cue does not.
 
 Above 2 minutes, the current task ends and a sleeper wakes. A sleeping cat weights stretch by 3. A sleeping dog gets a short eyes-open, lie-to-stand step first. Trill starts off-screen and stretch starts on the bed, before the 0.35 s delay.
 

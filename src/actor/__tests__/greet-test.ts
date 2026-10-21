@@ -57,7 +57,9 @@ it('does not greet a quick return and does not repeat the stored combo greeting'
     rng: sequence([0, 0, 0]),
   };
   expect(planGreeting({ ...base, elapsedH: 0.01 })).toBeNull();
-  const once = planGreeting({ ...base, elapsedH: 3 });
+  expect(planGreeting({ ...base, elapsedH: 4 / 60 })?.ids).toEqual(['wag']);
+  const once = planGreeting({ ...base, elapsedH: 5 / 60 });
+  expect(once?.ids).not.toEqual(['wag']);
   expect(once?.ids).toHaveLength(1);
   expect(once?.storeId).toBeNull();
   const combo = planGreeting({ ...base, elapsedH: 13, rng: sequence([0, 0.99]) });
