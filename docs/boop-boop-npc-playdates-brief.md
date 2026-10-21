@@ -21,7 +21,7 @@ Everything is local and works offline. Saved data is keyed to `ownerId`.
 2. Partner picker. Today's 3 NPCs. A card shows the drawn pet, name, breed, a style-and-favorite line, and a bond hint. No life-stage name.
 3. Place picker. Living room, park, or bedroom.
 4. Activity picker. Up to 3 activities that fit the pair, the place, and both ages, with the attributes each one trains.
-5. "Choose {name}'s playdate outfit!" The starter wardrobe, opening on the everyday outfit. The choice is stored on the playdate only.
+5. The same closet picker as home, limited to items the user owns, opening on the everyday outfit. The choice is stored on the playdate only. NPC partners wear the full catalog.
 6. Playback at hour 14.
 7. Results: happiness, a bar for each trained attribute, bond, and any rare line. Each bar shows the score before (the app's dark color), the gain (green, right after it), and the potential (a pale bar behind). The row also shows the new total over potential and the gain as numbers. An upset and a golden closing each get a line when the record has them. Replay or finish. A replay from history shows no bars.
 8. Recent playdates, newest first, at most 3. Opening one replays the saved beats and does not pay rewards again. The row names an upset or a golden moment when the stored record has one.

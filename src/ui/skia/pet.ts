@@ -24,7 +24,7 @@ import {
   muzzleColorOf,
 } from './breedParts';
 import type { HeadCtx } from './breedParts';
-import { drawBandana, drawBoot, drawCoat, drawCollar, drawGlasses, drawHat } from './cosmetics';
+import { chinAnchor, drawBoot, drawGlasses, drawHat, drawJacket, drawNeckwear, drawSleeve } from './cosmetics';
 import {
   clamp,
   clipOval,
@@ -36,7 +36,7 @@ import {
   paintOf,
   strokeLine,
 } from './draw';
-import type { WearItem } from '../../actor/wardrobe';
+import { jacketHasSleeves, type WearItem } from '../../actor/wardrobe';
 import { frostOval } from './frost';
 import { drawToyShape } from './scenery';
 
@@ -56,6 +56,8 @@ function drawLeg(
   far: boolean,
   sock: string | null,
   frost = 0,
+  sleeve: WearItem | null = null,
+  fur = '#888888',
 ): Paw {
   const bone = geom.L / 2;
   const knee = solveKnee(hip, target, bone, side);
@@ -83,8 +85,11 @@ function drawLeg(
       frostOval(c, knee.x + (paw.x - knee.x) * f, knee.y + (paw.y - knee.y) * f, geom.legWidth * 0.8, geom.legWidth * 0.8, frostColor, frost * 0.85);
     }
   }
+  if (sleeve) {
+    drawSleeve(c, hip, paw, geom, sleeve, far, fur);
+  }
   if (boot) {
-    drawBoot(c, knee, paw, geom, boot, far);
+    drawBoot(c, knee, paw, geom, boot, far, fur);
   }
   return { x: paw.x, y: paw.y, shin: Math.atan2(paw.y - knee.y, paw.x - knee.x), knee };
 }
@@ -163,11 +168,11 @@ export function drawActor(
     eyeClosed = 0;
   }
   const boot = wearItem('boots', actor.equipped.boots);
-  const coat = wearItem('coat', actor.equipped.coat);
-  const collar = wearItem('collar', actor.equipped.collar);
-  const bandana = wearItem('bandana', actor.equipped.bandana);
+  const jacket = wearItem('jacket', actor.equipped.jacket);
+  const neckwear = wearItem('neckwear', actor.equipped.neckwear);
   const glasses = wearItem('glasses', actor.equipped.glasses);
   const hat = wearItem('hat', actor.equipped.hat);
+  const sleeve = jacket && jacketHasSleeves(jacket.id) ? jacket : null;
   const points = breed.pattern === 'points';
   // Breed marking regions, resolved against the coat. Locked regions ignore the user palette.
   const markings = resolveMarkings(breed);
@@ -330,7 +335,20 @@ export function drawActor(
     c.translate(0, -bodyCenterY);
   }
   const drawOne = (raw: Pt, hip: Pt, fore: boolean, leg: 0 | 1 | 2 | 3, near: boolean, side: number, kicker = false) =>
-    drawLeg(c, hip, project(footAt(raw, fore, leg, near, kicker), side), geom, fore ? foreSide : -1, near ? legColor : farColor, boot, !near, sockColor, geom.gray.chest);
+    drawLeg(
+      c,
+      hip,
+      project(footAt(raw, fore, leg, near, kicker), side),
+      geom,
+      fore ? foreSide : -1,
+      near ? legColor : farColor,
+      boot,
+      !near,
+      sockColor,
+      geom.gray.chest,
+      fore ? sleeve : null,
+      legColor,
+    );
   const fadeFar = pose.side > 0.02;
   const withFar = (draw: () => { x: number; y: number; shin: number }) => {
     if (!fadeFar) {
@@ -434,8 +452,8 @@ export function drawActor(
     }
     c.drawPath(ribs, paintOf('#000000', ((-actor.displayWeight - 0.35) / 0.65) * 0.38 * turned.yc, 1.4));
   }
-  if (coat) {
-    drawCoat(c, geom, coat, breath);
+  if (jacket) {
+    drawJacket(c, geom, jacket, breath, baseColor);
   }
   c.restore();
   c.restore();
@@ -479,19 +497,6 @@ export function drawActor(
   const perp = along.x >= 0 ? { x: -along.y, y: along.x } : { x: along.y, y: -along.x };
   const neck = { x: base.x + nx * 0.62, y: base.y + ny * 0.62 };
   actor.anchors.neck = neck;
-  if (bandana) {
-    drawBandana(c, neck, perp, along, neckWidth, bandana, Math.sin(t * 11) * clamp(actor.speed / 120, 0, 1) * 4);
-  }
-  if (collar) {
-    drawCollar(
-      c,
-      { x: neck.x - along.x * 3, y: neck.y - along.y * 3 },
-      perp,
-      neckWidth,
-      collar,
-      Math.sin(t * 7) * clamp(actor.speed / 100, 0, 1) * 2.5,
-    );
-  }
 
   // head
   const R = geom.headR;
@@ -531,13 +536,18 @@ export function drawActor(
       alpha: profile.stiff ? 1 : face.farEarAlpha,
       showInner: face.front > 0.55,
     });
-  c.save();
-  // At the bowl the head dips and lifts with each bite or lap.
-  c.translate(head.x, head.y + pose.headDown * Math.sin(actor.chewPh) * 1.8);
-  c.rotate(deg(pitch), 0, 0);
-  if (pose.headPush > 0.001) {
-    c.scale(1 + 0.3 * pose.headPush, 1 + 0.3 * pose.headPush);
-  }
+  const withHead = (draw: () => void): void => {
+    c.save();
+    // At the bowl the head dips and lifts with each bite or lap.
+    c.translate(head.x, head.y + pose.headDown * Math.sin(actor.chewPh) * 1.8);
+    c.rotate(deg(pitch), 0, 0);
+    if (pose.headPush > 0.001) {
+      c.scale(1 + 0.3 * pose.headPush, 1 + 0.3 * pose.headPush);
+    }
+    draw();
+    c.restore();
+  };
+  withHead(() => {
   // The far ear sits behind the head and slides to the far side as the head turns. Hanging far ears stay
   // partly hidden behind the head; erect ears show both.
   if (!profile.overHead && (profile.stiff || face.farEarAlpha > 0.001)) {
@@ -677,23 +687,32 @@ export function drawActor(
     }
   }
   drawHeadMarkingsAbove(c, headCtx);
-  // near ear (slides back in 3/4 so the ears spread apart)
-  nearEar();
-  if (glasses) {
-    drawGlasses(c, glasses, face, R);
+  });
+  if (neckwear) {
+    const view = Math.max(face.turn, face.front);
+    const chin = chinAnchor(head, base, R, pitch, cat, view);
+    const sway = Math.sin(t * 3) * 0.08 + Math.sin(t * 11) * clamp(actor.speed / 120, 0, 1) * 0.12;
+    const chest = markingOf(markings, 'chest')?.color ?? baseColor;
+    drawNeckwear(c, chin, perp, along, neckwear, sway, R, chest);
   }
-  if (hat) {
-    drawHat(c, hat, R, face);
-    if (hat.id === 'beanie' && profile.hatPoke) {
-      // Erect and bat ears poke through the beanie: redraw them over it, above the brim.
-      c.save();
-      clipRectAbove(c, -R * 0.55, R * 3);
-      farEar();
-      nearEar();
-      c.restore();
+  withHead(() => {
+    // near ear (slides back in 3/4 so the ears spread apart). Hanging ears overlap neckwear.
+    nearEar();
+    if (glasses) {
+      drawGlasses(c, glasses, face, R, baseColor);
     }
-  }
-  c.restore();
+    if (hat) {
+      drawHat(c, hat, R, face, baseColor);
+      if (hat.id === 'beanie' && profile.hatPoke) {
+        // Erect and bat ears poke through the beanie: redraw them over it, above the brim.
+        c.save();
+        clipRectAbove(c, -R * 0.55, R * 3);
+        farEar();
+        nearEar();
+        c.restore();
+      }
+    }
+  });
 
   const mouth = toyMouthLocal(head, pitch, geom.tipX, geom.tipY);
   actor.mouthMark = toyMouthStage(actor, mouth, turned.dir, scale);

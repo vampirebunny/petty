@@ -618,10 +618,10 @@ describe('playdate rewards, cooldown, and history', () => {
 
   it('stores the playdate outfit without changing the everyday one', () => {
     const pet = testPet(8, 'corgi', 50, 'Pip', 'pet');
-    pet.equipped = { collar: 'red' };
+    pet.equipped = { neckwear: 'collar' };
     const shot = snapshotPet(pet, { hat: 'beanie' }, 't', 'snap');
     expect(shot.equipped).toEqual({ hat: 'beanie' });
-    expect(pet.equipped).toEqual({ collar: 'red' });
+    expect(pet.equipped).toEqual({ neckwear: 'collar' });
   });
 });
 

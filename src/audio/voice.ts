@@ -15,6 +15,7 @@ const clips: Partial<Record<SoundEvent['sound'], number>> = {
   sneeze: require('../../assets/sounds/dragon-studio-sneeze-390286-short.mp3'),
   sneeze_cat: require('../../assets/sounds/arunangshubanerjee-sick-cat-sneezing-realistic-pet-sound-332672-short.mp3'),
   trill: require('../../assets/sounds/arunangshubanerjee-excited-cat-meowing-anticipating-food-331462-short.mp3'),
+  bell: require('../../assets/sounds/bell-jingle.wav'),
 };
 
 // Two players per clip so the second bark of a pair can start while the first is still ringing.

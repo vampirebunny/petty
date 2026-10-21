@@ -1,10 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { migrateEquipped } from '../actor/closet';
 import { agingCalendar, scaleLegacyAgeDays } from '../sim/config';
 import { generateCast } from './npcs';
 import { clearPet, emptyPlaydateSave } from './save';
 import { playdateConfig } from './config';
-import type { PetSnapshot, PlaydateSave } from './types';
+import type { PetSnapshot, PlaydateRecord, PlaydateSave } from './types';
 
 const listeners = new Set<() => void>();
 
@@ -25,23 +26,30 @@ function keyFor(ownerId: string): string {
   return `petty.playdates.${ownerId}`;
 }
 
-function scaleSnapshot(snapshot: PetSnapshot): PetSnapshot {
-  return { ...snapshot, ageDays: scaleLegacyAgeDays(snapshot.ageDays) };
+function migrateSnapshot(snapshot: PetSnapshot, scaleAge: boolean): PetSnapshot {
+  return {
+    ...snapshot,
+    ageDays: scaleAge ? scaleLegacyAgeDays(snapshot.ageDays) : snapshot.ageDays,
+    equipped: migrateEquipped(snapshot.equipped),
+  };
+}
+
+function migrateRecord(record: PlaydateRecord, scaleAge: boolean): PlaydateRecord {
+  return {
+    ...record,
+    outfit: migrateEquipped(record.outfit),
+    petA: migrateSnapshot(record.petA, scaleAge),
+    petB: migrateSnapshot(record.petB, scaleAge),
+  };
 }
 
 function migrateSave(save: PlaydateSave): PlaydateSave {
-  if (save.agingCalendar === agingCalendar) {
-    return save;
-  }
+  const scaleAge = save.agingCalendar !== agingCalendar;
   return {
     ...save,
     agingCalendar,
-    cast: save.cast.map(scaleSnapshot),
-    history: save.history.map((record) => ({
-      ...record,
-      petA: scaleSnapshot(record.petA),
-      petB: scaleSnapshot(record.petB),
-    })),
+    cast: save.cast.map((pet) => migrateSnapshot(pet, scaleAge)),
+    history: save.history.map((record) => migrateRecord(record, scaleAge)),
   };
 }
 

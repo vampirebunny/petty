@@ -26,6 +26,7 @@ type Props = {
   onPlayGreeting?: (id: string) => void;
   greetingIds?: () => string[];
   greetingLabel?: () => string;
+  onLab?: () => void;
 };
 
 const hourMs = 60 * 60 * 1000;
@@ -65,7 +66,7 @@ function format(value: number): string {
   return value.toFixed(1);
 }
 
-function RangeControl({
+export function RangeControl({
   label,
   min,
   max,
@@ -121,6 +122,7 @@ export function DebugPanel({
   onPlayGreeting,
   greetingIds,
   greetingLabel,
+  onLab,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [shownGreeting, setShownGreeting] = useState('');
@@ -135,6 +137,11 @@ export function DebugPanel({
       <Pressable onPress={() => setOpen((current) => !current)}>
         <Text style={styles.toggle}>{open ? 'Hide settings' : 'Settings'}</Text>
       </Pressable>
+      {onLab ? (
+        <Pressable accessibilityRole="button" accessibilityLabel="Wardrobe lab" onPress={onLab}>
+          <Text style={styles.toggle}>Wardrobe lab</Text>
+        </Pressable>
+      ) : null}
       {open ? (
         <View style={styles.body}>
       <Text style={styles.line}>Hunger {format(state.needs.hunger)}</Text>

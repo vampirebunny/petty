@@ -16,7 +16,6 @@ import {
 } from '../sim/config';
 import type {
   ActiveBoost,
-  Equipped,
   Look,
   Needs,
   PetAttributes,
@@ -26,6 +25,7 @@ import type {
   TreatStack,
 } from '../sim/types';
 import type { PetStorage } from './PetStorage';
+import { migrateEquipped } from '../actor/closet';
 import { migrateBreedId } from './migrateIds';
 
 const storageKey = 'petty.pet';
@@ -206,7 +206,7 @@ function migratePet(value: unknown): PetState | null {
   const onMonthCalendar = raw.agingCalendar === agingCalendar;
   const ageDays = onMonthCalendar ? raw.ageDays : scaleLegacyAgeDays(raw.ageDays);
   const bornAt = onMonthCalendar ? storedBornAt : raw.lastUpdatedAt - ageDays * dayMs;
-  const equipped = isRecord(raw.equipped) ? (raw.equipped as Equipped) : {};
+  const equipped = migrateEquipped(isRecord(raw.equipped) ? raw.equipped : {});
   const waterLevel =
     typeof raw.waterLevel === 'number' && Number.isFinite(raw.waterLevel)
       ? Math.max(0, Math.min(1, raw.waterLevel))

@@ -1,10 +1,10 @@
 import { useMemo, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Pressable } from 'react-native-gesture-handler';
 
 import { breedById, sceneList } from '../actor';
 import { seedOf } from '../actor/mulberry';
-import { outfitSlots, wardrobe } from '../actor/wardrobe';
+import type { OwnedItem } from '../actor/closet';
 import { activityById, offerActivities, trainedLabel } from '../playdate/activities';
 import { formatCooldown } from '../playdate/cooldown';
 import { localDateKey, personalityHint } from '../playdate/hint';
@@ -19,6 +19,7 @@ import type { Equipped, PetState, Trait } from '../sim/types';
 import { GainBar, gainColors } from '../ui/GainBar';
 import { PlaydateStage } from '../ui/PlaydateStage';
 import { SnapshotStill } from '../ui/SnapshotStill';
+import { WardrobePicker } from '../ui/WardrobePicker';
 import { minTouch } from '../ui/theme';
 
 type Step = 'partner' | 'place' | 'activity' | 'outfit' | 'play' | 'results';
@@ -32,9 +33,10 @@ type Props = {
   onSave: (save: PlaydateSave) => void;
   onRewarded: (happiness: number, attributes: PlaydateRecord['outcome']['attributeXp']) => void;
   onClose: () => void;
+  owned: readonly OwnedItem[];
 };
 
-export function PlaydateScreen({ pet, save, now, remaining, reducedMotion, onSave, onRewarded, onClose }: Props) {
+export function PlaydateScreen({ pet, save, now, remaining, reducedMotion, onSave, onRewarded, onClose, owned }: Props) {
   const ownerId = pet.ownerId ?? '';
   const date = localDateKey(now);
   const partners = useMemo(() => dailyCast(save.cast, ownerId, date), [date, ownerId, save.cast]);
@@ -48,9 +50,6 @@ export function PlaydateScreen({ pet, save, now, remaining, reducedMotion, onSav
   // What the paid playdate added, worked out from the pet before the rewards landed.
   const [gains, setGains] = useState<AttributeGain[] | null>(null);
   const finished = useRef(false);
-  const { width: windowWidth } = useWindowDimensions();
-  const outfitPreview = useMemo(() => snapshotPet(pet, outfit, '', 'outfit-preview'), [outfit, pet]);
-  const previewWidth = Math.min(420, Math.max(260, windowWidth - 40));
 
   const preview = useMemo(() => snapshotPet(pet, pet.equipped, '', 'preview'), [pet]);
   const activities = partner ? offerActivities(preview, partner, sceneId, date) : [];
@@ -152,14 +151,44 @@ export function PlaydateScreen({ pet, save, now, remaining, reducedMotion, onSav
       </View>
       {cooling && step !== 'play' && step !== 'results' ? <Text style={styles.countdown}>{countdown}</Text> : null}
       {step === 'outfit' ? (
-        <View style={styles.previewDock}>
-          <Text style={styles.section}>Choose {pet.name}&apos;s playdate outfit!</Text>
-          <View style={styles.preview}>
-            <SnapshotStill snapshot={outfitPreview} width={previewWidth} height={260} focus />
-          </View>
-        </View>
-      ) : null}
-      <ScrollView style={styles.scroller} contentContainerStyle={[styles.scroll, step === 'outfit' && styles.scrollUnderPreview]}>
+        <WardrobePicker
+          subject={{
+            breedId: pet.breedId,
+            ageDays: pet.ageDays,
+            weight: pet.weight,
+            vitality: pet.vitality,
+            look: pet.look,
+            seed: pet.attributes.seed,
+          }}
+          owned={owned}
+          equipped={outfit}
+          reducedMotion={reducedMotion}
+          onEquip={(slot, itemId) => {
+            setOutfit((current) => {
+              const next = { ...current };
+              if (itemId == null) {
+                delete next[slot];
+              } else {
+                next[slot] = itemId;
+              }
+              return next;
+            });
+          }}
+          footer={
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={cooling ? countdown : 'Start playdate'}
+              accessibilityState={{ disabled: cooling }}
+              disabled={cooling}
+              onPress={start}
+              style={[styles.start, cooling && styles.startOff]}
+            >
+              <Text style={styles.startLabel}>{cooling ? countdown : 'Start'}</Text>
+            </Pressable>
+          }
+        />
+      ) : (
+      <ScrollView style={styles.scroller} contentContainerStyle={styles.scroll}>
         {step === 'partner' ? (
           <View style={styles.stack}>
             {partners.map((npc) => {
@@ -253,52 +282,6 @@ export function PlaydateScreen({ pet, save, now, remaining, reducedMotion, onSav
             ))}
           </View>
         ) : null}
-        {step === 'outfit' ? (
-          <View style={styles.stack}>
-            {outfitSlots.map((slot) => (
-              <View key={slot} style={styles.slotRow}>
-                {wardrobe[slot].items.map((item) => {
-                  const selected = (outfit[slot] ?? 'none') === item.id || (!outfit[slot] && item.id === 'none');
-                  return (
-                    <Pressable
-                      key={item.id}
-                      accessibilityRole="button"
-                      accessibilityLabel={`${wardrobe[slot].label} ${item.label}`}
-                      accessibilityState={{ disabled: cooling, selected }}
-                      disabled={cooling}
-                      onPress={() => {
-                        setOutfit((current) => {
-                          const next = { ...current };
-                          if (item.id === 'none') {
-                            delete next[slot];
-                          } else {
-                            next[slot] = item.id;
-                          }
-                          return next;
-                        });
-                      }}
-                      style={[styles.choice, selected && styles.choiceOn, cooling && styles.dimmed]}
-                    >
-                      <Text style={styles.choiceLabel}>
-                        {wardrobe[slot].label} {item.label}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            ))}
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={cooling ? countdown : 'Start playdate'}
-              accessibilityState={{ disabled: cooling }}
-              disabled={cooling}
-              onPress={start}
-              style={[styles.start, cooling && styles.startOff]}
-            >
-              <Text style={styles.startLabel}>{cooling ? countdown : 'Start'}</Text>
-            </Pressable>
-          </View>
-        ) : null}
         {step === 'play' && record ? (
           <View style={styles.stack}>
             <Text style={styles.section}>
@@ -366,6 +349,7 @@ export function PlaydateScreen({ pet, save, now, remaining, reducedMotion, onSav
           </View>
         ) : null}
       </ScrollView>
+      )}
     </View>
   );
 }

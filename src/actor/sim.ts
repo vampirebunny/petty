@@ -1069,6 +1069,23 @@ function playGreetSound(world: World, actor: Actor, breedId: string, ageDays: nu
   }
 }
 
+const bellGap = 1.2;
+const bellSpeed = 90;
+
+function ringBell(world: World, actor: Actor): void {
+  if (actor.equipped.neckwear !== 'bell') {
+    return;
+  }
+  if (world.t - (actor.bellAt ?? -10) < bellGap) {
+    return;
+  }
+  if (world.sounds.length >= 8) {
+    return;
+  }
+  actor.bellAt = world.t;
+  world.sounds.push({ actorId: actor.id, sound: 'bell', rate: 1 });
+}
+
 function greetPoint(world: World, actor: Actor, step: import('./types').GreetStep): Vec | null {
   const move = step.move;
   if (!move) {
@@ -1294,6 +1311,7 @@ export function beginGreeting(world: World, actor: Actor, plan: GreetPlan): void
     skid: false,
   };
   world.greetLabel = plan.label;
+  ringBell(world, actor);
 }
 
 export function patGreeting(world: World, actor: Actor): 'bonus' | 'repeat' | 'interrupt' | 'none' {
@@ -2006,6 +2024,9 @@ function updateActor(world: World, actor: Actor, dt: number): void {
   actor.x = traveling ? nextX : clamp(nextX, xClampLo, xClampHi);
   actor.y = clamp(actor.y + actor.vy * dt, floor.yMin, floor.yMax);
   actor.speed = Math.hypot(actor.vx, actor.vy);
+  if (actor.speed > bellSpeed) {
+    ringBell(world, actor);
+  }
   // A fast stop skids while the body is still sliding the old way.
   const reversing = Math.abs(desired.x) > 20 && desired.x * actor.face < 0 && actor.vx * actor.face > 55;
   targets.skid = reversing && actor.z <= 0 ? clamp(actor.speed / 200, 0.4, 1) : 0;

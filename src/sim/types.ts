@@ -69,7 +69,7 @@ export type CareSample = {
   attention: number;
 };
 
-export type OutfitSlot = 'collar' | 'bandana' | 'glasses' | 'hat' | 'coat' | 'boots';
+export type OutfitSlot = 'hat' | 'glasses' | 'neckwear' | 'jacket' | 'boots';
 
 export type Equipped = Partial<Record<OutfitSlot, string>>;
 

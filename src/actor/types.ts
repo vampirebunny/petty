@@ -488,6 +488,8 @@ export type Actor = {
   pendingThirst: number;
   vitality: number;
   equipped: Equipped;
+  // World time of the last bell jingle, so a run does not ring every frame.
+  bellAt?: number;
   look: Look | null;
   variant: Variant;
   asleep: boolean;
@@ -568,7 +570,7 @@ export type CuddleSound = 'cuddle_purr' | 'cuddle_happy' | 'cuddle_pant';
 
 export type SoundEvent = {
   actorId: string;
-  sound: 'bark' | 'meow' | 'growl' | 'sneeze' | 'sneeze_cat' | 'trill' | CuddleSound;
+  sound: 'bark' | 'meow' | 'growl' | 'sneeze' | 'sneeze_cat' | 'trill' | 'bell' | CuddleSound;
   rate: number;
 };
 

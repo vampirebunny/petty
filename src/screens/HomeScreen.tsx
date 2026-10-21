@@ -10,7 +10,6 @@ import {
   sceneById,
   sceneList,
   stagePoint,
-  wardrobe,
 } from '../actor';
 import { releaseMusic, setMusicEnabled, suspendMusic } from '../audio/music';
 import { setSoundEnabled } from '../audio/voice';
@@ -20,7 +19,7 @@ import { flickSpeedThreshold } from '../input/flick';
 import { CuddleGesture } from '../input/cuddleGesture';
 import type { GestureEvent } from '../input/cuddleGesture';
 import { archetypeNames, archetypeStyleNames, attributeScore, currentStyle, petStrokeIntervalMs, traits } from '../sim';
-import type { OutfitSlot, Trait } from '../sim';
+import type { Trait } from '../sim';
 import {
   loadHasSeenSilentModeHint,
   loadMusicEnabled,
@@ -43,6 +42,9 @@ import {
 import { ActionButtons } from '../ui/ActionButtons';
 import type { PetAction } from '../ui/ActionButtons';
 import { PlaydateScreen } from './PlaydateScreen';
+import { WardrobeLab } from './WardrobeLab';
+import { WardrobeScreen } from './WardrobeScreen';
+import { useCloset } from '../state/useCloset';
 import { usePlaydates } from '../state/usePlaydates';
 import { formatCooldown } from '../playdate/cooldown';
 import { DebugPanel } from '../ui/DebugPanel';
@@ -143,9 +145,11 @@ export default function HomeScreen({ petApi }: Props) {
   const { viewWidth, viewHeight, contentWidth } = useStageSize();
   const [playdateOpen, setPlaydateOpen] = useState(false);
   const playdates = usePlaydates(state?.ownerId);
+  const owned = useCloset(state?.ownerId, state?.equipped);
   const [hour, setHour] = useState<number | null>(null);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [wardrobeOpen, setWardrobeOpen] = useState(false);
+  const [labOpen, setLabOpen] = useState(false);
   const [personalityOpen, setPersonalityOpen] = useState(false);
   const [playOpen, setPlayOpen] = useState(false);
   const [cuddleOn, setCuddleOn] = useState(false);
@@ -673,8 +677,26 @@ export default function HomeScreen({ petApi }: Props) {
         onSave={playdates.persist}
         onRewarded={finishPlaydate}
         onClose={() => setPlaydateOpen(false)}
+        owned={owned}
       />
     );
+  }
+
+  if (wardrobeOpen) {
+    return (
+      <WardrobeScreen
+        pet={state}
+        owned={owned}
+        equipped={state.equipped}
+        onEquip={equip}
+        reducedMotion={reducedMotion}
+        onClose={() => setWardrobeOpen(false)}
+      />
+    );
+  }
+
+  if (labOpen) {
+    return <WardrobeLab look={state.look} reducedMotion={reducedMotion} onClose={() => setLabOpen(false)} />;
   }
 
   const origin = state.attributes.archetype;
@@ -778,7 +800,7 @@ export default function HomeScreen({ petApi }: Props) {
     {
       id: 'wardrobe',
       label: 'Wardrobe',
-      onPress: () => setWardrobeOpen((open) => !open),
+      onPress: () => setWardrobeOpen(true),
       active: wardrobeOpen,
     },
     {
@@ -1005,23 +1027,6 @@ export default function HomeScreen({ petApi }: Props) {
             'With no action running, the pet idles on its own. Tap the stage to soft-drop a ball, or flick to throw.'}
         </Text>
         <ActionButtons actions={toggles} species={species} />
-        {wardrobeOpen
-          ? (Object.keys(wardrobe) as OutfitSlot[]).map((slot) => (
-              <View key={slot} style={styles.scenes}>
-                {wardrobe[slot].items.map((item) => (
-                  <Pressable
-                    key={item.id}
-                    style={styles.scene}
-                    onPress={() => equip(slot, item.id === 'none' ? null : item.id)}
-                  >
-                    <Text style={styles.sceneLabel}>
-                      {wardrobe[slot].label} {item.label}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            ))
-          : null}
         {personalityOpen ? (
           <View style={styles.personality}>
             <Text style={styles.personalityMeta}>{styleLine}</Text>
@@ -1052,6 +1057,7 @@ export default function HomeScreen({ petApi }: Props) {
           onPlayGreeting={(id) => stageHandle.current?.playGreeting(id)}
           greetingIds={() => stageHandle.current?.greetingIds() ?? []}
           greetingLabel={() => stageHandle.current?.label() ?? ''}
+          onLab={() => setLabOpen(true)}
         />
       </ScrollView>
     </View>
