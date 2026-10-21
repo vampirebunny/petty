@@ -49,7 +49,9 @@ it('enables an action only when the scene has its point', () => {
   expect(actionEnabled(scenes.livingroom, 'feed')).toBe(true);
   expect(actionEnabled(scenes.livingroom, 'rest')).toBe(true);
   expect(actionEnabled(scenes.livingroom, 'drink')).toBe(true);
-  expect(actionEnabled(scenes.bedroom, 'drink')).toBe(true);
+  expect(actionEnabled(scenes.bedroom, 'drink')).toBe(false);
+  expect(actionEnabled(scenes.bedroom, 'feed')).toBe(false);
+  expect(actionEnabled(scenes.bedroom, 'refillWater', 0)).toBe(false);
   expect(actionEnabled(compileScene(room), 'drink')).toBe(false);
   expect(actionEnabled(scenes.park, 'drink')).toBe(true);
   expect(actionEnabled(scenes.livingroom, 'refillWater', 0.5)).toBe(true);

@@ -1,6 +1,6 @@
 import { applyEvent } from '../../sim/events';
 import { testPet } from '../../sim/__fixtures__/pets';
-import { applyFurniture, furnitureAt, starterFurniture, steerAim } from '../furniture';
+import { applyFurniture, furnitureAt, normalizeFurniture, starterFurniture, steerAim } from '../furniture';
 import { sceneForSpecies, scenes } from '../scenes';
 import { createWorld, spawnActor, startUserTask, update } from '../sim';
 
@@ -67,6 +67,28 @@ it('keeps the litter box out of a dog room', () => {
   expect(dog.furniture.some((piece) => piece.kind === 'litterbox')).toBe(false);
   expect(starterFurniture('cat').pieces.some((piece) => piece.id === 'catio-tree')).toBe(true);
   expect(starterFurniture('dog').pieces.some((piece) => piece.id === 'catio-tree')).toBe(false);
+  expect(starterFurniture('cat').pieces.some((piece) => piece.id === 'bedroom-food' || piece.id === 'bedroom-water')).toBe(false);
+});
+
+it('drops the bedroom bowls from a save that still has them', () => {
+  const kept = normalizeFurniture(
+    'cat',
+    [
+      { id: 'bedroom-food', kind: 'bowl', contents: 'kibble' },
+      { id: 'bedroom-water', kind: 'bowl', contents: 'water' },
+      { id: 'livingroom-food', kind: 'bowl', contents: 'kibble' },
+    ],
+    [
+      { pieceId: 'bedroom-food', sceneId: 'bedroom', x: 120, y: 340 },
+      { pieceId: 'bedroom-water', sceneId: 'bedroom', x: 130, y: 590 },
+      { pieceId: 'livingroom-food', sceneId: 'livingroom', x: 540, y: 330 },
+    ],
+  );
+  expect(kept.furniture.map((piece) => piece.id)).toEqual(['livingroom-food']);
+  expect(kept.placed.map((place) => place.pieceId)).toEqual(['livingroom-food']);
+  const bedroom = applyFurniture(scenes.bedroom, kept.furniture, kept.placed);
+  expect(bedroom.props.some((prop) => prop.kind === 'bowl')).toBe(false);
+  expect(bedroom.pois.some((poi) => poi.type === 'food' || poi.type === 'water')).toBe(false);
 });
 
 it('hits a bowl and misses the rug', () => {

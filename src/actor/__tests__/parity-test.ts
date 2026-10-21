@@ -180,8 +180,8 @@ it('eats and drinks from the side of the bowl the pet approaches from', () => {
   }
 });
 
-it('stands exactly at the bowl to eat and at the water bowl to drink, in every indoor scene', () => {
-  for (const scene of [scenes.livingroom, scenes.bedroom]) {
+it('stands exactly at the bowl to eat and at the water bowl to drink', () => {
+  for (const scene of [scenes.livingroom]) {
     for (const [task, type] of [['eat', 'food'], ['drink', 'water']] as const) {
       const pup = spawnActor(source());
       const world = createWorld([pup], 1, scene);

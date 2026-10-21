@@ -404,13 +404,9 @@ const sceneDefs = {
       { kind: 'lamp', x: 540, y: 208 },
       { kind: 'rug', x: 330, y: 470, w: 380, h: 120, color: '#9a86c0', layer: 'back' },
       { kind: 'bed', id: 'bedroom-bed', x: 520, y: 560, w: 112, color: '#d98b3a' },
-      { kind: 'bowl', id: 'bedroom-food', x: 120, y: 340, color: '#c24d4d', contents: 'kibble' },
-      { kind: 'bowl', id: 'bedroom-water', x: 130, y: 590, color: '#3f78b5', contents: 'water' },
       { kind: 'litterbox', id: 'bedroom-litter', x: 220, y: 300, w: 78, color: '#d9d3c7' },
     ],
     pois: [
-      { id: 'bowl', type: 'food', x: 120, y: 340, face: 1, propId: 'bedroom-food' },
-      { id: 'water', type: 'water', x: 130, y: 590, face: 1, propId: 'bedroom-water' },
       { id: 'bed', type: 'bed', x: 520, y: 562, propId: 'bedroom-bed' },
       { id: 'litter', type: 'litter', x: 220, y: 300, face: -1, propId: 'bedroom-litter' },
       { id: 'home', type: 'home', x: 320, y: 470 },

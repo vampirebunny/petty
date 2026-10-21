@@ -184,6 +184,16 @@ function readPlaced(value: unknown): FurniturePlacement[] | null {
   return value.filter(isPlacement);
 }
 
+// Bowls that used to live in the bedroom. Saved pets still own them until load drops them.
+const retiredPieceIds = new Set(['bedroom-food', 'bedroom-water']);
+
+function dropRetired(pieces: FurniturePiece[], placed: FurniturePlacement[]): { furniture: FurniturePiece[]; placed: FurniturePlacement[] } {
+  return {
+    furniture: pieces.filter((piece) => !retiredPieceIds.has(piece.id)),
+    placed: placed.filter((place) => !retiredPieceIds.has(place.pieceId)),
+  };
+}
+
 // Missing fields load the starter set. A saved list is kept, including an empty one.
 export function normalizeFurniture(
   species: 'dog' | 'cat',
@@ -194,7 +204,7 @@ export function normalizeFurniture(
   const pieces = readPieces(furniture);
   const spots = readPlaced(placed);
   if (pieces && spots) {
-    return { furniture: pieces, placed: spots };
+    return dropRetired(pieces, spots);
   }
   const owned = pieces ?? starter.pieces.map((piece) => ({ ...piece }));
   const where =
@@ -202,7 +212,7 @@ export function normalizeFurniture(
     starter.placed
       .filter((place) => owned.some((piece) => piece.id === place.pieceId))
       .map((place) => ({ ...place }));
-  return { furniture: owned, placed: where };
+  return dropRetired(owned, where);
 }
 
 // A new scene: scenery copied through, furniture moved to its placement, points of interest following.
