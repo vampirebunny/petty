@@ -73,9 +73,14 @@ export function faceEachOther(a: Actor, b: Actor): void {
     [a, b],
     [b, a],
   ] as const) {
-    if (self.speed < 20 && Math.abs(other.x - self.x) > 4) {
-      self.face = other.x > self.x ? 1 : -1;
-      self.anchors.facing = self.face >= 0 ? 1 : -1;
+    if (Math.abs(other.x - self.x) > 4) {
+      const toward = other.x > self.x ? 1 : -1;
+      // A pet that is walking away keeps facing its travel. Turning to a partner is for when it has stopped,
+      // or when it is already moving toward them.
+      if (self.speed <= 14 || self.vx * toward >= 0) {
+        self.face = toward;
+        self.anchors.facing = self.face >= 0 ? 1 : -1;
+      }
     }
   }
 }

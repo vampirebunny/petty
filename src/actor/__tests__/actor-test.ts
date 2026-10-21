@@ -384,6 +384,27 @@ describe('3/4 head turn', () => {
     }
   });
 
+  it('faces the direction it is walking, including through a turnaround', () => {
+    const pup = actor();
+    const world = createWorld([pup], 1);
+    pup.face = 1;
+    pup.vx = 80;
+    pup.task = { type: 'idle', stage: '', t: 0, bats: 0, cool: 0 };
+    pup.idle = { mode: 'walk', t: 0, dur: 99, target: { x: pup.x - 220, y: pup.y }, sit: false, arrived: false };
+    let reversed = false;
+    for (let step = 0; step < 100; step += 1) {
+      update(world, 0.05);
+      if (pup.speed > 14 && Math.abs(pup.vx) > 8) {
+        expect(pup.face).toBe(pup.vx > 0 ? 1 : -1);
+        expect(pup.anchors.facing).toBe(pup.face);
+      }
+      if (pup.vx < -8) {
+        reversed = true;
+      }
+    }
+    expect(reversed).toBe(true);
+  });
+
   it('never shows a turned head while the pet is moving', () => {
     const pup = actor();
     const world = createWorld([pup], 7);

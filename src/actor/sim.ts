@@ -59,6 +59,8 @@ import type { Actor, ActorSource, Anchors, Direction, Idle, IdleMode, JumpKind, 
 
 const displayTau = 0.35;
 const idleWeight: Record<IdleMode, number> = { still: 3, pant: 2, purr: 2, nap: 1.5, walk: 2.5, zoom: 0 };
+// Horizontal speed below this is a settle, not a step. Above it, the body faces that direction.
+const faceDeadzone = 8;
 
 const defaultStats = { stamina: 0.5, agility: 0.5, boldness: 0.5, obedience: 0.5 };
 
@@ -1377,8 +1379,9 @@ function updateActor(world: World, actor: Actor, dt: number): void {
       let leaping = false;
 
       if (toy.state === 'free') {
-        // Turn to the toy. A fast pet brakes first (skid) and flips once it has slowed.
-        if (dir !== actor.face && !(Math.abs(actor.vx) > 60 && actor.vx * actor.face > 0)) {
+        // Face the toy when that is the way the body is moving, or once the pet has nearly stopped.
+        // A slide the other way keeps the old face until horizontal speed comes around.
+        if (dir !== actor.face && actor.vx * dir > -faceDeadzone) {
           actor.face = dir;
         }
         // Leap-catch: predict where the toy comes down through the catch height and time the jump to meet it.
@@ -1645,12 +1648,12 @@ function updateActor(world: World, actor: Actor, dt: number): void {
   actor.x = traveling ? nextX : clamp(nextX, xLo, xHi);
   actor.y = clamp(actor.y + actor.vy * dt, floor.yMin, floor.yMax);
   actor.speed = Math.hypot(actor.vx, actor.vy);
-  // A fast turn: the pet brakes with its weight back and the forelegs reaching, and only then faces the new way.
+  // A fast stop skids while the body is still sliding the old way. Facing follows that slide,
+  // and flips as soon as horizontal speed changes sign, so the walk never plays backward.
   const reversing = Math.abs(desired.x) > 20 && desired.x * actor.face < 0 && actor.vx * actor.face > 55;
   targets.skid = reversing && actor.z <= 0 ? clamp(actor.speed / 200, 0.4, 1) : 0;
-  const chasing = actor.task.type === 'fetch' && (actor.task.stage === 'chase' || actor.task.stage === 'bow');
   const eating = actor.task.type === 'eat' && actor.task.stage === 'eating';
-  if (!chasing && !eating && Math.abs(actor.vx) > 25) {
+  if (!eating && Math.abs(actor.vx) > faceDeadzone) {
     actor.face = actor.vx > 0 ? 1 : -1;
     actor.anchors.facing = actor.face >= 0 ? 1 : -1;
   }
