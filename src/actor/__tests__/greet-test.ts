@@ -69,6 +69,45 @@ it('does not greet a quick return and does not repeat the stored combo greeting'
   expect(again?.ids).not.toContain(combo?.storeId);
 });
 
+it('turns the head to the camera for a greeting bark', () => {
+  const world = createWorld([spawnActor(source())]);
+  const actor = world.actors[0];
+  beginGreeting(world, actor, {
+    ids: ['woof'],
+    steps: [{ dur: 0.8, sound: 'woof' }],
+    storeId: null,
+    start: null,
+    label: 'woof',
+  });
+  const run = actor.task.greet;
+  expect(run).toBeDefined();
+  if (!run) {
+    return;
+  }
+  run.delay = 0;
+  for (let step = 0; step < 4; step += 1) {
+    update(world, 0.05);
+  }
+  expect(actor.pose.faceFront).toBeGreaterThan(0.8);
+  const purr = createWorld([spawnActor(source({ breedId: 'domesticShorthair' }))]);
+  const cat = purr.actors[0];
+  beginGreeting(purr, cat, {
+    ids: ['purr'],
+    steps: [{ dur: 0.8, sound: 'purr' }],
+    storeId: null,
+    start: null,
+    label: 'purr',
+  });
+  const catRun = cat.task.greet;
+  expect(catRun).toBeDefined();
+  if (!catRun) {
+    return;
+  }
+  catRun.delay = 0;
+  update(purr, 0.05);
+  expect(cat.pose.faceFront).toBe(0);
+});
+
 it('waits to flip facing until speed has pointed the other way', () => {
   const actor = spawnActor(source());
   actor.vx = -80;

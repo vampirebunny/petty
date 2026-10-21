@@ -145,15 +145,16 @@ export function drawGlasses(c: SkCanvas, item: WearItem, face: HeadFace, headR: 
   const color = item.c ?? '#1b1b22';
   const frame = item.id === 'square' ? color : '#15151b';
   const { eyeR, nearEye, farEye, turn } = face;
+  const view = Math.max(turn, face.front);
   const ex = nearEye.x;
   const ey = nearEye.y;
   // The two lenses together need about 3.3 eye radii between the eye centers. Close-set breeds (husky) get
   // smaller lenses so they never overlap, wide-set breeds (pug) keep the full size.
   const fit = Math.min(1, Math.max(0.6, face.gap3 / (3.3 * eyeR)));
-  const k = 1 + (fit - 1) * turn;
+  const k = 1 + (fit - 1) * view;
   strokeLine(c, ex - eyeR * 1.7 * k, ey - eyeR * 0.1, -headR * 0.62, ey - headR * 0.06, frame, 2.2);
-  if (turn < 0.999) {
-    strokeLine(c, ex + eyeR * 1.8 * k, ey + eyeR * 0.05, ex + eyeR * 2.9, ey + eyeR * 0.35, frame, 2.2, 1 - turn);
+  if (view < 0.999) {
+    strokeLine(c, ex + eyeR * 1.8 * k, ey + eyeR * 0.05, ex + eyeR * 2.9, ey + eyeR * 0.35, frame, 2.2, 1 - view);
   }
   drawLens(c, item, ex, ey, eyeR, k, 1, 1, 1);
   if (face.farEyeAlpha > 0.001) {
@@ -163,6 +164,9 @@ export function drawGlasses(c: SkCanvas, item: WearItem, face: HeadFace, headR: 
     const nearEdge = ex + eyeR * (0.1 + 1.8) * k;
     const farEdge = farEye.x + eyeR * (0.1 - 1.8) * k * sx;
     strokeLine(c, nearEdge - 1, ey - eyeR * 0.1, farEdge + 1, ey - eyeR * 0.1, frame, 2.2, a);
+    if (face.front > 0.02) {
+      strokeLine(c, farEye.x + eyeR * 1.7 * k, ey - eyeR * 0.1, headR * 0.62, ey - headR * 0.06, frame, 2.2, face.front);
+    }
   }
 }
 
@@ -171,7 +175,7 @@ export function drawGlasses(c: SkCanvas, item: WearItem, face: HeadFace, headR: 
 export function drawHat(c: SkCanvas, item: WearItem, r: number, face: HeadFace): void {
   c.save();
   c.translate(face.top.x, 0);
-  c.scale(1 + 0.12 * face.turn, 1);
+  c.scale(1 + 0.12 * Math.max(face.turn, face.front), 1);
   drawHatShape(c, item, r);
   c.restore();
 }

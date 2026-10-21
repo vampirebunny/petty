@@ -1,6 +1,6 @@
 # Turning and greetings
 
-The pet no longer flips across its profile. Logical facing stays on `actor.face`. A visual yaw (0 right, π/2 toward the camera, π left) chases it at constant speed, compressing length and adding thickness so the body never becomes a sliver. The head stays on the existing 3/4 blend. On a reversal the head turns first, then the body follows, then the head settles back to profile.
+The pet no longer flips across its profile. Logical facing stays on `actor.face`. A visual yaw (0 right, π/2 toward the camera, π left) chases it at constant speed, compressing length and adding thickness so the body never becomes a sliver. The head stays on the existing 3/4 blend, except a greeting bark or meow, which eases the head to a symmetric front face for that step. On a reversal the head turns first, then the body follows, then the head settles back to profile. The body still stops at a 3/4 yaw.
 
 ## Pace
 

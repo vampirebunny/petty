@@ -219,6 +219,8 @@ export type Pose = {
   legPedal: number;
   faceCam: number;
   headFront: number;
+  // Symmetric face toward the camera. Greetings raise it for a bark or meow.
+  faceFront: number;
 };
 
 export type IdleMode = 'still' | 'pant' | 'purr' | 'nap' | 'walk' | 'zoom';

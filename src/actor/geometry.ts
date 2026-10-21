@@ -138,6 +138,8 @@ export type HeadFace = {
   // Slides a near ear back in 3/4 so it never covers the near eye and the pair spreads apart.
   nearEarShift: Vec;
   farEarAlpha: number;
+  // 0 = the turn above, 1 = a symmetric face aimed at the camera.
+  front: number;
 };
 
 function lerp(a: number, b: number, t: number): number {
@@ -146,9 +148,59 @@ function lerp(a: number, b: number, t: number): number {
 
 const eyeShapeScale = { almond: 0.92, slanted: 0.92, round: 1, bigRound: 1.2 } as const;
 
-// Head layout in head space for a head turn t (0 = side view, 1 = 3/4). One source of truth for the
-// renderer, glasses, hats, cuddle and the published anchors. Everything breed specific comes from breed data.
-export function headFaceOf(breed: Breed, geom: Geom, turn: number): HeadFace {
+// Head layout in head space for a head turn t (0 = side view, 1 = 3/4). `front` blends that layout
+// toward a symmetric face aimed at the camera. One source of truth for the renderer, glasses, hats,
+// cuddle and the published anchors. Everything breed specific comes from breed data.
+export function headFaceOf(breed: Breed, geom: Geom, turn: number, front = 0): HeadFace {
+  const posed = headLayout(breed, geom, turn);
+  const f = clamp(front, 0, 1);
+  if (f <= 0) {
+    return posed;
+  }
+  const at = headLayout(breed, geom, 1);
+  const R = geom.headR;
+  const gap = Math.max(at.farEye.x - at.nearEye.x, at.eyeR * 2.4);
+  const spread = Math.max(R * 0.22, Math.abs(at.nearEarShift.x), Math.abs(at.farEarShift.x));
+  const tucked = earProfiles[breed.earType].stiff || breed.earType === 'folded';
+  const aimed: HeadFace = {
+    ...at,
+    front: 1,
+    nearEye: { x: -gap / 2, y: at.nearEye.y },
+    farEye: { x: gap / 2, y: at.farEye.y },
+    farEyeAlpha: 1,
+    farEyeScale: { x: 1, y: 1 },
+    top: { x: 0, y: -R },
+    muzzle: { x: 0, y: at.muzzle.y, rx: Math.max(at.muzzle.rx, gap * 0.46), ry: at.muzzle.ry },
+    farEarAlpha: 1,
+    nearEarShift: { x: -spread, y: at.nearEarShift.y },
+    // The far ear is drawn an extra 0.35R toward the back, so the shift cancels that at full front.
+    farEarShift: { x: spread + (tucked ? R * 0.35 : 0), y: at.farEarShift.y },
+    gap3: gap,
+  };
+  return {
+    ...aimed,
+    turn: lerp(posed.turn, aimed.turn, f),
+    front: f,
+    eyeR: aimed.eyeR,
+    nearEye: { x: lerp(posed.nearEye.x, aimed.nearEye.x, f), y: lerp(posed.nearEye.y, aimed.nearEye.y, f) },
+    farEye: { x: lerp(posed.farEye.x, aimed.farEye.x, f), y: lerp(posed.farEye.y, aimed.farEye.y, f) },
+    farEyeAlpha: lerp(posed.farEyeAlpha, 1, f),
+    farEyeScale: { x: lerp(posed.farEyeScale.x, 1, f), y: lerp(posed.farEyeScale.y, 1, f) },
+    top: { x: lerp(posed.top.x, 0, f), y: posed.top.y },
+    muzzle: {
+      x: lerp(posed.muzzle.x, 0, f),
+      y: lerp(posed.muzzle.y, aimed.muzzle.y, f),
+      rx: lerp(posed.muzzle.rx, aimed.muzzle.rx, f),
+      ry: lerp(posed.muzzle.ry, aimed.muzzle.ry, f),
+    },
+    farEarShift: { x: lerp(posed.farEarShift.x, aimed.farEarShift.x, f), y: lerp(posed.farEarShift.y, aimed.farEarShift.y, f) },
+    nearEarShift: { x: lerp(posed.nearEarShift.x, aimed.nearEarShift.x, f), y: lerp(posed.nearEarShift.y, aimed.nearEarShift.y, f) },
+    farEarAlpha: lerp(posed.farEarAlpha, 1, f),
+    gap3: lerp(posed.gap3, gap, f),
+  };
+}
+
+function headLayout(breed: Breed, geom: Geom, turn: number): HeadFace {
   const t = clamp(turn, 0, 1);
   const R = geom.headR;
   const cf = geom.cf;
@@ -208,6 +260,7 @@ export function headFaceOf(breed: Breed, geom: Geom, turn: number): HeadFace {
     farEarShift: { x: profile.farDx * R * t, y: (profile.farDy * t + profile.drop) * R },
     nearEarShift: { x: -nearEarBack * t, y: profile.drop * R },
     farEarAlpha: Math.min(1, t / 0.5),
+    front: 0,
   };
 }
 
@@ -216,9 +269,17 @@ export function noseOf(breed: Breed, R: number, face: HeadFace, ryScale = 1): Ve
   const cat = breed.species === 'cat';
   const { x, y, rx, ry } = face.muzzle;
   const t = face.turn;
-  return {
+  const side = {
     x: x + rx * (cat ? 0.85 : 0.9) * (1 - t) + rx * (breed.skull === 'flat' ? 0.1 : 0.5) * t,
     y: y - (cat ? R * 0.1 : R * 0.12) * (1 - t) - ry * ryScale * 0.15 * t,
+  };
+  const f = face.front;
+  if (f <= 0) {
+    return side;
+  }
+  return {
+    x: lerp(side.x, x, f),
+    y: lerp(side.y, y - ry * ryScale * (breed.skull === 'flat' ? 0.05 : 0.32), f),
   };
 }
 

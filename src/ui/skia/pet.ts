@@ -484,7 +484,7 @@ export function drawActor(
   const profile = earProfiles[breed.earType];
   // 3/4 head turn: all eye, snout and far-ear positions come from one layout shared with the anchors.
   const turn = clamp(pose.headTurn, 0, 1);
-  const face = headFaceOf(breed, geom, turn);
+  const face = headFaceOf(breed, geom, turn, pose.faceFront);
   const eyeR = face.eyeR;
   const ex = face.nearEye.x;
   const ey = face.nearEye.y;
@@ -495,7 +495,7 @@ export function drawActor(
     inner: cat ? (darkPoints ? '#a07d70' : '#e8a3ad') : mix(earColor, '#ffffff', 0.35),
     feather: featherColor,
   };
-  const farPaint = { ...nearPaint, color: mix(earColor, '#000000', 0.2) };
+  const farPaint = { ...nearPaint, color: mix(earColor, '#000000', 0.2 * (1 - face.front)) };
   const muzzleColor = muzzleColorOf(breed, markings);
   const earSwing = Math.sin(actor.phase * 2) * 0.08 * pose.walk - barkOpen * 0.15 + earBackNow;
   const nearEar = (): void =>
@@ -507,6 +507,7 @@ export function drawActor(
       angle: -0.25 + earBackNow,
       earBack: earBackNow,
       alpha: profile.stiff ? 1 : face.farEarAlpha,
+      showInner: face.front > 0.55,
     });
   c.save();
   // At the bowl the head dips and lifts with each bite or lap.
@@ -572,26 +573,31 @@ export function drawActor(
   }
   if (cat) {
     fillOval(c, noseX, noseY, R * 0.11 * noseK, R * 0.08 * noseK, darkPoints ? '#8a6a5c' : '#e59aa6');
-    if (jaw < 0.04 && turn < 0.99) {
+    if (jaw < 0.04 && turn < 0.99 && face.front < 0.99) {
       const mouth = Skia.Path.Make();
       mouth.moveTo(mx + mrx * 0.82, my - R * 0.02);
       mouth.lineTo(mx + mrx * 0.82, my + R * 0.1);
       mouth.moveTo(mx + mrx * 0.82, my + R * 0.1);
       mouth.quadTo(mx + mrx * 0.5, my + R * 0.2, mx + mrx * 0.15, my + R * 0.1);
-      c.drawPath(mouth, paintOf('#281919', 0.55 * (1 - turn), 1.1));
-    }
-    const whiskers = Skia.Path.Make();
-    for (let wk = -1; wk <= 1; wk += 1) {
-      whiskers.moveTo(mx + mrx * 0.3, my + R * 0.04 + wk * 0.03 * R);
-      whiskers.lineTo(mx + mrx + R * 0.95, my + R * 0.02 + wk * R * 0.22);
+      c.drawPath(mouth, paintOf('#281919', 0.55 * (1 - turn) * (1 - face.front), 1.1));
     }
     const pale = points || isDarkCoat(baseColor);
-    c.drawPath(whiskers, paintOf(pale ? '#ebebf0' : '#ffffff', pale ? 0.75 : 0.85, 1.1));
+    const whisker = pale ? '#ebebf0' : '#ffffff';
+    const whiskerAlpha = pale ? 0.75 : 0.85;
+    for (const dir of face.front > 0.02 ? [1, -1] : [1]) {
+      const whiskers = Skia.Path.Make();
+      for (let wk = -1; wk <= 1; wk += 1) {
+        whiskers.moveTo(mx + dir * mrx * 0.3, my + R * 0.04 + wk * 0.03 * R);
+        whiskers.lineTo(mx + dir * (mrx + R * 0.95), my + R * 0.02 + wk * R * 0.22);
+      }
+      c.drawPath(whiskers, paintOf(whisker, dir < 0 ? whiskerAlpha * face.front : whiskerAlpha, 1.1));
+    }
   } else {
-    fillOval(c, noseX, noseY, R * (0.17 + 0.03 * turn) * noseK, R * (0.13 + 0.01 * turn) * noseK, '#1b1512');
+    const noseTurn = Math.max(turn, face.front);
+    fillOval(c, noseX, noseY, R * (0.17 + 0.03 * noseTurn) * noseK, R * (0.13 + 0.01 * noseTurn) * noseK, '#1b1512');
   }
   // Small centered "w" mouth under the nose at the 3/4 turn (dogs show it when the jaw is shut).
-  if (turn > 0.01 && jaw < 0.04) {
+  if ((turn > 0.01 || face.front > 0.01) && jaw < 0.04) {
     const wy = noseY + mry * 0.45;
     const s = R * 0.13;
     const mouthW = Skia.Path.Make();
@@ -600,7 +606,7 @@ export function drawActor(
     mouthW.moveTo(noseX - s, wy - R * 0.02);
     mouthW.quadTo(noseX - s / 2, wy + R * 0.09, noseX, wy);
     mouthW.quadTo(noseX + s / 2, wy + R * 0.09, noseX + s, wy - R * 0.02);
-    c.drawPath(mouthW, paintOf('#281919', 0.6 * turn, 1.1));
+    c.drawPath(mouthW, paintOf('#281919', 0.6 * Math.max(turn, face.front), 1.1));
   }
   fillOval(c, ex + R * 0.02, ey + R * 0.4, R * 0.2, R * 0.12, '#ff738c', 0.3 * Math.min(cf, 1));
   if (face.farEyeAlpha > 0.001) {

@@ -1198,6 +1198,8 @@ function runGreet(world: World, actor: Actor, dt: number, targets: Pose, limit: 
   run.poseRates = step.rate;
   run.faceCam = step.pose?.faceCam ?? 0;
   run.headFront = step.pose?.headFront ?? 0;
+  const vocal = run.phase === 'run' && !!step.sound && greetClip(step.sound).jaw;
+  targets.faceFront = vocal || actor.bark.active ? 1 : 0;
   run.march = run.phase === 'run' && !!step.march;
   run.patWindow = !!step.patWindow;
   run.skid = !!step.skid && run.phase === 'run';
@@ -1380,7 +1382,7 @@ function updateActor(world: World, actor: Actor, dt: number): void {
     actor.share,
   );
   actor.mouth = frame.mouth;
-  const face = headFaceOf(breed, frame.geom, actor.pose.headTurn);
+  const face = headFaceOf(breed, frame.geom, actor.pose.headTurn, actor.pose.faceFront);
   actor.anchors = {
     head: {
       x: frame.head.x,

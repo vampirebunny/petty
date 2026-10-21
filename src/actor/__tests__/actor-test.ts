@@ -1,7 +1,7 @@
 import { bagSpanDays, bagStartDay, visualLifespanDays } from '../../sim/config';
 import { canBehave, isUserTask, reactionFor } from '../behavior';
 import { breedsFor, dogBreeds } from '../breeds';
-import { bagAmount, geomOf, headFaceOf, thickOf } from '../geometry';
+import { bagAmount, geomOf, headFaceOf, noseOf, thickOf } from '../geometry';
 import { growthFor } from '../growth';
 import { gaitFoot, solveKnee } from '../legs';
 import { defaultPose, easePose } from '../pose';
@@ -436,6 +436,11 @@ describe('3/4 head turn', () => {
       expect(turned.farEyeAlpha).toBe(1);
       expect(turned.farEye.x - turned.nearEye.x).toBeGreaterThanOrEqual(turned.eyeR * 2.4 - 1e-6);
       expect(turned.farEye.x).toBeLessThan(geom.headR);
+      const front = headFaceOf(breed, geom, 0, 1);
+      expect(front.muzzle.x).toBeCloseTo(0);
+      expect(front.nearEye.x).toBeCloseTo(-front.farEye.x);
+      expect(front.farEye.x - front.nearEye.x).toBeGreaterThanOrEqual(front.eyeR * 2.4 - 1e-6);
+      expect(noseOf(breed, geom.headR, front).x).toBeCloseTo(0);
     }
   });
 });

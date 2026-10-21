@@ -382,6 +382,8 @@ export type EarArgs = {
   angle: number;
   earBack: number;
   alpha: number;
+  // Full front shows the inner ear on both sides.
+  showInner?: boolean;
 };
 
 // One ear of the breed's ear type. Stiff types rotate about their base, hanging types swing from the top.
@@ -406,7 +408,7 @@ export function drawEar(c: SkCanvas, breed: Breed, geom: Geom, paint: EarPaint, 
     }
     const { outer, inner, tuft } = stiffEar(breed, R, e);
     c.drawPath(outer, paintOf(color, args.alpha));
-    if (!args.far) {
+    if (!args.far || args.showInner) {
       c.drawPath(inner, paintOf(paint.inner, args.alpha));
     }
     if (tuft) {
@@ -428,7 +430,7 @@ export function drawEar(c: SkCanvas, breed: Breed, geom: Geom, paint: EarPaint, 
     cap.quadTo(-R * 0.2 * s, R * 0.3 * s, -R * 0.34 * s, R * 0.1 * s);
     cap.close();
     c.drawPath(cap, paintOf(color, args.alpha));
-    if (!args.far) {
+    if (!args.far || args.showInner) {
       fillOval(c, R * 0.02 * s, R * 0.05 * s, R * 0.16 * s, R * 0.11 * s, paint.inner, 0.7 * args.alpha);
     }
     c.restore();
@@ -479,18 +481,18 @@ export function drawEar(c: SkCanvas, breed: Breed, geom: Geom, paint: EarPaint, 
 export function drawSkull(c: SkCanvas, ctx: HeadCtx, coat: string): void {
   const { breed, geom, face } = ctx;
   const R = geom.headR;
-  const t = face.turn;
+  const t = Math.max(face.turn, face.front);
   const side = 1 - t;
   const m = face.muzzle;
   const stop = breed.stop;
   if (breed.skull === 'dome') {
-    fillOval(c, R * 0.08, -R * 0.1, R * 1.07, R * 1.1, coat);
+    fillOval(c, R * 0.08 * (1 - face.front), -R * 0.1, R * 1.07, R * 1.1, coat);
   }
   if (breed.skull === 'broad' || breed.skull === 'square') {
-    fillOval(c, R * 0.3, R * 0.4, R * 0.82, R * 0.55, coat);
+    fillOval(c, R * 0.3 * (1 - face.front), R * 0.4, R * 0.82, R * 0.55, coat);
   }
   if (breed.skull === 'flat') {
-    fillOval(c, R * 0.34, R * 0.32, R * 0.72, R * 0.58, coat);
+    fillOval(c, R * 0.34 * (1 - face.front), R * 0.32, R * 0.72, R * 0.58, coat);
   }
   // Brow: a bulge over the eyes whose size is the stop. It fades with the turn, as the face turns toward us.
   if (stop > 0.25 && side > 0.01) {
