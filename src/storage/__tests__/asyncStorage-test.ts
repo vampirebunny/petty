@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { starterFurniture } from '../../actor/furniture';
 import { testPet } from '../../sim/__fixtures__/pets';
 import { dayMs, daysToSenior, legacyDaysToSenior, startingHydration } from '../../sim/config';
 import { asyncPetStorage } from '../asyncStorage';
@@ -158,4 +159,23 @@ it('loads a pet saved without ownerId and round-trips one that has it', async ()
   const owned = { ...pet, ownerId: 'guest-abc' };
   await asyncPetStorage.save(owned);
   await expect(asyncPetStorage.load()).resolves.toEqual(owned);
+});
+
+it('loads the starter furniture when a save has none', async () => {
+  const pet = testPet(3, 'retriever', 50, 'Pup', 'pet');
+  const saved = JSON.parse(JSON.stringify(pet)) as Record<string, unknown>;
+  delete saved.furniture;
+  delete saved.furniturePlaced;
+  await AsyncStorage.setItem('petty.pet', JSON.stringify(saved));
+
+  const loaded = await asyncPetStorage.load();
+  const starter = starterFurniture('dog');
+  expect(loaded?.furniture.map((piece) => piece.id).sort()).toEqual(starter.pieces.map((piece) => piece.id).sort());
+  expect(loaded?.furniture.some((piece) => piece.kind === 'litterbox')).toBe(false);
+  expect(loaded?.furniturePlaced.find((place) => place.pieceId === 'livingroom-food')).toEqual({
+    pieceId: 'livingroom-food',
+    sceneId: 'livingroom',
+    x: 540,
+    y: 330,
+  });
 });

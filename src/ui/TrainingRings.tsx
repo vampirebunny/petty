@@ -1,4 +1,4 @@
-import { useEffect, useId } from 'react';
+import { useEffect, useId, useState } from 'react';
 import type { ReactNode } from 'react';
 import { ChevronsDown, Hand, Lock, Volume2 } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
@@ -125,28 +125,21 @@ function IconBubble({ tint, Icon }: { tint: Tint; Icon: LucideIcon }) {
   );
 }
 
-function ProgressBar({ tint, value, uid }: { tint: Tint; value: number; uid: string }) {
-  const width = Math.max(0, Math.min(100, value));
+function ProgressBar({ tint, value }: { tint: Tint; value: number }) {
+  const [trackWidth, setTrackWidth] = useState(0);
+  const portion = Math.max(0, Math.min(100, value)) / 100;
+  const fill = trackWidth * portion;
   return (
-    <View style={styles.track}>
-      {width > 0 ? (
-        <View style={[styles.fill, { width: `${width}%` }]}>
-          <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" pointerEvents="none">
-            <Defs>
-              <LinearGradient id={`bar${uid}`} x1="0" y1="0" x2="0" y2="1">
-                <Stop offset="0" stopColor={WHITE} stopOpacity={0.45} />
-                <Stop offset="1" stopColor={tint.icon} />
-              </LinearGradient>
-              <LinearGradient id={`stripes${uid}`} x1="0" y1="0" x2="1" y2="1">
-                <Stop offset="0" stopColor={WHITE} stopOpacity={0.3} />
-                <Stop offset="0.5" stopColor={WHITE} stopOpacity={0} />
-                <Stop offset="1" stopColor={WHITE} stopOpacity={0.3} />
-              </LinearGradient>
-            </Defs>
-            <Rect x="0" y="0" width="100%" height="100%" fill={tint.icon} />
-            <Rect x="0" y="0" width="100%" height="50%" fill={`url(#bar${uid})`} />
-            <Rect x="0" y="0" width="100%" height="100%" fill={`url(#stripes${uid})`} />
-          </Svg>
+    <View
+      style={styles.track}
+      onLayout={(event) => {
+        const next = event.nativeEvent.layout.width;
+        setTrackWidth((current) => (current === next ? current : next));
+      }}
+    >
+      {fill > 0 ? (
+        <View style={[styles.fill, { width: fill, backgroundColor: tint.icon }]}>
+          <View style={styles.fillGloss} />
         </View>
       ) : null}
     </View>
@@ -186,7 +179,7 @@ function TrainingCard({
           <Text style={[styles.name, { color: ink }]} numberOfLines={1}>
             {card.label}
           </Text>
-          <ProgressBar tint={tint} value={locked ? 0 : value} uid={uid} />
+          <ProgressBar tint={tint} value={locked ? 0 : value} />
           <Text style={[styles.caption, { color: ink }]} numberOfLines={1}>
             {caption}
           </Text>
@@ -277,9 +270,13 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   fill: {
-    height: '100%',
+    height: 12,
     borderRadius: 6,
     overflow: 'hidden',
+  },
+  fillGloss: {
+    height: 6,
+    backgroundColor: 'rgba(255,255,255,0.35)',
   },
   caption: { fontSize: 11, fontWeight: '800' },
   sticker: {

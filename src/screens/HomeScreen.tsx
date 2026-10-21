@@ -64,6 +64,7 @@ import { CuddleFeedback } from '../ui/cuddle/CuddleFeedback';
 import type { FeedbackHandle } from '../ui/cuddle/CuddleFeedback';
 import type { PointAdd } from '../ui/cuddle/pointAdds';
 import { CoachMarks, CuddleHelpSheet, GhostFinger } from '../ui/cuddle/CuddleGuidance';
+import { FurnitureHint } from '../ui/FurnitureHint';
 import { SilentModeHint } from '../ui/SilentModeHint';
 
 const badgeLabels: Record<string, string> = {
@@ -132,6 +133,8 @@ export default function HomeScreen({ petApi }: Props) {
     finishPlaydate,
     rewardTreat,
     rewardCuddle,
+    seeCoach,
+    moveFurniture,
     claimGrants,
     clearTreats,
     welcomeBack,
@@ -176,6 +179,7 @@ export default function HomeScreen({ petApi }: Props) {
   const [soundOn, setSoundOn] = useState(true);
   const [musicOn, setMusicOn] = useState(true);
   const [silentHintOpen, setSilentHintOpen] = useState(false);
+  const [furnitureHintOpen, setFurnitureHintOpen] = useState(false);
   // null until storage answers. true once shown or already dismissed this install.
   const [silentHintSeen, setSilentHintSeen] = useState<boolean | null>(null);
   const noteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -422,15 +426,102 @@ export default function HomeScreen({ petApi }: Props) {
     flickRef.current = flickHere;
     strokeRef.current = stroke;
   }, [flickHere, softDropHere, stroke]);
-  const onTapStage = useCallback((x: number, y: number) => {
-    dropRef.current(x, y);
+  const furnitureSeenRef = useRef(false);
+  furnitureSeenRef.current = state?.seenCoachMarks.includes('furniture-move') ?? false;
+  const moveFurnitureRef = useRef(moveFurniture);
+  moveFurnitureRef.current = moveFurniture;
+  const dragPiece = useRef<string | null>(null);
+  const downPoint = useRef<{ x: number; y: number } | null>(null);
+  const panKind = useRef<'new' | 'piece' | 'floor' | 'hint'>('new');
+  const showFurnitureHint = useCallback(() => setFurnitureHintOpen(true), []);
+  const dismissFurnitureHint = useCallback(() => {
+    setFurnitureHintOpen(false);
+    seeCoach('furniture-move');
+  }, [seeCoach]);
+  const pieceAt = useCallback(
+    (x: number, y: number) => {
+      const point = stagePoint(x, y, viewWidth, viewHeight, contentWidth);
+      return stageHandle.current?.furnitureAt(point.x, point.y) ?? null;
+    },
+    [contentWidth, viewHeight, viewWidth],
+  );
+  const onStageTap = useCallback(
+    (x: number, y: number) => {
+      const pieceId = pieceAt(x, y);
+      if (!pieceId) {
+        dropRef.current(x, y);
+        return;
+      }
+      if (!furnitureSeenRef.current) {
+        showFurnitureHint();
+      }
+    },
+    [pieceAt, showFurnitureHint],
+  );
+  const rememberDown = useCallback((x: number, y: number) => {
+    downPoint.current = { x, y };
+    panKind.current = 'new';
+    dragPiece.current = null;
   }, []);
-  const onStrokeStage = useCallback(() => {
-    strokeRef.current();
-  }, []);
-  const onFlickStage = useCallback((x: number, y: number, vx: number, vy: number) => {
-    flickRef.current(x, y, vx, vy);
-  }, []);
+  const resolvePan = useCallback(() => {
+    if (panKind.current !== 'new') {
+      return;
+    }
+    const down = downPoint.current;
+    const pieceId = down ? pieceAt(down.x, down.y) : null;
+    if (!pieceId) {
+      panKind.current = 'floor';
+      return;
+    }
+    if (!furnitureSeenRef.current) {
+      panKind.current = 'hint';
+      showFurnitureHint();
+      return;
+    }
+    panKind.current = 'piece';
+    dragPiece.current = pieceId;
+  }, [pieceAt, showFurnitureHint]);
+  const onStagePanMove = useCallback(
+    (x: number, y: number) => {
+      resolvePan();
+      if (panKind.current === 'hint') {
+        return;
+      }
+      const pieceId = dragPiece.current;
+      if (panKind.current === 'piece' && pieceId) {
+        const point = stagePoint(x, y, viewWidth, viewHeight, contentWidth);
+        stageHandle.current?.moveFurniture(pieceId, point.x, point.y);
+        return;
+      }
+      strokeRef.current();
+    },
+    [contentWidth, resolvePan, viewHeight, viewWidth],
+  );
+  const onStagePanEnd = useCallback(
+    (x: number, y: number, vx: number, vy: number) => {
+      resolvePan();
+      const pieceId = dragPiece.current;
+      const kind = panKind.current;
+      dragPiece.current = null;
+      panKind.current = 'new';
+      downPoint.current = null;
+      if (kind === 'hint') {
+        return;
+      }
+      if (kind === 'piece' && pieceId) {
+        const point = stagePoint(x, y, viewWidth, viewHeight, contentWidth);
+        const placed = stageHandle.current?.moveFurniture(pieceId, point.x, point.y);
+        if (placed) {
+          moveFurnitureRef.current(pieceId, placed.sceneId, placed.x, placed.y);
+        }
+        return;
+      }
+      if (Math.hypot(vx, vy) >= flickSpeedThreshold) {
+        flickRef.current(x, y, vx, vy);
+      }
+    },
+    [contentWidth, resolvePan, viewHeight, viewWidth],
+  );
   const gesture = useMemo(() => {
     if (cuddleOn) {
       // Cuddle replaces the ball gestures: a drag is a stroke or a scratch, a tap on the nose is a boop.
@@ -456,21 +547,34 @@ export default function HomeScreen({ petApi }: Props) {
     const tap = Gesture.Tap()
       .maxDistance(18)
       .onEnd((event) => {
-        runOnJS(onTapStage)(event.x, event.y);
+        runOnJS(onStageTap)(event.x, event.y);
       });
     const pan = Gesture.Pan()
       .minDistance(18)
-      .onUpdate(() => {
-        runOnJS(onStrokeStage)();
+      .onTouchesDown((event) => {
+        const touch = event.allTouches[0];
+        if (touch) {
+          runOnJS(rememberDown)(touch.x, touch.y);
+        }
+      })
+      .onUpdate((event) => {
+        runOnJS(onStagePanMove)(event.x, event.y);
       })
       .onEnd((event) => {
-        const speed = Math.hypot(event.velocityX, event.velocityY);
-        if (speed >= flickSpeedThreshold) {
-          runOnJS(onFlickStage)(event.x, event.y, event.velocityX, event.velocityY);
-        }
+        runOnJS(onStagePanEnd)(event.x, event.y, event.velocityX, event.velocityY);
       });
     return Gesture.Exclusive(tap, pan);
-  }, [coachVisible, cuddleOn, onCuddleEndStage, onCuddleMoveStage, onCuddleTapStage, onFlickStage, onStrokeStage, onTapStage]);
+  }, [
+    coachVisible,
+    cuddleOn,
+    onCuddleEndStage,
+    onCuddleMoveStage,
+    onCuddleTapStage,
+    onStagePanEnd,
+    onStagePanMove,
+    onStageTap,
+    rememberDown,
+  ]);
   const petName = state?.name ?? 'Your pet';
 
   const toggleCuddle = useCallback(() => {
@@ -1074,6 +1178,7 @@ export default function HomeScreen({ petApi }: Props) {
         ) : null}
         <CuddleHelpSheet visible={helpOpen} onClose={() => setHelpOpen(false)} />
         <SilentModeHint visible={silentHintOpen} onClose={dismissSilentHint} />
+        <FurnitureHint visible={furnitureHintOpen} onClose={dismissFurnitureHint} />
         <DebugPanel
           state={state}
           mood={mood}

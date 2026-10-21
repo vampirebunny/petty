@@ -85,6 +85,7 @@ type PetApi = {
   rewardTreat: (tier: 'basic' | 'special') => void;
   rewardCuddle: () => void;
   seeCoach: (id: string) => void;
+  moveFurniture: (pieceId: string, sceneId: string, x: number, y: number) => void;
   rememberGreeting: (id: string) => void;
   claimGrants: () => void;
   clearTreats: () => void;
@@ -489,6 +490,10 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
     }
   }, [dispatch]);
   const seeCoach = useCallback((id: string) => dispatch({ type: 'seeCoach', id }), [dispatch]);
+  const moveFurniture = useCallback(
+    (pieceId: string, sceneId: string, x: number, y: number) => dispatch({ type: 'moveFurniture', pieceId, sceneId, x, y }),
+    [dispatch],
+  );
   const claimGrants = useCallback(() => dispatch({ type: 'claimGrants' }), [dispatch]);
   const clearTreats = useCallback(() => dispatch({ type: 'clearTreats' }), [dispatch]);
   const dismissWelcome = useCallback(() => setWelcomeBack(false), []);
@@ -586,6 +591,7 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
     rewardTreat,
     rewardCuddle,
     seeCoach,
+    moveFurniture,
     claimGrants,
     clearTreats,
     welcomeBack,

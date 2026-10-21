@@ -53,6 +53,7 @@ import { playVoice } from '../audio/voice';
 import { attributeScore, feedEnergyGain, feedHungerDrop } from '../sim';
 import type { PointAdd } from './cuddle/pointAdds';
 import type { Cue, PetState } from '../sim/types';
+import { applyFurniture, furnitureAt, movePiece, syncFurniture } from '../actor/furniture';
 import { solarHour } from '../actor/sky';
 import { drawWorld } from './skia/world';
 
@@ -64,6 +65,8 @@ export type StageHandle = {
   playGreeting: (id: string) => void;
   greetingIds: () => string[];
   label: () => string;
+  furnitureAt: (x: number, y: number) => string | null;
+  moveFurniture: (pieceId: string, x: number, y: number) => { sceneId: string; x: number; y: number } | null;
 };
 
 export type CuddleHandle = {
@@ -155,7 +158,15 @@ export function PetView({
   widthRef.current = viewWidth;
   heightRef.current = viewHeight;
   const species = breedById(pet.breedId)?.species === 'cat' ? 'cat' : 'dog';
-  const scene = sceneForSpecies(sceneOverride ?? sceneById(pet.sceneId), species);
+  const baseScene = sceneForSpecies(sceneOverride ?? sceneById(pet.sceneId), species);
+  const furnitureKey = pet.furniture.map((piece) => piece.id).join('|');
+  const placementKey = pet.furniturePlaced
+    .map((place) => `${place.pieceId}@${place.sceneId}:${place.x},${place.y}`)
+    .join('|');
+  const scene = useMemo(
+    () => applyFurniture(baseScene, pet.furniture, pet.furniturePlaced),
+    [baseScene, furnitureKey, placementKey, pet.furniture, pet.furniturePlaced],
+  );
   const worldRef = useRef<World>(createWorld([spawnActor(sourceOf(pet))], 1, scene));
   const activeRef = useRef(AppState.currentState === 'active');
   const hourRef = useRef(hour);
@@ -339,7 +350,12 @@ export function PetView({
   );
 
   useEffect(() => {
-    beginTravel(scene);
+    const world = worldRef.current;
+    if (world.scene.id !== scene.id) {
+      beginTravel(scene);
+      return;
+    }
+    syncFurniture(world.scene, scene);
   }, [beginTravel, scene]);
 
   useEffect(() => {
@@ -427,6 +443,8 @@ export function PetView({
       },
       greetingIds: () => greetingIds(breedById(petRef.current.breedId)?.species === 'cat' ? 'cat' : 'dog'),
       label: () => worldRef.current.greetLabel ?? '',
+      furnitureAt: (x, y) => (travelRef.current ? null : furnitureAt(worldRef.current.scene, x, y)),
+      moveFurniture: (pieceId, x, y) => (travelRef.current ? null : movePiece(worldRef.current.scene, pieceId, x, y)),
     }),
     [],
   );
