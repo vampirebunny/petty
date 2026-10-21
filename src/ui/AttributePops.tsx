@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react';
-import { StyleSheet } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { StyleSheet, View } from 'react-native';
 
-import { playPointPop } from '../audio/badge';
 import type { Trait } from '../sim/types';
 import { tints } from './candy';
+import { PlusBurst, plusBurstMs } from './PlusBurst';
 
-const traitColor: Record<Trait, string> = {
+export const traitPopColor: Record<Trait, string> = {
   stamina: tints.peach.icon,
   agility: tints.aqua.icon,
   intelligence: tints.lilac.icon,
@@ -15,74 +14,62 @@ const traitColor: Record<Trait, string> = {
   obedience: tints.sky.icon,
 };
 
-const traitName: Record<Trait, string> = {
-  stamina: 'Stamina',
-  agility: 'Agility',
-  intelligence: 'Intelligence',
-  boldness: 'Boldness',
-  affection: 'Affection',
-  obedience: 'Obedience',
+export const trainingPopColor = tints.butter.icon;
+
+export type PointPop = {
+  color: string;
+  amount: number;
+  label: string;
 };
 
-type Step = { trait: Trait; delta: number };
-
 type Props = {
-  steps: Step[];
+  pops: PointPop[];
   reducedMotion: boolean;
   onDone: () => void;
 };
 
-export function AttributePops({ steps, reducedMotion, onDone }: Props) {
+export function AttributePops({ pops, reducedMotion, onDone }: Props) {
   const [index, setIndex] = useState(0);
-  const rise = useSharedValue(reducedMotion ? 0 : 12);
-  const fade = useSharedValue(reducedMotion ? 1 : 0);
-  const step = steps[index];
+  const pop = pops[index];
 
   useEffect(() => {
-    if (!step) {
+    if (!pop) {
       return;
     }
-    playPointPop();
-    rise.value = reducedMotion ? 0 : 12;
-    fade.value = reducedMotion ? 1 : 0;
-    if (!reducedMotion) {
-      rise.value = withTiming(-18, { duration: 1000 });
-      fade.value = withTiming(1, { duration: 160 });
-    }
     const timer = setTimeout(() => {
-      if (index + 1 >= steps.length) {
+      if (index + 1 >= pops.length) {
         onDone();
       } else {
         setIndex(index + 1);
       }
-    }, 1000);
+    }, reducedMotion ? 420 : plusBurstMs);
     return () => clearTimeout(timer);
-  }, [fade, index, onDone, reducedMotion, rise, step, steps.length]);
+  }, [index, onDone, pop, pops.length, reducedMotion]);
 
-  const style = useAnimatedStyle(() => ({
-    opacity: fade.value,
-    transform: [{ translateY: rise.value }],
-  }));
-
-  if (!step) {
+  if (!pop) {
     return null;
   }
+  const side = index % 2 === 0 ? -16 : 16;
   return (
-    <Animated.Text style={[styles.pop, { color: traitColor[step.trait] }, style]} pointerEvents="none">
-      +{step.delta} {traitName[step.trait]}
-    </Animated.Text>
+    <View pointerEvents="none" style={[styles.layer, { marginLeft: side }]}>
+      <PlusBurst
+        key={`${index}-${pop.label}`}
+        color={pop.color}
+        amount={pop.amount}
+        label={pop.label}
+        reducedMotion={reducedMotion}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  pop: {
+  layer: {
     position: 'absolute',
-    top: '28%',
-    alignSelf: 'center',
-    zIndex: 40,
-    fontSize: 22,
-    fontWeight: '900',
-    textShadowColor: 'rgba(255,255,255,0.9)',
-    textShadowRadius: 6,
+    top: '22%',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 50,
   },
 });

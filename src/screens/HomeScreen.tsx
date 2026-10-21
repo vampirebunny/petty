@@ -56,7 +56,8 @@ import { DebugPanel } from '../ui/DebugPanel';
 import { NeedRings } from '../ui/NeedRings';
 import { TrainingRings } from '../ui/TrainingRings';
 import { FunModal } from '../ui/FunModal';
-import { AttributePops } from '../ui/AttributePops';
+import { AttributePops, trainingPopColor, traitPopColor } from '../ui/AttributePops';
+import type { PointPop } from '../ui/AttributePops';
 import { formatRest, isResting, restRemainingMs } from '../sim/training';
 import { BadgeCelebration } from '../ui/BadgeCelebration';
 import { Bone, ChevronRight, CircleHelp, Cookie, Moon, Sparkles } from 'lucide-react-native';
@@ -150,7 +151,7 @@ export default function HomeScreen({ petApi }: Props) {
   const economyApi = useEconomy(state?.ownerId);
   const [clock, setClock] = useState(() => Date.now());
   const [pantryOpen, setPantryOpen] = useState(false);
-  const [pops, setPops] = useState<{ trait: Trait; delta: number }[] | null>(null);
+  const [pops, setPops] = useState<PointPop[] | null>(null);
   const clearPops = useCallback(() => setPops(null), []);
   const [dialog, setDialog] = useState<
     | { kind: 'good' | 'miss' | 'out' | 'break'; trackId: string }
@@ -874,18 +875,35 @@ export default function HomeScreen({ petApi }: Props) {
     },
   ];
 
-  const notePops = (before: typeof state, after: typeof state) => {
+  const noteGain = (trackId: string, before: typeof state, after: typeof state) => {
     const steps = shownAttributeSteps(before, after);
     const ordered = [
       ...steps.filter((step) => step.trait !== 'intelligence'),
       ...steps.filter((step) => step.trait === 'intelligence'),
     ];
-    if (ordered.length > 0) {
-      setPops(ordered);
+    const shown: PointPop[] = [];
+    const prev = before.training[trackId]?.progress ?? 0;
+    const next = after.training[trackId]?.progress ?? 0;
+    if (next > prev) {
+      shown.push({
+        color: trainingPopColor,
+        amount: Math.max(1, Math.round(next - prev)),
+        label: trackName(trackId, species),
+      });
+    }
+    for (const step of ordered) {
+      shown.push({
+        color: traitPopColor[step.trait],
+        amount: step.delta,
+        label: traitLabel[step.trait],
+      });
+    }
+    if (shown.length > 0) {
+      setPops(shown);
     }
   };
   const afterPayout = (trackId: string, before: typeof state, after: typeof state) => {
-    notePops(before, after);
+    noteGain(trackId, before, after);
     const track = after.training[trackId];
     if (track && !track.mastered && isResting(track, Date.now())) {
       setDialog({ kind: 'break', trackId });
@@ -997,7 +1015,7 @@ export default function HomeScreen({ petApi }: Props) {
             if (!economyApi.give(basicTreatId)) {
               const paid = resolveTraining('none');
               if (paid) {
-                notePops(paid.before, paid.after);
+                noteGain(trackId, paid.before, paid.after);
               }
               setDialog({ kind: 'out', trackId });
               return;
@@ -1097,7 +1115,11 @@ export default function HomeScreen({ petApi }: Props) {
 
   return (
     <View style={styles.screen}>
-    <View style={styles.root}>
+      <View
+        style={styles.root}
+        accessibilityElementsHidden={placesOpen}
+        importantForAccessibility={placesOpen ? 'no-hide-descendants' : 'auto'}
+      >
       {celebrating ? (
         <BadgeCelebration
           title={celebrating === 'paw' ? trackName('paw', species) : (badgeLabels[celebrating] ?? 'Badge')}
@@ -1194,9 +1216,10 @@ export default function HomeScreen({ petApi }: Props) {
           <Pressable
             onPress={() => {
               if (state.care.pendingReward) {
+                const trackId = state.care.pendingReward.trackId;
                 const paid = resolveTraining('none');
                 if (paid) {
-                  notePops(paid.before, paid.after);
+                  noteGain(trackId, paid.before, paid.after);
                 }
                 setDialog(null);
               }
@@ -1313,29 +1336,29 @@ export default function HomeScreen({ petApi }: Props) {
           onFacing={() => setFacingOpen(true)}
         />
       </ScrollView>
-      {pops ? <AttributePops steps={pops} reducedMotion={reducedMotion} onDone={clearPops} /> : null}
       {trainingDialog}
-    </View>
-    {placesOpen ? (
-      <View style={styles.placesCover}>
-        <PlacesScreen
-          species={placeSpecies}
-          currentSceneId={preset.id}
-          petName={state.name}
-          reducedMotion={reducedMotion}
-          onPick={setScene}
-          onClose={() => setPlacesOpen(false)}
-          onPantry={() => {
-            setPlacesOpen(false);
-            setPantryOpen(true);
-          }}
-          onCloset={() => {
-            setPlacesOpen(false);
-            setWardrobeOpen(true);
-          }}
-        />
+      {pops ? <AttributePops pops={pops} reducedMotion={reducedMotion} onDone={clearPops} /> : null}
       </View>
-    ) : null}
+      {placesOpen ? (
+        <View style={styles.placesCover} accessibilityViewIsModal>
+          <PlacesScreen
+            species={placeSpecies}
+            currentSceneId={preset.id}
+            petName={state.name}
+            reducedMotion={reducedMotion}
+            onPick={setScene}
+            onClose={() => setPlacesOpen(false)}
+            onPantry={() => {
+              setPlacesOpen(false);
+              setPantryOpen(true);
+            }}
+            onCloset={() => {
+              setPlacesOpen(false);
+              setWardrobeOpen(true);
+            }}
+          />
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -1345,7 +1368,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   placesCover: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   root: {
     flex: 1,

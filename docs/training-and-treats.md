@@ -48,4 +48,4 @@ Shown score is natural growth plus `attributes.trained`, plus drift, then the ex
 
 The style label uses natural growth plus `trained`, as a fraction of potential. It does not use drift, weight, or aging. Another style still has to lead the birth archetype by 5%.
 
-When a payout moves the rounded shown score up by a whole point, a `+N Attribute` pop appears near the pet. Fractional steps stay quiet. Mastery staggers the linked attribute and intelligence.
+When a payout raises trick progress, a gold burst near the pet shows the rounded points and the trick name, such as `+15 Speak`. When the rounded shown score also rises by a whole point, a burst in that attribute's color follows, such as `+1 Intelligence`. Fractional attribute steps stay quiet. Mastery staggers the linked attribute and then intelligence.
