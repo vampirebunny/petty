@@ -1,5 +1,6 @@
-import { useId } from 'react';
+import { useId, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import type { LayoutChangeEvent } from 'react-native';
 import { Pressable } from 'react-native-gesture-handler';
 import type { LucideIcon } from 'lucide-react-native';
 import Svg, { Defs, Ellipse, LinearGradient, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
@@ -67,6 +68,7 @@ const tintFor: Record<string, keyof typeof tints> = {
 
 const WHITE = '#FFFFFF';
 const BUTTON_WIDTH = 88;
+const GAP = 10;
 const LIP = 5;
 const RADIUS = 30;
 const BUBBLE = 44;
@@ -74,11 +76,48 @@ const BUBBLE = 44;
 // A four-point twinkle drawn in a 10x10 box.
 const SPARKLE_PATH = 'M5 0 C5.6 3.4 6.6 4.4 10 5 C6.6 5.6 5.6 6.6 5 10 C4.4 6.6 3.4 5.6 0 5 C3.4 4.4 4.4 3.4 5 0 Z';
 
+// A wrapping flex row centers the group, and a short last line stays pinned to the start.
+// Measure the width, pack full lines, and center each line on its own.
+function buttonsPerRow(width: number): number {
+  if (width <= 0) return 1;
+  return Math.max(1, Math.floor((width + GAP) / (BUTTON_WIDTH + GAP)));
+}
+
+function rowsOf<T>(items: T[], size: number): T[][] {
+  const rows: T[][] = [];
+  for (let index = 0; index < items.length; index += size) {
+    rows.push(items.slice(index, index + size));
+  }
+  return rows;
+}
+
 export function ActionButtons({ actions, species = 'dog', onBlocked }: Props) {
+  const [width, setWidth] = useState(0);
+
+  function onLayout(event: LayoutChangeEvent) {
+    const next = Math.round(event.nativeEvent.layout.width);
+    setWidth((current) => (current === next ? current : next));
+  }
+
+  const button = (action: PetAction) => (
+    <ActionButton key={action.id} action={action} Icon={iconFor(action.id, species)} onBlocked={onBlocked} />
+  );
+
+  // Width is unknown on the first frame. Wrap so the buttons do not overflow in one line.
+  if (width <= 0) {
+    return (
+      <View style={styles.pending} onLayout={onLayout}>
+        {actions.map(button)}
+      </View>
+    );
+  }
+
   return (
-    <View style={styles.row}>
-      {actions.map((action) => (
-        <ActionButton key={action.id} action={action} Icon={iconFor(action.id, species)} onBlocked={onBlocked} />
+    <View style={styles.rows} onLayout={onLayout}>
+      {rowsOf(actions, buttonsPerRow(width)).map((row) => (
+        <View key={row.map((action) => action.id).join('|')} style={styles.row}>
+          {row.map(button)}
+        </View>
       ))}
     </View>
   );
@@ -178,12 +217,23 @@ function Sparkle({ style, opacity }: { style: object; opacity: number }) {
 }
 
 const styles = StyleSheet.create({
-  row: {
+  pending: {
+    width: '100%',
     flexDirection: 'row',
     flexWrap: 'wrap',
-    rowGap: 10,
-    columnGap: 10,
     justifyContent: 'center',
+    rowGap: GAP,
+    columnGap: GAP,
+  },
+  rows: {
+    width: '100%',
+    alignItems: 'center',
+    rowGap: GAP,
+  },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    columnGap: GAP,
   },
   button: {
     width: BUTTON_WIDTH,
