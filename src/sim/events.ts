@@ -275,7 +275,7 @@ export function applyEvent(state: PetState, event: PetEvent): EventResult {
   if (event.type === 'fetch') {
     const next = copyState(state);
     next.asleep = false;
-    addHappiness(next, playHappinessGain * (1 - next.needs.happiness / clampMax));
+    addHappiness(next, playHappinessGain);
     return { state: withDerived(next), cue: { kind: 'fetch', drop: event.drop, flick: event.flick } };
   }
 

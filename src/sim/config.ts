@@ -30,8 +30,8 @@ export const extraHappinessDecayPerHour = -684;
 // Tummy (100 - hunger) and energy must both be at least this for mood to rise.
 // Below this on either ring, awake mood starts draining.
 export const moodNeedFloor = 30;
-// A throw or fetch. Uses the same diminishing curve as a stroke.
-export const playHappinessGain = 10;
+// Flat mood added by each throw or fetch, when tummy and energy can raise mood.
+export const playHappinessGain = 3;
 // Empty energy drops the pet for this long, then they wake with a little energy back.
 export const collapseSleepSec = 5;
 export const collapseWakeEnergy = 10;
