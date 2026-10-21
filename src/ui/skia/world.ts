@@ -5,13 +5,18 @@ import { applyVariant, depthScale, resolveBreedById } from '../../actor';
 import type { TimeOfDay, World } from '../../actor';
 import { stageHeight, stageWidth } from '../../actor/geometry';
 import { actorTint, lighting, petLightAmount, sceneryTint } from '../../actor/lighting';
+import { skyAt } from '../../actor/sky';
+import type { SkyState } from '../../actor/sky';
 import type { Rgba } from '../../actor/timeOfDay';
+import { buildDecor } from './decor';
 import { clamp, fillOval, paintOf } from './draw';
+import { untinted, withTint, noise } from './ink';
+import { drawLampPools, drawWindowLight, lightRig, shadeActorLayer } from './light';
+import { drawOverlay } from './marks';
 import { drawActor } from './pet';
 import type { OverlayBurst } from '../../playdate/overlay';
-import { drawOverlay } from './marks';
 import { drawAmbient, drawBackdrop, drawProp, drawToyShape } from './scenery';
-import type { Env } from './scenery';
+import type { Contact, Env } from './scenery';
 
 function drawTinted(canvas: SkCanvas, tint: Rgba, draw: () => void): void {
   if (tint.a <= 0.001) {
@@ -52,6 +57,35 @@ function drawPetLight(canvas: SkCanvas, x: number, y: number, amount: number): v
   canvas.drawCircle(x, y, radius, paint);
 }
 
+// How fast each pet is moving, from its position last frame. Props use it to react (bush rustles).
+const lastSeen = new Map<string, { x: number; y: number; t: number; speed: number }>();
+
+function contactsOf(world: World): Contact[] {
+  const out: Contact[] = [];
+  for (const actor of world.actors) {
+    const id = String(actor.id);
+    const prev = lastSeen.get(id);
+    let speed = 0;
+    if (prev && world.t > prev.t) {
+      const raw = Math.hypot(actor.x - prev.x, actor.y - prev.y) / (world.t - prev.t);
+      speed = prev.speed * 0.7 + Math.min(raw, 600) * 0.3;
+    }
+    lastSeen.set(id, { x: actor.x, y: actor.y, t: world.t, speed });
+    out.push({ id, x: actor.x, y: actor.y, speed });
+  }
+  if (lastSeen.size > 32) {
+    lastSeen.clear();
+  }
+  return out;
+}
+
+export type Atmosphere = {
+  /** The moment to draw the sky for (moon phase, season, decor, weather). Defaults to now. */
+  date?: Date;
+  /** A precomputed sky, or null to draw without one (plain sky, no weather or decor). */
+  sky?: SkyState | null;
+};
+
 export function drawWorld(
   canvas: SkCanvas,
   world: World,
@@ -67,6 +101,7 @@ export function drawWorld(
     butterfly?: { x: number; y: number } | null;
     zzz?: readonly { x: number; y: number; phase: number }[];
   },
+  atmosphere?: Atmosphere,
 ): void {
   const scene = world.scene;
   const floor = scene.floor;
@@ -97,6 +132,10 @@ export function drawWorld(
       feeding.push({ x: actor.task.poi.x, y: actor.task.poi.y, kind: actor.task.kind === 'drink' ? 'drink' : 'eat' });
     }
   }
+  const sky = atmosphere?.sky === null ? undefined : atmosphere?.sky ?? skyAt(atmosphere?.date ?? new Date());
+  const baseWind = sky?.weather.wind ?? 0.2;
+  // Gusts on top of the day's wind.
+  const gust = Math.max(0, noise(world.t * 0.25, 5)) ** 2 * 0.6;
   const env: Env = {
     tod,
     t: world.t,
@@ -105,11 +144,27 @@ export function drawWorld(
     waterLevel: world.waterLevel,
     glows: [],
     feeding,
+    sky,
+    wind: reduced ? baseWind : baseWind * (0.75 + 0.25 * noise(world.t * 0.1, 3)) + Math.sign(baseWind || 1) * gust,
+    contacts: contactsOf(world),
+    scene,
+    bleed,
   };
+  env.light = lightRig(scene, env);
   const roomTint = sceneryTint(scene, tod);
   const bodyTint = actorTint(scene, tod);
+  const decor = buildDecor(scene, env);
 
-  drawTinted(canvas, roomTint, () => drawBackdrop(canvas, scene, env, bleed));
+  withTint(roomTint, () => {
+    drawBackdrop(canvas, scene, env, bleed);
+    decor.wall(canvas);
+  });
+  untinted(() => {
+    drawWindowLight(canvas, scene, env);
+    if (env.light) {
+      drawLampPools(canvas, env.light);
+    }
+  });
   if (scene.time === 'indoor') {
     const glow = petLightAmount(tod.dark);
     if (glow > 0) {
@@ -123,9 +178,13 @@ export function drawWorld(
   const items: { y: number; draw: () => void }[] = [];
   for (const prop of scene.props) {
     if ((prop.layer ?? 'sorted') === 'sorted') {
-      items.push({ y: prop.y, draw: () => drawTinted(canvas, roomTint, () => drawProp(canvas, prop, env)) });
+      items.push({ y: prop.y, draw: () => withTint(roomTint, () => drawProp(canvas, prop, env)) });
     }
   }
+  for (const piece of decor.floor) {
+    items.push({ y: piece.y, draw: () => withTint(roomTint, () => piece.draw(canvas)) });
+  }
+  const span = { x: -bleed - 400, y: -600, w: stageWidth + bleed * 2 + 800, h: stageHeight + 1200 };
   for (const actor of world.actors) {
     const resolved = resolveBreedById(actor.breedId, actor.look);
     if (!resolved) {
@@ -145,7 +204,22 @@ export function drawWorld(
     }
     items.push({
       y: sortY,
-      draw: () => drawTinted(canvas, bodyTint, () => drawActor(canvas, actor, breed, floor, world.t, carrying, world.silhouette === true)),
+      draw: () => {
+        const rim = (env.light?.rimStrength ?? 0) > 0.03;
+        if (bodyTint.a <= 0.001 && !rim) {
+          drawActor(canvas, actor, breed, floor, world.t, carrying, world.silhouette === true);
+          return;
+        }
+        // The pet gets its own layer: tint and rim light are painted SrcATop, so only the pet is touched.
+        canvas.saveLayer();
+        drawActor(canvas, actor, breed, floor, world.t, carrying, world.silhouette === true);
+        if (world.silhouette !== true) {
+          shadeActorLayer(canvas, env, actor, bodyTint, span);
+        } else if (bodyTint.a > 0.001) {
+          shadeActorLayer(canvas, { ...env, light: undefined }, actor, bodyTint, span);
+        }
+        canvas.restore();
+      },
     });
   }
   if (overlay?.rope && world.actors.length >= 2) {
@@ -185,12 +259,15 @@ export function drawWorld(
   for (const item of items) {
     item.draw();
   }
-  for (const prop of scene.props) {
-    if (prop.layer === 'front') {
-      drawTinted(canvas, roomTint, () => drawProp(canvas, prop, env));
+  withTint(roomTint, () => {
+    for (const prop of scene.props) {
+      if (prop.layer === 'front') {
+        drawProp(canvas, prop, env);
+      }
     }
-  }
+  });
   drawAmbient(canvas, world, env, bleed);
+  untinted(() => decor.ambient(canvas));
   if (overlay && (overlay.bursts.length > 0 || overlay.butterfly || (overlay.zzz?.length ?? 0) > 0)) {
     drawOverlay(canvas, overlay.bursts, { butterfly: overlay.butterfly, zzz: overlay.zzz, t: world.t });
   }

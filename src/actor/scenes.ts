@@ -1,3 +1,4 @@
+import { createCatioScene } from './catioScene';
 import { defaultActorTint } from './lighting';
 import { mulberry, seedOf } from './mulberry';
 
@@ -20,6 +21,14 @@ export const propKinds = [
   'bush',
   'fence',
   'litterbox',
+  'garden',
+  'catioScreen',
+  'catioPost',
+  'catTree',
+  'shelf',
+  'hammock',
+  'planter',
+  'scratcher',
 ] as const;
 
 export const shapeTypes = ['rect', 'ellipse', 'circle', 'poly', 'line', 'sky'] as const;
@@ -60,6 +69,14 @@ export type Prop = {
   // A low obstacle a fast pet hops over when it runs through it.
   hurdle?: boolean;
   shapes?: Shape[];
+  // Trees: keep leaves all year, or drop them with the season.
+  foliage?: 'evergreen' | 'deciduous';
+  // Windows: curtain colour, or false for a bare frame.
+  curtain?: string | false;
+  // Planters: what grows in them.
+  plant?: 'catgrass' | 'flowers' | 'catnip';
+  // Mirror the prop left to right.
+  flip?: boolean;
 };
 
 export type Poi = {
@@ -75,6 +92,12 @@ export type Scene = {
   id: string;
   name: string;
   time: SceneTime;
+  // When set, only that species is offered the scene at home. Playdates include it when any pet matches.
+  species?: 'cat' | 'dog';
+  // Rain and snow stay off the floor. The catio is roofed.
+  shelter?: 'roofed';
+  // Where the roof beam is, for garlands.
+  roofY?: number;
   sky: [string, string];
   layers: Shape[];
   floor: {
@@ -164,6 +187,17 @@ export function compileScene(def: unknown): Scene {
     throw new Error('"floor.pattern" must be lines, planks, grass or none.');
   }
   const surface = isRecord(def.surface) ? def.surface : {};
+  const species = def.species == null ? undefined : def.species;
+  if (species != null && species !== 'cat' && species !== 'dog') {
+    throw new Error('"species" must be cat or dog.');
+  }
+  const shelter = def.shelter == null ? undefined : def.shelter;
+  if (shelter != null && shelter !== 'roofed') {
+    throw new Error('"shelter" must be roofed.');
+  }
+  if (def.roofY != null && typeof def.roofY !== 'number') {
+    throw new Error('"roofY" must be a number.');
+  }
   const actorTint = readActorTint(def.lighting, time);
   const props = Array.isArray(def.props) ? def.props : [];
   const compiledProps = props.map((prop, index) => {
@@ -205,6 +239,9 @@ export function compileScene(def: unknown): Scene {
     id: typeof def.id === 'string' ? def.id : 'custom',
     name: typeof def.name === 'string' ? def.name : typeof def.id === 'string' ? def.id : 'custom',
     time,
+    species,
+    shelter,
+    roofY: typeof def.roofY === 'number' ? def.roofY : undefined,
     sky: [sky[0] as string, sky[1] as string],
     layers: def.layers == null ? [] : checkShapes(def.layers, 'layers'),
     floor: {
@@ -372,9 +409,17 @@ export const scenes = {
   park: compileScene(sceneDefs.park),
   bedroom: compileScene(sceneDefs.bedroom),
   sidewalk: compileScene(sceneDefs.sidewalk),
+  catio: createCatioScene(stageWidth, stageHeight),
 };
 
-export const sceneList = [scenes.livingroom, scenes.bedroom, scenes.park];
+export const sceneList = [scenes.livingroom, scenes.bedroom, scenes.park, scenes.catio];
+
+// Home offers a species-limited scene only to that species. A playdate passes every pet in the pair,
+// so the catio shows up when at least one of them is a cat.
+export function scenesFor(species: 'dog' | 'cat' | readonly ('dog' | 'cat')[]): Scene[] {
+  const allowed = typeof species === 'string' ? [species] : species;
+  return sceneList.filter((scene) => scene.species == null || allowed.includes(scene.species));
+}
 
 // The data a preset was built from, as plain JSON, so it can be edited and applied back.
 export function sceneSource(id: string): unknown {
@@ -422,7 +467,11 @@ function hasLitter(scene: Scene): boolean {
 }
 
 // Indoor presets keep a litter box in the data. Dogs never see it: no prop, no potty spot.
+// A species-limited scene (the catio) falls back to the living room for the other species.
 export function sceneForSpecies(scene: Scene, species: 'dog' | 'cat'): Scene {
+  if (scene.species && scene.species !== species) {
+    return sceneForSpecies(scenes.livingroom, species);
+  }
   if (species === 'cat' || !hasLitter(scene)) {
     return scene;
   }

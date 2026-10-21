@@ -1,4 +1,4 @@
-import { actionEnabled, actionReason, compileScene, loadScene, poiOf, sceneForSpecies, scenes, startUserTask } from '..';
+import { actionEnabled, actionReason, compileScene, loadScene, poiOf, sceneForSpecies, scenes, scenesFor, startUserTask } from '..';
 import { lighting } from '../lighting';
 import { phaseOf, todAt } from '../timeOfDay';
 import { createWorld, spawnActor } from '../sim';
@@ -111,6 +111,21 @@ it('keeps the litter box for cats and drops it for dogs', () => {
   });
   const dogWorld = createWorld([pup], 1, scenes.livingroom);
   const catWorld = createWorld([kit], 1, scenes.livingroom);
+  expect(scenesFor('dog').map((scene) => scene.id)).toEqual(['livingroom', 'bedroom', 'park']);
+  expect(scenesFor('cat').map((scene) => scene.id)).toEqual(['livingroom', 'bedroom', 'park', 'catio']);
+  expect(scenesFor(['dog', 'cat']).some((scene) => scene.id === 'catio')).toBe(true);
+  expect(scenes.catio.species).toBe('cat');
+  expect(scenes.catio.shelter).toBe('roofed');
+  expect(poiOf(scenes.catio, 'water')).not.toBeNull();
+  expect(sceneForSpecies(scenes.catio, 'cat')).toBe(scenes.catio);
+  expect(sceneForSpecies(scenes.catio, 'dog').id).toBe('livingroom');
+  const catOnPorch = createWorld([kit], 1, scenes.catio);
+  const dogOnPorch = createWorld([pup], 1, scenes.catio);
+  expect(catOnPorch.scene.id).toBe('catio');
+  expect(dogOnPorch.scene.id).toBe('livingroom');
+  const mixed = createWorld([pup, kit], 1, scenes.catio);
+  expect(mixed.scene.id).toBe('catio');
+
   expect(poiOf(dogWorld.scene, 'litter')).toBeNull();
   expect(poiOf(catWorld.scene, 'litter')).not.toBeNull();
   startUserTask(dogWorld, pup, 'potty');

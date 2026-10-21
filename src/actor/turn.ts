@@ -23,8 +23,8 @@ export function visualYaw(yaw: number): { dir: 1 | -1; yc: number; ys: number } 
   return { dir, yc: Math.abs(Math.cos(yaw)), ys: Math.max(0, Math.sin(yaw)) };
 }
 
-// Free movement only. A greeting owns facing and skips this.
-export function stepFacing(actor: Actor, dt: number, ownsFacing: boolean): void {
+// The octant ring owns `face`. This no longer flips from vx. A greeting spin still turns in stepYaw.
+export function stepFacing(actor: Actor, _dt: number, ownsFacing: boolean): void {
   if (ownsFacing) {
     actor.faceHold = 0;
     return;
@@ -34,12 +34,7 @@ export function stepFacing(actor: Actor, dt: number, ownsFacing: boolean): void 
     actor.faceHold = 0;
     return;
   }
-  const against = actor.vx * actor.face < 0 && Math.abs(actor.vx) > FLIP_V;
-  actor.faceHold = against ? actor.faceHold + dt : 0;
-  if (actor.faceHold >= FLIP_T) {
-    actor.face = actor.vx > 0 ? 1 : -1;
-    actor.faceHold = 0;
-  }
+  actor.faceHold = 0;
 }
 
 export function stepYaw(actor: Actor, dt: number, _faceCam: number): void {

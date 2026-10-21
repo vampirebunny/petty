@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Pressable } from 'react-native-gesture-handler';
 
-import { breedById, sceneList } from '../actor';
+import { breedById, scenesFor } from '../actor';
 import { seedOf } from '../actor/mulberry';
 import type { OwnedItem } from '../actor/closet';
 import { activityById, offerActivities, trainedLabel } from '../playdate/activities';
@@ -53,6 +53,8 @@ export function PlaydateScreen({ pet, save, now, remaining, reducedMotion, onSav
   const finished = useRef(false);
 
   const preview = useMemo(() => snapshotPet(pet, pet.equipped, '', 'preview'), [pet]);
+  const petSpecies = breedById(pet.breedId)?.species === 'cat' ? 'cat' : 'dog';
+  const places = scenesFor(partner ? [petSpecies, partner.species] : petSpecies);
   const activities = partner ? offerActivities(preview, partner, sceneId, date) : [];
   const cooling = remaining > 0;
   const countdown = `Next playdate in ${formatCooldown(remaining)}`;
@@ -237,7 +239,7 @@ export function PlaydateScreen({ pet, save, now, remaining, reducedMotion, onSav
         ) : null}
         {step === 'place' ? (
           <View style={styles.stack}>
-            {sceneList.map((scene) => (
+            {places.map((scene) => (
               <Pressable
                 key={scene.id}
                 accessibilityRole="button"

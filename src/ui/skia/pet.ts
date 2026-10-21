@@ -3,7 +3,10 @@ import type { SkCanvas } from '@shopify/react-native-skia';
 
 import { blendedFoot, bodyFrame, isDarkCoat, solveKnee, wearItem } from '../../actor';
 import type { Actor, Breed, Geom } from '../../actor';
+import { blendedTheta, facingFit, projectLocal } from '../../actor/facing';
+import { facingConfig } from '../../actor/data/facing';
 import { headFaceOf, headShift, noseOf, torsoPoint } from '../../actor/geometry';
+import { liftScaleOf } from '../../actor/locomotion';
 import { jumpConfig } from '../../actor/jump';
 import { frostColorOf } from '../../actor/color';
 import { baseColorOf, markingOf, resolveMarkings } from '../../actor/markings';
@@ -52,8 +55,7 @@ import {
 import { jacketHasSleeves, type WearItem } from '../../actor/wardrobe';
 import { frostOval } from './frost';
 import { drawToyShape } from './scenery';
-import { angledStep, cachedLayout, viewDefs, viewRig } from './views';
-import type { LegId } from './views';
+import { cachedLayout, viewDefs, viewRig } from './views';
 import { cosmeticAnchor } from './cosmeticAnchors';
 import { shadeOval } from './shade';
 
@@ -90,6 +92,8 @@ function drawLeg(
   sleeve: WearItem | null = null,
   fur = '#888888',
   tilt = 0,
+  widthScale = 1,
+  pawScale = 1,
 ): Paw {
   const bone = geom.L / 2;
   const knee = solveKnee(hip, target, bone, side);
@@ -101,7 +105,7 @@ function drawLeg(
   leg.moveTo(hip.x, hip.y);
   leg.lineTo(knee.x, knee.y);
   leg.lineTo(paw.x, paw.y);
-  c.drawPath(leg, paintOf(color, 1, geom.legWidth));
+  c.drawPath(leg, paintOf(color, 1, geom.legWidth * widthScale));
   if (petStyle.shade.enabled) {
     const s = petStyle.shade;
     const back = -geom.legWidth * s.legOffset;
@@ -113,14 +117,14 @@ function drawLeg(
   }
   // A boot foot replaces the paw oval, which would poke out once the boot tilts with the shin.
   if (!boot) {
-    fillOval(c, paw.x + 3, paw.y - 3, geom.pawRx, geom.pawRy, color);
+    fillOval(c, paw.x + 3, paw.y - 3, geom.pawRx * pawScale, geom.pawRy * pawScale, color);
   }
   if (sock) {
     // Socks or tan lower legs: the lower half of the leg and the paw in the marking color.
     const sockColor = far ? mix(sock, '#000000', 0.32) : sock;
     strokeLine(c, knee.x + (paw.x - knee.x) * 0.45, knee.y + (paw.y - knee.y) * 0.45, paw.x, paw.y, sockColor, geom.legWidth);
     if (!boot) {
-      fillOval(c, paw.x + 3, paw.y - 3, geom.pawRx, geom.pawRy, sockColor);
+      fillOval(c, paw.x + 3, paw.y - 3, geom.pawRx * pawScale, geom.pawRy * pawScale, sockColor);
     }
   }
   if (frost > 0.01) {
@@ -134,7 +138,7 @@ function drawLeg(
     }
   }
   if (!boot) {
-    shadeOval(c, paw.x + 3, paw.y - 3, geom.pawRx, geom.pawRy);
+    shadeOval(c, paw.x + 3, paw.y - 3, geom.pawRx * pawScale, geom.pawRy * pawScale);
   }
   if (sleeve) {
     drawSleeve(c, hip, knee, geom, sleeve, far, fur);
@@ -183,6 +187,7 @@ export function drawActor(
       fillCircle(c, puff.x, puff.y, puff.r * (1 + (1 - k) * 1.6), '#d8d0c6', 0.4 * k);
     }
   }
+  const rig = viewRig(actor.octantFrom, actor.octant, actor.octantBlend, actor.face);
   const frame = bodyFrame(
     breed,
     actor.displayAgeDays,
@@ -193,15 +198,15 @@ export function drawActor(
     actor.phase,
     actor.x,
     actor.y,
-    actor.face,
+    rig.dir,
     floor,
     actor.speed,
     actor.gait,
     actor.share,
+    facingFit(actor.octantFrom, actor.octant, actor.octantBlend),
   );
   const geom = frame.geom;
   const pose = actor.pose;
-  const rig = viewRig(actor.octantFrom, actor.octant, actor.octantBlend, actor.face);
   const layoutKey = [
     breed.id,
     breed.coat,
@@ -255,7 +260,6 @@ export function drawActor(
   const baseColor = baseColorOf(breed);
   const legColor = markingOf(markings, 'legs')?.color ?? (points ? breed.accent ?? baseColor : baseColor);
   const tailColor = markingOf(markings, 'tail')?.color ?? legColor;
-  const farColor = mix(mix(legColor, '#000000', 0.32), legColor, rig.legAngle);
   const socks = markingOf(markings, 'socks') ?? markingOf(markings, 'lowerLegs');
   const sockColor = socks ? socks.color : null;
   const featherColor = markingOf(markings, 'feathering')?.color ?? mix(baseColor, '#ffffff', 0.18);
@@ -281,7 +285,7 @@ export function drawActor(
   }
   c.save();
   c.translate(actor.x, actor.y + 18 * pose.closeUp);
-  c.scale(rig.dir * scale, scale);
+  c.scale((actor.debugTheta == null ? rig.dir : 1) * scale, scale);
   // Cuddle: the torso leans with the finger, and a shake-off wobbles the whole body about its feet.
   c.translate(pose.torsoShift, 0);
   if (pose.shake > 0.01) {
@@ -306,8 +310,10 @@ export function drawActor(
     0.13 * shadowFade,
   );
   c.translate(0, -actor.z / scale);
-  if (rig.legAngle > 0.05 && pose.walk > 0.05) {
-    c.translate(Math.sin(actor.phase) * 2.4 * rig.legAngle * pose.walk, 0);
+  const thetaFacing = actor.debugTheta ?? blendedTheta(actor.octantFrom, actor.octant, actor.octantBlend, rig.dir);
+  if (pose.walk > 0.05) {
+    const frontness = Math.abs(Math.sin(thetaFacing));
+    c.translate(Math.sin(actor.phase) * geom.bodyH * 0.06 * frontness * pose.walk, 0);
   }
 
   const outlined = petStyle.outline.enabled && !silhouette;
@@ -391,24 +397,12 @@ export function drawActor(
     return { x, y };
   };
 
-  const project = (point: Pt, side: number): Pt => ({
-    x: point.x * rig.foreshorten + side * rig.spread * rig.legAngle,
-    y: point.y,
-  });
+  const half = geom.bodyH * 0.3;
+  const liftScale = liftScaleOf(actor.displayAgeDays);
   const foreHip = torsoPoint(geom, theta, dy, geom.foreX, geom.hipY);
   const hindHip = torsoPoint(geom, theta, dy, geom.hindX, geom.hipY);
-  const cam = rig.rear > 0.5 ? -1 : 1;
-  const yNudge = rig.legAngle * geom.bodyH * 0.22;
-  foreHip.y += yNudge * cam;
-  hindHip.y -= yNudge * cam;
-  const gap = 4 * (1 - rig.legAngle);
-  const rawForeFar = { x: foreHip.x + gap, y: foreHip.y };
-  const rawHindFar = { x: hindHip.x + gap, y: hindHip.y };
-  const foreNear = project(foreHip, 1);
-  const hindNear = project(hindHip, 1);
-  const foreFar = project(rawForeFar, -1);
-  const hindFar = project(rawHindFar, -1);
   const foreSide = pose.lie > 0.5 ? -1 : 1;
+  const depthSpan = Math.max(geom.bodyLen, 1);
 
   // Roll-over mirrors the torso, legs, and tail about the body's center line. The head stays upright.
   const bellyScale = 1 - 2 * pose.belly;
@@ -427,49 +421,50 @@ export function drawActor(
     const jump = posed && spec && !spec.plant ? posed.blend : 0;
     return Math.max(fore ? 0 : pose.sit, pose.lie, pose.belly, pose.side, pose.tuck, jump);
   };
-  const drawOne = (raw: Pt, hip: Pt, fore: boolean, leg: 0 | 1 | 2 | 3, near: boolean, side: number, kicker = false) => {
-    const foot = footAt(raw, fore, leg, near, kicker);
-    const sway = Math.sin(actor.phase + leg) * geom.L * 0.05 * pose.walk * (actor.gait.current === 'gallop' ? 1.5 : 1);
-    const stepped = angledStep(foot.x - raw.x, foot.y - raw.y, rig.legAngle, sway);
-    return drawLeg(
+  const specs: { hip: Pt; fore: boolean; leg: 0 | 1 | 2 | 3; l: number; kick: boolean }[] = [
+    { hip: hindHip, fore: false, leg: 0, l: -half * 1.12, kick: false },
+    { hip: foreHip, fore: true, leg: 1, l: -half, kick: false },
+    { hip: hindHip, fore: false, leg: 2, l: half * 1.12, kick: true },
+    { hip: foreHip, fore: true, leg: 3, l: half, kick: false },
+  ];
+  const planned = specs.map((spec) => {
+    const foot = footAt(spec.hip, spec.fore, spec.leg, spec.l > 0, spec.kick);
+    if (foot.y < 0) {
+      foot.y *= liftScale;
+    }
+    const hipP = projectLocal({ f: spec.hip.x, l: spec.l, h: -spec.hip.y }, thetaFacing);
+    const footP = projectLocal({ f: foot.x, l: spec.l, h: -foot.y }, thetaFacing);
+    return { ...spec, hipP, footP, depth: footP.depth };
+  });
+  planned.sort((a, b) => a.depth - b.depth);
+  const bodyDepth = projectLocal({ f: 0, l: 0, h: 0 }, thetaFacing).depth;
+  const paintLeg = (spec: (typeof planned)[number]): { x: number; y: number; shin: number } => {
+    const near = spec.depth >= bodyDepth;
+    const norm = clamp(spec.depth / depthSpan, -1, 1);
+    const drawn = drawLeg(
       c,
-      hip,
-      project({ x: raw.x + stepped.x, y: raw.y + stepped.y }, side),
+      spec.hipP,
+      spec.footP,
       geom,
-      fore ? foreSide : -1,
-      near ? legColor : farColor,
+      spec.fore ? foreSide : -1,
+      near ? legColor : mix(legColor, '#000000', 0.28),
       bootOn,
       !near,
       sockColor,
       geom.gray.chest,
-      fore ? sleeve : null,
+      spec.fore ? sleeve : null,
       legColor,
-      footTilt(fore),
+      footTilt(spec.fore),
+      near ? 1 : 1 - facingConfig.legNarrow,
+      1 + facingConfig.pawDepth * norm,
     );
+    return drawn;
   };
-  const fadeFar = pose.side > 0.02;
-  const withFar = (draw: () => { x: number; y: number; shin: number }) => {
-    if (!fadeFar) {
-      return draw();
-    }
-    c.save();
-    const layer = Skia.Paint();
-    layer.setAlphaf(Math.max(0, 1 - pose.side));
-    c.saveLayer(layer);
-    const paw = draw();
-    c.restore();
-    c.restore();
-    return paw;
-  };
-  const legDraw: Record<LegId, () => { x: number; y: number; shin: number }> = {
-    hindFar: () => withFar(() => drawOne(rawHindFar, hindFar, false, 0, false, -1)),
-    foreFar: () => withFar(() => drawOne(rawForeFar, foreFar, true, 1, false, -1)),
-    hindNear: () => drawOne(hindHip, hindNear, false, 2, true, 1, true),
-    foreNear: () => drawOne(foreHip, foreNear, true, 3, true, 1),
-  };
-  const drawn: Partial<Record<LegId, { x: number; y: number; shin: number }>> = {};
-  for (const id of rig.legsFirst) {
-    drawn[id] = legDraw[id]();
+  const behind = planned.filter((spec) => spec.depth < bodyDepth);
+  const ahead = planned.filter((spec) => spec.depth >= bodyDepth);
+  const drawnPaws: { x: number; y: number; shin: number }[] = [];
+  for (const spec of behind) {
+    drawnPaws.push(paintLeg(spec));
   }
 
   // torso: tail, body, markings, ribs, coat
@@ -488,12 +483,33 @@ export function drawActor(
   }
   c.save();
   c.translate(geom.Px, geom.Py);
-  c.scale(Math.max(rig.foreshorten, 0.001), 1);
+  const axial = rig.view === 'front' || rig.view === 'back';
+  if (!axial) {
+    c.scale(Math.max(rig.foreshorten, 0.001), 1);
+  }
   c.translate(-geom.Px, -geom.Py);
+  const uprightTail = breed.tailType === 'sickleBushy' || breed.tailType === 'doubleCurl' || breed.tailType === 'plume' || breed.tailType === 'catBushy' || breed.tailType === 'catPlume';
   const paintTail = (): void => {
+    if (rig.view === 'back') {
+      const tx = -geom.bodyLen / 2 + 6;
+      const ty = geom.bodyY - geom.bodyH * 0.1;
+      c.save();
+      c.translate(0, geom.bodyY - geom.bodyH * 0.55);
+      c.rotate(deg(-90), 0, 0);
+      c.translate(-tx, -ty);
+      drawTail(c, breed, geom, wag, tailColor, pose.tailLift - 0.45 * pose.stream + (posed?.tail ?? 0), tailDeco);
+      c.restore();
+      return;
+    }
+    if (rig.view === 'front') {
+      if (uprightTail) {
+        fillCircle(c, 0, geom.bodyY - geom.bodyH * 0.72, geom.bodyH * 0.14, tailColor);
+      }
+      return;
+    }
     drawTail(c, breed, geom, wag, tailColor, pose.tailLift - 0.45 * pose.stream + (posed?.tail ?? 0), tailDeco);
   };
-  if (rig.tail === 'body') {
+  if (rig.tail === 'body' || rig.view === 'back') {
     paintTail();
   }
   const breath = 1 + pose.breathAmp * Math.sin(actor.breathPh);
@@ -501,16 +517,28 @@ export function drawActor(
   c.translate(0, geom.bodyY);
   c.scale(posed?.scaleX ?? 1, posed?.scaleY ?? 1);
   c.translate(0, -geom.bodyY);
-  fillOval(c, 0, geom.bodyY, layout.bodyRx, layout.bodyRy * breath, baseColor);
-  fillOval(
-    c,
-    4,
-    geom.bodyY + geom.bodyH * 0.22,
-    geom.bodyLen * 0.38,
-    geom.bodyH * 0.22 * breath,
-    mix(baseColor, '#ffffff', 0.18),
-  );
-  if (breed.pattern === 'stripes' && !tabby) {
+  if (rig.view === 'front') {
+    const chestW = geom.bodyH * 1.1;
+    const chestH = geom.bodyH;
+    fillOval(c, 0, geom.bodyY + chestH * 0.08, chestW / 2, chestH / 2, baseColor);
+    shadeOval(c, 0, geom.bodyY + chestH * 0.08, chestW / 2, chestH / 2);
+  } else if (rig.view === 'back') {
+    fillOval(c, 0, geom.bodyY, geom.bodyH * 0.52, geom.bodyH * 0.48, mix(baseColor, '#000000', 0.12));
+    shadeOval(c, 0, geom.bodyY, geom.bodyH * 0.52, geom.bodyH * 0.48);
+  } else {
+    fillOval(c, 0, geom.bodyY, layout.bodyRx, layout.bodyRy * breath, baseColor);
+  }
+  if (!axial) {
+    fillOval(
+      c,
+      4,
+      geom.bodyY + geom.bodyH * 0.22,
+      geom.bodyLen * 0.38,
+      geom.bodyH * 0.22 * breath,
+      mix(baseColor, '#ffffff', 0.18),
+    );
+  }
+  if (!axial && breed.pattern === 'stripes' && !tabby) {
     c.save();
     clipOval(c, 0, geom.bodyY, geom.bodyLen / 2, (geom.bodyH / 2) * breath);
     const stripes = Skia.Path.Make();
@@ -558,10 +586,10 @@ export function drawActor(
   c.restore();
   c.restore();
 
-  for (const id of rig.legsLast) {
-    drawn[id] = legDraw[id]();
+  for (const spec of ahead) {
+    drawnPaws.push(paintLeg(spec));
   }
-  actor.anchors.paws = (['hindFar', 'foreFar', 'hindNear', 'foreNear'] as const).map((id) => drawn[id] ?? { x: 0, y: 0, shin: 0 });
+  actor.anchors.paws = drawnPaws.map((paw) => ({ x: paw.x, y: paw.y, shin: paw.shin }));
   c.restore();
 
   // neck, bandana, collar
@@ -576,10 +604,9 @@ export function drawActor(
     headX = geom.Px + rx * cs - ry * sn;
     headY = geom.Py + frame.dy + rx * sn + ry * cs + posed.dy;
   }
-  const headAlong = rig.rear > 0.5 ? -0.2 : 1 - 0.85 * rig.headFront;
   const head = {
-    x: (headX + shift.x) * rig.foreshorten * headAlong,
-    y: headY + shift.y + pose.headPush * geom.headR * 0.15 - rig.rear * geom.headR * 0.12,
+    x: headX + shift.x,
+    y: headY + shift.y + pose.headPush * geom.headR * 0.15,
   };
   const pitch =
     (frame.pitch + pose.headRot - 0.9 * pose.headUp + Math.sin(t * 9) * 0.12 * pose.rubSway + (posed?.head ?? 0)) *
@@ -618,7 +645,7 @@ export function drawActor(
   const profile = earProfiles[breed.earType];
   // 3/4 head turn: all eye, snout and far-ear positions come from one layout shared with the anchors.
   const onSide = rig.view === 'side';
-  const turn = clamp(Math.max(rig.headTurn, onSide ? pose.headTurn : 0, onSide ? pose.faceCam : 0), 0, 1);
+  const turn = clamp(Math.max(rig.headTurn, onSide ? Math.max(pose.headTurn, pose.faceCam) : 0), 0, 1);
   const front = clamp(Math.max(rig.headFront, onSide || rig.view === 'front' || rig.view === 'front34' ? pose.faceFront : 0), 0, 1);
   const face =
     actor.octantBlend >= 1 && turn === viewDefs[rig.view].headTurn && front === viewDefs[rig.view].headFront
@@ -889,7 +916,18 @@ export function drawActor(
     }
   });
 
-  if (rig.tail === 'top') {
+  if (rig.view === 'back') {
+    c.save();
+    c.translate(0, dy);
+    c.translate(geom.Px, geom.Py);
+    c.rotate(deg(theta), 0, 0);
+    c.translate(-geom.Px, -geom.Py);
+    fillOval(c, 0, geom.bodyY, geom.bodyH * 0.52, geom.bodyH * 0.48, mix(baseColor, '#000000', 0.12));
+    shadeOval(c, 0, geom.bodyY, geom.bodyH * 0.52, geom.bodyH * 0.48);
+    c.restore();
+  }
+
+  if (rig.tail === 'top' && rig.view !== 'back') {
     c.save();
     c.translate(0, dy);
     c.translate(geom.Px, geom.Py);

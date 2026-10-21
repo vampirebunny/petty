@@ -26,7 +26,7 @@ type Props = {
   onPlayGreeting?: (id: string) => void;
   greetingIds?: () => string[];
   greetingLabel?: () => string;
-  onLab?: () => void;
+  onFacing?: () => void;
 };
 
 const hourMs = 60 * 60 * 1000;
@@ -122,7 +122,7 @@ export function DebugPanel({
   onPlayGreeting,
   greetingIds,
   greetingLabel,
-  onLab,
+  onFacing,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [shownGreeting, setShownGreeting] = useState('');
@@ -137,11 +137,6 @@ export function DebugPanel({
       <Pressable onPress={() => setOpen((current) => !current)}>
         <Text style={styles.toggle}>{open ? 'Hide settings' : 'Settings'}</Text>
       </Pressable>
-      {onLab ? (
-        <Pressable accessibilityRole="button" accessibilityLabel="Wardrobe lab" onPress={onLab}>
-          <Text style={styles.toggle}>Wardrobe lab</Text>
-        </Pressable>
-      ) : null}
       {open ? (
         <View style={styles.body}>
       <Text style={styles.line}>Hunger {format(state.needs.hunger)}</Text>
@@ -156,6 +151,11 @@ export function DebugPanel({
         <Pressable style={styles.button} onPress={onFlip}>
           <Text style={styles.buttonLabel}>Turn</Text>
         </Pressable>
+        {onFacing ? (
+          <Pressable style={styles.button} onPress={onFacing}>
+            <Text style={styles.buttonLabel}>Facing</Text>
+          </Pressable>
+        ) : null}
         {[1, 0.5, 0.2].map((scale) => (
           <Pressable key={scale} style={styles.button} onPress={() => onTimeScale?.(scale)}>
             <Text style={styles.buttonLabel}>{scale}×</Text>

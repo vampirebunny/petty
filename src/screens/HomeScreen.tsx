@@ -8,7 +8,7 @@ import {
   actionReason,
   breedById,
   sceneById,
-  sceneList,
+  scenesFor,
   stagePoint,
 } from '../actor';
 import { releaseMusic, setMusicEnabled, suspendMusic } from '../audio/music';
@@ -42,7 +42,7 @@ import {
 import { ActionButtons } from '../ui/ActionButtons';
 import type { PetAction } from '../ui/ActionButtons';
 import { PlaydateScreen } from './PlaydateScreen';
-import { WardrobeLab } from './WardrobeLab';
+import { FacingLab } from './FacingLab';
 import { WardrobeScreen } from './WardrobeScreen';
 import { useCloset } from '../state/useCloset';
 import { usePlaydates } from '../state/usePlaydates';
@@ -149,7 +149,7 @@ export default function HomeScreen({ petApi }: Props) {
   const [hour, setHour] = useState<number | null>(null);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [wardrobeOpen, setWardrobeOpen] = useState(false);
-  const [labOpen, setLabOpen] = useState(false);
+  const [facingOpen, setFacingOpen] = useState(false);
   const [personalityOpen, setPersonalityOpen] = useState(false);
   const [playOpen, setPlayOpen] = useState(false);
   const [cuddleOn, setCuddleOn] = useState(false);
@@ -682,6 +682,10 @@ export default function HomeScreen({ petApi }: Props) {
     );
   }
 
+  if (facingOpen) {
+    return <FacingLab reducedMotion={reducedMotion} onClose={() => setFacingOpen(false)} />;
+  }
+
   if (wardrobeOpen) {
     return (
       <WardrobeScreen
@@ -693,10 +697,6 @@ export default function HomeScreen({ petApi }: Props) {
         onClose={() => setWardrobeOpen(false)}
       />
     );
-  }
-
-  if (labOpen) {
-    return <WardrobeLab look={state.look} reducedMotion={reducedMotion} onClose={() => setLabOpen(false)} />;
   }
 
   const origin = state.attributes.archetype;
@@ -967,7 +967,7 @@ export default function HomeScreen({ petApi }: Props) {
           </Text>
         ) : null}
         <View style={styles.scenes}>
-          {sceneList.map((entry) => (
+          {scenesFor(species).map((entry) => (
             <Pressable
               key={entry.id}
               style={[styles.scene, entry.id === preset.id && styles.sceneSelected]}
@@ -1056,7 +1056,7 @@ export default function HomeScreen({ petApi }: Props) {
           onPlayGreeting={(id) => stageHandle.current?.playGreeting(id)}
           greetingIds={() => stageHandle.current?.greetingIds() ?? []}
           greetingLabel={() => stageHandle.current?.label() ?? ''}
-          onLab={() => setLabOpen(true)}
+          onFacing={() => setFacingOpen(true)}
         />
       </ScrollView>
     </View>

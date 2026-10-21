@@ -11,7 +11,7 @@ export type GaitDef = {
   stride: number;
   // Share of the cycle a foot is on the ground.
   duty: number;
-  // Foot phase offsets (0..1) in the order hind far, fore far, hind near, fore near.
+  // Foot phase offsets (0..1) in anatomical order: LH, LF, RH, RF. Near and far are chosen after projection.
   offsets: readonly [number, number, number, number];
   // Foot lift as a multiple of L.
   lift: number;
@@ -23,9 +23,9 @@ export type GaitDef = {
 };
 
 export const gaitDefs: Record<Gait, GaitDef> = {
-  // Four beats, lateral sequence: hind far, fore far, hind near, fore near.
+  // Four beats: LH, LF, RH, RF.
   walk: { enter: 0, stride: 0.38, duty: 0.7, offsets: [0, 0.25, 0.5, 0.75], lift: 0.14, bounce: 1, stretch: 0, stream: 0 },
-  // Diagonal pairs: hind far with fore near, fore far with hind near.
+  // Diagonal pairs: LF+RH, then RF+LH.
   trot: { enter: 0.56, stride: 0.62, duty: 0.55, offsets: [0, 0.5, 0.5, 0], lift: 0.18, bounce: 2.4, stretch: 0, stream: 0 },
   // Three beats: trailing hind, then the diagonal pair, then the leading fore.
   canter: { enter: 0.74, stride: 0.86, duty: 0.42, offsets: [0, 0.3, 0.3, 0.62], lift: 0.22, bounce: 3.8, stretch: 0.45, stream: 0.35 },

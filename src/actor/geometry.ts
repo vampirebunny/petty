@@ -395,6 +395,17 @@ export type BodyFrame = {
   pitch: number;
 };
 
+export type FacingFit = { foreshorten: number; front: number; rear: number };
+
+// Side keeps the head forward. 3/4 is about 55% of that reach. Front and back sit on the chest.
+function headReach(foreshorten: number): number {
+  const f = Math.max(0, Math.min(1, foreshorten));
+  if (f >= 0.6) {
+    return 0.55 + 0.45 * ((f - 0.6) / 0.4);
+  }
+  return (0.55 * Math.max(0, f - 0.36)) / 0.24;
+}
+
 export function bodyFrame(
   breed: Breed,
   ageDays: number,
@@ -417,6 +428,7 @@ export function bodyFrame(
   speed = 0,
   gait?: GaitState,
   share = 0,
+  facing?: FacingFit,
 ): BodyFrame {
   const geom = geomOf(breed, ageDays, weight, vitality);
   const scale = PET_SIZE * geom.sc * depthScale(y, floor.yMin, floor.yMax);
@@ -446,6 +458,15 @@ export function bodyFrame(
     const neck = petStyle.proportions.neck;
     headX = neckX + (headX - neckX) * neck;
     headY = neckY + (headY - neckY) * neck;
+  }
+  if (facing) {
+    headX *= headReach(facing.foreshorten) * (1 - 0.15 * facing.front);
+    const chestTop = geom.bodyY + geom.bodyH * 0.08 - geom.bodyH / 2;
+    const frontY = chestTop + geom.bodyH * 0.3 - geom.headR * 0.25;
+    const backY = geom.bodyY - geom.bodyH * 0.9;
+    const axial = Math.max(facing.front, facing.rear);
+    const axialY = facing.rear > facing.front ? backY : frontY;
+    headY = headY + (axialY - headY) * axial;
   }
   const natural = torsoPoint(geom, theta, dy, headX, headY);
   natural.x += 10 * pose.sit;

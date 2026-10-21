@@ -81,7 +81,7 @@ export function PetPreview({ species, breedId, look, height }: Props) {
       }
       const recorder = Skia.PictureRecorder();
       const canvas = recorder.beginRecording(Skia.XYWHRect(0, 0, viewWidth, viewHeight));
-      drawWorld(canvas, world, viewWidth, viewHeight, noon, true, previewStageHeight);
+      drawWorld(canvas, world, viewWidth, viewHeight, noon, true, previewStageHeight, undefined, undefined, { sky: null });
       const next = recorder.finishRecordingAsPicture();
       const now = Date.now();
       if (live.current) {

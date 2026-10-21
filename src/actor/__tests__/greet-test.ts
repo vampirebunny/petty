@@ -109,14 +109,11 @@ it('turns the head to the camera for a greeting bark', () => {
   expect(cat.pose.faceFront).toBe(0);
 });
 
-it('waits to flip facing until speed has pointed the other way', () => {
+it('does not flip face from vx; the octant ring owns it', () => {
   const actor = spawnActor(source());
   actor.vx = -80;
-  stepFacing(actor, 0.1, false);
+  stepFacing(actor, 0.2, false);
   expect(actor.face).toBe(1);
-  stepFacing(actor, 0.06, false);
-  expect(actor.face).toBe(-1);
-  actor.face = 1;
   actor.faceHold = 0.2;
   stepFacing(actor, 0.2, true);
   expect(actor.face).toBe(1);
@@ -280,8 +277,9 @@ it('keeps the octant across a boundary and steps a reversal through south', () =
     const angle = (deg * Math.PI) / 180;
     return { vx: Math.cos(angle) * 40, vy: -Math.sin(angle) * 40 };
   };
-  expect(octantFromVelocity(vel(20).vx, vel(20).vy, 'E')).toBe('E');
-  expect(octantFromVelocity(vel(40).vx, vel(40).vy, 'E')).toBe('NE');
+  expect(octantFromVelocity(vel(30).vx, vel(30).vy, 'E')).toBe('E');
+  expect(octantFromVelocity(vel(40).vx, vel(40).vy, 'E')).toBe('E');
+  expect(octantFromVelocity(vel(50).vx, vel(50).vy, 'E')).toBe('NE');
   expect(octantFromVelocity(2, 2, 'W')).toBe('W');
   expect(stepToward('E', 'W', 1)).toBe('SE');
   expect(stepToward('SE', 'W', 1)).toBe('S');

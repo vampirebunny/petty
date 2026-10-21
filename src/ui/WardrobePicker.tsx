@@ -9,8 +9,7 @@ import type { Equipped, OutfitSlot } from '../sim/types';
 import { ClosetSection } from './closet/ClosetSection';
 import { closet } from './closet/closetStyle';
 import { fontFamily } from './font';
-import { OutfitPreview, outfitPoses, useOutfitClock, type OutfitPose, type OutfitSubject } from './OutfitPreview';
-import { minTouch, theme } from './theme';
+import { OutfitPreview, useOutfitClock, type OutfitSubject } from './OutfitPreview';
 
 type Props = {
   subject: OutfitSubject;
@@ -20,25 +19,6 @@ type Props = {
   reducedMotion: boolean;
   footer?: ReactNode;
 };
-
-export function PoseChips({ pose, onPose }: { pose: OutfitPose; onPose: (pose: OutfitPose) => void }) {
-  return (
-    <View style={styles.poses}>
-      {outfitPoses.map((entry) => (
-        <Pressable
-          key={entry}
-          accessibilityRole="button"
-          accessibilityLabel={`Pose ${entry}`}
-          accessibilityState={{ selected: pose === entry }}
-          onPress={() => onPose(entry)}
-          style={[styles.pose, pose === entry && styles.poseSelected]}
-        >
-          <Text style={[styles.poseLabel, pose === entry && styles.poseSelectedLabel]}>{entry}</Text>
-        </Pressable>
-      ))}
-    </View>
-  );
-}
 
 function bump() {
   void Haptics.selectionAsync();
@@ -161,29 +141,5 @@ const styles = StyleSheet.create({
     paddingTop: 14,
     paddingBottom: 32,
     gap: 14,
-  },
-  poses: {
-    flexDirection: 'row',
-    gap: 8,
-    paddingTop: 8,
-  },
-  pose: {
-    minWidth: 64,
-    minHeight: minTouch,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    backgroundColor: theme.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  poseSelected: {
-    backgroundColor: theme.accentDark,
-  },
-  poseLabel: {
-    color: theme.ink,
-    fontSize: 14,
-  },
-  poseSelectedLabel: {
-    color: '#fff',
   },
 });

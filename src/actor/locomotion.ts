@@ -94,6 +94,21 @@ export function locoModsOf(profile: StageProfile, stats: LocoStats, weight: numb
 
 // ---------------------------------------------------------------- gait choice and legs
 
+// Puppy steps higher. A senior keeps the paws closer to the ground.
+export function liftScaleOf(ageDays: number): number {
+  const stage = stageOf(ageDays);
+  if (stage === 'puppy') {
+    return 1.35;
+  }
+  if (stage === 'olderPuppy') {
+    return 1.18;
+  }
+  if (stage === 'senior') {
+    return 0.72;
+  }
+  return 1;
+}
+
 export function isGaitAllowed(gait: Gait, max: Gait): boolean {
   return gaitOrder.indexOf(gait) <= gaitOrder.indexOf(max);
 }

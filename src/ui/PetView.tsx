@@ -53,6 +53,7 @@ import { playVoice } from '../audio/voice';
 import { attributeScore, feedEnergyGain, feedHungerDrop } from '../sim';
 import type { PointAdd } from './cuddle/pointAdds';
 import type { Cue, PetState } from '../sim/types';
+import { solarHour } from '../actor/sky';
 import { drawWorld } from './skia/world';
 
 // What the home screen can ask of the pet while Cuddle is on. Points are stage coordinates.
@@ -185,8 +186,9 @@ export function PetView({
     const canvas = recorder.beginRecording(bounds);
     const now = Date.now();
     if (now - todAtMs.current > 1000) {
-      const clock = new Date(now);
-      const live = clock.getHours() + clock.getMinutes() / 60 + clock.getSeconds() / 3600;
+      // Sunrise maps to 06:00 and sunset to 18:00, so the sky gradient follows the real day.
+      // A debug hour is already on that scale, so it goes straight to todAt.
+      const live = solarHour(new Date(now));
       todRef.current = todAt(hourRef.current == null ? live : hourRef.current);
       todAtMs.current = now;
     }

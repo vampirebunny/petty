@@ -1,6 +1,6 @@
 import type { Facing, ViewId } from '../../actor/data/facing';
 import type { HeadFace } from '../../actor/geometry';
-import { viewOf } from '../../actor/facing';
+import { mirrorDir, viewOf } from '../../actor/facing';
 
 export type LegId = 'hindFar' | 'foreFar' | 'hindNear' | 'foreNear';
 
@@ -45,9 +45,9 @@ export const viewDefs: Record<ViewId, ViewDef> = {
   },
   front34: {
     view: 'front34',
-    foreshorten: 0.62,
-    shadowRx: 0.78,
-    shadowRy: 1.15,
+    foreshorten: 0.6,
+    shadowRx: 0.72,
+    shadowRy: 1.6,
     spread: 10,
     legAngle: 0.55,
     headTurn: 1,
@@ -61,8 +61,8 @@ export const viewDefs: Record<ViewId, ViewDef> = {
   front: {
     view: 'front',
     foreshorten: 0.38,
-    shadowRx: 0.62,
-    shadowRy: 1.35,
+    shadowRx: 0.5,
+    shadowRy: 2.8,
     spread: 14,
     legAngle: 1,
     headTurn: 1,
@@ -75,9 +75,9 @@ export const viewDefs: Record<ViewId, ViewDef> = {
   },
   back34: {
     view: 'back34',
-    foreshorten: 0.62,
-    shadowRx: 0.78,
-    shadowRy: 1.15,
+    foreshorten: 0.6,
+    shadowRx: 0.72,
+    shadowRy: 1.6,
     spread: 10,
     legAngle: 0.55,
     headTurn: 0.15,
@@ -91,8 +91,8 @@ export const viewDefs: Record<ViewId, ViewDef> = {
   back: {
     view: 'back',
     foreshorten: 0.36,
-    shadowRx: 0.58,
-    shadowRy: 1.3,
+    shadowRx: 0.48,
+    shadowRy: 2.6,
     spread: 13,
     legAngle: 1,
     headTurn: 0,
@@ -126,23 +126,12 @@ function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
 
-function horizontalDir(octant: Facing, face: number): 1 | -1 {
-  if (octant === 'W' || octant === 'NW' || octant === 'SW') {
-    return -1;
-  }
-  if (octant === 'E' || octant === 'NE' || octant === 'SE') {
-    return 1;
-  }
-  return face >= 0 ? 1 : -1;
-}
-
 // Continuous fields blend. Draw order stays on the view being left until the tween finishes.
 export function viewRig(from: Facing, to: Facing, blend: number, face: number): ViewRig {
   const t = Math.max(0, Math.min(1, blend));
   const a = viewDefs[viewOf(from)];
   const b = viewDefs[viewOf(to)];
   const order = t >= 1 ? b : a;
-  const shown = t >= 1 ? to : from;
   return {
     view: order.view,
     foreshorten: lerp(a.foreshorten, b.foreshorten, t),
@@ -157,7 +146,7 @@ export function viewRig(from: Facing, to: Facing, blend: number, face: number): 
     legsFirst: order.legsFirst,
     legsLast: order.legsLast,
     tail: order.tail,
-    dir: horizontalDir(shown, face),
+    dir: mirrorDir(from, to, t, face),
   };
 }
 

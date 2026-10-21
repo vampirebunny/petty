@@ -14,20 +14,19 @@ Files:
 - `src/actor/data/petStyle.ts` (the pet's own outline, cel shading, and chibi proportions)
 - `src/ui/skia/shade.ts` (shadow and highlight helpers shared by the body, ears, and tail)
 - `src/actor/closet.ts` and `src/storage/wardrobeStorage.ts` (owned items)
-- `src/ui/WardrobePicker.tsx`, `src/screens/WardrobeScreen.tsx`, `src/screens/WardrobeLab.tsx`
+- `src/ui/WardrobePicker.tsx`, `src/screens/WardrobeScreen.tsx`
 
 Keep using the existing `bodyTint` lighting path so items darken at night with the pet.
 
 ## Decisions
 
-These override the slot list, the dev gallery, and the wardrobe screen notes below.
+These override the slot list and the wardrobe screen notes below.
 
 - Slots are `hat`, `glasses`, `neckwear`, `jacket`, `boots`. Neckwear is one item at a time: collar or bandana or scarf or none, never two together.
 - Starter closet, owned on first load: red `collar`, blue `bandana`, yellow `scarf`, green `beanie`, red-rimmed `red-rim` sunglasses, orange `puffer`, red calf `boots`.
-- The full catalog also has `bell`, `bow`, gold `gold` collar, `party` and `top` hats, `classic` and `square` glasses, `sweater`, `rain`, `vest`, rain boots, and `sneaker` (a low shoe, not the calf boot). NPCs and the lab use the full catalog. The closet shows only what that user owns. Tap an item to put it on. Tap the worn item to take it off. "Take it all off" clears every slot. There is no None tile.
+- The full catalog also has `bell`, `bow`, gold `gold` collar, `party` and `top` hats, `classic` and `square` glasses, `sweater`, `rain`, `vest`, rain boots, and `sneaker` (a low shoe, not the calf boot). NPCs use the full catalog. The closet shows only what that user owns. Tap an item to put it on. Tap the worn item to take it off. "Take it all off" clears every slot. There is no None tile.
 - Ownership is a set of `{ slot, id }` stored locally at `petty.wardrobe.${ownerId}`. It is not the treat inventory. Migration maps `equipped.collar` / `equipped.bandana` to `neckwear` (bandana wins if both were worn; `gold` stays `gold`; any other collar becomes `collar`) and `equipped.coat` to `jacket`. A still-valid equipped item is added to the closet.
 - Home wardrobe and the playdate outfit step use the same closet. The pet sits above the item icons, with no mirror frame, and it does not cycle poses. Continue under the preview closes the home closet. Start (or the cooldown) under the preview begins the playdate. The playdate outfit is stored on the playdate record and does not change the pet's everyday clothes. The playdate header still has Back.
-- The dev gallery is a Wardrobe lab button under Settings. It picks species, breed, any catalog item (text buttons), age (with Puppy and Adult presets), and a pose (idle, sit, lie, walk). The lab keeps those pose chips. It does not write the save.
 
 TODO: After account creation, store wardrobe inventory per user in Supabase. A playdate between two accounts must replay the exact worn items (slot, id, and colors) from the record itself, not from either user's current closet.
 
@@ -171,11 +170,7 @@ All of this must work from geometry already in `geom`, `face`, `breed`, and `ear
 
 If a breed still fails after the shared rules, add a small per-breed override in breed data (for example a neckwear offset or hat scale), not branching in draw code.
 
-## 10. Wardrobe lab
-
-A button under Settings opens a page that does not write the save. It chooses species and breed, any catalog item with text buttons, and age with a slider, and shows that pet in a zoomed preview with pose chips (idle, sit, lie, walk). The user-facing closet keeps the pet sitting above the items, with no mirror around it. Owned items are drawn on their own underneath, and tapping one puts it on the pet.
-
-## 11. The pet's own look
+## 10. The pet's own look
 
 Tunables live in `src/actor/data/petStyle.ts`. Shading helpers live in `src/ui/skia/shade.ts`.
 

@@ -66,6 +66,7 @@ export {
   sceneById,
   sceneForSpecies,
   sceneList,
+  scenesFor,
   sceneSource,
   scenes,
   tuftsFor,

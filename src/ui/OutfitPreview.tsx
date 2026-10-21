@@ -29,7 +29,6 @@ type Props = OutfitSubject & {
 };
 
 export type OutfitPose = 'idle' | 'sit' | 'lie' | 'walk';
-export const outfitPoses: OutfitPose[] = ['idle', 'sit', 'lie', 'walk'];
 
 export function useOutfitClock(reducedMotion: boolean): number {
   const [t, setT] = useState(0);
@@ -88,7 +87,7 @@ export function OutfitPreview({
     if (bare) {
       drawPetOnly(canvas, world, width, height, tod, camera);
     } else {
-      drawWorld(canvas, world, width, height, tod, true, undefined, camera);
+      drawWorld(canvas, world, width, height, tod, true, undefined, camera, undefined, { sky: null });
     }
     return recorder.finishRecordingAsPicture();
   }, [ageDays, bare, breedId, cameraY, equipped, height, look, pose, seed, t, vitality, weight, width, zoom]);

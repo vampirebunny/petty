@@ -29,7 +29,9 @@ export function SnapshotStill({ snapshot, width, height, focus = false }: Props)
     const world = createWorld([actor], snapshot.seed || 1, scene);
     const recorder = Skia.PictureRecorder();
     const canvas = recorder.beginRecording(Skia.XYWHRect(0, 0, width, height));
-    drawWorld(canvas, world, width, height, todAt(14), true, undefined, focus ? { x: 320, y: 400, zoom: 3.2 } : undefined);
+    drawWorld(canvas, world, width, height, todAt(14), true, undefined, focus ? { x: 320, y: 400, zoom: 3.2 } : undefined, undefined, {
+      sky: null,
+    });
     return recorder.finishRecordingAsPicture();
   }, [focus, height, snapshot, width]);
 

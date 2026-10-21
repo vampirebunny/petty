@@ -458,8 +458,15 @@ export type Actor = {
   // 0..1 blend of continuous view params. Draw order swaps at 1.
   octantBlend: number;
   octantHold: number;
-  // How many octants this target was when it was chosen. Above 1, the pet turns in place.
+  // How many octants this target was when it was chosen. Above 1, the pet arcs until it is close.
   octantSpan: number;
+  // Horizontal sign captured when the target was chosen. N/S tie-breaks use this, not the live face.
+  aimFace: 1 | -1;
+  // Low-passed velocity used to pick the octant.
+  aimVx: number;
+  aimVy: number;
+  // Facing-lab override, in radians. E = 0, S = +π/2. Absent in normal play.
+  debugTheta?: number;
   // The facing yaw is currently chasing. A change starts the head lead.
   yawFace: 1 | -1;
   yaw: number;
