@@ -45,7 +45,7 @@ type Props = {
   remaining: number;
   reducedMotion: boolean;
   onSave: (save: PlaydateSave) => void;
-  onRewarded: (happiness: number, attributes: PlaydateRecord['outcome']['attributeXp']) => void;
+  onRewarded: (happiness: number, attributes: PlaydateRecord['outcome']['attributeXp'], playdateId: string) => void;
   onClose: () => void;
   owned: readonly OwnedItem[];
 };
@@ -115,7 +115,7 @@ export function PlaydateScreen({ pet, save, now, remaining, reducedMotion, onSav
       onSave(remembered.save);
       if (remembered.applied) {
         setGains(attributeGains(pet, record.outcome));
-        onRewarded(record.outcome.moodDelta, record.outcome.attributeXp);
+        onRewarded(record.outcome.moodDelta, record.outcome.attributeXp, record.playdateId);
       }
     }
     setStep('results');

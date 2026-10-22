@@ -30,12 +30,15 @@ import {
 } from '../storage/session';
 import { PlacesScreen } from './PlacesScreen';
 import { PantryScreen } from './PantryScreen';
+import { StoreScreen } from './StoreScreen';
 import { placeFlavors, placeIcons, speciesLabel } from '../ui/actionIcons';
 import { CandyShell, candyInk, tints } from '../ui/candy';
+import { BoopCounter } from '../ui/BoopCounter';
 import { iconStroke } from '../ui/theme';
 import { usePet } from '../state/usePet';
 import { useEconomy } from '../economy/useEconomy';
-import { basicTreatId, emptyEconomy, stackQty } from '../economy/state';
+import { basicTreatId } from '../economy/state';
+import { newRequestId, outfitsOwned } from '../economy/service';
 import { canGiveTreat, treatsInInventory } from '../treats';
 import { trackName } from '../sim/tracks';
 import {
@@ -50,7 +53,6 @@ import type { PetAction } from '../ui/ActionButtons';
 import { PlaydateScreen } from './PlaydateScreen';
 import { FacingLab } from './FacingLab';
 import { WardrobeScreen } from './WardrobeScreen';
-import { useCloset } from '../state/useCloset';
 import { usePlaydates } from '../state/usePlaydates';
 import { formatCooldown } from '../playdate/cooldown';
 import { DebugPanel } from '../ui/DebugPanel';
@@ -143,15 +145,23 @@ export default function HomeScreen({ petApi }: Props) {
     resolveTraining,
     seeCoach,
     moveFurniture,
-    clearTreats,
     offerTreat,
     welcomeBack,
     dismissWelcome,
     setCareTreatCount,
+    commitPet,
+    noteFind,
+    burst,
+    dismissBurst,
+    loginOffer,
+    claimLogin,
+    dismissLogin,
   } = petApi;
-  const economyApi = useEconomy(state?.ownerId);
+  const economyApi = useEconomy(state != null);
   const [clock, setClock] = useState(() => Date.now());
   const [pantryOpen, setPantryOpen] = useState(false);
+  const [storeOpen, setStoreOpen] = useState(false);
+  const [pulse, setPulse] = useState(0);
   const [pops, setPops] = useState<PointPop[] | null>(null);
   const clearPops = useCallback(() => setPops(null), []);
   const [dialog, setDialog] = useState<
@@ -163,7 +173,7 @@ export default function HomeScreen({ petApi }: Props) {
   const { viewWidth, viewHeight, contentWidth } = useStageSize();
   const [playdateOpen, setPlaydateOpen] = useState(false);
   const playdates = usePlaydates(state?.ownerId);
-  const owned = useCloset(state?.ownerId, state?.equipped);
+  const owned = outfitsOwned();
   const [hour, setHour] = useState<number | null>(null);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [wardrobeOpen, setWardrobeOpen] = useState(false);
@@ -690,9 +700,7 @@ export default function HomeScreen({ petApi }: Props) {
     return () => clearInterval(timer);
   }, [coachVisible, stageToView]);
 
-  const migratedTreats = useRef(false);
-  const wallet = economyApi.economy;
-  const legacyTreats = state?.treats;
+  const inventory = economyApi.inventory;
 
   useEffect(() => {
     const id = setInterval(() => setClock(Date.now()), 1000);
@@ -700,17 +708,15 @@ export default function HomeScreen({ petApi }: Props) {
   }, []);
 
   useEffect(() => {
-    setCareTreatCount(stackQty(wallet ?? emptyEconomy(0), basicTreatId));
-  }, [setCareTreatCount, wallet]);
+    const count = inventory.find((row) => row.itemId === basicTreatId)?.qty ?? 0;
+    setCareTreatCount(count);
+  }, [inventory, setCareTreatCount]);
 
   useEffect(() => {
-    if (!wallet || !legacyTreats || legacyTreats.length === 0 || migratedTreats.current) {
-      return;
+    if (burst) {
+      setPulse((current) => current + 1);
     }
-    migratedTreats.current = true;
-    economyApi.grantMany(legacyTreats.map((stack) => ({ itemId: stack.treatId, qty: stack.count })));
-    clearTreats();
-  }, [clearTreats, economyApi, legacyTreats, wallet]);
+  }, [burst]);
 
   const milestones = state?.milestones;
   const [knownMilestones, setKnownMilestones] = useState<string[] | null>(null);
@@ -791,12 +797,22 @@ export default function HomeScreen({ petApi }: Props) {
     return <FacingLab reducedMotion={reducedMotion} onClose={() => setFacingOpen(false)} />;
   }
 
+  if (storeOpen) {
+    return <StoreScreen balance={economyApi.balance} onClose={() => setStoreOpen(false)} />;
+  }
+
   if (pantryOpen) {
     return (
       <PantryScreen
-        economy={economyApi.economy}
-        reducedMotion={reducedMotion}
+        inventory={economyApi.inventory}
         onClose={() => setPantryOpen(false)}
+        onStore={() => setStoreOpen(true)}
+        onServe={(itemId) => {
+          const used = economyApi.useItem(state, itemId, {}, newRequestId());
+          if (used.ok && used.pet) {
+            commitPet(used.pet);
+          }
+        }}
       />
     );
   }
@@ -1032,7 +1048,8 @@ export default function HomeScreen({ petApi }: Props) {
         primary={{
           label: 'Yes, give treat',
           onPress: () => {
-            if (!economyApi.give(basicTreatId)) {
+            const used = economyApi.useItem(state, basicTreatId, { context: 'training' }, newRequestId());
+            if (!used.ok || !used.pet) {
               const paid = resolveTraining('none');
               if (paid) {
                 noteGain(trackId, paid.before, paid.after);
@@ -1040,7 +1057,7 @@ export default function HomeScreen({ petApi }: Props) {
               setDialog({ kind: 'out', trackId });
               return;
             }
-            const paid = resolveTraining('treat');
+            const paid = resolveTraining('treat', used.pet);
             if (paid) {
               afterPayout(trackId, paid.before, paid.after, true);
             }
@@ -1096,7 +1113,7 @@ export default function HomeScreen({ petApi }: Props) {
     trainingDialog = (
       <FunModal
         title="Uh oh, no treats left!"
-        body={`The Pet Store is opening soon. ${state.name} still had fun practicing.`}
+        body={`The Pet Store has more treats. ${state.name} still had fun practicing.`}
         icon={Cookie}
         tint="peach"
         reducedMotion={reducedMotion}
@@ -1112,6 +1129,7 @@ export default function HomeScreen({ petApi }: Props) {
             }
           },
         }}
+        secondary={{ label: 'Pet Store', onPress: () => setStoreOpen(true) }}
       />
     );
   } else if (shownDialog?.kind === 'break') {
@@ -1121,6 +1139,8 @@ export default function HomeScreen({ petApi }: Props) {
     const body = track?.hadNoTreat
       ? `${state.name} lost focus! Treats help ${state.name} stay focused longer. ${state.name} can practice again in ${remain}.`
       : `Great work on ${label}! ${state.name} can practice again in ${remain}.`;
+    const windOwned = economyApi.inventory.some((row) => row.itemId === 'second_wind' && row.qty > 0);
+    const windAffordable = economyApi.canAfford('second_wind').ok;
     trainingDialog = (
       <FunModal
         title={`${state.name} needs a break!`}
@@ -1129,7 +1149,26 @@ export default function HomeScreen({ petApi }: Props) {
         tint="sky"
         reducedMotion={reducedMotion}
         top={previewBottom}
-        primary={{ label: 'OK', onPress: () => setDialog(null) }}
+        primary={{
+          label: windOwned ? 'Second Wind' : windAffordable ? 'Buy Second Wind' : 'Pet Store',
+          onPress: () => {
+            if (!windOwned && !windAffordable) {
+              setStoreOpen(true);
+              return;
+            }
+            const requestId = newRequestId();
+            const used = windOwned
+              ? economyApi.useItem(state, 'second_wind', { trickId: shownDialog.trackId }, requestId)
+              : economyApi.buyAndUse(state, 'second_wind', { trickId: shownDialog.trackId }, requestId);
+            if (!used.ok || !used.pet) {
+              flash(!used.ok && used.reason === 'daily_limit' ? 'Second Wind is used up for today.' : 'Could not use that.');
+              return;
+            }
+            commitPet(used.pet, 'speak');
+            setDialog(null);
+          },
+        }}
+        secondary={{ label: 'OK', onPress: () => setDialog(null) }}
       />
     );
   }
@@ -1148,6 +1187,14 @@ export default function HomeScreen({ petApi }: Props) {
           title={celebrating === 'paw' ? trackName('paw', species) : (badgeLabels[celebrating] ?? 'Badge')}
           reducedMotion={reducedMotion}
           onDone={finishCelebration}
+        />
+      ) : null}
+      {burst ? (
+        <BadgeCelebration
+          title={burst.label}
+          caption={`+${burst.amount} Boops`}
+          reducedMotion={reducedMotion}
+          onDone={dismissBurst}
         />
       ) : null}
       {unlocking ? (
@@ -1177,6 +1224,7 @@ export default function HomeScreen({ petApi }: Props) {
           <Text style={styles.name} numberOfLines={1}>
             {state.name}
           </Text>
+          <BoopCounter value={economyApi.balance} pulse={pulse} />
         </View>
         <GestureDetector gesture={gesture}>
           <View collapsable={false} style={{ width: viewWidth, height: viewHeight, alignSelf: 'center' }}>
@@ -1203,6 +1251,7 @@ export default function HomeScreen({ petApi }: Props) {
               onHydrationDelta={applyActorHydration}
               onDrank={reportDrank}
               onAte={reportAte}
+              onPlayFind={noteFind}
               onPointAdds={(adds) => {
                 const shown: PointAdd[] = [];
                 for (const gain of adds) {
@@ -1367,12 +1416,26 @@ export default function HomeScreen({ petApi }: Props) {
           greetingIds={() => stageHandle.current?.greetingIds() ?? []}
           greetingLabel={() => stageHandle.current?.label() ?? ''}
           onFacing={() => setFacingOpen(true)}
+          ledger={economyApi.ledger}
         />
       </ScrollView>
       {trainingDialog}
+      {loginOffer ? (
+        <FunModal
+          title={`Day ${loginOffer.streakDay}`}
+          body={`Tap to claim ${loginOffer.reward} Boops.`}
+          icon={Cookie}
+          tint="butter"
+          sparkle
+          reducedMotion={reducedMotion}
+          top={previewBottom}
+          primary={{ label: 'Claim', onPress: claimLogin }}
+          secondary={{ label: 'Later', onPress: dismissLogin }}
+        />
+      ) : null}
       {treatOpen ? (
         <TreatPicker
-          choices={treatsInInventory(wallet?.inventory ?? [], species)}
+          choices={treatsInInventory(economyApi.inventory, species)}
           note={treatNote}
           reducedMotion={reducedMotion}
           top={previewBottom}
@@ -1388,11 +1451,14 @@ export default function HomeScreen({ petApi }: Props) {
               );
               return;
             }
-            if (!economyApi.give(treatId)) {
-              setTreatNote('No treats available.');
+            const used = economyApi.useItem(state, treatId, { context: 'casual' }, newRequestId());
+            if (!used.ok || !used.pet) {
+              setTreatNote(
+                !used.ok && used.reason === 'full' ? `${state.name} is too full for a treat.` : 'No treats available.',
+              );
               return;
             }
-            offerTreat(treatId);
+            offerTreat(treatId, used.pet);
             setTreatOpen(false);
             setTreatNote(null);
           }}
@@ -1474,7 +1540,8 @@ const styles = StyleSheet.create({
   name: {
     textAlign: 'center',
     // Leaves room on both sides so a long name never runs under the logo.
-    marginHorizontal: 60,
+    marginLeft: 60,
+    marginRight: 88,
     fontSize: 28,
     fontWeight: '700',
     color: '#243044',

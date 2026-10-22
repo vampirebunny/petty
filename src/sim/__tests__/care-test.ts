@@ -196,7 +196,7 @@ it('starts with 10 treats and does not regenerate or add a daily bonus', () => {
   const later = settleEconomy(start, now + 24 * hourMs);
   expect(stackQty(later, 'biscuit')).toBe(careConfig.startingTreats);
   const topped = addStack(start, 'biscuit', 200);
-  expect(stackQty(topped, 'biscuit')).toBe(careConfig.stackCeiling);
+  expect(stackQty(topped, 'biscuit')).toBe(careConfig.startingTreats + 200);
   const spent = spendTreat(emptyEconomy(now), 'biscuit');
   expect(spent.ok).toBe(true);
   let wallet = spent.economy;

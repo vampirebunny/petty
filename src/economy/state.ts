@@ -36,7 +36,7 @@ export function addStack(economy: UserEconomy, itemId: string, qty: number): Use
     return economy;
   }
   const current = stackQty(economy, itemId);
-  const nextQty = Math.min(careConfig.stackCeiling, current + qty);
+  const nextQty = current + qty;
   const inventory = economy.inventory.filter((stack) => stack.itemId !== itemId);
   if (nextQty > 0) {
     inventory.push({ itemId, qty: nextQty });

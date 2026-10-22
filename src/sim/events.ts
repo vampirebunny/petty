@@ -182,6 +182,7 @@ export function applyEvent(state: PetState, event: PetEvent): EventResult {
     const next = copyState(state);
     next.asleep = false;
     next.foodInBowl = true;
+    next.bowlItemId = null;
     return { state: next, cue: { kind: 'eat' } };
   }
 
@@ -191,13 +192,18 @@ export function applyEvent(state: PetState, event: PetEvent): EventResult {
       return { state, cue: { kind: 'none' } };
     }
     const next = copyState(state);
+    const meal = event.meal;
     next.foodInBowl = false;
-    next.needs.hunger = clampNeed(next.needs.hunger - feedHungerDrop);
-    next.needs.energy = clampNeed(next.needs.energy + feedEnergyGain);
-    next.xp += feedXp;
+    next.bowlItemId = null;
+    next.needs.hunger = clampNeed(next.needs.hunger - feedHungerDrop * (meal?.hunger ?? 1));
+    next.needs.energy = clampNeed(next.needs.energy + feedEnergyGain * (meal?.energy ?? 1));
+    next.xp += Math.round(feedXp * (meal?.xp ?? 1));
     next.drift.stamina = clampDrift(next.drift.stamina + feedStaminaDrift);
     next.careWindow = bumpDiet(next.careWindow);
-    next.weight = applyMeal(next.weight);
+    next.weight = applyMeal(next.weight, meal?.weight ?? 1);
+    if (meal && meal.mood > 0) {
+      addHappiness(next, meal.mood);
+    }
     return { state: withDerived(next), cue: { kind: 'none' } };
   }
 

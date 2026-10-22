@@ -310,6 +310,7 @@ export function createWorld(actors: Actor[], seed = 1, scene: Scene = scenes.liv
     pendingPondDrinks: 0,
     foodStocked: false,
     pendingMeals: 0,
+    pendingPlayFinds: [],
     pendingTreatMoods: [],
     t: 0,
     rng: makeRng(seed),
@@ -585,14 +586,21 @@ export function takeMeals(world: World): number {
   return count;
 }
 
+export function takePlayFinds(world: World): ('fetch_round' | 'toy_round')[] {
+  const finds = world.pendingPlayFinds;
+  world.pendingPlayFinds = [];
+  return finds;
+}
+
 export function takeTreatMoods(world: World): number[] {
   const amounts = world.pendingTreatMoods;
   world.pendingTreatMoods = [];
   return amounts;
 }
 
-export function syncWorldFood(world: World, stocked: boolean): void {
+export function syncWorldFood(world: World, stocked: boolean, premium = false): void {
   world.foodStocked = stocked;
+  world.premiumMeal = premium && stocked;
 }
 
 export function syncWorldWater(world: World, waterLevel: number): void {
@@ -693,7 +701,18 @@ function maybeIdleVoice(world: World, actor: Actor, mode: IdleMode): void {
   actor.bark = { active: true, t: 0, fired: [false, false], open: 0, sound: true };
 }
 
+function noteFetchFind(world: World, actor: Actor): void {
+  if (actor.task.type !== 'fetch' || actor.play?.counted) {
+    return;
+  }
+  if (actor.play) {
+    actor.play.counted = true;
+  }
+  world.pendingPlayFinds.push(actor.play?.thrown ? 'fetch_round' : 'toy_round');
+}
+
 function goIdle(world: World, actor: Actor): void {
+  noteFetchFind(world, actor);
   releaseCarried(world, actor);
   actor.task = taskOf('idle');
   beginIdle(world, actor, 'still');
@@ -817,6 +836,7 @@ export function startUserTask(
     }
     releaseCarried(world, actor);
     actor.task = taskOf('eat', 'go', task);
+    actor.task.premium = task === 'eat' && world.premiumMeal === true;
     // The pet uses the bowl from whichever side it arrives on. It stands beside the bowl and faces it,
     // so a pet to the right of the bowl faces left. The scene's own `face` only breaks an exact tie.
     const side = actor.x > poi.x ? -1 : actor.x < poi.x ? 1 : (poi.face ?? 1);
@@ -836,6 +856,7 @@ export function startUserTask(
     // A play bow often comes first when the toy is offered, most of all for a puppy.
     const profile = profileOf(actor);
     actor.play = newPlay(world, actor, profile, modsOf(actor, profile));
+    actor.play.thrown = true;
     const bows = breedById(actor.breedId)?.species === 'dog' && world.rng() < profile.bow * (0.5 + 0.5 * actor.energy);
     actor.task = taskOf('fetch', bows ? 'bow' : 'chase');
     actor.pantT = 0;
@@ -960,6 +981,7 @@ function pounceAt(world: World, actor: Actor, toy: Item, reach: number): boolean
 }
 
 function windDown(world: World, actor: Actor, profile: StageProfile): Task {
+  noteFetchFind(world, actor);
   const young = profile.maxSpeed < 1 && profile.bow >= 0.6;
   const old = profile.maxSpeed < 0.9;
   let stage = '';
@@ -1755,6 +1777,9 @@ function updateActor(world: World, actor: Actor, dt: number): void {
       if (atBowl) {
         targets.headDown = 1;
         targets.wagAmp = 0.35;
+        if (actor.task.premium && actor.task.kind !== 'drink') {
+          targets.jawHold = 1;
+        }
       }
       if (actor.task.t > 6) {
         if (actor.task.kind === 'drink') {
@@ -2335,7 +2360,7 @@ function updateActor(world: World, actor: Actor, dt: number): void {
   actor.phase += dt * cycle;
   // Match jaw/tongue cadence to breath while panting so a slower idle pant reads as one motion.
   actor.panPh += dt * Math.PI * 2 * (actor.pose.pant > 0.05 ? actor.pose.breathRate : 5);
-  actor.chewPh += dt * Math.PI * 2 * 3;
+  actor.chewPh += dt * Math.PI * 2 * (actor.task.type === 'eat' && actor.task.premium ? 5.5 : 3);
   actor.wagPh += dt * wagRate * (world.reducedMotion ? 0 : 1);
   actor.breathPh += dt * Math.PI * 2 * actor.pose.breathRate;
   actor.blinkT -= dt;

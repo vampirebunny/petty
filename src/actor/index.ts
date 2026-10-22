@@ -95,6 +95,7 @@ export {
   takeBowlDrinks,
   takePondDrinks,
   takeMeals,
+  takePlayFinds,
   takeTreatMoods,
   takeEnergyDelta,
   takeEnergyPops,

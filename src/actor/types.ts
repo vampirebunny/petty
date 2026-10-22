@@ -231,6 +231,8 @@ export type Task = {
   stage: string;
   t: number;
   kind?: 'eat' | 'drink';
+  // Premium food. The pet chews faster than it does for kibble.
+  premium?: boolean;
   bats: number;
   cool: number;
   // How long the current hold lasts (play bow, stalk wiggle, shake, chew), in seconds.
@@ -369,6 +371,10 @@ export type PlayState = {
   // Set once a stalk or a pounce has happened this chase, so each happens at most once.
   stalked: boolean;
   pounced: boolean;
+  // True only for a toy the player threw. A pet that starts fetch on its own leaves this unset.
+  thrown?: boolean;
+  // The find for this chase has already been recorded.
+  counted?: boolean;
 };
 
 export type ZoomState = { leg: number; legs: number; first: number };
@@ -602,7 +608,9 @@ export type World = {
   pendingPondDrinks: number;
   // Food waiting in the bowl, and meals finished since the view last looked.
   foodStocked: boolean;
+  premiumMeal?: boolean;
   pendingMeals: number;
+  pendingPlayFinds: ('fetch_round' | 'toy_round')[];
   // Mood-point amounts waiting to be shown, one per treat the pet has finished.
   pendingTreatMoods: number[];
   t: number;

@@ -27,6 +27,7 @@ type Props = {
   greetingIds?: () => string[];
   greetingLabel?: () => string;
   onFacing?: () => void;
+  ledger?: string[];
 };
 
 const hourMs = 60 * 60 * 1000;
@@ -123,6 +124,7 @@ export function DebugPanel({
   greetingIds,
   greetingLabel,
   onFacing,
+  ledger = [],
 }: Props) {
   const [open, setOpen] = useState(false);
   const [shownGreeting, setShownGreeting] = useState('');
@@ -187,6 +189,12 @@ export function DebugPanel({
       <Text style={styles.line}>
         Level {state.level} · xp {state.xp}
       </Text>
+      {ledger.length > 0 ? <Text style={styles.line}>Ledger</Text> : null}
+      {ledger.map((line, index) => (
+        <Text key={`${index}-${line}`} style={styles.line}>
+          {line}
+        </Text>
+      ))}
       {traits.map((trait) => (
         <Text key={trait} style={styles.line}>
           {traitLabel[trait]} {format(attributeScore(state, trait))} / {state.attributes.potential[trait]}

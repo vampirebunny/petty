@@ -30,8 +30,8 @@ export function clampWeight(weight: number): number {
   return Math.max(weightFloor, Math.min(weightCeil, weight));
 }
 
-export function applyMeal(weight: number): number {
-  return clampWeight(weight + weightMealGain);
+export function applyMeal(weight: number, multiplier = 1): number {
+  return clampWeight(weight + weightMealGain * multiplier);
 }
 
 export function decayWeight(weight: number, elapsedMs: number): number {

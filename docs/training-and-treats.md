@@ -4,17 +4,17 @@ This is the current training and treat spec. It replaces the trick tracks, treat
 
 ## Treats
 
-Treats belong to the owner, in the existing economy wallet, and work offline.
+Boops, the ledger, the daily login, and the Pet Store are specified in `docs/Boop Boop — Currency System Architecture.md`. Treats are inventory in that ledger and work offline.
 
-- A new wallet starts with 10 basic treats and 0 special treats.
-- Treats do not regenerate, and there is no daily login bonus.
-- Training spends basic treats only. Special treats stay in the model for later.
-- Mastering a trick does not grant treats. The only source until the Pet Store exists is the starting 10.
-- The count never goes below 0.
+- A new wallet starts with 10 basic treats from the starter grant, plus the starter outfits. Special treats are casual only.
+- Treats do not regenerate. Daily login pays Boops, not treats.
+- Training spends basic treats only. Special treats stay casual until a later round.
+- Mastering a trick does not grant treats. It pays Boops once, per the currency doc.
+- The count never goes below 0. Stacks are not capped.
 - There is no daily treat limit. A casual treat is refused only when hunger is already 0.
 - A casual treat applies the full hunger, weight, and mood effects. A training reward skips the too-full gate, applies 25% of the hunger and weight, and keeps the full mood gain.
 
-**Pantry** and **Closet** are choices on Go somewhere. They are not rooms. Pantry lists consumables (Treats × N, and special treats only when the count is above 0). At 0 basic treats it says the Pet Store is opening soon. The Pet Store button opens a Coming soon modal. Closet opens the wardrobe.
+**Pantry** and **Closet** are choices on Go somewhere. They are not rooms. Pantry lists consumables (treats, premium food, Second Wind). The Pet Store sells those plus outfits that are not in the starter closet. Closet opens the wardrobe.
 
 ## Training flow
 

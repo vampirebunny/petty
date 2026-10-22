@@ -5,7 +5,7 @@ import { flickToThrow } from '../input/flick';
 import { cancelReminders, syncReminder } from '../reminders/notifications';
 import { AWAY_DECAY } from '../sim/awayDecayConfig';
 import { awayElapsedHours } from '../sim/awayDecay';
-import { applyRewardTreat, giveTreat } from '../treats/rules';
+import { applyRewardTreat } from '../treats/rules';
 import {
   applyEvent,
   applyEnergyDelta,
@@ -27,7 +27,18 @@ import {
 import type { Cue, Look, Mood, OutfitSlot, PetAttributes, PetEvent, PetState, Trait } from '../sim';
 import { getCachedOwnerId } from '../compliance/identity';
 import { clearPetPlaydates } from '../playdate/storage';
-import { asyncPetStorage } from '../storage/asyncStorage';
+import { sqlitePetStorage } from '../db/sqlitePetStorage';
+import { catalogItem } from '../economy/catalog';
+import type { PlayFindKind } from '../economy/economyConfig';
+import type { LoginOffer } from '../economy/login';
+import {
+  claimDailyLogin,
+  onAppOpen,
+  payoutTimeAccrual,
+  settleProgress,
+  type Burst,
+  type OpenRewards,
+} from '../economy/service';
 import type { PetStorage } from '../storage/PetStorage';
 import {
   clearDraft,
@@ -86,20 +97,27 @@ type PetApi = {
   reset: () => void;
   release: () => void;
   attemptTrick: (trackId: string) => { ok: boolean; mastered: boolean; confused: boolean } | null;
-  resolveTraining: (choice: 'treat' | 'none') => { before: PetState; after: PetState } | null;
+  resolveTraining: (choice: 'treat' | 'none', applied?: PetState) => { before: PetState; after: PetState } | null;
   seeCoach: (id: string) => void;
   moveFurniture: (pieceId: string, sceneId: string, x: number, y: number) => void;
   rememberGreeting: (id: string) => void;
   clearTreats: () => void;
-  offerTreat: (treatId: string) => { ok: true; mood: number } | { ok: false; reason: 'unknown' | 'full' | 'species' };
+  offerTreat: (treatId: string, applied?: PetState) => { ok: true; mood: number } | { ok: false; reason: 'unknown' | 'full' | 'species' };
   welcomeBack: boolean;
   dismissWelcome: () => void;
-  finishPlaydate: (happiness: number, attributes: Partial<Record<Trait, number>>) => void;
+  finishPlaydate: (happiness: number, attributes: Partial<Record<Trait, number>>, playdateId?: string) => void;
   adopt: (breedId: string, attributes: PetAttributes, look: Look, name: string, ownerId: string) => void;
   setOwnerId: (ownerId: string) => void;
+  commitPet: (pet: PetState, cueKind?: Cue['kind']) => void;
+  noteFind: (kind: PlayFindKind) => void;
+  burst: Burst | null;
+  dismissBurst: () => void;
+  loginOffer: LoginOffer | null;
+  claimLogin: () => void;
+  dismissLogin: () => void;
 };
 
-export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
+export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
   const [ready, setReady] = useState(false);
   const [state, setState] = useState<PetState | null>(null);
   const [cue, setCue] = useState<PetCue>({ kind: 'none', token: 0 });
@@ -108,6 +126,11 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
   const careRef = useRef(false);
   const treatCountRef = useRef(0);
   const [welcomeBack, setWelcomeBack] = useState(false);
+  const [burst, setBurst] = useState<Burst | null>(null);
+  const [loginOffer, setLoginOffer] = useState<LoginOffer | null>(null);
+  const burstQueue = useRef<Burst[]>([]);
+  const loginAfter = useRef<LoginOffer | null>(null);
+  const pendingOpen = useRef<OpenRewards | null>(null);
   const stateRef = useRef<PetState | null>(null);
   const tokenRef = useRef(0);
   const storageRef = useRef(storage);
@@ -155,6 +178,62 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
       });
   }, []);
 
+  const pushBurst = useCallback((item: Burst) => {
+    if (item.amount <= 0) {
+      return;
+    }
+    setBurst((current) => {
+      if (current) {
+        burstQueue.current.push(item);
+        return current;
+      }
+      return item;
+    });
+  }, []);
+
+  const enqueueOpen = useCallback((rewards: OpenRewards) => {
+    const bursts = rewards.bursts.filter((item) => item.amount > 0);
+    if (rewards.login.claimable) {
+      loginAfter.current = rewards.login;
+    }
+    if (bursts.length === 0) {
+      if (loginAfter.current) {
+        setLoginOffer(loginAfter.current);
+        loginAfter.current = null;
+      }
+      return;
+    }
+    setBurst((current) => {
+      if (current) {
+        burstQueue.current.push(...bursts);
+        return current;
+      }
+      burstQueue.current.push(...bursts.slice(1));
+      return bursts[0];
+    });
+  }, []);
+
+  const presentOpen = useCallback(
+    (rewards: OpenRewards, hold: boolean) => {
+      if (hold) {
+        pendingOpen.current = rewards;
+        return;
+      }
+      pendingOpen.current = null;
+      enqueueOpen(rewards);
+    },
+    [enqueueOpen],
+  );
+
+  const dismissBurst = useCallback(() => {
+    const next = burstQueue.current.shift() ?? null;
+    setBurst(next);
+    if (!next && loginAfter.current) {
+      setLoginOffer(loginAfter.current);
+      loginAfter.current = null;
+    }
+  }, []);
+
   const settleReturn = useCallback(
     (current: PetState, now: number) => {
       if (returningRef.current) {
@@ -162,18 +241,26 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
       }
       returningRef.current = true;
       try {
-        const elapsedH = awayElapsedHours(current.lastUpdatedAt, now);
+        const opened = onAppOpen(current, now);
+        const resumed = resume(opened.pet, now);
+        const settled = settleProgress(resumed, now);
+        const bursts = [...opened.bursts];
+        if (settled.boops > 0 && settled.label) {
+          bursts.push({ label: settled.label, amount: settled.boops });
+        }
+        const elapsedH = awayElapsedHours(settled.pet.lastUpdatedAt, now);
         if (elapsedH >= AWAY_DECAY.welcomeBackThresholdH) {
           setWelcomeBack(true);
         }
         const awayMin = elapsedH * 60;
-        const cue = awayMin >= 2 ? ({ kind: 'greet', elapsedH } as const) : undefined;
-        publish(resume(current, now), cue);
+        const greet = awayMin >= 2;
+        presentOpen({ ...opened, pet: settled.pet, bursts }, greet);
+        publish(settled.pet, greet ? { kind: 'greet', elapsedH } : undefined);
       } finally {
         returningRef.current = false;
       }
     },
-    [publish],
+    [presentOpen, publish],
   );
 
   useEffect(() => {
@@ -204,9 +291,13 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
         return;
       }
       publish(tickForeground(current, Date.now()));
+      const paid = payoutTimeAccrual('live');
+      if (paid > 0) {
+        pushBurst({ label: 'Boops', amount: paid });
+      }
     }, openTickMs);
     return () => clearInterval(timer);
-  }, [publish]);
+  }, [publish, pushBurst]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (status) => {
@@ -220,6 +311,7 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
       }
       const now = Date.now();
       if (left) {
+        payoutTimeAccrual('live', now);
         const resolved = current.care.pendingReward ? resolveReward(current, now, 'none') : current;
         publish({ ...resolved, lastUpdatedAt: now, weightAppliedAt: now });
         return;
@@ -243,6 +335,23 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
     [publish],
   );
 
+  const commitProgress = useCallback(
+    (event: PetEvent, extra?: { playdateId?: string; find?: PlayFindKind }) => {
+      const current = stateRef.current;
+      if (!current) {
+        return null;
+      }
+      const result = applyEvent(current, event);
+      const settled = settleProgress(result.state, Date.now(), extra);
+      if (settled.boops > 0 && settled.label) {
+        pushBurst({ label: settled.label, amount: settled.boops });
+      }
+      publish(settled.pet, result.cue);
+      return { ...result, state: settled.pet };
+    },
+    [publish, pushBurst],
+  );
+
   const advanceBy = useCallback(
     (elapsedMs: number) => {
       const current = stateRef.current;
@@ -261,8 +370,18 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
         return;
       }
       publish(setAgeDays(current, ageDays));
+      const aged = stateRef.current;
+      if (aged) {
+        const settled = settleProgress(aged, Date.now());
+        if (settled.boops > 0 && settled.label) {
+          pushBurst({ label: settled.label, amount: settled.boops });
+        }
+        if (settled.pet !== aged) {
+          publish(settled.pet);
+        }
+      }
     },
-    [publish],
+    [publish, pushBurst],
   );
 
   const setVitalityValue = useCallback(
@@ -343,10 +462,13 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
     (breedId: string, attributes: PetAttributes, look: Look, name: string, ownerId: string) => {
       const now = Date.now();
       const id = `${attributes.seed}-${attributes.archetype}-${now.toString(36)}`;
-      publish(createPet({ id, ownerId, name, breedId, look, attributes, now }), { kind: 'none' });
+      const created = createPet({ id, ownerId, name, breedId, look, attributes, now });
+      const opened = onAppOpen(created, now);
+      presentOpen(opened, false);
+      publish(opened.pet, { kind: 'none' });
       void clearDraft();
     },
-    [publish],
+    [presentOpen, publish],
   );
 
   const setOwnerId = useCallback(
@@ -471,17 +593,15 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
   );
 
   const idle = useCallback(() => dispatch({ type: 'idle' }), [dispatch]);
-  const sit = useCallback(() => dispatch({ type: 'trickRep', trackId: 'sit', now: Date.now() }), [dispatch]);
-  const givePaw = useCallback(() => dispatch({ type: 'trickRep', trackId: 'paw', now: Date.now() }), [dispatch]);
-  const speak = useCallback(() => dispatch({ type: 'trickRep', trackId: 'speak', now: Date.now() }), [dispatch]);
+  const sit = useCallback(() => commitProgress({ type: 'trickRep', trackId: 'sit', now: Date.now() }), [commitProgress]);
+  const givePaw = useCallback(() => commitProgress({ type: 'trickRep', trackId: 'paw', now: Date.now() }), [commitProgress]);
+  const speak = useCallback(() => commitProgress({ type: 'trickRep', trackId: 'speak', now: Date.now() }), [commitProgress]);
   const attemptTrick = useCallback(
     (trackId: string) => {
-      const current = stateRef.current;
-      if (!current) {
+      const result = commitProgress({ type: 'trickRep', trackId, now: Date.now() });
+      if (!result) {
         return null;
       }
-      const result = applyEvent(current, { type: 'trickRep', trackId, now: Date.now() });
-      publish(result.state, result.cue);
       const track = result.state.training[trackId];
       return {
         ok: result.cue.kind !== 'confused' && result.cue.kind !== 'none',
@@ -489,50 +609,45 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
         confused: result.cue.kind === 'confused',
       };
     },
-    [publish],
+    [commitProgress],
   );
   const resolveTraining = useCallback(
-    (choice: 'treat' | 'none') => {
+    (choice: 'treat' | 'none', applied?: PetState) => {
       const current = stateRef.current;
-      if (!current?.care.pendingReward) {
+      const base = applied ?? current;
+      if (!current || !base?.care.pendingReward) {
         return null;
       }
       const beforeHappiness = current.needs.happiness;
-      let next = current;
-      if (choice === 'treat') {
-        const paid = applyRewardTreat(current, 'biscuit', Date.now());
+      let next = base;
+      if (choice === 'treat' && !applied) {
+        const paid = applyRewardTreat(base, 'biscuit', Date.now());
         if (!paid.ok) {
           return null;
         }
         next = paid.state;
       }
       const resolved = applyEvent(next, { type: 'rewardTreat', choice, now: Date.now() });
-      const moodGain = Math.round(resolved.state.needs.happiness - beforeHappiness);
-      publish(
-        resolved.state,
-        choice === 'treat' ? { kind: 'treat', treatId: 'biscuit', moodGain } : undefined,
-      );
-      return { before: current, after: resolved.state };
+      const settled = settleProgress(resolved.state, Date.now());
+      if (settled.boops > 0 && settled.label) {
+        pushBurst({ label: settled.label, amount: settled.boops });
+      }
+      const moodGain = Math.round(settled.pet.needs.happiness - beforeHappiness);
+      publish(settled.pet, choice === 'treat' ? { kind: 'treat', treatId: 'biscuit', moodGain } : undefined);
+      return { before: current, after: settled.pet };
     },
-    [publish],
+    [publish, pushBurst],
   );
   const offerTreat = useCallback(
-    (treatId: string) => {
+    (treatId: string, applied?: PetState) => {
       const current = stateRef.current;
-      if (!current) {
+      if (!current || !applied) {
         return { ok: false as const, reason: 'unknown' as const };
       }
       const before = current.needs.happiness;
-      const given = giveTreat(current, treatId, Date.now());
-      if (!given.ok) {
-        return given;
-      }
-      publish(given.state, {
-        kind: 'treat',
-        treatId,
-        moodGain: Math.round(given.state.needs.happiness - before),
-      });
-      return { ok: true as const, mood: Math.round(given.state.needs.happiness - before) };
+      const mood = Math.round(applied.needs.happiness - before);
+      publish(applied, { kind: 'treat', treatId, moodGain: mood });
+      return { ok: true as const, mood };
     },
     [publish],
   );
@@ -545,26 +660,40 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
   const dismissWelcome = useCallback(() => setWelcomeBack(false), []);
   const feed = useCallback(() => dispatch({ type: 'feed' }), [dispatch]);
   const refillWater = useCallback(() => dispatch({ type: 'refillWater' }), [dispatch]);
-  const reportAte = useCallback(() => dispatch({ type: 'ate', now: Date.now() }), [dispatch]);
+  const reportAte = useCallback(() => {
+    const current = stateRef.current;
+    const item = current?.bowlItemId ? catalogItem(current.bowlItemId) : null;
+    const multipliers = item?.effects?.mealMultipliers;
+    const meal = multipliers ? { ...multipliers, mood: item?.effects?.moodBonus ?? 0 } : undefined;
+    commitProgress({ type: 'ate', now: Date.now(), meal });
+  }, [commitProgress]);
   const reportDrank = useCallback(
     (fromBowl: boolean) => dispatch({ type: 'drank', fromBowl, now: Date.now() }),
     [dispatch],
   );
   const rest = useCallback(() => dispatch({ type: 'toggleRest' }), [dispatch]);
-  const pet = useCallback(() => dispatch({ type: 'pet' }), [dispatch]);
+  const pet = useCallback(() => commitProgress({ type: 'pet' }), [commitProgress]);
 
   const rememberGreeting = useCallback(
     (id: string) => {
+      const pending = pendingOpen.current;
+      pendingOpen.current = null;
+      if (pending) {
+        enqueueOpen(pending);
+      }
       const current = stateRef.current;
       if (!current || current.lastGreetingId === id) {
         return;
       }
       publish({ ...current, lastGreetingId: id });
     },
-    [publish],
+    [enqueueOpen, publish],
   );
   const startCuddle = useCallback(() => dispatch({ type: 'cuddleStart' }), [dispatch]);
-  const finishCuddle = useCallback((seconds: number) => dispatch({ type: 'cuddled', seconds }), [dispatch]);
+  const finishCuddle = useCallback(
+    (seconds: number) => commitProgress({ type: 'cuddled', seconds }, seconds > 0 ? { find: 'cuddle_session' } : undefined),
+    [commitProgress],
+  );
   const fetchBall = useCallback(() => dispatch({ type: 'fetch' }), [dispatch]);
   const throwAt = useCallback(
     (x: number, y: number) => dispatch({ type: 'fetch', drop: { x, y } }),
@@ -586,11 +715,43 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
   );
 
   const finishPlaydate = useCallback(
-    (happiness: number, attributes: Partial<Record<Trait, number>>) => {
-      dispatch({ type: 'playdate', happiness, attributes });
+    (happiness: number, attributes: Partial<Record<Trait, number>>, playdateId?: string) => {
+      commitProgress({ type: 'playdate', happiness, attributes }, playdateId ? { playdateId } : undefined);
     },
-    [dispatch],
+    [commitProgress],
   );
+
+  const commitPet = useCallback(
+    (petState: PetState, cueKind?: Cue['kind']) => {
+      publish(petState, cueKind ? { kind: cueKind } : undefined);
+    },
+    [publish],
+  );
+
+  const noteFind = useCallback(
+    (kind: PlayFindKind) => {
+      const current = stateRef.current;
+      if (!current) {
+        return;
+      }
+      const settled = settleProgress(current, Date.now(), { find: kind });
+      if (settled.boops > 0 && settled.label) {
+        pushBurst({ label: settled.label, amount: settled.boops });
+      }
+      publish(settled.pet);
+    },
+    [publish, pushBurst],
+  );
+
+  const claimLogin = useCallback(() => {
+    const result = claimDailyLogin();
+    setLoginOffer(null);
+    if (result.ok && result.amount && result.amount > 0) {
+      pushBurst({ label: `Day ${result.streakDay ?? 1}`, amount: result.amount });
+    }
+  }, [pushBurst]);
+
+  const dismissLogin = useCallback(() => setLoginOffer(null), []);
 
   return {
     ready,
@@ -642,5 +803,12 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
     offerTreat,
     welcomeBack,
     dismissWelcome,
+    commitPet,
+    noteFind,
+    burst,
+    dismissBurst,
+    loginOffer,
+    claimLogin,
+    dismissLogin,
   };
 }

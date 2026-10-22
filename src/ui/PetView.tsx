@@ -37,6 +37,7 @@ import {
   syncWorldWater,
   takeBowlDrinks,
   takeMeals,
+  takePlayFinds,
   takeTreatMoods,
   takePondDrinks,
   takeCuddleOut,
@@ -103,6 +104,7 @@ type Props = {
   onHydrationDelta: (delta: number) => void;
   onDrank?: (fromBowl: boolean) => void;
   onAte?: () => void;
+  onPlayFind?: (kind: 'fetch_round' | 'toy_round') => void;
   onTreatMood?: (amount: number) => void;
   onTraveling?: (active: boolean) => void;
   onPointAdds?: (adds: PointAdd[]) => void;
@@ -155,6 +157,7 @@ export function PetView({
   onHydrationDelta,
   onDrank,
   onAte,
+  onPlayFind,
   onTreatMood,
   onTraveling,
   onPointAdds,
@@ -246,13 +249,14 @@ export function PetView({
       syncActor(actor, sourceOf(pet));
     }
     syncWorldWater(world, pet.waterLevel);
-    syncWorldFood(world, pet.foodInBowl);
+    syncWorldFood(world, pet.foodInBowl, pet.bowlItemId != null);
     redraw();
   }, [
     pet.ageDays,
     pet.asleep,
     pet.breedId,
     pet.equipped,
+    pet.bowlItemId,
     pet.foodInBowl,
     pet.id,
     pet.look,
@@ -591,6 +595,10 @@ export function PetView({
   useEffect(() => {
     onAteRef.current = onAte;
   }, [onAte]);
+  const onPlayFindRef = useRef(onPlayFind);
+  useEffect(() => {
+    onPlayFindRef.current = onPlayFind;
+  }, [onPlayFind]);
   const onPointAddsRef = useRef(onPointAdds);
   useEffect(() => {
     onPointAddsRef.current = onPointAdds;
@@ -670,6 +678,9 @@ export function PetView({
           }
         }
         onAteRef.current?.();
+      }
+      for (const kind of takePlayFinds(world)) {
+        onPlayFindRef.current?.(kind);
       }
       for (const amount of takeTreatMoods(world)) {
         onTreatMoodRef.current?.(amount);

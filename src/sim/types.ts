@@ -134,6 +134,11 @@ export type PetState = {
   rngState: number;
   // True while the bowl holds food the pet has not eaten yet.
   foodInBowl: boolean;
+  // Premium food waiting in the bowl. Null means ordinary kibble, which is not in the ledger.
+  bowlItemId?: string | null;
+  // Highest level and life stage whose Boop grants have been written. Missing on an old save.
+  lastPaidLevel?: number;
+  lastPaidStage?: Stage;
   waterLevel: number;
   waterEmptySince: number | null;
   // 0–100. 100 is fully hydrated. Activity spends it; drinking raises it. Not part of the away clock.
@@ -157,7 +162,11 @@ export type PetEvent =
   | { type: 'paw' }
   | { type: 'speak' }
   | { type: 'feed' }
-  | { type: 'ate'; now: number }
+  | {
+      type: 'ate';
+      now: number;
+      meal?: { hunger: number; weight: number; energy: number; xp: number; mood: number };
+    }
   | { type: 'refillWater' }
   | { type: 'drank'; fromBowl: boolean; now: number }
   | { type: 'toggleRest' }
