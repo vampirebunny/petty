@@ -1,4 +1,3 @@
-import { starterFurniture } from '../actor/furniture';
 import { rngSeed, withDerived, zeroStats } from './attributes';
 import { bathToleranceFor, blankCare, blankTraining } from './game';
 import { speciesOf } from './tracks';
@@ -10,7 +9,6 @@ import {
   startingDietQuality,
   startingNeeds,
   startingHydration,
-  startingToys,
   startingWaterLevel,
   startingWeight,
 } from './config';
@@ -43,7 +41,6 @@ export function createPet({ id, ownerId, name, breedId, look, attributes, now }:
     },
   ];
   const species = speciesOf(breedId);
-  const starter = starterFurniture(species);
   const tolerance = bathToleranceFor(attributes.potential.boldness, breedId, species);
   return withDerived({
     id,
@@ -84,10 +81,6 @@ export function createPet({ id, ownerId, name, breedId, look, attributes, now }:
     waterLevel: startingWaterLevel,
     waterEmptySince: null,
     hydration: startingHydration,
-    toys: [...startingToys],
-    furniture: starter.pieces.map((piece) => ({ ...piece })),
-    furniturePlaced: starter.placed.map((place) => ({ ...place })),
-    treats: [],
     boosts: [],
     care: blankCare(now, tolerance),
     training: blankTraining(species),

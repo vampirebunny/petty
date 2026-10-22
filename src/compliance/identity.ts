@@ -7,7 +7,15 @@ const installIdKey = 'boop.installId';
 let cachedInstallId: string | null = null;
 let cachedUserId: string | null = null;
 
-function newUuid(): string {
+type SessionHook = (userId: string) => Promise<void>;
+
+let beforeSessionPublish: SessionHook | null = null;
+
+export function setBeforeSessionPublish(hook: SessionHook | null): void {
+  beforeSessionPublish = hook;
+}
+
+export function createUuid(): string {
   const cryptoObject = globalThis.crypto;
   if (cryptoObject && typeof cryptoObject.randomUUID === 'function') {
     return cryptoObject.randomUUID();
@@ -56,7 +64,7 @@ export async function getOrCreateInstallId(): Promise<string> {
   } catch {
     // Fall through and create a fresh id.
   }
-  const created = newUuid();
+  const created = createUuid();
   cachedInstallId = created;
   try {
     await SecureStore.setItemAsync(installIdKey, created);
@@ -66,22 +74,25 @@ export async function getOrCreateInstallId(): Promise<string> {
   return created;
 }
 
-/** Current session user id only — does not sign in. */
-export async function getSessionUserId(): Promise<string | null> {
+/** Current session user id only — does not sign in and does not publish the id. */
+export async function peekSessionUserId(): Promise<string | null> {
   const supabase = getSupabase();
   if (!supabase) {
-    cachedUserId = null;
     return null;
   }
   try {
     const existing = await supabase.auth.getSession();
-    const userId = existing.data.session?.user.id ?? null;
-    cachedUserId = userId;
-    return userId;
+    return existing.data.session?.user.id ?? null;
   } catch {
-    cachedUserId = null;
     return null;
   }
+}
+
+/** Current session user id only — does not sign in. */
+export async function getSessionUserId(): Promise<string | null> {
+  const userId = await peekSessionUserId();
+  cachedUserId = userId;
+  return userId;
 }
 
 /** Sign in anonymously when needed so consent can sync. */
@@ -92,16 +103,24 @@ export async function ensureAnonymousUserId(): Promise<string | null> {
   }
   try {
     const existing = await supabase.auth.getSession();
-    if (existing.data.session?.user.id) {
-      cachedUserId = existing.data.session.user.id;
-      return existing.data.session.user.id;
+    const already = existing.data.session?.user.id ?? null;
+    if (already) {
+      if (beforeSessionPublish) {
+        await beforeSessionPublish(already);
+      }
+      cachedUserId = already;
+      return already;
     }
     const signedIn = await supabase.auth.signInAnonymously();
     if (signedIn.error || !signedIn.data.user) {
       return null;
     }
-    cachedUserId = signedIn.data.user.id;
-    return signedIn.data.user.id;
+    const userId = signedIn.data.user.id;
+    if (beforeSessionPublish) {
+      await beforeSessionPublish(userId);
+    }
+    cachedUserId = userId;
+    return userId;
   } catch {
     return null;
   }

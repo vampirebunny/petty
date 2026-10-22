@@ -6,7 +6,6 @@ import { treatsInInventory } from '../kinds';
 it('applies treat hunger and weight with no daily cap', () => {
   const pet = testPet(1, 'retriever', 0, 'Pup', 'pet');
   pet.needs.hunger = 40;
-  pet.treats = [{ treatId: 'biscuit', count: 5 }];
 
   const first = giveTreat(pet, 'biscuit', 1_000);
   expect(first.ok).toBe(true);

@@ -11,6 +11,7 @@ import {
   sceneById,
   stagePoint,
 } from '../actor';
+import { preloadBloops, releaseBloops, silenceBloops, unmuteBloops } from '../audio/bloop';
 import { releaseMusic, setMusicEnabled, suspendMusic } from '../audio/music';
 import { setSoundEnabled } from '../audio/voice';
 import type { CuddleOut } from '../actor';
@@ -33,9 +34,12 @@ import { PantryScreen } from './PantryScreen';
 import { StoreScreen } from './StoreScreen';
 import { placeFlavors, placeIcons, speciesLabel } from '../ui/actionIcons';
 import { CandyShell, candyInk, tints } from '../ui/candy';
+import { BoopsPayout } from '../components/currency/BoopsPayout';
 import { BoopCounter } from '../ui/BoopCounter';
+import type { BoopCounterHandle } from '../ui/BoopCounter';
 import { iconStroke } from '../ui/theme';
 import { usePet } from '../state/usePet';
+import { usePlayerHome } from '../state/usePlayerHome';
 import { useEconomy } from '../economy/useEconomy';
 import { basicTreatId } from '../economy/state';
 import { newRequestId, outfitsOwned } from '../economy/service';
@@ -139,7 +143,7 @@ export default function HomeScreen({ petApi }: Props) {
     setVitalityValue,
     setWeightValue,
     reset,
-    release,
+    retire,
     finishPlaydate,
     attemptTrick,
     resolveTraining,
@@ -153,15 +157,26 @@ export default function HomeScreen({ petApi }: Props) {
     noteFind,
     burst,
     dismissBurst,
+    cancelBursts,
     loginOffer,
     claimLogin,
     dismissLogin,
   } = petApi;
+  const homeSpecies = state ? (breedById(state.breedId)?.species === 'cat' ? 'cat' : 'dog') : 'dog';
+  const home = usePlayerHome(state?.ownerId, homeSpecies);
   const economyApi = useEconomy(state != null);
   const [clock, setClock] = useState(() => Date.now());
   const [pantryOpen, setPantryOpen] = useState(false);
   const [storeOpen, setStoreOpen] = useState(false);
-  const [pulse, setPulse] = useState(0);
+  const counterRef = useRef<BoopCounterHandle>(null);
+  const stageViewRef = useRef<View>(null);
+  const [stageWindow, setStageWindow] = useState({ x: 0, y: 0 });
+  const [stageReady, setStageReady] = useState(false);
+  const paidBurst = useRef<number | null>(null);
+  const cancelBurstsRef = useRef(cancelBursts);
+  useEffect(() => {
+    cancelBurstsRef.current = cancelBursts;
+  }, [cancelBursts]);
   const [pops, setPops] = useState<PointPop[] | null>(null);
   const clearPops = useCallback(() => setPops(null), []);
   const [dialog, setDialog] = useState<
@@ -223,13 +238,23 @@ export default function HomeScreen({ petApi }: Props) {
         setMusicEnabled(enabled);
       }
     });
-    const appState = AppState.addEventListener('change', (state) => {
-      suspendMusic(state !== 'active');
+    preloadBloops();
+    const appState = AppState.addEventListener('change', (next) => {
+      const background = next !== 'active';
+      suspendMusic(background);
+      if (background) {
+        silenceBloops();
+        counterRef.current?.snap();
+        cancelBurstsRef.current();
+      } else {
+        unmuteBloops();
+      }
     });
     return () => {
       mounted = false;
       appState.remove();
       releaseMusic();
+      releaseBloops();
       if (noteTimer.current) {
         clearTimeout(noteTimer.current);
       }
@@ -712,11 +737,12 @@ export default function HomeScreen({ petApi }: Props) {
     setCareTreatCount(count);
   }, [inventory, setCareTreatCount]);
 
-  useEffect(() => {
-    if (burst) {
-      setPulse((current) => current + 1);
-    }
-  }, [burst]);
+  const rememberStage = useCallback(() => {
+    stageViewRef.current?.measureInWindow((x, y) => {
+      setStageWindow((prev) => (prev.x === x && prev.y === y ? prev : { x, y }));
+      setStageReady(true);
+    });
+  }, []);
 
   const milestones = state?.milestones;
   const [knownMilestones, setKnownMilestones] = useState<string[] | null>(null);
@@ -837,7 +863,7 @@ export default function HomeScreen({ petApi }: Props) {
       ? archetypeNames[origin]
       : `Born: ${archetypeNames[origin]} · Style: ${archetypeStyleNames[style]}`;
   const species = breedById(state.breedId)?.species ?? 'dog';
-  const ownsBall = state.toys.includes('ball');
+  const ownsBall = home.ownsBall;
 
   const actions: PetAction[] = [
     {
@@ -1174,6 +1200,17 @@ export default function HomeScreen({ petApi }: Props) {
   }
 
   const placeSpecies = breedById(state.breedId)?.species ?? 'dog';
+  const payoutPoint = burst?.origin ?? { x: stageWidth / 2, y: stageHeight * 0.5 };
+  const payoutLocal = stageToView(payoutPoint);
+  const payoutOrigin = { x: stageWindow.x + payoutLocal.x, y: stageWindow.y + payoutLocal.y };
+  const finishBurst = () => {
+    if (!burst || paidBurst.current === burst.id) {
+      return;
+    }
+    paidBurst.current = burst.id ?? null;
+    counterRef.current?.countBy(burst.amount);
+    dismissBurst();
+  };
 
   return (
     <View style={styles.screen}>
@@ -1187,14 +1224,6 @@ export default function HomeScreen({ petApi }: Props) {
           title={celebrating === 'paw' ? trackName('paw', species) : (badgeLabels[celebrating] ?? 'Badge')}
           reducedMotion={reducedMotion}
           onDone={finishCelebration}
-        />
-      ) : null}
-      {burst ? (
-        <BadgeCelebration
-          title={burst.label}
-          caption={`+${burst.amount} Boops`}
-          reducedMotion={reducedMotion}
-          onDone={dismissBurst}
         />
       ) : null}
       {unlocking ? (
@@ -1224,10 +1253,15 @@ export default function HomeScreen({ petApi }: Props) {
           <Text style={styles.name} numberOfLines={1}>
             {state.name}
           </Text>
-          <BoopCounter value={economyApi.balance} pulse={pulse} />
+          <BoopCounter ref={counterRef} value={economyApi.balance} payoutActive={burst != null} />
         </View>
         <GestureDetector gesture={gesture}>
-          <View collapsable={false} style={{ width: viewWidth, height: viewHeight, alignSelf: 'center' }}>
+          <View
+            ref={stageViewRef}
+            collapsable={false}
+            onLayout={rememberStage}
+            style={{ width: viewWidth, height: viewHeight, alignSelf: 'center' }}
+          >
             <PetView
               cuddleActive={cuddleOn}
               cuddleRef={cuddleHandle}
@@ -1236,6 +1270,9 @@ export default function HomeScreen({ petApi }: Props) {
               onGreeting={rememberGreeting}
               onCuddleEvent={onCuddleEvent}
               pet={state}
+              furniture={home.pieces}
+              placements={home.placements}
+              ownsBall={home.ownsBall}
               cueKind={cue.kind}
               cueToken={cue.token}
               treatId={cue.treatId}
@@ -1409,7 +1446,7 @@ export default function HomeScreen({ petApi }: Props) {
           hour={hour}
           onHour={setHour}
           onReset={reset}
-          onNewPet={release}
+          onNewPet={retire}
           onFlip={() => stageHandle.current?.flipFace()}
           onTimeScale={(scale) => stageHandle.current?.setTimeScale(scale)}
           onPlayGreeting={(id) => stageHandle.current?.playGreeting(id)}
@@ -1486,6 +1523,17 @@ export default function HomeScreen({ petApi }: Props) {
           />
         </View>
       ) : null}
+      {burst && stageReady ? (
+        <BoopsPayout
+          key={burst.id}
+          amount={burst.amount}
+          coinCount={burst.coinCount}
+          origin={payoutOrigin}
+          counter={counterRef}
+          reducedMotion={reducedMotion}
+          onDone={finishBurst}
+        />
+      ) : null}
     </View>
   );
 }
@@ -1541,7 +1589,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     // Leaves room on both sides so a long name never runs under the logo.
     marginLeft: 60,
-    marginRight: 88,
+    marginRight: 128,
     fontSize: 28,
     fontWeight: '700',
     color: '#243044',

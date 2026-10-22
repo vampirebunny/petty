@@ -5,7 +5,9 @@ import { isResting } from '../sim/training';
 import type { PetState } from '../sim/types';
 import { readLegacyCloset, writePetNow } from '../db/sqlitePetStorage';
 import { getDb, transaction } from '../db/database';
+import { currentOwner, ownerIsReady } from '../db/currentOwner';
 import { catalog, catalogItem, starterOutfits, storeItems, type CatalogItem, type TreatEffects } from './catalog';
+import { queueCoupled, queuePlayer } from '../sync/queue';
 import { economyConfig, type PlayFindKind } from './economyConfig';
 import { localDay } from './clock';
 import { planTimePayout } from './accrual';
@@ -16,7 +18,13 @@ export type Check = { ok: true } | { ok: false; reason: string };
 export type UseOpts = { context?: 'casual' | 'training'; trickId?: string };
 export type InventoryRow = { itemId: string; qty: number };
 export type WalletSnapshot = { balance: number; inventory: InventoryRow[]; ledger: string[] };
-export type Burst = { label: string; amount: number };
+export type Burst = {
+  label: string;
+  amount: number;
+  coinCount: 1 | 5;
+  origin?: { x: number; y: number };
+  id?: number;
+};
 export type OpenRewards = { pet: PetState; bursts: Burst[]; login: LoginOffer };
 
 const listeners = new Set<(snapshot: WalletSnapshot) => void>();
@@ -33,44 +41,108 @@ function db() {
   return getDb();
 }
 
+function ownerId(): string {
+  return currentOwner();
+}
+
+function ensureOwnerRows(now = Date.now()): void {
+  if (!ownerIsReady()) {
+    throw new Error('owner not ready');
+  }
+  const owner = ownerId();
+  const database = db();
+  const balanceRow = database.getFirstSync<{ owner_id: string }>(
+    'SELECT owner_id FROM balances WHERE owner_id = ?',
+    owner,
+  );
+  if (!balanceRow) {
+    database.runSync(
+      'INSERT INTO balances (owner_id, boops, updated_at) VALUES (?, 0, ?)',
+      owner,
+      new Date(now).toISOString(),
+    );
+  }
+  const stateRow = database.getFirstSync<{ owner_id: string }>(
+    'SELECT owner_id FROM owner_state WHERE owner_id = ?',
+    owner,
+  );
+  if (!stateRow) {
+    database.runSync(
+      `INSERT INTO owner_state (
+        owner_id, time_paid_through, time_capped_day, last_trusted_time, server_time_offset_ms,
+        login_streak, login_last_claimed_day, last_open_at
+      ) VALUES (?, ?, NULL, ?, 0, 0, NULL, 0)`,
+      owner,
+      now,
+      now,
+    );
+  }
+}
+
 function balance(): number {
-  return db().getFirstSync<{ boops: number }>('SELECT boops FROM balances WHERE id = 1')?.boops ?? 0;
+  return db().getFirstSync<{ boops: number }>('SELECT boops FROM balances WHERE owner_id = ?', ownerId())?.boops ?? 0;
 }
 
 function setBalance(next: number): void {
   if (next < 0) {
     throw new Error('insufficient_boops');
   }
-  db().runSync('UPDATE balances SET boops = ?, updated_at = ? WHERE id = 1', next, new Date().toISOString());
+  const owner = ownerId();
+  const database = db();
+  const existing = database.getFirstSync<{ owner_id: string }>('SELECT owner_id FROM balances WHERE owner_id = ?', owner);
+  if (!existing) {
+    database.runSync(
+      'INSERT INTO balances (owner_id, boops, updated_at) VALUES (?, ?, ?)',
+      owner,
+      next,
+      new Date().toISOString(),
+    );
+    return;
+  }
+  database.runSync('UPDATE balances SET boops = ?, updated_at = ? WHERE owner_id = ?', next, new Date().toISOString(), owner);
 }
 
 function quantity(itemId: string): number {
-  return db().getFirstSync<{ quantity: number }>('SELECT quantity FROM inventory WHERE item_id = ?', itemId)?.quantity ?? 0;
+  return (
+    db().getFirstSync<{ quantity: number }>(
+      'SELECT quantity FROM inventory WHERE owner_id = ? AND item_id = ?',
+      ownerId(),
+      itemId,
+    )?.quantity ?? 0
+  );
 }
 
 function setQuantity(itemId: string, next: number): void {
   if (next < 0) {
     throw new Error('insufficient_items');
   }
+  const owner = ownerId();
   if (next === 0) {
-    db().runSync('DELETE FROM inventory WHERE item_id = ?', itemId);
+    db().runSync('DELETE FROM inventory WHERE owner_id = ? AND item_id = ?', owner, itemId);
     return;
   }
   const existing = quantity(itemId);
   if (existing === 0) {
     db().runSync(
-      'INSERT INTO inventory (item_id, quantity, first_acquired_at) VALUES (?, ?, ?)',
+      'INSERT INTO inventory (owner_id, item_id, quantity, first_acquired_at) VALUES (?, ?, ?, ?)',
+      owner,
       itemId,
       next,
       new Date().toISOString(),
     );
     return;
   }
-  db().runSync('UPDATE inventory SET quantity = ? WHERE item_id = ?', next, itemId);
+  db().runSync('UPDATE inventory SET quantity = ? WHERE owner_id = ? AND item_id = ?', next, owner, itemId);
 }
 
 function hasKey(key: string): boolean {
-  return db().getFirstSync<{ id: string }>('SELECT id FROM transactions WHERE idempotency_key = ?', key) != null;
+  return (
+    db().getFirstSync<{ id: string }>(
+      'SELECT id FROM transactions WHERE owner_id = ? AND idempotency_key = ?',
+      ownerId(),
+      key,
+    ) != null
+  );
 }
 
 function dailyCount(day: string, petId: string, key: string): number {
@@ -104,7 +176,7 @@ function readOwner() {
     login_streak: number;
     login_last_claimed_day: string | null;
     last_open_at: number;
-  }>('SELECT * FROM owner_state WHERE id = 1');
+  }>('SELECT * FROM owner_state WHERE owner_id = ?', ownerId());
   if (!row) {
     throw new Error('missing owner_state');
   }
@@ -116,7 +188,7 @@ function writeOwner(row: ReturnType<typeof readOwner>): void {
     `UPDATE owner_state SET
       time_paid_through = ?, time_capped_day = ?, last_trusted_time = ?, server_time_offset_ms = ?,
       login_streak = ?, login_last_claimed_day = ?, last_open_at = ?
-     WHERE id = 1`,
+     WHERE owner_id = ?`,
     row.time_paid_through,
     row.time_capped_day,
     row.last_trusted_time,
@@ -124,15 +196,18 @@ function writeOwner(row: ReturnType<typeof readOwner>): void {
     row.login_streak,
     row.login_last_claimed_day,
     row.last_open_at,
+    ownerId(),
   );
 }
 
 function insertTransaction(source: string, key: string, sourceRef: string | null, lines: { asset: string; delta: number }[]): void {
   const id = newRequestId();
+  const owner = ownerId();
   db().runSync(
-    `INSERT INTO transactions (id, idempotency_key, source, source_ref, device_time, config_version)
-     VALUES (?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO transactions (id, owner_id, idempotency_key, source, source_ref, device_time, config_version)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
     id,
+    owner,
     key,
     source,
     sourceRef,
@@ -155,11 +230,16 @@ function insertTransaction(source: string, key: string, sourceRef: string | null
 }
 
 function snapshot(): WalletSnapshot {
-  const inventory = db().getAllSync<{ item_id: string; quantity: number }>('SELECT item_id, quantity FROM inventory WHERE quantity > 0');
+  const inventory = db().getAllSync<{ item_id: string; quantity: number }>(
+    'SELECT item_id, quantity FROM inventory WHERE owner_id = ? AND quantity > 0',
+    ownerId(),
+  );
   const rows = db().getAllSync<{ source: string; idempotency_key: string; asset: string; delta: number }>(
     `SELECT t.source, t.idempotency_key, l.asset, l.delta
      FROM transactions t JOIN transaction_lines l ON l.transaction_id = t.id
+     WHERE t.owner_id = ?
      ORDER BY t.device_time DESC LIMIT 40`,
+    ownerId(),
   );
   return {
     balance: balance(),
@@ -315,6 +395,7 @@ function commitUse(pet: PetState, item: CatalogItem, opts: UseOpts, key: string,
 export function purchase(itemId: string, qty: number, requestId: string): Check {
   try {
     const result = transaction(() => {
+      ensureOwnerRows();
       if (hasKey(requestId)) {
         return { ok: true as const };
       }
@@ -326,6 +407,9 @@ export function purchase(itemId: string, qty: number, requestId: string): Check 
       return { ok: true as const };
     });
     emit();
+    if (result.ok) {
+      queuePlayer();
+    }
     return result;
   } catch (error) {
     return { ok: false, reason: error instanceof Error ? error.message : 'unknown' };
@@ -335,6 +419,7 @@ export function purchase(itemId: string, qty: number, requestId: string): Check 
 export function useItem(pet: PetState, itemId: string, opts: UseOpts, requestId: string, now = Date.now()): Check & { pet?: PetState } {
   try {
     const result = transaction(() => {
+      ensureOwnerRows(now);
       if (hasKey(requestId)) {
         return { ok: true as const, pet };
       }
@@ -347,6 +432,9 @@ export function useItem(pet: PetState, itemId: string, opts: UseOpts, requestId:
       return { ok: true as const, pet: next };
     });
     emit();
+    if (result.ok && result.pet) {
+      queueCoupled(result.pet);
+    }
     return result;
   } catch (error) {
     return { ok: false, reason: error instanceof Error ? error.message : 'unknown' };
@@ -356,6 +444,7 @@ export function useItem(pet: PetState, itemId: string, opts: UseOpts, requestId:
 export function buyAndUse(pet: PetState, itemId: string, opts: UseOpts, requestId: string, now = Date.now()): Check & { pet?: PetState } {
   try {
     const result = transaction(() => {
+      ensureOwnerRows(now);
       if (hasKey(`${requestId}:use`)) {
         return { ok: true as const, pet };
       }
@@ -379,6 +468,9 @@ export function buyAndUse(pet: PetState, itemId: string, opts: UseOpts, requestI
       return { ok: true as const, pet: current };
     });
     emit();
+    if (result.ok && result.pet) {
+      queueCoupled(result.pet);
+    }
     return result;
   } catch (error) {
     return { ok: false, reason: error instanceof Error ? error.message : 'unknown' };
@@ -395,6 +487,7 @@ function grantLines(source: string, key: string, ref: string | null, lines: { as
 
 export function ensureStarter(now = Date.now()): void {
   transaction(() => {
+    ensureOwnerRows(now);
     if (hasKey('starter')) {
       return;
     }
@@ -412,6 +505,7 @@ export function ensureStarter(now = Date.now()): void {
     writeOwner(owner);
   });
   emit();
+  queuePlayer();
 }
 
 function grantBoops(source: string, key: string, ref: string | null, amount: number): number {
@@ -423,7 +517,9 @@ function grantBoops(source: string, key: string, ref: string | null, amount: num
 }
 
 export function payoutTimeAccrual(mode: 'live' | 'return', now = Date.now()): number {
+  let wrote = false;
   const amount = transaction(() => {
+    ensureOwnerRows(now);
     const owner = readOwner();
     const day = localDay(now);
     const planned = planTimePayout(
@@ -439,6 +535,7 @@ export function payoutTimeAccrual(mode: 'live' | 'return', now = Date.now()): nu
     if (!planned.save) {
       return 0;
     }
+    wrote = true;
     owner.time_paid_through = planned.owner.timePaidThrough;
     owner.time_capped_day = planned.owner.timeCappedDay;
     owner.last_trusted_time = planned.owner.lastTrustedTime;
@@ -453,10 +550,14 @@ export function payoutTimeAccrual(mode: 'live' | 'return', now = Date.now()): nu
     return 0;
   });
   emit();
+  if (wrote) {
+    queuePlayer();
+  }
   return amount;
 }
 
 export function getDailyLogin(now = Date.now()): LoginOffer {
+  ensureOwnerRows(now);
   const owner = readOwner();
   return loginOffer(owner.login_last_claimed_day, owner.login_streak, localDay(now));
 }
@@ -464,6 +565,7 @@ export function getDailyLogin(now = Date.now()): LoginOffer {
 export function claimDailyLogin(now = Date.now()): Check & { amount?: number; streakDay?: number } {
   try {
     const result = transaction(() => {
+      ensureOwnerRows(now);
       const owner = readOwner();
       const today = localDay(now);
       const offer = loginOffer(owner.login_last_claimed_day, owner.login_streak, today);
@@ -478,6 +580,9 @@ export function claimDailyLogin(now = Date.now()): Check & { amount?: number; st
       return { ok: true as const, amount, streakDay: offer.streakDay };
     });
     emit();
+    if (result.ok) {
+      queuePlayer();
+    }
     return result;
   } catch (error) {
     return { ok: false, reason: error instanceof Error ? error.message : 'unknown' };
@@ -523,6 +628,7 @@ export function settleProgress(
   extra?: { playdateId?: string; find?: PlayFindKind },
 ): { pet: PetState; boops: number; label: string | null } {
   const result = transaction(() => {
+    ensureOwnerRows(now);
     let boops = 0;
     let label: string | null = null;
     const progressed = payLevelsAndStages(pet);
@@ -562,11 +668,13 @@ export function settleProgress(
   if (result.boops > 0) {
     emit();
   }
+  queueCoupled(result.pet);
   return result;
 }
 
 export function onAppOpen(pet: PetState, now = Date.now()): OpenRewards {
   const rewards = transaction(() => {
+    ensureOwnerRows(now);
     if (!hasKey('starter')) {
       const lines: { asset: string; delta: number }[] = [{ asset: 'boops', delta: economyConfig.starter.boops }];
       for (const [itemId, qty] of Object.entries(economyConfig.starter.items)) {
@@ -602,7 +710,7 @@ export function onAppOpen(pet: PetState, now = Date.now()): OpenRewards {
         const paid = grantBoops('time_payout', `time:${planned.owner.timePaidThrough}`, null, planned.amount);
         if (paid > 0) {
           setDaily(planned.day, '', 'time_boops', dailyCount(planned.day, '', 'time_boops') + paid);
-          bursts.push({ label: 'Boops', amount: paid });
+          bursts.push({ label: 'Boops', amount: paid, coinCount: 5 });
         }
       }
     }
@@ -611,12 +719,12 @@ export function onAppOpen(pet: PetState, now = Date.now()): OpenRewards {
       const welcomeKey = `welcome:${localDay(now)}`;
       const paid = grantBoops('welcome_back', welcomeKey, null, economyConfig.welcomeBack.boops);
       if (paid > 0) {
-        bursts.push({ label: 'Welcome back!', amount: paid });
+        bursts.push({ label: 'Welcome back!', amount: paid, coinCount: 5 });
       }
     }
     const progressed = payLevelsAndStages(pet);
     if (progressed.boops > 0 && progressed.label) {
-      bursts.push({ label: progressed.label, amount: progressed.boops });
+      bursts.push({ label: progressed.label, amount: progressed.boops, coinCount: 5 });
     }
     owner.last_open_at = now;
     writeOwner(owner);
@@ -624,6 +732,7 @@ export function onAppOpen(pet: PetState, now = Date.now()): OpenRewards {
     return { pet: progressed.pet, bursts, login: loginOffer(owner.login_last_claimed_day, owner.login_streak, localDay(now)) };
   });
   emit();
+  queueCoupled(rewards.pet);
   return rewards;
 }
 

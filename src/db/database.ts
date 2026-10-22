@@ -1,9 +1,12 @@
 import * as SQLite from 'expo-sqlite';
 
+export const storageVersion = 2;
+
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS transactions (
   id TEXT PRIMARY KEY NOT NULL,
-  idempotency_key TEXT NOT NULL UNIQUE,
+  owner_id TEXT NOT NULL,
+  idempotency_key TEXT NOT NULL,
   source TEXT NOT NULL,
   source_ref TEXT,
   device_time TEXT NOT NULL,
@@ -11,7 +14,7 @@ CREATE TABLE IF NOT EXISTS transactions (
   device_id TEXT,
   app_version TEXT,
   config_version INTEGER,
-  metadata TEXT
+  UNIQUE (owner_id, idempotency_key)
 );
 CREATE TABLE IF NOT EXISTS transaction_lines (
   transaction_id TEXT NOT NULL,
@@ -20,17 +23,19 @@ CREATE TABLE IF NOT EXISTS transaction_lines (
   PRIMARY KEY (transaction_id, asset)
 );
 CREATE TABLE IF NOT EXISTS balances (
-  id INTEGER PRIMARY KEY CHECK (id = 1),
+  owner_id TEXT PRIMARY KEY NOT NULL,
   boops INTEGER NOT NULL,
   updated_at TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS inventory (
-  item_id TEXT PRIMARY KEY NOT NULL,
+  owner_id TEXT NOT NULL,
+  item_id TEXT NOT NULL,
   quantity INTEGER NOT NULL,
-  first_acquired_at TEXT NOT NULL
+  first_acquired_at TEXT NOT NULL,
+  PRIMARY KEY (owner_id, item_id)
 );
 CREATE TABLE IF NOT EXISTS owner_state (
-  id INTEGER PRIMARY KEY CHECK (id = 1),
+  owner_id TEXT PRIMARY KEY NOT NULL,
   time_paid_through INTEGER NOT NULL,
   time_capped_day TEXT,
   last_trusted_time INTEGER NOT NULL,
@@ -51,34 +56,82 @@ CREATE TABLE IF NOT EXISTS pet (
   json TEXT NOT NULL,
   updated_at INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS retired_pets (
+  id TEXT PRIMARY KEY NOT NULL,
+  json TEXT NOT NULL,
+  retired_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS owned_toys (
+  owner_id TEXT NOT NULL,
+  toy_id TEXT NOT NULL,
+  PRIMARY KEY (owner_id, toy_id)
+);
+CREATE TABLE IF NOT EXISTS owned_furniture (
+  owner_id TEXT NOT NULL,
+  piece_id TEXT NOT NULL,
+  json TEXT NOT NULL,
+  PRIMARY KEY (owner_id, piece_id)
+);
+CREATE TABLE IF NOT EXISTS home_layouts (
+  owner_id TEXT NOT NULL,
+  species TEXT NOT NULL,
+  placements TEXT NOT NULL,
+  PRIMARY KEY (owner_id, species)
+);
 CREATE TABLE IF NOT EXISTS meta (
   key TEXT PRIMARY KEY NOT NULL,
   value TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS push_queue (
+  seq INTEGER PRIMARY KEY AUTOINCREMENT,
+  entity_key TEXT NOT NULL UNIQUE,
+  kind TEXT NOT NULL,
+  payload TEXT NOT NULL
+);
+`;
+
+const DROP_LEGACY = `
+DROP TABLE IF EXISTS transaction_lines;
+DROP TABLE IF EXISTS transactions;
+DROP TABLE IF EXISTS balances;
+DROP TABLE IF EXISTS inventory;
+DROP TABLE IF EXISTS owner_state;
+DROP TABLE IF EXISTS daily_counters;
+DROP TABLE IF EXISTS pet;
+DROP TABLE IF EXISTS retired_pets;
+DROP TABLE IF EXISTS owned_toys;
+DROP TABLE IF EXISTS owned_furniture;
+DROP TABLE IF EXISTS home_layouts;
+DROP TABLE IF EXISTS push_queue;
+DROP TABLE IF EXISTS meta;
 `;
 
 let db: SQLite.SQLiteDatabase | null = null;
+let pendingAsyncWipe = false;
 
 export function getDb(): SQLite.SQLiteDatabase {
   if (!db) {
     db = SQLite.openDatabaseSync('boop.db');
-    db.execSync(SCHEMA);
-    const balance = db.getFirstSync<{ id: number }>('SELECT id FROM balances WHERE id = 1');
-    if (!balance) {
-      const now = new Date().toISOString();
-      const ms = Date.now();
-      db.runSync('INSERT INTO balances (id, boops, updated_at) VALUES (1, 0, ?)', now);
-      db.runSync(
-        `INSERT INTO owner_state (
-          id, time_paid_through, time_capped_day, last_trusted_time, server_time_offset_ms,
-          login_streak, login_last_claimed_day, last_open_at
-        ) VALUES (1, ?, NULL, ?, 0, 0, NULL, 0)`,
-        ms,
-        ms,
-      );
+    db.execSync('CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL)');
+    const row = db.getFirstSync<{ value: string }>("SELECT value FROM meta WHERE key = 'storageVersion'");
+    const version = row ? Number(row.value) : 0;
+    if (version < storageVersion) {
+      db.execSync(DROP_LEGACY);
+      db.execSync(SCHEMA);
+      db.runSync("INSERT INTO meta (key, value) VALUES ('storageVersion', ?)", String(storageVersion));
+      pendingAsyncWipe = true;
+    } else {
+      db.execSync(SCHEMA);
     }
   }
   return db;
+}
+
+export function takeAsyncWipe(): boolean {
+  getDb();
+  const due = pendingAsyncWipe;
+  pendingAsyncWipe = false;
+  return due;
 }
 
 // withTransactionSync does not return the callback's value, so callers keep the result outside.

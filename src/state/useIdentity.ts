@@ -1,8 +1,13 @@
 import { useEffect, useState } from 'react';
 
+import { bindInstallToAuth } from '../db/bindOwner';
+import { bootstrapLocal } from '../db/bootstrap';
+import { setCurrentOwner } from '../db/currentOwner';
 import {
+  getCachedInstallId,
+  getCachedUserId,
   getOrCreateInstallId,
-  getSessionUserId,
+  setBeforeSessionPublish,
   setCachedUserId,
 } from '../compliance/identity';
 import { getSupabase } from '../compliance/supabase';
@@ -22,12 +27,19 @@ export function useIdentity(): Identity {
     let cancelled = false;
     let unsubscribe: (() => void) | undefined;
 
+    setBeforeSessionPublish(async (nextUserId) => {
+      const install = await getOrCreateInstallId();
+      await bindInstallToAuth(install, nextUserId);
+      setCurrentOwner(nextUserId);
+    });
+
     void (async () => {
-      const id = await getOrCreateInstallId();
-      const sessionUserId = await getSessionUserId();
+      await bootstrapLocal();
       if (cancelled) {
         return;
       }
+      const id = getCachedInstallId();
+      const sessionUserId = getCachedUserId();
       setInstallId(id);
       setUserId(sessionUserId);
       setReady(true);
@@ -36,16 +48,31 @@ export function useIdentity(): Identity {
       if (!supabase) {
         return;
       }
-      const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+      const { data } = supabase.auth.onAuthStateChange((event, session) => {
         const next = session?.user.id ?? null;
-        setCachedUserId(next);
-        setUserId(next);
+        if (!next && event !== 'SIGNED_OUT') {
+          return;
+        }
+        void (async () => {
+          if (next) {
+            const install = id ?? (await getOrCreateInstallId());
+            await bindInstallToAuth(install, next);
+            setCurrentOwner(next);
+          } else if (id) {
+            setCurrentOwner(id);
+          }
+          setCachedUserId(next);
+          if (!cancelled) {
+            setUserId(next);
+          }
+        })();
       });
       unsubscribe = () => data.subscription.unsubscribe();
     })();
 
     return () => {
       cancelled = true;
+      setBeforeSessionPublish(null);
       unsubscribe?.();
     };
   }, []);

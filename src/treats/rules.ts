@@ -34,12 +34,6 @@ export function giveTreat(state: PetState, treatId: string, now: number): TreatR
   }
   const kind = treatById(treatId)!;
   let next = applyEffects(state, kind.effects, now);
-  next = {
-    ...next,
-    treats: next.treats.map((stack) =>
-      stack.treatId === treatId ? { ...stack, count: Math.max(0, stack.count - 1) } : stack,
-    ),
-  };
   return { ok: true, state: next, reaction: kind.reaction };
 }
 

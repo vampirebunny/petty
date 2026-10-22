@@ -1,7 +1,7 @@
 export const economyConfig = {
   version: 1,
   starter: { boops: 1000, items: { biscuit: 10 } as Record<string, number> },
-  timeAccrual: { boopsPerHour: 60, payoutStep: 10, awayCapHours: 8, dailyCap: 600 },
+  timeAccrual: { boopsPerHour: 60, payoutStep: 15, awayCapHours: 8, dailyCap: 600 },
   dailyLogin: { rewards: [20, 25, 30, 35, 40, 50, 100], graceDays: 1 },
   welcomeBack: { minDaysAway: 7, boops: 150 },
   minigame: { maxPerRun: 40, dailyCap: 150 },

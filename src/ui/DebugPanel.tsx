@@ -240,11 +240,13 @@ export function DebugPanel({
         <Pressable style={styles.button} onPress={() => onAdvance(24 * hourMs)}>
           <Text style={styles.buttonLabel}>+24 hours</Text>
         </Pressable>
-        <Pressable style={styles.button} onPress={onReset}>
-          <Text style={styles.buttonLabel}>Reset</Text>
-        </Pressable>
+        {typeof __DEV__ !== 'undefined' && __DEV__ ? (
+          <Pressable style={styles.button} onPress={onReset}>
+            <Text style={styles.buttonLabel}>Reset</Text>
+          </Pressable>
+        ) : null}
         <Pressable style={styles.button} onPress={onNewPet}>
-          <Text style={styles.buttonLabel}>New pet</Text>
+          <Text style={styles.buttonLabel}>Retire</Text>
         </Pressable>
       </View>
         </View>

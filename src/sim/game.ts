@@ -1,5 +1,4 @@
 import { breedAttributes } from '../actor/breedAttributes';
-import { normalizeFurniture } from '../actor/furniture';
 import { maturityOf, naturalGrowth, zeroStats } from './attributes';
 import { emptyTrack, refreshUnlocks, speciesOf, tracksFor } from './tracks';
 import { refreshTraining, resolveReward } from './training';
@@ -122,8 +121,5 @@ export function ensureGame(state: PetState): PetState {
     milestones,
     seenCoachMarks: state.seenCoachMarks ?? [],
   };
-  const furniture = normalizeFurniture(species, next.furniture, next.furniturePlaced);
-  next.furniture = furniture.furniture;
-  next.furniturePlaced = furniture.placed;
   return refreshUnlocks(next).state;
 }

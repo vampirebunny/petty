@@ -10,7 +10,6 @@ import {
   defaultSceneId,
   scaleLegacyAgeDays,
   startingHydration,
-  startingToys,
   startingWaterLevel,
   traits,
 } from '../sim/config';
@@ -21,7 +20,6 @@ import type {
   PetAttributes,
   PetState,
   Stats,
-  TreatStack,
 } from '../sim/types';
 import type { PetStorage } from './PetStorage';
 import { migrateEquipped } from '../actor/closet';
@@ -112,20 +110,6 @@ function readNeeds(value: unknown): Needs | null {
   return null;
 }
 
-function readTreats(value: unknown): TreatStack[] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-  const stacks: TreatStack[] = [];
-  for (const entry of value) {
-    if (!isRecord(entry) || typeof entry.treatId !== 'string' || typeof entry.count !== 'number') {
-      continue;
-    }
-    stacks.push({ treatId: entry.treatId, count: entry.count });
-  }
-  return stacks;
-}
-
 function readBoosts(value: unknown): ActiveBoost[] {
   if (!Array.isArray(value)) {
     return [];
@@ -149,14 +133,6 @@ function readBoosts(value: unknown): ActiveBoost[] {
     });
   }
   return boosts;
-}
-
-function readToys(value: unknown): string[] {
-  if (!Array.isArray(value)) {
-    return [...startingToys];
-  }
-  const toys = value.filter((entry): entry is string => typeof entry === 'string');
-  return toys.length > 0 ? toys : [...startingToys];
 }
 
 // A pet saved in an older shape (litter variants, temperament, no look) does not load, and
@@ -233,8 +209,6 @@ function migratePet(value: unknown): PetState | null {
     waterLevel,
     waterEmptySince,
     hydration,
-    toys: readToys(raw.toys),
-    treats: readTreats(raw.treats),
     boosts: readBoosts(raw.boosts),
   };
   if (typeof raw.ownerId === 'string') {
@@ -245,6 +219,10 @@ function migratePet(value: unknown): PetState | null {
   delete (next as { thirst?: unknown }).thirst;
   delete (next as { feedWindow?: unknown }).feedWindow;
   delete (next as { maturityAppliedAt?: unknown }).maturityAppliedAt;
+  delete (next as { toys?: unknown }).toys;
+  delete (next as { treats?: unknown }).treats;
+  delete (next as { furniture?: unknown }).furniture;
+  delete (next as { furniturePlaced?: unknown }).furniturePlaced;
   return withDerived(ensureGame(next));
 }
 

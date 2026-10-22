@@ -57,6 +57,7 @@ import { playVoice } from '../audio/voice';
 import { attributeScore, drinkHydrationGain, feedEnergyGain, feedHungerDrop } from '../sim';
 import type { PointAdd } from './cuddle/pointAdds';
 import type { Cue, PetState } from '../sim/types';
+import type { FurniturePiece, FurniturePlacement } from '../actor/furniture';
 import { applyFurniture, furnitureAt, movePiece, syncFurniture } from '../actor/furniture';
 import { solarHour } from '../actor/sky';
 import { drawWorld } from './skia/world';
@@ -104,11 +105,14 @@ type Props = {
   onHydrationDelta: (delta: number) => void;
   onDrank?: (fromBowl: boolean) => void;
   onAte?: () => void;
-  onPlayFind?: (kind: 'fetch_round' | 'toy_round') => void;
+  onPlayFind?: (kind: 'fetch_round' | 'toy_round', at: { x: number; y: number }) => void;
   onTreatMood?: (amount: number) => void;
   onTraveling?: (active: boolean) => void;
   onPointAdds?: (adds: PointAdd[]) => void;
   onGreeting?: (id: string) => void;
+  furniture?: FurniturePiece[];
+  placements?: FurniturePlacement[];
+  ownsBall?: boolean;
 };
 
 function sourceOf(pet: PetState) {
@@ -163,6 +167,9 @@ export function PetView({
   onPointAdds,
   onGreeting,
   stageRef,
+  furniture = [],
+  placements = [],
+  ownsBall = false,
 }: Props) {
   const { viewWidth, viewHeight } = useStageSize();
   const widthRef = useRef(viewWidth);
@@ -171,13 +178,11 @@ export function PetView({
   heightRef.current = viewHeight;
   const species = breedById(pet.breedId)?.species === 'cat' ? 'cat' : 'dog';
   const baseScene = sceneForSpecies(sceneOverride ?? sceneById(pet.sceneId), species);
-  const furnitureKey = pet.furniture.map((piece) => piece.id).join('|');
-  const placementKey = pet.furniturePlaced
-    .map((place) => `${place.pieceId}@${place.sceneId}:${place.x},${place.y}`)
-    .join('|');
+  const furnitureKey = furniture.map((piece) => piece.id).join('|');
+  const placementKey = placements.map((place) => `${place.pieceId}@${place.sceneId}:${place.x},${place.y}`).join('|');
   const scene = useMemo(
-    () => applyFurniture(baseScene, pet.furniture, pet.furniturePlaced),
-    [baseScene, furnitureKey, placementKey, pet.furniture, pet.furniturePlaced],
+    () => applyFurniture(baseScene, furniture, placements),
+    [baseScene, furniture, furnitureKey, placementKey, placements],
   );
   const worldRef = useRef<World>(createWorld([spawnActor(sourceOf(pet))], 1, scene));
   const activeRef = useRef(AppState.currentState === 'active');
@@ -339,7 +344,7 @@ export function PetView({
           rng: world.rng,
         });
         if (plan) {
-          const pool = current.toys.includes('ball') ? current.toys : ['ball', ...current.toys];
+          const pool = ownsBall ? ['ball'] : [];
           world.toyPool = pool;
           beginGreeting(world, actor, plan);
         }
@@ -354,7 +359,7 @@ export function PetView({
       }
       redraw();
     },
-    [redraw],
+    [ownsBall, redraw],
   );
 
   const beginTravel = useCallback(
@@ -680,7 +685,8 @@ export function PetView({
         onAteRef.current?.();
       }
       for (const kind of takePlayFinds(world)) {
-        onPlayFindRef.current?.(kind);
+        const at = actor ? { x: actor.x, y: actor.y } : { x: 0, y: 0 };
+        onPlayFindRef.current?.(kind, at);
       }
       for (const amount of takeTreatMoods(world)) {
         onTreatMoodRef.current?.(amount);

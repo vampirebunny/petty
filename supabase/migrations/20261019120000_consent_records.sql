@@ -1,6 +1,4 @@
--- DO NOT APPLY THIS MIGRATION FROM AN AGENT OR A SCRIPT IN THIS REPO.
--- Only the project owner applies migration files, with `supabase db push`
--- after the CLI is linked to project unfatkwtzfkqnnbgzuqs.
+-- Applied on hosted project unfatkwtzfkqnnbgzuqs. Do not re-apply.
 -- See supabase/README.md.
 
 create table public.consent_records (

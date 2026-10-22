@@ -20,15 +20,15 @@ it('pays nothing and writes nothing when the clock moves backward', () => {
   expect(planned.owner).toBe(clock);
 });
 
-it('pays a live step of 10 and an exact return amount', () => {
+it('pays a live step of 15 and an exact return amount', () => {
   const start = new Date(2026, 9, 22, 9, 0, 0).getTime();
-  const tenMinutes = planTimePayout(start + 10 * 60_000, owner({ timePaidThrough: start, lastTrustedTime: start }), 0, 'live');
-  expect(tenMinutes.amount).toBe(10);
-  expect(tenMinutes.save).toBe(true);
-  const nineMinutes = planTimePayout(start + 9 * 60_000, owner({ timePaidThrough: start, lastTrustedTime: start }), 0, 'live');
-  expect(nineMinutes.amount).toBe(0);
-  expect(nineMinutes.save).toBe(true);
-  expect(nineMinutes.owner.lastTrustedTime).toBe(start + 9 * 60_000);
+  const fifteenMinutes = planTimePayout(start + 15 * 60_000, owner({ timePaidThrough: start, lastTrustedTime: start }), 0, 'live');
+  expect(fifteenMinutes.amount).toBe(15);
+  expect(fifteenMinutes.save).toBe(true);
+  const fourteenMinutes = planTimePayout(start + 14 * 60_000, owner({ timePaidThrough: start, lastTrustedTime: start }), 0, 'live');
+  expect(fourteenMinutes.amount).toBe(0);
+  expect(fourteenMinutes.save).toBe(true);
+  expect(fourteenMinutes.owner.lastTrustedTime).toBe(start + 14 * 60_000);
   const away = planTimePayout(start + 9 * hour, owner({ timePaidThrough: start, lastTrustedTime: start }), 0, 'return');
   expect(away.amount).toBe(8 * 60);
   expect(away.owner.timePaidThrough).toBe(start + 9 * hour);

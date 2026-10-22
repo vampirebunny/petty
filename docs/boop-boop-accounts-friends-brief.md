@@ -134,12 +134,15 @@ reports (
   created_at timestamptz default now()
 );
 
-pets (pet_id uuid primary key, owner_id uuid references auth.users on delete cascade, data jsonb, version int, updated_at timestamptz);
+-- Already applied. Do not recreate. See supabase/migrations/20261022120000_pets_and_player_state.sql.
+-- pets (id, owner_user_id, status active|retired, doc, doc_schema, local_revision, client_updated_at, retired_at)
+-- player_state (user_id, doc, doc_schema, local_revision, client_updated_at)
+-- Writes go through push_active_pet, retire_pet, and push_player_state. Select is owner-only.
 playdate_records (playdate_id uuid primary key, owner_id uuid references auth.users on delete cascade, record jsonb, created_at timestamptz);
 npc_snapshots (snapshot_id uuid primary key, owner_id uuid references auth.users on delete cascade, data jsonb, created_at timestamptz);
 relationships (owner_id uuid, pet_id uuid, partner_snapshot_id uuid, bond numeric, playdate_count int, last_playdate_at timestamptz, primary key (pet_id, partner_snapshot_id));
 ```
-- **RLS on everything.** Users read and write only their own rows in `pets`, `playdate_records`, `npc_snapshots`, `relationships` and `profiles`.
+- **RLS on everything.** Users read only their own rows in `pets` and `player_state` (already applied; writes go through the push RPCs). The same own-row rule applies to `playdate_records`, `npc_snapshots`, `relationships`, and `profiles` when those tables exist.
 - **Social actions go through `security definer` RPCs:** `search_handles`, `check_handle_available`, `claim_handle`, `send_friend_request`, `respond_friend_request`, `cancel_friend_request`, `unfriend`, `block_user`, `unblock_user`, `report_user`. Each one enforces blocks, rate limits and validation server-side; the client is never trusted for these rules.
 - **Friend pet cards:** an RPC `get_friend_pet_cards()` returns a limited snapshot (name, species, breed, coat, cosmetics, age stage, current style) only for accepted, unblocked friends. Never the raw pet document.
 
@@ -152,7 +155,11 @@ Log a small set of events to an `events` table (or PostHog if you prefer): `app_
 - Invite deep links and QR codes
 - Contacts and phone numbers
 - Purchases
-- Rehome to farm
+
+## Retirement (from the identity migration; do not rebuild it here)
+Retirement replaces "rehome to farm." A retired pet stays owned by the same user, with `status = 'retired'`, and can later be a playdate partner for that user and their friends. Friends read it through a narrow view or RPC (render and playdate fields only, never the raw doc). Access ends on unfriend or block. Playdate logic dresses retired pets from the NPC catalog.
+
+Pull/restore must treat a pet doc and `player_state` with different `local_revision` values as a mismatch. Homes are per `(owner, species)` inside `player_state`, not on the pet.
 
 ## Acceptance checks
 - A guest with a pet signs up with Apple, Google or email: same `user_id`, the pet and playdate history are intact, and the guest compliance row is still linked.

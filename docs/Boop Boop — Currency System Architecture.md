@@ -34,13 +34,14 @@ Screens never touch storage; the service checks the catalog and config rules, th
 
 ## Data model
 
-A transaction is the unit of change; its lines say what moved. A purchase of 2 treats is one transaction with two lines: −30 Boops and +2 treats. Local SQLite and Supabase share column names, but they are two schemas: local rows have no owner, and Supabase adds owner\_id and makes every key unique per owner.
+A transaction is the unit of change; its lines say what moved. A purchase of 2 treats is one transaction with two lines: −30 Boops and +2 treats. Local SQLite keys the ledger, balances, inventory, and owner state by owner id. Supabase does not store those ledger tables. The applied backup is `player_state`: one snapshot per user of Boops, inventory, toys, furniture, and layouts. The Supabase ledger below is the later accounts sync, not a table on the project.
 
 ```sql
--- LOCAL (expo-sqlite). One owner per device, so no owner_id anywhere.
+-- LOCAL (expo-sqlite). Keyed by owner id (auth user id, or the install id until bind).
 transactions (
   id               text primary key,      -- uuid generated on device
-  idempotency_key  text not null unique,  -- e.g. 'starter', 'login:2026-10-22', 'level:<pet>:12'
+  owner_id         text not null,
+  idempotency_key  text not null,         -- e.g. 'starter', 'login:2026-10-22', 'level:<pet>:12'
   source           text not null,         -- see Sources below
   source_ref       text,                  -- trick id, item id, playdate id, etc.
   device_time      text not null,         -- ISO timestamp
@@ -48,17 +49,18 @@ transactions (
   device_id        text,
   app_version      text,
   config_version   integer,
-  metadata         text                   -- JSON
+  unique (owner_id, idempotency_key)
 );
 -- What moved in a transaction. asset = 'boops' or a catalog item id
 transaction_lines (transaction_id, asset, delta, primary key (transaction_id, asset));
 
 -- Derived caches, rebuilt from the ledger at any time
-balances  (boops, updated_at);                              -- one row
-inventory (item_id primary key, quantity, first_acquired_at);
+balances  (owner_id primary key, boops, updated_at);
+inventory (owner_id, item_id, quantity, first_acquired_at, primary key (owner_id, item_id));
 
 -- Timers and counters that faucets and limits need
-owner_state (                                               -- one row
+owner_state (                                               -- one row per owner
+  owner_id primary key,
   time_paid_through,
   time_capped_day,           -- local day the time cap was hit
   last_trusted_time,         -- highest time ever seen (clock guard)
@@ -69,7 +71,7 @@ owner_state (                                               -- one row
 daily_counters (day, pet_id, key, count, primary key (day, pet_id, key));
   -- pet_id '' for owner-level counters; e.g. 'time_boops', 'minigame_boops', 'second_wind'
 
--- SUPABASE (ships with accounts). Same columns plus owner_id; every key is unique per owner.
+-- SUPABASE LEDGER (not applied; ships with accounts). Same columns plus owner_id; every key is unique per owner.
 transactions      (owner_id uuid not null references auth.users, ...local columns,
                    lease_generation int not null, unique (owner_id, idempotency_key))
 transaction_lines (same as local)
@@ -113,13 +115,13 @@ Every faucet is capped by time, by count, or by being one-time, so no single act
 - **When it runs:** one `checkLevelUp(pet)` runs after anything that adds XP (a finished meal, a pet, a finished cuddle, a training rep, a mastery), after a life-stage change, and on app open. Tapping Feed and playdates add no XP.
 - If the current level is above `lastPaidLevel`, every level in between pays, each with its own `level:<pet>:<n>` key, then `lastPaidLevel` is set to the current level. Entering a new stage can skip several levels; all of them pay.
 - If the current stage is past `lastPaidStage`, every stage after `lastPaidStage` up to the current one pays its own grant (`stage:<pet>:<stage>`), the same walk as levels, then `lastPaidStage` is set to the current stage. A pet that goes from puppy to adult with no open in between gets the older-puppy, adolescent and adult grants. Reversible senior sub-stages don't pay again.
-- **One celebration per jump** ("Level 10! +200 Boops"), not one per level; a stage grant from the same jump folds into it. The burst never names the stage; there is no player-facing stage moment.
+- **One celebration per jump**, not one per level; a stage grant from the same jump folds into it. The payout is five paw coins and a `+N` for the combined Boops. It does not name the stage, and there is no separate level modal.
 - The ledger rows, `lastPaidLevel` and `lastPaidStage` commit in one SQLite transaction.
 
 **Time accrual algorithm**
 
 ```ts
-// mode 'live' = app open and playing (pays in steps of 10); 'return' = app open after time away (pays the exact amount)
+// mode 'live' = app open and playing (pays in steps of 15); 'return' = app open after time away (pays the exact amount)
 // Called with 'return' from onAppOpen, and with 'live' by a timer set for the next threshold while playing
 function payoutTimeAccrual(now: number, s: OwnerState, cfg: Economy, mode: 'live' | 'return') {
   const t = cfg.timeAccrual, hourMs = 3_600_000, msPerBoop = hourMs / t.boopsPerHour;
@@ -130,7 +132,7 @@ function payoutTimeAccrual(now: number, s: OwnerState, cfg: Economy, mode: 'live
   // From here on, now is accepted. Every exit saves owner_state in one SQLite transaction,
   // so lastTrustedTime (and timeCappedDay when it changes) are never left in memory only.
   // withTransactionAsync does not return the callback's value, so the amount is kept outside
-  // and returned after the transaction commits. The greeting uses it for the burst.
+  // and returned after the transaction commits. The payout animation counts this amount up on the pill.
   let amount = 0;
   await db.withTransactionAsync(() => {
     s.lastTrustedTime = now;
@@ -149,7 +151,7 @@ function payoutTimeAccrual(now: number, s: OwnerState, cfg: Economy, mode: 'live
     const counted = Math.min(elapsed, t.awayCapHours * hourMs);  // long absences capped
     const earned = Math.min(Math.floor(counted / msPerBoop), room);
     const payout = mode === 'return' ? earned : Math.floor(earned / t.payoutStep) * t.payoutStep;
-    if (payout === 0) { saveOwnerState(s); return; }            // under 10 Boops so far
+    if (payout === 0) { saveOwnerState(s); return; }            // under one live step so far
 
     // Payout: ledger row, daily counter, timeCappedDay, timePaidThrough, lastTrustedTime
     writeLedger({ source: 'time_payout', lines: [{ asset: 'boops', delta: payout }] });
@@ -161,14 +163,14 @@ function payoutTimeAccrual(now: number, s: OwnerState, cfg: Economy, mode: 'live
     saveOwnerState(s);
     amount = payout;
   });
-  return amount;  // the greeting (return) or the live burst counts the top-right total up by this amount
+  return amount;  // the open payout (return) or the live payout counts the pill up by this amount
 }
 ```
 
 - No on-screen pile. Accrual is continuous but only as math, computed from `timePaidThrough`; nothing shows until a payout.
-- While the user is playing, payouts are automatic at round numbers: every `payoutStep` (10 Boops, every 10 minutes at 1 Boop per minute). While the app is open, a timer is set for the next threshold.
-- Each payout plays a burst, then the top-right Boops total counts up by the amount with a sound. The total never ticks on its own.
-- On return, everything accrued (up to 8 hours) pays as the exact amount, usually not a round number (e.g. +347), in one larger burst at the end of the greeting.
+- While the user is playing, payouts are automatic at round numbers: every `payoutStep` (15 Boops, every 15 minutes at 1 Boop per minute). While the app is open, a timer is set for the next threshold.
+- Each payout plays paw coins into the top-right pill, one coin for a live payout. When the last coin arrives, the pill counts up by that payout's amount and plays a bloop per coin. The wallet was already written. The pill does not follow the balance on its own, and a new count continues from the number on screen. The total never ticks on its own.
+- On return, everything accrued (up to 8 hours) pays as the exact amount, usually not a round number (e.g. +347), as five coins. Welcome-back, level, and milestone grants queued with it also play as five coins each. The whole queue plays before the greeting. Each arrival counts only its own amount, clamped at the ledger balance. If the app is backgrounded mid-payout, the remaining sounds are skipped and the pill snaps to the ledger.
 - **Daily cap:** 600 time Boops per local calendar day (local midnight on the device, stored as a local date key). Once the cap is hit, time accrual stops until the next local midnight; the rest of that day earns no time Boops by design. `timeCappedDay` records it, and `timePaidThrough` is not jumped to now. A return payout counts toward the cap of the day it's paid.
 - **Backward clock:** if the device clock is behind `timePaidThrough` or last\_trusted\_time, pay nothing and move no timer. Accrual resumes once the clock is past both. last\_trusted\_time advances only after the check accepts the current time.
 - A month away pays the same as 8 hours, plus the one-time welcome-back gift.
@@ -178,7 +180,7 @@ function payoutTimeAccrual(now: number, s: OwnerState, cfg: Economy, mode: 'live
 - "Day" means the user's local calendar day.
 - **Grace day:** a missed day pays nothing, and the ladder continues where it was. Claim day 3, miss a day, and the next open offers day 4 (not day 5). Missing two or more days in a row resets to day 1.
 - Day 7 pays the most, then the calendar loops.
-- **Claim:** `onAppOpen` only reports that the reward is waiting. The player taps to claim it at the end of the greeting (`claimDailyLogin`).
+- **Claim:** `onAppOpen` only reports that the reward is waiting. The open grants play first, then the greeting, and the player taps to claim at the end of that greeting (`claimDailyLogin`). If the hello is replaced by another action, the claim still appears.
 
 ## Sinks and item use
 
@@ -284,7 +286,7 @@ The device writes first and Supabase catches up; once IAP ships, the server beco
 
 **Account-ready now (build these this round)**
 
-- [ ] No `owner_id` on local rows: one owner per device, stamped with the Supabase auth user id at sync time. The install id is never an owner. Handles a first launch with no network.
+- [x] Local rows are keyed by owner id. The install id is the owner until the anonymous session exists, then a bind copies those rows onto the auth user id. The install id is never written to Supabase.
 - [ ] Guest ID is a Supabase anonymous auth user (not a custom UUID), session kept in secure storage, so sign-up upgrades it in place and `auth.uid()` never changes.
 - [ ] The starter grant's key is `starter`, unique locally; Supabase allows one `starter` per owner. On the first session the anonymous auth user takes the whole local ledger, so the grant can't pay twice.
 - [ ] Local tables mirror the future Supabase schema: same names, UUID ids, integer amounts, ISO timestamps.
@@ -341,7 +343,7 @@ interface CurrencyService {
 
 - `Result` returns `{ ok, transactionId?, reason? }`. Reasons are codes such as `insufficient_boops`, `not_available`, `already_owned`, `boost_budget_reached`, `training_only_top`, `daily_limit`, `not_resting`, `already_claimed`, so the UI can show a friendly modal.
 - `grant` enforces each source's limit from config. Calling it twice with the same `ref` returns the first result instead of paying again.
-- `onAppOpen` pays what's due (the return time payout, welcome back, level-ups and stage grants) and reports the daily login as waiting. It plays nothing itself: the existing time-away greeting is the only open sequence, and it plays the bursts and the login claim at its end.
+- `onAppOpen` pays what's due (the return time payout, welcome back, level-ups and stage grants) and reports the daily login as waiting. It plays nothing itself. The home screen plays those grants as paw-coin payouts, then the time-away greeting, then the login claim.
 
 ## Default economy config
 
@@ -351,7 +353,7 @@ The starting numbers aim for about 1,000 Boops a day for an engaged player and a
 {
   "version": 1,
   "starter": { "boops": 1000, "items": { "treat_basic": 10 } },
-  "timeAccrual": { "boopsPerHour": 60, "payoutStep": 10, "awayCapHours": 8, "dailyCap": 600 },
+  "timeAccrual": { "boopsPerHour": 60, "payoutStep": 15, "awayCapHours": 8, "dailyCap": 600 },
   "dailyLogin": { "rewards": [20, 25, 30, 35, 40, 50, 100], "graceDays": 1 },
   "welcomeBack": { "minDaysAway": 7, "boops": 150 },
   "minigame": { "maxPerRun": 40, "dailyCap": 150 },
@@ -399,12 +401,12 @@ There are no existing players, so nothing migrates. The starter transaction is t
 1. Schema in `expo-sqlite`, `CurrencyService` reads and `grant`, starter grant, and a dev screen listing the ledger. First, move the pet (hunger, attributes, trick rests), the treat wallet, the Closet, owner\_state and daily\_counters out of AsyncStorage into the same SQLite database, so every spend and its effect commit in one transaction.
 2. Catalog and economy config loading (bundled JSON), `purchase`, `use`, and the inventory page.
 3. Move treats onto inventory and wire training's "give treat?" to `use`.
-4. Time accrual with threshold bursts and the top-right Boops counter, plus the clock guard.
-5. Daily login calendar and welcome-back gift, shown through `onAppOpen` and the greeting. onAppOpen only reports; the existing greeting plays the bursts and the login claim tap.
+4. Time accrual with 15-Boop threshold payouts and the top-right Boops pill, plus the clock guard.
+5. Daily login calendar and welcome-back gift, shown through `onAppOpen`. onAppOpen only reports. The coin payouts play first, the greeting plays next, and the login claim tap comes after the greeting.
 6. Grants from playdates, level-ups (checkLevelUp and lastPaidLevel), trick mastery and life stages.
 7. Second Winds (per trick), treat casual/training effects, and premium food. Vitamins and the trained/boosted split come in a later round.
 8. Pet store screen.
-9. Not this round: Supabase tables, row-level security, sync and sanity checks ship with accounts. For now, leave owner\_id off local rows and server\_time null.
+9. Applied: `pets` and `player_state` on the hosted project, with select-only row-level security and push RPCs. Not applied: the ledger tables, ledger sync, and sanity checks. Those still ship with accounts. Local rows are keyed by owner id. `server_time` stays null until a ledger sync exists.
 10. Mini-game payouts when the mini-games exist.
 
 **Open decisions**

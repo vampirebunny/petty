@@ -8,8 +8,6 @@ export type Needs = {
   happiness: number;
 };
 
-export type TreatStack = { treatId: string; count: number };
-
 export type ActiveBoost = {
   attribute: string;
   multiplier: number;
@@ -143,10 +141,6 @@ export type PetState = {
   waterEmptySince: number | null;
   // 0–100. 100 is fully hydrated. Activity spends it; drinking raises it. Not part of the away clock.
   hydration: number;
-  toys: string[];
-  furniture: FurniturePiece[];
-  furniturePlaced: FurniturePlacement[];
-  treats: TreatStack[];
   boosts: ActiveBoost[];
   care: PetCareState;
   training: Record<string, TrainingTrack>;
@@ -154,6 +148,8 @@ export type PetState = {
   seenCoachMarks: string[];
   // Second greeting of the last long combo. Shorts and closers are not stored.
   lastGreetingId?: string;
+  // Set when the pet is retired. The sim never loads a pet that has this.
+  retiredAt?: number;
 };
 
 export type PetEvent =
@@ -179,9 +175,7 @@ export type PetEvent =
   | { type: 'playdate'; happiness: number; attributes: Partial<Record<Trait, number>> }
   | { type: 'trickRep'; trackId: string; now: number }
   | { type: 'rewardTreat'; choice: 'treat' | 'none'; now: number }
-  | { type: 'clearTreats' }
-  | { type: 'seeCoach'; id: string }
-  | { type: 'moveFurniture'; pieceId: string; sceneId: string; x: number; y: number };
+  | { type: 'seeCoach'; id: string };
 
 export type Mood = 'happy' | 'content' | 'hungry' | 'sleepy' | 'sad' | 'sleeping';
 

@@ -1,6 +1,6 @@
 import { footprint } from '../ui/skia/layout';
 import type { Poi, Prop, Scene } from './scenes';
-import { scenes } from './scenes';
+import { sceneById, scenes } from './scenes';
 import type { Vec } from './types';
 
 // Owned, movable pieces. Everything else in a room is scenery.
@@ -215,8 +215,8 @@ export function normalizeFurniture(
   return dropRetired(owned, where);
 }
 
-// A new scene: scenery copied through, furniture moved to its placement, points of interest following.
-// Does not mutate the shared presets.
+// A new scene: scenery copied through, furniture drawn only where this home placed it.
+// Does not mutate the shared presets. An owned piece with no placement in this layout is not drawn.
 export function applyFurniture(scene: Scene, pieces: FurniturePiece[], placed: FurniturePlacement[]): Scene {
   const owned = new Map(pieces.map((piece) => [piece.id, piece]));
   const here = new Map(
@@ -230,12 +230,12 @@ export function applyFurniture(scene: Scene, pieces: FurniturePiece[], placed: F
       props.push(prop);
       continue;
     }
-    if (!owned.has(prop.id)) {
+    const place = here.get(prop.id);
+    if (!place || !owned.has(prop.id)) {
       continue;
     }
-    const place = here.get(prop.id);
-    const x = place?.x ?? prop.x;
-    const y = place?.y ?? prop.y;
+    const x = place.x;
+    const y = place.y;
     props.push({ ...prop, x, y });
     shift.set(prop.id, { dx: x - prop.x, dy: y - prop.y });
     here.delete(prop.id);
@@ -272,6 +272,27 @@ export function applyFurniture(scene: Scene, pieces: FurniturePiece[], placed: F
   }
 
   return { ...scene, props, pois };
+}
+
+// One placement per piece inside a single species home. Unknown pieces are ignored.
+export function placePiece(
+  placed: FurniturePlacement[],
+  pieceId: string,
+  sceneId: string,
+  x: number,
+  y: number,
+  owned: readonly string[],
+): FurniturePlacement[] | null {
+  if (!owned.includes(pieceId)) {
+    return null;
+  }
+  const floor = sceneById(sceneId).floor;
+  const nextX = Math.min(floor.xMax, Math.max(floor.xMin, x));
+  const nextY = Math.min(floor.yMax, Math.max(floor.yMin, y));
+  return [
+    ...placed.filter((place) => place.pieceId !== pieceId),
+    { pieceId, sceneId, x: nextX, y: nextY },
+  ];
 }
 
 // Copy placed positions onto the live scene without replacing it, so the pet is not sent home.

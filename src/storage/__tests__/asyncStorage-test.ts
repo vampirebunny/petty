@@ -1,6 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { starterFurniture } from '../../actor/furniture';
 import { testPet } from '../../sim/__fixtures__/pets';
 import { dayMs, daysToSenior, legacyDaysToSenior, startingHydration } from '../../sim/config';
 import { asyncPetStorage } from '../asyncStorage';
@@ -124,7 +123,7 @@ it('migrates legacy breed ids and fullness into hunger', async () => {
   expect(loaded?.needs.hunger).toBe(30);
   expect(loaded?.waterLevel).toBe(1);
   expect(loaded?.hydration).toBe(startingHydration);
-  expect(loaded?.toys).toEqual(['ball']);
+  expect(loaded && 'toys' in loaded).toBe(false);
 });
 
 it('turns a saved thirst value into hydration', async () => {
@@ -161,21 +160,14 @@ it('loads a pet saved without ownerId and round-trips one that has it', async ()
   await expect(asyncPetStorage.load()).resolves.toEqual(owned);
 });
 
-it('loads the starter furniture when a save has none', async () => {
+it('strips furniture off a pet save', async () => {
   const pet = testPet(3, 'retriever', 50, 'Pup', 'pet');
   const saved = JSON.parse(JSON.stringify(pet)) as Record<string, unknown>;
-  delete saved.furniture;
-  delete saved.furniturePlaced;
+  saved.furniture = [{ id: 'livingroom-food', kind: 'bowl' }];
+  saved.furniturePlaced = [{ pieceId: 'livingroom-food', sceneId: 'livingroom', x: 1, y: 2 }];
   await AsyncStorage.setItem('petty.pet', JSON.stringify(saved));
 
   const loaded = await asyncPetStorage.load();
-  const starter = starterFurniture('dog');
-  expect(loaded?.furniture.map((piece) => piece.id).sort()).toEqual(starter.pieces.map((piece) => piece.id).sort());
-  expect(loaded?.furniture.some((piece) => piece.kind === 'litterbox')).toBe(false);
-  expect(loaded?.furniturePlaced.find((place) => place.pieceId === 'livingroom-food')).toEqual({
-    pieceId: 'livingroom-food',
-    sceneId: 'livingroom',
-    x: 540,
-    y: 330,
-  });
+  expect(loaded && 'furniture' in loaded).toBe(false);
+  expect(loaded && 'furniturePlaced' in loaded).toBe(false);
 });

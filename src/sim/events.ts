@@ -20,7 +20,6 @@ import {
 } from './config';
 import { canRaiseMood } from './mood';
 import { nextRng } from './rng';
-import { sceneById } from '../actor/scenes';
 import { rememberScene } from './game';
 import { isResting, resolveReward, rollTrick } from './training';
 import type { CareSample, Cue, PetCareState, PetEvent, PetState, TrainingTrack } from './types';
@@ -75,10 +74,6 @@ function copyState(state: PetState): PetState {
       trained: state.attributes.trained ? { ...state.attributes.trained } : undefined,
     },
     drift: { ...state.drift },
-    toys: [...state.toys],
-    furniture: state.furniture.map((piece) => ({ ...piece })),
-    furniturePlaced: state.furniturePlaced.map((place) => ({ ...place })),
-    treats: state.treats.map((stack) => ({ ...stack })),
     boosts: state.boosts.map((boost) => ({ ...boost })),
   };
 }
@@ -136,12 +131,6 @@ export function applyEvent(state: PetState, event: PetEvent): EventResult {
 
   if (event.type === 'rewardTreat') {
     return { state: withDerived(resolveReward(copyState(state), event.now, event.choice)), cue: { kind: 'none' } };
-  }
-
-  if (event.type === 'clearTreats') {
-    const next = copyState(state);
-    next.treats = [];
-    return { state: next, cue: { kind: 'none' } };
   }
 
   if (event.type === 'seeCoach') {
@@ -261,19 +250,6 @@ export function applyEvent(state: PetState, event: PetEvent): EventResult {
     const next = copyState(state);
     addHappiness(next, event.happiness);
     return { state: withDerived(addFlatTrained(next, event.attributes)), cue: { kind: 'none' } };
-  }
-
-  if (event.type === 'moveFurniture') {
-    if (!state.furniture.some((piece) => piece.id === event.pieceId)) {
-      return { state, cue: { kind: 'none' } };
-    }
-    const floor = sceneById(event.sceneId).floor;
-    const x = Math.min(floor.xMax, Math.max(floor.xMin, event.x));
-    const y = Math.min(floor.yMax, Math.max(floor.yMin, event.y));
-    const next = copyState(state);
-    next.furniturePlaced = next.furniturePlaced.filter((place) => place.pieceId !== event.pieceId);
-    next.furniturePlaced.push({ pieceId: event.pieceId, sceneId: event.sceneId, x, y });
-    return { state: next, cue: { kind: 'none' } };
   }
 
   if (event.type === 'fetch') {
