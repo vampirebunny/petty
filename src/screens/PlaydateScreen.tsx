@@ -10,18 +10,31 @@ import { formatCooldown } from '../playdate/cooldown';
 import { localDateKey, personalityHint } from '../playdate/hint';
 import { dailyCast } from '../playdate/npcs';
 import { createPlaydateRecord } from '../playdate/record';
-import { attributeGains, bondHint, rareEventLine, traitName } from '../playdate/rewards';
+import { attributeGains, bondHint, rareEventLine } from '../playdate/rewards';
 import type { AttributeGain } from '../playdate/rewards';
 import { latestPlaydateTags, recentPlaydateTags, relationshipFor, rememberPlaydate } from '../playdate/save';
 import { snapshotPet } from '../playdate/snapshot';
 import type { ActivityDefinition, PetSnapshot, PlaydateRecord, PlaydateSave } from '../playdate/types';
-import type { Equipped, PetState, Trait } from '../sim/types';
-import { GainBar, gainColors } from '../ui/GainBar';
+import type { Equipped, PetState } from '../sim/types';
+import { PlaydateResults } from '../ui/PlaydateResults';
+import type { ResultsNote } from '../ui/PlaydateResults';
 import { PlaydateStage } from '../ui/PlaydateStage';
 import { SnapshotStill } from '../ui/SnapshotStill';
 import { CandyButton } from '../ui/closet/CandyButton';
 import { WardrobePicker } from '../ui/WardrobePicker';
 import { minTouch } from '../ui/theme';
+
+function resultNotes(record: PlaydateRecord, petName: string): ResultsNote[] {
+  const notes: ResultsNote[] = record.outcome.rareEvents.map((event) => ({
+    id: event.type === 'trick_shown' ? event.trickId : event.type,
+    label: rareEventLine(event, petName, record.petB.name),
+    tone: 'rare',
+  }));
+  if (record.beats.some((beat) => beat.tag === 'golden')) {
+    notes.push({ id: 'golden', label: 'A golden moment.', tone: 'golden' });
+  }
+  return notes;
+}
 
 type Step = 'partner' | 'place' | 'activity' | 'outfit' | 'play' | 'results';
 
@@ -293,59 +306,25 @@ export function PlaydateScreen({ pet, save, now, remaining, reducedMotion, onSav
           </View>
         ) : null}
         {step === 'results' && record ? (
-          <View style={styles.stack}>
-            <Text style={styles.cardTitle}>{replay ? 'Replay' : 'What a good playdate'}</Text>
-            <Text style={styles.cardMeta}>Happiness +{record.outcome.moodDelta}</Text>
-            {gains && gains.length > 0 ? (
-              <View style={styles.gains}>
-                {gains.map((entry) => (
-                  <GainBar
-                    key={entry.trait}
-                    label={traitName[entry.trait]}
-                    before={entry.before}
-                    gain={entry.gain}
-                    potential={entry.potential}
-                  />
-                ))}
-                <View style={styles.legend}>
-                  <View style={[styles.swatch, { backgroundColor: gainColors.before }]} />
-                  <Text style={styles.legendLabel}>Before</Text>
-                  <View style={[styles.swatch, { backgroundColor: gainColors.gain }]} />
-                  <Text style={styles.legendLabel}>Gained today</Text>
-                  <View style={[styles.swatch, { backgroundColor: gainColors.potential }]} />
-                  <Text style={styles.legendLabel}>Potential</Text>
-                </View>
-              </View>
-            ) : (
-              Object.entries(record.outcome.attributeXp).map(([trait, gain]) => (
-                <Text key={trait} style={styles.cardMeta}>
-                  {traitName[trait as Trait]} +{gain}
-                </Text>
-              ))
-            )}
-            <Text style={styles.cardMeta}>Bond +{record.outcome.bondDelta}</Text>
-            {record.outcome.rareEvents.map((event) => (
-              <Text key={event.type === 'trick_shown' ? event.trickId : event.type} style={styles.rare}>
-                {rareEventLine(event, pet.name, record.petB.name)}
-              </Text>
-            ))}
-            {record.beats.some((beat) => beat.tag === 'golden') ? <Text style={styles.rare}>A golden moment.</Text> : null}
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Replay"
-              onPress={() => {
-                finished.current = true;
-                setReplay(true);
-                setStep('play');
-              }}
-              style={styles.choice}
-            >
-              <Text style={styles.choiceLabel}>Replay</Text>
-            </Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel="Done" onPress={onClose} style={styles.start}>
-              <Text style={styles.startLabel}>Done</Text>
-            </Pressable>
-          </View>
+          <PlaydateResults
+            title={replay ? 'Replay' : 'What a good playdate'}
+            friendName={record.petB.name}
+            petA={record.petA}
+            petB={record.petB}
+            moodDelta={record.outcome.moodDelta}
+            bondDelta={record.outcome.bondDelta}
+            gains={gains}
+            fallbackXp={gains ? null : record.outcome.attributeXp}
+            notes={resultNotes(record, pet.name)}
+            replay={replay}
+            reducedMotion={reducedMotion}
+            onReplay={() => {
+              finished.current = true;
+              setReplay(true);
+              setStep('play');
+            }}
+            onDone={onClose}
+          />
         ) : null}
       </ScrollView>
       )}
@@ -455,28 +434,6 @@ const styles = StyleSheet.create({
   slotRow: {
     gap: 8,
   },
-  gains: {
-    gap: 10,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 14,
-  },
-  legend: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    flexWrap: 'wrap',
-  },
-  swatch: {
-    width: 10,
-    height: 10,
-    borderRadius: 3,
-  },
-  legendLabel: {
-    color: '#5C6B80',
-    fontSize: 12,
-    marginRight: 6,
-  },
   start: {
     minHeight: minTouch,
     borderRadius: 14,
@@ -495,9 +452,5 @@ const styles = StyleSheet.create({
     color: '#14503A',
     fontSize: 16,
     fontWeight: '600',
-  },
-  rare: {
-    color: '#412784',
-    fontSize: 16,
   },
 });
