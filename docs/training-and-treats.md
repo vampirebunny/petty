@@ -11,6 +11,8 @@ Treats belong to the owner, in the existing economy wallet, and work offline.
 - Training spends basic treats only. Special treats stay in the model for later.
 - Mastering a trick does not grant treats. The only source until the Pet Store exists is the starting 10.
 - The count never goes below 0.
+- There is no daily treat limit. A casual treat is refused only when hunger is already 0.
+- A casual treat applies the full hunger, weight, and mood effects. A training reward skips the too-full gate, applies 25% of the hunger and weight, and keeps the full mood gain.
 
 **Pantry** and **Closet** are choices on Go somewhere. They are not rooms. Pantry lists consumables (Treats × N, and special treats only when the count is above 0). At 0 basic treats it says the Pet Store is opening soon. The Pet Store button opens a Coming soon modal. Closet opens the wardrobe.
 

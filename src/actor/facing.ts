@@ -292,12 +292,12 @@ export function holdForTurn(actor: Actor): boolean {
   return actor.octantSpan > 1 && actor.octant !== actor.octantTarget;
 }
 
-const fitOf: Record<ViewId, { foreshorten: number; front: number; rear: number }> = {
-  side: { foreshorten: 1, front: 0, rear: 0 },
-  front34: { foreshorten: 0.6, front: 0.35, rear: 0 },
-  front: { foreshorten: 0.38, front: 1, rear: 0 },
-  back34: { foreshorten: 0.6, front: 0, rear: 0.72 },
-  back: { foreshorten: 0.36, front: 0, rear: 1 },
+const fitOf: Record<ViewId, { foreshorten: number; front: number; rear: number; headTurn: number }> = {
+  side: { foreshorten: 1, front: 0, rear: 0, headTurn: 0 },
+  front34: { foreshorten: 0.6, front: 0.35, rear: 0, headTurn: 1 },
+  front: { foreshorten: 0.38, front: 1, rear: 0, headTurn: 1 },
+  back34: { foreshorten: 0.6, front: 0, rear: 0.72, headTurn: 0.15 },
+  back: { foreshorten: 0.36, front: 0, rear: 1, headTurn: 0 },
 };
 
 function lerp(a: number, b: number, t: number): number {
@@ -305,7 +305,11 @@ function lerp(a: number, b: number, t: number): number {
 }
 
 // Blended foreshorten, front amount, and rear amount for the head and the mouth.
-export function facingFit(from: Facing, to: Facing, blend: number): { foreshorten: number; front: number; rear: number } {
+export function facingFit(
+  from: Facing,
+  to: Facing,
+  blend: number,
+): { foreshorten: number; front: number; rear: number; headTurn: number } {
   const t = Math.max(0, Math.min(1, blend));
   const a = fitOf[viewOf(from)];
   const b = fitOf[viewOf(to)];
@@ -314,5 +318,6 @@ export function facingFit(from: Facing, to: Facing, blend: number): { foreshorte
     foreshorten: lerp(a.foreshorten, b.foreshorten, t),
     front: lerp(a.front, b.front, headT),
     rear: lerp(a.rear, b.rear, t),
+    headTurn: lerp(a.headTurn, b.headTurn, headT),
   };
 }

@@ -1,10 +1,10 @@
 import { visualLifespanDays } from '../../sim/config';
 import { breedsFor, defaultLook, resolveBreed } from '../breeds';
-import { earProfiles } from '../data/breedShapes';
-import { geomOf, headFaceOf, noseOf } from '../geometry';
+import { earProfiles, frontEarPlace, rearEarPlace } from '../data/breedShapes';
+import { carriedMouth, geomOf, headFaceOf, noseOf } from '../geometry';
 import { luminance } from '../color';
 import { baseColorOf, markingOf, resolveMarkings } from '../markings';
-import type { Breed } from '../types';
+import type { Breed, EarType } from '../types';
 
 const dogs = breedsFor('dog');
 const cats = breedsFor('cat');
@@ -163,6 +163,49 @@ describe('breed silhouettes are distinct', () => {
     });
   }
 
+  it('rear view plants the ears on opposite sides of the skull', () => {
+    for (const breed of [...dogs, ...cats]) {
+      const right = rearEarPlace(breed.earType, true, 20);
+      const left = rearEarPlace(breed.earType, false, 20);
+      expect(right.x).toBeGreaterThan(0);
+      expect(left.x).toBeLessThan(0);
+      expect(left.x).toBeCloseTo(-right.x);
+      expect(left.y).toBeCloseTo(right.y);
+      expect(right.sx).toBeGreaterThan(0);
+      expect(left.sx).toBeLessThan(0);
+      if (earProfiles[breed.earType].stiff) {
+        expect(Math.abs(right.sx)).toBeLessThan(1);
+      }
+    }
+    // The rare flop stays on the near side; the other ear stays erect and out on its own side.
+    const flopped = rearEarPlace('erectTall', false, 20, true);
+    const other = rearEarPlace('erectTall', true, 20, true);
+    expect(flopped.x).toBeLessThan(-20 * 0.7);
+    expect(other.x).toBeGreaterThan(20 * 0.2);
+    expect(Math.abs(other.sx)).toBeLessThan(1);
+  });
+
+  it('full front mirrors the ears with matching inner corners', () => {
+    for (const breed of [...dogs, ...cats]) {
+      const right = frontEarPlace(breed.earType, true, 20);
+      const left = frontEarPlace(breed.earType, false, 20);
+      expect(right.x).toBeGreaterThan(0);
+      expect(left.x).toBeCloseTo(-right.x);
+      expect(left.y).toBeCloseTo(right.y);
+      expect(right.sx).toBeCloseTo(-left.sx);
+      expect(Math.abs(right.sx)).toBeCloseTo(1);
+    }
+    const stiff: [EarType, number][] = [
+      ['standard', -0.4],
+      ['bat', -0.72],
+      ['wedgeLarge', -0.55],
+    ];
+    for (const [earType, baseMin] of stiff) {
+      const right = frontEarPlace(earType, true, 20);
+      expect(right.x / 20 + baseMin).toBeCloseTo(0.1);
+    }
+  });
+
   it('far ears: erect types show both, hanging types stay partly behind the head', () => {
     for (const breed of dogs) {
       const geom = geomOf(breed, 500, 0);
@@ -253,4 +296,31 @@ describe('cat identity', () => {
       expect(farX).toBeGreaterThan(nearX);
     });
   }
+});
+
+describe('carried toy sits on the mouth', () => {
+  const husky = dogs.find((breed) => breed.id === 'husky');
+  if (!husky) {
+    throw new Error('husky breed missing');
+  }
+  const geom = geomOf(husky, visualLifespanDays / 2, 0);
+
+  it('keeps the side-view tip and centers the front and back mouth', () => {
+    const side = carriedMouth(husky, geom, headFaceOf(husky, geom, 0, 0), 0);
+    expect(side.x).toBeCloseTo(geom.tipX);
+    expect(side.y).toBeCloseTo(geom.tipY);
+    const frontFace = headFaceOf(husky, geom, 1, 1);
+    const front = carriedMouth(husky, geom, frontFace, 0);
+    const frontNose = noseOf(husky, geom.headR, frontFace);
+    expect(front.x).toBeCloseTo(0);
+    expect(front.y).toBeGreaterThan(frontNose.y + geom.headR * 0.35);
+    expect(front.y).toBeLessThan(geom.headR);
+    const threeQuarter = headFaceOf(husky, geom, 1, 0);
+    const turned = carriedMouth(husky, geom, threeQuarter, 0);
+    const nose = noseOf(husky, geom.headR, threeQuarter);
+    expect(turned.x).toBeCloseTo(threeQuarter.muzzle.x);
+    expect(Math.abs(turned.x)).toBeLessThan(Math.abs(nose.x));
+    const back = carriedMouth(husky, geom, headFaceOf(husky, geom, 0, 0), 1);
+    expect(back.x).toBeCloseTo(0);
+  });
 });

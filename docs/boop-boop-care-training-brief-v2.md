@@ -94,7 +94,7 @@ interface UserEconomy {
 
 ### Clock
 - One clock: the existing **`PetState.lastUpdatedAt`**. No second timestamp. It is stamped when the app leaves the foreground, and advanced by the live tick while the app is open. On return, the gap since that stamp is closed time.
-- **Pet-scoped daily limits** (per-track `repsToday`, the casual treat cap of 3) reset on the **pet-age day** boundary.
+- **Pet-scoped daily limits** (per-track `repsToday`) reset on the **pet-age day** boundary. Casual treats have no daily cap.
 - **User-scoped daily limits** (daily login bonus) reset on the **device local calendar date**.
 - **"Awake time"** means sim time while the pet is **not in Rest**. All care timers below run on awake time unless stated otherwise.
 
@@ -297,10 +297,12 @@ bathTolerance = clamp(round(lerp(-60, 60, t)) + waterAffinity + speciesModifier,
 ## 10. Treats and inventory
 
 ### Use rules
-| Use | Cap of 3 / pet-day | "Too full" gate | Weight calories |
-|---|---|---|---|
-| Casual "Give treat" (inventory or mastered-trick show-off) | yes | yes | 100% |
-| Reward treat (training, potty, bath window) | exempt | exempt | 25% |
+There is no daily treat cap.
+
+| Use | "Too full" gate | Weight calories |
+|---|---|---|
+| Casual "Give treat" (inventory or mastered-trick show-off) | yes | 100% |
+| Reward treat (training, potty, bath window) | exempt | 25% |
 
 ### Sources (user-scoped)
 | Source | Default |

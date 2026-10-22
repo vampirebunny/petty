@@ -5,7 +5,7 @@ import { flickToThrow } from '../input/flick';
 import { cancelReminders, syncReminder } from '../reminders/notifications';
 import { AWAY_DECAY } from '../sim/awayDecayConfig';
 import { awayElapsedHours } from '../sim/awayDecay';
-import { applyRewardTreat } from '../treats/rules';
+import { applyRewardTreat, giveTreat } from '../treats/rules';
 import {
   applyEvent,
   applyEnergyDelta,
@@ -43,6 +43,8 @@ export type PetCue = {
   drop?: { x: number; y: number };
   flick?: { vx: number; vy: number; vz: number };
   elapsedH?: number;
+  treatId?: string;
+  moodGain?: number;
 };
 
 type PetApi = {
@@ -89,6 +91,7 @@ type PetApi = {
   moveFurniture: (pieceId: string, sceneId: string, x: number, y: number) => void;
   rememberGreeting: (id: string) => void;
   clearTreats: () => void;
+  offerTreat: (treatId: string) => { ok: true; mood: number } | { ok: false; reason: 'unknown' | 'full' | 'species' };
   welcomeBack: boolean;
   dismissWelcome: () => void;
   finishPlaydate: (happiness: number, attributes: Partial<Record<Trait, number>>) => void;
@@ -128,6 +131,8 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
         drop: nextCue.drop,
         flick: nextCue.flick,
         elapsedH: nextCue.elapsedH,
+        treatId: nextCue.treatId,
+        moodGain: nextCue.moodGain,
       });
     }
     const snapshot = next;
@@ -492,6 +497,7 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
       if (!current?.care.pendingReward) {
         return null;
       }
+      const beforeHappiness = current.needs.happiness;
       let next = current;
       if (choice === 'treat') {
         const paid = applyRewardTreat(current, 'biscuit', Date.now());
@@ -501,8 +507,32 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
         next = paid.state;
       }
       const resolved = applyEvent(next, { type: 'rewardTreat', choice, now: Date.now() });
-      publish(resolved.state, choice === 'treat' ? { kind: 'praise' } : undefined);
+      const moodGain = Math.round(resolved.state.needs.happiness - beforeHappiness);
+      publish(
+        resolved.state,
+        choice === 'treat' ? { kind: 'treat', treatId: 'biscuit', moodGain } : undefined,
+      );
       return { before: current, after: resolved.state };
+    },
+    [publish],
+  );
+  const offerTreat = useCallback(
+    (treatId: string) => {
+      const current = stateRef.current;
+      if (!current) {
+        return { ok: false as const, reason: 'unknown' as const };
+      }
+      const before = current.needs.happiness;
+      const given = giveTreat(current, treatId, Date.now());
+      if (!given.ok) {
+        return given;
+      }
+      publish(given.state, {
+        kind: 'treat',
+        treatId,
+        moodGain: Math.round(given.state.needs.happiness - before),
+      });
+      return { ok: true as const, mood: Math.round(given.state.needs.happiness - before) };
     },
     [publish],
   );
@@ -609,6 +639,7 @@ export function usePet(storage: PetStorage = asyncPetStorage): PetApi {
     seeCoach,
     moveFurniture,
     clearTreats,
+    offerTreat,
     welcomeBack,
     dismissWelcome,
   };

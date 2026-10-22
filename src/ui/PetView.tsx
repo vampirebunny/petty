@@ -22,6 +22,7 @@ import {
   spawnActor,
   startSceneEnter,
   startSceneExit,
+  startTreat,
   startUserTask,
   beginGreeting,
   patGreeting,
@@ -36,6 +37,7 @@ import {
   syncWorldWater,
   takeBowlDrinks,
   takeMeals,
+  takeTreatMoods,
   takePondDrinks,
   takeCuddleOut,
   takeSounds,
@@ -86,6 +88,8 @@ type Props = {
   pet: PetState;
   cueKind: Cue['kind'];
   cueToken: number;
+  treatId?: string;
+  moodGain?: number;
   drop?: { x: number; y: number };
   flick?: { vx: number; vy: number; vz: number };
   elapsedH?: number;
@@ -99,6 +103,7 @@ type Props = {
   onHydrationDelta: (delta: number) => void;
   onDrank?: (fromBowl: boolean) => void;
   onAte?: () => void;
+  onTreatMood?: (amount: number) => void;
   onTraveling?: (active: boolean) => void;
   onPointAdds?: (adds: PointAdd[]) => void;
   onGreeting?: (id: string) => void;
@@ -135,6 +140,8 @@ export function PetView({
   pet,
   cueKind,
   cueToken,
+  treatId,
+  moodGain,
   drop,
   flick,
   elapsedH,
@@ -148,6 +155,7 @@ export function PetView({
   onHydrationDelta,
   onDrank,
   onAte,
+  onTreatMood,
   onTraveling,
   onPointAdds,
   onGreeting,
@@ -256,13 +264,31 @@ export function PetView({
     redraw,
   ]);
 
-  const pendingCue = useRef<{ kind: typeof cueKind; token: number; drop?: typeof drop; flick?: typeof flick; elapsedH?: number } | null>(null);
+  const pendingCue = useRef<{
+    kind: typeof cueKind;
+    token: number;
+    drop?: typeof drop;
+    flick?: typeof flick;
+    elapsedH?: number;
+    treatId?: string;
+    moodGain?: number;
+  } | null>(null);
+  const onTreatMoodRef = useRef(onTreatMood);
+  useEffect(() => {
+    onTreatMoodRef.current = onTreatMood;
+  }, [onTreatMood]);
   const petRef = useRef(pet);
   const elapsedRef = useRef(elapsedH);
   const onGreetingRef = useRef(onGreeting);
 
   const applyCue = useCallback(
-    (kind: typeof cueKind, nextDrop?: typeof drop, nextFlick?: typeof flick) => {
+    (
+      kind: typeof cueKind,
+      nextDrop?: typeof drop,
+      nextFlick?: typeof flick,
+      nextTreatId?: string,
+      nextMood?: number,
+    ) => {
       const actor = worldRef.current.actors[0];
       if (!actor || kind === 'none') {
         return;
@@ -315,6 +341,12 @@ export function PetView({
         }
       } else if (kind === 'fetch') {
         startUserTask(world, actor, 'fetch', 1, nextDrop, nextFlick);
+      } else if (kind === 'treat') {
+        const mood = nextMood ?? 0;
+        const started = startTreat(world, actor, nextTreatId || 'biscuit', mood);
+        if (!started && mood > 0) {
+          onTreatMoodRef.current?.(mood);
+        }
       }
       redraw();
     },
@@ -364,11 +396,11 @@ export function PetView({
   useEffect(() => {
     elapsedRef.current = elapsedH;
     if (travelRef.current) {
-      pendingCue.current = { kind: cueKind, token: cueToken, drop, flick, elapsedH };
+      pendingCue.current = { kind: cueKind, token: cueToken, drop, flick, elapsedH, treatId, moodGain };
       return;
     }
-    applyCue(cueKind, drop, flick);
-  }, [applyCue, cueKind, cueToken, drop, elapsedH, flick]);
+    applyCue(cueKind, drop, flick, treatId, moodGain);
+  }, [applyCue, cueKind, cueToken, drop, elapsedH, flick, moodGain, treatId]);
 
   useImperativeHandle(
     cuddleRef,
@@ -584,7 +616,10 @@ export function PetView({
       const actor = world.actors[0];
       if (travel && actor) {
         if (travel.phase === 'exit') {
-          const gate = actor.task.poi?.x ?? 0;
+          if (actor.task.type !== 'travel') {
+            startSceneExit(world, actor);
+          }
+          const gate = actor.task.type === 'travel' ? (actor.task.poi?.x ?? 0) : Number.POSITIVE_INFINITY;
           if (actor.x >= gate - 8) {
             travel.phase = 'fade';
           }
@@ -609,7 +644,7 @@ export function PetView({
             if (queued.elapsedH != null) {
               elapsedRef.current = queued.elapsedH;
             }
-            applyCue(queued.kind, queued.drop, queued.flick);
+            applyCue(queued.kind, queued.drop, queued.flick, queued.treatId, queued.moodGain);
           }
         }
       }
@@ -635,6 +670,9 @@ export function PetView({
           }
         }
         onAteRef.current?.();
+      }
+      for (const amount of takeTreatMoods(world)) {
+        onTreatMoodRef.current?.(amount);
       }
       const bowlDrinks = takeBowlDrinks(world);
       const pondDrinks = takePondDrinks(world);

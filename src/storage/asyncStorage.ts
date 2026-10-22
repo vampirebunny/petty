@@ -21,7 +21,6 @@ import type {
   PetAttributes,
   PetState,
   Stats,
-  TreatDay,
   TreatStack,
 } from '../sim/types';
 import type { PetStorage } from './PetStorage';
@@ -125,13 +124,6 @@ function readTreats(value: unknown): TreatStack[] {
     stacks.push({ treatId: entry.treatId, count: entry.count });
   }
   return stacks;
-}
-
-function readTreatDay(value: unknown): TreatDay {
-  if (!isRecord(value) || typeof value.day !== 'number' || typeof value.count !== 'number') {
-    return { day: 0, count: 0 };
-  }
-  return { day: value.day, count: value.count };
 }
 
 function readBoosts(value: unknown): ActiveBoost[] {
@@ -243,7 +235,6 @@ function migratePet(value: unknown): PetState | null {
     hydration,
     toys: readToys(raw.toys),
     treats: readTreats(raw.treats),
-    treatDay: readTreatDay(raw.treatDay),
     boosts: readBoosts(raw.boosts),
   };
   if (typeof raw.ownerId === 'string') {

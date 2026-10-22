@@ -85,7 +85,6 @@ export function createPet({ id, ownerId, name, breedId, look, attributes, now }:
     furniture: starter.pieces.map((piece) => ({ ...piece })),
     furniturePlaced: starter.placed.map((place) => ({ ...place })),
     treats: [],
-    treatDay: { day: 0, count: 0 },
     boosts: [],
     care: blankCare(now, tolerance),
     training: blankTraining(species),

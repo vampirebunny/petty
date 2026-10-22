@@ -310,6 +310,7 @@ export function createWorld(actors: Actor[], seed = 1, scene: Scene = scenes.liv
     pendingPondDrinks: 0,
     foodStocked: false,
     pendingMeals: 0,
+    pendingTreatMoods: [],
     t: 0,
     rng: makeRng(seed),
     scene: sceneForSpecies(scene, sceneSpeciesOf(actors)),
@@ -343,7 +344,8 @@ export function syncActor(actor: Actor, source: ActorSource): void {
   actor.mood = source.mood ?? actor.mood;
   actor.hydration = source.hydration ?? actor.hydration;
   actor.stats = source.stats ? { ...source.stats } : actor.stats;
-  if (actor.collapseLeft <= 0 && actor.asleep !== source.asleep) {
+  // A room change keeps its walk. Syncing sleep on top of it would plant the pet back on the bed.
+  if (actor.task.type !== 'travel' && actor.collapseLeft <= 0 && actor.asleep !== source.asleep) {
     actor.sleepSec = 0;
     actor.asleep = source.asleep;
     actor.task = taskOf(source.asleep ? 'sleep' : 'idle', source.asleep ? 'sleeping' : '');
@@ -418,6 +420,7 @@ function travelScale(actor: Actor, floor: { yMin: number; yMax: number }): { geo
 
 function clearActorForTravel(world: World, actor: Actor): void {
   releaseCarried(world, actor);
+  world.items = world.items.filter((item) => !item.kind.startsWith('treat:'));
   actor.direction = null;
   actor.play = null;
   actor.zoom = null;
@@ -429,10 +432,9 @@ function clearActorForTravel(world: World, actor: Actor): void {
 }
 
 // Walks the pet off the right edge so a scene change can fade the empty room.
+// Sleep and a collapse nap do not block the walk. The caller puts the pet back to sleep after they arrive.
 export function startSceneExit(world: World, actor: Actor): void {
-  if (actor.collapseLeft > 0) {
-    return;
-  }
+  actor.collapseLeft = 0;
   clearActorForTravel(world, actor);
   const sized = travelScale(actor, world.scene.floor);
   const x = sized ? travelGateX(sized.geom, sized.scale, 1) : stageWidth + 120;
@@ -476,15 +478,24 @@ export function frameDt(elapsedMs: number, active: boolean): number {
 
 export function settleOnResume(world: World): void {
   let fetching = false;
+  let nibbling = false;
   for (const actor of world.actors) {
-    if (actor.task.type === 'eat' || actor.task.type === 'fetch' || actor.task.type === 'winddown') {
+    if (
+      actor.task.type === 'eat' ||
+      actor.task.type === 'fetch' ||
+      actor.task.type === 'winddown' ||
+      actor.task.type === 'treat'
+    ) {
       fetching = actor.task.type === 'fetch' || fetching;
+      nibbling = actor.task.type === 'treat' || nibbling;
       actor.task = taskOf(actor.asleep ? 'sleep' : 'idle', actor.asleep ? 'sleeping' : '');
       actor.pantT = 0;
     }
   }
   if (fetching || anyCarried(world)) {
     clearItems(world);
+  } else if (nibbling) {
+    world.items = world.items.filter((item) => !item.kind.startsWith('treat:'));
   }
 }
 
@@ -572,6 +583,12 @@ export function takeMeals(world: World): number {
   const count = world.pendingMeals;
   world.pendingMeals = 0;
   return count;
+}
+
+export function takeTreatMoods(world: World): number[] {
+  const amounts = world.pendingTreatMoods;
+  world.pendingTreatMoods = [];
+  return amounts;
 }
 
 export function syncWorldFood(world: World, stocked: boolean): void {
@@ -837,6 +854,44 @@ export function startUserTask(
     return true;
   }
   actor.task = taskOf(reaction);
+  actor.pantT = 0;
+  return true;
+}
+
+// Drops a treat just in front of the pet. The pet steps up, nibbles, and wags until the bite is gone.
+// moodGain is shown once the bite is eaten.
+export function startTreat(world: World, actor: Actor, treatId: string, moodGain = 0): boolean {
+  if (!treatId || !startUserTask(world, actor, 'idle')) {
+    return false;
+  }
+  const floor = world.scene.floor;
+  const sized = travelScale(actor, floor);
+  const standOff = sized ? sized.scale * (sized.geom.bodyLen / 2 + 28) : 56;
+  const range = sized ? xRangeOf(floor, sized.geom, sized.scale) : { lo: floor.xMin + 16, hi: floor.xMax - 16 };
+  let face: 1 | -1 = actor.face >= 0 ? 1 : -1;
+  let x = actor.x + face * (standOff + 22);
+  if (x < range.lo || x > range.hi) {
+    face = face > 0 ? -1 : 1;
+    x = actor.x + face * (standOff + 22);
+  }
+  x = clamp(x, range.lo, range.hi);
+  const y = clamp(actor.y, floor.yMin, floor.yMax);
+  world.items = [
+    {
+      id: 'treat-1',
+      kind: `treat:${treatId}`,
+      state: 'free',
+      x,
+      y,
+      z: 0,
+      vx: 0,
+      vy: 0,
+      vz: 0,
+    },
+  ];
+  actor.task = taskOf('treat', 'go');
+  actor.task.poi = { x, y, face };
+  actor.task.mood = moodGain > 0 ? moodGain : undefined;
   actor.pantT = 0;
   return true;
 }
@@ -1717,6 +1772,52 @@ function updateActor(world: World, actor: Actor, dt: number): void {
       }
     } else {
       goIdle(world, actor);
+    }
+  } else if (actor.task.type === 'treat') {
+    const treat = world.items.find((item) => item.kind.startsWith('treat:'));
+    const poi = actor.task.poi;
+    if (!poi) {
+      goIdle(world, actor);
+    } else {
+      const face: 1 | -1 = poi.face ?? 1;
+      const standOff = frame.scale * (frame.geom.bodyLen / 2 + 28);
+      targets.wagAmp = 0.75;
+      wagRate = 16;
+      if (actor.task.stage === 'go') {
+        const spot = { x: poi.x - face * standOff, y: poi.y };
+        move = spot;
+        vmax = limit * 0.55;
+        const arrived = Math.hypot(spot.x - actor.x, spot.y - actor.y) < 6 && actor.speed < 20;
+        if (arrived || actor.task.t > 4) {
+          if (treat && !arrived) {
+            treat.x = clamp(actor.x + face * (standOff + 22), floor.xMin, floor.xMax);
+            treat.y = actor.y;
+            actor.task.poi = { x: treat.x, y: treat.y, face };
+          }
+          actor.task = { ...actor.task, stage: 'nibble', t: 0 };
+          sideLock = face;
+          actor.vx = 0;
+          actor.vy = 0;
+          actor.speed = 0;
+        }
+      } else {
+        sideLock = face;
+        targets.headDown = 1;
+        targets.wagAmp = 0.85;
+        wagRate = 18;
+        if (actor.task.t > 1.6 && treat) {
+          const mood = actor.task.mood ?? 0;
+          world.items = world.items.filter((item) => item !== treat);
+          if (mood > 0) {
+            world.pendingTreatMoods.push(mood);
+            actor.task.mood = undefined;
+          }
+        }
+        if (actor.task.t > 2.4) {
+          world.items = world.items.filter((item) => !item.kind.startsWith('treat:'));
+          goIdle(world, actor);
+        }
+      }
     }
   } else if (actor.task.type === 'cuddle') {
     const step = stepCuddle(world, actor, dt, limit, targets);

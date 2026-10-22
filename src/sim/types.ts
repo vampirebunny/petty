@@ -10,8 +10,6 @@ export type Needs = {
 
 export type TreatStack = { treatId: string; count: number };
 
-export type TreatDay = { day: number; count: number };
-
 export type ActiveBoost = {
   attribute: string;
   multiplier: number;
@@ -144,7 +142,6 @@ export type PetState = {
   furniture: FurniturePiece[];
   furniturePlaced: FurniturePlacement[];
   treats: TreatStack[];
-  treatDay: TreatDay;
   boosts: ActiveBoost[];
   care: PetCareState;
   training: Record<string, TrainingTrack>;
@@ -195,7 +192,10 @@ export type Cue = {
     | 'fetch'
     | 'confused'
     | 'praise'
-    | 'greet';
+    | 'greet'
+    | 'treat';
+  treatId?: string;
+  moodGain?: number;
   drop?: { x: number; y: number };
   flick?: { vx: number; vy: number; vz: number };
   elapsedH?: number;

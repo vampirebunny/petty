@@ -1,5 +1,5 @@
 import { useEffect, useId } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import type { LucideIcon } from 'lucide-react-native';
@@ -23,9 +23,21 @@ type Props = {
   primary: ButtonSpec;
   secondary?: ButtonSpec;
   reducedMotion: boolean;
+  // When set, the sheet starts at this offset so whatever sits above (the pet preview) stays visible.
+  top?: number;
 };
 
-export function FunModal({ title, body, icon: Icon, tint = 'sky', sparkle = false, primary, secondary, reducedMotion }: Props) {
+export function FunModal({
+  title,
+  body,
+  icon: Icon,
+  tint = 'sky',
+  sparkle = false,
+  primary,
+  secondary,
+  reducedMotion,
+  top,
+}: Props) {
   const uid = useId().replace(/:/g, '');
   const flavor = tints[tint];
   const ink = candyInk(flavor);
@@ -39,39 +51,54 @@ export function FunModal({ title, body, icon: Icon, tint = 'sky', sparkle = fals
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     action();
   };
-  return (
-    <View style={styles.layer} pointerEvents="box-none">
-      <View style={styles.dim} />
-      <Animated.View style={[styles.card, cardStyle]}>
-        <CandyShell tint={flavor} radius={28} uid={uid} style={styles.face}>
-          <View style={[styles.badge, { shadowColor: flavor.lip }]}>
-            <Icon size={28} strokeWidth={iconStroke + 1} color={flavor.icon} />
+  const card = (
+    <Animated.View style={[styles.card, cardStyle]}>
+      <CandyShell tint={flavor} radius={28} uid={uid} style={styles.face}>
+        <View style={[styles.badge, { shadowColor: flavor.lip }]}>
+          <Icon size={28} strokeWidth={iconStroke + 1} color={flavor.icon} />
+        </View>
+        {sparkle && !reducedMotion ? <Sparkle style={styles.sparkle} opacity={0.95} /> : null}
+        <Text style={[styles.title, { color: ink }]}>{title}</Text>
+        <Text style={[styles.body, { color: ink }]}>{body}</Text>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => press(primary.onPress)}
+          style={({ pressed }) => [styles.hit, pressed && styles.squish]}
+        >
+          <View style={[styles.primary, { backgroundColor: flavor.icon }]}>
+            <Text style={styles.primaryText}>{primary.label}</Text>
           </View>
-          {sparkle && !reducedMotion ? <Sparkle style={styles.sparkle} opacity={0.95} /> : null}
-          <Text style={[styles.title, { color: ink }]}>{title}</Text>
-          <Text style={[styles.body, { color: ink }]}>{body}</Text>
+        </Pressable>
+        {secondary ? (
           <Pressable
             accessibilityRole="button"
-            onPress={() => press(primary.onPress)}
+            onPress={() => press(secondary.onPress)}
             style={({ pressed }) => [styles.hit, pressed && styles.squish]}
           >
-            <View style={[styles.primary, { backgroundColor: flavor.icon }]}>
-              <Text style={styles.primaryText}>{primary.label}</Text>
+            <View style={[styles.secondary, { borderColor: flavor.lip }]}>
+              <Text style={[styles.secondaryText, { color: ink }]}>{secondary.label}</Text>
             </View>
           </Pressable>
-          {secondary ? (
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => press(secondary.onPress)}
-              style={({ pressed }) => [styles.hit, pressed && styles.squish]}
-            >
-              <View style={[styles.secondary, { borderColor: flavor.lip }]}>
-                <Text style={[styles.secondaryText, { color: ink }]}>{secondary.label}</Text>
-              </View>
-            </Pressable>
-          ) : null}
-        </CandyShell>
-      </Animated.View>
+        ) : null}
+      </CandyShell>
+    </Animated.View>
+  );
+  return (
+    <View style={[styles.layer, top != null && styles.below, top != null && { top }]} pointerEvents="box-none">
+      <View style={styles.dim} />
+      {top != null ? (
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          bounces={false}
+          showsVerticalScrollIndicator={false}
+        >
+          {card}
+        </ScrollView>
+      ) : (
+        card
+      )}
     </View>
   );
 }
@@ -87,6 +114,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 28,
+  },
+  below: {
+    justifyContent: 'flex-start',
+    paddingTop: 12,
+  },
+  scroll: {
+    alignSelf: 'stretch',
+    flex: 1,
+    maxWidth: 360,
+  },
+  scrollContent: {
+    paddingBottom: 24,
   },
   dim: {
     position: 'absolute',

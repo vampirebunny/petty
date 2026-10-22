@@ -36,6 +36,7 @@ import { iconStroke } from '../ui/theme';
 import { usePet } from '../state/usePet';
 import { useEconomy } from '../economy/useEconomy';
 import { basicTreatId, emptyEconomy, stackQty } from '../economy/state';
+import { canGiveTreat, treatsInInventory } from '../treats';
 import { trackName } from '../sim/tracks';
 import {
   ghostDelayMs,
@@ -56,6 +57,7 @@ import { DebugPanel } from '../ui/DebugPanel';
 import { NeedRings } from '../ui/NeedRings';
 import { TrainingRings } from '../ui/TrainingRings';
 import { FunModal } from '../ui/FunModal';
+import { TreatPicker } from '../ui/TreatPicker';
 import { AttributePops, trainingPopColor, traitPopColor } from '../ui/AttributePops';
 import type { PointPop } from '../ui/AttributePops';
 import { formatRest, isResting, restRemainingMs } from '../sim/training';
@@ -142,6 +144,7 @@ export default function HomeScreen({ petApi }: Props) {
     seeCoach,
     moveFurniture,
     clearTreats,
+    offerTreat,
     welcomeBack,
     dismissWelcome,
     careRemindersOn,
@@ -157,6 +160,7 @@ export default function HomeScreen({ petApi }: Props) {
     | { kind: 'good' | 'miss' | 'out' | 'break'; trackId: string }
     | null
   >(null);
+  const [previewBottom, setPreviewBottom] = useState(0);
   const lastStrokeAt = useRef(0);
   const { viewWidth, viewHeight, contentWidth } = useStageSize();
   const [playdateOpen, setPlaydateOpen] = useState(false);
@@ -170,6 +174,8 @@ export default function HomeScreen({ petApi }: Props) {
   const [facingOpen, setFacingOpen] = useState(false);
   const [personalityOpen, setPersonalityOpen] = useState(false);
   const [playOpen, setPlayOpen] = useState(false);
+  const [treatOpen, setTreatOpen] = useState(false);
+  const [treatNote, setTreatNote] = useState<string | null>(null);
   const [cuddleOn, setCuddleOn] = useState(false);
   const [coachVisible, setCoachVisible] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
@@ -842,6 +848,15 @@ export default function HomeScreen({ petApi }: Props) {
     },
     { id: state.asleep ? 'wake' : 'rest', label: state.asleep ? 'Wake' : 'Sleep', onPress: rest },
     {
+      id: 'treat',
+      label: 'Treat',
+      onPress: () => {
+        setPlayOpen(false);
+        setTreatNote(null);
+        setTreatOpen(true);
+      },
+    },
+    {
       id: 'feed',
       label: 'Feed',
       onPress: () => {
@@ -875,7 +890,15 @@ export default function HomeScreen({ petApi }: Props) {
     },
   ];
 
-  const noteGain = (trackId: string, before: typeof state, after: typeof state) => {
+  const showMoodBurst = (amount: number) => {
+    const gain = Math.round(amount);
+    if (gain <= 0) {
+      return;
+    }
+    const mood = { color: tints.pink.icon, amount: gain, label: 'Mood' };
+    setPops((current) => (current ? [...current, mood] : [mood]));
+  };
+  const noteGain = (trackId: string, before: typeof state, after: typeof state, deferMood = false) => {
     const steps = shownAttributeSteps(before, after);
     const ordered = [
       ...steps.filter((step) => step.trait !== 'intelligence'),
@@ -898,12 +921,16 @@ export default function HomeScreen({ petApi }: Props) {
         label: traitLabel[step.trait],
       });
     }
+    const moodGain = Math.round(after.needs.happiness - before.needs.happiness);
+    if (!deferMood && moodGain > 0) {
+      shown.push({ color: tints.pink.icon, amount: moodGain, label: 'Mood' });
+    }
     if (shown.length > 0) {
       setPops(shown);
     }
   };
-  const afterPayout = (trackId: string, before: typeof state, after: typeof state) => {
-    noteGain(trackId, before, after);
+  const afterPayout = (trackId: string, before: typeof state, after: typeof state, deferMood = false) => {
+    noteGain(trackId, before, after, deferMood);
     const track = after.training[trackId];
     if (track && !track.mastered && isResting(track, Date.now())) {
       setDialog({ kind: 'break', trackId });
@@ -1009,6 +1036,7 @@ export default function HomeScreen({ petApi }: Props) {
         tint="butter"
         sparkle
         reducedMotion={reducedMotion}
+        top={previewBottom}
         primary={{
           label: 'Yes, give treat',
           onPress: () => {
@@ -1022,7 +1050,7 @@ export default function HomeScreen({ petApi }: Props) {
             }
             const paid = resolveTraining('treat');
             if (paid) {
-              afterPayout(trackId, paid.before, paid.after);
+              afterPayout(trackId, paid.before, paid.after, true);
             }
           },
         }}
@@ -1047,6 +1075,7 @@ export default function HomeScreen({ petApi }: Props) {
         icon={CircleHelp}
         tint="lilac"
         reducedMotion={reducedMotion}
+        top={previewBottom}
         primary={{
           label: 'Try again',
           onPress: () => {
@@ -1079,6 +1108,7 @@ export default function HomeScreen({ petApi }: Props) {
         icon={Cookie}
         tint="peach"
         reducedMotion={reducedMotion}
+        top={previewBottom}
         primary={{
           label: 'OK',
           onPress: () => {
@@ -1106,6 +1136,7 @@ export default function HomeScreen({ petApi }: Props) {
         icon={Moon}
         tint="sky"
         reducedMotion={reducedMotion}
+        top={previewBottom}
         primary={{ label: 'OK', onPress: () => setDialog(null) }}
       />
     );
@@ -1136,7 +1167,14 @@ export default function HomeScreen({ petApi }: Props) {
           onDone={finishUnlock}
         />
       ) : null}
-      <View style={styles.sticky}>
+      <View
+        style={[styles.sticky, shownDialog || treatOpen ? styles.stickyFront : null]}
+        onLayout={(event) => {
+          const { y, height } = event.nativeEvent.layout;
+          const next = y + height;
+          setPreviewBottom((prev) => (prev === next ? prev : next));
+        }}
+      >
         <View style={styles.header}>
           <Image
             source={require('../../assets/icon.png')}
@@ -1160,6 +1198,9 @@ export default function HomeScreen({ petApi }: Props) {
               pet={state}
               cueKind={cue.kind}
               cueToken={cue.token}
+              treatId={cue.treatId}
+              moodGain={cue.moodGain}
+              onTreatMood={showMoodBurst}
               drop={cue.drop}
               flick={cue.flick}
               hour={hour}
@@ -1204,7 +1245,7 @@ export default function HomeScreen({ petApi }: Props) {
           </View>
         </GestureDetector>
       </View>
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+      <ScrollView style={styles.controls} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <NeedRings needs={state.needs} hydration={state.hydration} />
         {welcomeBack ? (
           <Pressable onPress={dismissWelcome} accessibilityRole="button">
@@ -1337,6 +1378,34 @@ export default function HomeScreen({ petApi }: Props) {
         />
       </ScrollView>
       {trainingDialog}
+      {treatOpen ? (
+        <TreatPicker
+          choices={treatsInInventory(wallet?.inventory ?? [], species)}
+          note={treatNote}
+          reducedMotion={reducedMotion}
+          top={previewBottom}
+          onClose={() => {
+            setTreatOpen(false);
+            setTreatNote(null);
+          }}
+          onPick={(treatId) => {
+            const gate = canGiveTreat(state, treatId);
+            if (!gate.ok) {
+              setTreatNote(
+                gate.reason === 'full' ? `${state.name} is too full for a treat.` : 'No treats available.',
+              );
+              return;
+            }
+            if (!economyApi.give(treatId)) {
+              setTreatNote('No treats available.');
+              return;
+            }
+            offerTreat(treatId);
+            setTreatOpen(false);
+            setTreatNote(null);
+          }}
+        />
+      ) : null}
       {pops ? <AttributePops pops={pops} reducedMotion={reducedMotion} onDone={clearPops} /> : null}
       </View>
       {placesOpen ? (
@@ -1369,6 +1438,8 @@ const styles = StyleSheet.create({
   },
   placesCover: {
     ...StyleSheet.absoluteFill,
+    zIndex: 20,
+    elevation: 20,
   },
   root: {
     flex: 1,
@@ -1382,6 +1453,13 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#D0D8E3',
     zIndex: 1,
+  },
+  stickyFront: {
+    zIndex: 40,
+  },
+  controls: {
+    flex: 1,
+    zIndex: 2,
   },
   scroll: {
     paddingHorizontal: 20,

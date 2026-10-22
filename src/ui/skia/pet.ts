@@ -5,7 +5,7 @@ import { blendedFoot, bodyFrame, isDarkCoat, solveKnee, wearItem } from '../../a
 import type { Actor, Breed, Geom } from '../../actor';
 import { blendedTheta, facingFit, projectLocal } from '../../actor/facing';
 import { facingConfig } from '../../actor/data/facing';
-import { headFaceOf, headShift, noseOf, torsoPoint } from '../../actor/geometry';
+import { carriedMouth, headFaceOf, headShift, noseOf, torsoPoint } from '../../actor/geometry';
 import { liftScaleOf } from '../../actor/locomotion';
 import { jumpConfig } from '../../actor/jump';
 import { frostColorOf } from '../../actor/color';
@@ -149,13 +149,13 @@ function drawLeg(
   return { x: paw.x, y: paw.y, shin: Math.atan2(paw.y - knee.y, paw.x - knee.x), knee };
 }
 
-// The carried toy sits just behind the nose tip. Species and size already move this through geom.
+// Rotates a head-space mouth point by the head pitch into actor space.
 export function toyMouthLocal(head: { x: number; y: number }, pitch: number, tipX: number, tipY: number): { x: number; y: number } {
   const cs = Math.cos(pitch);
   const sn = Math.sin(pitch);
   return {
-    x: head.x + tipX * cs - tipY * sn - 4,
-    y: head.y + tipX * sn + tipY * cs + 1,
+    x: head.x + tipX * cs - tipY * sn,
+    y: head.y + tipX * sn + tipY * cs,
   };
 }
 
@@ -560,21 +560,24 @@ export function drawActor(
     c.drawPath(stripes, paintOf(mix(baseColor, '#000000', 0.5), 0.55 * rig.foreshorten, 4));
     c.restore();
   }
-  drawBodyMarkings(c, geom, markings, breath, bodyDeco);
-  if (geom.gray.chest > 0.01) {
+  const markingView = rig.rear > 0.5 ? 'back' : rig.view === 'front' ? 'front' : 'side';
+  drawBodyMarkings(c, geom, markings, breath, bodyDeco, markingView);
+  if (geom.gray.chest > 0.01 && rig.view !== 'back') {
     // Senior frosting on the chest, over a locked white bib or the coat.
     frostOval(
       c,
-      geom.bodyLen * 0.37,
+      axial ? 0 : geom.bodyLen * 0.37,
       geom.bodyY + geom.bodyH * 0.2,
-      geom.bodyLen * 0.13,
+      axial ? geom.bodyH * 0.22 : geom.bodyLen * 0.13,
       geom.bodyH * 0.36,
       frostColorOf(markingOf(markings, 'chest')?.color ?? baseColor),
       geom.gray.chest,
     );
   }
-  shadeOval(c, 0, geom.bodyY, geom.bodyLen / 2, (geom.bodyH / 2) * breath);
-  if (actor.displayWeight < -0.35) {
+  if (!axial) {
+    shadeOval(c, 0, geom.bodyY, geom.bodyLen / 2, (geom.bodyH / 2) * breath);
+  }
+  if (!axial && actor.displayWeight < -0.35) {
     const ribs = Skia.Path.Make();
     for (let r = 0; r < 4; r += 1) {
       const rx = geom.bodyLen * (0.06 + r * 0.07);
@@ -670,6 +673,16 @@ export function drawActor(
     actor.octantBlend >= 1 && turn === viewDefs[rig.view].headTurn && front === viewDefs[rig.view].headFront
       ? layout.head
       : headFaceOf(breed, geom, turn, pose.faceFront > front ? pose.faceFront : front);
+  const rawMouth = carriedMouth(breed, geom, face, rig.rear, pose.snoutScale);
+  const sideTuck = (1 - Math.max(face.turn, face.front)) * (rig.rear <= 0 ? 1 : Math.max(0, 1 - rig.rear / 0.55));
+  const mouthLocal = { x: rawMouth.x - 4 * sideTuck, y: rawMouth.y + sideTuck };
+  const mouth = toyMouthLocal(head, pitch, mouthLocal.x, mouthLocal.y);
+  actor.mouthMark = toyMouthStage(actor, mouth, rig.dir, scale);
+  const drawCarry = (): void => {
+    if (carrying !== null) {
+      drawToyShape(c, carrying, mouthLocal.x, mouthLocal.y, 8);
+    }
+  };
   const view = Math.max(face.turn, face.front);
   // Sleep lays the strap under the jaw. A turned face is drawn over the collar and bandana so they do not cover the muzzle.
   const neckAnchor = neckwear ? cosmeticAnchor('neckwear', neckwear.id, rig.view) : null;
@@ -704,16 +717,29 @@ export function drawActor(
   const farPaint = { ...nearPaint, color: mix(earColor, '#000000', 0.2 * (1 - face.front)) };
   const muzzleColor = muzzleColorOf(breed, markings);
   const earSwing = Math.sin(actor.phase * 2) * 0.08 * pose.walk * (1 + rig.legAngle) * (actor.gait.current === 'gallop' ? 1.8 : 1) - barkOpen * 0.15 + earBackNow;
-  const nearEar = (): void =>
-    drawEar(c, breed, geom, nearPaint, { far: false, shift: face.nearEarShift, angle: 0.25 + earSwing, earBack: earBackNow, alpha: 1 });
-  const farEar = (): void =>
+  // 3/4 keeps the side-view ears. As the face finishes turning toward the camera, those crossfade
+  // into a mirrored pair drawn together in front of the head.
+  const frontK = clamp((face.front - 0.55) / 0.45, 0, 1);
+  const sideK = 1 - frontK;
+  const nearEar = (alpha = 1): void =>
+    drawEar(c, breed, geom, nearPaint, { far: false, shift: face.nearEarShift, angle: 0.25 + earSwing, earBack: earBackNow, alpha });
+  const farEar = (alpha = 1): void =>
     drawEar(c, breed, geom, farPaint, {
       far: true,
       shift: face.farEarShift,
       angle: -0.25 + earBackNow,
       earBack: earBackNow,
-      alpha: profile.stiff ? 1 : face.farEarAlpha,
+      alpha: (profile.stiff ? 1 : face.farEarAlpha) * alpha,
       showInner: face.front > 0.55,
+    });
+  const frontEar = (far: boolean, alpha: number): void =>
+    drawEar(c, breed, geom, nearPaint, {
+      far,
+      shift: { x: 0, y: 0 },
+      angle: -0.2 + earSwing - earBackNow,
+      earBack: earBackNow,
+      alpha,
+      front: true,
     });
   const withHead = (draw: () => void): void => {
     c.save();
@@ -733,16 +759,28 @@ export function drawActor(
     } else {
       fillCircle(c, 0, 0, R, baseColor);
     }
-    drawSkull(c, headCtx, baseColor);
+    drawSkull(c, headCtx, baseColor, false);
     shadeOval(c, 0, 0, cat ? R * 1.06 : R, cat ? R * 0.96 : R);
-    farEar();
-    nearEar();
+    // Side-view shifts stack both ears on one cheek. From behind they are a mirrored pair,
+    // and both are fully visible, including hanging ears whose far ear would otherwise fade out.
+    const rearAngle = -0.18 + earSwing - earBackNow;
+    const rearEar = (far: boolean): void =>
+      drawEar(c, breed, geom, nearPaint, {
+        far,
+        shift: { x: 0, y: 0 },
+        angle: rearAngle,
+        earBack: earBackNow,
+        alpha: 1,
+        rear: true,
+      });
+    rearEar(true);
+    rearEar(false);
     return;
   }
   // The far ear sits behind the head and slides to the far side as the head turns. Hanging far ears stay
-  // partly hidden behind the head; erect ears show both.
-  if (!profile.overHead && (profile.stiff || face.farEarAlpha > 0.001)) {
-    farEar();
+  // partly hidden behind the head; erect ears show both. Full front replaces this pair below.
+  if (sideK > 0.001 && !profile.overHead && (profile.stiff || face.farEarAlpha > 0.001)) {
+    farEar(sideK);
   }
   drawRuff(c, headCtx, baseColor, lighter);
   if (cat) {
@@ -751,9 +789,9 @@ export function drawActor(
     fillCircle(c, 0, 0, R, baseColor);
   }
   drawSkull(c, headCtx, baseColor);
-  if (profile.overHead) {
+  if (sideK > 0.001 && profile.overHead) {
     // Folded ears lie on the head, so the far one is drawn over the head circle too.
-    farEar();
+    farEar(sideK);
   }
   if (breed.pattern === 'stripes' && !tabby) {
     const marks = Skia.Path.Make();
@@ -913,7 +951,13 @@ export function drawActor(
       drawGlassesBack(c, glasses, face, R, baseColor);
       c.restore();
     }
-    nearEar();
+    if (sideK > 0.001) {
+      nearEar(sideK);
+    }
+    if (frontK > 0.001) {
+      frontEar(true, frontK);
+      frontEar(false, frontK);
+    }
     if (glasses && glassAnchor?.mode === 'full') {
       c.save();
       c.translate(glassAnchor.x * R, glassAnchor.y * R);
@@ -927,8 +971,14 @@ export function drawActor(
       if (hat.id === 'beanie' && profile.hatPoke) {
         c.save();
         clipRectAbove(c, -R * 0.55, R * 3);
-        farEar();
-        nearEar();
+        if (sideK > 0.001) {
+          farEar(sideK);
+          nearEar(sideK);
+        }
+        if (frontK > 0.001) {
+          frontEar(true, frontK);
+          frontEar(false, frontK);
+        }
         c.restore();
       }
       c.restore();
@@ -964,10 +1014,8 @@ export function drawActor(
     c.restore();
   }
 
-  const mouth = toyMouthLocal(head, pitch, geom.tipX, geom.tipY);
-  actor.mouthMark = toyMouthStage(actor, mouth, rig.dir, scale);
-  if (carrying !== null) {
-    drawToyShape(c, carrying, mouth.x, mouth.y, 8);
+  if (rig.rear <= 0.55) {
+    withHead(drawCarry);
   }
   if (outlined) {
     c.restore();

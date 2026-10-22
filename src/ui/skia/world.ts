@@ -15,7 +15,7 @@ import { drawLampPools, drawWindowLight, lightRig, shadeActorLayer } from './lig
 import { drawOverlay } from './marks';
 import { drawActor } from './pet';
 import type { OverlayBurst } from '../../playdate/overlay';
-import { drawAmbient, drawBackdrop, drawProp, drawToyShape } from './scenery';
+import { drawAmbient, drawBackdrop, drawProp, drawToyShape, drawTreatShape } from './scenery';
 import type { Contact, Env } from './scenery';
 
 function drawTinted(canvas: SkCanvas, tint: Rgba, draw: () => void): void {
@@ -251,6 +251,13 @@ export function drawWorld(
           const radius = 8 * depthScale(toy.y, floor.yMin, floor.yMax);
           const shade = clamp(1 - toy.z / 260, 0.4, 1);
           fillOval(canvas, toy.x, toy.y + 1, radius * shade * 1.1, radius * 0.4 * shade, '#000000', 0.15);
+          const treatId = toy.kind.startsWith('treat:') ? toy.kind.slice('treat:'.length) : null;
+          if (treatId) {
+            const nibbling = world.actors.some((actor) => actor.task.type === 'treat' && actor.task.stage === 'nibble');
+            const bob = nibbling ? Math.sin(world.t * 18) * 1.4 : 0;
+            drawTreatShape(canvas, treatId, toy.x, toy.y - toy.z - radius + bob, radius * 1.25, world.t);
+            return;
+          }
           drawToyShape(canvas, toy.kind, toy.x, toy.y - toy.z - radius, radius, world.t);
         }),
     });

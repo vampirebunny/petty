@@ -1,5 +1,4 @@
 import { careConfig } from '../sim/careConfig';
-import { dayMs, treatDailyCap } from '../sim/config';
 import { applyEffects } from '../sim/effects';
 import type { Effects } from '../sim/effects';
 import type { PetState } from '../sim/types';
@@ -7,24 +6,15 @@ import { treatById } from './kinds';
 
 export type TreatResult =
   | { ok: true; state: PetState; reaction: string }
-  | { ok: false; reason: 'unknown' | 'full' | 'cap' | 'species' };
+  | { ok: false; reason: 'unknown' | 'full' | 'species' };
 
-function dayIndex(now: number, bornAt: number): number {
-  return Math.floor(Math.max(0, now - bornAt) / dayMs);
-}
-
-export function canGiveTreat(state: PetState, treatId: string, now: number): TreatResult {
+export function canGiveTreat(state: PetState, treatId: string): TreatResult {
   const kind = treatById(treatId);
   if (!kind) {
     return { ok: false, reason: 'unknown' };
   }
   if (state.needs.hunger <= 0) {
     return { ok: false, reason: 'full' };
-  }
-  const day = dayIndex(now, state.bornAt);
-  const count = state.treatDay.day === day ? state.treatDay.count : 0;
-  if (count >= treatDailyCap) {
-    return { ok: false, reason: 'cap' };
   }
   return { ok: true, state, reaction: kind.reaction };
 }
@@ -38,17 +28,14 @@ export type TreatRewardEvent = {
 };
 
 export function giveTreat(state: PetState, treatId: string, now: number): TreatResult {
-  const gate = canGiveTreat(state, treatId, now);
+  const gate = canGiveTreat(state, treatId);
   if (!gate.ok) {
     return gate;
   }
   const kind = treatById(treatId)!;
-  const day = dayIndex(now, state.bornAt);
-  const count = state.treatDay.day === day ? state.treatDay.count : 0;
   let next = applyEffects(state, kind.effects, now);
   next = {
     ...next,
-    treatDay: { day, count: count + 1 },
     treats: next.treats.map((stack) =>
       stack.treatId === treatId ? { ...stack, count: Math.max(0, stack.count - 1) } : stack,
     ),
@@ -64,14 +51,15 @@ function scaled(effects: Effects, fraction: number): Effects {
   };
 }
 
-// Reward treats skip the cap and the hunger gate. Only the calorie (weight) fraction is reduced;
-// hunger and mood are scaled by the same fraction so a training bite stays smaller than a casual treat.
+// Reward treats skip the hunger gate. The calorie bite (hunger and weight) is smaller
+// than a casual treat. Mood stays the full treat amount so a training reward feels the same.
 export function applyRewardTreat(state: PetState, treatId: string, now: number): TreatResult {
   const kind = treatById(treatId);
   if (!kind) {
     return { ok: false, reason: 'unknown' };
   }
-  const next = applyEffects(state, scaled(kind.effects, careConfig.rewardCalorieFraction), now);
+  const bite = scaled(kind.effects, careConfig.rewardCalorieFraction);
+  const next = applyEffects(state, { ...bite, mood: kind.effects.mood }, now);
   return { ok: true, state: next, reaction: kind.reaction };
 }
 

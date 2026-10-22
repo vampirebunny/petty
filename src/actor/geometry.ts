@@ -395,7 +395,26 @@ export type BodyFrame = {
   pitch: number;
 };
 
-export type FacingFit = { foreshorten: number; front: number; rear: number };
+export type FacingFit = { foreshorten: number; front: number; rear: number; headTurn: number };
+
+// Head-space point a carried toy sits on. Side view keeps the profile tip. A turned face
+// holds the toy in the middle of the muzzle: the nose tip is the near corner of the snout,
+// and a ball there hangs off the cheek. From behind, the point pulls onto the head.
+export function carriedMouth(breed: Breed, geom: Geom, face: HeadFace, rear: number, snoutScale = 1): Vec {
+  const nose = noseOf(breed, geom.headR, face, snoutScale);
+  const turned = Math.max(face.turn, face.front);
+  // Under the nose, in the mouth. Centering on the nose leaves the ball covering it.
+  const faceY = nose.y + geom.headR * 0.42;
+  let x = geom.tipX + (face.muzzle.x - geom.tipX) * turned;
+  let y = geom.tipY + (faceY - geom.tipY) * turned;
+  const back = clamp(rear, 0, 1);
+  const lateral = back <= 0 ? 1 : Math.max(0, 1 - back / 0.55);
+  x *= lateral;
+  if (back > 0) {
+    y = y + (geom.headR * 0.25 - y) * back;
+  }
+  return { x, y };
+}
 
 // Side keeps the head forward. 3/4 is about 55% of that reach. Front and back sit on the chest.
 function headReach(foreshorten: number): number {
@@ -491,9 +510,16 @@ export function bodyFrame(
   const pitch = pitchBase + (eatPitch - pitchBase) * pose.headDown + (restPitch - pitchBase) * pose.headRest;
   const cs = Math.cos(pitch);
   const sn = Math.sin(pitch);
+  const tip = carriedMouth(
+    breed,
+    geom,
+    headFaceOf(breed, geom, facing?.headTurn ?? 0, facing?.front ?? 0),
+    facing?.rear ?? 0,
+    pose.snoutScale ?? 1,
+  );
   const local = {
-    x: head.x + geom.tipX * cs - geom.tipY * sn,
-    y: head.y + geom.tipX * sn + geom.tipY * cs,
+    x: head.x + tip.x * cs - tip.y * sn,
+    y: head.y + tip.x * sn + tip.y * cs,
   };
   return {
     geom,

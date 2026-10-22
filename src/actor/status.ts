@@ -36,6 +36,9 @@ export function statusOf(actor: Actor): string {
     }
     return cat || task.stage === 'chase' ? 'Chasing the toy' : 'Bringing it back';
   }
+  if (task.type === 'treat') {
+    return task.stage === 'nibble' ? 'Nibbling a treat' : 'Heading for a treat';
+  }
   if (task.type === 'eat') {
     const drink = task.kind === 'drink';
     if (task.stage === 'go') {

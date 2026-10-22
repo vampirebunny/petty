@@ -30,7 +30,8 @@ export type TaskType =
   | 'pounce'
   | 'cuddle'
   | 'travel'
-  | 'greet';
+  | 'greet'
+  | 'treat';
 
 // Silhouette vocabulary. Each breed picks one value per slot, and the renderer draws the matching shape.
 export type EarType =
@@ -238,6 +239,8 @@ export type Task = {
   // True while a greeting is the only writer of actor.face.
   ownsFacing?: boolean;
   greet?: GreetRun;
+  // Mood points to show once this treat is eaten.
+  mood?: number;
 };
 
 export type HeartBit = { x: number; y: number; t: number; life: number };
@@ -600,6 +603,8 @@ export type World = {
   // Food waiting in the bowl, and meals finished since the view last looked.
   foodStocked: boolean;
   pendingMeals: number;
+  // Mood-point amounts waiting to be shown, one per treat the pet has finished.
+  pendingTreatMoods: number[];
   t: number;
   rng: () => number;
   scene: Scene;

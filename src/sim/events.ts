@@ -79,7 +79,6 @@ function copyState(state: PetState): PetState {
     furniture: state.furniture.map((piece) => ({ ...piece })),
     furniturePlaced: state.furniturePlaced.map((place) => ({ ...place })),
     treats: state.treats.map((stack) => ({ ...stack })),
-    treatDay: { ...state.treatDay },
     boosts: state.boosts.map((boost) => ({ ...boost })),
   };
 }

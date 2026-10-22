@@ -139,6 +139,27 @@ export function drawToyShape(c: SkCanvas, kind: string, x: number, y: number, ra
   drawBallShape(c, x, y, radius);
 }
 
+// A biscuit is the treat we can draw today. Other ids get a simple variant until they have their own art.
+export function drawTreatShape(c: SkCanvas, id: string, x: number, y: number, radius: number, t = 0): void {
+  if (id === 'softchew') {
+    fillOval(c, x, y + radius * 0.15, radius * 1.15, radius * 0.62, '#e07a4a');
+    fillOval(c, x - radius * 0.15, y, radius * 0.7, radius * 0.38, '#f2a070');
+    fillCircle(c, x + radius * 0.35, y - radius * 0.08, radius * 0.12, '#fff3e4', 0.7);
+    return;
+  }
+  fillCircle(c, x, y + radius * 0.08, radius, '#c9842f');
+  fillCircle(c, x, y, radius * 0.92, '#e7b15a');
+  fillCircle(c, x - radius * 0.22, y - radius * 0.28, radius * 0.55, '#f3d48a', 0.9);
+  fillCircle(c, x - radius * 0.28, y + radius * 0.08, radius * 0.16, '#8a5a32');
+  fillCircle(c, x + radius * 0.22, y - radius * 0.22, radius * 0.13, '#8a5a32');
+  fillCircle(c, x + radius * 0.08, y + radius * 0.28, radius * 0.12, '#8a5a32');
+  if (id === 'special') {
+    const twinkle = 0.85 + Math.sin(t * 6) * 0.15;
+    fillCircle(c, x, y - radius * 0.05, radius * 0.28 * twinkle, '#ff7ba5');
+    fillCircle(c, x, y - radius * 0.05, radius * 0.12, '#fff6fb');
+  }
+}
+
 export function drawBallShape(c: SkCanvas, x: number, y: number, radius: number): void {
   fillCircle(c, x, y, radius, '#df5340');
   const shine = Skia.Path.Make();

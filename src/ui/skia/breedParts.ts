@@ -2,7 +2,7 @@ import { ClipOp, Skia } from '@shopify/react-native-skia';
 import type { SkCanvas, SkPath } from '@shopify/react-native-skia';
 
 import type { Geom } from '../../actor';
-import { earProfiles } from '../../actor/data/breedShapes';
+import { earProfiles, frontEarPlace, rearEarPlace } from '../../actor/data/breedShapes';
 import type { HeadFace } from '../../actor/geometry';
 import { markingOf } from '../../actor/markings';
 import type { Breed, ResolvedMarking } from '../../actor/types';
@@ -216,11 +216,25 @@ export type BodyDeco = {
 };
 
 // Chest, belly, tabby stripes and feathering shapes, drawn inside the torso transform. Clipped to the body so
-// they follow weight; scallops and fringes sit on the outline.
-export function drawBodyMarkings(c: SkCanvas, geom: Geom, markings: readonly ResolvedMarking[], breath: number, deco: BodyDeco): void {
+// they follow weight; scallops and fringes sit on the outline. Front and back use the axial body, so the
+// side-view chest does not stick out past that oval.
+export function drawBodyMarkings(
+  c: SkCanvas,
+  geom: Geom,
+  markings: readonly ResolvedMarking[],
+  breath: number,
+  deco: BodyDeco,
+  view: 'side' | 'front' | 'back' = 'side',
+): void {
   const ry = (geom.bodyH / 2) * breath;
   const rx = geom.bodyLen / 2;
-  if (deco.scallop) {
+  const clip =
+    view === 'front'
+      ? { x: 0, y: geom.bodyY + geom.bodyH * 0.08, rx: geom.bodyH * 0.55, ry: geom.bodyH * 0.5 }
+      : view === 'back'
+        ? { x: 0, y: geom.bodyY, rx: geom.bodyH * 0.52, ry: geom.bodyH * 0.48 }
+        : { x: 0, y: geom.bodyY, rx, ry };
+  if (deco.scallop && view === 'side') {
     for (let i = 0; i < 16; i += 1) {
       const a = (i / 16) * Math.PI * 2;
       fillCircle(c, Math.cos(a) * rx, geom.bodyY + Math.sin(a) * ry, 4.4, deco.scallop);
@@ -229,14 +243,18 @@ export function drawBodyMarkings(c: SkCanvas, geom: Geom, markings: readonly Res
   const chest = markingOf(markings, 'chest');
   const belly = markingOf(markings, 'belly');
   const back = markingOf(markings, 'tabbyBack');
-  if (chest || belly || back) {
+  if ((chest && view !== 'back') || (belly && view !== 'back') || back) {
     c.save();
-    clipOval(c, 0, geom.bodyY, rx, ry);
-    if (belly) {
-      fillOval(c, geom.bodyLen * 0.02, geom.bodyY + geom.bodyH * 0.34, geom.bodyLen * 0.42, geom.bodyH * 0.22, belly.color);
+    clipOval(c, clip.x, clip.y, clip.rx, clip.ry);
+    if (belly && view !== 'back') {
+      const bellyX = view === 'front' ? 0 : geom.bodyLen * 0.02;
+      fillOval(c, bellyX, geom.bodyY + geom.bodyH * 0.34, view === 'front' ? geom.bodyH * 0.34 : geom.bodyLen * 0.42, geom.bodyH * 0.22, belly.color);
     }
-    if (chest) {
-      fillOval(c, geom.bodyLen * 0.36, geom.bodyY + geom.bodyH * 0.16, geom.bodyLen * 0.13, geom.bodyH * 0.4, chest.color);
+    if (chest && view !== 'back') {
+      const chestX = view === 'front' ? 0 : geom.bodyLen * 0.36;
+      const chestRx = view === 'front' ? geom.bodyH * 0.28 : geom.bodyLen * 0.13;
+      const chestRy = view === 'front' ? geom.bodyH * 0.32 : geom.bodyH * 0.4;
+      fillOval(c, chestX, geom.bodyY + geom.bodyH * 0.16, chestRx, chestRy, chest.color);
     }
     if (back) {
       // Tabby stripes down the back and sides.
@@ -251,7 +269,7 @@ export function drawBodyMarkings(c: SkCanvas, geom: Geom, markings: readonly Res
     c.restore();
   }
   const fringe = markingOf(markings, 'feathering');
-  if (fringe) {
+  if (fringe && view === 'side') {
     // Scalloped fringe along the underside and the front of the chest.
     for (let i = 0; i < 6; i += 1) {
       const x = -geom.bodyLen * 0.3 + i * geom.bodyLen * 0.11;
@@ -261,10 +279,11 @@ export function drawBodyMarkings(c: SkCanvas, geom: Geom, markings: readonly Res
     fillCircle(c, geom.bodyLen * 0.43, geom.bodyY + geom.bodyH * 0.2, 4.6, fringe.color);
     fillCircle(c, geom.bodyLen * 0.4, geom.bodyY + geom.bodyH * 0.36, 4.6, fringe.color);
   }
-  if (deco.chestRuff) {
+  if (deco.chestRuff && view !== 'back') {
     // Maine Coon mane: a column of scallops down the front of the chest.
     for (let i = 0; i < 5; i += 1) {
-      fillCircle(c, geom.bodyLen * (0.44 - 0.015 * Math.abs(i - 2)), geom.bodyY + geom.bodyH * (-0.06 + i * 0.13), 5.6, deco.chestRuff);
+      const ruffX = view === 'front' ? (i - 2) * geom.bodyH * 0.04 : geom.bodyLen * (0.44 - 0.015 * Math.abs(i - 2));
+      fillCircle(c, ruffX, geom.bodyY + geom.bodyH * (-0.06 + i * 0.13), 5.6, deco.chestRuff);
     }
   }
 }
@@ -395,8 +414,14 @@ export type EarArgs = {
   angle: number;
   earBack: number;
   alpha: number;
-  // Full front shows the inner ear on both sides.
+  // Full front shows the inner ear on both sides. False hides it, including on the near ear.
   showInner?: boolean;
+  // Back of the head: ignore the side-view shift and plant a mirrored pair.
+  rear?: boolean;
+  // Full front: a mirrored pair in front of the face, inner ear showing.
+  front?: boolean;
+  // Internal: this draw is one ear of that pair, so the far-ear tuck stays off.
+  pair?: boolean;
 };
 
 // One ear of the breed's ear type. Stiff types rotate about their base, hanging types swing from the top.
@@ -407,9 +432,30 @@ export function drawEar(c: SkCanvas, breed: Breed, geom: Geom, paint: EarPaint, 
   const color = paint.color;
   // A rare dog has one erect ear that flops: the near ear then draws as a soft flop.
   const flopped = breed.oneEarFlop === true && !args.far && profile.rises;
+  const innerOn = args.showInner ?? !args.far;
+  if (args.rear || args.front) {
+    const place = args.front
+      ? frontEarPlace(breed.earType, args.far, R, breed.oneEarFlop === true)
+      : rearEarPlace(breed.earType, args.far, R, breed.oneEarFlop === true);
+    c.save();
+    c.translate(place.x, place.y);
+    c.scale(place.sx, 1);
+    drawEar(c, breed, geom, paint, {
+      far: args.far,
+      shift: { x: 0, y: 0 },
+      // Same local tilt on both; the mirror turns it into an outward flare.
+      angle: args.angle,
+      earBack: args.earBack,
+      alpha: args.alpha,
+      showInner: args.front === true,
+      pair: true,
+    });
+    c.restore();
+    return;
+  }
   if (profile.stiff && !flopped) {
     c.save();
-    c.translate(args.shift.x + (args.far ? -R * 0.35 : 0), args.shift.y);
+    c.translate(args.shift.x + (args.far && !args.pair ? -R * 0.35 : 0), args.shift.y);
     c.rotate(deg(-args.earBack * 1.2), R * 0.05, -R * 0.7);
     if (profile.rises && geom.earRise < 1) {
       // Puppy ears are folded forward and a little shorter; they rise as the pet grows.
@@ -421,7 +467,7 @@ export function drawEar(c: SkCanvas, breed: Breed, geom: Geom, paint: EarPaint, 
     }
     const { outer, inner, tuft } = stiffEar(breed, R, e);
     c.drawPath(outer, paintOf(color, args.alpha));
-    if (!args.far || args.showInner) {
+    if (innerOn) {
       c.drawPath(inner, paintOf(paint.inner, args.alpha));
     }
     if (tuft) {
@@ -436,7 +482,7 @@ export function drawEar(c: SkCanvas, breed: Breed, geom: Geom, paint: EarPaint, 
     // Small cap lying forward on top of the head, one per side.
     const s = Math.max(0.6, e * 1.6);
     c.save();
-    c.translate(-R * 0.1 + args.shift.x + (args.far ? -R * 0.35 : 0), -R * 0.62 + args.shift.y);
+    c.translate(-R * 0.1 + args.shift.x + (args.far && !args.pair ? -R * 0.35 : 0), -R * 0.62 + args.shift.y);
     c.rotate(deg(args.far ? 0.28 : 0.4), 0, 0);
     const cap = Skia.Path.Make();
     cap.moveTo(-R * 0.34 * s, R * 0.1 * s);
@@ -445,7 +491,7 @@ export function drawEar(c: SkCanvas, breed: Breed, geom: Geom, paint: EarPaint, 
     cap.quadTo(-R * 0.2 * s, R * 0.3 * s, -R * 0.34 * s, R * 0.1 * s);
     cap.close();
     c.drawPath(cap, paintOf(color, args.alpha));
-    if (!args.far || args.showInner) {
+    if (innerOn) {
       fillOval(c, R * 0.02 * s, R * 0.05 * s, R * 0.16 * s, R * 0.11 * s, paint.inner, 0.7 * args.alpha);
     }
     shadePath(c, cap, args.alpha);
@@ -485,7 +531,7 @@ export function drawEar(c: SkCanvas, breed: Breed, geom: Geom, paint: EarPaint, 
     // Soft flop: a rounded ear with a feathered edge.
     fillOval(c, 0, R * 0.55 * e, R * 0.4 * e, R * 0.85 * e, color, args.alpha);
     shadeOval(c, 0, R * 0.55 * e, R * 0.4 * e, R * 0.85 * e, args.alpha);
-    if (breed.texture === 'feathered' && !args.far) {
+    if (breed.texture === 'feathered' && (!args.far || args.pair)) {
       for (let i = 0; i < 4; i += 1) {
         fillCircle(c, (i - 1.5) * R * 0.2 * e, R * (1.28 - Math.abs(i - 1.5) * 0.14) * e, R * 0.13 * e, paint.feather);
       }
@@ -497,21 +543,23 @@ export function drawEar(c: SkCanvas, breed: Breed, geom: Geom, paint: EarPaint, 
 // ---------------------------------------------------------------- head: skull, markings
 
 // Skull shape in coat color, drawn over the head circle: brow step, snout bridge, jaw and dome.
-export function drawSkull(c: SkCanvas, ctx: HeadCtx, coat: string): void {
+export function drawSkull(c: SkCanvas, ctx: HeadCtx, coat: string, profile = true): void {
   const { breed, geom, face } = ctx;
   const R = geom.headR;
-  const t = Math.max(face.turn, face.front);
-  const side = 1 - t;
+  const seen = profile ? 1 : 0;
+  const t = Math.max(face.turn, face.front) * seen;
+  const side = (1 - Math.max(face.turn, face.front)) * seen;
+  const shift = profile ? 1 - face.front : 0;
   const m = face.muzzle;
   const stop = breed.stop;
   if (breed.skull === 'dome') {
-    fillOval(c, R * 0.08 * (1 - face.front), -R * 0.1, R * 1.07, R * 1.1, coat);
+    fillOval(c, R * 0.08 * shift, -R * 0.1, R * 1.07, R * 1.1, coat);
   }
   if (breed.skull === 'broad' || breed.skull === 'square') {
-    fillOval(c, R * 0.3 * (1 - face.front), R * 0.4, R * 0.82, R * 0.55, coat);
+    fillOval(c, R * 0.3 * shift, R * 0.4, R * 0.82, R * 0.55, coat);
   }
   if (breed.skull === 'flat') {
-    fillOval(c, R * 0.34 * (1 - face.front), R * 0.32, R * 0.72, R * 0.58, coat);
+    fillOval(c, R * 0.34 * shift, R * 0.32, R * 0.72, R * 0.58, coat);
   }
   // Brow: a bulge over the eyes whose size is the stop. It fades with the turn, as the face turns toward us.
   if (stop > 0.25 && side > 0.01) {
