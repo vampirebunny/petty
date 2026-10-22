@@ -147,8 +147,6 @@ export default function HomeScreen({ petApi }: Props) {
     offerTreat,
     welcomeBack,
     dismissWelcome,
-    careRemindersOn,
-    setCareRemindersOn,
     setCareTreatCount,
   } = petApi;
   const economyApi = useEconomy(state?.ownerId);
@@ -1013,12 +1011,6 @@ export default function HomeScreen({ petApi }: Props) {
       label: 'Help',
       onPress: () => setHelpOpen(true),
       active: helpOpen,
-    },
-    {
-      id: 'potty',
-      label: 'Care alerts',
-      onPress: () => setCareRemindersOn(!careRemindersOn),
-      active: careRemindersOn,
     },
   ];
 
