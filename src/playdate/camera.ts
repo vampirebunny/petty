@@ -31,6 +31,15 @@ function punchAmount(age: number): number {
   return 1 - easeInOutSine((age - punchIn - punchHold) / punchOut);
 }
 
+// Close-up on one pet. The lift aims above the feet so the head stays in frame.
+export const portraitZoom = 3;
+const portraitLift = 56;
+
+export function portraitFrame(x: number, y: number): CameraFrame {
+  const center = clampCenter(x, y - portraitLift, portraitZoom);
+  return { x: center.x, y: center.y, zoom: portraitZoom };
+}
+
 function clampCenter(x: number, y: number, zoom: number): { x: number; y: number } {
   const halfW = stageWidth / zoom / 2;
   const top = (stageHeight * 0.62) / zoom;

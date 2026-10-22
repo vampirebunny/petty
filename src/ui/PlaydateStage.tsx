@@ -15,8 +15,10 @@ import type { Item } from '../items/types';
 import type { Actor, World } from '../actor';
 import { actorSourceOf } from '../playdate/snapshot';
 import type { Beat, PlaydateRecord } from '../playdate/types';
-import { cameraAt } from '../playdate/camera';
+import { cameraAt, portraitFrame } from '../playdate/camera';
 import type { FrozenCenter } from '../playdate/camera';
+import { closeEnough, homeA, homeB, placeOpening, playSpeed, stepOpening } from '../playdate/opening';
+import type { OpeningPhase, OpeningState } from '../playdate/opening';
 import { ambientCues, crossBeats, sfxShots } from '../playdate/sfx';
 import type { SfxShot } from '../playdate/sfx';
 import { voiceCues } from '../playdate/voice';
@@ -78,6 +80,8 @@ export function PlaydateStage({ record, reducedMotion, onDone }: Props) {
     let raf = 0;
     let last = Date.now();
     let elapsed = 0;
+    let opening: OpeningState = { phase: 'portraitA', elapsed: 0 };
+    let placed: OpeningPhase | null = null;
     let finished = false;
     let running = true;
     let live: SkPicture | null = null;
@@ -139,14 +143,28 @@ export function PlaydateStage({ record, reducedMotion, onDone }: Props) {
       const now = Date.now();
       const dt = frameDt(now - last, true);
       last = now;
-      elapsed += dt * 1000;
       world.reducedMotion = reducedMotion;
       const left = world.actors[0];
       const right = world.actors[1];
       const floor = world.scene.floor;
-      const beatA = beatAt(beats, elapsed, 'A');
-      const beatB = beatAt(beats, elapsed, 'B');
-      if (left && right) {
+      const y = (floor.yMin + floor.yMax) / 2;
+      if (left && right && opening.phase !== 'play') {
+        const arrived =
+          opening.phase === 'enterA' ? closeEnough(left, homeA, y) : opening.phase === 'enterB' ? closeEnough(right, homeB, y) : false;
+        opening = stepOpening(opening, dt * 1000, arrived);
+      }
+      if (left && right && opening.phase !== placed) {
+        placeOpening(opening.phase, left, right, floor, y);
+        placed = opening.phase;
+      }
+      const playing = opening.phase === 'play';
+      const step = playing ? dt * playSpeed : dt;
+      if (playing) {
+        elapsed += step * 1000;
+      }
+      const beatA = playing ? beatAt(beats, elapsed, 'A') : null;
+      const beatB = playing ? beatAt(beats, elapsed, 'B') : null;
+      if (playing && left && right) {
         const reach = bodyOf(left, floor).radius + bodyOf(right, floor).radius;
         if (beatA) {
           setDirection(left, directionFor(beatA, 'A', { self: left, other: right, reach, floor }));
@@ -179,21 +197,21 @@ export function PlaydateStage({ record, reducedMotion, onDone }: Props) {
         }
       }
       world.items = [];
-      update(world, dt);
-      if (left && right) {
+      update(world, step);
+      if (playing && left && right) {
         if (beatA?.action === 'tug' || beatA?.action === 'tug_rope') {
-          tugShift(left, elapsed / 1000, 'A', dt);
+          tugShift(left, elapsed / 1000, 'A', step);
         }
         if (beatB?.action === 'tug' || beatB?.action === 'tug_rope') {
-          tugShift(right, elapsed / 1000, 'B', dt);
+          tugShift(right, elapsed / 1000, 'B', step);
         }
-        separate(left, right, floor, dt);
+        separate(left, right, floor, step);
         faceEachOther(left, right);
       }
       for (const sound of takeSounds(world)) {
         playVoice(sound);
       }
-      const prop = record.version >= 2 ? propAt(beats, elapsed) : null;
+      const prop = playing && record.version >= 2 ? propAt(beats, elapsed) : null;
       applyProp(world, prop);
       if (record.version >= 2 && prop && prop.holder != null) {
         const pulse = 0.35 + 0.15 * Math.sin(elapsed / 180);
@@ -215,12 +233,12 @@ export function PlaydateStage({ record, reducedMotion, onDone }: Props) {
           }
         }
       }
-      bursts = stepBursts(bursts, dt);
+      bursts = stepBursts(bursts, step);
       const rope =
         prop?.kind === 'rope' && prop.holder === 'both' ? { sag: 36 * (1 - Math.abs(Math.cos((elapsed / 1000) * 3.2))) } : null;
-      const butterfly = record.version >= 2 ? butterflyAt(beats, elapsed) : null;
+      const butterfly = playing && record.version >= 2 ? butterflyAt(beats, elapsed) : null;
       const zzz =
-        record.version >= 2
+        playing && record.version >= 2
           ? beats.flatMap((beat) => {
               if (beat.emote !== 'zzz' || beat.t > elapsed || elapsed > beat.t + 2000) {
                 return [];
@@ -237,7 +255,14 @@ export function PlaydateStage({ record, reducedMotion, onDone }: Props) {
           : [];
       const recorder = Skia.PictureRecorder();
       const canvas = recorder.beginRecording(Skia.XYWHRect(0, 0, viewWidth, viewHeight));
-      const camera = record.version >= 2 ? cameraAt(beats, elapsed, frozen, reducedMotion, record.seed) : undefined;
+      const camera =
+        opening.phase === 'portraitA' && left
+          ? portraitFrame(left.x, left.y)
+          : opening.phase === 'portraitB' && right
+            ? portraitFrame(right.x, right.y)
+            : playing && record.version >= 2
+              ? cameraAt(beats, elapsed, frozen, reducedMotion, record.seed)
+              : undefined;
       drawWorld(canvas, world, viewWidth, viewHeight, tod, reducedMotion, undefined, camera, { bursts, rope, butterfly, zzz });
       const next = recorder.finishRecordingAsPicture();
       if (live) {
@@ -249,7 +274,7 @@ export function PlaydateStage({ record, reducedMotion, onDone }: Props) {
         retired.shift()?.picture.dispose();
       }
       setPicture(next);
-      if (!finished && elapsed >= endMs) {
+      if (!finished && playing && elapsed >= endMs) {
         finished = true;
         onDoneRef.current();
       }
