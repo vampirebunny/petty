@@ -33,7 +33,6 @@ import { sqlitePetStorage } from '../db/sqlitePetStorage';
 import { getDb } from '../db/database';
 import { catalogItem } from '../economy/catalog';
 import type { PlayFindKind } from '../economy/economyConfig';
-import type { LoginOffer } from '../economy/login';
 import {
   claimDailyLogin,
   onAppOpen,
@@ -116,9 +115,6 @@ type PetApi = {
   burst: Burst | null;
   dismissBurst: () => void;
   cancelBursts: () => void;
-  loginOffer: LoginOffer | null;
-  claimLogin: () => void;
-  dismissLogin: () => void;
 };
 
 export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
@@ -131,12 +127,9 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
   const treatCountRef = useRef(0);
   const [welcomeBack, setWelcomeBack] = useState(false);
   const [burst, setBurst] = useState<Burst | null>(null);
-  const [loginOffer, setLoginOffer] = useState<LoginOffer | null>(null);
   const burstQueue = useRef<Burst[]>([]);
   const burstSeq = useRef(0);
-  const loginAfter = useRef<LoginOffer | null>(null);
   const greetAfter = useRef<{ elapsedH: number } | null>(null);
-  const greetingLive = useRef(false);
   const stateRef = useRef<PetState | null>(null);
   const tokenRef = useRef(0);
   const storageRef = useRef(storage);
@@ -149,22 +142,7 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
     storageRef.current = storage;
   }, [storage]);
 
-  const flushLogin = useCallback(() => {
-    if (!loginAfter.current) {
-      return;
-    }
-    setLoginOffer(loginAfter.current);
-    loginAfter.current = null;
-  }, []);
-
   const publish = useCallback((next: PetState, nextCue?: Cue, sync = true) => {
-    if (nextCue && greetingLive.current && nextCue.kind !== 'greet') {
-      greetingLive.current = false;
-      flushLogin();
-    }
-    if (nextCue?.kind === 'greet') {
-      greetingLive.current = true;
-    }
     stateRef.current = next;
     setState(next);
     if (nextCue) {
@@ -202,7 +180,7 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
           queuePet(snapshot);
         }
       });
-  }, [flushLogin]);
+  }, []);
 
   const stamp = useCallback((item: Burst): Burst => {
     burstSeq.current += 1;
@@ -224,38 +202,43 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
   }, [stamp]);
 
   const enqueueOpen = useCallback((rewards: OpenRewards): boolean => {
-    const bursts = rewards.bursts.filter((item) => item.amount > 0).map(stamp);
+    const bursts = rewards.bursts.filter((item) => item.amount > 0);
     if (rewards.login.claimable) {
-      loginAfter.current = rewards.login;
+      const claimed = claimDailyLogin();
+      if (claimed.ok && claimed.amount && claimed.amount > 0) {
+        bursts.push({
+          label: `Day ${claimed.streakDay ?? rewards.login.streakDay}`,
+          amount: claimed.amount,
+          coinCount: 5,
+        });
+      }
     }
     if (bursts.length === 0) {
       return false;
     }
+    const tagged = bursts.map(stamp);
     setBurst((current) => {
       if (current) {
-        burstQueue.current.push(...bursts);
+        burstQueue.current.push(...tagged);
         return current;
       }
-      burstQueue.current.push(...bursts.slice(1));
-      return bursts[0];
+      burstQueue.current.push(...tagged.slice(1));
+      return tagged[0];
     });
     return true;
   }, [stamp]);
 
   const afterPayouts = useCallback(() => {
     const greet = greetAfter.current;
-    if (greet) {
-      greetAfter.current = null;
-      const current = stateRef.current;
-      if (current) {
-        publish(current, { kind: 'greet', elapsedH: greet.elapsedH });
-      }
+    if (!greet) {
       return;
     }
-    if (!greetingLive.current) {
-      flushLogin();
+    greetAfter.current = null;
+    const current = stateRef.current;
+    if (current) {
+      publish(current, { kind: 'greet', elapsedH: greet.elapsedH });
     }
-  }, [flushLogin, publish]);
+  }, [publish]);
 
   const dismissBurst = useCallback(() => {
     const next = burstQueue.current.shift() ?? null;
@@ -298,14 +281,13 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
         } else if (greet) {
           publish(settled.pet, { kind: 'greet', elapsedH });
         } else {
-          flushLogin();
           publish(settled.pet);
         }
       } finally {
         returningRef.current = false;
       }
     },
-    [enqueueOpen, flushLogin, publish],
+    [enqueueOpen, publish],
   );
 
   useEffect(() => {
@@ -502,14 +484,11 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
       grantSpeciesHome(ownerId, speciesOf(breedId));
       const created = createPet({ id, ownerId, name, breedId, look, attributes, now });
       const opened = onAppOpen(created, now);
-      const playing = enqueueOpen(opened);
+      enqueueOpen(opened);
       publish(opened.pet, { kind: 'none' });
-      if (!playing) {
-        flushLogin();
-      }
       void clearDraft();
     },
-    [enqueueOpen, flushLogin, publish],
+    [enqueueOpen, publish],
   );
 
   const setOwnerId = useCallback(
@@ -721,14 +700,12 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
 
   const rememberGreeting = useCallback(
     (id: string) => {
-      greetingLive.current = false;
       const current = stateRef.current;
       if (current && current.lastGreetingId !== id) {
         publish({ ...current, lastGreetingId: id });
       }
-      flushLogin();
     },
-    [flushLogin, publish],
+    [publish],
   );
   const startCuddle = useCallback(() => dispatch({ type: 'cuddleStart' }), [dispatch]);
   const finishCuddle = useCallback(
@@ -784,16 +761,6 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
     [publish, pushBurst],
   );
 
-  const claimLogin = useCallback(() => {
-    const result = claimDailyLogin();
-    setLoginOffer(null);
-    if (result.ok && result.amount && result.amount > 0) {
-      pushBurst({ label: `Day ${result.streakDay ?? 1}`, amount: result.amount, coinCount: 5 });
-    }
-  }, [pushBurst]);
-
-  const dismissLogin = useCallback(() => setLoginOffer(null), []);
-
   return {
     ready,
     state,
@@ -848,8 +815,5 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
     burst,
     dismissBurst,
     cancelBursts,
-    loginOffer,
-    claimLogin,
-    dismissLogin,
   };
 }

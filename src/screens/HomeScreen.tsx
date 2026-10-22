@@ -158,9 +158,6 @@ export default function HomeScreen({ petApi }: Props) {
     burst,
     dismissBurst,
     cancelBursts,
-    loginOffer,
-    claimLogin,
-    dismissLogin,
   } = petApi;
   const homeSpecies = state ? (breedById(state.breedId)?.species === 'cat' ? 'cat' : 'dog') : 'dog';
   const home = usePlayerHome(state?.ownerId, homeSpecies);
@@ -1457,19 +1454,6 @@ export default function HomeScreen({ petApi }: Props) {
         />
       </ScrollView>
       {trainingDialog}
-      {loginOffer ? (
-        <FunModal
-          title={`Day ${loginOffer.streakDay}`}
-          body={`Tap to claim ${loginOffer.reward} Boops.`}
-          icon={Cookie}
-          tint="butter"
-          sparkle
-          reducedMotion={reducedMotion}
-          top={previewBottom}
-          primary={{ label: 'Claim', onPress: claimLogin }}
-          secondary={{ label: 'Later', onPress: dismissLogin }}
-        />
-      ) : null}
       {treatOpen ? (
         <TreatPicker
           choices={treatsInInventory(economyApi.inventory, species)}
