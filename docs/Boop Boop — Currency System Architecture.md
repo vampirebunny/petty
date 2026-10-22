@@ -99,7 +99,7 @@ Every faucet is capped by time, by count, or by being one-time, so no single act
 | Starter grant | First launch: 1,000 Boops, 10 basic treats, and every catalog outfit with `starter: true` | Once per owner | `starter` |
 | Time accrual | Boops accrue as time passes, app open or closed; paid automatically with a burst | Away time counts up to 8 h; daily cap | `time:<paid_through>` |
 | Play finds | A finished fetch, frisbee, laser or toy round (15%), or a completed Cuddle session (5%). Not single strokes, not training reps | Daily cap; actions only, never idle time | `find:<action_id>` |
-| Daily login | Reported on open, claimed with a tap at the end of the greeting; 7-day ladder | Once per day | `login:<yyyy-mm-dd>` |
+| Daily login | Paid on open with the other grants; 7-day ladder | Once per day | `login:<yyyy-mm-dd>` |
 | Welcome back | Open after 7+ days away; fixed gift | Once per absence | `welcome:<yyyy-mm-dd>` |
 | Mini-games | Payout per run from score and pickups | Daily Boops cap | `minigame:<run_id>` |
 | Playdates | Fixed reward per completed playdate | Existing cooldown | `playdate:<playdate_id>` |
@@ -169,7 +169,7 @@ function payoutTimeAccrual(now: number, s: OwnerState, cfg: Economy, mode: 'live
 
 - No on-screen pile. Accrual is continuous but only as math, computed from `timePaidThrough`; nothing shows until a payout.
 - While the user is playing, payouts are automatic at round numbers: every `payoutStep` (15 Boops, every 15 minutes at 1 Boop per minute). While the app is open, a timer is set for the next threshold.
-- Each payout plays paw coins into the top-right pill, one coin for a live payout. When the last coin arrives, the pill counts up by that payout's amount and plays a bloop per coin. The wallet was already written. The pill does not follow the balance on its own, and a new count continues from the number on screen. The total never ticks on its own.
+- Each payout plays paw coins into the top-right pill, one coin for a live payout, and shows a `+N` for that burst's total just under the pill. The `+N` is Nunito Black in coin gold with a white edge. The balance in the pill is the same face in mango. When the last coin arrives, the pill counts up by that payout's amount and plays a bloop per coin. The wallet was already written. The pill does not follow the balance on its own, and a new count continues from the number on screen. The total never ticks on its own.
 - On return, everything accrued (up to 8 hours) pays as the exact amount, usually not a round number (e.g. +347), as five coins. Welcome-back, level, and milestone grants queued with it also play as five coins each. The whole queue plays before the greeting. Each arrival counts only its own amount, clamped at the ledger balance. If the app is backgrounded mid-payout, the remaining sounds are skipped and the pill snaps to the ledger.
 - **Daily cap:** 600 time Boops per local calendar day (local midnight on the device, stored as a local date key). Once the cap is hit, time accrual stops until the next local midnight; the rest of that day earns no time Boops by design. `timeCappedDay` records it, and `timePaidThrough` is not jumped to now. A return payout counts toward the cap of the day it's paid.
 - **Backward clock:** if the device clock is behind `timePaidThrough` or last\_trusted\_time, pay nothing and move no timer. Accrual resumes once the clock is past both. last\_trusted\_time advances only after the check accepts the current time.
@@ -180,7 +180,7 @@ function payoutTimeAccrual(now: number, s: OwnerState, cfg: Economy, mode: 'live
 - "Day" means the user's local calendar day.
 - **Grace day:** a missed day pays nothing, and the ladder continues where it was. Claim day 3, miss a day, and the next open offers day 4 (not day 5). Missing two or more days in a row resets to day 1.
 - Day 7 pays the most, then the calendar loops.
-- **Claim:** `onAppOpen` only reports that the reward is waiting. The open grants play first, then the greeting, and the player taps to claim at the end of that greeting (`claimDailyLogin`). If the hello is replaced by another action, the claim still appears.
+- **Claim:** `onAppOpen` reports the waiting reward, and the home screen claims it immediately (`claimDailyLogin`) so it plays as paw coins with the other open grants, before the greeting.
 
 ## Sinks and item use
 
@@ -331,7 +331,7 @@ interface CurrencyService {
   getTimeAccrual(): { pending: number; nextPayoutAt: Date };
   payoutTimeAccrual(mode: 'live' | 'return'): Promise<Result>;  // 'live' from the threshold timer, 'return' from onAppOpen
   getDailyLogin(): { claimable: boolean; streakDay: number; reward: number };
-  claimDailyLogin(): Promise<Result>;                // the player's claim tap
+  claimDailyLogin(): Promise<Result>;                // granted on open, played as paw coins
   checkLevelUp(petId: string): Promise<LevelUpResult>; // after XP gains, stage changes, app open
   grant(source: Source, amount: number, ref: string): Promise<Result>; // mini-games, playdates, milestones
 
@@ -343,7 +343,7 @@ interface CurrencyService {
 
 - `Result` returns `{ ok, transactionId?, reason? }`. Reasons are codes such as `insufficient_boops`, `not_available`, `already_owned`, `boost_budget_reached`, `training_only_top`, `daily_limit`, `not_resting`, `already_claimed`, so the UI can show a friendly modal.
 - `grant` enforces each source's limit from config. Calling it twice with the same `ref` returns the first result instead of paying again.
-- `onAppOpen` pays what's due (the return time payout, welcome back, level-ups and stage grants) and reports the daily login as waiting. It plays nothing itself. The home screen plays those grants as paw-coin payouts, then the time-away greeting, then the login claim.
+- `onAppOpen` pays what's due (the return time payout, welcome back, level-ups and stage grants) and reports the daily login as waiting. It plays nothing itself. The home screen claims that login and plays it as paw coins with the other grants, then the time-away greeting.
 
 ## Default economy config
 
@@ -402,7 +402,7 @@ There are no existing players, so nothing migrates. The starter transaction is t
 2. Catalog and economy config loading (bundled JSON), `purchase`, `use`, and the inventory page.
 3. Move treats onto inventory and wire training's "give treat?" to `use`.
 4. Time accrual with 15-Boop threshold payouts and the top-right Boops pill, plus the clock guard.
-5. Daily login calendar and welcome-back gift, shown through `onAppOpen`. onAppOpen only reports. The coin payouts play first, the greeting plays next, and the login claim tap comes after the greeting.
+5. Daily login calendar and welcome-back gift, shown through `onAppOpen`. onAppOpen reports the login. The home screen claims it and plays those coins with the other open grants, then the greeting.
 6. Grants from playdates, level-ups (checkLevelUp and lastPaidLevel), trick mastery and life stages.
 7. Second Winds (per trick), treat casual/training effects, and premium food. Vitamins and the trained/boosted split come in a later round.
 8. Pet store screen.
