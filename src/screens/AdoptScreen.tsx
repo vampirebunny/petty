@@ -22,7 +22,7 @@ import { BreedCard } from './adopt/BreedCard';
 import { LookPicker } from './adopt/LookPicker';
 import { ChooseScreen } from './adopt/ChooseScreen';
 import { NameScreen } from './adopt/NameScreen';
-import { StepIndicator } from './adopt/StepIndicator';
+import { OnboardingHeader } from './adopt/OnboardingHeader';
 
 type Props = {
   onAdopt: (breedId: string, attributes: PetAttributes, look: Look, name: string) => void;
@@ -210,10 +210,7 @@ export function AdoptScreen({ onAdopt }: Props) {
     return (
       <View style={styles.root}>
         <View style={styles.sticky}>
-          <View style={styles.headerRow}>
-            <Text style={styles.title}>Adopt</Text>
-            <StepIndicator step={1} />
-          </View>
+          <OnboardingHeader title="Adopt" step={1} />
           <SpeciesToggle species={species} onChange={setSpecies} />
           <PetPreview species={species} breedId={breed.id} look={draft.look} />
         </View>
@@ -258,11 +255,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F4F7FB',
     paddingTop: 56,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
   },
   sticky: {
     paddingHorizontal: 20,

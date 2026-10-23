@@ -5,7 +5,7 @@ import { archetypeNames, archetypeStrong, traits } from '../../sim';
 import type { PetState } from '../../sim';
 import { PetPreview } from '../../ui/PetPreview';
 import { AttributeBar } from './AttributeBar';
-import { StepIndicator } from './StepIndicator';
+import { OnboardingHeader } from './OnboardingHeader';
 import { traitLabel } from './labels';
 
 type Props = {
@@ -22,11 +22,8 @@ export function MeetScreen({ pet, onStart }: Props) {
   return (
     <View style={styles.root}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <View style={styles.header}>
-          <StepIndicator step={4} />
-        </View>
-        <View style={styles.titles}>
-          <Text style={styles.title}>Meet {pet.name}</Text>
+        <View style={styles.intro}>
+          <OnboardingHeader title={`Meet ${pet.name}`} step={4} />
           <Text style={styles.body}>
             {breed?.name} · {archetypeNames[pet.attributes.archetype]} · Day 1
           </Text>
@@ -76,18 +73,8 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
     gap: 16,
   },
-  header: {
-    minHeight: 44,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-  },
-  titles: {
+  intro: {
     gap: 4,
-  },
-  title: {
-    fontSize: 32,
-    color: '#243044',
   },
   body: {
     fontSize: 15,

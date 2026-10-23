@@ -6,8 +6,7 @@ import { archetypeNames } from '../../sim';
 import type { Archetype, Look } from '../../sim';
 import { fontFamily } from '../../ui/font';
 import { PetPreview } from '../../ui/PetPreview';
-import { BackButton } from './BackButton';
-import { StepIndicator } from './StepIndicator';
+import { OnboardingHeader } from './OnboardingHeader';
 
 type Props = {
   breed: Breed;
@@ -29,12 +28,13 @@ export function NameScreen({ breed, look, archetype, name, onChangeName, onBack,
   return (
     <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <View style={styles.header}>
-          <BackButton label="Back to pups" onPress={onBack} />
-          <StepIndicator step={3} />
-        </View>
-        <View style={styles.titles}>
-          <Text style={styles.title}>Name your {breed.species === 'cat' ? 'kitten' : 'pup'}</Text>
+        <View style={styles.intro}>
+          <OnboardingHeader
+            title={`Name your ${breed.species === 'cat' ? 'kitten' : 'pup'}`}
+            step={3}
+            onBack={onBack}
+            backLabel="Back to pups"
+          />
           <Text style={styles.body}>
             {breed.name} · {archetypeNames[archetype]}
           </Text>
@@ -83,17 +83,8 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
     gap: 16,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  titles: {
+  intro: {
     gap: 4,
-  },
-  title: {
-    fontSize: 32,
-    color: '#243044',
   },
   body: {
     fontSize: 15,

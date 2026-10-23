@@ -4,10 +4,9 @@ import type { Breed } from '../../actor/types';
 import { archetypeNames } from '../../sim';
 import type { Archetype, AttributeSet, Look } from '../../sim';
 import { PetPreview } from '../../ui/PetPreview';
-import { BackButton } from './BackButton';
+import { OnboardingHeader } from './OnboardingHeader';
 import { PupDetail } from './PupDetail';
 import { PupTile } from './PupTile';
-import { StepIndicator } from './StepIndicator';
 
 type Props = {
   breed: Breed;
@@ -26,12 +25,13 @@ export function ChooseScreen({ breed, look, offers, selected, onSelect, onBack, 
   return (
     <View style={styles.root}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <View style={styles.header}>
-          <BackButton label="Back to breed" onPress={onBack} />
-          <StepIndicator step={2} />
-        </View>
-        <View style={styles.titles}>
-          <Text style={styles.title}>Choose your {young}</Text>
+        <View style={styles.intro}>
+          <OnboardingHeader
+            title={`Choose your ${young}`}
+            step={2}
+            onBack={onBack}
+            backLabel="Back to breed"
+          />
           <Text style={styles.body}>
             Three {breed.name} {young}s. Each is good at something different.
           </Text>
@@ -69,17 +69,8 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
     gap: 16,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  titles: {
+  intro: {
     gap: 4,
-  },
-  title: {
-    fontSize: 32,
-    color: '#243044',
   },
   body: {
     fontSize: 15,
