@@ -88,12 +88,36 @@ const badgeLabels: Record<string, string> = {
   paw: 'Paw',
 };
 
-function pieceId(pieces: { id: string; kind: string; contents?: string }[], kind: 'food' | 'water' | 'bed') {
+type TipKind = 'food' | 'water' | 'bed';
+
+function isTipPiece(piece: { kind: string; contents?: string }, kind: TipKind) {
+  return kind === 'bed'
+    ? piece.kind === 'bed'
+    : piece.kind === 'bowl' && (kind === 'water' ? piece.contents === 'water' : piece.contents !== 'water');
+}
+
+// A home owns a bed in more than one room. The hint has to use the one standing in the room on screen.
+function placedInScene(
+  pieces: { id: string; kind: string; contents?: string }[],
+  placements: { pieceId: string; sceneId: string; x: number; y: number }[],
+  sceneId: string,
+  kind: TipKind,
+) {
   return (
-    pieces.find((piece) =>
-      kind === 'bed' ? piece.kind === 'bed' : piece.kind === 'bowl' && (kind === 'water' ? piece.contents === 'water' : piece.contents !== 'water'),
-    )?.id ?? null
+    placements.find((spot) => {
+      if (spot.sceneId !== sceneId) {
+        return false;
+      }
+      const piece = pieces.find((item) => item.id === spot.pieceId);
+      return piece != null && isTipPiece(piece, kind);
+    }) ?? null
   );
+}
+
+// Pieces are anchored where they meet the floor. The drawing sits above that point.
+function markerPoint(pieceKind: string | undefined, spot: { x: number; y: number }) {
+  const lift = pieceKind === 'bed' ? 18 : pieceKind === 'bowl' ? 12 : 0;
+  return { x: spot.x, y: spot.y - lift };
 }
 
 type Props = {
@@ -892,8 +916,11 @@ export default function HomeScreen({ petApi }: Props) {
     }
     const feedBlocked = actionReason(scene, 'feed') || (state.foodInBowl ? 'The food bowl is already full.' : '');
     const waterBlocked = actionReason(scene, 'refillWater', state.waterLevel);
-    const countPropTap = (kind: 'food' | 'water' | 'bed') => {
-      setMovePieceId(pieceId(home.pieces, kind));
+    const countPropTap = (kind: TipKind) => {
+      const spot = placedInScene(home.pieces, home.placements, scene.id, kind);
+      if (spot) {
+        setMovePieceId(spot.pieceId);
+      }
       const taps = tips.notePropTap();
       if (taps >= 2) {
         tips.offer('tip.move');
@@ -937,20 +964,17 @@ export default function HomeScreen({ petApi }: Props) {
       countPropTap('bed');
       tips.performed('tip.sleep');
     };
-  }, [feed, flash, home.pieces, refillWater, rest, scene, state, tips]);
+  }, [feed, flash, home.pieces, home.placements, refillWater, rest, scene, state, tips]);
 
-  const tipPieceId =
-    tips.current === 'tip.water'
-      ? pieceId(home.pieces, 'water')
-      : tips.current === 'tip.food'
-        ? pieceId(home.pieces, 'food')
-        : tips.current === 'tip.sleep'
-          ? pieceId(home.pieces, 'bed')
-          : tips.current === 'tip.move'
-            ? movePieceId
-            : null;
-  const tipPlacement = tipPieceId ? home.placements.find((spot) => spot.pieceId === tipPieceId) : null;
-  const propTip = tipPlacement ? stageToView({ x: tipPlacement.x, y: tipPlacement.y }) : null;
+  const tipKind: TipKind | null =
+    tips.current === 'tip.water' ? 'water' : tips.current === 'tip.food' ? 'food' : tips.current === 'tip.sleep' ? 'bed' : null;
+  const tipSpot = tipKind
+    ? placedInScene(home.pieces, home.placements, scene.id, tipKind)
+    : tips.current === 'tip.move' && movePieceId
+      ? (home.placements.find((spot) => spot.pieceId === movePieceId && spot.sceneId === scene.id) ?? null)
+      : null;
+  const tipPiece = tipSpot ? home.pieces.find((piece) => piece.id === tipSpot.pieceId) : null;
+  const propTip = tipSpot ? stageToView(markerPoint(tipPiece?.kind, tipSpot)) : null;
 
   if (!state || !mood) {
     return null;
@@ -1273,6 +1297,16 @@ export default function HomeScreen({ petApi }: Props) {
               : null;
 
   const trickTitle = (trackId: string) => trackName(trackId, species);
+  const leaveForShop = (tab: ShopCategory) => {
+    setPlacesOpen(false);
+    setDialog(null);
+    const stage = stageHandle.current;
+    if (!stage) {
+      setShopTab(tab);
+      return;
+    }
+    stage.depart(() => setShopTab(tab));
+  };
   const shownDialog = dialogLive ? dialog : null;
   let trainingDialog: ReactNode = null;
   if (shownDialog?.kind === 'good') {
@@ -1371,7 +1405,7 @@ export default function HomeScreen({ petApi }: Props) {
             }
           },
         }}
-        secondary={{ label: 'Pet Shop', onPress: () => setShopTab('treats') }}
+        secondary={{ label: 'Pet Shop', onPress: () => leaveForShop('treats') }}
       />
     );
   } else if (shownDialog?.kind === 'break') {
@@ -1400,7 +1434,7 @@ export default function HomeScreen({ petApi }: Props) {
               return;
             }
             if (!windOwned && !windCheck.ok) {
-              setShopTab('boosts');
+              leaveForShop('boosts');
               return;
             }
             const requestId = newRequestId();
@@ -1481,7 +1515,7 @@ export default function HomeScreen({ petApi }: Props) {
             value={economyApi.balance}
             payoutActive={burst != null}
             pending={pendingBoops}
-            onPress={() => setShopTab('treats')}
+            onPress={() => leaveForShop('treats')}
           />
         </View>
         <GestureDetector gesture={gesture}>
@@ -1520,9 +1554,15 @@ export default function HomeScreen({ petApi }: Props) {
               onAte={reportAte}
               onFellAsleep={beginRest}
               shimmerIds={[
-                tips.seen('tip.water') && state.hydration < needThreshold ? pieceId(home.pieces, 'water') : null,
-                tips.seen('tip.food') && tummy < needThreshold ? pieceId(home.pieces, 'food') : null,
-                tips.seen('tip.sleep') && state.needs.energy < needThreshold ? pieceId(home.pieces, 'bed') : null,
+                tips.seen('tip.water') && state.hydration < needThreshold
+                  ? (placedInScene(home.pieces, home.placements, scene.id, 'water')?.pieceId ?? null)
+                  : null,
+                tips.seen('tip.food') && tummy < needThreshold
+                  ? (placedInScene(home.pieces, home.placements, scene.id, 'food')?.pieceId ?? null)
+                  : null,
+                tips.seen('tip.sleep') && state.needs.energy < needThreshold
+                  ? (placedInScene(home.pieces, home.placements, scene.id, 'bed')?.pieceId ?? null)
+                  : null,
               ].filter((id): id is string => id != null)}
               onPlayFind={noteFind}
               onPointAdds={(adds) => {
@@ -1721,10 +1761,7 @@ export default function HomeScreen({ petApi }: Props) {
             reducedMotion={reducedMotion}
             onPick={setScene}
             onClose={() => setPlacesOpen(false)}
-            onShop={() => {
-              setPlacesOpen(false);
-              setShopTab('treats');
-            }}
+            onShop={() => leaveForShop('treats')}
           />
         </View>
       ) : null}

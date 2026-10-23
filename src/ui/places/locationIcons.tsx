@@ -1,5 +1,4 @@
-import { useId } from 'react';
-import type { ReactNode } from 'react';
+import { useId, type ReactNode } from 'react';
 import Svg, { Circle, Defs, Ellipse, G, LinearGradient, Path, Polygon, Rect, Stop } from 'react-native-svg';
 
 import type { SpotId } from './spots';

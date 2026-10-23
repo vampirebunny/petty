@@ -1,7 +1,6 @@
-import { useEffect, useId } from 'react';
+import { useEffect, useId, type ReactNode } from 'react';
 import { PawPrint } from 'lucide-react-native';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import type { ReactNode } from 'react';
 import Animated, {
   cancelAnimation,
   Easing,

@@ -191,7 +191,7 @@ const styles = StyleSheet.create({
   bubble: {
     position: 'absolute',
     minWidth: 160,
-    maxWidth: 240,
+    maxWidth: 260,
     minHeight: 58,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.25,
@@ -222,8 +222,10 @@ const styles = StyleSheet.create({
     position: 'absolute',
   },
   copy: {
-    flex: 1,
+    flexShrink: 1,
+    maxWidth: 188,
     fontSize: 15,
+    lineHeight: 20,
     fontFamily: fontFamily.fredokaSemibold,
   },
   bold: {

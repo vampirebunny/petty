@@ -79,6 +79,8 @@ export type StageHandle = {
   setLifted: (pieceId: string | null) => void;
   squish: (pieceId: string) => void;
   propPoint: (pieceId: string) => { x: number; y: number } | null;
+  // Walks off the right and fades the room, then calls back instead of entering a scene.
+  depart: (onLeft: () => void) => void;
 };
 
 export type CuddleHandle = {
@@ -221,7 +223,13 @@ export function PetView({
   );
   const livePicture = useRef<SkPicture | null>(null);
   const retired = useRef<{ picture: SkPicture; at: number }[]>([]);
-  const travelRef = useRef<{ dest: Scene; phase: 'exit' | 'fade' | 'enter'; fade: number; asleep: boolean } | null>(null);
+  const travelRef = useRef<{
+    dest: Scene | null;
+    phase: 'exit' | 'fade' | 'enter';
+    fade: number;
+    asleep: boolean;
+    onLeft?: () => void;
+  } | null>(null);
   const onTravelingRef = useRef(onTraveling);
   onTravelingRef.current = onTraveling;
 
@@ -260,6 +268,10 @@ export function PetView({
       }
     }
   }, [picture]);
+  const redrawRef = useRef(redraw);
+  useEffect(() => {
+    redrawRef.current = redraw;
+  }, [redraw]);
 
   useEffect(() => {
     const world = worldRef.current;
@@ -404,6 +416,7 @@ export function PetView({
         onTravelingRef.current?.(true);
       } else {
         travelRef.current.dest = dest;
+        travelRef.current.onLeft = undefined;
         travelRef.current.asleep = asleep || travelRef.current.asleep;
       }
       redraw();
@@ -541,6 +554,27 @@ export function PetView({
       propPoint: (pieceId) => {
         const prop = worldRef.current.scene.props.find((item) => item.id === pieceId);
         return prop ? { x: prop.x, y: prop.y } : null;
+      },
+      depart: (onLeft) => {
+        const world = worldRef.current;
+        const actor = world.actors[0];
+        if (reducedRef.current || !actor) {
+          travelRef.current = null;
+          onTravelingRef.current?.(false);
+          onLeft();
+          return;
+        }
+        const asleep = actor.asleep || actor.task.type === 'sleep';
+        if (!travelRef.current || travelRef.current.phase === 'enter') {
+          startSceneExit(world, actor);
+          travelRef.current = { dest: null, phase: 'exit', fade: 0, asleep, onLeft };
+          onTravelingRef.current?.(true);
+        } else {
+          travelRef.current.dest = null;
+          travelRef.current.onLeft = onLeft;
+          travelRef.current.asleep = asleep || travelRef.current.asleep;
+        }
+        redrawRef.current();
       },
     }),
     [],
@@ -692,6 +726,7 @@ export function PetView({
       }
       const travel = travelRef.current;
       const actor = world.actors[0];
+      let leftForShop: (() => void) | undefined;
       if (travel && actor) {
         if (travel.phase === 'exit') {
           if (actor.task.type !== 'travel') {
@@ -705,9 +740,20 @@ export function PetView({
         if (travel.phase === 'fade') {
           travel.fade = Math.min(1, travel.fade + dt / 0.85);
           if (travel.fade >= 1) {
-            startSceneEnter(world, actor, travel.dest);
-            travel.phase = 'enter';
-            travel.fade = 0;
+            const dest = travel.dest;
+            if (!dest) {
+              const onLeft = travel.onLeft;
+              travel.fade = 1;
+              if (onLeft) {
+                travel.onLeft = undefined;
+                onTravelingRef.current?.(false);
+                leftForShop = onLeft;
+              }
+            } else {
+              startSceneEnter(world, actor, dest);
+              travel.phase = 'enter';
+              travel.fade = 0;
+            }
           }
         }
         if (travel.phase === 'enter' && !isSceneTravel(actor)) {
@@ -818,6 +864,7 @@ export function PetView({
         }
       }
       redraw();
+      leftForShop?.();
     },
     [applyCue, flushEnergy, flushHunger, flushHydration, flushWeight, redraw],
   );

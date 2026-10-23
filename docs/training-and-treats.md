@@ -14,7 +14,7 @@ Boops, the ledger, the daily login, and the Pet Store are specified in `docs/Boo
 - There is no daily treat limit. A casual treat is refused only when hunger is already 0.
 - A casual treat applies the full hunger, weight, and mood effects. A training reward skips the too-full gate, applies 25% of the hunger and weight, and keeps the full mood gain.
 
-Where to? offers Pet Shop, Park, Living room, and Bedroom. Cats also get the Catio. The Boops counter opens the Pet Shop too. Wardrobe on the home screen opens the Closet. Pantry lists consumables (treats, premium food, Second Wind). It is not a Where to? choice.
+Where to? offers Pet Shop, Park, Living room, and Bedroom. Cats also get the Catio. The Boops counter opens the Pet Shop too, and so do the out-of-treats popup and the break popup when it offers the shop. From any of those, the pet walks off to the right and the room fades before the shop cuts in. Wardrobe on the home screen opens the Closet. Pantry lists consumables (treats, premium food, Second Wind). It is not a Where to? choice.
 
 ## Training flow
 

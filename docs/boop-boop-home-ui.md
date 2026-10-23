@@ -2,7 +2,7 @@
 
 The pet screen's action panel is cotton-candy: glossy pink, blue, and lilac controls. Need rings, training cards, the Where card, the room height, the Expo Go gear, and the debug Settings link stay as they were.
 
-The Boops counter in the upper right opens the Pet Shop.
+The Boops counter in the upper right opens the Pet Shop. So does Pet Shop on Where to?, the out-of-treats popup, and the break popup when it offers the shop. The popup closes, the pet walks off to the right, and the room fades, the same as a scene change, and then the shop cuts in. Reduce Motion skips the walk and opens the shop immediately.
 
 ## Sections
 
