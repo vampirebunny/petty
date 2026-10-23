@@ -207,6 +207,10 @@ export function spawnActor(source: ActorSource, at?: Vec): Actor {
     vx: 0,
     vy: 0,
     speed: 0,
+    swing: 0,
+    swingVel: 0,
+    prevVx: 0,
+    axSmooth: 0,
     face: 1,
     octant: 'E',
     octantFrom: 'E',
@@ -2533,6 +2537,7 @@ function updateActor(world: World, actor: Actor, dt: number): void {
   actor.panPh += dt * Math.PI * 2 * (actor.pose.pant > 0.05 ? actor.pose.breathRate : 5);
   actor.chewPh += dt * Math.PI * 2 * (actor.task.type === 'eat' && actor.task.premium ? 5.5 : 3);
   actor.wagPh += dt * wagRate * (world.reducedMotion ? 0 : 1);
+  stepSwing(actor, dt, world.reducedMotion);
   actor.breathPh += dt * Math.PI * 2 * actor.pose.breathRate;
   actor.blinkT -= dt;
   if (actor.blinkT <= 0) {
@@ -2543,6 +2548,20 @@ function updateActor(world: World, actor: Actor, dt: number): void {
   if (actor.task.type !== 'travel') {
     actor.x = clamp(actor.x, xClampLo, xClampHi);
   }
+}
+
+// Scarf tails, drawstrings, and the bandana tip. 350 px/s² of smoothed acceleration is about 12°.
+function stepSwing(actor: Actor, dt: number, reduced: boolean): void {
+  if (dt <= 0) {
+    return;
+  }
+  const ax = (actor.vx - actor.prevVx) / dt;
+  actor.prevVx = actor.vx;
+  actor.axSmooth += (ax - actor.axSmooth) * (1 - Math.exp(-dt / 0.15));
+  const lean = clamp(-0.0006 * actor.axSmooth, -0.21, 0.21);
+  const target = reduced ? 0 : lean + 0.06 * Math.sin(actor.phase) * actor.pose.walk;
+  actor.swingVel += (60 * (target - actor.swing) - 9 * actor.swingVel) * dt;
+  actor.swing = clamp(actor.swing + actor.swingVel * dt, -0.21, 0.21);
 }
 
 function considerHurdle(world: World, actor: Actor): void {

@@ -4,6 +4,7 @@ import type { SkCanvas, SkPicture } from '@shopify/react-native-skia';
 import { wardrobeSizes } from '../../actor/data/wardrobeSizes';
 import { jacketHasSleeves, type WearItem } from '../../actor/wardrobe';
 import type { OutfitSlot } from '../../sim/types';
+import { fillOval } from './draw';
 import {
   drawBoot,
   drawGlassesBack,
@@ -56,11 +57,13 @@ export function drawItemIcon(c: SkCanvas, slot: OutfitSlot, item: WearItem, bg: 
     c.translate(0, -g.bodyY);
     const base = { x: g.bodyLen / 2 - 14, y: g.bodyY - 2 };
     const neckWidth = g.headR * 1.35;
-    if (item.id === 'rain' || item.id === 'hoodie') {
+    fillOval(c, 0, g.bodyY, g.bodyLen / 2, g.bodyH / 2, '#c4a882', 0.12);
+    fillOval(c, g.bodyLen / 2, g.bodyY - g.bodyH * 0.55, g.headR, g.headR * 0.92, '#c4a882', 0.12);
+    if (item.shape === 'hoodie') {
       drawHood(c, base, PERP, ALONG, item, g.headR, neckWidth, bg);
     }
     drawJacket(c, g, item, 1, bg);
-    if (jacketHasSleeves(item.id)) {
+    if (jacketHasSleeves(item)) {
       const hip = { x: g.bodyLen * 0.28, y: g.bodyY + g.bodyH * 0.25 };
       drawSleeve(c, hip, { x: hip.x + 2, y: hip.y + g.L * 0.45 }, g, item, false, bg);
     }

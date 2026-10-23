@@ -1,6 +1,6 @@
 import { generateCast } from '../../playdate/npcs';
 import { migrateEquipped, starterCloset, withStarter } from '../closet';
-import { outfitSlots, wardrobe, wearItem } from '../wardrobe';
+import { jacketHasSleeves, outfitSlots, wardrobe, wearItem } from '../wardrobe';
 import type { OutfitSlot } from '../../sim/types';
 
 describe('wardrobe closet', () => {
@@ -22,6 +22,26 @@ describe('wardrobe closet', () => {
     expect(withStarter(closet, { jacket: 'sweater' }).owned).toEqual(closet.owned);
     expect(starterCloset.some((item) => item.id === 'bell')).toBe(false);
     expect(wardrobe.neckwear.items.some((item) => item.id === 'bell')).toBe(true);
+  });
+
+  it('keeps shipped ids and colors, and maps them onto shapes', () => {
+    expect(wearItem('neckwear', 'scarf')).toMatchObject({
+      id: 'scarf',
+      shape: 'scarf',
+      label: 'Yellow scarf',
+      colorway: { c: '#e8c53a' },
+    });
+    expect(wearItem('neckwear', 'bell')?.shape).toBe('collar');
+    expect(wearItem('neckwear', 'gold')?.shape).toBe('collar');
+    expect(wearItem('jacket', 'rain')).toMatchObject({ id: 'rain', shape: 'raincoat', colorway: { c: '#f2c230' } });
+    expect(wearItem('jacket', 'puffer')?.colorway).toEqual({ c: '#f28c28', d: '#ffe0c2' });
+    const hoodie = wearItem('jacket', 'hoodie');
+    expect(hoodie).toMatchObject({ id: 'hoodie', label: 'Hoodie', shape: 'hoodie', colorway: { c: '#FF9FCB', d: '#8A5AD6' } });
+    expect(jacketHasSleeves(hoodie!)).toBe(true);
+    expect(jacketHasSleeves(wearItem('jacket', 'sweater')!)).toBe(true);
+    expect(jacketHasSleeves(wearItem('jacket', 'rain')!)).toBe(true);
+    expect(jacketHasSleeves(wearItem('jacket', 'puffer')!)).toBe(false);
+    expect(jacketHasSleeves(wearItem('jacket', 'vest')!)).toBe(false);
   });
 
   it('dresses npc partners from the full catalog', () => {

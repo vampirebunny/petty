@@ -248,6 +248,9 @@ export function snapFacing(actor: Actor, face: 1 | -1): void {
   actor.yawFace = face;
   actor.lead = 0;
   actor.turning = false;
+  actor.swingVel = 0;
+  actor.axSmooth = 0;
+  actor.prevVx = actor.vx;
 }
 
 function syncHorizontal(actor: Actor): void {

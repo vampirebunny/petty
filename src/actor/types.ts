@@ -459,6 +459,11 @@ export type Actor = {
   vx: number;
   vy: number;
   speed: number;
+  // Dangling cloth (scarf tails, drawstrings, bandana tip). Seed prevVx with vx on spawn and on every reset.
+  swing: number;
+  swingVel: number;
+  prevVx: number;
+  axSmooth: number;
   face: number;
   // Displayed octant, the one being tweened from, and the one velocity or a pose wants.
   octant: import('./data/facing').Facing;

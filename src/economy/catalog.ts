@@ -64,6 +64,7 @@ export const catalog: CatalogItem[] = [
   outfit('jacket', 'sweater', 'Knit sweater'),
   outfit('jacket', 'rain', 'Raincoat'),
   outfit('jacket', 'vest', 'Quilted vest'),
+  outfit('jacket', 'hoodie', 'Hoodie'),
   {
     id: 'biscuit',
     name: 'Treats',

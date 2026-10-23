@@ -2,7 +2,7 @@
 // multipliers on a length that already scales with species, breed, life stage, and weight.
 
 export const wardrobeSizes = {
-  outline: 1.6,
+  outline: 2,
   trim: 1.15,
   trimDistance: 110,
   chin: 0.85,

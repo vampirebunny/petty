@@ -82,6 +82,8 @@ Put all multipliers in `wardrobeSizes.ts`. Starting values:
 
 ## 4. Neckwear: chin anchor and draw order
 
+Neckwear draw order, the scarf, and the swing live in `docs/boop-boop-cosmetics-v2-brief.md`. The rules below describe the anchors this spec still owns. Where they disagree with cosmetics v2, cosmetics v2 wins.
+
 **This is the main bug.** Today `drawCollar` and `drawBandana` run before the head at `neck` (62% along the neck), so the larger head covers them.
 
 New anchor, computed after the head position is known:
@@ -121,6 +123,8 @@ In the 3/4 head turn (`face.turn`, `face.front` > 0), neckwear eases from the ne
 When the neck is nearly horizontal (sleep and lie, especially with `headRest`), the head often sits on the shoulders and a normal across-the-neck band would slash through the face. In that case: park the chin on the short head→body segment, draw a short strap under the jaw along the neck, shrink tags and hanging tips, and paint neckwear under the head so the face covers any leftover overlap.
 
 ## 5. Jacket
+
+Jacket silhouettes, the hoodie, front and back panels, the sitting hem clamp, and the turn crossfade live in `docs/boop-boop-cosmetics-v2-brief.md`. Where this section disagrees with that spec, cosmetics v2 wins.
 
 - Shaped like a dog coat from the body oval (puff `0.05 * bodyH`, vest/puffer `0.09 * bodyH`): follows the back, stops before the rump (`jacketRear`), front edge behind the shoulder (`jacketFront`), belly line rising toward the hind legs. Never a full-body slab. Outlined.
 - Draw it inside the same torso transforms as the body, including the `posed.scaleX/scaleY` block.

@@ -34,6 +34,7 @@ import {
   drawGlassesBack,
   drawGlassesFront,
   drawHat,
+  drawChestDetails,
   drawHood,
   drawJacket,
   drawJacketCollar,
@@ -41,6 +42,7 @@ import {
   drawSleeve,
   neckwearUnderHead,
 } from './cosmetics';
+import { coatWeights } from './coatFade';
 import {
   clamp,
   clipOval,
@@ -252,7 +254,8 @@ export function drawActor(
   const hat = wearItem('hat', actor.equipped.hat);
   const jacketAnchor = jacket ? cosmeticAnchor('jacket', jacket.id, rig.view) : null;
   const bootAnchor = boot ? cosmeticAnchor('boots', boot.id, rig.view) : null;
-  const sleeve = jacket && jacketAnchor && jacketHasSleeves(jacket.id) ? jacket : null;
+  const coats = coatWeights(actor.octantFrom, actor.octant, actor.octantBlend);
+  const sleeve = jacket && jacketAnchor && jacketHasSleeves(jacket) ? jacket : null;
   const bootOn = bootAnchor ? boot : null;
   const points = breed.pattern === 'points';
   // Breed marking regions, resolved against the coat. Locked regions ignore the user palette.
@@ -483,7 +486,7 @@ export function drawActor(
   c.translate(geom.Px, geom.Py);
   c.rotate(deg(theta), 0, 0);
   c.translate(-geom.Px, -geom.Py);
-  if (rig.chest > 0.08) {
+  if (rig.chest > 0.08 && !(jacket && rig.view === 'front34')) {
     const bib = points ? (breed.accent ?? muzzleColorOf(breed, markings)) : mix(baseColor, '#ffffff', 0.18);
     fillOval(c, 0, geom.bodyY + geom.bodyH * 0.16, geom.bodyH * 0.34 * rig.chest, geom.bodyH * 0.28, bib, rig.chest);
     shadeOval(c, 0, geom.bodyY + geom.bodyH * 0.16, geom.bodyH * 0.34 * rig.chest, geom.bodyH * 0.28);
@@ -586,10 +589,29 @@ export function drawActor(
     }
     c.drawPath(ribs, paintOf('#000000', ((-actor.displayWeight - 0.35) / 0.65) * 0.38 * rig.foreshorten, 1.4));
   }
-  if (jacket && jacketAnchor) {
+  if (jacket && jacketAnchor && coats.side > 0.01) {
+    const placed = { sit: pose.sit, theta, dy, foreshorten: rig.foreshorten, belly: pose.belly };
     c.save();
     c.translate(jacketAnchor.x * geom.bodyLen, jacketAnchor.y * geom.bodyH);
-    drawJacket(c, geom, jacket, breath, baseColor);
+    drawJacket(c, geom, jacket, breath, baseColor, { ...placed, pass: 'side', alpha: coats.side });
+    c.restore();
+  }
+  if (jacket && coats.front > 0.01) {
+    c.save();
+    if (!axial) {
+      c.translate(geom.Px, geom.Py);
+      c.scale(1 / Math.max(rig.foreshorten, 0.001), 1);
+      c.translate(-geom.Px, -geom.Py);
+    }
+    drawJacket(c, geom, jacket, breath, baseColor, {
+      pass: 'front',
+      sit: pose.sit,
+      theta,
+      dy,
+      foreshorten: 1,
+      belly: pose.belly,
+      alpha: coats.front,
+    });
     c.restore();
   }
   if (rig.tail === 'over') {
@@ -599,9 +621,12 @@ export function drawActor(
   c.restore();
   c.restore();
 
-  if (rig.view !== 'back') {
+  if (!coats.legsInBackPass) {
     for (const spec of ahead) {
       drawnPaws.push(paintLeg(spec));
+    }
+    if (jacket && coats.side + coats.front > 0.01) {
+      drawChestDetails(c, geom, jacket, baseColor, theta, dy, actor.swing, rig.dir, pose.belly, coats.side + coats.front);
     }
   }
   actor.anchors.paws = drawnPaws.map((paw) => ({ x: paw.x, y: paw.y, shin: paw.shin }));
@@ -647,11 +672,20 @@ export function drawActor(
   const perp = along.x >= 0 ? { x: -along.y, y: along.x } : { x: along.y, y: -along.x };
   const neck = { x: base.x + nx * 0.62, y: base.y + ny * 0.62 };
   actor.anchors.neck = neck;
-  if (jacket?.id === 'rain' && jacketAnchor) {
-    drawHood(c, base, perp, along, jacket, geom.headR, neckWidth, baseColor);
+  if (jacket?.shape === 'hoodie' && jacketAnchor && coats.side > 0.01 && pose.belly < 0.45) {
+    drawHood(c, base, perp, along, jacket, geom.headR, neckWidth, baseColor, coats.side);
   }
-  if (jacket && jacketAnchor) {
+  if (jacket && jacketAnchor && coats.back < 0.999) {
+    const collarAlpha = 1 - coats.back;
+    if (collarAlpha < 0.999) {
+      const fade = Skia.Paint();
+      fade.setAlphaf(collarAlpha);
+      c.saveLayer(fade);
+    }
     drawJacketCollar(c, base, perp, along, jacket, geom.headR, neckWidth, baseColor);
+    if (collarAlpha < 0.999) {
+      c.restore();
+    }
   }
 
   // head
@@ -684,9 +718,11 @@ export function drawActor(
     }
   };
   const view = Math.max(face.turn, face.front);
-  // Sleep lays the strap under the jaw. A turned face is drawn over the collar and bandana so they do not cover the muzzle.
+  // Side view paints neckwear after the head so a turned face does not hide it.
+  // Front and 3/4 paint it first, so the face covers the part that crosses the muzzle.
   const neckAnchor = neckwear ? cosmeticAnchor('neckwear', neckwear.id, rig.view) : null;
-  const underHead = Boolean(neckAnchor && neckAnchor.mode !== 'knot' && (neckwearUnderHead(along) || view > 0.001));
+  const faceCoversNeck = rig.view === 'front' || rig.view === 'front34';
+  const underHead = Boolean(neckAnchor && neckAnchor.mode !== 'knot' && (neckwearUnderHead(along) || faceCoversNeck));
   const wearNeck = () => {
     if (!neckwear || !neckAnchor || neckAnchor.mode === 'knot') {
       return;
@@ -696,13 +732,20 @@ export function drawActor(
     const chest = markingOf(markings, 'chest')?.color ?? baseColor;
     c.save();
     c.translate(neckAnchor.x * R, neckAnchor.y * R);
-    drawNeckwear(c, chin, perp, along, neckwear, sway, R, chest, view, pitch);
+    drawNeckwear(c, chin, perp, along, neckwear, sway, R, chest, view, pitch, {
+      sit: pose.sit,
+      lie: pose.lie,
+      belly: pose.belly,
+      theta,
+      swing: actor.swing,
+      dir: rig.dir,
+    });
     c.restore();
   };
   if (underHead) {
     wearNeck();
   } else if (neckAnchor?.mode === 'knot' && neckwear) {
-    fillCircle(c, neck.x + neckAnchor.x * R, neck.y + neckAnchor.y * R, R * 0.16, neckwear.c);
+    fillCircle(c, neck.x + neckAnchor.x * R, neck.y + neckAnchor.y * R, R * 0.16, neckwear.colorway.c);
   }
   const eyeR = face.eyeR;
   const ex = face.nearEye.x;
@@ -994,11 +1037,47 @@ export function drawActor(
     fillOval(c, 0, geom.bodyY, geom.bodyH * 0.52, geom.bodyH * 0.48, mix(baseColor, '#000000', 0.12));
     shadeOval(c, 0, geom.bodyY, geom.bodyH * 0.52, geom.bodyH * 0.48);
     c.restore();
+  }
+  if (jacket && coats.back > 0.01) {
+    c.save();
+    c.translate(0, dy);
+    c.translate(geom.Px, geom.Py);
+    c.rotate(deg(theta), 0, 0);
+    c.translate(-geom.Px, -geom.Py);
+    drawJacket(c, geom, jacket, breath, baseColor, {
+      pass: 'back',
+      sit: pose.sit,
+      theta,
+      dy,
+      foreshorten: 1,
+      belly: pose.belly,
+      alpha: coats.back,
+    });
+    c.restore();
+    if (pose.belly < 0.45) {
+      if (coats.back < 0.999) {
+        const fade = Skia.Paint();
+        fade.setAlphaf(coats.back);
+        c.saveLayer(fade);
+      }
+      drawJacketCollar(c, base, perp, along, jacket, geom.headR, neckWidth, baseColor);
+      if (jacket.shape === 'hoodie') {
+        drawHood(c, base, perp, along, jacket, geom.headR, neckWidth, baseColor);
+      }
+      if (coats.back < 0.999) {
+        c.restore();
+      }
+    }
+  }
+  if (coats.legsInBackPass) {
     for (const spec of ahead) {
       const paw = paintLeg(spec);
       drawnPaws.push(paw);
     }
     actor.anchors.paws = drawnPaws.map((paw) => ({ x: paw.x, y: paw.y, shin: paw.shin }));
+    if (jacket && coats.side + coats.front > 0.01) {
+      drawChestDetails(c, geom, jacket, baseColor, theta, dy, actor.swing, rig.dir, pose.belly, coats.side + coats.front);
+    }
   }
 
   if (rig.tail === 'top' && rig.view !== 'back') {

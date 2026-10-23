@@ -24,8 +24,8 @@ const glasses: Record<ViewId, Anchor> = {
 };
 
 const neck: Record<ViewId, Anchor> = {
-  side: { x: 0, y: 0, mode: 'full' },
-  front34: { x: 0.04, y: 0.08, mode: 'full' },
+  side: { x: 0, y: 0.12, mode: 'full' },
+  front34: { x: 0.04, y: 0.12, mode: 'full' },
   front: { x: 0, y: 0.12, mode: 'full' },
   back34: { x: -0.06, y: 0.04, mode: 'knot' },
   back: { x: 0, y: 0.02, mode: 'knot' },

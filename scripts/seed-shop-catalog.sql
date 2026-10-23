@@ -26,6 +26,7 @@ insert into public.shop_items (id, name, category, price, shop, species, descrip
   ('hat:top', 'Top hat', 'clothes', 1000, 'rotation', null, null, 9, true),
   ('boots:sneaker', 'Sneakers', 'clothes', 1200, 'rotation', null, null, 10, true),
   ('jacket:rain', 'Raincoat', 'clothes', 1600, 'rotation', null, null, 11, true),
+  ('jacket:hoodie', 'Hoodie', 'clothes', 1600, 'always', null, null, 12, true),
   ('frisbee', 'Frisbee', 'toys', 400, 'always', array['dog'], 'A disc to chase', 0, true),
   ('squeaky', 'Squeaky', 'toys', 300, 'rotation', array['dog'], 'A toy that squeaks', 1, true),
   ('yarn', 'Yarn', 'toys', 300, 'rotation', array['cat'], 'A ball of yarn', 2, true),
