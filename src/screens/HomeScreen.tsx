@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { AccessibilityInfo, AppState, Image, Platform, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, AppState, Image, Platform, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Gesture, GestureDetector, Pressable, ScrollView } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
@@ -74,7 +74,9 @@ import { Bone, ChevronRight, CircleHelp, Cookie, Droplet, HandHeart, Moon, Soup,
 import { playBadgeChime } from '../audio/badge';
 import { GREET } from '../actor/greetings';
 import { PetView } from '../ui/PetView';
+import { PhoneColumn } from '../ui/PhoneColumn';
 import { useStageSize } from '../ui/useStageSize';
+import { isLandscapeSplit, phoneColumnWidth } from '../ui/wideLayout';
 import type { CuddleHandle, StageHandle } from '../ui/PetView';
 import { CuddleFeedback } from '../ui/cuddle/CuddleFeedback';
 import type { FeedbackHandle } from '../ui/cuddle/CuddleFeedback';
@@ -211,8 +213,18 @@ export default function HomeScreen({ petApi }: Props) {
     | null
   >(null);
   const [previewBottom, setPreviewBottom] = useState(0);
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const split = isLandscapeSplit(windowWidth, windowHeight);
+  const [stagePane, setStagePane] = useState<{ width: number; height: number } | null>(null);
+  const stageFrame = split
+    ? {
+        width: stagePane?.width ?? Math.max(280, windowWidth - phoneColumnWidth),
+        height: stagePane?.height ?? windowHeight,
+        maxHeightShare: 1,
+      }
+    : undefined;
+  const { viewWidth, viewHeight, contentWidth } = useStageSize(stageFrame);
   const lastStrokeAt = useRef(0);
-  const { viewWidth, viewHeight, contentWidth } = useStageSize();
   const [playdateOpen, setPlaydateOpen] = useState(false);
   const playdates = usePlaydates(state?.ownerId);
   const owned = outfitsOwned();
@@ -989,6 +1001,7 @@ export default function HomeScreen({ petApi }: Props) {
 
   if (playdateOpen) {
     return (
+      <PhoneColumn>
       <PlaydateScreen
         pet={state}
         save={playdates.save}
@@ -1000,15 +1013,21 @@ export default function HomeScreen({ petApi }: Props) {
         onClose={() => setPlaydateOpen(false)}
         owned={owned}
       />
+      </PhoneColumn>
     );
   }
 
   if (facingOpen) {
-    return <FacingLab reducedMotion={reducedMotion} onClose={() => setFacingOpen(false)} />;
+    return (
+      <PhoneColumn>
+        <FacingLab reducedMotion={reducedMotion} onClose={() => setFacingOpen(false)} />
+      </PhoneColumn>
+    );
   }
 
   if (shopTab) {
     return (
+      <PhoneColumn>
       <PetShopScreen
         pet={state}
         balance={economyApi.balance}
@@ -1024,11 +1043,13 @@ export default function HomeScreen({ petApi }: Props) {
           setWardrobeOpen(true);
         }}
       />
+      </PhoneColumn>
     );
   }
 
   if (pantryOpen) {
     return (
+      <PhoneColumn>
       <PantryScreen
         inventory={economyApi.inventory}
         onClose={() => setPantryOpen(false)}
@@ -1040,11 +1061,13 @@ export default function HomeScreen({ petApi }: Props) {
           }
         }}
       />
+      </PhoneColumn>
     );
   }
 
   if (wardrobeOpen) {
     return (
+      <PhoneColumn>
       <WardrobeScreen
         pet={state}
         owned={owned}
@@ -1053,6 +1076,7 @@ export default function HomeScreen({ petApi }: Props) {
         reducedMotion={reducedMotion}
         onClose={() => setWardrobeOpen(false)}
       />
+      </PhoneColumn>
     );
   }
 
@@ -1310,6 +1334,7 @@ export default function HomeScreen({ petApi }: Props) {
               ? { flavor: 'style' as const, icon: Sparkles, text: 'Hold to move things around', bold: 'Hold', target: propTip }
               : null;
 
+  const sheetTop = split ? 0 : previewBottom;
   const trickTitle = (trackId: string) => trackName(trackId, species);
   const leaveForShop = (tab: ShopCategory) => {
     setPlacesOpen(false);
@@ -1334,7 +1359,7 @@ export default function HomeScreen({ petApi }: Props) {
         tint="butter"
         sparkle
         reducedMotion={reducedMotion}
-        top={previewBottom}
+        top={sheetTop}
         primary={{
           label: 'Yes, give treat',
           onPress: () => {
@@ -1374,7 +1399,7 @@ export default function HomeScreen({ petApi }: Props) {
         icon={CircleHelp}
         tint="lilac"
         reducedMotion={reducedMotion}
-        top={previewBottom}
+        top={sheetTop}
         primary={{
           label: 'Try again',
           onPress: () => {
@@ -1407,7 +1432,7 @@ export default function HomeScreen({ petApi }: Props) {
         icon={Cookie}
         tint="peach"
         reducedMotion={reducedMotion}
-        top={previewBottom}
+        top={sheetTop}
         primary={{
           label: 'OK',
           onPress: () => {
@@ -1439,7 +1464,7 @@ export default function HomeScreen({ petApi }: Props) {
         icon={Moon}
         tint="sky"
         reducedMotion={reducedMotion}
-        top={previewBottom}
+        top={sheetTop}
         primary={{
           label: windOwned ? 'Second Wind' : windUnavailable ? 'OK' : windCheck.ok ? 'Buy Second Wind' : 'Pet Shop',
           onPress: () => {
@@ -1481,6 +1506,79 @@ export default function HomeScreen({ petApi }: Props) {
     dismissBurst();
   };
 
+  const homeHeader = (
+    <View style={styles.header}>
+      <Image
+        source={require('../../assets/icon.png')}
+        style={styles.logo}
+        accessibilityLabel="Boop Boop"
+        accessibilityIgnoresInvertColors
+      />
+      <View pointerEvents="none" style={styles.nameSlot}>
+        <Text accessibilityRole="header" style={styles.name} numberOfLines={1}>
+          {state.name}
+        </Text>
+      </View>
+      <BoopCounter
+        ref={counterRef}
+        value={economyApi.balance}
+        payoutActive={burst != null}
+        pending={pendingBoops}
+        onPress={() => leaveForShop('treats')}
+      />
+    </View>
+  );
+
+  const sheets = (
+    <>
+      {trainingDialog}
+      {playOpen ? (
+        <ToyCard
+          top={sheetTop}
+          empty="No toys yet."
+          toys={playableToys.map((id) => ({ id, label: catalogItem(id)?.name ?? (id === 'ball' ? 'Ball' : id) }))}
+          onClose={() => setPlayOpen(false)}
+          onPick={(id) => {
+            const swapped = stageHandle.current?.swapToy(id) ?? false;
+            chooseToy(id, !swapped);
+            setPlayOpen(false);
+          }}
+        />
+      ) : null}
+      {treatOpen ? (
+        <TreatPicker
+          choices={treatsInInventory(economyApi.inventory, species)}
+          note={treatNote}
+          reducedMotion={reducedMotion}
+          top={sheetTop}
+          onClose={() => {
+            setTreatOpen(false);
+            setTreatNote(null);
+          }}
+          onPick={(treatId) => {
+            const gate = canGiveTreat(state, treatId);
+            if (!gate.ok) {
+              setTreatNote(
+                gate.reason === 'full' ? `${state.name} is too full for a treat.` : 'No treats available.',
+              );
+              return;
+            }
+            const used = economyApi.useItem(state, treatId, { context: 'casual' }, newRequestId());
+            if (!used.ok || !used.pet) {
+              setTreatNote(
+                !used.ok && used.reason === 'full' ? `${state.name} is too full for a treat.` : 'No treats available.',
+              );
+              return;
+            }
+            offerTreat(treatId, used.pet);
+            setTreatOpen(false);
+            setTreatNote(null);
+          }}
+        />
+      ) : null}
+    </>
+  );
+
   return (
     <View style={styles.screen}>
       <View
@@ -1504,34 +1602,22 @@ export default function HomeScreen({ petApi }: Props) {
           onDone={finishUnlock}
         />
       ) : null}
+      <View style={styles.layout}>
+        {split ? <View style={styles.headerRule}>{homeHeader}</View> : null}
+        <View style={split ? styles.splitBody : styles.layout}>
       <View
-        style={[styles.sticky, shownDialog || treatOpen ? styles.stickyFront : null]}
+        style={split ? styles.stagePane : [styles.sticky, shownDialog || treatOpen ? styles.stickyFront : null]}
         onLayout={(event) => {
-          const { y, height } = event.nativeEvent.layout;
+          const { width, height, y } = event.nativeEvent.layout;
+          if (split) {
+            setStagePane((prev) => (prev && prev.width === width && prev.height === height ? prev : { width, height }));
+            return;
+          }
           const next = y + height;
           setPreviewBottom((prev) => (prev === next ? prev : next));
         }}
       >
-        <View style={styles.header}>
-          <Image
-            source={require('../../assets/icon.png')}
-            style={styles.logo}
-            accessibilityLabel="Boop Boop"
-            accessibilityIgnoresInvertColors
-          />
-          <View pointerEvents="none" style={styles.nameSlot}>
-            <Text accessibilityRole="header" style={styles.name} numberOfLines={1}>
-              {state.name}
-            </Text>
-          </View>
-          <BoopCounter
-            ref={counterRef}
-            value={economyApi.balance}
-            payoutActive={burst != null}
-            pending={pendingBoops}
-            onPress={() => leaveForShop('treats')}
-          />
-        </View>
+        {split ? null : homeHeader}
         <GestureDetector gesture={gesture}>
           <View
             ref={stageViewRef}
@@ -1540,6 +1626,7 @@ export default function HomeScreen({ petApi }: Props) {
             style={{ width: viewWidth, height: viewHeight, alignSelf: 'center' }}
           >
             <PetView
+              frame={stageFrame}
               cuddleActive={cuddleOn}
               cuddleRef={cuddleHandle}
               stageRef={stageHandle}
@@ -1616,6 +1703,7 @@ export default function HomeScreen({ petApi }: Props) {
           </View>
         </GestureDetector>
       </View>
+      <View style={split ? styles.controlColumn : styles.controlsHost}>
       <ScrollView style={styles.controls} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <NeedRings needs={state.needs} hydration={state.hydration} />
         {welcomeBack ? (
@@ -1720,55 +1808,16 @@ export default function HomeScreen({ petApi }: Props) {
           onFacing={() => setFacingOpen(true)}
         />
       </ScrollView>
-      {trainingDialog}
-      {playOpen ? (
-        <ToyCard
-          top={previewBottom}
-          empty="No toys yet."
-          toys={playableToys.map((id) => ({ id, label: catalogItem(id)?.name ?? (id === 'ball' ? 'Ball' : id) }))}
-          onClose={() => setPlayOpen(false)}
-          onPick={(id) => {
-            const swapped = stageHandle.current?.swapToy(id) ?? false;
-            chooseToy(id, !swapped);
-            setPlayOpen(false);
-          }}
-        />
-      ) : null}
-      {treatOpen ? (
-        <TreatPicker
-          choices={treatsInInventory(economyApi.inventory, species)}
-          note={treatNote}
-          reducedMotion={reducedMotion}
-          top={previewBottom}
-          onClose={() => {
-            setTreatOpen(false);
-            setTreatNote(null);
-          }}
-          onPick={(treatId) => {
-            const gate = canGiveTreat(state, treatId);
-            if (!gate.ok) {
-              setTreatNote(
-                gate.reason === 'full' ? `${state.name} is too full for a treat.` : 'No treats available.',
-              );
-              return;
-            }
-            const used = economyApi.useItem(state, treatId, { context: 'casual' }, newRequestId());
-            if (!used.ok || !used.pet) {
-              setTreatNote(
-                !used.ok && used.reason === 'full' ? `${state.name} is too full for a treat.` : 'No treats available.',
-              );
-              return;
-            }
-            offerTreat(treatId, used.pet);
-            setTreatOpen(false);
-            setTreatNote(null);
-          }}
-        />
-      ) : null}
+      {split ? sheets : null}
+      </View>
+      {split ? null : sheets}
+        </View>
+      </View>
       {pops ? <AttributePops pops={pops} reducedMotion={reducedMotion} onDone={clearPops} /> : null}
       </View>
       {placesOpen ? (
         <View style={styles.placesCover} accessibilityViewIsModal>
+          <PhoneColumn>
           <PlacesScreen
             species={placeSpecies}
             currentSceneId={preset.id}
@@ -1778,6 +1827,7 @@ export default function HomeScreen({ petApi }: Props) {
             onClose={() => setPlacesOpen(false)}
             onShop={() => leaveForShop('treats')}
           />
+          </PhoneColumn>
         </View>
       ) : null}
       {burst && stageReady ? (
@@ -1798,6 +1848,36 @@ export default function HomeScreen({ petApi }: Props) {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
+  },
+  layout: {
+    flex: 1,
+  },
+  headerRule: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#D0D8E3',
+  },
+  splitBody: {
+    flex: 1,
+    flexDirection: 'row',
+  },
+  stagePane: {
+    flex: 1,
+    minWidth: 0,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  controlColumn: {
+    width: phoneColumnWidth,
+    flexShrink: 0,
+    minHeight: 0,
+    position: 'relative',
+    borderLeftWidth: StyleSheet.hairlineWidth,
+    borderLeftColor: '#D0D8E3',
+  },
+  controlsHost: {
+    flex: 1,
+    minHeight: 0,
   },
   placesCover: {
     ...StyleSheet.absoluteFill,

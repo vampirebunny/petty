@@ -55,6 +55,7 @@ import {
   update,
 } from '../actor';
 import { useStageSize } from './useStageSize';
+import type { StageFrame } from './wideLayout';
 import type { CuddleOut, CuddleTouch, CuddleZone, Scene, TimeOfDay, World } from '../actor';
 import { playVoice } from '../audio/voice';
 import { attributeScore, drinkHydrationGain, feedEnergyGain, feedHungerDrop } from '../sim';
@@ -129,6 +130,8 @@ type Props = {
   placements?: FurniturePlacement[];
   toys?: string[];
   playToy?: string | null;
+  // Measured scene pane. Omitted on a stacked layout, which sizes from the window.
+  frame?: StageFrame;
 };
 
 function sourceOf(pet: PetState) {
@@ -190,8 +193,9 @@ export function PetView({
   placements = [],
   toys = [],
   playToy = null,
+  frame,
 }: Props) {
-  const { viewWidth, viewHeight } = useStageSize();
+  const { viewWidth, viewHeight } = useStageSize(frame);
   const widthRef = useRef(viewWidth);
   const heightRef = useRef(viewHeight);
   widthRef.current = viewWidth;

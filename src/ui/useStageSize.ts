@@ -1,19 +1,17 @@
 import { useWindowDimensions } from 'react-native';
 
-import { stageHeight, stageWidth } from '../actor/geometry';
+import { useLimitedContentWidth } from './PhoneColumn';
+import { stackedHeightShare, stageSizeFor } from './wideLayout';
+import type { StageFrame } from './wideLayout';
 
-const minWidth = 280;
-// Share of the window height the stage may take, so the controls below stay reachable.
-const maxHeightShare = 0.62;
-
-// Size of the pet stage for the current window. Height stays within the stage's proportions.
-// A wide window (iPad, a spanned Duo, an unfolded foldable) keeps that height and lets the
-// caller paint the background out to the side edges.
-export function useStageSize() {
-  const { width, height } = useWindowDimensions();
-  const byWidth = Math.max(minWidth, width);
-  const byHeight = Math.max(minWidth, (height * maxHeightShare * stageWidth) / stageHeight);
-  const contentWidth = Math.min(byWidth, byHeight);
-  const viewHeight = contentWidth * (stageHeight / stageWidth);
-  return { viewWidth: Math.max(contentWidth, width), viewHeight, contentWidth, windowWidth: width };
+// Size of the pet stage. A stacked layout caps height so the controls below stay reachable
+// and lets a wide window paint the background out to the side edges. A measured frame (the
+// landscape scene pane) may use its full height. Inside a phone column, width is that column.
+export function useStageSize(frame?: StageFrame) {
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const limited = useLimitedContentWidth();
+  const width = frame?.width ?? limited ?? windowWidth;
+  const height = frame?.height ?? windowHeight;
+  const share = frame?.maxHeightShare ?? (frame ? 1 : stackedHeightShare);
+  return { ...stageSizeFor(width, height, share), windowWidth: width };
 }

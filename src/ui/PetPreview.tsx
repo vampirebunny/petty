@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { AppState, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { AppState, StyleSheet, View } from 'react-native';
 import { Canvas, Picture, Skia } from '@shopify/react-native-skia';
 import type { SkPicture } from '@shopify/react-native-skia';
 
@@ -9,6 +9,7 @@ import { stageWidth } from '../actor/geometry';
 import { previewStageHeight } from '../actor/scenes';
 import { previewBackdrop, previewHome, previewScene } from '../actor/previewScene';
 import type { Look } from '../sim/types';
+import { useContentWidth } from './PhoneColumn';
 import { drawWorld } from './skia/world';
 
 type Props = {
@@ -44,7 +45,7 @@ function newWorld(breedId: string, look: Look | null): World {
 // A small Skia view of the pet being adopted. It only draws: the actor, scene, and look all
 // come from the same data the home screen uses.
 export function PetPreview({ species, breedId, look, height }: Props) {
-  const { width } = useWindowDimensions();
+  const width = useContentWidth();
   const ratio = previewStageHeight / stageWidth;
   const fullWidth = Math.min(560, Math.max(240, width - 40));
   const viewWidth = height ? Math.min(fullWidth, height / ratio) : fullWidth;

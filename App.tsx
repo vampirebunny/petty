@@ -21,6 +21,7 @@ import { useAgeGate } from './src/state/useAgeGate';
 import { useIdentity } from './src/state/useIdentity';
 import { usePet } from './src/state/usePet';
 import { fontFamily } from './src/ui/font';
+import { PhoneColumn } from './src/ui/PhoneColumn';
 import { useDeviceOrientation } from './src/ui/useDeviceOrientation';
 
 export default function App() {
@@ -67,27 +68,39 @@ export default function App() {
   const ownerId = identity.ownerId;
   if (fontsReady && gate.phase !== 'loading' && petReady && identity.ready && ownerId) {
     if (gate.phase === 'unavailable') {
-      screen = <NotAvailableScreen />;
+      screen = (
+        <PhoneColumn>
+          <NotAvailableScreen />
+        </PhoneColumn>
+      );
     } else if (gate.phase === 'consent') {
       screen = (
-        <ConsentScreen
-          askAge={gate.askAge}
-          onYes={() => void gate.continueYes()}
-          onNo={() => void gate.continueNo()}
-          onAcceptTerms={() => void gate.acceptUpdatedTerms()}
-        />
+        <PhoneColumn>
+          <ConsentScreen
+            askAge={gate.askAge}
+            onYes={() => void gate.continueYes()}
+            onNo={() => void gate.continueNo()}
+            onAcceptTerms={() => void gate.acceptUpdatedTerms()}
+          />
+        </PhoneColumn>
       );
     } else if (!petState) {
       screen = (
-        <AdoptScreen
-          onAdopt={(...args) => {
-            setMeeting(true);
-            adopt(...args, ownerId);
-          }}
-        />
+        <PhoneColumn>
+          <AdoptScreen
+            onAdopt={(...args) => {
+              setMeeting(true);
+              adopt(...args, ownerId);
+            }}
+          />
+        </PhoneColumn>
       );
     } else if (meeting) {
-      screen = <MeetScreen pet={petState} onStart={() => setMeeting(false)} />;
+      screen = (
+        <PhoneColumn>
+          <MeetScreen pet={petState} onStart={() => setMeeting(false)} />
+        </PhoneColumn>
+      );
     } else {
       screen = (
         <HomeScreen petApi={pet} />

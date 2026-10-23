@@ -33,3 +33,11 @@ One candy tooltip shows at a time. Doing the action marks it seen. Dismissing it
 - `tip.move`: after two prop taps, or when a new placeable arrives once a prop tap has already happened. "Hold to move things around".
 
 After a prop tip has been seen, that prop shimmers while its need stays under 30. Reduce Motion turns off the bob, the pulse, and the shimmer.
+
+## Wide screens
+
+Phones stay portrait. A tablet, spanned Duo, or unfolded foldable (shorter side at least 600dp) may rotate. Portrait, including an upright iPad, keeps the scene stacked above the controls.
+
+In landscape, the header (logo, name, Boop counter) stays full width. The scene fills the left side. The controls sit in a 400pt column on the right: need rings, Where, training, and the action panel. The toy card and treat picker open in that column, under the header. The seam is not locked to a fold hinge.
+
+Shop, wardrobe, pantry, playdate, places, and adopt stay one centered column of that same width so they do not stretch across the window.

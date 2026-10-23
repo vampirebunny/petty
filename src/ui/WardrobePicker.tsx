@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Pressable } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 
@@ -10,6 +10,7 @@ import { ClosetSection } from './closet/ClosetSection';
 import { closet } from './closet/closetStyle';
 import { fontFamily } from './font';
 import { OutfitPreview, useOutfitClock, type OutfitSubject } from './OutfitPreview';
+import { useContentWidth } from './PhoneColumn';
 
 type Props = {
   subject: OutfitSubject;
@@ -26,7 +27,7 @@ function bump() {
 
 export function WardrobePicker({ subject, owned, equipped, onEquip, reducedMotion, footer }: Props) {
   const t = useOutfitClock(reducedMotion);
-  const { width } = useWindowDimensions();
+  const width = useContentWidth();
   const previewW = Math.min(420, width - 32);
   const previewH = 260;
   const wornLabels = outfitSlots.flatMap((slot) => {

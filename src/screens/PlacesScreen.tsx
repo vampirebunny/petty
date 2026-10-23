@@ -1,9 +1,10 @@
 import { useId } from 'react';
 import { ChevronLeft } from 'lucide-react-native';
-import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 
 import { fontFamily } from '../ui/font';
+import { useContentWidth } from '../ui/PhoneColumn';
 import { LocationButton } from '../ui/places/LocationButton';
 import { locationIcons } from '../ui/places/locationIcons';
 import { spotsFor } from '../ui/places/spots';
@@ -19,7 +20,7 @@ type Props = {
 };
 
 export function PlacesScreen({ species, currentSceneId, petName, onPick, onClose, onShop, reducedMotion }: Props) {
-  const { width } = useWindowDimensions();
+  const width = useContentWidth();
   const column = Math.max(0, (width - 12 * 2 - 8) / 2);
   const iconSize = Math.min(132, column);
   const spots = spotsFor(species);

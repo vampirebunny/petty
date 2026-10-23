@@ -42,6 +42,7 @@ import {
 import { ensureShopDay, loadShopCatalog } from '../economy/shopState';
 import { refreshShopCatalog } from '../economy/shopSync';
 import type { Equipped, OutfitSlot, PetState } from '../sim/types';
+import { useContentWidth } from '../ui/PhoneColumn';
 import { fontFamily } from '../ui/font';
 import { Glossy, LedgeCard, glossInk } from '../ui/shop/Glossy';
 import { ItemArt } from '../ui/shop/ItemArt';
@@ -154,7 +155,8 @@ export function PetShopScreen({
   onClose,
   onOpenCloset,
 }: Props) {
-  const { width: screenW, height: screenH } = useWindowDimensions();
+  const screenW = useContentWidth();
+  const { height: screenH } = useWindowDimensions();
   const stageWidthPx = screenW - 32;
   const cardWidth = (screenW - 32 - 12) / 2;
   const spin = useSharedValue(0);
