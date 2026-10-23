@@ -60,6 +60,8 @@ import {
 import { useStageSize } from './useStageSize';
 import type { StageFrame } from './wideLayout';
 import type { CuddleOut, CuddleTouch, CuddleZone, Scene, TimeOfDay, World } from '../actor';
+import type { ParkOffer } from '../actor/types';
+import { syncParkVisitors } from '../actor/parkVisitors';
 import { playVoice } from '../audio/voice';
 import { attributeScore, drinkHydrationGain, feedEnergyGain, feedHungerDrop } from '../sim';
 import type { PointAdd } from './cuddle/pointAdds';
@@ -138,6 +140,10 @@ type Props = {
   onHeld?: (on: boolean) => void;
   // Measured scene pane. Omitted on a stacked layout, which sizes from the window.
   frame?: StageFrame;
+  // Home park only. Other screens leave this off.
+  parkVisitors?: boolean;
+  parkOffers?: ParkOffer[];
+  parkStranger?: (nonce: number) => ParkOffer;
 };
 
 function sourceOf(pet: PetState) {
@@ -200,6 +206,9 @@ export function PetView({
   playToy = null,
   onHeld,
   frame,
+  parkVisitors = false,
+  parkOffers = [],
+  parkStranger,
 }: Props) {
   const { viewWidth, viewHeight } = useStageSize(frame);
   const widthRef = useRef(viewWidth);
@@ -215,6 +224,12 @@ export function PetView({
     [baseScene, furniture, furnitureKey, placementKey, placements],
   );
   const worldRef = useRef<World>(createWorld([spawnActor(sourceOf(pet))], 1, scene));
+  const parkOffersRef = useRef(parkOffers);
+  const parkStrangerRef = useRef(parkStranger);
+  const parkOnRef = useRef(parkVisitors);
+  parkOffersRef.current = parkOffers;
+  parkStrangerRef.current = parkStranger;
+  parkOnRef.current = parkVisitors;
   const activeRef = useRef(AppState.currentState === 'active');
   const hourRef = useRef(hour);
   const reducedRef = useRef(reducedMotion);
@@ -278,12 +293,14 @@ export function PetView({
 
   useEffect(() => {
     const world = worldRef.current;
-    const actor = world.actors[0];
-    if (!actor || actor.id !== pet.id) {
-      world.actors = [spawnActor(sourceOf(pet))];
+    const actor = world.actors.find((item) => item.id === pet.id && !item.guest);
+    const guests = world.actors.filter((item) => item.guest);
+    if (!actor) {
+      world.actors = [spawnActor(sourceOf(pet)), ...guests];
       world.items = [];
     } else {
       syncActor(actor, sourceOf(pet));
+      world.actors = [actor, ...guests];
     }
     syncWorldWater(world, pet.waterLevel);
     syncWorldFood(world, pet.foodInBowl, pet.bowlItemId != null);
@@ -731,6 +748,25 @@ export function PetView({
   const step = useCallback(
     (elapsedMs: number) => {
       const world = worldRef.current;
+      const player = world.actors.find((item) => !item.guest);
+      const current = petRef.current;
+      if (player && player.id === current.id) {
+        player.mood = Math.min(1, Math.max(0, current.needs.happiness / 100));
+        player.energy = Math.min(1, Math.max(0, current.needs.energy / 100));
+        player.cuddleAffinity = Math.min(1, Math.max(0, attributeScore(current, 'affection') / 100));
+        player.stats = {
+          ...player.stats,
+          stamina: Math.min(1, Math.max(0, attributeScore(current, 'stamina') / 100)),
+          agility: Math.min(1, Math.max(0, attributeScore(current, 'agility') / 100)),
+          boldness: Math.min(1, Math.max(0, attributeScore(current, 'boldness') / 100)),
+          obedience: Math.min(1, Math.max(0, attributeScore(current, 'obedience') / 100)),
+        };
+      }
+      syncParkVisitors(world, {
+        enabled: parkOnRef.current && world.scene.id === 'park' && travelRef.current == null,
+        offers: parkOffersRef.current,
+        stranger: parkStrangerRef.current ?? null,
+      });
       const dt = frameDt(elapsedMs, activeRef.current);
       update(world, dt);
       if (takePendingRest(world)) {

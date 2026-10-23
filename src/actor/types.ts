@@ -571,6 +571,8 @@ export type Actor = {
   headMark: { x: number; y: number } | null;
   // Mouth point in stage space, written while drawing, so a rope can meet the toy.
   mouthMark: { x: number; y: number } | null;
+  // A park visitor. Care, meals, and the player's commands do not apply.
+  guest?: boolean;
 };
 
 export type Anchors = {
@@ -674,6 +676,56 @@ export type World = {
   toyPool?: string[];
   // Id of the greeting currently showing, for the debug panel.
   greetLabel?: string;
+  // Home park visitors. Missing or disabled on every other stage.
+  park?: ParkBook;
+};
+
+export type ParkOffer = {
+  id: string;
+  breedId: string;
+  species: Species;
+  ageDays: number;
+  weight: number;
+  vitality: number;
+  seed: number;
+  // Shown scores, 0–100.
+  boldness: number;
+  affection: number;
+  look: Look | null;
+  equipped: Equipped;
+};
+
+export type ParkGuestPhase = 'enter' | 'wander' | 'hello' | 'leave';
+
+export type ParkGuestState = {
+  actorId: string;
+  snapshotId: string;
+  boldness: number;
+  affection: number;
+  species: Species;
+  ageDays: number;
+  leaveAt: number;
+  hardLeaveAt: number;
+  phase: ParkGuestPhase;
+  helloUntil: number;
+  partnerId: string | null;
+  // This visitor already had their one hello, paid or cancelled.
+  done: boolean;
+  paid: boolean;
+  tried: boolean;
+};
+
+export type ParkBook = {
+  enabled: boolean;
+  offers: ParkOffer[];
+  stranger: ((nonce: number) => ParkOffer) | null;
+  nonce: number;
+  nextCheck: number;
+  recentId: string | null;
+  moodAt: number[];
+  staying: boolean;
+  helloAt: number;
+  guests: ParkGuestState[];
 };
 
 export type ActorSource = {

@@ -21,6 +21,7 @@ import type { PlayBehavior } from '../items/playRules';
 import { bodyFrame, depthScale, geomOf, headFaceOf, PET_SIZE, reachOf, speedMax, stageWidth, travelGateX, xRangeOf } from './geometry';
 import { applyGesture, gestureOwns, gestureWantsCamera } from './gestures';
 import { GREET, greetClip, motionMods, planGreeting, scriptFor } from './greetings';
+import { abortParkHello, clearParkGuests, stepParkVisitors } from './parkVisitors';
 import type { GreetPlan } from './greetings';
 import { cancelJump, jump, jumpConfig, jumpOwnsMotion, resolveJump, stepJump } from './jump';
 import { facingConfig } from './data/facing';
@@ -415,10 +416,11 @@ export function takeHydrationDelta(actor: Actor): number {
 
 // A new scene only moves the actors to its home spot. Pet state is untouched, so a sleeping pet keeps sleeping.
 export function setWorldScene(world: World, scene: Scene): void {
-  scene = sceneForSpecies(scene, sceneSpeciesOf(world.actors));
+  scene = sceneForSpecies(scene, sceneSpeciesOf(world.actors.filter((actor) => !actor.guest)));
   if (world.scene === scene) {
     return;
   }
+  clearParkGuests(world);
   world.scene = scene;
   const home = homeOf(scene);
   const bed = poiOf(scene, 'bed');
@@ -481,7 +483,8 @@ export function startSceneExit(world: World, actor: Actor): void {
 
 // Cuts to `scene` with the pet waiting off the left, then walking in to the home spot.
 export function startSceneEnter(world: World, actor: Actor, scene: Scene): void {
-  scene = sceneForSpecies(scene, sceneSpeciesOf(world.actors));
+  clearParkGuests(world);
+  scene = sceneForSpecies(scene, sceneSpeciesOf(world.actors.filter((item) => !item.guest)));
   world.scene = scene;
   clearItems(world);
   seedParticles(world);
@@ -893,12 +896,12 @@ export function takePendingRest(world: World): boolean {
 
 function nextIdle(world: World, actor: Actor): void {
   const breed = breedById(actor.breedId);
-  // An inviting bowl or bed comes before any random wander.
-  if (startNextInvite(world, actor)) {
+  // An inviting bowl or bed comes before any random wander. Visitors never take the pet's bowl or pond.
+  if (!actor.guest && startNextInvite(world, actor)) {
     return;
   }
   // Occasional autonomous drink when water is available. Thirst makes this much more likely.
-  if (canAutonomousDrink(world) && world.rng() < 0.08 + 0.72 * (1 - actor.hydration) && canBehave(actor, 'eat')) {
+  if (!actor.guest && canAutonomousDrink(world) && world.rng() < 0.08 + 0.72 * (1 - actor.hydration) && canBehave(actor, 'eat')) {
     startUserTask(world, actor, 'drink');
     return;
   }
@@ -1011,6 +1014,9 @@ export function startUserTask(
   drop?: Vec,
   flick?: { vx: number; vy: number; vz: number },
 ): boolean {
+  if (!actor.guest) {
+    abortParkHello(world);
+  }
   if (actor.collapseLeft > 0 && task !== 'wake') {
     return false;
   }
@@ -1811,6 +1817,9 @@ function runGreet(world: World, actor: Actor, dt: number, targets: Pose, limit: 
 }
 
 export function beginGreeting(world: World, actor: Actor, plan: GreetPlan): void {
+  if (!actor.guest) {
+    abortParkHello(world);
+  }
   const sleeping = actor.asleep || actor.task.type === 'sleep';
   if (sleeping) {
     actor.asleep = false;
@@ -2233,7 +2242,9 @@ function updateActor(world: World, actor: Actor, dt: number): void {
         }
       }
       if (actor.task.t > 6) {
-        if (actor.task.kind === 'drink') {
+        if (actor.guest) {
+          goIdle(world, actor);
+        } else if (actor.task.kind === 'drink') {
           if (hasRefillableBowl(world.scene)) {
             world.pendingBowlDrinks += 1;
           } else {
@@ -2955,11 +2966,19 @@ export function update(world: World, dt: number): void {
   // The bowl pours in when food is added, empties while the pet eats, and stays empty after.
   world.bowlFill = clamp(world.bowlFill + (eating ? -1 / 6 : world.foodStocked ? 0.8 : -2) * step, 0, 1);
   for (const actor of world.actors) {
+    if (actor.guest) {
+      continue;
+    }
     if (!(actor.task.type === 'sleep' && actor.task.stage === 'sleeping') && !actor.asleep) {
       world.restLatched = false;
     }
-    pumpInvites(world, actor);
+    if (!actor.guest) {
+      pumpInvites(world, actor);
+    }
     updateActor(world, actor, step);
-    applyGlance(world, actor, step);
+    if (!actor.guest) {
+      applyGlance(world, actor, step);
+    }
   }
+  stepParkVisitors(world, spawnActor, setDirection);
 }

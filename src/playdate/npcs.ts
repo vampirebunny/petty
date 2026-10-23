@@ -1,5 +1,5 @@
 import { catBreeds, coatStylesFor, dogBreeds } from '../actor/breeds';
-import type { Breed } from '../actor/types';
+import type { Breed, ParkOffer } from '../actor/types';
 import { outfitSlots, wardrobe } from '../actor/wardrobe';
 import { attributesFor, currentStyle } from '../sim/offers';
 import { archetypes } from '../sim/config';
@@ -132,4 +132,33 @@ export function dailyCast(cast: readonly PetSnapshot[], ownerId: string, date: s
   const rng = rngFrom(ownerId, date, 'daily');
   const picked = shuffle(cast, rng).slice(0, playdateConfig.dailyCount);
   return withSpecies(withSpecies(picked, cast, 'dog'), cast, 'cat');
+}
+
+export function parkOfferFromSnapshot(snapshot: PetSnapshot): ParkOffer {
+  return {
+    id: snapshot.snapshotId,
+    breedId: snapshot.breedId,
+    species: snapshot.species,
+    ageDays: snapshot.ageDays,
+    weight: snapshot.weight,
+    vitality: snapshot.vitality,
+    seed: snapshot.seed,
+    boldness: snapshot.attributes.boldness,
+    affection: snapshot.attributes.affection,
+    look: snapshot.look,
+    equipped: snapshot.equipped,
+  };
+}
+
+export function parkStranger(ownerId: string, nonce: number): PetSnapshot {
+  const rng = rngFrom(ownerId, 'park-stranger', nonce);
+  const species: Species = rng() < 0.5 ? 'dog' : 'cat';
+  const breeds = species === 'dog' ? dogBreeds() : catBreeds();
+  const breed = breeds[pickIndex(rng, breeds.length)];
+  const name = names[pickIndex(rng, names.length)];
+  return oneNpc(ownerId, 800 + (Math.abs(Math.floor(nonce)) % 200), species, breed, name);
+}
+
+export function parkStrangerOffer(ownerId: string, nonce: number): ParkOffer {
+  return parkOfferFromSnapshot(parkStranger(ownerId, nonce));
 }

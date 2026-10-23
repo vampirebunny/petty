@@ -59,6 +59,7 @@ import { useCandyTips } from '../ui/tips/useCandyTips';
 import { PlaydateScreen } from './PlaydateScreen';
 import { FacingLab } from './FacingLab';
 import { WardrobeScreen } from './WardrobeScreen';
+import { parkOfferFromSnapshot, parkStrangerOffer } from '../playdate/npcs';
 import { usePlaydates } from '../state/usePlaydates';
 import { formatCooldown } from '../playdate/cooldown';
 import { DebugPanel } from '../ui/DebugPanel';
@@ -231,6 +232,14 @@ export default function HomeScreen({ petApi }: Props) {
   const lastStrokeAt = useRef(0);
   const [playdateOpen, setPlaydateOpen] = useState(false);
   const playdates = usePlaydates(state?.ownerId);
+  const parkOffers = useMemo(
+    () => playdates.save.cast.map(parkOfferFromSnapshot),
+    [playdates.save.cast],
+  );
+  const parkStranger = useCallback(
+    (nonce: number) => parkStrangerOffer(state?.ownerId || 'guest', nonce),
+    [state?.ownerId],
+  );
   const owned = outfitsOwned();
   const [hour, setHour] = useState<number | null>(null);
   const [reducedMotion, setReducedMotion] = useState(false);
@@ -1805,6 +1814,9 @@ export default function HomeScreen({ petApi }: Props) {
               onFellAsleep={beginRest}
               onPlayFind={noteFind}
               onHeld={setHeldPlay}
+              parkVisitors
+              parkOffers={parkOffers}
+              parkStranger={parkStranger}
               onPointAdds={(adds) => {
                 const shown: PointAdd[] = [];
                 for (const gain of adds) {
