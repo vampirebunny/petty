@@ -278,10 +278,10 @@ describe('cuddle mood bursts', () => {
     return ctx;
   }
 
-  it('pays +5 mood after five seconds of continuous gesturing', () => {
+  it('pays +5 mood after three seconds of continuous gesturing', () => {
     const { world, actor } = settled();
     setCuddleGesturing(actor, true);
-    run(world, 4.9);
+    run(world, 2.9);
     expect(takeMoodPops(actor)).toEqual([]);
     run(world, 0.2);
     expect(takeMoodPops(actor)).toEqual([cuddleMoodGain]);
@@ -290,7 +290,7 @@ describe('cuddle mood bursts', () => {
   it('pays again if the user keeps gesturing', () => {
     const { world, actor } = settled();
     setCuddleGesturing(actor, true);
-    run(world, 10.1);
+    run(world, 6.1);
     expect(takeMoodPops(actor)).toEqual([cuddleMoodGain, cuddleMoodGain]);
   });
 
@@ -307,7 +307,7 @@ describe('cuddle mood bursts', () => {
     }
     expect(phaseOf(actor)).toBe('belly');
     setCuddleGesturing(actor, true);
-    run(world, 5.1, (frame) => {
+    run(world, 3.1, (frame) => {
       if (frame % 6 === 0) {
         cuddleTouch(world, actor, { kind: 'move', zone: 'belly', x: actor.x });
       }
@@ -319,12 +319,12 @@ describe('cuddle mood bursts', () => {
   it('resets the streak when the user lifts', () => {
     const { world, actor } = settled();
     setCuddleGesturing(actor, true);
-    run(world, 4);
+    run(world, 2.5);
     setCuddleGesturing(actor, false);
     run(world, 2);
     expect(takeMoodPops(actor)).toEqual([]);
     setCuddleGesturing(actor, true);
-    run(world, 4.9);
+    run(world, 2.9);
     expect(takeMoodPops(actor)).toEqual([]);
     run(world, 0.2);
     expect(takeMoodPops(actor)).toEqual([cuddleMoodGain]);

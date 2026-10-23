@@ -30,8 +30,10 @@ export const extraHappinessDecayPerHour = -684;
 // Tummy (100 - hunger) and energy must both be at least this for mood to rise.
 // Below this on either ring, awake mood starts draining.
 export const moodNeedFloor = 30;
-// Flat mood added by each throw or fetch, when tummy and energy can raise mood.
+// Mood from playing with a toy. Not paid for picking or throwing one.
+// One grant each time this much play has elapsed, when tummy and energy can raise mood.
 export const playHappinessGain = 3;
+export const playMoodIntervalSec = 3;
 // Empty energy drops the pet for this long, then they wake with a little energy back.
 export const collapseSleepSec = 5;
 export const collapseWakeEnergy = 10;
@@ -57,7 +59,7 @@ export const treatMoodGain = 10;
 
 export const petHappinessGain = 6;
 // A continuous cuddle stroke of this long pays a flat mood burst.
-export const cuddleMoodHoldSec = 5;
+export const cuddleMoodHoldSec = 3;
 export const cuddleMoodGain = 5;
 // The same hold pays more once the pet has rolled into a belly rub.
 export const cuddleBellyMoodGain = 10;

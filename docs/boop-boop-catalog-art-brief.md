@@ -132,6 +132,8 @@ Two kinds of toy:
 - **Thrown toys** (everything except the wand and the laser) use the existing play task: a flick throws, and `PLAY_RULES` decides what the pet does. No "give" mode.
 - **Held toys** (`wand`, `laser`) use a new held mode, specified below.
 
+**Mood.** Picking a toy, or throwing one, does not change mood. Mood rises by **+3 every 3 seconds of play**, and only when tummy and energy are both at least 30. A thrown toy is in play for the whole chase, including a bone chew, and not during the pant afterward. A wand or laser is in play only while the finger is down. Lifting the finger clears the partial 3 seconds, so the next stretch has to last the full interval. The bone's old chew bonus and the laser's +10 win bonus are not used.
+
 New toy ids are plain, like the existing `ball` and `yarn`. A toy with no play rule stays out of the picker.
 
 ### Thrown toys
@@ -140,7 +142,7 @@ New toy ids are plain, like the existing `ball` and `yarn`. A toy with no play r
 |---|---|---|
 | `crinkle` | cat | **The cat ball rule** (stalk, pounce, bat, no carry), plus the crinkle sound **on each bat and each time it hits the floor after a bat**. The sound comes later; it's silent until then. |
 | `mouse` | cat | **The yarn rule exactly.** A **squeak toy**: it plays the new squeak on each pounce, each bat, and each time it hits the floor (after the throw and after a bat). |
-| `bone` | dog | **One id everywhere:** the existing `bone` kind in `ITEM_KINDS` (gripped in the mouth) is the chew bone. Give it a drawing (the Icons board's Chewy Bone) and a play rule. Thrown. The dog fetches it in the mouth, then instead of returning it, **lies down where it caught it and chews** (`jawHold` oscillating, a slight head bob) for 20–40 s, with a small mood gain. A flick works as it does for every toy: it ends the chew, removes the bone and spawns a new one in the air at the finger. Label "Chewy Bone". **Mood while chewing:** +2 every 5 s, at most +10 per chew. |
+| `bone` | dog | **One id everywhere:** the existing `bone` kind in `ITEM_KINDS` (gripped in the mouth) is the chew bone. Give it a drawing (the Icons board's Chewy Bone) and a play rule. Thrown. The dog fetches it in the mouth, then instead of returning it, **lies down where it caught it and chews** (`jawHold` oscillating, a slight head bob) for 20–40 s. Mood during that chew is the shared play clock above, not a separate bonus. A flick works as it does for every toy: it ends the chew, removes the bone and spawns a new one in the air at the finger. Label "Chewy Bone". |
 | `rope` | dog | **No rule**, so it isn't in the picker. Icon only. |
 
 ### Held toys: a new held play mode
@@ -184,7 +186,7 @@ New toy ids are plain, like the existing `ball` and `yarn`. A toy with no play r
   - **The dot can never be caught:** on a pounce, the dot is drawn at the finger point plus a slip offset of 0.5 R **in the cat's facing direction** (just ahead of the paw), clamped to the floor. The offset eases back to 0 over 400 ms.
   - **Stamina** works as for any chase: when it runs out, the cat is held to a trot and keeps chasing.
   - **Watch break** (a separate, new behavior): after 60 s of chase-plus-pounce time, the cat sits and watches the dot for 10 s, tracking it with its head and twitching its tail. The clock counts chase and pounce time and does not reset when the cat pounces. The sit is not part of the clock. When the 10 s end, the clock starts over and the chase resumes.
-  - **Ending on a win:** when held mode ends, if the cat chased for at least 15 s, its last pounce lands on a little sparkle burst. The sparkle always shows, but it pays **+10 mood (the same as a treat) at most once every 10 minutes**, so quick on-off sessions can't farm it.
+  - **Ending on a win:** when held mode ends, if the cat chased for at least 15 s, its last pounce lands on a little sparkle burst. The sparkle is visual only. Mood is the shared play clock above.
 - **Sound:** none; lasers are silent.
 
 **Dogs:** neither held toy is offered to dogs for now. Both are `species: cat`.

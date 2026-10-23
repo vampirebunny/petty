@@ -1,5 +1,5 @@
 import { attributeScore, withDerived } from '../attributes';
-import { drinkHydrationGain, playHappinessGain, waterDrainPerDrink } from '../config';
+import { drinkHydrationGain, waterDrainPerDrink } from '../config';
 import { applyEvent } from '../events';
 import { testPet } from '../__fixtures__/pets';
 import type { PetState } from '../types';
@@ -194,12 +194,12 @@ it('rewards a finished cuddle, more for a longer one, with no cue', () => {
   expect(long.state.rngState).toBe(before.rngState);
 });
 
-it('raises happiness when the user throws a toy', () => {
+it('does not raise happiness when the user only throws a toy', () => {
   const before = testPet(1, 'retriever', 0, 'Pup', 'pet');
   before.needs.happiness = 50;
   const thrown = applyEvent(before, { type: 'fetch', drop: { x: 200, y: 240 } });
   expect(thrown.cue).toEqual({ kind: 'fetch', drop: { x: 200, y: 240 } });
-  expect(thrown.state.needs.happiness).toBe(50 + playHappinessGain);
+  expect(thrown.state.needs.happiness).toBe(50);
   expect(thrown.state.asleep).toBe(false);
 
   const full = applyEvent({ ...before, needs: { ...before.needs, happiness: 100 } }, { type: 'fetch' });

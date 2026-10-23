@@ -41,6 +41,7 @@ export {
   openTickMs,
   petHappinessGain,
   playHappinessGain,
+  playMoodIntervalSec,
   petPurrAtOrAbove,
   petStrokeIntervalMs,
   sadHappinessBelow,

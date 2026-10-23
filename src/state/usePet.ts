@@ -17,7 +17,6 @@ import {
   debugJump,
   deriveMood,
   openTickMs,
-  playHappinessGain,
   resolveReward,
   resume,
   setAgeDays,
@@ -87,7 +86,7 @@ type PetApi = {
   startCuddle: () => void;
   finishCuddle: (seconds: number) => void;
   fetchBall: () => void;
-  chooseToy: (id: string, action: 'throw' | 'hold' | 'clear' | 'clearHeld') => number;
+  chooseToy: (id: string, action: 'throw' | 'hold' | 'clear' | 'clearHeld') => void;
   throwAt: (x: number, y: number) => void;
   flickAt: (x: number, y: number, vx: number, vy: number) => void;
   setScene: (sceneId: string) => void;
@@ -758,7 +757,7 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
     (id: string, action: 'throw' | 'hold' | 'clear' | 'clearHeld') => {
       const current = stateRef.current;
       if (!current) {
-        return 0;
+        return;
       }
       if (action === 'clear' || action === 'clearHeld') {
         const active = current.activeToyId;
@@ -766,23 +765,20 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
         if (drop && active) {
           publish({ ...current, activeToyId: undefined });
         }
-        return 0;
+        return;
       }
       if (!id) {
-        return 0;
+        return;
       }
       const base = { ...current, activeToyId: id, asleep: false };
       if (action === 'hold') {
-        const next = applyHappinessDelta(base, playHappinessGain);
-        const gained = Math.round(next.needs.happiness - current.needs.happiness);
-        if (gained !== 0 || next.activeToyId !== current.activeToyId || next.asleep !== current.asleep) {
-          publish(next);
+        if (base.activeToyId !== current.activeToyId || base.asleep !== current.asleep) {
+          publish(base);
         }
-        return Math.max(0, gained);
+        return;
       }
       const result = applyEvent(base, { type: 'fetch' });
       publish(result.state, result.cue);
-      return Math.round(result.state.needs.happiness - current.needs.happiness);
     },
     [publish],
   );

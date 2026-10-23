@@ -278,17 +278,41 @@ describe('play in the sim', () => {
     expect(world.items.map((item) => item.kind)).toEqual(['mouse']);
   });
 
-  it('pays mood while a bone is chewed', () => {
+  it('pays 3 mood for every 3 seconds of a chase and not for picking the toy up', () => {
     const pup = spawnActor(source());
     const world = createWorld([pup], 1);
-    pup.task = { type: 'fetch', stage: 'chew', t: 4.95, bats: 0, cool: 0, hold: 30 };
-    world.toyKind = 'bone';
+    pup.task = { type: 'fetch', stage: 'chew', t: 0, bats: 0, cool: 0, hold: 30 };
     world.items = [
       { id: 'bone-1', kind: 'bone', state: 'carried', x: pup.x, y: pup.y, z: 0, vx: 0, vy: 0, vz: 0, holderId: pup.id },
     ];
-    update(world, 0.1);
-    expect(pup.moodPops).toEqual([2]);
-    expect(pup.task.stage).toBe('chew');
+    run(world, 2.9, () => undefined);
+    expect(pup.moodPops).toEqual([]);
+    run(world, 0.2, () => undefined);
+    expect(pup.moodPops).toEqual([3]);
+    pup.moodPops = [];
+    run(world, 3, () => undefined);
+    expect(pup.moodPops).toEqual([3]);
+  });
+
+  it('pays held-toy mood only while the finger stays down', () => {
+    const kit = spawnActor(source({ id: 'kit', breedId: 'domesticShorthair' }));
+    const world = createWorld([kit], 1);
+    startHeld(world, 'laser');
+    if (world.held) {
+      world.held.down = true;
+    }
+    run(world, 3, () => undefined);
+    expect(kit.moodPops).toEqual([3]);
+    kit.moodPops = [];
+    if (world.held) {
+      world.held.down = false;
+    }
+    run(world, 0.2, () => undefined);
+    if (world.held) {
+      world.held.down = true;
+    }
+    run(world, 2.5, () => undefined);
+    expect(kit.moodPops).toEqual([]);
   });
 
   it('equips a toy without spawning one when the scene is empty', () => {

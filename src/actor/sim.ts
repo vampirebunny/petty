@@ -9,7 +9,8 @@ import {
   healthyWeightBand,
   overweightPlayWeightBonus,
   playWeightPerHour,
-  treatMoodGain,
+  playHappinessGain,
+  playMoodIntervalSec,
   weightBurnPerSec,
   weightRunSpeed,
 } from '../sim/config';
@@ -370,6 +371,7 @@ export function createWorld(actors: Actor[], seed = 1, scene: Scene = scenes.liv
     particles: [],
     sounds: [],
     held: null,
+    playMoodSec: 0,
   };
   seedParticles(world);
   return world;
@@ -1373,10 +1375,6 @@ function stepHeld(
       jump(actor, { targetX: held.x + actor.face * 0.5 * R, heightPx: H * 0.7, reduced: world.reducedMotion });
       if (held.chase >= 15) {
         held.spark = 1.2;
-        if (world.t - held.moodAt >= 600) {
-          actor.moodPops.push(treatMoodGain);
-          held.moodAt = world.t;
-        }
       }
       targets.wagAmp = 0.4;
       return { move: null, vmax: 0 };
@@ -2650,11 +2648,6 @@ function updateActor(world: World, actor: Actor, dt: number): void {
       targets.wagAmp = 0.15;
       if (toyKind === 'bone') {
         targets.jawHold = 0.45 + Math.sin(task.t * 9) * 0.55;
-        const paid = Math.min(5, Math.floor(task.t / 5));
-        if (paid > task.bats) {
-          actor.moodPops.push(2);
-          task.bats = paid;
-        }
       } else if (toyKind === 'squeaky' && Math.floor(task.t * 1.4) !== Math.floor((task.t - dt) * 1.4)) {
         squeak(world, actor.id);
       }
@@ -3060,4 +3053,23 @@ export function update(world: World, dt: number): void {
     }
   }
   stepParkVisitors(world, spawnActor, setDirection);
+  stepPlayMood(world, step);
+}
+
+// Thrown toys pay during the chase. A wand or laser pays only while the finger is down.
+// Stopping either one clears the partial interval, so the next stretch has to last the full 3 seconds.
+function stepPlayMood(world: World, step: number): void {
+  const actor = world.actors.find((item) => !item.guest);
+  const playing =
+    actor != null &&
+    (actor.task.type === 'fetch' || (actor.task.type === 'held' && world.held?.down === true));
+  if (!actor || !playing) {
+    world.playMoodSec = 0;
+    return;
+  }
+  world.playMoodSec += step;
+  while (world.playMoodSec + 1e-4 >= playMoodIntervalSec) {
+    world.playMoodSec -= playMoodIntervalSec;
+    actor.moodPops.push(playHappinessGain);
+  }
 }

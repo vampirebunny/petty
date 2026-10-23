@@ -1634,17 +1634,11 @@ export default function HomeScreen({ petApi }: Props) {
               return;
             }
             if (id === 'wand' || id === 'laser') {
-              const gained = chooseToy(id, 'hold');
+              chooseToy(id, 'hold');
               stageHandle.current?.startHeld(id);
-              if (gained > 0) {
-                showMoodBurst(gained);
-              }
             } else {
               stageHandle.current?.clearPlay();
-              const gained = chooseToy(id, 'throw');
-              if (gained > 0) {
-                showMoodBurst(gained);
-              }
+              chooseToy(id, 'throw');
             }
             setPlayOpen(false);
           }}
