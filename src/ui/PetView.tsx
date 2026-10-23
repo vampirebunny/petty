@@ -104,6 +104,7 @@ type Props = {
   drop?: { x: number; y: number };
   flick?: { vx: number; vy: number; vz: number };
   elapsedH?: number;
+  snapSceneToken?: number;
   hour: number | null;
   reducedMotion: boolean;
   sceneOverride?: Scene | null;
@@ -163,6 +164,7 @@ export function PetView({
   drop,
   flick,
   elapsedH,
+  snapSceneToken = 0,
   hour,
   reducedMotion,
   sceneOverride,
@@ -424,14 +426,25 @@ export function PetView({
     [redraw],
   );
 
+  const seenSnap = useRef(snapSceneToken);
   useEffect(() => {
     const world = worldRef.current;
+    if (snapSceneToken !== seenSnap.current) {
+      seenSnap.current = snapSceneToken;
+      if (world.scene.id !== scene.id) {
+        travelRef.current = null;
+        setWorldScene(world, scene);
+        onTravelingRef.current?.(false);
+        redraw();
+        return;
+      }
+    }
     if (world.scene.id !== scene.id) {
       beginTravel(scene);
       return;
     }
     syncFurniture(world.scene, scene);
-  }, [beginTravel, scene]);
+  }, [beginTravel, redraw, scene, snapSceneToken]);
 
   useEffect(() => {
     elapsedRef.current = elapsedH;

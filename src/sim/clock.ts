@@ -1,11 +1,12 @@
 import { withDerived } from './attributes';
 import { advanceNeeds, advanceNeedsDetail } from './advance';
+import { AWAY_DECAY } from './awayDecayConfig';
 import { applyAwayDecay, applyAwayWeight, awayElapsedHours, awayElapsedMs } from './awayDecay';
 import { applyCareTime, clampWeight, decayWeight } from './care';
-import { dayMs, maxElapsedMs } from './config';
+import { dayMs, defaultSceneId, maxElapsedMs } from './config';
 import { activeBoosts } from './effects';
 import { canRaiseMood } from './mood';
-import { advanceCare } from './game';
+import { advanceCare, rememberScene } from './game';
 import type { PetState } from './types';
 
 export function ageDaysAt(bornAt: number, now: number): number {
@@ -56,7 +57,7 @@ export function resume(state: PetState, now: number): PetState {
     true,
   );
   const game = advanceCare(cared, now, elapsedMs, 0, elapsedH > 0 ? 'away' : 'live');
-  return withDerived({
+  const settled = {
     ...game,
     ageDays,
     needs,
@@ -64,7 +65,12 @@ export function resume(state: PetState, now: number): PetState {
     weight: applyAwayWeight(state.weight, elapsedH),
     lastUpdatedAt: now,
     weightAppliedAt: now,
-  });
+  };
+  const home =
+    elapsedH >= AWAY_DECAY.returnHomeAfterH && settled.sceneId !== defaultSceneId
+      ? { ...rememberScene(settled, defaultSceneId), sceneId: defaultSceneId }
+      : settled;
+  return withDerived(home);
 }
 
 export function debugJump(state: PetState, elapsedMs: number): PetState {

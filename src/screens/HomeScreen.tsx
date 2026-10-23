@@ -179,6 +179,7 @@ export default function HomeScreen({ petApi }: Props) {
     offerTreat,
     welcomeBack,
     dismissWelcome,
+    homeSnapToken,
     setCareTreatCount,
     commitPet,
     noteFind,
@@ -220,6 +221,13 @@ export default function HomeScreen({ petApi }: Props) {
   const [reducedMotion, setReducedMotion] = useState(false);
   const [wardrobeOpen, setWardrobeOpen] = useState(false);
   const [placesOpen, setPlacesOpen] = useState(false);
+  useEffect(() => {
+    if (homeSnapToken === 0) {
+      return;
+    }
+    setPlacesOpen(false);
+    setShopTab(null);
+  }, [homeSnapToken]);
   const whereUid = useId().replace(/:/g, '');
   const [facingOpen, setFacingOpen] = useState(false);
   const [personalityOpen, setPersonalityOpen] = useState(false);
@@ -1530,6 +1538,7 @@ export default function HomeScreen({ petApi }: Props) {
               cuddleRef={cuddleHandle}
               stageRef={stageHandle}
               elapsedH={cue.elapsedH}
+              snapSceneToken={homeSnapToken}
               onGreeting={rememberGreeting}
               onCuddleEvent={onCuddleEvent}
               pet={state}

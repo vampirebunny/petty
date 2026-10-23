@@ -7,4 +7,5 @@ export const AWAY_DECAY = {
   },
   weight: { graceH: 24, halfLifeH: 96 },
   welcomeBackThresholdH: 12,
+  returnHomeAfterH: 3,
 } as const;

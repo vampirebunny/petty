@@ -108,6 +108,7 @@ type PetApi = {
   offerTreat: (treatId: string, applied?: PetState) => { ok: true; mood: number } | { ok: false; reason: 'unknown' | 'full' | 'species' };
   welcomeBack: boolean;
   dismissWelcome: () => void;
+  homeSnapToken: number;
   finishPlaydate: (happiness: number, attributes: Partial<Record<Trait, number>>, playdateId?: string) => void;
   adopt: (breedId: string, attributes: PetAttributes, look: Look, name: string, ownerId: string) => void;
   setOwnerId: (ownerId: string) => void;
@@ -128,6 +129,7 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
   const careRef = useRef(false);
   const treatCountRef = useRef(0);
   const [welcomeBack, setWelcomeBack] = useState(false);
+  const [homeSnapToken, setHomeSnapToken] = useState(0);
   const [burst, setBurst] = useState<Burst | null>(null);
   const [pendingBoops, setPendingBoops] = useState(0);
   const burstRef = useRef<Burst | null>(null);
@@ -275,6 +277,9 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
         const opened = onAppOpen(current, now);
         const elapsedH = awayElapsedHours(opened.pet.lastUpdatedAt, now);
         const resumed = resume(opened.pet, now);
+        if (resumed.sceneId !== opened.pet.sceneId) {
+          setHomeSnapToken((token) => token + 1);
+        }
         const settled = settleProgress(resumed, now);
         const bursts = [...opened.bursts];
         if (settled.boops > 0 && settled.label) {
@@ -823,6 +828,7 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
     offerTreat,
     welcomeBack,
     dismissWelcome,
+    homeSnapToken,
     commitPet,
     noteFind,
     burst,

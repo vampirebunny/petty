@@ -31,6 +31,19 @@ it('ages across a full absence and thins weight on the away curve', () => {
   expect(longGap.needs).not.toEqual(weekend.needs);
 });
 
+it('keeps the scene for a short absence and opens the living room after 3 hours', () => {
+  const before = pet();
+  before.sceneId = 'park';
+  const short = resume(before, before.lastUpdatedAt + 2 * hourMs);
+  const home = resume(before, before.lastUpdatedAt + 3 * hourMs);
+  const backward = resume(before, before.lastUpdatedAt - hourMs);
+
+  expect(short.sceneId).toBe('park');
+  expect(home.sceneId).toBe('livingroom');
+  expect(home.care.recentScenes[0]).toBe('livingroom');
+  expect(backward.sceneId).toBe('park');
+});
+
 it('leaves needs and weight unchanged when the clock moves backward', () => {
   const before = pet();
   const after = resume(before, before.lastUpdatedAt - hourMs);
