@@ -316,6 +316,11 @@ export function spawnActor(source: ActorSource, at?: Vec): Actor {
 }
 
 export function setDirection(actor: Actor, direction: Direction | null): void {
+  // A nap, a meal, or a collapse already owns the body. A hello must not stand the pet back up.
+  if (direction && (actor.task.type === 'sleep' || actor.task.type === 'eat' || actor.collapseLeft > 0)) {
+    actor.direction = null;
+    return;
+  }
   actor.direction = direction;
   if (!direction) {
     return;
@@ -867,7 +872,7 @@ function glanceAt(world: World, actor: Actor, kind: CareInvite): void {
 
 function beginInvitedSleep(world: World, actor: Actor): boolean {
   const bed = careTarget(world, actor, 'bed');
-  releaseCarried(world, actor);
+  releaseForCare(world, actor);
   actor.asleep = false;
   actor.sleepSec = 0;
   actor.task = taskOf('sleep', bed ? 'go' : 'sleeping');
@@ -927,7 +932,22 @@ function applyGlance(world: World, actor: Actor, dt: number): void {
 }
 
 function careHeld(world: World, actor: Actor, kind: CareInvite): boolean {
-  if (actor.task.type === 'travel' || actor.collapseLeft > 0 || actor.task.greet?.phase === 'run') {
+  // A room change has to finish. A collapse nap is already sleep.
+  if (actor.task.type === 'travel' || actor.collapseLeft > 0) {
+    return true;
+  }
+  // Sleep and a meal are what the player just asked for. Play, greetings, and cuddles step aside.
+  if (kind === 'bed' || kind === 'food') {
+    return false;
+  }
+  // A drink still waits out the meal or nap already underway.
+  if (kind === 'water' && world.serving != null && world.serving !== kind && performingCare(actor, world.serving)) {
+    return true;
+  }
+  if (kind === 'water') {
+    return false;
+  }
+  if (actor.task.greet?.phase === 'run') {
     return true;
   }
   if (world.serving != null && world.serving !== kind && performingCare(actor, world.serving)) {
@@ -937,7 +957,30 @@ function careHeld(world: World, actor: Actor, kind: CareInvite): boolean {
   return isBusy(actor) && !actor.asleep;
 }
 
+// Drop whatever was steering the body so the walk to the bowl or the bed is the thing that runs.
+function releaseForCare(world: World, actor: Actor): void {
+  abortParkHello(world);
+  actor.direction = null;
+  actor.cuddle = null;
+  actor.play = null;
+  actor.zoom = null;
+  actor.spin = null;
+  actor.gesture = null;
+  cancelJump(actor);
+  actor.jumpKind = null;
+  if (world.held) {
+    world.held = null;
+    world.playTouch = false;
+  }
+  if (world.liveTreat) {
+    finishLiveTreat(world);
+  }
+  releaseCarried(world, actor);
+}
+
 // A tap fills or readies the prop and sends him unless a trip, a collapse, a greeting, or another meal owns him.
+// Sleep and feed do not wait on those. A drink waits only for the meal or nap already underway.
+// A room change and a collapse nap are the only turns a care tap keeps.
 // A bowl that was only marked full still starts the walk: stocking food queues the invite before the cue arrives.
 // A serving flag with no matching task is stale, so the same tap can start the walk instead of sticking.
 export function inviteCare(world: World, actor: Actor, kind: CareInvite): 'went' | 'queued' | 'already' {
@@ -946,7 +989,12 @@ export function inviteCare(world: World, actor: Actor, kind: CareInvite): 'went'
     return 'already';
   }
   if (!world.invites.includes(kind)) {
-    world.invites.push(kind);
+    // Sleep and feed cut in front of a care tap that was already waiting.
+    if (kind === 'bed' || kind === 'food') {
+      world.invites.unshift(kind);
+    } else {
+      world.invites.push(kind);
+    }
   } else if (careHeld(world, actor, kind) && isBusy(actor)) {
     return 'already';
   }
@@ -1103,7 +1151,7 @@ export function startUserTask(
   if (task === 'sleep') {
     // Walk to the bed when the scene has one, otherwise sleep where the pet stands.
     const bed = nearestPoi(world.scene, 'bed', actor);
-    releaseCarried(world, actor);
+    releaseForCare(world, actor);
     actor.asleep = true;
     actor.sleepSec = 0;
     actor.task = taskOf('sleep', bed ? 'go' : 'sleeping');
@@ -1169,7 +1217,7 @@ export function startUserTask(
     if (!poi || !canBehave(actor, 'eat')) {
       return false;
     }
-    releaseCarried(world, actor);
+    releaseForCare(world, actor);
     actor.task = taskOf('eat', 'go', task);
     actor.task.premium = task === 'eat' && world.premiumMeal === true;
     // The pet uses the bowl from whichever side it arrives on. It stands beside the bowl and faces it,
@@ -2111,7 +2159,7 @@ function updateActor(world: World, actor: Actor, dt: number): void {
     move = steered.move;
     vmax = steered.vmax;
     wagRate = steered.wagRate;
-  } else if (actor.direction) {
+  } else if (actor.direction && actor.task.type !== 'sleep' && actor.task.type !== 'eat') {
     const directed = steerDirection(actor, limit, targets, world.reducedMotion);
     move = directed.move;
     vmax = directed.vmax;
