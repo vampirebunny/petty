@@ -1,4 +1,5 @@
-import { createWorld, inviteCare, spawnActor, syncActor, syncWorldFood, takePendingRest, update } from '../sim';
+import { newCuddle } from '../cuddle';
+import { createWorld, inviteCare, setDirection, spawnActor, startHeld, syncActor, syncWorldFood, takePendingRest, update } from '../sim';
 import { scenes } from '../scenes';
 import type { ActorSource } from '../types';
 
@@ -143,6 +144,121 @@ it('lies down on the bedroom bed from the middle of the room', () => {
   }
   expect(actor.task.stage).toBe('sleeping');
   expect(takePendingRest(world)).toBe(true);
+});
+
+it('sends a playing pet to the bowl without waiting for the toy', () => {
+  const { world, actor } = pup();
+  world.foodStocked = true;
+  actor.task = { type: 'fetch', stage: 'chase', t: 0, bats: 0, cool: 0 };
+  actor.direction = { target: { x: 420, y: 450 }, pace: 1, pose: 'run', token: 1 };
+  expect(inviteCare(world, actor, 'food')).toBe('went');
+  expect(actor.task.type).toBe('eat');
+  expect(actor.task.kind).not.toBe('drink');
+  expect(actor.direction).toBeNull();
+  update(world, 0.05);
+  expect(actor.task.type).toBe('eat');
+});
+
+it('sends a cuddling pet to the bowl', () => {
+  const { world, actor } = pup();
+  world.foodStocked = true;
+  actor.task = { type: 'cuddle', stage: '', t: 0, bats: 0, cool: 0 };
+  actor.cuddle = newCuddle(actor, world.rng);
+  expect(inviteCare(world, actor, 'food')).toBe('went');
+  expect(actor.task.type).toBe('eat');
+  expect(actor.cuddle).toBeNull();
+});
+
+it('drops the wand and goes to the bowl', () => {
+  const { world, actor } = pup();
+  world.foodStocked = true;
+  startHeld(world, 'wand');
+  expect(actor.task.type).toBe('held');
+  expect(inviteCare(world, actor, 'food')).toBe('went');
+  expect(actor.task.type).toBe('eat');
+  expect(world.held).toBeNull();
+});
+
+it('does not let a hello pull the pet off a meal', () => {
+  const { world, actor } = pup();
+  world.foodStocked = true;
+  expect(inviteCare(world, actor, 'food')).toBe('went');
+  setDirection(actor, { target: { x: 420, y: 450 }, pace: 0.5, pose: 'walk', token: 3 });
+  expect(actor.task.type).toBe('eat');
+  expect(actor.direction).toBeNull();
+});
+
+it('sends a playing pet to drink, then lets a meal cut in front', () => {
+  const { world, actor } = pup();
+  actor.task = { type: 'fetch', stage: 'chase', t: 0, bats: 0, cool: 0 };
+  expect(inviteCare(world, actor, 'water')).toBe('went');
+  expect(actor.task.kind).toBe('drink');
+  world.foodStocked = true;
+  expect(inviteCare(world, actor, 'food')).toBe('went');
+  expect(actor.task.type).toBe('eat');
+  expect(actor.task.kind).not.toBe('drink');
+  expect(world.invites).toContain('water');
+});
+
+it('puts a playing pet to bed without waiting for the toy', () => {
+  const { world, actor } = pup();
+  actor.task = { type: 'fetch', stage: 'chase', t: 0, bats: 0, cool: 0 };
+  actor.direction = { target: { x: 420, y: 450 }, pace: 1, pose: 'run', token: 1 };
+  expect(inviteCare(world, actor, 'bed')).toBe('went');
+  expect(actor.task.type).toBe('sleep');
+  expect(actor.task.stage).toBe('go');
+  expect(actor.direction).toBeNull();
+  update(world, 0.05);
+  expect(actor.task.type).toBe('sleep');
+});
+
+it('puts a cuddling pet to bed', () => {
+  const { world, actor } = pup();
+  actor.task = { type: 'cuddle', stage: '', t: 0, bats: 0, cool: 0 };
+  actor.cuddle = newCuddle(actor, world.rng);
+  expect(inviteCare(world, actor, 'bed')).toBe('went');
+  expect(actor.task.type).toBe('sleep');
+  expect(actor.cuddle).toBeNull();
+});
+
+it('drops the wand and goes to bed', () => {
+  const { world, actor } = pup();
+  startHeld(world, 'wand');
+  expect(actor.task.type).toBe('held');
+  expect(inviteCare(world, actor, 'bed')).toBe('went');
+  expect(actor.task.type).toBe('sleep');
+  expect(world.held).toBeNull();
+});
+
+it('leaves a meal and goes to bed', () => {
+  const { world, actor } = pup();
+  world.foodStocked = true;
+  expect(inviteCare(world, actor, 'food')).toBe('went');
+  expect(actor.task.type).toBe('eat');
+  expect(inviteCare(world, actor, 'bed')).toBe('went');
+  expect(actor.task.type).toBe('sleep');
+  expect(actor.task.stage).toBe('go');
+  expect(world.invites[0]).toBe('bed');
+});
+
+it('waits out a room change, then sleeps ahead of a waiting meal', () => {
+  const { world, actor } = pup();
+  actor.task = { type: 'travel', stage: 'enter', t: 0, bats: 0, cool: 0, poi: { x: actor.x, y: actor.y } };
+  world.foodStocked = true;
+  world.invites = ['food'];
+  expect(inviteCare(world, actor, 'bed')).toBe('queued');
+  expect(world.invites[0]).toBe('bed');
+  expect(actor.task.type).toBe('travel');
+  update(world, 0.05);
+  expect(actor.task.type).toBe('sleep');
+});
+
+it('does not let a hello stand the pet up once sleep has started', () => {
+  const { world, actor } = pup();
+  expect(inviteCare(world, actor, 'bed')).toBe('went');
+  setDirection(actor, { target: { x: 420, y: 450 }, pace: 0.5, pose: 'walk', token: 2 });
+  expect(actor.task.type).toBe('sleep');
+  expect(actor.direction).toBeNull();
 });
 
 it('keeps the pet awake until he is lying on the bed', () => {

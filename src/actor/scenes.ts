@@ -1,9 +1,24 @@
+import { birdHabitats, birdSpeciesIds } from './birds';
+import type { BirdHabitat, BirdSpecies, BirdSpot } from './birds';
 import { createCatioScene } from './catioScene';
 import { defaultActorTint } from './lighting';
 import { mulberry, seedOf } from './mulberry';
 
 export const stageWidth = 640;
 export const stageHeight = 680;
+
+/** Extra stage units on each side when the view is wider than the stage. Matches drawWorld. */
+export function stageBleed(width: number, height: number, visibleHeight = stageHeight): number {
+  if (width <= 0 || height <= 0) {
+    return 0;
+  }
+  const scaleY = height / visibleHeight;
+  const contentPx = stageWidth * scaleY;
+  if (width > contentPx + 0.5) {
+    return (width - contentPx) / 2 / scaleY;
+  }
+  return 0;
+}
 // The adoption preview shows only the top of the stage, so it keeps the original proportions.
 export const previewStageHeight = 340;
 
@@ -122,6 +137,7 @@ export type Scene = {
   props: Prop[];
   pois: Poi[];
   lighting: { actorTint: number };
+  birds?: BirdSpot[];
   ambient?: {
     tint?: string;
     particles?: { kind: 'rain' | 'snow' | 'leaves'; count?: number; color?: string };
@@ -153,6 +169,49 @@ function checkShapes(list: unknown, where: string): Shape[] {
       throw new Error(`${where}[${index}]: shape type "t" must be one of ${shapeTypes.join(', ')}.`);
     }
     return shape as Shape;
+  });
+}
+
+function readBirds(value: unknown): BirdSpot[] | undefined {
+  if (value == null) {
+    return undefined;
+  }
+  if (!Array.isArray(value)) {
+    throw new Error('"birds" must be a list of spots.');
+  }
+  return value.map((spot, index) => {
+    if (!isRecord(spot) || typeof spot.x !== 'number' || typeof spot.y !== 'number') {
+      throw new Error(`birds[${index}]: "x" and "y" must be numbers.`);
+    }
+    if (typeof spot.on !== 'string' || !birdHabitats.includes(spot.on as BirdHabitat)) {
+      throw new Error(`birds[${index}]: "on" must be ground, perch or water.`);
+    }
+    const species = spot.species;
+    if (species != null) {
+      if (!Array.isArray(species) || species.some((name) => typeof name !== 'string' || !birdSpeciesIds.includes(name as BirdSpecies))) {
+        throw new Error(`birds[${index}]: "species" must be sparrow, pigeon, robin, cardinal, duck or owl.`);
+      }
+    }
+    const compiled: BirdSpot = { x: spot.x, y: spot.y, on: spot.on as BirdHabitat };
+    if (species) {
+      compiled.species = species as BirdSpecies[];
+    }
+    if (typeof spot.roam === 'number') {
+      compiled.roam = spot.roam;
+    }
+    if (typeof spot.roamY === 'number') {
+      compiled.roamY = spot.roamY;
+    }
+    if (typeof spot.sortY === 'number') {
+      compiled.sortY = spot.sortY;
+    }
+    if (typeof spot.count === 'number') {
+      compiled.count = spot.count;
+    }
+    if (typeof spot.chance === 'number') {
+      compiled.chance = spot.chance;
+    }
+    return compiled;
   });
 }
 
@@ -286,6 +345,7 @@ export function compileScene(def: unknown): Scene {
     props: compiledProps,
     pois: compiledPois,
     lighting: { actorTint },
+    birds: readBirds(def.birds),
     ambient: ambient as Scene['ambient'],
   };
 }
@@ -367,6 +427,13 @@ const sceneDefs = {
     pois: [
       { id: 'pond', type: 'water', x: 474, y: 268, face: 1 },
       { id: 'home', type: 'home', x: 220, y: 274 },
+    ],
+    birds: [
+      { x: 180, y: 480, on: 'ground', count: 3, roam: 55, roamY: 22, species: ['sparrow', 'robin', 'cardinal', 'pigeon'] },
+      { x: 420, y: 560, on: 'ground', count: 2, roam: 50, roamY: 20, species: ['sparrow', 'robin', 'cardinal', 'pigeon'] },
+      { x: 240, y: 149, on: 'perch', sortY: 182, species: ['sparrow', 'robin', 'cardinal', 'pigeon'] },
+      { x: 340, y: 154, on: 'perch', sortY: 206, species: ['sparrow', 'robin', 'cardinal', 'pigeon'] },
+      { x: 37, y: 84, on: 'perch', sortY: 196, species: ['sparrow', 'robin', 'cardinal', 'pigeon'] },
     ],
     ambient: { particles: { kind: 'leaves', count: 12 } },
   },

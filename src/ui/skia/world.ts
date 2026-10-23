@@ -3,6 +3,8 @@ import type { SkCanvas } from '@shopify/react-native-skia';
 
 import { applyVariant, depthScale, resolveBreedById } from '../../actor';
 import type { TimeOfDay, World } from '../../actor';
+import { stageBleed } from '../../actor/scenes';
+import { drawBird, drawBirdGround } from './birds';
 import { stageHeight, stageWidth } from '../../actor/geometry';
 import { actorTint, indoorOverlayAlpha, lighting, petLightAmount, sceneryTint, stepNightFade } from '../../actor/lighting';
 import { skyAt } from '../../actor/sky';
@@ -128,10 +130,9 @@ export function drawWorld(
     canvas.translate(-camera.x, -camera.y);
   } else {
     const scaleY = height / visibleHeight;
-    const contentPx = stageWidth * scaleY;
-    if (width > contentPx + 0.5) {
-      const pad = (width - contentPx) / 2;
-      bleed = pad / scaleY;
+    bleed = stageBleed(width, height, visibleHeight);
+    if (bleed > 0) {
+      const pad = bleed * scaleY;
       canvas.translate(pad, 0);
       canvas.scale(scaleY, scaleY);
     } else {
@@ -312,6 +313,20 @@ export function drawWorld(
         }),
     });
   }
+  for (const bird of world.birds) {
+    if (bird.state === 'away' || bird.airborne) {
+      continue;
+    }
+    items.push({
+      y: bird.depth,
+      late: false,
+      draw: () =>
+        withTint(roomTint, () => {
+          drawBirdGround(canvas, bird, env);
+          drawBird(canvas, bird, env);
+        }),
+    });
+  }
   items.sort((a, b) => a.y - b.y);
   for (const item of items) {
     if (!item.late) {
@@ -365,6 +380,13 @@ export function drawWorld(
   if (world.held) {
     drawHeldPlay(canvas, world);
   }
+  withTint(roomTint, () => {
+    for (const bird of world.birds) {
+      if (bird.airborne) {
+        drawBird(canvas, bird, env);
+      }
+    }
+  });
   drawAmbient(canvas, world, env, bleed, cozy);
   untinted(() => decor.ambient(canvas));
   if (overlay && (overlay.bursts.length > 0 || overlay.butterfly || (overlay.zzz?.length ?? 0) > 0)) {

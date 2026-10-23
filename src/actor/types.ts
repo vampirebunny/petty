@@ -1,6 +1,7 @@
 import type { Item } from '../items/types';
 import type { PointerTarget } from '../input/pointer';
 import type { BreedRanges, Equipped, Look } from '../sim/types';
+import type { Bird } from './birds';
 import type { Scene } from './scenes';
 import type { CuddleParams } from './data/cuddle';
 import type { JumpOut, JumpState } from './jump';
@@ -225,7 +226,7 @@ export type Pose = {
   faceFront: number;
 };
 
-export type IdleMode = 'still' | 'pant' | 'purr' | 'nap' | 'walk' | 'zoom';
+export type IdleMode = 'still' | 'pant' | 'purr' | 'nap' | 'walk' | 'zoom' | 'stalk';
 
 export type Task = {
   type: TaskType;
@@ -306,6 +307,8 @@ export type Idle = {
   target: Vec | null;
   sit: boolean;
   arrived: boolean;
+  // The ground bird this cat is stalking.
+  birdId?: string;
   // World time of the last spontaneous bark or meow, so they stay rare.
   voicedAt?: number;
 };
@@ -688,6 +691,16 @@ export type World = {
   greetLabel?: string;
   // Home park visitors. Missing or disabled on every other stage.
   park?: ParkBook;
+  // Ambient birds for the current scene. Not actors.
+  birds: Bird[];
+  // Hour seed already spawned. Null until the view names the hour.
+  birdCast: number | null;
+  birdSeed: number | null;
+  // Horizontal stage bleed, so birds fly fully off a wide screen.
+  stageBleed: number;
+  birdClimate: { dark: number; precip: 'rain' | 'snow' | null; month: number };
+  // Chirps waiting for the view. Other bird events stay silent.
+  birdChirps: number;
 };
 
 export type ParkOffer = {

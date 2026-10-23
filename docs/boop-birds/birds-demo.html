@@ -1,0 +1,1314 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Boop Boop Park Birds</title>
+<style>
+:root{--bg:#fff4fb;--panel:#ffffff;--ink:#4a3550;--muted:#8a7590;--pink:#ff8ec7;--blue:#8fd3ff;--line:#f1d9ea}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.4 ui-rounded,"SF Pro Rounded",system-ui,sans-serif}
+.wrap{display:flex;gap:20px;padding:16px;flex-wrap:wrap;justify-content:center;align-items:flex-start}
+canvas{width:min(400px,92vw);aspect-ratio:400/700;border-radius:24px;box-shadow:0 10px 30px rgba(200,100,160,.25);touch-action:none;cursor:pointer;background:#8fd0f5}
+.panel{width:min(360px,92vw);background:var(--panel);border-radius:22px;padding:16px 18px;box-shadow:0 6px 20px rgba(200,100,160,.15)}
+h1{font-size:20px;margin:0 0 4px}p{margin:0 0 12px;color:var(--muted)}
+h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:16px 0 6px}
+button{font:inherit;font-weight:600;color:#fff;border:0;border-radius:999px;padding:8px 14px;margin:2px 4px 2px 0;cursor:pointer;
+background:linear-gradient(180deg,#ffb3dc,#ff7fbf);box-shadow:inset 0 2px 0 rgba(255,255,255,.6),0 3px 0 #e2629f}
+button.alt{background:linear-gradient(180deg,#b8e6ff,#6fc3f7);box-shadow:inset 0 2px 0 rgba(255,255,255,.6),0 3px 0 #4a9fd6}
+select,input[type=range]{width:100%;font:inherit;padding:6px;border-radius:10px;border:1.5px solid var(--line)}
+label{display:inline-flex;gap:6px;align-items:center;margin:2px 10px 2px 0}
+pre{background:#fbf3f8;border-radius:12px;padding:10px;max-height:180px;overflow:auto;font-size:11px;margin:6px 0}
+.row{display:flex;gap:8px}.row>*{flex:1}
+</style></head><body><div class="wrap">
+<canvas id="stage"></canvas>
+<div class="panel">
+<h1>Park birds</h1>
+<p>Tap the grass to send the pup. Run at them and they scatter; they come back after a bit. Tick "sneak" to creep closer.</p>
+<h2>Tap does</h2>
+<select id="mode"><option value="pup">Move the pup</option><option value="ground">Place a ground spot</option><option value="perch">Place a perch</option><option value="water">Place a water spot</option><option value="erase">Erase a spot</option></select>
+<div style="margin-top:6px"><label><input type="checkbox" id="sneak">Pup sneaks</label><label><input type="checkbox" id="showSpots" checked>Show spots</label></div>
+<h2>Species for new spots (none = habitat default)</h2>
+<div><label><input class="sp" type="checkbox" value="sparrow">Sparrow</label><label><input class="sp" type="checkbox" value="pigeon">Pigeon</label><label><input class="sp" type="checkbox" value="robin">Robin</label><label><input class="sp" type="checkbox" value="cardinal">Cardinal</label><label><input class="sp" type="checkbox" value="duck">Duck</label><label><input class="sp" type="checkbox" value="owl">Owl</label></div>
+<h2>Time and weather</h2>
+<input type="range" id="dark" min="0" max="1" step="0.01" value="0">
+<div><button class="alt" id="day">Day</button><button class="alt" id="dusk">Dusk</button><button class="alt" id="night">Night</button></div>
+<div class="row" style="margin-top:6px"><select id="month"><option value="0">Jan</option><option value="1">Feb</option><option value="2">Mar</option><option value="3">Apr</option><option value="4">May</option><option value="5">Jun</option><option value="6">Jul</option><option value="7">Aug</option><option value="8">Sep</option><option value="9" selected>Oct</option><option value="10">Nov</option><option value="11">Dec</option></select>
+<select id="weather"><option value="">Clear</option><option value="rain">Rain</option><option value="snow">Snow</option></select></div>
+<h2>Cast</h2>
+<button id="reroll">New visit (reroll)</button><button class="alt" id="reset">Reset spots</button>
+<h2>Scene data</h2>
+<pre id="json"></pre><button class="alt" id="copy">Copy JSON</button>
+<h2>Sound events</h2><pre id="log"></pre>
+</div></div>
+<script>"use strict";
+(() => {
+  // demo/skia-shim.ts
+  var ShimPath = class {
+    constructor() {
+      this.cmds = [];
+    }
+    moveTo(x, y) {
+      this.cmds.push(["M", x, y]);
+      return this;
+    }
+    lineTo(x, y) {
+      this.cmds.push(["L", x, y]);
+      return this;
+    }
+    quadTo(x1, y1, x, y) {
+      this.cmds.push(["Q", x1, y1, x, y]);
+      return this;
+    }
+    close() {
+      this.cmds.push(["Z"]);
+      return this;
+    }
+    trace(ctx2) {
+      ctx2.beginPath();
+      for (const c2 of this.cmds) {
+        if (c2[0] === "M") ctx2.moveTo(c2[1], c2[2]);
+        else if (c2[0] === "L") ctx2.lineTo(c2[1], c2[2]);
+        else if (c2[0] === "Q") ctx2.quadraticCurveTo(c2[1], c2[2], c2[3], c2[4]);
+        else ctx2.closePath();
+      }
+    }
+  };
+  var Skia = {
+    XYWHRect: (x, y, width, height) => ({ x, y, width, height }),
+    Path: { Make: () => new ShimPath() }
+  };
+  var ClipOp = { Intersect: 1, Difference: 0 };
+  var ShimCanvas = class {
+    constructor(ctx2) {
+      this.ctx = ctx2;
+    }
+    save() {
+      this.ctx.save();
+    }
+    restore() {
+      this.ctx.restore();
+    }
+    translate(x, y) {
+      this.ctx.translate(x, y);
+    }
+    scale(x, y) {
+      this.ctx.scale(x, y);
+    }
+    rotate(deg, px, py) {
+      this.ctx.translate(px, py);
+      this.ctx.rotate(deg * Math.PI / 180);
+      this.ctx.translate(-px, -py);
+    }
+    clipRect(r) {
+      this.ctx.beginPath();
+      this.ctx.rect(r.x, r.y, r.width, r.height);
+      this.ctx.clip();
+    }
+    paint(p) {
+      if (p.style === "fill") {
+        this.ctx.fillStyle = p.color;
+        this.ctx.fill();
+      } else {
+        this.ctx.strokeStyle = p.color;
+        this.ctx.lineWidth = p.width ?? 1;
+        this.ctx.lineCap = "round";
+        this.ctx.lineJoin = "round";
+        this.ctx.stroke();
+      }
+    }
+    drawOval(r, p) {
+      this.ctx.beginPath();
+      this.ctx.ellipse(r.x + r.width / 2, r.y + r.height / 2, r.width / 2, r.height / 2, 0, 0, Math.PI * 2);
+      this.paint(p);
+    }
+    drawCircle(x, y, r, p) {
+      this.ctx.beginPath();
+      this.ctx.arc(x, y, r, 0, Math.PI * 2);
+      this.paint(p);
+    }
+    drawRect(r, p) {
+      this.ctx.beginPath();
+      this.ctx.rect(r.x, r.y, r.width, r.height);
+      this.paint(p);
+    }
+    drawRRect(r, p) {
+      this.ctx.beginPath();
+      this.ctx.roundRect(r.rect.x, r.rect.y, r.rect.width, r.rect.height, r.r);
+      this.paint(p);
+    }
+    drawLine(x1, y1, x2, y2, p) {
+      this.ctx.beginPath();
+      this.ctx.moveTo(x1, y1);
+      this.ctx.lineTo(x2, y2);
+      this.paint(p);
+    }
+    drawPath(path, p) {
+      path.trace(this.ctx);
+      this.paint(p);
+    }
+  };
+
+  // demo/ink-shim.ts
+  var tint = null;
+  var tintAmt = 0;
+  function setTint(color, amount = 0) {
+    tint = color ? hex(color) : null;
+    tintAmt = amount;
+  }
+  function hex(c2) {
+    if (c2.startsWith("rgb")) {
+      const m = c2.match(/[\d.]+/g).map(Number);
+      return [m[0], m[1], m[2]];
+    }
+    let h = c2.replace("#", "");
+    if (h.length === 3) h = h.split("").map((x) => x + x).join("");
+    return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+  }
+  var toHex = (r, g, b) => "#" + [r, g, b].map((v) => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, "0")).join("");
+  function rgba(color, a) {
+    let [r, g, b] = hex(color);
+    if (tint && tintAmt > 0) {
+      r = r * (1 - tintAmt) + r * (tint[0] / 255) * tintAmt;
+      g = g * (1 - tintAmt) + g * (tint[1] / 255) * tintAmt;
+      b = b * (1 - tintAmt) + b * (tint[2] / 255) * tintAmt;
+    }
+    return `rgba(${Math.round(r)},${Math.round(g)},${Math.round(b)},${a})`;
+  }
+  function darken(c2, k) {
+    const [r, g, b] = hex(c2);
+    return toHex(r * (1 - k), g * (1 - k), b * (1 - k));
+  }
+  function lighten(c2, k) {
+    const [r, g, b] = hex(c2);
+    return toHex(r + (255 - r) * k, g + (255 - g) * k, b + (255 - b) * k);
+  }
+  function mixc(a, b, k) {
+    const x = hex(a);
+    const y = hex(b);
+    return toHex(x[0] + (y[0] - x[0]) * k, x[1] + (y[1] - x[1]) * k, x[2] + (y[2] - x[2]) * k);
+  }
+  var fill = (color, a = 1) => ({ style: "fill", color: rgba(color, a) });
+  var stroke = (color, width, a = 1) => ({ style: "stroke", color: rgba(color, a), width });
+  var ov = (cx, cy, rx, ry) => Skia.XYWHRect(cx - rx, cy - ry, rx * 2, ry * 2);
+  function ellipse(c2, cx, cy, rx, ry, color, a = 1) {
+    if (rx > 0 && ry > 0 && a > 3e-3) c2.drawOval(ov(cx, cy, rx, ry), fill(color, a));
+  }
+  function circle(c2, cx, cy, r, color, a = 1) {
+    if (r > 0 && a > 3e-3) c2.drawCircle(cx, cy, r, fill(color, a));
+  }
+  function rect(c2, x, y, w, h, color, a = 1) {
+    if (w > 0 && h > 0 && a > 3e-3) c2.drawRect(Skia.XYWHRect(x, y, w, h), fill(color, a));
+  }
+  function rrect(c2, x, y, w, h, r, color, a = 1) {
+    if (w > 0 && h > 0 && a > 3e-3) c2.drawRRect({ rect: Skia.XYWHRect(x, y, w, h), r }, fill(color, a));
+  }
+  function line(c2, x1, y1, x2, y2, color, width, a = 1) {
+    if (a > 3e-3) c2.drawLine(x1, y1, x2, y2, stroke(color, width, a));
+  }
+  function poly(c2, pts, color, a = 1) {
+    const p = new ShimPath();
+    p.moveTo(pts[0], pts[1]);
+    for (let i = 2; i < pts.length; i += 2) p.lineTo(pts[i], pts[i + 1]);
+    p.close();
+    c2.drawPath(p, fill(color, a));
+  }
+
+  // demo/park.ts
+  var STAGE_W = 400;
+  var STAGE_H = 700;
+  var PARK_BIRD_SPOTS = [
+    { x: 110, y: 500, on: "ground", count: 3, roam: 55, roamY: 22 },
+    { x: 300, y: 610, on: "ground", count: 2, roam: 50, roamY: 20 },
+    { x: 64, y: 292, on: "perch", sortY: 318 },
+    { x: 132, y: 344, on: "perch", sortY: 386 },
+    { x: 268, y: 296, on: "perch", sortY: 405, species: ["owl", "cardinal", "sparrow"] },
+    { x: 190, y: 570, on: "water", roam: 58, roamY: 9 }
+  ];
+  function drawParkBack(c2, dark) {
+    const ctx2 = c2.ctx;
+    const top = mixc("#8fd0f5", "#1d2350", dark);
+    const bot = mixc("#dff3ff", "#47407a", dark);
+    const g = ctx2.createLinearGradient(0, 0, 0, 300);
+    g.addColorStop(0, top);
+    g.addColorStop(1, bot);
+    ctx2.fillStyle = g;
+    ctx2.fillRect(0, 0, STAGE_W, 300);
+    if (dark > 0.5) {
+      for (let i = 0; i < 40; i++) {
+        circle(c2, i * 97 % 400, i * 53 % 230, i % 5 === 0 ? 1.3 : 0.8, "#ffffff", (dark - 0.5) * 1.6);
+      }
+      circle(c2, 330, 70, 16, "#fff6d6", 0.95);
+    } else {
+      circle(c2, 330, 80, 20, "#ffe48a", 1 - dark * 1.5);
+    }
+    for (const [x, y, s] of [[70, 70, 1], [240, 110, 0.8]]) {
+      const col = mixc("#ffffff", "#7f7fae", dark);
+      ellipse(c2, x, y, 30 * s, 11 * s, col, 0.9);
+      ellipse(c2, x + 18 * s, y - 7 * s, 18 * s, 11 * s, col, 0.9);
+      ellipse(c2, x - 14 * s, y - 4 * s, 15 * s, 9 * s, col, 0.9);
+    }
+    poly(c2, [0, 300, 0, 250, 90, 232, 160, 252, 260, 225, 400, 250, 400, 300], "#7fae6a");
+    rect(c2, 0, 290, 400, 410, "#8fcf6a");
+    const g2 = ctx2.createLinearGradient(0, 300, 0, 700);
+    g2.addColorStop(0, "#8fcf6a");
+    g2.addColorStop(1, "#6fb653");
+    ctx2.fillStyle = g2;
+    ctx2.fillRect(0, 300, 400, 400);
+    for (let i = 0; i < 70; i++) {
+      const x = i * 61 % 400;
+      const y = 320 + i * 137 % 370;
+      line(c2, x, y, x - 1.5, y - 5, "#4f9a3c", 1.2, 0.5);
+      line(c2, x + 2, y, x + 3, y - 4, "#4f9a3c", 1.2, 0.5);
+    }
+    for (let x = -10; x < 420; x += 34) {
+      rrect(c2, x - 4, 286, 8, 34, 2, "#e8d2b0");
+      poly(c2, [x - 4, 288, x, 282, x + 4, 288], "#e8d2b0");
+    }
+    rect(c2, -10, 296, 420, 5, "#d9bf98");
+    rect(c2, -10, 309, 420, 5, "#d9bf98");
+    ellipse(c2, 190, 572, 92, 26, "#5f9e4c");
+    ellipse(c2, 190, 570, 86, 22, "#5eb6d9");
+    ellipse(c2, 190, 573, 76, 16, "#4aa1c9");
+    ellipse(c2, 165, 563, 26, 4, "#ffffff", 0.35);
+  }
+  function parkProps() {
+    return [
+      {
+        y: 405,
+        draw: (c2) => {
+          ellipse(c2, 312, 406, 40, 9, "#000000", 0.15);
+          poly(c2, [304, 406, 320, 406, 317, 300, 307, 300], "#8a5a3a");
+          poly(c2, [309, 330, 266, 297, 270, 293, 312, 322], "#8a5a3a");
+          ellipse(c2, 312, 250, 56, 52, "#4f9d55");
+          ellipse(c2, 285, 270, 34, 30, "#58a85d");
+          ellipse(c2, 340, 268, 34, 30, "#468f4c");
+          ellipse(c2, 300, 228, 26, 16, lighten("#4f9d55", 0.25), 0.5);
+        }
+      },
+      {
+        y: 386,
+        draw: (c2) => {
+          ellipse(c2, 120, 388, 48, 6, "#000000", 0.15);
+          rect(c2, 82, 368, 6, 20, "#5c4636");
+          rect(c2, 152, 368, 6, 20, "#5c4636");
+          rrect(c2, 74, 360, 92, 9, 3, "#c27a4a");
+          rrect(c2, 76, 344, 88, 7, 3, "#c27a4a");
+          rrect(c2, 76, 334, 88, 7, 3, darken("#c27a4a", 0.06));
+          rect(c2, 84, 341, 4, 20, "#5c4636");
+          rect(c2, 152, 341, 4, 20, "#5c4636");
+        }
+      },
+      {
+        y: 440,
+        draw: (c2) => {
+          ellipse(c2, 40, 442, 34, 6, "#000000", 0.15);
+          ellipse(c2, 40, 424, 34, 20, "#5aa65a");
+          ellipse(c2, 26, 418, 18, 14, "#64b264");
+          ellipse(c2, 52, 414, 16, 12, "#4f9a50");
+        }
+      }
+    ];
+  }
+  function drawPup(c2, x, y, face, t2, moving) {
+    const b = moving ? Math.abs(Math.sin(t2 * 14)) * 3 : 0;
+    ellipse(c2, x, y + 1, 26, 6, "#000000", 0.16);
+    c2.save();
+    c2.translate(x, y - b);
+    c2.scale(face, 1);
+    const fur = "#e3a96b";
+    for (const lx of [-14, -6, 8, 15]) {
+      rrect(c2, lx - 3, -14, 7, 14, 3, darken(fur, 0.08));
+    }
+    ellipse(c2, 0, -22, 22, 13, fur);
+    ellipse(c2, 2, -17, 15, 7, lighten(fur, 0.35));
+    line(c2, -20, -26, -28, -38 + Math.sin(t2 * 12) * 3, fur, 5);
+    circle(c2, 20, -40, 15, fur);
+    ellipse(c2, 30, -35, 8, 6, lighten(fur, 0.4));
+    circle(c2, 37, -37, 3, "#2a2030");
+    ellipse(c2, 11, -44, 6, 10, darken(fur, 0.25));
+    circle(c2, 25, -44, 3.6, "#2a2030");
+    circle(c2, 26.4, -45.4, 1.3, "#ffffff");
+    ellipse(c2, 26, -36, 3, 1.6, "#ff8fa3", 0.5);
+    c2.restore();
+  }
+
+  // src/render/skia/birds.ts
+  var BIRD_SCALE = 1.3;
+  var BIRD_SIZE = {
+    sparrow: 1,
+    robin: 1.12,
+    cardinal: 1.05,
+    pigeon: 1.28,
+    duck: 1.35,
+    owl: 1.25
+  };
+  var INK = "#1f1b2a";
+  var SPARKLE = "#ffffff";
+  var BLUSH = "#ff8fa3";
+  var SPARROW = {
+    body: "#a77b52",
+    belly: "#e7dccb",
+    wing: "#8c6240",
+    wingTip: "#5e3f28",
+    tail: "#6f4c31",
+    head: "#b79b80",
+    cap: "#93583a",
+    cheek: "#ece4d8",
+    bib: "#4a3a32",
+    beak: "#4d4038",
+    legs: "#c99b7c",
+    streaks: "#5e3f28",
+    bodyRx: 7,
+    bodyRy: 5.6,
+    headR: 4.9,
+    headX: 5.6,
+    headY: -12.6,
+    tailLen: 1
+  };
+  var ROBIN = {
+    body: "#6e6258",
+    belly: "#f08a3c",
+    wing: "#5e5249",
+    wingTip: "#3f3630",
+    tail: "#3f3630",
+    head: "#3d3532",
+    beak: "#f2c14e",
+    legs: "#b9967e",
+    ring: "#ffffff",
+    bodyRx: 7.4,
+    bodyRy: 6,
+    headR: 4.9,
+    headX: 5.8,
+    headY: -13.2,
+    tailLen: 1.1
+  };
+  var CARDINAL = {
+    body: "#e0403a",
+    belly: "#ee5a4c",
+    wing: "#c4322f",
+    wingTip: "#9c2525",
+    tail: "#b52b2a",
+    head: "#e84a40",
+    crest: "#e0403a",
+    mask: "#2a1f22",
+    beak: "#ff8a3d",
+    legs: "#c98f86",
+    bodyRx: 7,
+    bodyRy: 5.7,
+    headR: 4.9,
+    headX: 5.6,
+    headY: -12.8,
+    tailLen: 1.25
+  };
+  var PIGEON = {
+    body: "#9aa3b4",
+    belly: "#aeb6c5",
+    wing: "#b7bfcc",
+    wingTip: "#5c6272",
+    tail: "#6b7182",
+    head: "#7d8598",
+    neck: ["#5fbf9a", "#a77cc9"],
+    bars: "#4c5262",
+    beak: "#3b3a40",
+    legs: "#e0707a",
+    ring: "#f0a04a",
+    bodyRx: 8.6,
+    bodyRy: 6.4,
+    headR: 4.3,
+    headX: 6.8,
+    headY: -13.6,
+    tailLen: 1
+  };
+  var SONGBIRDS = { sparrow: SPARROW, robin: ROBIN, cardinal: CARDINAL, pigeon: PIGEON };
+  function drawBirdGround(c2, b, env) {
+    for (const r of b.ripples) {
+      if (r.age < 0) {
+        continue;
+      }
+      const k = r.age / 1.6;
+      const rx = (7 + r.age * 16) * BIRD_SCALE;
+      c2.drawOval(ov(r.x, r.y + 0.5, rx, rx * 0.28), stroke("#ffffff", 1.1, 0.55 * (1 - k)));
+    }
+    if (b.spot.on !== "ground") {
+      return;
+    }
+    const s = BIRD_SIZE[b.species] * BIRD_SCALE;
+    const fade = Math.max(0, 1 - b.pose.lift / 140);
+    if (fade > 0.02) {
+      const w = (7.5 - Math.min(4, b.pose.lift / 25)) * s;
+      ellipse(c2, b.x, b.y + 0.6, w, w * 0.28, "#000000", 0.16 * fade);
+    }
+  }
+  function drawBird(c2, b, env) {
+    const s = BIRD_SIZE[b.species] * BIRD_SCALE;
+    c2.save();
+    c2.translate(b.x, b.y - b.pose.lift);
+    c2.scale(s * b.face, s);
+    if (b.species === "owl") {
+      drawOwl(c2, b.pose);
+    } else if (b.species === "duck") {
+      drawDuck(c2, b.pose, b.variant, b.airborne);
+    } else {
+      drawSongbird(c2, SONGBIRDS[b.species], b.pose, b.species);
+    }
+    c2.restore();
+  }
+  function eye(c2, x, y, r, p, lid) {
+    if (p.blink > 0.5) {
+      line(c2, x - r * 1.05, y + r * 0.15, x + r * 1.05, y + r * 0.15, INK, r * 0.55);
+      return;
+    }
+    circle(c2, x, y, r, INK);
+    circle(c2, x + r * 0.32, y - r * 0.36, r * 0.38, SPARKLE);
+    circle(c2, x - r * 0.3, y + r * 0.32, r * 0.16, SPARKLE, 0.9);
+    if (p.sleepy > 0.02) {
+      circle(c2, x, y - r * 2.15 * (1 - p.sleepy) - r * 0.1, r * 1.15, lid);
+    }
+  }
+  function flightWing(c2, x, y, angle, len, color, tip) {
+    c2.save();
+    c2.translate(x, y);
+    c2.rotate(angle, 0, 0);
+    ellipse(c2, -len * 0.48, 0, len * 0.55, len * 0.2, color);
+    ellipse(c2, -len * 0.86, 0.2, len * 0.22, len * 0.15, tip);
+    ellipse(c2, -len * 0.3, -len * 0.06, len * 0.24, len * 0.07, lighten(color, 0.2), 0.5);
+    c2.restore();
+  }
+  function drawSongbird(c2, k, p, species) {
+    const flying = p.fly > 0.5;
+    const by = -8 + p.bob;
+    if (!flying) {
+      const legTop = by + k.bodyRy * 0.55;
+      line(c2, -1.6, legTop, -1.9, -0.3, k.legs, 1.05);
+      line(c2, 1.3, legTop, 1.6, -0.3, k.legs, 1.05);
+      line(c2, -1.9, -0.2, 0.2, -0.2, k.legs, 0.9);
+      line(c2, 1.6, -0.2, 3.6, -0.2, k.legs, 0.9);
+    }
+    c2.save();
+    c2.rotate(p.pitch, 0, by + 2);
+    const shoulderX = -0.4;
+    const shoulderY = by - k.bodyRy * 0.45;
+    if (flying) {
+      flightWing(c2, shoulderX + 1.2, shoulderY - 0.4, p.flap * 0.85 + 8, 13, darken(k.wing, 0.18), darken(k.wingTip, 0.1));
+    }
+    const tl = 7.5 * k.tailLen;
+    poly(c2, [-k.bodyRx + 2.2, by - 1.6, -k.bodyRx - tl, by - 4.8, -k.bodyRx - tl + 0.4, by - 1.4, -k.bodyRx + 2.4, by + 2.2], k.tail);
+    ellipse(c2, 0, by, k.bodyRx, k.bodyRy, k.body);
+    ellipse(c2, 1.6, by + 1.4, k.bodyRx * 0.74, k.bodyRy * 0.66, k.belly);
+    ellipse(c2, 0.6, by + k.bodyRy * 0.72, k.bodyRx * 0.55, k.bodyRy * 0.22, darken(k.belly, 0.08), 0.6);
+    if (k.streaks) {
+      line(c2, -4.6, by - 3.4, -1.4, by - 4.6, k.streaks, 0.8, 0.7);
+      line(c2, -5.2, by - 1.6, -2.2, by - 2.8, k.streaks, 0.8, 0.7);
+    }
+    if (!flying) {
+      ellipse(c2, -1.6, by - 0.4, k.bodyRx * 0.74, k.bodyRy * 0.58, k.wing);
+      poly(c2, [-3.4, by - 1.6, -k.bodyRx - 3.2, by - 2.6, -3.8, by + 2.1], k.wingTip);
+      if (k.bars) {
+        line(c2, -3.6, by + 0.2, -0.2, by - 0.6, k.bars, 1.1);
+        line(c2, -4.4, by + 1.8, -1.2, by + 1.1, k.bars, 1.1);
+      }
+      ellipse(c2, -1.2, by - 2.6, 2.6, 0.9, lighten(k.wing, 0.3), 0.45);
+    }
+    ellipse(c2, 0.8, by - k.bodyRy * 0.66, 3, 1.15, lighten(k.body, 0.32), 0.45);
+    if (k.neck) {
+      ellipse(c2, 4.4, by - 3.2, 3, 2.6, k.neck[0], 0.85);
+      ellipse(c2, 4.8, by - 1.6, 2.6, 1.8, k.neck[1], 0.7);
+    }
+    drawSongHead(c2, k, p, species);
+    if (flying) {
+      flightWing(c2, shoulderX, shoulderY, p.flap, 14, k.wing, k.wingTip);
+    }
+    c2.restore();
+  }
+  function drawSongHead(c2, k, p, species) {
+    const hx = k.headX + p.headX;
+    const hy = k.headY + p.bob + p.headY;
+    c2.save();
+    c2.rotate(p.tilt, hx, hy);
+    if (p.preen > 0.5) {
+      c2.translate(hx, 0);
+      c2.scale(-1, 1);
+      c2.translate(-hx, 0);
+    }
+    const r = k.headR;
+    if (k.crest) {
+      poly(c2, [hx - r * 0.9, hy - r * 0.35, hx - r * 1.75, hy - r * 1.85, hx - r * 0.95, hy - r * 1.55, hx + r * 0.25, hy - r * 0.85], k.crest);
+    }
+    circle(c2, hx, hy, r, k.head);
+    if (k.cap) {
+      ellipse(c2, hx - r * 0.25, hy - r * 0.55, r * 0.82, r * 0.5, k.cap);
+    }
+    if (k.cheek) {
+      ellipse(c2, hx + r * 0.2, hy + r * 0.32, r * 0.62, r * 0.42, k.cheek);
+    }
+    ellipse(c2, hx - r * 0.3, hy - r * 0.62, r * 0.42, r * 0.2, lighten(k.cap ?? k.head, 0.35), 0.45);
+    const ex = hx + r * 0.42;
+    const ey = hy - r * 0.18;
+    const er = r * 0.33;
+    if (k.mask) {
+      poly(c2, [ex - er * 1.6, ey - er * 1.2, hx + r * 1.15, hy - r * 0.32, hx + r * 1.2, hy + r * 0.55, ex - er * 0.4, hy + r * 0.95], k.mask);
+    }
+    if (k.bib) {
+      ellipse(c2, hx + r * 0.62, hy + r * 0.92, r * 0.36, r * 0.3, k.bib, 0.85);
+    }
+    const bx = hx + r * 0.9;
+    const blen = species === "pigeon" ? 3 : 3.6;
+    poly(c2, [bx, hy - r * 0.34, bx + blen, hy + r * 0.02, bx, hy + r * 0.16], k.beak);
+    poly(c2, [bx, hy + r * 0.16, bx + blen * 0.86, hy + r * 0.06, bx, hy + r * 0.38], darken(k.beak, 0.2));
+    if (species === "pigeon") {
+      ellipse(c2, bx + 0.2, hy - r * 0.3, 1, 0.55, "#f1eef0", 0.9);
+    }
+    if (k.ring && p.blink < 0.5) {
+      circle(c2, ex, ey, er * 1.42, k.ring, species === "robin" ? 0.95 : 0.9);
+      if (species === "robin") {
+        ellipse(c2, ex + er * 1.2, ey, er * 0.6, er * 0.5, k.head);
+        ellipse(c2, ex - er * 1.2, ey, er * 0.6, er * 0.5, k.head);
+      }
+    }
+    eye(c2, ex, ey, er, p, k.mask ?? k.head);
+    ellipse(c2, hx + r * 0.36, hy + r * 0.5, r * 0.3, r * 0.17, BLUSH, k.mask ? 0.2 : 0.35);
+    c2.restore();
+  }
+  var DRAKE = { body: "#cfd2d6", chest: "#8a4f37", head: "#2f8a5a", headHi: "#47b07a", ring: "#ffffff", bill: "#f3c64a", back: "#a8adb4", tail: "#2b2b33", wing: "#b8bcc2", spec: "#4767c9" };
+  var HEN = { body: "#b68a5c", chest: "#a87a4e", head: "#a07850", headHi: "#c09a70", ring: "", bill: "#f0954a", back: "#8f6a45", tail: "#7a5636", wing: "#9b744c", spec: "#4767c9" };
+  function drawDuck(c2, p, variant, flying) {
+    const k = variant === 0 ? DRAKE : HEN;
+    const floating = !flying;
+    c2.save();
+    if (floating) {
+      c2.clipRect(Skia.XYWHRect(-40, -60, 80, 60), ClipOp.Intersect, true);
+      c2.rotate(p.dabble * 108, 1, -1);
+    } else {
+      c2.rotate(p.pitch * 0.6, 0, -6);
+    }
+    const by = (floating ? -1.6 : -8) + p.bob;
+    if (flying) {
+      flightWing(c2, 0.5, by - 4.4, p.flap * 0.85 + 8, 16, darken(k.wing, 0.18), darken(k.wing, 0.35));
+    }
+    poly(c2, [-8.5, by - 1.5, -14.5, by - 5.2, -13, by + 0.6, -8, by + 2.5], k.tail);
+    if (variant === 0) {
+      c2.drawPath(curl(-12.2, by - 4.6), stroke(k.tail, 1.1));
+    }
+    ellipse(c2, 0, by, 11.5, 6.4, k.body);
+    ellipse(c2, 6.2, by - 0.4, 5.4, 5.4, k.chest);
+    ellipse(c2, -2.4, by - 3.2, 7.6, 3, k.back);
+    if (!flying) {
+      ellipse(c2, -2.4, by - 1.6, 7, 3.6, k.wing);
+      ellipse(c2, -5.6, by - 1.2, 2.8, 1.3, k.spec, 0.9);
+      ellipse(c2, -1.6, by - 3.6, 3.2, 1, lighten(k.wing, 0.3), 0.5);
+    }
+    if (variant === 1) {
+      for (const [mx, my] of [[-4, -1.5], [0, -0.4], [3.4, -1.8], [-7, 0.2], [1.6, 1.4]]) {
+        ellipse(c2, mx, by + my, 1.2, 0.7, darken(k.body, 0.2), 0.6);
+      }
+    }
+    const hx = 8.4 + p.headX;
+    const hy = by - 10.4 + p.headY;
+    c2.save();
+    c2.rotate(p.tilt * 0.6, hx, hy);
+    if (p.preen > 0.5) {
+      c2.translate(hx - 4, 0);
+      c2.scale(-1, 1);
+      c2.translate(-(hx - 4), 0);
+    }
+    ellipse(c2, hx - 1.2, hy + 5, 3, 5.4, k.head);
+    if (variant === 0) {
+      ellipse(c2, hx - 1, hy + 8.2, 3.4, 1, k.ring);
+    }
+    circle(c2, hx, hy, 5.2, k.head);
+    ellipse(c2, hx - 1.2, hy - 2.6, 2.6, 1.3, k.headHi, 0.6);
+    if (variant === 1) {
+      line(c2, hx - 4.2, hy - 0.6, hx + 3.2, hy - 1.2, darken(k.head, 0.3), 0.9);
+    }
+    ellipse(c2, hx + 6.6, hy + 0.9, 3.6, 1.6, k.bill);
+    ellipse(c2, hx + 6.4, hy + 1.8, 3.2, 0.9, darken(k.bill, 0.15));
+    eye(c2, hx + 1.9, hy - 0.8, 1.5, p, k.head);
+    ellipse(c2, hx + 1.8, hy + 2.1, 1.4, 0.8, BLUSH, 0.3);
+    c2.restore();
+    if (flying) {
+      flightWing(c2, -0.5, by - 4.8, p.flap, 17, k.wing, darken(k.wing, 0.3));
+      ellipse(c2, -9, by + 4.2, 2.2, 0.9, "#f0954a");
+    }
+    c2.restore();
+    if (floating && p.dabble > 0.45) {
+      const k2 = (p.dabble - 0.45) / 0.55;
+      const kick = Math.sin(p.bob * 9 + p.dabble * 20) * 2.2;
+      for (const [fx, ph] of [[-4.5, 0], [-1.2, 1]]) {
+        const fy = -7 * k2 - (ph ? -kick : kick) * k2;
+        line(c2, fx, -2, fx - 0.6, fy + 1.5, "#f0954a", 1);
+        poly(c2, [fx - 2.6, fy, fx + 1.6, fy - 0.6, fx - 0.4, fy + 2.2], "#f6a24f");
+      }
+    }
+    if (floating) {
+      c2.drawOval(ov(0, 0, 13.5, 1.6), stroke("#ffffff", 0.9, 0.45));
+    }
+  }
+  function curl(x, y) {
+    const path = Skia.Path.Make();
+    path.moveTo(x, y);
+    path.quadTo(x + 1.6, y - 3.2, x + 3.4, y - 1.6);
+    return path;
+  }
+  var OWL = { body: "#8b6a4f", belly: "#d9c3a2", face: "#e9d8bd", disc: "#c49d78", tuft: "#6e533e", iris: "#f2b43a", beak: "#5a4636", claw: "#e0a24a", bars: "#9c7d60" };
+  function drawOwl(c2, p) {
+    const k = OWL;
+    const by = -11.5 + p.bob;
+    for (const fx of [-3.2, 2.6]) {
+      ellipse(c2, fx, -0.6, 2.2, 1.3, k.claw);
+    }
+    poly(c2, [-4, by + 8, 4, by + 8, 2.4, by + 13.4, -2.4, by + 13.4], darken(k.body, 0.1));
+    ellipse(c2, 0, by, 9.4, 11.6, k.body);
+    ellipse(c2, 0, by + 3, 6.4, 7.6, k.belly);
+    for (const [vx, vy] of [[-2.6, 0.6], [2.6, 0.6], [0, 3.4], [-3, 6], [3, 6], [0, 8.6]]) {
+      poly(c2, [vx - 1.1, by + vy, vx, by + vy + 1.1, vx + 1.1, by + vy], k.bars, 0.8);
+    }
+    ellipse(c2, -7.6, by + 2.4, 3.2, 8, darken(k.body, 0.08));
+    ellipse(c2, 7.6, by + 2.4, 3.2, 8, darken(k.body, 0.08));
+    ellipse(c2, -2, by - 8, 4, 1.6, lighten(k.body, 0.3), 0.4);
+    const hx = p.swivel * 2.2;
+    const hy = by - 10 + p.headY;
+    c2.save();
+    c2.rotate(p.tilt * 0.5, hx, hy);
+    poly(c2, [hx - 8, hy - 3, hx - 7.6, hy - 10.4, hx - 3.6, hy - 6], k.tuft);
+    poly(c2, [hx + 8, hy - 3, hx + 7.6, hy - 10.4, hx + 3.6, hy - 6], k.tuft);
+    ellipse(c2, hx, hy, 9.4, 8.2, k.body);
+    ellipse(c2, hx - 3.8, hy + 0.4, 4.6, 4.4, k.disc);
+    ellipse(c2, hx + 3.8, hy + 0.4, 4.6, 4.4, k.disc);
+    ellipse(c2, hx - 3.8, hy + 0.4, 3.9, 3.8, k.face);
+    ellipse(c2, hx + 3.8, hy + 0.4, 3.9, 3.8, k.face);
+    for (const ex of [-3.7, 3.7]) {
+      const x = hx + ex;
+      const y = hy + 0.2;
+      if (p.blink > 0.5) {
+        line(c2, x - 2.4, y + 0.4, x + 2.4, y + 0.4, INK, 1);
+        continue;
+      }
+      circle(c2, x, y, 2.9, k.iris);
+      circle(c2, x + p.swivel * 0.4, y, 2.1, INK);
+      circle(c2, x + 0.75, y - 0.8, 0.8, SPARKLE);
+      circle(c2, x - 0.6, y + 0.7, 0.35, SPARKLE, 0.9);
+      if (p.sleepy > 0.02) {
+        circle(c2, x, y - 6.2 * (1 - p.sleepy) - 0.3, 3.3, k.face);
+      }
+    }
+    poly(c2, [hx - 1.2, hy + 2.2, hx + 1.2, hy + 2.2, hx, hy + 4.8], k.beak);
+    ellipse(c2, hx - 5.8, hy + 4.4, 1.6, 0.9, BLUSH, 0.3);
+    ellipse(c2, hx + 5.8, hy + 4.4, 1.6, 0.9, BLUSH, 0.3);
+    c2.restore();
+  }
+
+  // src/actor/birds.ts
+  var BIRD_SPECIES = {
+    sparrow: { habitats: ["ground", "perch"], startle: 70, gait: "hop", shy: true, sound: "chirp", away: [5, 12], step: 9, beat: 11 },
+    pigeon: { habitats: ["ground", "perch"], startle: 44, gait: "walk", sound: "coo", away: [4, 9], step: 20, beat: 7 },
+    robin: { habitats: ["ground", "perch"], startle: 80, gait: "hop", months: [2, 3, 4, 5, 6, 7, 8, 9], shy: true, sound: "chirp", away: [7, 15], step: 12, beat: 10 },
+    cardinal: { habitats: ["perch", "ground"], startle: 95, gait: "hop", shy: true, sound: "chirp", away: [9, 18], step: 10, beat: 10 },
+    duck: { habitats: ["water"], startle: 48, gait: "swim", sound: "quack", away: [8, 16], step: 10, beat: 6 },
+    owl: { habitats: ["perch"], startle: 0, gait: "none", night: true, sound: "hoot", away: [20, 40], step: 0, beat: 5 }
+  };
+  var DEFAULTS = {
+    ground: ["sparrow", "pigeon", "robin", "sparrow"],
+    perch: ["sparrow", "cardinal", "robin"],
+    water: ["duck"]
+  };
+  var NIGHT_AT = 0.55;
+  var DAY_AT = 0.35;
+  function rand(b) {
+    let t2 = b.rng = b.rng + 1831565813 | 0;
+    t2 = Math.imul(t2 ^ t2 >>> 15, t2 | 1);
+    t2 ^= t2 + Math.imul(t2 ^ t2 >>> 7, t2 | 61);
+    return ((t2 ^ t2 >>> 14) >>> 0) / 4294967296;
+  }
+  var range = (b, lo, hi) => lo + (hi - lo) * rand(b);
+  var clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  function hashSeed(s) {
+    let h = 2166136261;
+    for (let i = 0; i < s.length; i++) {
+      h = Math.imul(h ^ s.charCodeAt(i), 16777619);
+    }
+    return h | 0;
+  }
+  function emptyPose() {
+    return { lift: 0, bob: 0, headX: 0, headY: 0, tilt: 0, blink: 0, fly: 0, flap: 0, pitch: 0, dabble: 0, swivel: 0, preen: 0, sleepy: 0 };
+  }
+  function speciesFits(species, spot, world2) {
+    const info = BIRD_SPECIES[species];
+    if (!info.habitats.includes(spot.on)) {
+      return false;
+    }
+    if (info.months && !info.months.includes(world2.month)) {
+      return false;
+    }
+    return true;
+  }
+  function wantsToBeHere(b, world2) {
+    const info = BIRD_SPECIES[b.species];
+    const night = world2.dark > (b.state === "away" ? NIGHT_AT - 0.05 : NIGHT_AT);
+    const day = world2.dark < DAY_AT;
+    if (info.night) {
+      return world2.dark > 0.6;
+    }
+    if (night || !day && b.state === "away") {
+      return false;
+    }
+    if (world2.precip === "rain" && info.shy) {
+      return false;
+    }
+    return true;
+  }
+  function spawnBirds(spots2, world2, seed2) {
+    const birds2 = [];
+    let owlPlaced = false;
+    spots2.forEach((spot, si) => {
+      const base = hashSeed(`${seed2}|${si}|${spot.x},${spot.y}`);
+      const probe = { rng: base };
+      const chance = spot.chance ?? 0.85;
+      const pool = (spot.species ?? DEFAULTS[spot.on]).filter((s) => speciesFits(s, spot, world2));
+      const owlHere = !owlPlaced && pool.includes("owl");
+      const dayPool = pool.filter((s) => s !== "owl");
+      if (owlHere) {
+        owlPlaced = true;
+        birds2.push(makeBird(`b${si}o`, "owl", spot, base ^ 81, world2, 0));
+      }
+      if (dayPool.length === 0 || rand(probe) > chance) {
+        return;
+      }
+      const species = dayPool[Math.floor(rand(probe) * dayPool.length)];
+      const flock = spot.on === "ground" ? Math.max(1, Math.min(spot.count ?? 1, species === "sparrow" || species === "pigeon" ? 4 : 2)) : 1;
+      const n = flock === 1 ? 1 : 1 + Math.floor(rand(probe) * flock);
+      for (let k = 0; k < n; k++) {
+        birds2.push(makeBird(`b${si}_${k}`, species, spot, base + k * 7919, world2, k));
+      }
+    });
+    return birds2;
+  }
+  function makeBird(id, species, spot, seed2, world2, k) {
+    const b = {
+      id,
+      species,
+      variant: 0,
+      spot,
+      x: spot.x,
+      y: spot.y,
+      face: 1,
+      state: "idle",
+      st: 0,
+      dur: 1,
+      tx: spot.x,
+      ty: spot.y,
+      fx: 0,
+      fy: 0,
+      flyH: 0,
+      wait: 0,
+      blinkIn: 1,
+      blinkT: 0,
+      phase: 0,
+      spook: 0,
+      spookX: 0,
+      rng: seed2,
+      pose: emptyPose(),
+      ripples: [],
+      depth: spot.sortY ?? spot.y,
+      airborne: false
+    };
+    b.variant = species === "duck" ? rand(b) < 0.5 ? 0 : 1 : 0;
+    b.face = rand(b) < 0.5 ? 1 : -1;
+    b.phase = rand(b) * 10;
+    b.blinkIn = range(b, 0.5, 4);
+    if (spot.on !== "perch") {
+      const p = roamPoint(b);
+      b.x = k === 0 && spot.on === "ground" ? spot.x + range(b, -8, 8) : p.x;
+      b.y = k === 0 && spot.on === "ground" ? spot.y + range(b, -4, 4) : p.y;
+    }
+    if (wantsToBeHere(b, world2)) {
+      enter(b, spot.on === "water" ? "swim" : "idle", range(b, 0.3, 2));
+    } else {
+      enter(b, "away", 0);
+      b.wait = range(b, 0.5, 3);
+    }
+    return b;
+  }
+  function roamPoint(b) {
+    const s = b.spot;
+    const rx = s.roam ?? (s.on === "water" ? 60 : 40);
+    const ry = s.roamY ?? rx * 0.35;
+    const a = rand(b) * Math.PI * 2;
+    const r = Math.sqrt(rand(b));
+    return { x: s.x + Math.cos(a) * rx * r, y: s.y + Math.sin(a) * ry * r };
+  }
+  function enter(b, state, dur) {
+    b.state = state;
+    b.st = 0;
+    b.dur = dur;
+  }
+  function stepBirds(birds2, dt, threats, world2, onEvent) {
+    const emit = (type, bird) => onEvent?.({ type, bird });
+    for (const b of birds2) {
+      b.st += dt;
+      b.phase += dt;
+      updateBlink(b, dt);
+      ageRipples(b, dt);
+      const grounded = b.state !== "away" && b.state !== "flyIn" && b.state !== "flyOut";
+      if (grounded) {
+        const threat = nearestThreat(b, threats);
+        if (threat) {
+          startle(b, threat.x, world2, emit);
+          for (const mate of birds2) {
+            if (mate !== b && mate.spot === b.spot && mate.spook <= 0 && mate.state !== "flyOut" && mate.state !== "away") {
+              mate.spook = range(mate, 0.05, 0.25);
+              mate.spookX = threat.x;
+            }
+          }
+        } else if (b.spook > 0) {
+          b.spook -= dt;
+          if (b.spook <= 0) {
+            startle(b, b.spookX, world2, emit);
+          }
+        } else if (!wantsToBeHere(b, world2)) {
+          if (b.st > range(b, 0, 0.6)) {
+            startle(b, b.x + (rand(b) < 0.5 ? -1 : 1), world2, emit);
+          }
+        }
+      }
+      switch (b.state) {
+        case "away":
+          b.wait -= dt;
+          if (b.wait <= 0) {
+            if (wantsToBeHere(b, world2)) {
+              startFlyIn(b, world2, emit);
+            } else {
+              b.wait = range(b, 3, 8);
+            }
+          }
+          break;
+        case "flyIn":
+          stepFlyIn(b, emit);
+          break;
+        case "flyOut":
+          stepFlyOut(b, dt, world2);
+          break;
+        default:
+          stepGrounded(b, dt, world2, emit);
+      }
+      writePose(b, world2);
+      b.airborne = b.state === "flyIn" || b.state === "flyOut";
+      b.depth = b.spot.on === "perch" && !b.airborne ? b.spot.sortY ?? b.y : b.y;
+    }
+  }
+  function nearestThreat(b, threats) {
+    const info = BIRD_SPECIES[b.species];
+    if (info.startle <= 0) {
+      return null;
+    }
+    const perchFactor = b.spot.on === "perch" ? 0.75 : 1;
+    for (const t2 of threats) {
+      const ty = b.spot.on === "perch" ? b.spot.sortY ?? b.y : b.y;
+      const dx = t2.x - b.x;
+      const dy = (t2.y - ty) * 1.7;
+      const d = Math.hypot(dx, dy);
+      const fast = (t2.speed ?? 0) > 140 ? 1.5 : (t2.speed ?? 0) > 60 ? 1.15 : 1;
+      if (d < info.startle * perchFactor * fast * (t2.scare ?? 1)) {
+        return t2;
+      }
+    }
+    return null;
+  }
+  function startle(b, fromX, world2, emit) {
+    const dir = b.x >= fromX ? 1 : -1;
+    b.face = dir;
+    b.fx = b.x;
+    b.fy = b.y;
+    b.spook = 0;
+    const edge = dir > 0 ? world2.xMax + 60 : world2.xMin - 60;
+    b.tx = edge;
+    b.flyH = b.y - world2.yTop + 80;
+    enter(b, "flyOut", 0);
+    emit("flap", b);
+    if (rand(b) < 0.6) {
+      emit(BIRD_SPECIES[b.species].sound, b);
+    }
+  }
+  function startFlyIn(b, world2, emit) {
+    const land = b.spot.on === "perch" ? { x: b.spot.x, y: b.spot.y } : roamPoint(b);
+    const fromLeft = rand(b) < 0.5;
+    b.fx = fromLeft ? world2.xMin - 50 : world2.xMax + 50;
+    b.fy = land.y;
+    b.tx = land.x;
+    b.ty = land.y;
+    b.flyH = clamp(land.y - world2.yTop + range(b, 20, 90), 80, 420);
+    b.face = fromLeft ? 1 : -1;
+    const dist = Math.abs(b.tx - b.fx);
+    enter(b, "flyIn", clamp(dist / range(b, 150, 190), 1.3, 3));
+    emit("flap", b);
+  }
+  function stepFlyIn(b, emit) {
+    const u = clamp(b.st / b.dur, 0, 1);
+    const e = 1 - (1 - u) * (1 - u);
+    b.x = b.fx + (b.tx - b.fx) * e;
+    b.y = b.fy + (b.ty - b.fy) * e;
+    if (u >= 1) {
+      b.x = b.tx;
+      b.y = b.ty;
+      enter(b, b.spot.on === "water" ? "swim" : "idle", range(b, 0.6, 1.4));
+      b.tx = b.x;
+      b.ty = b.y;
+      emit(b.spot.on === "water" ? "splash" : "land", b);
+      if (b.spot.on === "water") {
+        b.ripples.push({ x: b.x, y: b.y, age: 0 }, { x: b.x, y: b.y, age: -0.25 });
+      }
+    }
+  }
+  function stepFlyOut(b, dt, world2) {
+    const info = BIRD_SPECIES[b.species];
+    const speed = 150;
+    b.x += b.face * speed * dt;
+    if (b.x < world2.xMin - 50 || b.x > world2.xMax + 50 || b.st > 3.4) {
+      enter(b, "away", 0);
+      b.wait = range(b, info.away[0], info.away[1]);
+    }
+  }
+  function stepGrounded(b, dt, world2, emit) {
+    const info = BIRD_SPECIES[b.species];
+    const s = b.state;
+    if (s === "hop" || s === "walk" || s === "swim") {
+      const dx = b.tx - b.x;
+      const dy = b.ty - b.y;
+      const d = Math.hypot(dx, dy);
+      if (d > 0.5) {
+        b.face = dx >= 0 ? 1 : -1;
+      }
+      if (s === "hop") {
+        const hopLen = 0.26;
+        const inHop = b.st % hopLen / hopLen;
+        if (inHop < 0.7 && d > 0.5) {
+          const v = info.step / (hopLen * 0.7) * dt;
+          const k = Math.min(1, v / d);
+          b.x += dx * k;
+          b.y += dy * k;
+        }
+        if (d <= 0.5 && inHop > 0.7) {
+          next(b, world2, emit);
+        }
+      } else {
+        const v = (s === "swim" ? info.step : info.step) * dt;
+        if (d > 0.5) {
+          const k = Math.min(1, v / d);
+          b.x += dx * k;
+          b.y += dy * k;
+          if (s === "swim" && Math.floor(b.st * 1.3) !== Math.floor((b.st - dt) * 1.3)) {
+            b.ripples.push({ x: b.x, y: b.y, age: 0 });
+          }
+        } else if (b.st > b.dur) {
+          next(b, world2, emit);
+        }
+      }
+      return;
+    }
+    if (s === "dabble" && Math.abs(b.st - 0.25) < dt) {
+      b.ripples.push({ x: b.x, y: b.y, age: 0 });
+      emit("splash", b);
+    }
+    if (b.st >= b.dur) {
+      next(b, world2, emit);
+    }
+  }
+  function next(b, world2, emit) {
+    const info = BIRD_SPECIES[b.species];
+    const r = rand(b);
+    if (b.species === "owl") {
+      if (r < 0.35) {
+        enter(b, "look", range(b, 1.2, 2.4));
+      } else if (r < 0.5) {
+        enter(b, "doze", range(b, 3, 6));
+      } else {
+        if (rand(b) < 0.12) {
+          emit("hoot", b);
+        }
+        enter(b, "idle", range(b, 1.5, 3.5));
+      }
+      return;
+    }
+    if (b.spot.on === "water") {
+      if (r < 0.45) {
+        const p = roamPoint(b);
+        b.tx = p.x;
+        b.ty = p.y;
+        enter(b, "swim", range(b, 2, 5));
+      } else if (r < 0.75) {
+        enter(b, "dabble", range(b, 1.4, 2.4));
+      } else if (r < 0.85) {
+        enter(b, "preen", range(b, 1.2, 2));
+      } else {
+        if (rand(b) < 0.4) {
+          emit("quack", b);
+        }
+        b.tx = b.x;
+        b.ty = b.y;
+        enter(b, "swim", range(b, 1, 2.5));
+      }
+      return;
+    }
+    const perched = b.spot.on === "perch";
+    if (perched) {
+      if (r < 0.3) {
+        enter(b, "look", range(b, 0.8, 1.6));
+      } else if (r < 0.45) {
+        enter(b, "preen", range(b, 1, 2));
+      } else if (r < 0.6) {
+        b.face = b.face * -1;
+        enter(b, "hop", 0);
+        b.tx = b.x;
+        b.ty = b.y;
+      } else {
+        if (rand(b) < 0.15) {
+          emit(info.sound, b);
+        }
+        enter(b, "idle", range(b, 0.8, 2.6));
+      }
+      return;
+    }
+    if (r < 0.38) {
+      const p = roamPoint(b);
+      const span = info.gait === "walk" ? 50 : 34;
+      b.tx = clamp(p.x, b.x - span, b.x + span);
+      b.ty = clamp(p.y, b.y - span * 0.4, b.y + span * 0.4);
+      enter(b, info.gait === "walk" ? "walk" : "hop", 0.8);
+    } else if (r < 0.68) {
+      enter(b, "peck", range(b, 0.7, 1.6));
+    } else if (r < 0.8) {
+      enter(b, "look", range(b, 0.8, 1.8));
+    } else if (r < 0.88) {
+      enter(b, "preen", range(b, 1, 1.8));
+    } else {
+      if (rand(b) < 0.3) {
+        emit(info.sound, b);
+      }
+      enter(b, "idle", range(b, 0.6, 2));
+    }
+  }
+  function updateBlink(b, dt) {
+    if (b.blinkT > 0) {
+      b.blinkT -= dt;
+      return;
+    }
+    b.blinkIn -= dt;
+    if (b.blinkIn <= 0) {
+      b.blinkT = b.species === "owl" ? 0.45 : 0.14;
+      b.blinkIn = range(b, 1.5, 5);
+    }
+  }
+  function ageRipples(b, dt) {
+    for (const r of b.ripples) {
+      r.age += dt;
+    }
+    if (b.ripples.length && b.ripples[0].age > 1.6) {
+      b.ripples = b.ripples.filter((r) => r.age <= 1.6);
+    }
+  }
+  function writePose(b, world2) {
+    const p = b.pose;
+    const t2 = b.phase;
+    const s = b.state;
+    const info = BIRD_SPECIES[b.species];
+    p.lift = 0;
+    p.headX = 0;
+    p.headY = 0;
+    p.tilt = 0;
+    p.fly = 0;
+    p.flap = 0;
+    p.pitch = 0;
+    p.swivel = 0;
+    p.preen = 0;
+    p.dabble = Math.max(0, p.dabble - 0.08);
+    p.bob = Math.sin(t2 * 3.1) * 0.25;
+    p.blink = b.blinkT > 0 ? 1 : 0;
+    p.sleepy = b.species === "owl" ? 0.25 : 0;
+    if (s === "flyIn" || s === "flyOut") {
+      const u = s === "flyIn" ? clamp(b.st / b.dur, 0, 1) : clamp(b.st / 2.6, 0, 1);
+      p.lift = s === "flyIn" ? b.flyH * Math.pow(1 - u, 2.2) : b.flyH * u * u * 1.1 + 16 * Math.min(1, b.st * 5);
+      p.fly = s === "flyIn" && u > 0.92 ? 1 - (u - 0.92) / 0.08 : 1;
+      const gliding = s === "flyIn" && u > 0.55 && u < 0.85;
+      const beat = Math.sin(t2 * info.beat * Math.PI * 2);
+      p.flap = gliding ? 35 + Math.sin(t2 * 2) * 6 : beat > 0 ? beat * 62 : beat * 26;
+      p.pitch = s === "flyIn" ? u > 0.85 ? -18 : 8 : -16;
+      p.bob = 0;
+      return;
+    }
+    if (s === "hop") {
+      const hopLen = 0.26;
+      const u = b.st % hopLen / hopLen;
+      p.lift = u < 0.7 ? Math.sin(u / 0.7 * Math.PI) * 4.2 : 0;
+      p.pitch = u < 0.7 ? -6 : 3;
+    } else if (s === "walk") {
+      const step = b.st * 2.6 % 1;
+      p.headX = step < 0.45 ? step / 0.45 * 2.6 - 1.3 : 1.3 - (step - 0.45) / 0.55 * 2.6;
+      p.bob = Math.abs(Math.sin(b.st * 2.6 * Math.PI)) * -0.7;
+    } else if (s === "peck") {
+      const k = Math.max(0, Math.sin(b.st * Math.PI * 2 * 2.4));
+      const into = Math.min(1, b.st * 5, (b.dur - b.st) * 5);
+      p.pitch = 26 * into;
+      p.headX = 2.2 * into + k * 1.2;
+      p.headY = 3.4 * into + k * 2.4;
+    } else if (s === "look") {
+      const into = Math.min(1, b.st * 4, (b.dur - b.st) * 4);
+      const dir = Math.sin(b.phase * 0.7) >= 0 ? 1 : -1;
+      p.tilt = (b.species === "robin" ? 24 : 16) * dir * into;
+      p.swivel = dir * into;
+    } else if (s === "preen") {
+      const into = Math.min(1, b.st * 4, (b.dur - b.st) * 4);
+      p.preen = into;
+      p.headX = -3.2 * into + Math.sin(b.st * 14) * 0.5 * into;
+      p.headY = 2.6 * into;
+    } else if (s === "dabble") {
+      const into = Math.min(1, b.st * 3.5, (b.dur - b.st) * 3.5);
+      p.dabble = Math.max(p.dabble, into);
+    } else if (s === "doze") {
+      const into = Math.min(1, b.st * 1.5, (b.dur - b.st) * 1.5);
+      p.sleepy = 0.25 + 0.65 * into;
+      p.blink = 0;
+    }
+    if (s === "swim" || s === "dabble") {
+      p.bob = Math.sin(t2 * 2.2) * 0.5;
+    }
+    if (b.species !== "owl" && world2.dark > 0.4) {
+      p.sleepy = Math.max(p.sleepy, clamp((world2.dark - 0.4) * 2, 0, 0.4));
+    }
+  }
+
+  // demo/main.ts
+  var $ = (id) => document.getElementById(id);
+  var canvas = $("stage");
+  var dpr = Math.min(3, window.devicePixelRatio || 1);
+  canvas.width = STAGE_W * dpr;
+  canvas.height = STAGE_H * dpr;
+  var ctx = canvas.getContext("2d");
+  var c = new ShimCanvas(ctx);
+  var spots = JSON.parse(JSON.stringify(PARK_BIRD_SPOTS));
+  var seed = 11;
+  var birds = [];
+  var pup = { x: 250, y: 470, tx: 250, ty: 470, face: 1, speed: 0 };
+  var t = 0;
+  var rain = Array.from({ length: 90 }, (_, i) => ({ x: i * 47 % 400, y: i * 89 % 700, v: 520 + i % 7 * 30 }));
+  var log = [];
+  function world() {
+    return {
+      dark: Number($("dark").value),
+      precip: $("weather").value || null,
+      month: Number($("month").value),
+      xMin: 0,
+      xMax: STAGE_W,
+      yTop: 0
+    };
+  }
+  function respawn() {
+    birds = spawnBirds(spots, world(), seed);
+    $("json").textContent = JSON.stringify({ birds: spots }, null, 2);
+  }
+  function toStage(e) {
+    const r = canvas.getBoundingClientRect();
+    return { x: (e.clientX - r.left) / r.width * STAGE_W, y: (e.clientY - r.top) / r.height * STAGE_H };
+  }
+  canvas.addEventListener("pointerdown", (e) => {
+    const p = toStage(e);
+    const mode = $("mode").value;
+    if (mode === "pup") {
+      pup.tx = Math.max(20, Math.min(380, p.x));
+      pup.ty = Math.max(340, Math.min(680, p.y));
+      return;
+    }
+    if (mode === "erase") {
+      const i = spots.findIndex((s) => Math.hypot(s.x - p.x, s.y - p.y) < 24);
+      if (i >= 0) spots.splice(i, 1);
+      respawn();
+      return;
+    }
+    const on = mode;
+    const picked = [...document.querySelectorAll(".sp:checked")].map((el) => el.value);
+    const spot = { x: Math.round(p.x), y: Math.round(p.y), on };
+    if (picked.length) spot.species = picked;
+    if (on === "ground") Object.assign(spot, { count: 3, roam: 45, roamY: 18 });
+    if (on === "water") Object.assign(spot, { roam: 50, roamY: 9 });
+    if (on === "perch") spot.sortY = Math.round(p.y + 40);
+    spot.chance = 1;
+    spots.push(spot);
+    respawn();
+  });
+  $("reroll").onclick = () => {
+    seed = Math.floor(Math.random() * 1e6);
+    respawn();
+  };
+  $("reset").onclick = () => {
+    spots = JSON.parse(JSON.stringify(PARK_BIRD_SPOTS));
+    respawn();
+  };
+  $("copy").onclick = () => navigator.clipboard?.writeText($("json").textContent || "");
+  for (const [id, v] of [["day", 0], ["dusk", 0.5], ["night", 0.95]]) {
+    $(id).onclick = () => {
+      $("dark").value = String(v);
+    };
+  }
+  $("month").onchange = respawn;
+  var last = performance.now();
+  function frame(now) {
+    const dt = Math.min(0.05, (now - last) / 1e3);
+    last = now;
+    t += dt;
+    const sneak = $("sneak").checked;
+    const dx = pup.tx - pup.x;
+    const dy = pup.ty - pup.y;
+    const d = Math.hypot(dx, dy);
+    const v = sneak ? 45 : 190;
+    if (d > 2) {
+      const k = Math.min(1, v * dt / d);
+      pup.x += dx * k;
+      pup.y += dy * k;
+      pup.face = dx >= 0 ? 1 : -1;
+      pup.speed = v;
+    } else {
+      pup.speed = 0;
+    }
+    const w = world();
+    stepBirds(birds, dt, [{ x: pup.x, y: pup.y, speed: pup.speed, scare: sneak ? 0.6 : 1 }], w, (e) => {
+      log.unshift(`${e.bird.species}: ${e.type}`);
+      log.length = Math.min(log.length, 6);
+      $("log").textContent = log.join("\n");
+    });
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    setTint(null);
+    drawParkBack(c, w.dark);
+    ctx.fillStyle = `rgba(30,35,90,${w.dark * 0.42})`;
+    ctx.fillRect(0, 230, STAGE_W, STAGE_H);
+    setTint("#5560a8", w.dark * 0.55);
+    const items = parkProps().map((p) => ({ y: p.y, draw: () => p.draw(c) }));
+    for (const b of birds) {
+      if (b.state !== "away" && !b.airborne) {
+        items.push({ y: b.depth, draw: () => (drawBirdGround(c, b, { t }), drawBird(c, b, { t })) });
+      }
+    }
+    items.push({ y: pup.y, draw: () => drawPup(c, pup.x, pup.y, pup.face, t, pup.speed > 0) });
+    items.sort((a, b) => a.y - b.y).forEach((i) => i.draw());
+    for (const b of birds) if (b.airborne) drawBird(c, b, { t });
+    setTint(null);
+    if (w.precip === "rain" || w.precip === "snow") {
+      for (const r of rain) {
+        r.y += (w.precip === "rain" ? r.v : 60) * dt;
+        if (r.y > STAGE_H) r.y -= STAGE_H;
+        if (w.precip === "rain") line(c, r.x, r.y, r.x + 3, r.y - 11, "#cfe2f5", 1.2, 0.7);
+        else c.drawCircle(r.x + Math.sin(t + r.v) * 6, r.y, 1.8, { style: "fill", color: "#ffffff" });
+      }
+    }
+    if ($("showSpots").checked) {
+      ctx.setLineDash([4, 4]);
+      for (const s of spots) {
+        ctx.strokeStyle = s.on === "water" ? "#1d6fb8" : s.on === "perch" ? "#b8401d" : "#2f6b1d";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        if (s.on === "perch") ctx.arc(s.x, s.y, 8, 0, Math.PI * 2);
+        else ctx.ellipse(s.x, s.y, s.roam ?? (s.on === "water" ? 60 : 40), s.roamY ?? (s.roam ?? 40) * 0.35, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.setLineDash([]);
+    }
+    requestAnimationFrame(frame);
+  }
+  respawn();
+  requestAnimationFrame(frame);
+})();
+</script></body></html>

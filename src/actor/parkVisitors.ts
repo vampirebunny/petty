@@ -10,7 +10,7 @@ export const parkVisitorRules = {
   tiredEnergy: 35,
   lowMood: 25,
   lowMoodScale: 0.4,
-  maxOnScreen: 2,
+  maxOnScreen: 1,
   checkMin: 20,
   checkSpan: 15,
   arriveChanceEmpty: 0.45,
@@ -94,10 +94,7 @@ export function arrivalCount(roll: number): number {
   if (roll < rules.arrivalEmpty) {
     return 0;
   }
-  if (roll < rules.arrivalOne) {
-    return 1;
-  }
-  return 2;
+  return 1;
 }
 
 export function arriveChance(count: number): number {

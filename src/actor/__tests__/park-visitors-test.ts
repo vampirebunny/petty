@@ -116,7 +116,7 @@ describe('park visitor rules', () => {
   it('rolls occupancy and caps arrivals', () => {
     expect(arrivalCount(0)).toBe(0);
     expect(arrivalCount(0.5)).toBe(1);
-    expect(arrivalCount(0.9)).toBe(2);
+    expect(arrivalCount(0.9)).toBe(1);
     expect(arriveChance(0)).toBeGreaterThan(arriveChance(1));
     expect(arriveChance(2)).toBe(0);
   });
@@ -197,14 +197,19 @@ describe('park visitor sim', () => {
     expect(actor.direction).toBeNull();
   });
 
-  it('never keeps more than two visitors', () => {
+  it('never keeps more than one visitor', () => {
     const { world } = parkWorld();
-    world.rng = () => 0;
-    addWanderingGuest(world, offer('a', 50, 50), { x: 80, y: 300 }, spawnActor);
-    addWanderingGuest(world, offer('b', 50, 50), { x: 500, y: 500 }, spawnActor);
+    syncParkVisitors(world, {
+      enabled: true,
+      offers: [offer('a', 50, 50), offer('b', 50, 50)],
+      stranger: null,
+    });
+    world.rng = () => 0.9;
+    steps(world, 1);
+    expect(world.actors.filter((actor) => actor.guest)).toHaveLength(1);
     world.park!.nextCheck = 0;
     steps(world, 1);
-    expect(world.actors.filter((actor) => actor.guest)).toHaveLength(2);
+    expect(world.actors.filter((actor) => actor.guest)).toHaveLength(1);
   });
 
   it('removes visitors when the scene changes', () => {
@@ -260,6 +265,6 @@ describe('park visitor sim', () => {
       stranger: null,
     });
     steps(world, 1);
-    expect(world.actors.filter((actor) => actor.guest)).toHaveLength(2);
+    expect(world.actors.filter((actor) => actor.guest)).toHaveLength(1);
   });
 });

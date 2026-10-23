@@ -20,7 +20,7 @@ A low Tummy, Hydration, or Energy (under 30) puts a need badge and sparkles on F
 
 ## Props
 
-A tap on the water bowl, food bowl, or bed runs the same action as the button. The bowl fills, or the bed looks turned down, immediately. If the pet is free he walks there now. If he is busy he glances and keeps his task. When he is next free he visits inviting props oldest first. A second tap on a prop that is already inviting does nothing. The bed invite still calls him when energy is high. He is not asleep until he lies down, so a second Sleep tap does not cancel the walk, and Wake appears only after he curls up.
+A tap on the water bowl, food bowl, or bed runs the same action as the button. The bowl fills, or the bed looks turned down, immediately. Feed and Sleep start now. Play, a cuddle, a treat, a trick, and a park hello step aside, and a hello cannot pull the pet off that walk. Water does the same, except it waits while a meal or a nap is already underway and runs when that ends. A room change and a collapse nap still finish first. After those, Sleep and Feed go ahead of a care tap that was already waiting. A second tap on a walk that is already happening does nothing. The bed invite still calls him when energy is high. He is not asleep until he lies down, so a second Sleep tap does not cancel the walk, and Wake appears only after he curls up.
 
 Holding a prop for 400ms lifts it so it can be moved. A tap never moves a prop. Floor flicks and cuddle strokes are unchanged.
 

@@ -37,6 +37,48 @@ export function playbackRate(rate: number): number {
   return Math.min(2, Math.max(0.5, rate));
 }
 
+const chirpClip = require('../../assets/sounds/loswin23-bird-chirps-568010.mp3');
+let chirpPlayer: AudioPlayer | null = null;
+let chirpAt = 0;
+
+// Quieter than the pet, and at most one chirp every 1.5s. Coos, flaps and hoots stay silent.
+export function playChirp(): void {
+  if (!enabled) {
+    return;
+  }
+  const now = Date.now();
+  if (now - chirpAt < 1500) {
+    return;
+  }
+  chirpAt = now;
+  try {
+    if (!ready) {
+      ready = true;
+      void setAudioModeAsync({ playsInSilentMode: false, interruptionMode: 'mixWithOthers' });
+    }
+    if (!chirpPlayer) {
+      chirpPlayer = createAudioPlayer(chirpClip);
+    }
+    const player = chirpPlayer;
+    player.volume = 0.4;
+    player.shouldCorrectPitch = false;
+    player.setPlaybackRate(playbackRate(0.92 + Math.random() * 0.16));
+    player.pause();
+    void player
+      .seekTo(0)
+      .catch(() => undefined)
+      .then(() => {
+        try {
+          player.play();
+        } catch {
+          // stay silent
+        }
+      });
+  } catch {
+    // stay silent
+  }
+}
+
 function poolFor(sound: SoundEvent['sound']) {
   const clip = clips[sound];
   if (clip == null) {
@@ -94,5 +136,7 @@ export function releaseVoices(): void {
     pools[key]?.players.forEach((player) => player.release());
     delete pools[key];
   }
+  chirpPlayer?.release();
+  chirpPlayer = null;
   ready = false;
 }

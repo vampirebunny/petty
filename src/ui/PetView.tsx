@@ -52,6 +52,8 @@ import {
   takePondDrinks,
   takeCuddleOut,
   takeSounds,
+  takeBirdChirps,
+  stageBleed,
   takeEnergyDelta,
   takeEnergyPops,
   takeMoodPops,
@@ -66,13 +68,14 @@ import type { StageFrame } from './wideLayout';
 import type { CuddleOut, CuddleTouch, CuddleZone, Scene, TimeOfDay, World } from '../actor';
 import type { ParkOffer } from '../actor/types';
 import { syncParkVisitors } from '../actor/parkVisitors';
-import { playVoice } from '../audio/voice';
+import { birdVisitSeed } from '../actor/birds';
+import { playChirp, playVoice } from '../audio/voice';
 import { attributeScore, drinkHydrationGain, feedEnergyGain, feedHungerDrop } from '../sim';
 import type { PointAdd } from './cuddle/pointAdds';
 import type { Cue, PetState } from '../sim/types';
 import type { FurniturePiece, FurniturePlacement } from '../actor/furniture';
 import { applyFurniture, furnitureAt, movePiece, syncFurniture } from '../actor/furniture';
-import { solarHour } from '../actor/sky';
+import { skyAt, solarHour } from '../actor/sky';
 import { drawWorld } from './skia/world';
 
 // What the home screen can ask of the pet while Cuddle is on. Points are stage coordinates.
@@ -809,6 +812,15 @@ export function PetView({
         offers: parkOffersRef.current,
         stranger: parkStrangerRef.current ?? null,
       });
+      const now = new Date();
+      const sky = skyAt(now);
+      world.stageBleed = stageBleed(widthRef.current, heightRef.current);
+      world.birdClimate = {
+        dark: todRef.current.dark,
+        precip: sky.weather.precip,
+        month: now.getMonth(),
+      };
+      world.birdSeed = birdVisitSeed(world.scene.id, now.getTime());
       const dt = frameDt(elapsedMs, activeRef.current);
       update(world, dt);
       if (takePendingRest(world)) {
@@ -868,6 +880,9 @@ export function PetView({
       }
       for (const sound of takeSounds(world)) {
         playVoice(sound);
+      }
+      if (takeBirdChirps(world) > 0) {
+        playChirp();
       }
       const pointAdds: PointAdd[] = [];
       const meals = takeMeals(world);

@@ -8,6 +8,7 @@ const idleText: Record<IdleMode, string> = {
   nap: 'Napping',
   walk: 'Wandering',
   zoom: 'Zooming',
+  stalk: 'Stalking',
 };
 
 // One short line for what the pet is doing, as the reference demo shows it.

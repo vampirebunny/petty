@@ -69,6 +69,7 @@ export {
   scenesFor,
   sceneSource,
   scenes,
+  stageBleed,
   tuftsFor,
 } from './scenes';
 export { statusOf } from './status';
@@ -107,6 +108,7 @@ export {
   takeHungerDelta,
   takeHydrationDelta,
   takeSounds,
+  takeBirdChirps,
   takeWeightDelta,
   beginGreeting,
   patGreeting,
