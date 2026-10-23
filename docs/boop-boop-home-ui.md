@@ -40,4 +40,4 @@ Phones stay portrait. A tablet, spanned Duo, or unfolded foldable (shorter side 
 
 In landscape, the header (logo, name, Boop counter) stays full width. The scene fills the left side. The controls sit in a 400pt column on the right: need rings, Where, training, and the action panel. The toy card and treat picker open in that column, under the header. The seam is not locked to a fold hinge.
 
-Shop, wardrobe, pantry, playdate, places, and adopt stay one centered column of that same width so they do not stretch across the window.
+Wardrobe and the Pet Shop put the preview on the left and the choices on the right. Pantry, playdate, places, and adopt stay one centered column of that same width so they do not stretch across the window. The playdate outfit step stays in that column.

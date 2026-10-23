@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Pressable } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 
@@ -10,7 +10,8 @@ import { ClosetSection } from './closet/ClosetSection';
 import { closet } from './closet/closetStyle';
 import { fontFamily } from './font';
 import { OutfitPreview, useOutfitClock, type OutfitSubject } from './OutfitPreview';
-import { useContentWidth } from './PhoneColumn';
+import { useLimitedContentWidth } from './PhoneColumn';
+import { isLandscapeSplit } from './wideLayout';
 
 type Props = {
   subject: OutfitSubject;
@@ -27,8 +28,13 @@ function bump() {
 
 export function WardrobePicker({ subject, owned, equipped, onEquip, reducedMotion, footer }: Props) {
   const t = useOutfitClock(reducedMotion);
-  const width = useContentWidth();
-  const previewW = Math.min(420, width - 32);
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const limited = useLimitedContentWidth();
+  // The playdate outfit step sits in a phone column, so it stays stacked. The wardrobe screen
+  // has the whole window and splits preview and options.
+  const split = limited == null && isLandscapeSplit(windowWidth, windowHeight);
+  const width = limited ?? windowWidth;
+  const previewW = Math.min(420, (split ? windowWidth / 2 : width) - 32);
   const previewH = 260;
   const wornLabels = outfitSlots.flatMap((slot) => {
     const label = wearItem(slot, equipped[slot])?.label;
@@ -41,8 +47,8 @@ export function WardrobePicker({ subject, owned, equipped, onEquip, reducedMotio
   };
 
   return (
-    <View style={styles.root}>
-      <View style={styles.sticky}>
+    <View style={[styles.root, split && styles.split]}>
+      <View style={[styles.sticky, split && styles.previewPane]}>
         <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
           <OutfitPreview {...subject} equipped={equipped} width={previewW} height={previewH} t={t} pose="sit" bare />
         </View>
@@ -70,7 +76,7 @@ export function WardrobePicker({ subject, owned, equipped, onEquip, reducedMotio
         ) : null}
         {footer}
       </View>
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+      <ScrollView style={[styles.scroll, split && styles.options]} contentContainerStyle={styles.scrollContent}>
         {outfitSlots.map((slot) => (
           <ClosetSection
             key={slot}
@@ -97,11 +103,20 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: closet.page,
   },
+  split: {
+    flexDirection: 'row',
+  },
   sticky: {
     alignItems: 'center',
     gap: 8,
     paddingBottom: 12,
     backgroundColor: closet.page,
+  },
+  previewPane: {
+    flex: 1,
+    minWidth: 0,
+    justifyContent: 'center',
+    paddingBottom: 24,
   },
   status: {
     alignSelf: 'stretch',
@@ -136,6 +151,12 @@ const styles = StyleSheet.create({
     backgroundColor: closet.scroll.bg,
     borderTopWidth: 6,
     borderTopColor: closet.scroll.topBorder,
+  },
+  options: {
+    minWidth: 0,
+    borderTopWidth: 0,
+    borderLeftWidth: 6,
+    borderLeftColor: closet.scroll.topBorder,
   },
   scrollContent: {
     paddingHorizontal: 14,

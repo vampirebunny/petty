@@ -59,7 +59,7 @@ These decide whether to add breeds and features or to fix the core loop first. N
 
 ## Platform, stack and constraints
 
-Build one mobile codebase for iOS and Android, in portrait on phones, as a 2D side-view game. A tablet, spanned Duo, or unfolded foldable (shorter window side at least 600dp) may rotate. In landscape on those screens, Home puts the scene on the left and a phone-width control column on the right. Portrait, including an upright iPad, keeps the scene stacked above the controls. Shop, wardrobe, playdate, places, and adopt stay a single centered column. No game engine is needed, and one would make friends, settings, notifications, billing and age signals harder.
+Build one mobile codebase for iOS and Android, in portrait on phones, as a 2D side-view game. A tablet, spanned Duo, or unfolded foldable (shorter window side at least 600dp) may rotate. In landscape on those screens, Home puts the scene on the left and a phone-width control column on the right. Portrait, including an upright iPad, keeps the scene stacked above the controls. Wardrobe and the Pet Shop put the preview on the left and the choices on the right. Playdate, places, and adopt stay a single centered column. No game engine is needed, and one would make friends, settings, notifications, billing and age signals harder.
 
 | Layer | Choice | Notes |
 | --- | --- | --- |

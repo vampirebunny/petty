@@ -42,7 +42,8 @@ import {
 import { ensureShopDay, loadShopCatalog } from '../economy/shopState';
 import { refreshShopCatalog } from '../economy/shopSync';
 import type { Equipped, OutfitSlot, PetState } from '../sim/types';
-import { useContentWidth } from '../ui/PhoneColumn';
+import { useLimitedContentWidth } from '../ui/PhoneColumn';
+import { isLandscapeSplit } from '../ui/wideLayout';
 import { fontFamily } from '../ui/font';
 import { Glossy, LedgeCard, glossInk } from '../ui/shop/Glossy';
 import { ItemArt } from '../ui/shop/ItemArt';
@@ -155,10 +156,12 @@ export function PetShopScreen({
   onClose,
   onOpenCloset,
 }: Props) {
-  const screenW = useContentWidth();
-  const { height: screenH } = useWindowDimensions();
-  const stageWidthPx = screenW - 32;
-  const cardWidth = (screenW - 32 - 12) / 2;
+  const { width: windowWidth, height: screenH } = useWindowDimensions();
+  const limited = useLimitedContentWidth();
+  const split = limited == null && isLandscapeSplit(windowWidth, screenH);
+  const pane = split ? windowWidth / 2 : (limited ?? windowWidth);
+  const stageWidthPx = pane - 32;
+  const cardWidth = (pane - 32 - 12) / 2;
   const spin = useSharedValue(0);
   const celebrateSpin = useSharedValue(0);
   const celebrateDrop = useSharedValue(0);
@@ -370,14 +373,21 @@ export function PetShopScreen({
           <Text style={styles.closedBody}>Connect to the internet to visit.</Text>
         </View>
       ) : (
-        <>
-          <ShopStage
-            pet={pet}
-            equipped={equipped}
-            reducedMotion={reducedMotion}
-            width={stageWidthPx}
-          />
-          <ScrollView stickyHeaderIndices={[2]} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <View style={split ? styles.split : styles.stack}>
+          <View style={split ? styles.preview : undefined}>
+            <ShopStage
+              pet={pet}
+              equipped={equipped}
+              reducedMotion={reducedMotion}
+              width={stageWidthPx}
+            />
+          </View>
+          <ScrollView
+            style={split ? styles.choices : styles.choicesFill}
+            stickyHeaderIndices={[2]}
+            contentContainerStyle={styles.scroll}
+            showsVerticalScrollIndicator={false}
+          >
             <Animated.View key={day.date} entering={reducedMotion ? undefined : FadeIn.duration(280)} style={styles.picks}>
               <View style={styles.picksHead}>
                 <Text style={styles.section}>{"Today's picks"}</Text>
@@ -472,7 +482,7 @@ export function PetShopScreen({
               ))}
             </View>
           </ScrollView>
-        </>
+        </View>
       )}
       {cart.length > 0 && !sheet && !celebration ? (
         <CartBar
@@ -480,6 +490,7 @@ export function PetShopScreen({
           charge={charge}
           reducedMotion={reducedMotion}
           onOpen={() => setSheet(true)}
+          side={split}
         />
       ) : null}
       {sheet && quote?.ok && catalog ? (
@@ -779,11 +790,13 @@ function CartBar({
   charge,
   reducedMotion,
   onOpen,
+  side,
 }: {
   count: number;
   charge: number;
   reducedMotion: boolean;
   onOpen: () => void;
+  side?: boolean;
 }) {
   const scale = useSharedValue(reducedMotion ? 1 : 0.6);
   const opacity = useSharedValue(reducedMotion ? 1 : 0);
@@ -809,7 +822,7 @@ function CartBar({
     transform: [{ scale: scale.value * bump.value }],
   }));
   return (
-    <Animated.View style={[styles.cartBar, barStyle]}>
+    <Animated.View style={[styles.cartBar, side && styles.cartBarSide, barStyle]}>
       <Pressable accessibilityRole="button" accessibilityLabel="Open cart" onPress={onOpen}>
         {({ pressed }) => (
           <Glossy variant="pink" pressed={pressed} highlight ledge={4} style={styles.cartFace}>
@@ -980,6 +993,17 @@ const styles = StyleSheet.create({
   closed: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 8 },
   closedTitle: { fontFamily: fontFamily.fredokaBold, fontSize: 26, color: shop.inkStrong, textAlign: 'center' },
   closedBody: { fontFamily: fontFamily.bold, fontSize: 16, color: shop.inkMuted, textAlign: 'center' },
+  stack: { flex: 1 },
+  split: { flex: 1, flexDirection: 'row' },
+  preview: {
+    flex: 1,
+    minWidth: 0,
+    justifyContent: 'center',
+    borderRightWidth: 4,
+    borderRightColor: shop.pinkLine,
+  },
+  choices: { flex: 1, minWidth: 0 },
+  choicesFill: { flex: 1 },
   scroll: { paddingTop: 16, paddingBottom: 120, gap: 18 },
   picks: { gap: 0 },
   picksHead: {
@@ -1088,6 +1112,7 @@ const styles = StyleSheet.create({
   step: { width: 44, height: 44 },
   stepQty: { fontFamily: fontFamily.black, fontSize: 17, color: shop.inkStrong, minWidth: 18, textAlign: 'center' },
   cartBar: { position: 'absolute', left: 16, right: 16, bottom: 34 },
+  cartBarSide: { left: '50%', marginLeft: 16 },
   cartFace: {
     minHeight: 62,
     width: '100%',

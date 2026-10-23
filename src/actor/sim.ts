@@ -61,7 +61,7 @@ import { defaultPose, easePose } from './pose';
 import { newCuddle, stepCuddle } from './cuddle';
 import { obstaclesIn, steerAim } from './furniture';
 import { nearestPoi, poiOf, sceneForSpecies, scenes, stageHeight } from './scenes';
-import type { Scene } from './scenes';
+import type { Poi, Scene } from './scenes';
 import { variantFor } from './variation';
 import type { Actor, ActorSource, Anchors, CareInvite, Direction, Idle, IdleMode, JumpKind, PlayState, Pose, SoundEvent, Task, TaskType, Vec, World } from './types';
 
@@ -373,11 +373,18 @@ export function syncActor(actor: Actor, source: ActorSource): void {
   actor.hydration = source.hydration ?? actor.hydration;
   actor.stats = source.stats ? { ...source.stats } : actor.stats;
   // A room change keeps its walk. Syncing sleep on top of it would plant the pet back on the bed.
+  // Waking the pet record must not cancel a walk to the bowl or the bed that just started.
   if (actor.task.type !== 'travel' && actor.collapseLeft <= 0 && actor.asleep !== source.asleep) {
+    const walkingToCare =
+      !source.asleep &&
+      ((actor.task.type === 'eat' && actor.task.stage === 'go') ||
+        (actor.task.type === 'sleep' && actor.task.stage === 'go'));
     actor.sleepSec = 0;
     actor.asleep = source.asleep;
-    actor.task = taskOf(source.asleep ? 'sleep' : 'idle', source.asleep ? 'sleeping' : '');
-    actor.pantT = 0;
+    if (!walkingToCare) {
+      actor.task = taskOf(source.asleep ? 'sleep' : 'idle', source.asleep ? 'sleeping' : '');
+      actor.pantT = 0;
+    }
   }
 }
 
@@ -679,6 +686,10 @@ function isBusy(actor: Actor): boolean {
   if (actor.task.greet && actor.task.greet.phase === 'run') {
     return true;
   }
+  // A finished trick leaves him sitting. That pose does not hold a meal or a nap hostage.
+  if (actor.task.type === 'sit' && actor.task.stage === '') {
+    return false;
+  }
   return actor.task.type !== 'idle';
 }
 
@@ -696,6 +707,60 @@ function clearInvite(world: World, kind: CareInvite): void {
   world.invites = world.invites.filter((item) => item !== kind);
 }
 
+function performingCare(actor: Actor, kind: CareInvite): boolean {
+  if (kind === 'bed') {
+    return actor.task.type === 'sleep';
+  }
+  if (kind === 'water') {
+    return actor.task.type === 'eat' && actor.task.kind === 'drink';
+  }
+  return actor.task.type === 'eat' && actor.task.kind !== 'drink';
+}
+
+function dropStaleServing(world: World, actor: Actor): void {
+  if (world.serving && !performingCare(actor, world.serving)) {
+    world.serving = null;
+  }
+}
+
+// The live scene can show a bowl or bed whose point of interest was dropped. A tap still has to walk there.
+function careTarget(world: World, actor: Actor, kind: CareInvite): Poi | null {
+  const type = kind === 'bed' ? 'bed' : kind === 'food' ? 'food' : 'water';
+  const found = nearestPoi(world.scene, type, actor);
+  if (found) {
+    return found;
+  }
+  let best: { x: number; y: number; id?: string; distance: number } | null = null;
+  for (const prop of world.scene.props) {
+    const matches =
+      kind === 'bed'
+        ? prop.kind === 'bed'
+        : kind === 'food'
+          ? prop.kind === 'bowl' && prop.contents !== 'water'
+          : prop.kind === 'bowl' && prop.contents === 'water';
+    if (!matches) {
+      continue;
+    }
+    const distance = Math.hypot(prop.x - actor.x, prop.y - actor.y);
+    if (!best || distance < best.distance) {
+      best = { x: prop.x, y: prop.y, id: prop.id, distance };
+    }
+  }
+  if (!best) {
+    return null;
+  }
+  const poi: Poi = {
+    id: best.id ?? type,
+    type,
+    x: best.x,
+    y: kind === 'bed' ? best.y + 2 : best.y,
+    face: 1,
+    propId: best.id,
+  };
+  world.scene.pois.push(poi);
+  return poi;
+}
+
 function glanceAt(world: World, actor: Actor, kind: CareInvite): void {
   if (ownsLocomotion(actor)) {
     return;
@@ -708,7 +773,7 @@ function glanceAt(world: World, actor: Actor, kind: CareInvite): void {
 }
 
 function beginInvitedSleep(world: World, actor: Actor): boolean {
-  const bed = nearestPoi(world.scene, 'bed', actor);
+  const bed = careTarget(world, actor, 'bed');
   releaseCarried(world, actor);
   actor.asleep = false;
   actor.sleepSec = 0;
@@ -723,8 +788,7 @@ function beginInvite(world: World, actor: Actor, kind: CareInvite): boolean {
   if (kind === 'bed') {
     return beginInvitedSleep(world, actor);
   }
-  const poiType = kind === 'food' ? 'food' : 'water';
-  if (poiOf(world.scene, poiType) == null || !canBehave(actor, 'eat')) {
+  if (careTarget(world, actor, kind) == null || !canBehave(actor, 'eat')) {
     return false;
   }
   world.serving = kind;
@@ -736,9 +800,10 @@ function beginInvite(world: World, actor: Actor, kind: CareInvite): boolean {
 }
 
 function startNextInvite(world: World, actor: Actor): boolean {
+  dropStaleServing(world, actor);
   while (world.invites.length > 0) {
     const kind = world.invites[0];
-    if (world.serving === kind) {
+    if (world.serving === kind && performingCare(actor, kind)) {
       return true;
     }
     if (beginInvite(world, actor, kind)) {
@@ -750,6 +815,7 @@ function startNextInvite(world: World, actor: Actor): boolean {
 }
 
 function pumpInvites(world: World, actor: Actor): void {
+  dropStaleServing(world, actor);
   if (isBusy(actor) || world.serving) {
     return;
   }
@@ -767,22 +833,35 @@ function applyGlance(world: World, actor: Actor, dt: number): void {
   }
 }
 
-// A tap fills or readies the prop. Z goes now when he is free, and otherwise glances and keeps his task.
+function careHeld(world: World, actor: Actor, kind: CareInvite): boolean {
+  if (actor.task.type === 'travel' || actor.collapseLeft > 0 || actor.task.greet?.phase === 'run') {
+    return true;
+  }
+  if (world.serving != null && world.serving !== kind && performingCare(actor, world.serving)) {
+    return true;
+  }
+  // A real task keeps its turn. Sitting still and a sim nap do not: the player already asked.
+  return isBusy(actor) && !actor.asleep;
+}
+
+// A tap fills or readies the prop and sends him unless a trip, a collapse, a greeting, or another meal owns him.
 // A bowl that was only marked full still starts the walk: stocking food queues the invite before the cue arrives.
+// A serving flag with no matching task is stale, so the same tap can start the walk instead of sticking.
 export function inviteCare(world: World, actor: Actor, kind: CareInvite): 'went' | 'queued' | 'already' {
-  if (world.serving === kind) {
+  dropStaleServing(world, actor);
+  if (world.serving === kind && performingCare(actor, kind)) {
     return 'already';
   }
   if (!world.invites.includes(kind)) {
     world.invites.push(kind);
-  } else if (isBusy(actor)) {
+  } else if (careHeld(world, actor, kind) && isBusy(actor)) {
     return 'already';
   }
-  if (!isBusy(actor)) {
-    return beginInvite(world, actor, kind) ? 'went' : 'queued';
+  if (careHeld(world, actor, kind)) {
+    glanceAt(world, actor, kind);
+    return 'queued';
   }
-  glanceAt(world, actor, kind);
-  return 'queued';
+  return beginInvite(world, actor, kind) ? 'went' : 'queued';
 }
 
 export function takePendingRest(world: World): boolean {

@@ -933,7 +933,7 @@ export default function HomeScreen({ petApi }: Props) {
     if (!state) {
       return;
     }
-    const feedBlocked = actionReason(scene, 'feed') || (state.foodInBowl ? 'The food bowl is already full.' : '');
+    const feedBlocked = actionReason(scene, 'feed');
     const waterBlocked = actionReason(scene, 'refillWater', state.waterLevel);
     const countPropTap = (kind: TipKind) => {
       const spot = placedInScene(home.pieces, home.placements, scene.id, kind);
@@ -952,8 +952,15 @@ export default function HomeScreen({ petApi }: Props) {
         return;
       }
       setPlayOpen(false);
-      feed();
-      stageHandle.current?.invite('food');
+      if (!state.foodInBowl) {
+        feed();
+      }
+      const result = stageHandle.current?.invite('food') ?? 'queued';
+      if (result === 'already') {
+        flash('The food bowl is already full.');
+        tips.dismiss();
+        return;
+      }
       countPropTap('food');
       tips.performed('tip.food');
     };
@@ -1027,7 +1034,6 @@ export default function HomeScreen({ petApi }: Props) {
 
   if (shopTab) {
     return (
-      <PhoneColumn>
       <PetShopScreen
         pet={state}
         balance={economyApi.balance}
@@ -1043,7 +1049,6 @@ export default function HomeScreen({ petApi }: Props) {
           setWardrobeOpen(true);
         }}
       />
-      </PhoneColumn>
     );
   }
 
@@ -1067,7 +1072,6 @@ export default function HomeScreen({ petApi }: Props) {
 
   if (wardrobeOpen) {
     return (
-      <PhoneColumn>
       <WardrobeScreen
         pet={state}
         owned={owned}
@@ -1076,7 +1080,6 @@ export default function HomeScreen({ petApi }: Props) {
         reducedMotion={reducedMotion}
         onClose={() => setWardrobeOpen(false)}
       />
-      </PhoneColumn>
     );
   }
 
@@ -1097,7 +1100,7 @@ export default function HomeScreen({ petApi }: Props) {
         : (playableToys[0] ?? 'ball');
 
   const tummy = 100 - state.needs.hunger;
-  const feedReason = actionReason(scene, 'feed') || (state.foodInBowl ? 'The food bowl is already full.' : '');
+  const feedReason = actionReason(scene, 'feed');
   const waterReason = actionReason(scene, 'refillWater', state.waterLevel);
   const careActions = [
     {

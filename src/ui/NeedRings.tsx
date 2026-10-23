@@ -1,11 +1,10 @@
-import { useId } from 'react';
 import { Bone, Droplet, Heart, Zap } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 
 import type { Needs } from '../sim/types';
-import { CandyShell, candyInk, tints } from './candy';
+import { candyInk, tints } from './candy';
 import type { TintName } from './candy';
 import { iconStroke } from './theme';
 
@@ -94,7 +93,6 @@ export function Ring({
   onPress?: () => void;
   hint?: string;
 }) {
-  const uid = useId().replace(/:/g, '');
   const clamped = Math.max(0, Math.min(100, value));
   const { label, Icon, tiers } = need;
   const tint = tints[need.tint];
@@ -102,62 +100,70 @@ export function Ring({
   const caption = hint ?? (tiers.find((tier) => clamped >= tier.min) ?? tiers[tiers.length - 1]).text;
   const status = hint ? caption : `${caption} · ${Math.round(clamped)}%`;
   const ink = candyInk(tint);
+  const labelText = `${label} ${Math.round(clamped)} percent, ${caption.replace('!', '')}`;
+  const body = (
+    <View style={styles.face}>
+      <View style={styles.ring}>
+        <Svg width={ringSize} height={ringSize}>
+          <Circle
+            cx={ringSize / 2}
+            cy={ringSize / 2}
+            r={ringRadius}
+            stroke="rgba(255,255,255,0.9)"
+            strokeWidth={stroke}
+            fill="rgba(255,255,255,0.72)"
+          />
+          {clamped > 0 ? (
+            <Circle
+              cx={ringSize / 2}
+              cy={ringSize / 2}
+              r={ringRadius}
+              stroke={alarm ? alarmArc : tint.icon}
+              strokeWidth={stroke}
+              strokeLinecap="round"
+              strokeDasharray={`${circumference} ${circumference}`}
+              strokeDashoffset={circumference * (1 - clamped / 100)}
+              fill="none"
+              transform={`rotate(-90 ${ringSize / 2} ${ringSize / 2})`}
+            />
+          ) : null}
+        </Svg>
+        <View style={styles.glyph}>
+          <View style={styles.glyphShadow}>
+            <Icon size={24} strokeWidth={iconStroke + 1} color="#FFFFFF" />
+          </View>
+          <Icon size={24} strokeWidth={iconStroke + 1} color={tint.icon} />
+        </View>
+        {alarm ? (
+          <View style={styles.badge}>
+            <Text style={styles.badgeMark}>!</Text>
+          </View>
+        ) : null}
+      </View>
+      <Text style={[styles.label, { color: ink }]} numberOfLines={1}>
+        {label}
+      </Text>
+      <Text style={[styles.status, { color: alarm ? alarmText : ink }, alarm && styles.statusAlarm]} numberOfLines={1}>
+        {status}
+      </Text>
+    </View>
+  );
+  if (!onPress) {
+    return (
+      <View style={styles.tile} accessible accessibilityLabel={labelText}>
+        {body}
+      </View>
+    );
+  }
   return (
     <Pressable
-      disabled={!onPress}
       onPress={onPress}
       style={styles.tile}
       accessible
-      accessibilityRole={onPress ? 'button' : undefined}
-      accessibilityLabel={`${label} ${Math.round(clamped)} percent, ${caption.replace('!', '')}`}
+      accessibilityRole="button"
+      accessibilityLabel={labelText}
     >
-      {({ pressed }) => (
-        <CandyShell tint={tint} radius={24} pressed={pressed} uid={uid} style={styles.face}>
-          <View style={styles.ring}>
-            <Svg width={ringSize} height={ringSize}>
-              <Circle
-                cx={ringSize / 2}
-                cy={ringSize / 2}
-                r={ringRadius}
-                stroke="rgba(255,255,255,0.9)"
-                strokeWidth={stroke}
-                fill="rgba(255,255,255,0.72)"
-              />
-              {clamped > 0 ? (
-                <Circle
-                  cx={ringSize / 2}
-                  cy={ringSize / 2}
-                  r={ringRadius}
-                  stroke={alarm ? alarmArc : tint.icon}
-                  strokeWidth={stroke}
-                  strokeLinecap="round"
-                  strokeDasharray={`${circumference} ${circumference}`}
-                  strokeDashoffset={circumference * (1 - clamped / 100)}
-                  fill="none"
-                  transform={`rotate(-90 ${ringSize / 2} ${ringSize / 2})`}
-                />
-              ) : null}
-            </Svg>
-            <View style={styles.glyph}>
-              <View style={styles.glyphShadow}>
-                <Icon size={24} strokeWidth={iconStroke + 1} color="#FFFFFF" />
-              </View>
-              <Icon size={24} strokeWidth={iconStroke + 1} color={tint.icon} />
-            </View>
-          </View>
-          <Text style={[styles.label, { color: ink }]} numberOfLines={1}>
-            {label}
-          </Text>
-          <Text style={[styles.status, { color: alarm ? alarmText : ink }, alarm && styles.statusAlarm]} numberOfLines={1}>
-            {status}
-          </Text>
-          {alarm ? (
-            <View style={styles.badge}>
-              <Text style={styles.badgeMark}>!</Text>
-            </View>
-          ) : null}
-        </CandyShell>
-      )}
+      {body}
     </Pressable>
   );
 }
@@ -184,9 +190,8 @@ const styles = StyleSheet.create({
   face: {
     alignItems: 'center',
     gap: 3,
-    paddingTop: 10,
-    paddingHorizontal: 4,
-    paddingBottom: 9,
+    paddingTop: 2,
+    paddingHorizontal: 2,
   },
   ring: {
     width: ringSize,
@@ -217,8 +222,8 @@ const styles = StyleSheet.create({
   },
   badge: {
     position: 'absolute',
-    top: 6,
-    right: 6,
+    top: -2,
+    right: -2,
     width: 18,
     height: 18,
     borderRadius: 9,
