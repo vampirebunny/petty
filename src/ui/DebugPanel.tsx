@@ -5,6 +5,7 @@ import { runOnJS } from 'react-native-reanimated';
 
 import { phaseOf } from '../actor';
 import { catalog } from '../economy/catalog';
+import { applyCatalogNow } from '../economy/shopState';
 import { attributeScore, stageOf, traits } from '../sim';
 import { visualLifespanDays } from '../sim/config';
 import type { Mood, PetState, Trait } from '../sim/types';
@@ -238,6 +239,11 @@ export function DebugPanel({
         {typeof __DEV__ !== 'undefined' && __DEV__ ? (
           <Pressable style={styles.button} onPress={onReset}>
             <Text style={styles.buttonLabel}>Reset</Text>
+          </Pressable>
+        ) : null}
+        {typeof __DEV__ !== 'undefined' && __DEV__ ? (
+          <Pressable style={styles.button} onPress={() => applyCatalogNow()}>
+            <Text style={styles.buttonLabel}>Apply catalog now</Text>
           </Pressable>
         ) : null}
         <Pressable style={styles.button} onPress={onNewPet}>

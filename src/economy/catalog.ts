@@ -1,7 +1,8 @@
 import type { OutfitSlot } from '../sim/types';
 import { treatHungerDrop, treatMoodGain, treatWeightGain } from '../sim/config';
 
-export type ItemKind = 'treat' | 'food' | 'second_wind' | 'outfit' | 'toy';
+export type ItemKind = 'treat' | 'food' | 'second_wind' | 'outfit' | 'toy' | 'furniture';
+export type TreatReaction = 'wag_burst' | 'hop' | 'spin' | 'purr_headbump';
 
 export type TreatEffects = { hunger: number; weight: number; mood: number };
 
@@ -14,14 +15,29 @@ export type CatalogItem = {
   starter?: boolean;
   slot?: OutfitSlot;
   wearId?: string;
+  species?: Array<'dog' | 'cat'>;
+  reaction?: TreatReaction | { dog: TreatReaction; cat: TreatReaction };
   effects?: {
     casual?: TreatEffects;
     training?: TreatEffects | null;
+    fill?: 'energy' | 'mood';
+    premiumMeal?: boolean;
     mealMultipliers?: { hunger: number; weight: number; energy: number; xp: number };
     moodBonus?: number;
     endRest?: boolean;
   };
 };
+
+export function treatReaction(item: CatalogItem, species: 'dog' | 'cat'): TreatReaction {
+  const reaction = item.reaction;
+  if (reaction == null) {
+    return 'wag_burst';
+  }
+  if (typeof reaction === 'string') {
+    return reaction;
+  }
+  return reaction[species];
+}
 
 const basicCasual: TreatEffects = { hunger: -treatHungerDrop, weight: treatWeightGain, mood: treatMoodGain };
 const basicTraining: TreatEffects = {
@@ -45,26 +61,26 @@ function outfit(slot: OutfitSlot, wearId: string, name: string, starter = false)
 }
 
 export const catalog: CatalogItem[] = [
-  outfit('neckwear', 'collar', 'Red collar', true),
-  outfit('neckwear', 'bandana', 'Blue bandana', true),
-  outfit('neckwear', 'scarf', 'Yellow scarf', true),
-  outfit('hat', 'beanie', 'Beanie', true),
-  outfit('glasses', 'red-rim', 'Red rims', true),
-  outfit('jacket', 'puffer', 'Puffer', true),
-  outfit('boots', 'red', 'Red boots', true),
-  outfit('neckwear', 'bell', 'Bell'),
-  outfit('neckwear', 'bow', 'Bow'),
-  outfit('neckwear', 'gold', 'Gold collar'),
-  outfit('glasses', 'classic', 'Classic shades'),
-  outfit('glasses', 'square', 'Square gold'),
-  outfit('hat', 'party', 'Party hat'),
-  outfit('hat', 'top', 'Top hat'),
-  outfit('boots', 'rain', 'Rain boots'),
-  outfit('boots', 'sneaker', 'Sneakers'),
-  outfit('jacket', 'sweater', 'Knit sweater'),
-  outfit('jacket', 'rain', 'Raincoat'),
-  outfit('jacket', 'vest', 'Quilted vest'),
-  outfit('jacket', 'hoodie', 'Hoodie'),
+  outfit('neckwear', 'collar', 'Red Collar', true),
+  outfit('neckwear', 'bandana', 'Blue Bandana', true),
+  outfit('neckwear', 'scarf', 'Sunny Scarf', true),
+  outfit('hat', 'beanie', 'Green Beanie', true),
+  outfit('glasses', 'red-rim', 'Red Rims', true),
+  outfit('jacket', 'puffer', 'Orange Puffer', true),
+  outfit('boots', 'red', 'Red Boots', true),
+  outfit('neckwear', 'bell', 'Bell Collar'),
+  outfit('neckwear', 'bow', 'Pink Bow'),
+  outfit('neckwear', 'gold', 'Gold Stud Collar'),
+  outfit('glasses', 'classic', 'Classic Shades'),
+  outfit('glasses', 'square', 'Round Gold Specs'),
+  outfit('hat', 'party', 'Party Hat'),
+  outfit('hat', 'top', 'Top Hat'),
+  outfit('boots', 'rain', 'Yellow Rain Boots'),
+  outfit('boots', 'sneaker', 'Classic Sneakers'),
+  outfit('jacket', 'sweater', 'Cherry Sweater'),
+  outfit('jacket', 'rain', 'Yellow Raincoat'),
+  outfit('jacket', 'vest', 'Quilted Vest'),
+  outfit('jacket', 'hoodie', 'Cozy Hoodie'),
   outfit('neckwear', 'bandana-cherry', 'Cherry Bandana'),
   outfit('neckwear', 'scarf-stripe', 'Candy Stripe Scarf'),
   outfit('neckwear', 'bandana-gingham', 'Picnic Bandana'),
@@ -90,36 +106,73 @@ export const catalog: CatalogItem[] = [
   outfit('jacket', 'puffer-rainbow', 'Rainbow Puffer'),
   {
     id: 'biscuit',
-    name: 'Treats',
+    name: 'Biscuit',
     kind: 'treat',
     price: null,
     available: true,
+    species: ['dog', 'cat'],
+    reaction: 'wag_burst',
     effects: { casual: basicCasual, training: basicTraining },
   },
   {
     id: 'special',
-    name: 'Special treat',
+    name: 'Salmon Bites',
     kind: 'treat',
     price: null,
     available: true,
-    effects: { casual: basicCasual, training: null },
+    species: ['dog', 'cat'],
+    reaction: { dog: 'wag_burst', cat: 'purr_headbump' },
+    effects: { casual: { hunger: basicCasual.hunger, weight: basicCasual.weight, mood: 0 }, training: null, fill: 'mood' },
+  },
+  {
+    id: 'treat_jerky',
+    name: 'Chicken Jerky',
+    kind: 'treat',
+    price: null,
+    available: true,
+    species: ['dog'],
+    reaction: 'hop',
+    effects: { casual: { hunger: basicCasual.hunger, weight: basicCasual.weight, mood: 0 }, training: null, fill: 'energy' },
+  },
+  {
+    id: 'treat_tuna',
+    name: 'Tuna Flakes',
+    kind: 'treat',
+    price: null,
+    available: true,
+    species: ['cat'],
+    reaction: 'hop',
+    effects: { casual: { hunger: basicCasual.hunger, weight: basicCasual.weight, mood: 0 }, training: null, fill: 'energy' },
   },
   {
     id: 'food_fish',
-    name: 'Fish',
+    name: 'Fish Feast',
     kind: 'food',
     price: null,
     available: true,
-    effects: { mealMultipliers: { hunger: 1, weight: 1, energy: 1.2, xp: 1.5 }, moodBonus: 8 },
+    species: ['cat'],
+    effects: { premiumMeal: true },
+  },
+  {
+    id: 'food_steak',
+    name: 'Steak Dinner',
+    kind: 'food',
+    price: null,
+    available: true,
+    species: ['dog'],
+    effects: { premiumMeal: true },
   },
   {
     id: 'food_gourmet',
-    name: 'Gourmet',
+    name: 'Gourmet Bowl',
     kind: 'food',
     price: null,
     available: true,
-    effects: { mealMultipliers: { hunger: 1, weight: 1, energy: 1.2, xp: 1.5 }, moodBonus: 12 },
+    species: ['dog', 'cat'],
+    effects: { premiumMeal: true },
   },
+  { id: 'dogHouse', name: 'Dog House', kind: 'furniture', price: null, available: true, species: ['dog'] },
+  { id: 'catTree', name: 'Cat Tree', kind: 'furniture', price: null, available: true, species: ['cat'] },
   {
     id: 'second_wind',
     name: 'Second Wind',

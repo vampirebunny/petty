@@ -14,13 +14,29 @@ CREATE TABLE IF NOT EXISTS transactions (
   device_id TEXT,
   app_version TEXT,
   config_version INTEGER,
+  catalog_version INTEGER,
   UNIQUE (owner_id, idempotency_key)
 );
 CREATE TABLE IF NOT EXISTS transaction_lines (
   transaction_id TEXT NOT NULL,
   asset TEXT NOT NULL,
   delta INTEGER NOT NULL,
+  unit_price INTEGER,
+  deal INTEGER NOT NULL DEFAULT 0,
+  serial INTEGER,
   PRIMARY KEY (transaction_id, asset)
+);
+CREATE TABLE IF NOT EXISTS limited_confirms (
+  request_id TEXT PRIMARY KEY NOT NULL,
+  item_id TEXT NOT NULL,
+  price INTEGER NOT NULL,
+  serial INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS limited_stock_cache (
+  item_id TEXT PRIMARY KEY NOT NULL,
+  cap INTEGER NOT NULL,
+  units_left INTEGER NOT NULL,
+  sold_out_at TEXT
 );
 CREATE TABLE IF NOT EXISTS balances (
   owner_id TEXT PRIMARY KEY NOT NULL,
@@ -112,6 +128,8 @@ CREATE TABLE IF NOT EXISTS shop_catalog_cache (
 `;
 
 const DROP_LEGACY = `
+DROP TABLE IF EXISTS limited_stock_cache;
+DROP TABLE IF EXISTS limited_confirms;
 DROP TABLE IF EXISTS transaction_lines;
 DROP TABLE IF EXISTS transactions;
 DROP TABLE IF EXISTS balances;
@@ -130,6 +148,25 @@ DROP TABLE IF EXISTS shop_catalog_cache;
 DROP TABLE IF EXISTS meta;
 `;
 
+function ensureLedgerColumns(database: SQLite.SQLiteDatabase): void {
+  const columns = (table: string) =>
+    database.getAllSync<{ name: string }>(`PRAGMA table_info(${table})`).map((column) => column.name);
+  const transactions = columns('transactions');
+  if (!transactions.includes('catalog_version')) {
+    database.execSync('ALTER TABLE transactions ADD COLUMN catalog_version INTEGER');
+  }
+  const lines = columns('transaction_lines');
+  if (!lines.includes('unit_price')) {
+    database.execSync('ALTER TABLE transaction_lines ADD COLUMN unit_price INTEGER');
+  }
+  if (!lines.includes('deal')) {
+    database.execSync('ALTER TABLE transaction_lines ADD COLUMN deal INTEGER NOT NULL DEFAULT 0');
+  }
+  if (!lines.includes('serial')) {
+    database.execSync('ALTER TABLE transaction_lines ADD COLUMN serial INTEGER');
+  }
+}
+
 let db: SQLite.SQLiteDatabase | null = null;
 let pendingAsyncWipe = false;
 
@@ -146,6 +183,7 @@ export function getDb(): SQLite.SQLiteDatabase {
       pendingAsyncWipe = true;
     } else {
       db.execSync(SCHEMA);
+      ensureLedgerColumns(db);
     }
   }
   return db;

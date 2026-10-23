@@ -1,4 +1,5 @@
-import { generateCast } from '../../playdate/npcs';
+import { catalog } from '../../economy/catalog';
+import { generateCast, npcMayWear } from '../../playdate/npcs';
 import { migrateEquipped, starterCloset, withStarter } from '../closet';
 import { jacketHasSleeves, neckBackMode, outfitSlots, wardrobe, wearItem } from '../wardrobe';
 import type { OutfitSlot } from '../../sim/types';
@@ -28,7 +29,7 @@ describe('wardrobe closet', () => {
     expect(wearItem('neckwear', 'scarf')).toMatchObject({
       id: 'scarf',
       shape: 'scarf',
-      label: 'Yellow scarf',
+      label: 'Sunny Scarf',
       colorway: { c: '#e8c53a' },
     });
     expect(wearItem('neckwear', 'bell')?.shape).toBe('collar');
@@ -36,7 +37,7 @@ describe('wardrobe closet', () => {
     expect(wearItem('jacket', 'rain')).toMatchObject({ id: 'rain', shape: 'raincoat', colorway: { c: '#f2c230' } });
     expect(wearItem('jacket', 'puffer')?.colorway).toEqual({ c: '#f28c28', d: '#ffe0c2' });
     const hoodie = wearItem('jacket', 'hoodie');
-    expect(hoodie).toMatchObject({ id: 'hoodie', label: 'Hoodie', shape: 'hoodie', colorway: { c: '#FF9FCB', d: '#8A5AD6' } });
+    expect(hoodie).toMatchObject({ id: 'hoodie', label: 'Cozy Hoodie', shape: 'hoodie', colorway: { c: '#FF9FCB', d: '#8A5AD6' } });
     expect(jacketHasSleeves(hoodie!)).toBe(true);
     expect(jacketHasSleeves(wearItem('jacket', 'sweater')!)).toBe(true);
     expect(jacketHasSleeves(wearItem('jacket', 'rain')!)).toBe(true);
@@ -79,6 +80,40 @@ describe('wardrobe closet', () => {
     expect(wearItem('jacket', 'puffer-rainbow')?.colorway.pattern).toBe('rainbow');
     expect(neckBackMode('bowtie')).toBe('band');
     expect(neckBackMode('scarf')).toBe('knot');
+  });
+
+  it('uses the same name in the closet and the shop seed', () => {
+    // The seed file is the shop_items.name source. Node types are not in this app's tsconfig.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const fs = require('fs') as { readFileSync: (path: string, encoding: string) => string };
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const path = require('path') as { join: (...parts: string[]) => string };
+    const sql = fs.readFileSync(path.join(process.cwd(), 'scripts/seed-shop-catalog.sql'), 'utf8');
+    const rows = [...sql.matchAll(/\('((?:hat|glasses|neckwear|jacket|boots):[^']+)', '([^']+)'/g)];
+    expect(rows.length).toBe(36);
+    for (const [, id, name] of rows) {
+      const [slot, wearId] = id.split(':') as [OutfitSlot, string];
+      expect(wearItem(slot, wearId)?.label).toBe(name);
+      const def = catalog.find((item) => item.slot === slot && item.wearId === wearId);
+      expect(def?.name).toBe(name);
+    }
+  });
+
+  it('keeps exclusive and limited clothes off npc partners', () => {
+    expect(npcMayWear('hat', 'beanie', null)).toBe(true);
+    expect(npcMayWear('hat', 'crown', null)).toBe(false);
+    expect(npcMayWear('jacket', 'hoodie', null)).toBe(false);
+    const catalogRows = {
+      items: [
+        { id: 'hat:crown', tier: 'limited' },
+        { id: 'glasses:star', tier: 'exclusive' },
+        { id: 'jacket:hoodie', tier: 'standard' },
+      ],
+    };
+    expect(npcMayWear('hat', 'crown', catalogRows)).toBe(false);
+    expect(npcMayWear('glasses', 'star', catalogRows)).toBe(false);
+    expect(npcMayWear('jacket', 'hoodie', catalogRows)).toBe(true);
+    expect(npcMayWear('neckwear', 'scarf', catalogRows)).toBe(true);
   });
 
   it('dresses npc partners from the full catalog', () => {

@@ -1,6 +1,8 @@
 import { catBreeds, coatStylesFor, dogBreeds } from '../actor/breeds';
 import type { Breed, ParkOffer } from '../actor/types';
 import { outfitSlots, wardrobe } from '../actor/wardrobe';
+import { starterOutfits } from '../economy/catalog';
+import { loadShopCatalog } from '../economy/shopState';
 import { attributesFor, currentStyle } from '../sim/offers';
 import { archetypes } from '../sim/config';
 import type { Equipped, OutfitSlot } from '../sim/types';
@@ -40,13 +42,42 @@ const ages = [1, 3, 8, 14, 18, 24, 32, 4, 10, 16, 20, 38];
 
 const partyTricks: PartyTrick[] = ['sit', 'paw', 'speak'];
 
+function shopCatalog() {
+  try {
+    return loadShopCatalog();
+  } catch {
+    return null;
+  }
+}
+
+const starterWear = new Set(
+  starterOutfits().flatMap((item) => (item.slot && item.wearId ? [`${item.slot}:${item.wearId}`] : [])),
+);
+
+export function npcMayWear(
+  slot: OutfitSlot,
+  wearId: string,
+  catalog: { items: { id: string; tier: string }[] } | null,
+): boolean {
+  const shopId = `${slot}:${wearId}`;
+  if (!catalog) {
+    return starterWear.has(shopId);
+  }
+  const row = catalog.items.find((entry) => entry.id === shopId);
+  if (!row) {
+    return true;
+  }
+  return row.tier !== 'exclusive' && row.tier !== 'limited';
+}
+
 function wear(rng: () => number): Equipped {
+  const catalog = shopCatalog();
   const count = 1 + pickIndex(rng, 3);
   const slots = shuffle(outfitSlots, rng).slice(0, count);
   const equipped: Equipped = {};
   for (const slot of slots) {
-    const choices = wardrobe[slot].items.filter((item) => item.id !== 'none');
-    const item = choices[pickIndex(rng, choices.length)];
+    const choices = wardrobe[slot].items.filter((item) => item.id !== 'none' && npcMayWear(slot, item.id, catalog));
+    const item = choices.length > 0 ? choices[pickIndex(rng, choices.length)] : undefined;
     if (item) {
       equipped[slot as OutfitSlot] = item.id;
     }

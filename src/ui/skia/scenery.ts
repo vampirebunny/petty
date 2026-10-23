@@ -195,11 +195,32 @@ export function drawToyShape(c: SkCanvas, kind: string, x: number, y: number, ra
 }
 
 // A biscuit is the treat we can draw today. Other ids get a simple variant until they have their own art.
-export function drawTreatShape(c: SkCanvas, id: string, x: number, y: number, radius: number, t = 0): void {
-  if (id === 'softchew') {
-    fillOval(c, x, y + radius * 0.15, radius * 1.15, radius * 0.62, '#e07a4a');
-    fillOval(c, x - radius * 0.15, y, radius * 0.7, radius * 0.38, '#f2a070');
-    fillCircle(c, x + radius * 0.35, y - radius * 0.08, radius * 0.12, '#fff3e4', 0.7);
+export function drawTreatShape(
+  c: SkCanvas,
+  id: string,
+  x: number,
+  y: number,
+  radius: number,
+  t = 0,
+  species: 'dog' | 'cat' | null = null,
+): void {
+  if (id === 'biscuit' && species === 'cat') {
+    fillOval(c, x, y, radius * 1.15, radius * 0.62, '#e7b15a');
+    fillOval(c, x + radius * 0.85, y, radius * 0.38, radius * 0.28, '#e7b15a');
+    fillCircle(c, x + radius * 1.05, y - radius * 0.08, radius * 0.08, '#8a5a32');
+    fillCircle(c, x - radius * 0.2, y - radius * 0.05, radius * 0.1, '#c9842f');
+    return;
+  }
+  if (id === 'biscuit') {
+    c.save();
+    c.translate(x, y);
+    c.rotate(-18, 0, 0);
+    c.drawLine(-radius * 0.7, 0, radius * 0.7, 0, paintOf('#e7b15a', 1, radius * 0.42));
+    fillCircle(c, -radius * 0.85, -radius * 0.16, radius * 0.34, '#e7b15a');
+    fillCircle(c, -radius * 0.85, radius * 0.16, radius * 0.34, '#e7b15a');
+    fillCircle(c, radius * 0.85, -radius * 0.16, radius * 0.34, '#e7b15a');
+    fillCircle(c, radius * 0.85, radius * 0.16, radius * 0.34, '#e7b15a');
+    c.restore();
     return;
   }
   fillCircle(c, x, y + radius * 0.08, radius, '#c9842f');

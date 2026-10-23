@@ -3,14 +3,16 @@ import type { ItemKind } from './catalog';
 import { calendarDaysBetween } from './clock';
 import type { OutfitSlot } from '../sim/types';
 
-export type ShopFlag = 'always' | 'rotation' | 'coming_soon' | 'hidden';
-export type ShopCategory = 'treats' | 'clothes' | 'toys' | 'boosts';
+export type ShopFlag = 'always' | 'rotation' | 'coming_soon' | 'hidden' | 'featured';
+export type ShopCategory = 'treats' | 'clothes' | 'toys' | 'home' | 'boosts';
+export type ItemTier = 'standard' | 'exclusive' | 'limited';
 export type SpeciesId = 'dog' | 'cat';
 export type PickSlot = 'clothes' | 'toys' | 'treats_or_boosts';
 
 export type ShopItemConfig = {
   shop: ShopFlag;
   category?: ShopCategory;
+  tier?: ItemTier;
   species?: SpeciesId[];
   price?: number | null;
   name?: string;
@@ -33,6 +35,7 @@ export type ShopListing = {
   name: string;
   category: ShopCategory;
   shop: ShopFlag;
+  tier: ItemTier;
   species?: SpeciesId[];
   price: number | null;
   description?: string;
@@ -76,7 +79,7 @@ export type PricedLine = {
   unitPrice: number;
   lineTotal: number;
   deal: boolean;
-  place: 'Pantry' | 'Closet' | 'Toy Box';
+  place: 'Pantry' | 'Closet' | 'Toy Box' | 'Home';
 };
 
 export type PricedCart =
@@ -86,6 +89,7 @@ export type PricedCart =
       lines: PricedLine[];
       inventory: { asset: string; delta: number }[];
       toys: string[];
+      furniture: string[];
       includesClothes: boolean;
     }
   | { ok: false; reason: string };
@@ -113,6 +117,9 @@ function categoryOf(kind: ItemKind): ShopCategory {
   }
   if (kind === 'toy') {
     return 'toys';
+  }
+  if (kind === 'furniture') {
+    return 'home';
   }
   return 'boosts';
 }
@@ -167,6 +174,8 @@ export function chooseDay(
     const eligible = catalog.items.filter(
       (item) =>
         categories.includes(item.category) &&
+        item.tier !== 'limited' &&
+        item.shop !== 'featured' &&
         (item.shop === 'rotation' || item.shop === 'always') &&
         fitsSpecies(item.species, species) &&
         (item.stackable || !owned.has(item.id)) &&
@@ -284,7 +293,46 @@ function placeFor(item: ShopListing): PricedLine['place'] {
   if (item.category === 'toys') {
     return 'Toy Box';
   }
+  if (item.category === 'home') {
+    return 'Home';
+  }
   return 'Pantry';
+}
+
+export type LimitedStock = {
+  itemId: string;
+  cap: number;
+  unitsLeft: number;
+  soldOutAt: string | null;
+};
+
+const soldOutWindowMs = 24 * 60 * 60 * 1000;
+
+// The crown stays in the featured spot while it is on sale, and for 24 hours after it sells out.
+export function featuredLimited(stock: readonly LimitedStock[], now: number): LimitedStock | null {
+  for (const row of stock) {
+    if (row.soldOutAt == null) {
+      return row;
+    }
+    const soldAt = Date.parse(row.soldOutAt);
+    if (Number.isFinite(soldAt) && now < soldAt + soldOutWindowMs) {
+      return row;
+    }
+  }
+  return null;
+}
+
+export function limitedBuyLabel(row: LimitedStock | null, online: boolean): 'buy' | 'offline' | 'held' | 'sold_out' {
+  if (!online) {
+    return 'offline';
+  }
+  if (!row || row.soldOutAt != null) {
+    return 'sold_out';
+  }
+  if (row.unitsLeft <= 0) {
+    return 'held';
+  }
+  return 'buy';
 }
 
 function listing(catalog: ShopCatalog, id: string): ShopListing | null {
@@ -314,6 +362,7 @@ export function priceCart(
   const priced: PricedLine[] = [];
   const inventory = new Map<string, number>();
   const toys = new Map<string, number>();
+  const furniture = new Set<string>();
   let charge = 0;
   let includesClothes = false;
 
@@ -327,6 +376,8 @@ export function priceCart(
     }
     if (item.category === 'toys') {
       toys.set(item.id, (toys.get(item.id) ?? 0) + qty);
+    } else if (item.category === 'home') {
+      furniture.add(item.id);
     } else {
       inventory.set(item.id, (inventory.get(item.id) ?? 0) + qty);
     }
@@ -374,6 +425,8 @@ export function priceCart(
       !item ||
       item.shop === 'hidden' ||
       item.shop === 'coming_soon' ||
+      item.shop === 'featured' ||
+      item.tier === 'limited' ||
       item.price == null ||
       !fitsSpecies(item.species, species)
     ) {
@@ -422,6 +475,7 @@ export function priceCart(
     lines: priced,
     inventory: [...inventory.entries()].map(([asset, delta]) => ({ asset, delta })),
     toys: [...toys.keys()],
+    furniture: [...furniture],
     includesClothes,
   };
 }
@@ -440,6 +494,7 @@ export type RemoteShopItem = {
   category: ShopCategory;
   price: number | null;
   shop: ShopFlag;
+  tier?: ItemTier;
   species: SpeciesId[] | null;
   isNewUntil: string | null;
   description: string | null;
@@ -473,6 +528,7 @@ export function materializeShop(remote: RemoteShop, defs: ItemDef[]): ShopCatalo
         name: row.name,
         category: row.category,
         shop: 'coming_soon',
+        tier: row.tier ?? 'standard',
         species: row.species ?? undefined,
         price: null,
         description: row.description ?? undefined,
@@ -487,6 +543,7 @@ export function materializeShop(remote: RemoteShop, defs: ItemDef[]): ShopCatalo
       name: row.name || def.name,
       category: row.category || categoryOf(def.kind),
       shop: row.shop,
+      tier: row.tier ?? 'standard',
       species: row.species ?? undefined,
       price: row.shop === 'coming_soon' ? null : row.price,
       description: row.description ?? undefined,
@@ -523,6 +580,7 @@ export function shopFromConfig(
       category: item.category ?? (def ? categoryOf(def.kind) : 'boosts'),
       price: item.price ?? null,
       shop: item.shop,
+      tier: item.tier,
       species: item.species ?? null,
       isNewUntil: item.isNewUntil ?? null,
       description: item.description ?? null,

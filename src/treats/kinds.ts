@@ -1,5 +1,6 @@
+import { catalog, treatReaction, type TreatReaction } from '../economy/catalog';
 import type { Effects } from '../sim/effects';
-import { treatHungerDrop, treatMoodGain, treatWeightGain } from '../sim/config';
+import { speciesOf } from '../sim/tracks';
 
 export type TreatKind = {
   id: string;
@@ -7,42 +8,40 @@ export type TreatKind = {
   species: Array<'dog' | 'cat'>;
   rarity: 'common' | 'special' | 'rare';
   effects: Effects;
-  reaction: 'wag_burst' | 'hop' | 'spin' | 'purr_headbump';
+  reaction: TreatReaction | { dog: TreatReaction; cat: TreatReaction };
   tags?: string[];
 };
 
-export const TREAT_KINDS: Record<string, TreatKind> = {
-  biscuit: {
-    id: 'biscuit',
-    name: 'Biscuit',
-    species: ['dog', 'cat'],
-    rarity: 'common',
-    effects: { hunger: -treatHungerDrop, weight: treatWeightGain, mood: treatMoodGain },
-    reaction: 'wag_burst',
-    tags: ['crunchy'],
-  },
-  special: {
-    id: 'special',
-    name: 'Special treat',
-    species: ['dog', 'cat'],
-    rarity: 'special',
-    effects: { hunger: -treatHungerDrop, weight: treatWeightGain, mood: treatMoodGain },
-    reaction: 'spin',
-    tags: ['special'],
-  },
-  softchew: {
-    id: 'softchew',
-    name: 'Soft Chew',
-    species: ['dog', 'cat'],
-    rarity: 'common',
-    effects: { hunger: -treatHungerDrop, weight: treatWeightGain, mood: treatMoodGain },
-    reaction: 'hop',
-    tags: ['soft'],
-  },
-};
+function fromCatalog(): Record<string, TreatKind> {
+  const kinds: Record<string, TreatKind> = {};
+  for (const item of catalog) {
+    if (item.kind !== 'treat' || !item.effects?.casual) {
+      continue;
+    }
+    kinds[item.id] = {
+      id: item.id,
+      name: item.name,
+      species: item.species ?? ['dog', 'cat'],
+      rarity: item.effects.fill === 'mood' ? 'special' : 'common',
+      effects: item.effects.casual,
+      reaction: item.reaction ?? 'wag_burst',
+    };
+  }
+  return kinds;
+}
+
+export const TREAT_KINDS: Record<string, TreatKind> = fromCatalog();
 
 export function treatById(id: string): TreatKind | null {
   return TREAT_KINDS[id] ?? null;
+}
+
+export function reactionForTreat(id: string, breedId: string): TreatReaction {
+  const item = catalog.find((entry) => entry.id === id);
+  if (!item) {
+    return 'wag_burst';
+  }
+  return treatReaction(item, speciesOf(breedId));
 }
 
 export type TreatChoice = { id: string; name: string; count: number };
@@ -54,10 +53,14 @@ export function treatsInInventory(
 ): TreatChoice[] {
   const qty = new Map(inventory.map((stack) => [stack.itemId, stack.qty]));
   const choices: TreatChoice[] = [];
-  for (const kind of Object.values(TREAT_KINDS)) {
-    const count = qty.get(kind.id) ?? 0;
-    if (count > 0 && kind.species.includes(species)) {
-      choices.push({ id: kind.id, name: kind.name, count });
+  for (const item of catalog) {
+    if (item.kind !== 'treat') {
+      continue;
+    }
+    const count = qty.get(item.id) ?? 0;
+    const allowed = item.species ?? ['dog', 'cat'];
+    if (count > 0 && allowed.includes(species)) {
+      choices.push({ id: item.id, name: item.name, count });
     }
   }
   return choices;

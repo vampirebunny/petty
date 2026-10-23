@@ -1597,14 +1597,26 @@ export default function HomeScreen({ petApi }: Props) {
             const gate = canGiveTreat(state, treatId);
             if (!gate.ok) {
               setTreatNote(
-                gate.reason === 'full' ? `${state.name} is too full for a treat.` : 'No treats available.',
+                gate.reason === 'energy_full'
+                  ? 'Already full of energy!'
+                  : gate.reason === 'mood_full'
+                    ? 'Already super happy!'
+                    : gate.reason === 'full'
+                      ? `${state.name} is too full for a treat.`
+                      : 'No treats available.',
               );
               return;
             }
             const used = economyApi.useItem(state, treatId, { context: 'casual' }, newRequestId());
             if (!used.ok || !used.pet) {
               setTreatNote(
-                !used.ok && used.reason === 'full' ? `${state.name} is too full for a treat.` : 'No treats available.',
+                !used.ok && used.reason === 'energy_full'
+                  ? 'Already full of energy!'
+                  : !used.ok && used.reason === 'mood_full'
+                    ? 'Already super happy!'
+                    : !used.ok && used.reason === 'full'
+                      ? `${state.name} is too full for a treat.`
+                      : 'No treats available.',
               );
               return;
             }

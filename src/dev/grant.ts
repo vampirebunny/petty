@@ -1,4 +1,4 @@
-import { moveOwnedPiece, touchPlayerHome } from '../db/playerHome';
+import { grantOwnedFurniture, touchPlayerHome } from '../db/playerHome';
 import { getDb } from '../db/database';
 import { catalogItem } from '../economy/catalog';
 import type { Equipped } from '../sim/types';
@@ -11,18 +11,9 @@ export async function grantDevItem(
   id: string,
 ): Promise<void> {
   if (id === 'dogHouse' || id === 'catTree') {
-    const pieceId = `grant-${id}`;
-    const piece = { id: pieceId, kind: id };
-    getDb().runSync(
-      'INSERT OR REPLACE INTO owned_furniture (owner_id, piece_id, json) VALUES (?, ?, ?)',
-      ownerId,
-      pieceId,
-      JSON.stringify(piece),
-    );
     const sceneId = id === 'catTree' && species === 'cat' ? 'catio' : 'livingroom';
-    const x = id === 'dogHouse' ? 150 : 480;
-    const y = id === 'dogHouse' ? 520 : 420;
-    moveOwnedPiece(ownerId, species, pieceId, sceneId, x, y);
+    grantOwnedFurniture(ownerId, species, id, sceneId);
+    touchPlayerHome();
     return;
   }
   const item = catalogItem(id);

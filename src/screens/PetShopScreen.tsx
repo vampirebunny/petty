@@ -14,20 +14,24 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Check, ChevronLeft, Clock, Minus, Plus, ShoppingBag, X } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import * as Network from 'expo-network';
 
 import { playBloop } from '../audio/bloop';
 import { playVoice } from '../audio/voice';
 import { PawCoin } from '../components/currency/PawCoin';
 import { catalogItem } from '../economy/catalog';
 import { localDay, nextLocalMidnight } from '../economy/clock';
-import { newRequestId, purchaseCart } from '../economy/service';
+import { buyLimited } from '../economy/limited';
+import { limitedSerial, newRequestId, purchaseCart } from '../economy/service';
 import type { InventoryRow } from '../economy/service';
 import {
   contentsValue,
   countdownLabel,
   discounted,
   featuredBundle,
+  featuredLimited,
   fitsSpecies,
+  limitedBuyLabel,
   isNewItem,
   priceCart,
   savePercent,
@@ -39,7 +43,8 @@ import {
   type ShopListing,
   type SpeciesId,
 } from '../economy/shop';
-import { ensureShopDay, loadShopCatalog } from '../economy/shopState';
+import { furnitureOf } from '../db/playerHome';
+import { ensureShopDay, loadLimitedStock, loadShopCatalog } from '../economy/shopState';
 import { refreshShopCatalog } from '../economy/shopSync';
 import type { Equipped, OutfitSlot, PetState } from '../sim/types';
 import { useLimitedContentWidth } from '../ui/PhoneColumn';
@@ -65,10 +70,11 @@ type Props = {
 };
 
 const categories: { id: ShopCategory; title: string; note: string }[] = [
-  { id: 'boosts', title: 'Boosts', note: 'Goes to your Pantry' },
+  { id: 'treats', title: 'Treats & Food', note: 'Goes to your Pantry' },
   { id: 'clothes', title: 'Clothes', note: 'Try on, then Closet' },
   { id: 'toys', title: 'Toys', note: 'Goes to your Toy Box' },
-  { id: 'treats', title: 'Treats & Food', note: 'Goes to your Pantry' },
+  { id: 'home', title: 'Home', note: 'Goes in your home' },
+  { id: 'boosts', title: 'Boosts', note: 'Goes to your Pantry' },
 ];
 
 function money(amount: number): string {
@@ -82,6 +88,9 @@ function placeLine(place: string): string {
   if (place === 'Toy Box') {
     return 'Goes to your Toy Box';
   }
+  if (place === 'Home') {
+    return 'Goes in your home';
+  }
   return 'Goes to your Pantry';
 }
 
@@ -92,7 +101,7 @@ function ownedIds(inventory: InventoryRow[], toys: string[]): Set<string> {
       continue;
     }
     const item = catalogItem(row.itemId);
-    if (item?.kind === 'outfit' || item?.kind === 'toy') {
+    if (item?.kind === 'outfit' || item?.kind === 'toy' || item?.kind === 'furniture') {
       owned.add(row.itemId);
     }
   }
@@ -163,7 +172,6 @@ export function PetShopScreen({
   const boopEdge = useOpenedDuoBoopEdge();
   const stageWidthPx = pane - 32;
   const cardWidth = Math.max(156, Math.min(188, Math.round((pane - 44) / 2.2)));
-  const spin = useSharedValue(0);
   const celebrateSpin = useSharedValue(0);
   const celebrateDrop = useSharedValue(0);
   const [now, setNow] = useState(() => Date.now());
@@ -175,12 +183,24 @@ export function PetShopScreen({
   const [celebration, setCelebration] = useState<{ charge: number; lines: { name: string; place: string }[]; closet: boolean } | null>(
     null,
   );
+  const [online, setOnline] = useState(true);
+  const [crownRequest, setCrownRequest] = useState<string | null>(null);
   const dealRef = useRef<string | null>(null);
   const dayRef = useRef<string | null>(null);
   const dealReady = useRef(false);
   const catalog = useMemo(() => loadShopCatalog(now), [now]);
   const day = useMemo(() => (catalog ? ensureShopDay(species, now) : null), [catalog, now, species]);
-  const owned = useMemo(() => ownedIds(inventory, toys), [inventory, toys]);
+  const owned = useMemo(() => {
+    const ids = ownedIds(inventory, toys);
+    if (pet.ownerId) {
+      for (const piece of furnitureOf(pet.ownerId)) {
+        ids.add(piece.id);
+      }
+    }
+    return ids;
+  }, [inventory, pet.ownerId, toys, now]);
+  const stock = useMemo(() => loadLimitedStock(), [now]);
+  const limitedOffer = featuredLimited(stock, clock);
   const dealId = day ? shownDeal(day.dealId, day.picks, owned) : null;
   const picks = day ? shownPicks(day.picks, owned) : [];
   const quote = useMemo(() => {
@@ -202,6 +222,9 @@ export function PetShopScreen({
       if (ok) {
         setNow(Date.now());
       }
+    });
+    void Network.getNetworkStateAsync().then((state) => {
+      setOnline(state.isConnected !== false);
     });
   }, []);
 
@@ -292,11 +315,15 @@ export function PetShopScreen({
   const short = Math.max(0, charge - balance);
   const canBuy = !!quote?.ok && cart.length > 0 && short === 0 && !busy;
   const today = localDay(clock);
-  const bundle = catalog ? featuredBundle(catalog, today) : null;
+  const bundle = catalog && !limitedOffer ? featuredBundle(catalog, today) : null;
+  const rowBundles = (catalog?.bundles ?? []).filter((entry) => entry.id !== bundle?.id);
+  const crown = limitedOffer && catalog ? findItem(catalog, limitedOffer.itemId) : null;
+  const crownSerial = crown && owned.has(crown.id) ? limitedSerial(crown.id) : null;
+  const crownLabel = limitedBuyLabel(limitedOffer, online);
   const groups = catalog
     ? categories
         .map((entry) => ({ ...entry, items: tabItems(catalog, entry.id, species) }))
-        .filter((entry) => entry.items.length > 0)
+        .filter((entry) => entry.items.length > 0 || (entry.id === 'treats' && rowBundles.length > 0))
     : [];
   const remain = day ? nextLocalMidnight(day.date) - clock : 0;
 
@@ -335,6 +362,7 @@ export function PetShopScreen({
       cart.map(({ id, kind, qty }) => ({ id, kind, qty })),
       newRequestId(),
       species,
+      pet.sceneId,
     );
     setBusy(false);
     if (!result.ok || result.charge == null || !result.lines) {
@@ -350,6 +378,36 @@ export function PetShopScreen({
     playVoice({ actorId: pet.id, sound: species === 'cat' ? 'meow' : 'bark', rate: 1 });
     playBloop(0);
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  };
+
+  const confirmCrown = () => {
+    if (!crownRequest || !crown || crown.price == null || busy) {
+      return;
+    }
+    setBusy(true);
+    const price = crown.price;
+    const name = crown.name;
+    void buyLimited(crown.id, price, crownRequest).then((result) => {
+      setBusy(false);
+      setCrownRequest(null);
+      setNow(Date.now());
+      if (!result.ok) {
+        setNote(
+          result.reason === 'lost'
+            ? 'Sorry, the last one sold just before your purchase went through. Your Boops have been returned.'
+            : result.reason === 'insufficient_boops'
+              ? 'Not enough Boops.'
+              : 'Connect to buy.',
+        );
+        return;
+      }
+      if (result.status === 'confirmed') {
+        setNote(null);
+        setCelebration({ charge: price, closet: true, lines: [{ name, place: 'Closet' }] });
+        playVoice({ actorId: pet.id, sound: species === 'cat' ? 'meow' : 'bark', rate: 1 });
+        playBloop(0);
+      }
+    });
   };
 
   return (
@@ -399,6 +457,7 @@ export function PetShopScreen({
             directionalLockEnabled
             showsVerticalScrollIndicator={false}
           >
+            {note && !sheet ? <Text style={styles.note}>{note}</Text> : null}
             <Animated.View key={day.date} entering={reducedMotion ? undefined : FadeIn.duration(280)} style={styles.picks}>
               <View style={styles.picksHead}>
                 <Text style={styles.section}>{"Today's picks"}</Text>
@@ -425,6 +484,7 @@ export function PetShopScreen({
                       wearing={wearingHas(wearing, item.id)}
                       width={142}
                       butter
+                      species={species}
                       onAdd={() => add(item.id, 'item')}
                       onRemove={() => remove(item.id, 'item')}
                       onQty={(qty) => setQty(item.id, 'item', qty)}
@@ -433,6 +493,18 @@ export function PetShopScreen({
                 })}
               </ScrollView>
             </Animated.View>
+            {limitedOffer && crown ? (
+              <LimitedCard
+                name={crown.name}
+                price={crown.price ?? 0}
+                cap={limitedOffer.cap}
+                unitsLeft={limitedOffer.unitsLeft}
+                label={crownLabel}
+                serial={crownSerial}
+                busy={busy}
+                onBuy={() => setCrownRequest(newRequestId())}
+              />
+            ) : null}
             {bundle ? (
               <BundleCard
                 name={bundle.name}
@@ -472,11 +544,28 @@ export function PetShopScreen({
                       row={cart.find((entry) => entry.kind === 'item' && entry.id === item.id) ?? null}
                       wearing={wearingHas(wearing, item.id)}
                       width={cardWidth}
+                      species={species}
                       onAdd={() => add(item.id, 'item')}
                       onRemove={() => remove(item.id, 'item')}
                       onQty={(qty) => setQty(item.id, 'item', qty)}
                     />
                   ))}
+                  {group.id === 'treats'
+                    ? rowBundles.map((entry) => (
+                        <BundleCard
+                          key={entry.id}
+                          name={entry.name}
+                          description={entry.description}
+                          price={entry.price}
+                          was={contentsValue(entry, catalog.items)}
+                          percent={savePercent(entry.price, contentsValue(entry, catalog.items))}
+                          qty={cart.find((row) => row.kind === 'bundle' && row.id === entry.id)?.qty ?? 0}
+                          catalog={catalog}
+                          onAdd={() => add(entry.id, 'bundle')}
+                          onQty={(qty) => setQty(entry.id, 'bundle', qty)}
+                        />
+                      ))
+                    : null}
                 </ScrollView>
               </View>
             ))}
@@ -491,6 +580,21 @@ export function PetShopScreen({
           onOpen={() => setSheet(true)}
           side={split}
         />
+      ) : null}
+      {crownRequest && crown && crown.price != null ? (
+        <View style={styles.crownSheet}>
+          <Text style={styles.crownAsk}>Buy the {crown.name} for {money(crown.price)} Boops?</Text>
+          <View style={styles.crownActions}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Buy the Golden Crown" onPress={confirmCrown} disabled={busy}>
+              <Glossy variant="gold" style={styles.crownBuy}>
+                <Text style={styles.crownBuyText}>{busy ? 'Buying…' : 'Buy'}</Text>
+              </Glossy>
+            </Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="Not now" onPress={() => setCrownRequest(null)}>
+              <Text style={styles.crownLater}>Not now</Text>
+            </Pressable>
+          </View>
+        </View>
       ) : null}
       {sheet && quote?.ok && catalog ? (
         <CartSheet
@@ -561,6 +665,7 @@ function ShopCard({
   wearing,
   width,
   butter,
+  species,
   onAdd,
   onRemove,
   onQty,
@@ -574,6 +679,7 @@ function ShopCard({
   wearing: boolean;
   width: number;
   butter?: boolean;
+  species?: 'dog' | 'cat';
   onAdd: () => void;
   onRemove: () => void;
   onQty: (qty: number) => void;
@@ -592,13 +698,18 @@ function ShopCard({
         style={[styles.card, butter && styles.cardCenter]}
       >
         {butter ? (
-          <ItemArt itemId={item.id} catalog={catalog} size={64} soon={soon} />
+          <ItemArt itemId={item.id} catalog={catalog} size={64} soon={soon} species={species} />
         ) : (
           <View style={[styles.well, { width: artSize, height: artSize }]}>
-            <ItemArt itemId={item.id} catalog={catalog} size={artSize} soon={soon} />
+            <ItemArt itemId={item.id} catalog={catalog} size={artSize} soon={soon} species={species} />
           </View>
         )}
         <Text style={[styles.name, butter && styles.centered]}>{item.name}</Text>
+        {item.tier === 'exclusive' ? (
+          <View style={styles.exclusivePill}>
+            <Text style={styles.exclusiveText}>Exclusive</Text>
+          </View>
+        ) : null}
         {item.description && !butter ? <Text style={styles.desc}>{item.description}</Text> : null}
         {deal && item.price != null ? (
           <Text style={[styles.dealLine, butter && styles.centered]}>
@@ -704,6 +815,49 @@ function CardAction({
         </Glossy>
       )}
     </Pressable>
+  );
+}
+
+function LimitedCard({
+  name,
+  price,
+  cap,
+  unitsLeft,
+  label,
+  serial,
+  busy,
+  onBuy,
+}: {
+  name: string;
+  price: number;
+  cap: number;
+  unitsLeft: number;
+  label: 'buy' | 'offline' | 'held' | 'sold_out';
+  serial: number | null;
+  busy: boolean;
+  onBuy: () => void;
+}) {
+  const button =
+    serial != null ? `#${serial} of ${cap}` : label === 'offline' ? 'Connect to buy' : label === 'held' ? 'None left right now' : label === 'sold_out' ? 'Sold out' : 'Buy';
+  const disabled = busy || label !== 'buy' || serial != null;
+  return (
+    <View style={styles.bundleWrap}>
+      <LedgeCard face={shop.gold} ledge={shop.goldDeep} radius={shopRadius.bundle} style={styles.bundle}>
+        <View style={styles.bundleText}>
+          <View style={styles.limitedPill}>
+            <Text style={styles.limitedText}>Limited</Text>
+          </View>
+          <Text style={styles.bundleName}>{name}</Text>
+          <Text style={styles.bundleBody}>{serial != null ? `#${serial} of ${cap}` : `${unitsLeft} of ${cap} left`}</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel={button} disabled={disabled} onPress={onBuy}>
+            <Glossy variant={disabled ? 'white' : 'gold'} style={styles.crownBuy}>
+              <Text style={styles.crownBuyText}>{button}</Text>
+            </Glossy>
+          </Pressable>
+        </View>
+        <Text style={styles.bundlePrice}>{money(price)}</Text>
+      </LedgeCard>
+    </View>
   );
 }
 
@@ -1078,6 +1232,25 @@ const styles = StyleSheet.create({
   dealBadge: { position: 'absolute', top: -8, right: -4, zIndex: 3, transform: [{ rotate: '6deg' }] },
   dealFace: { paddingHorizontal: 10, paddingVertical: 5 },
   dealText: { fontFamily: fontFamily.black, fontSize: 11, letterSpacing: 0.4, color: shop.onGold },
+  exclusivePill: { alignSelf: 'center', backgroundColor: '#EFE6FF', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 },
+  exclusiveText: { fontFamily: fontFamily.black, fontSize: 11, color: '#4B3A8A' },
+  limitedPill: { alignSelf: 'flex-start', backgroundColor: '#FFF1B8', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 },
+  limitedText: { fontFamily: fontFamily.black, fontSize: 11, color: '#6B4600' },
+  crownSheet: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    bottom: 24,
+    backgroundColor: shop.surface,
+    borderRadius: 20,
+    padding: 16,
+    gap: 12,
+  },
+  crownAsk: { fontFamily: fontFamily.fredokaSemibold, fontSize: 18, color: shop.inkStrong },
+  crownActions: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  crownBuy: { minHeight: 44, paddingHorizontal: 18, justifyContent: 'center' },
+  crownBuyText: { fontFamily: fontFamily.black, fontSize: 15, color: shop.onGold },
+  crownLater: { fontFamily: fontFamily.extraBold, fontSize: 15, color: shop.inkMuted },
   bundleWrap: { marginHorizontal: 16 },
   bundle: { flexDirection: 'row', gap: 12, padding: 14 },
   bundleArt: {

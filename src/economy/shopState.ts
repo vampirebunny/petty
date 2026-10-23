@@ -8,6 +8,7 @@ import {
   materializeShop,
   priceCart,
   shownDeal,
+  type LimitedStock,
   type CartInput,
   type DayPick,
   type PickHistory,
@@ -79,10 +80,45 @@ export function loadShopCatalog(now = Date.now()): ShopCatalog | null {
 
 export function listedPrice(itemId: string, now = Date.now()): number | null {
   const item = loadShopCatalog(now)?.items.find((entry) => entry.id === itemId);
-  if (!item || item.price == null || item.shop === 'hidden' || item.shop === 'coming_soon') {
+  if (!item || item.price == null || item.shop === 'hidden' || item.shop === 'coming_soon' || item.shop === 'featured' || item.tier === 'limited') {
     return null;
   }
   return item.price;
+}
+
+export function applyCatalogNow(): boolean {
+  const row = readCache();
+  if (!row?.pending_json) {
+    return false;
+  }
+  promote(row);
+  return true;
+}
+
+export function loadLimitedStock(): LimitedStock[] {
+  const rows = getDb().getAllSync<{ item_id: string; cap: number; units_left: number; sold_out_at: string | null }>(
+    'SELECT item_id, cap, units_left, sold_out_at FROM limited_stock_cache ORDER BY item_id',
+  );
+  return rows.map((row) => ({
+    itemId: row.item_id,
+    cap: row.cap,
+    unitsLeft: row.units_left,
+    soldOutAt: row.sold_out_at,
+  }));
+}
+
+export function saveLimitedStock(rows: LimitedStock[]): void {
+  const database = getDb();
+  database.runSync('DELETE FROM limited_stock_cache');
+  for (const row of rows) {
+    database.runSync(
+      'INSERT INTO limited_stock_cache (item_id, cap, units_left, sold_out_at) VALUES (?, ?, ?, ?)',
+      row.itemId,
+      row.cap,
+      row.unitsLeft,
+      row.soldOutAt,
+    );
+  }
 }
 
 export function saveShopDownload(remote: RemoteShop, now = Date.now()): void {
@@ -145,6 +181,10 @@ function ownedIds(): Set<string> {
   const toys = database.getAllSync<{ toy_id: string }>('SELECT toy_id FROM owned_toys WHERE owner_id = ?', owner);
   for (const toy of toys) {
     owned.add(toy.toy_id);
+  }
+  const furniture = database.getAllSync<{ piece_id: string }>('SELECT piece_id FROM owned_furniture WHERE owner_id = ?', owner);
+  for (const piece of furniture) {
+    owned.add(piece.piece_id);
   }
   return owned;
 }

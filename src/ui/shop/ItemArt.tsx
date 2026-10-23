@@ -23,9 +23,6 @@ function artRadius(category: ShopCategory, id: string, size: number): number {
     }
     return size * 0.44;
   }
-  if (id === 'softchew') {
-    return size * 0.4;
-  }
   return size * 0.44;
 }
 
@@ -34,6 +31,7 @@ type Props = {
   catalog: ShopCatalog | null;
   size: number;
   soon?: boolean;
+  species?: 'dog' | 'cat' | null;
 };
 
 function Gift({ size }: { size: number }) {
@@ -49,7 +47,7 @@ function Gift({ size }: { size: number }) {
   );
 }
 
-export function ItemArt({ itemId, catalog, size, soon }: Props) {
+export function ItemArt({ itemId, catalog, size, soon, species = null }: Props) {
   const item = catalog?.items.find((entry) => entry.id === itemId) ?? null;
   const wear = item?.slot && item.wearId ? wearItem(item.slot, item.wearId) : null;
   const picture = useMemo(() => {
@@ -63,10 +61,11 @@ export function ItemArt({ itemId, catalog, size, soon }: Props) {
     if (item.category === 'toys') {
       drawToyShape(canvas, item.id, mid, mid, radius);
     } else {
-      drawTreatShape(canvas, item.id === 'second_wind' ? 'special' : item.id, mid, mid, radius);
+      const artId = item.id === 'second_wind' ? 'special' : item.id === 'biscuit' ? 'biscuit' : item.id;
+      drawTreatShape(canvas, artId, mid, mid, radius, 0, item.id === 'biscuit' ? species : null);
     }
     return recorder.finishRecordingAsPicture();
-  }, [item, size, soon, wear]);
+  }, [item, size, soon, species, wear]);
 
   if (!item || soon || item.shop === 'coming_soon' || (item.category === 'clothes' && !wear)) {
     return <Gift size={size} />;

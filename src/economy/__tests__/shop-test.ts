@@ -1,4 +1,4 @@
-import { catalogForDay, chooseDay, dealFor, discounted, materializeShop, priceCart, type ShopCatalog, type ShopListing } from '../shop';
+import { catalogForDay, chooseDay, dealFor, discounted, featuredLimited, limitedBuyLabel, materializeShop, priceCart, type ShopCatalog, type ShopListing } from '../shop';
 import { shopPetScene } from '../../ui/shop/shopFloor';
 
 function item(partial: Pick<ShopListing, 'id'> & Partial<ShopListing>): ShopListing {
@@ -9,6 +9,7 @@ function item(partial: Pick<ShopListing, 'id'> & Partial<ShopListing>): ShopList
     price: 100,
     sort: 0,
     stackable: false,
+    tier: 'standard' as const,
     ...partial,
   };
 }
@@ -177,6 +178,18 @@ it('keeps a pending catalog until its day, and skips items the build cannot use'
   );
   expect(built.items.map((entry) => entry.id)).toEqual(['vitamins']);
   expect(built.items[0]?.price).toBeNull();
+});
+
+it('keeps a limited edition in the featured spot until a day after it sells out', () => {
+  const onSale = { itemId: 'hat:crown', cap: 500, unitsLeft: 12, soldOutAt: null };
+  expect(featuredLimited([onSale], Date.parse('2026-10-23T12:00:00Z'))).toBe(onSale);
+  expect(limitedBuyLabel(onSale, false)).toBe('offline');
+  expect(limitedBuyLabel({ ...onSale, unitsLeft: 0 }, true)).toBe('held');
+  const sold = { ...onSale, unitsLeft: 0, soldOutAt: '2026-10-23T00:00:00Z' };
+  const noon = Date.parse('2026-10-23T12:00:00Z');
+  expect(featuredLimited([sold], noon)?.itemId).toBe('hat:crown');
+  expect(limitedBuyLabel(sold, true)).toBe('sold_out');
+  expect(featuredLimited([sold], noon + 25 * 60 * 60 * 1000)).toBeNull();
 });
 
 it('keeps the shop pet on one ground line', () => {

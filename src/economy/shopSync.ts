@@ -1,10 +1,11 @@
 import { getSupabase } from '../compliance/supabase';
-import { remoteVersion, saveShopDownload } from './shopState';
-import type { PickSlot, RemoteShop, RemoteShopItem, ShopBundle, ShopCategory, ShopFlag, SpeciesId } from './shop';
+import { remoteVersion, saveLimitedStock, saveShopDownload } from './shopState';
+import type { ItemTier, LimitedStock, PickSlot, RemoteShop, RemoteShopItem, ShopBundle, ShopCategory, ShopFlag, SpeciesId } from './shop';
 
 const slots = new Set<PickSlot>(['clothes', 'toys', 'treats_or_boosts']);
-const flags = new Set<ShopFlag>(['always', 'rotation', 'coming_soon', 'hidden']);
-const categories = new Set<ShopCategory>(['treats', 'clothes', 'toys', 'boosts']);
+const flags = new Set<ShopFlag>(['always', 'rotation', 'coming_soon', 'hidden', 'featured']);
+const categories = new Set<ShopCategory>(['treats', 'clothes', 'toys', 'home', 'boosts']);
+const tiers = new Set<ItemTier>(['standard', 'exclusive', 'limited']);
 
 function asSpecies(value: unknown): SpeciesId[] | null {
   if (!Array.isArray(value)) {
@@ -44,6 +45,7 @@ function asItem(row: Record<string, unknown>): RemoteShopItem | null {
     category: category as ShopCategory,
     price: typeof row.price === 'number' ? row.price : null,
     shop: shop as ShopFlag,
+    tier: tiers.has(row.tier as ItemTier) ? (row.tier as ItemTier) : 'standard',
     species: asSpecies(row.species),
     isNewUntil: typeof row.is_new_until === 'string' ? row.is_new_until : null,
     description: typeof row.description === 'string' ? row.description : null,
@@ -69,12 +71,41 @@ function asBundle(row: Record<string, unknown>): ShopBundle | null {
   };
 }
 
+function asStock(row: Record<string, unknown>): LimitedStock | null {
+  if (typeof row.item_id !== 'string' || typeof row.cap !== 'number' || typeof row.units_left !== 'number') {
+    return null;
+  }
+  return {
+    itemId: row.item_id,
+    cap: row.cap,
+    unitsLeft: row.units_left,
+    soldOutAt: typeof row.sold_out_at === 'string' ? row.sold_out_at : null,
+  };
+}
+
+export async function refreshLimitedStock(): Promise<boolean> {
+  const supabase = getSupabase();
+  if (!supabase) {
+    return false;
+  }
+  const { data, error } = await supabase.from('limited_stock').select('item_id, cap, units_left, sold_out_at');
+  if (error || !data) {
+    return false;
+  }
+  saveLimitedStock(data.flatMap((row) => {
+    const stock = asStock(row as Record<string, unknown>);
+    return stock ? [stock] : [];
+  }));
+  return true;
+}
+
 // Downloads the shop catalog. The first download applies immediately. A later one waits for local midnight.
 export async function refreshShopCatalog(now = Date.now()): Promise<boolean> {
   const supabase = getSupabase();
   if (!supabase) {
     return false;
   }
+  await refreshLimitedStock();
   const { data: config, error } = await supabase
     .from('shop_config')
     .select('pick_slots, no_repeat_days, deal_pct, version')

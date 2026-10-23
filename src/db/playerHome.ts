@@ -1,4 +1,4 @@
-import { placePiece, starterFurniture, type FurniturePiece, type FurniturePlacement } from '../actor/furniture';
+import { placePiece, shopFurnitureSpot, starterFurniture, type FurniturePiece, type FurniturePlacement, type ShopFurnitureId } from '../actor/furniture';
 import { startingToys } from '../sim/config';
 import { getDb } from './database';
 
@@ -108,6 +108,18 @@ export function grantSpeciesHome(ownerId: string, species: SpeciesId): void {
     );
   }
   emit();
+}
+
+export function grantOwnedFurniture(ownerId: string, species: SpeciesId, kind: ShopFurnitureId, sceneId: string): void {
+  const piece = { id: kind, kind };
+  getDb().runSync(
+    'INSERT OR IGNORE INTO owned_furniture (owner_id, piece_id, json) VALUES (?, ?, ?)',
+    ownerId,
+    kind,
+    JSON.stringify(piece),
+  );
+  const spot = shopFurnitureSpot(kind, sceneId);
+  moveOwnedPiece(ownerId, species, kind, spot.sceneId, spot.x, spot.y);
 }
 
 export function moveOwnedPiece(

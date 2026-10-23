@@ -7,8 +7,8 @@ import { readLegacyCloset, writePetNow } from '../db/sqlitePetStorage';
 import { getDb, transaction } from '../db/database';
 import { currentOwner, ownerIsReady } from '../db/currentOwner';
 import { catalog, catalogItem, starterOutfits, storeItems, type CatalogItem, type TreatEffects } from './catalog';
-import { touchPlayerHome } from '../db/playerHome';
-import { listedPrice, quoteCart } from './shopState';
+import { grantOwnedFurniture, touchPlayerHome } from '../db/playerHome';
+import { listedPrice, loadShopCatalog, quoteCart } from './shopState';
 import type { CartInput, PricedLine, SpeciesId } from './shop';
 import { queueCoupled, queuePlayer } from '../sync/queue';
 import { economyConfig, type PlayFindKind } from './economyConfig';
@@ -54,6 +54,35 @@ function ensureOwnerRows(now = Date.now()): void {
   }
   const owner = ownerId();
   const database = db();
+  const soft = database.getFirstSync<{ quantity: number }>(
+    'SELECT quantity FROM inventory WHERE owner_id = ? AND item_id = ? AND quantity > 0',
+    owner,
+    'softchew',
+  );
+  if (soft) {
+    const biscuits = database.getFirstSync<{ quantity: number }>(
+      'SELECT quantity FROM inventory WHERE owner_id = ? AND item_id = ?',
+      owner,
+      'biscuit',
+    );
+    if (biscuits) {
+      database.runSync(
+        'UPDATE inventory SET quantity = ? WHERE owner_id = ? AND item_id = ?',
+        biscuits.quantity + soft.quantity,
+        owner,
+        'biscuit',
+      );
+    } else {
+      database.runSync(
+        'INSERT INTO inventory (owner_id, item_id, quantity, first_acquired_at) VALUES (?, ?, ?, ?)',
+        owner,
+        'biscuit',
+        soft.quantity,
+        new Date(now).toISOString(),
+      );
+    }
+    database.runSync('DELETE FROM inventory WHERE owner_id = ? AND item_id = ?', owner, 'softchew');
+  }
   const balanceRow = database.getFirstSync<{ owner_id: string }>(
     'SELECT owner_id FROM balances WHERE owner_id = ?',
     owner,
@@ -203,12 +232,18 @@ function writeOwner(row: ReturnType<typeof readOwner>): void {
   );
 }
 
-function insertTransaction(source: string, key: string, sourceRef: string | null, lines: { asset: string; delta: number }[]): void {
+function insertTransaction(
+  source: string,
+  key: string,
+  sourceRef: string | null,
+  lines: { asset: string; delta: number; unitPrice?: number | null; deal?: boolean; serial?: number | null }[],
+): void {
   const id = newRequestId();
   const owner = ownerId();
+  const catalogVersion = loadShopCatalog()?.version ?? null;
   db().runSync(
-    `INSERT INTO transactions (id, owner_id, idempotency_key, source, source_ref, device_time, config_version)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO transactions (id, owner_id, idempotency_key, source, source_ref, device_time, config_version, catalog_version)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     id,
     owner,
     key,
@@ -216,14 +251,22 @@ function insertTransaction(source: string, key: string, sourceRef: string | null
     sourceRef,
     new Date().toISOString(),
     economyConfig.version,
+    catalogVersion,
   );
   for (const line of lines) {
     db().runSync(
-      'INSERT INTO transaction_lines (transaction_id, asset, delta) VALUES (?, ?, ?)',
+      `INSERT INTO transaction_lines (transaction_id, asset, delta, unit_price, deal, serial)
+       VALUES (?, ?, ?, ?, ?, ?)`,
       id,
       line.asset,
       line.delta,
+      line.unitPrice ?? null,
+      line.deal ? 1 : 0,
+      line.serial ?? null,
     );
+    if (line.delta === 0) {
+      continue;
+    }
     if (line.asset === 'boops') {
       setBalance(balance() + line.delta);
     } else {
@@ -320,7 +363,13 @@ export function canUse(pet: PetState, itemId: string, opts: UseOpts = {}, now = 
     if (!effects) {
       return { ok: false, reason: 'not_available' };
     }
-    if (opts.context !== 'training' && pet.needs.hunger <= 0) {
+    if (opts.context !== 'training' && item.effects?.fill === 'energy' && pet.needs.energy >= 95) {
+      return { ok: false, reason: 'energy_full' };
+    }
+    if (opts.context !== 'training' && item.effects?.fill === 'mood' && pet.needs.happiness >= 95) {
+      return { ok: false, reason: 'mood_full' };
+    }
+    if (opts.context !== 'training' && item.effects?.fill == null && pet.needs.hunger <= 0) {
       return { ok: false, reason: 'full' };
     }
     return { ok: true };
@@ -355,7 +404,7 @@ function commitPurchase(item: CatalogItem, qty: number, key: string): void {
   }
   insertTransaction('purchase', key, item.id, [
     { asset: 'boops', delta: -price * qty },
-    { asset: item.id, delta: qty },
+    { asset: item.id, delta: qty, unitPrice: price, deal: false },
   ]);
 }
 
@@ -365,11 +414,18 @@ function commitUse(pet: PetState, item: CatalogItem, opts: UseOpts, key: string,
   ]);
   if (item.kind === 'treat') {
     const effects = (opts.context === 'training' ? item.effects?.training : item.effects?.casual) as TreatEffects;
-    const applied = applyTreatEffects(pet, effects, opts.context !== 'training');
+    const applied = applyTreatEffects(pet, effects, opts.context !== 'training' && item.effects?.fill == null);
     if (!applied.ok || !applied.pet) {
       throw new Error(applied.ok ? 'unknown' : applied.reason);
     }
-    return applied.pet;
+    const next = applied.pet;
+    if (item.effects?.fill === 'energy') {
+      next.needs.energy = 100;
+    }
+    if (item.effects?.fill === 'mood') {
+      next.needs.happiness = 100;
+    }
+    return next;
   }
   if (item.kind === 'food') {
     return { ...pet, foodInBowl: true, bowlItemId: item.id };
@@ -391,6 +447,7 @@ export function purchaseCart(
   lines: CartInput[],
   requestId: string,
   species: SpeciesId,
+  sceneId = 'livingroom',
 ): Check & { charge?: number; lines?: PricedLine[]; includesClothes?: boolean } {
   try {
     const result = transaction(() => {
@@ -402,13 +459,32 @@ export function purchaseCart(
       if (!priced.ok) {
         return priced;
       }
-      insertTransaction('purchase', requestId, 'cart', [
+      const ledger: { asset: string; delta: number; unitPrice?: number | null; deal?: boolean }[] = [
         { asset: 'boops', delta: -priced.charge },
-        ...priced.inventory,
-      ]);
+      ];
+      for (const line of priced.lines) {
+        if (line.kind === 'bundle') {
+          ledger.push({ asset: line.id, delta: 0, unitPrice: line.unitPrice, deal: false });
+        }
+      }
+      for (const entry of priced.inventory) {
+        const match = priced.lines.find((line) => line.kind === 'item' && line.id === entry.asset);
+        ledger.push({
+          asset: entry.asset,
+          delta: entry.delta,
+          unitPrice: match?.unitPrice ?? null,
+          deal: match?.deal ?? false,
+        });
+      }
+      insertTransaction('purchase', requestId, 'cart', ledger);
       const owner = ownerId();
       for (const toyId of priced.toys) {
         db().runSync('INSERT OR IGNORE INTO owned_toys (owner_id, toy_id) VALUES (?, ?)', owner, toyId);
+      }
+      for (const kind of priced.furniture) {
+        if (kind === 'dogHouse' || kind === 'catTree') {
+          grantOwnedFurniture(owner, species, kind, sceneId);
+        }
       }
       return {
         ok: true as const,
@@ -426,6 +502,96 @@ export function purchaseCart(
   } catch (error) {
     return { ok: false, reason: error instanceof Error ? error.message : 'unknown' };
   }
+}
+
+export function purchaseLimited(itemId: string, price: number, serial: number, requestId: string): Check {
+  try {
+    const result = transaction(() => {
+      ensureOwnerRows();
+      if (hasKey(requestId) || quantity(itemId) > 0) {
+        return { ok: true as const };
+      }
+      if (balance() < price) {
+        return { ok: false as const, reason: 'insufficient_boops' };
+      }
+      insertTransaction('purchase', requestId, itemId, [
+        { asset: 'boops', delta: -price, unitPrice: price, deal: false },
+        { asset: itemId, delta: 1, unitPrice: price, deal: false, serial },
+      ]);
+      return { ok: true as const };
+    });
+    emit();
+    if (result.ok) {
+      queuePlayer();
+    }
+    return result;
+  } catch (error) {
+    return { ok: false, reason: error instanceof Error ? error.message : 'unknown' };
+  }
+}
+
+export function reverseLimited(itemId: string, price: number, requestId: string): boolean {
+  const key = `${requestId}:lost`;
+  let reversed = false;
+  try {
+    transaction(() => {
+      ensureOwnerRows();
+      if (hasKey(key) || !hasKey(requestId)) {
+        return;
+      }
+      insertTransaction('reversal', key, itemId, [
+        { asset: 'boops', delta: price },
+        { asset: itemId, delta: -1 },
+      ]);
+      reversed = true;
+    });
+  } catch {
+    return false;
+  }
+  if (reversed) {
+    emit();
+    queuePlayer();
+  }
+  return reversed;
+}
+
+export function rememberLimitedConfirm(requestId: string, itemId: string, price: number, serial: number): void {
+  db().runSync(
+    'INSERT OR REPLACE INTO limited_confirms (request_id, item_id, price, serial) VALUES (?, ?, ?, ?)',
+    requestId,
+    itemId,
+    price,
+    serial,
+  );
+}
+
+export function forgetLimitedConfirm(requestId: string): void {
+  db().runSync('DELETE FROM limited_confirms WHERE request_id = ?', requestId);
+}
+
+export function pendingLimitedConfirms(): { requestId: string; itemId: string; price: number; serial: number }[] {
+  return db()
+    .getAllSync<{ request_id: string; item_id: string; price: number; serial: number }>(
+      'SELECT request_id, item_id, price, serial FROM limited_confirms',
+    )
+    .map((row) => ({ requestId: row.request_id, itemId: row.item_id, price: row.price, serial: row.serial }));
+}
+
+export function limitedSerial(itemId: string): number | null {
+  if (quantity(itemId) <= 0) {
+    return null;
+  }
+  const row = db().getFirstSync<{ serial: number }>(
+    `SELECT lines.serial AS serial
+     FROM transaction_lines lines
+     JOIN transactions tx ON tx.id = lines.transaction_id
+     WHERE tx.owner_id = ? AND lines.asset = ? AND lines.serial IS NOT NULL
+     ORDER BY tx.device_time DESC
+     LIMIT 1`,
+    ownerId(),
+    itemId,
+  );
+  return row?.serial ?? null;
 }
 
 export function purchase(itemId: string, qty: number, requestId: string): Check {

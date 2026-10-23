@@ -27,6 +27,34 @@ export type FurniturePlacement = {
   y: number;
 };
 
+export const shopFurniture = {
+  dogHouse: {
+    scenes: ['livingroom', 'bedroom'] as const,
+    spot: {
+      livingroom: { x: 150, y: 520 },
+      bedroom: { x: 180, y: 460 },
+    },
+  },
+  catTree: {
+    scenes: ['catio', 'livingroom', 'bedroom'] as const,
+    spot: {
+      catio: { x: 500, y: 400 },
+      livingroom: { x: 480, y: 420 },
+      bedroom: { x: 420, y: 380 },
+    },
+  },
+} as const;
+
+export type ShopFurnitureId = keyof typeof shopFurniture;
+
+export function shopFurnitureSpot(kind: ShopFurnitureId, sceneId: string): { sceneId: string; x: number; y: number } {
+  const spec = shopFurniture[kind];
+  const allowed = spec.scenes as readonly string[];
+  const scene = allowed.includes(sceneId) ? sceneId : spec.scenes[0];
+  const spot = spec.spot[scene as keyof typeof spec.spot];
+  return { sceneId: scene, x: spot.x, y: spot.y };
+}
+
 // Half-depth of the floor ellipse. Matches the band a hurdle uses.
 export const furnitureDepth = 28;
 

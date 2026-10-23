@@ -163,7 +163,7 @@ export type PetEvent =
   | {
       type: 'ate';
       now: number;
-      meal?: { hunger: number; weight: number; energy: number; xp: number; mood: number };
+      meal?: { hunger: number; weight: number; energy: number; xp: number; mood: number; diet?: number; fillTummy?: boolean };
     }
   | { type: 'refillWater' }
   | { type: 'drank'; fromBowl: boolean; now: number }

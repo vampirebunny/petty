@@ -303,7 +303,9 @@ export function drawWorld(
           if (treatId) {
             const nibbling = world.actors.some((actor) => actor.task.type === 'treat' && actor.task.stage === 'nibble');
             const bob = nibbling ? Math.sin(world.t * 18) * 1.4 : 0;
-            drawTreatShape(canvas, treatId, toy.x, toy.y - toy.z - radius + bob, radius * 1.25, world.t);
+            const actor = world.actors[0];
+            const breed = actor ? resolveBreedById(actor.breedId, actor.look) : null;
+            drawTreatShape(canvas, treatId, toy.x, toy.y - toy.z - radius + bob, radius * 1.25, world.t, breed?.species ?? null);
             return;
           }
           drawToyShape(canvas, toy.kind, toy.x, toy.y - toy.z - radius, radius, world.t);

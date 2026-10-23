@@ -43,9 +43,9 @@ export const wardrobe: Record<OutfitSlot, { label: string; items: WearItem[] }> 
   hat: {
     label: 'Hat',
     items: [
-      wear('hat', 'beanie', 'Beanie', 'beanie', '#2f9e6b'),
-      wear('hat', 'party', 'Party hat', 'party', '#8a5ad6', '#ffd34d'),
-      wear('hat', 'top', 'Top hat', 'top', '#26262c', '#f4dede'),
+      wear('hat', 'beanie', 'Green Beanie', 'beanie', '#2f9e6b'),
+      wear('hat', 'party', 'Party Hat', 'party', '#8a5ad6', '#ffd34d'),
+      wear('hat', 'top', 'Top Hat', 'top', '#26262c', '#f4dede'),
       wear('hat', 'beanie-pink', 'Pink Beanie', 'beanie', '#FF8CC4'),
       wear('hat', 'beanie-stripe', 'Stripe Beanie', 'beanie', '#2B3A6B', '#FFFFFF', 'stripes', ['crown']),
       wear('hat', 'cap', 'Red Ball Cap', 'cap', '#D64545', '#B23434'),
@@ -60,9 +60,9 @@ export const wardrobe: Record<OutfitSlot, { label: string; items: WearItem[] }> 
   glasses: {
     label: 'Glasses',
     items: [
-      wear('glasses', 'classic', 'Classic shades', 'classic', '#1b1b22'),
-      wear('glasses', 'square', 'Square gold', 'square', '#e0b43c'),
-      wear('glasses', 'red-rim', 'Red rims', 'red-rim', '#d64545'),
+      wear('glasses', 'classic', 'Classic Shades', 'classic', '#1b1b22'),
+      wear('glasses', 'square', 'Round Gold Specs', 'square', '#e0b43c'),
+      wear('glasses', 'red-rim', 'Red Rims', 'red-rim', '#d64545'),
       wear('glasses', 'heart', 'Heart Shades', 'heart', '#FF5FA2', '#FFB3D6'),
       wear('glasses', 'heart-sky', 'Sky Heart Shades', 'heart', '#5AA9E6', '#BFE3FF'),
       wear('glasses', 'star', 'Star Shades', 'star', '#FFC93C', '#FFE38F'),
@@ -71,12 +71,12 @@ export const wardrobe: Record<OutfitSlot, { label: string; items: WearItem[] }> 
   neckwear: {
     label: 'Neckwear',
     items: [
-      wear('neckwear', 'collar', 'Red collar', 'collar', '#d64545', '#f0c94a'),
-      wear('neckwear', 'bandana', 'Blue bandana', 'bandana', '#3b6fc4'),
-      wear('neckwear', 'scarf', 'Yellow scarf', 'scarf', '#e8c53a'),
-      wear('neckwear', 'bell', 'Bell', 'collar', '#6b3a2a', '#f0c94a'),
-      wear('neckwear', 'bow', 'Bow', 'bow', '#e85a8c'),
-      wear('neckwear', 'gold', 'Gold collar', 'collar', '#e0b43c', '#fff3c4'),
+      wear('neckwear', 'collar', 'Red Collar', 'collar', '#d64545', '#f0c94a'),
+      wear('neckwear', 'bandana', 'Blue Bandana', 'bandana', '#3b6fc4'),
+      wear('neckwear', 'scarf', 'Sunny Scarf', 'scarf', '#e8c53a'),
+      wear('neckwear', 'bell', 'Bell Collar', 'collar', '#6b3a2a', '#f0c94a'),
+      wear('neckwear', 'bow', 'Pink Bow', 'bow', '#e85a8c'),
+      wear('neckwear', 'gold', 'Gold Stud Collar', 'collar', '#e0b43c', '#fff3c4'),
       wear('neckwear', 'bandana-cherry', 'Cherry Bandana', 'bandana', '#E0526A'),
       wear('neckwear', 'scarf-stripe', 'Candy Stripe Scarf', 'scarf', '#FF8CC4', '#FFFFFF', 'stripes', ['band', 'tail']),
       wear('neckwear', 'bandana-gingham', 'Picnic Bandana', 'bandana', '#E0526A', '#FFFFFF', 'gingham', ['cloth']),
@@ -87,11 +87,11 @@ export const wardrobe: Record<OutfitSlot, { label: string; items: WearItem[] }> 
   jacket: {
     label: 'Jacket',
     items: [
-      wear('jacket', 'sweater', 'Knit sweater', 'sweater', '#d64545', '#f4dede'),
-      wear('jacket', 'rain', 'Raincoat', 'raincoat', '#f2c230'),
-      wear('jacket', 'vest', 'Quilted vest', 'vest', '#3b6fc4'),
-      wear('jacket', 'puffer', 'Puffer', 'puffer', '#f28c28', '#ffe0c2'),
-      wear('jacket', 'hoodie', 'Hoodie', 'hoodie', '#FF9FCB', '#8A5AD6'),
+      wear('jacket', 'sweater', 'Cherry Sweater', 'sweater', '#d64545', '#f4dede'),
+      wear('jacket', 'rain', 'Yellow Raincoat', 'raincoat', '#f2c230'),
+      wear('jacket', 'vest', 'Quilted Vest', 'vest', '#3b6fc4'),
+      wear('jacket', 'puffer', 'Orange Puffer', 'puffer', '#f28c28', '#ffe0c2'),
+      wear('jacket', 'hoodie', 'Cozy Hoodie', 'hoodie', '#FF9FCB', '#8A5AD6'),
       wear('jacket', 'puffer-mint', 'Mint Puffer', 'puffer', '#7FE3BA', '#CFFBE8'),
       wear('jacket', 'sweater-lilac', 'Lilac Sweater', 'sweater', '#B9A2F5', '#F1EBFF'),
       wear('jacket', 'puffer-rainbow', 'Rainbow Puffer', 'puffer', '#FF8CC4', undefined, 'rainbow', ['body']),
@@ -100,9 +100,9 @@ export const wardrobe: Record<OutfitSlot, { label: string; items: WearItem[] }> 
   boots: {
     label: 'Boots',
     items: [
-      wear('boots', 'red', 'Red boots', 'red', '#d64545'),
-      wear('boots', 'rain', 'Rain boots', 'rain', '#f2c230', '#f7f7f7'),
-      wear('boots', 'sneaker', 'Sneakers', 'sneaker', '#f4f4f4', '#d64545'),
+      wear('boots', 'red', 'Red Boots', 'red', '#d64545'),
+      wear('boots', 'rain', 'Yellow Rain Boots', 'rain', '#f2c230', '#f7f7f7'),
+      wear('boots', 'sneaker', 'Classic Sneakers', 'sneaker', '#f4f4f4', '#d64545'),
       wear('boots', 'rain-blue', 'Puddle Blue Boots', 'rain', '#5AA9E6'),
       wear('boots', 'sneaker-pink', 'Bubblegum Sneakers', 'sneaker', '#FFC2E0', '#8A5AD6'),
       wear('boots', 'sneaker-gold', 'Gold High-Tops', 'sneaker', '#E0B43C', '#FFF3C4'),

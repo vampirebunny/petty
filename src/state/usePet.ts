@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AppState } from 'react-native';
+import { Alert, AppState } from 'react-native';
 
 import { flickToThrow } from '../input/flick';
 import { cancelReminders, syncReminder } from '../reminders/notifications';
@@ -32,6 +32,7 @@ import { speciesOf } from '../sim/tracks';
 import { sqlitePetStorage } from '../db/sqlitePetStorage';
 import { getDb } from '../db/database';
 import { catalogItem } from '../economy/catalog';
+import { resumeLimitedPurchases } from '../economy/limited';
 import type { PlayFindKind } from '../economy/economyConfig';
 import {
   claimDailyLogin,
@@ -322,6 +323,23 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
       setReady(true);
       if (loaded) {
         settleReturn(loaded, Date.now());
+        void resumeLimitedPurchases().then((result) => {
+          if (cancelled) {
+            return;
+          }
+          const current = stateRef.current;
+          if (result.unequipCrown && current?.equipped.hat === 'crown') {
+            const equipped = { ...current.equipped };
+            delete equipped.hat;
+            publish({ ...current, equipped });
+          }
+          if (result.lost) {
+            Alert.alert(
+              'Golden Crown',
+              'Sorry, the last one sold just before your purchase went through. Your Boops have been returned.',
+            );
+          }
+        });
       }
     });
     return () => {
@@ -705,7 +723,11 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
     const current = stateRef.current;
     const item = current?.bowlItemId ? catalogItem(current.bowlItemId) : null;
     const multipliers = item?.effects?.mealMultipliers;
-    const meal = multipliers ? { ...multipliers, mood: item?.effects?.moodBonus ?? 0 } : undefined;
+    const meal = item?.effects?.premiumMeal
+      ? { hunger: 1, weight: 1, energy: 1, xp: 1, mood: 0, diet: 0.25, fillTummy: true }
+      : multipliers
+        ? { ...multipliers, mood: item?.effects?.moodBonus ?? 0 }
+        : undefined;
     commitProgress({ type: 'ate', now: Date.now(), meal });
   }, [commitProgress]);
   const reportDrank = useCallback(

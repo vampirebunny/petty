@@ -5,6 +5,8 @@ import { Canvas, Group, Picture } from '@shopify/react-native-skia';
 import { Check } from 'lucide-react-native';
 
 import type { WearItem } from '../../actor/wardrobe';
+import { limitedSerial } from '../../economy/service';
+import { loadLimitedStock } from '../../economy/shopState';
 import type { OutfitSlot } from '../../sim/types';
 import { fontFamily } from '../font';
 import { ICON_BOX, itemIconPicture } from '../skia/itemIcon';
@@ -24,8 +26,10 @@ function ClosetTileInner({ slot, item, worn, onPress, reducedMotion }: Props) {
   const [lift] = useState(() => new Animated.Value(worn ? -3 : 0));
   const [width, setWidth] = useState(0);
   const bg = closet.section.bg;
-  const cap = iconCap[slot];
-  const size = width > 0 ? Math.min(cap, Math.max(0, width - 8)) : cap;
+  const iconSizeCap = iconCap[slot];
+  const serial = slot === 'hat' && item.id === 'crown' ? limitedSerial('hat:crown') : null;
+  const editionCap = loadLimitedStock().find((row) => row.itemId === 'hat:crown')?.cap ?? 500;
+  const size = width > 0 ? Math.min(iconSizeCap, Math.max(0, width - 8)) : iconSizeCap;
 
   useEffect(() => {
     const to = worn ? -3 : 0;
@@ -63,7 +67,7 @@ function ClosetTileInner({ slot, item, worn, onPress, reducedMotion }: Props) {
             numberOfLines={2}
             style={[styles.label, worn && styles.wornLabel]}
           >
-            {item.label}
+            {serial != null ? `#${serial} of ${editionCap}` : item.label}
           </Text>
         </Pressable>
       </Animated.View>

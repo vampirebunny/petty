@@ -78,21 +78,21 @@ function copyState(state: PetState): PetState {
   };
 }
 
-function bumpDiet(samples: CareSample[]): CareSample[] {
+function bumpDiet(samples: CareSample[], gain = feedDietGain): CareSample[] {
   const next = samples.map((sample) => ({ ...sample }));
   const today = next[next.length - 1];
   if (today == null) {
     return [
       {
         day: 0,
-        dietQuality: Math.min(1, feedDietGain),
+        dietQuality: Math.min(1, gain),
         exercise: 0,
         play: 0,
         attention: 0,
       },
     ];
   }
-  today.dietQuality = Math.min(1, today.dietQuality + feedDietGain);
+  today.dietQuality = Math.min(1, today.dietQuality + gain);
   return next;
 }
 
@@ -184,11 +184,15 @@ export function applyEvent(state: PetState, event: PetEvent): EventResult {
     const meal = event.meal;
     next.foodInBowl = false;
     next.bowlItemId = null;
-    next.needs.hunger = clampNeed(next.needs.hunger - feedHungerDrop * (meal?.hunger ?? 1));
+    if (meal?.fillTummy) {
+      next.needs.hunger = 0;
+    } else {
+      next.needs.hunger = clampNeed(next.needs.hunger - feedHungerDrop * (meal?.hunger ?? 1));
+    }
     next.needs.energy = clampNeed(next.needs.energy + feedEnergyGain * (meal?.energy ?? 1));
     next.xp += Math.round(feedXp * (meal?.xp ?? 1));
     next.drift.stamina = clampDrift(next.drift.stamina + feedStaminaDrift);
-    next.careWindow = bumpDiet(next.careWindow);
+    next.careWindow = bumpDiet(next.careWindow, meal?.diet ?? feedDietGain);
     next.weight = applyMeal(next.weight, meal?.weight ?? 1);
     if (meal && meal.mood > 0) {
       addHappiness(next, meal.mood);
