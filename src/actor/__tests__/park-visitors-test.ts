@@ -133,6 +133,34 @@ describe('park visitor rules', () => {
   });
 });
 
+describe('park visitor entry', () => {
+  it('walks fully onto the grass from either side', () => {
+    for (const fromLeft of [true, false]) {
+      const { world } = parkWorld();
+      let rolls = 0;
+      world.rng = () => {
+        rolls += 1;
+        return rolls === 1 ? 0.6 : 0.15;
+      };
+      syncParkVisitors(world, {
+        enabled: true,
+        offers: [offer('walker', 20, 20)],
+        stranger: null,
+      });
+      const player = world.actors[0];
+      player.x = fromLeft ? 500 : 120;
+      player.stats.boldness = 0.1;
+      player.cuddleAffinity = 0.1;
+      steps(world, 80);
+      const guest = world.actors.find((actor) => actor.guest);
+      expect(guest).toBeTruthy();
+      const floor = world.scene.floor;
+      expect(guest!.x).toBeGreaterThan(floor.xMin + 80);
+      expect(guest!.x).toBeLessThan(floor.xMax - 80);
+    }
+  });
+});
+
 describe('park visitor sim', () => {
   it('lets a friendly pair meet and pay mood once', () => {
     const { world, actor } = parkWorld();

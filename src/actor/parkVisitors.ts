@@ -1,5 +1,6 @@
 import { stageDayThresholds } from '../sim/config';
 import { breedById } from './breeds';
+import { snapFacing } from './facing';
 import type { Actor, ActorSource, Direction, ParkBook, ParkGuestState, ParkOffer, Vec, World } from './types';
 
 export const parkVisitorRules = {
@@ -361,10 +362,11 @@ function entrySide(world: World, y: number): { fromLeft: boolean; entryX: number
   }
   const crowded = (x: number) =>
     world.actors.some((actor) => Math.hypot(actor.x - x, actor.y - y) < rules.spawnClear);
-  let targetX = fromLeft ? floor.xMin + 48 : floor.xMax - 48;
+  const inset = Math.max(140, (floor.xMax - floor.xMin) * 0.28);
+  let targetX = fromLeft ? floor.xMin + inset : floor.xMax - inset;
   if (crowded(targetX)) {
     fromLeft = !fromLeft;
-    targetX = fromLeft ? floor.xMin + 48 : floor.xMax - 48;
+    targetX = fromLeft ? floor.xMin + inset : floor.xMax - inset;
   }
   const entryX = fromLeft ? floor.xMin - 70 : floor.xMax + 70;
   return { fromLeft, entryX, targetX };
@@ -408,6 +410,9 @@ function spawnVisitor(world: World, spawn: Spawn, at?: Vec, wandering = false): 
   );
   book.nonce += 1;
   actor.guest = true;
+  if (!wandering) {
+    snapFacing(actor, gate.fromLeft ? 1 : -1);
+  }
   const stay = rules.visitMin + world.rng() * rules.visitSpan;
   const guest: ParkGuestState = {
     actorId: actor.id,

@@ -2979,10 +2979,7 @@ export function update(world: World, dt: number): void {
   // The bowl pours in when food is added, empties while the pet eats, and stays empty after.
   world.bowlFill = clamp(world.bowlFill + (eating ? -1 / 6 : world.foodStocked ? 0.8 : -2) * step, 0, 1);
   for (const actor of world.actors) {
-    if (actor.guest) {
-      continue;
-    }
-    if (!(actor.task.type === 'sleep' && actor.task.stage === 'sleeping') && !actor.asleep) {
+    if (!actor.guest && !(actor.task.type === 'sleep' && actor.task.stage === 'sleeping') && !actor.asleep) {
       world.restLatched = false;
     }
     if (!actor.guest) {
