@@ -1,13 +1,33 @@
-import { useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Canvas, Group, Picture, Skia } from '@shopify/react-native-skia';
 import Svg, { Ellipse, Path, Rect } from 'react-native-svg';
 
 import { wearItem } from '../../actor/wardrobe';
-import type { ShopCatalog } from '../../economy/shop';
+import type { ShopCatalog, ShopCategory } from '../../economy/shop';
 import { ICON_BOX, itemIconPicture } from '../skia/itemIcon';
 import { drawToyShape, drawTreatShape } from '../skia/scenery';
 import { shop } from './theme';
+
+// How much of the square each shape may use. Wide toys stay inside the frame; round ones grow to fill it.
+function artRadius(category: ShopCategory, id: string, size: number): number {
+  if (category === 'toys') {
+    if (id === 'frisbee') {
+      return size * 0.31;
+    }
+    if (id === 'rope') {
+      return size * 0.26;
+    }
+    if (id === 'stick' || id === 'squeaky') {
+      return size * 0.36;
+    }
+    return size * 0.44;
+  }
+  if (id === 'softchew') {
+    return size * 0.4;
+  }
+  return size * 0.44;
+}
 
 type Props = {
   itemId: string;
@@ -38,14 +58,15 @@ export function ItemArt({ itemId, catalog, size, soon }: Props) {
     }
     const recorder = Skia.PictureRecorder();
     const canvas = recorder.beginRecording(Skia.XYWHRect(0, 0, size, size));
+    const radius = artRadius(item.category, item.id, size);
+    const mid = size / 2;
     if (item.category === 'toys') {
-      drawToyShape(canvas, item.id, size / 2, size / 2 + 2, size * 0.28);
+      drawToyShape(canvas, item.id, mid, mid, radius);
     } else {
-      drawTreatShape(canvas, item.id === 'second_wind' ? 'special' : item.id, size / 2, size / 2, size * 0.28);
+      drawTreatShape(canvas, item.id === 'second_wind' ? 'special' : item.id, mid, mid, radius);
     }
     return recorder.finishRecordingAsPicture();
   }, [item, size, soon, wear]);
-  useEffect(() => () => picture?.dispose(), [picture]);
 
   if (!item || soon || item.shop === 'coming_soon' || (item.category === 'clothes' && !wear)) {
     return <Gift size={size} />;

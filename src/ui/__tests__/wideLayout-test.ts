@@ -1,5 +1,12 @@
 import { stageHeight, stageWidth } from '../../actor/scenes';
-import { isLandscapeSplit, phoneColumnWidth, stageSizeFor, stackedHeightShare } from '../wideLayout';
+import {
+  allowsDeviceRotation,
+  isLandscapeSplit,
+  isSurfaceDuoModel,
+  phoneColumnWidth,
+  stageSizeFor,
+  stackedHeightShare,
+} from '../wideLayout';
 
 describe('isLandscapeSplit', () => {
   it('is on only for a large landscape window', () => {
@@ -7,6 +14,26 @@ describe('isLandscapeSplit', () => {
     expect(isLandscapeSplit(844, 390)).toBe(false);
     expect(isLandscapeSplit(834, 1194)).toBe(false);
     expect(isLandscapeSplit(1194, 834)).toBe(true);
+    expect(isLandscapeSplit(540, 720)).toBe(false);
+    expect(isLandscapeSplit(1114, 720)).toBe(true);
+    expect(isLandscapeSplit(720, 1114)).toBe(false);
+  });
+});
+
+describe('allowsDeviceRotation', () => {
+  it('lets a Duo screen rotate before the window is wide enough to split', () => {
+    expect(allowsDeviceRotation(390, 844)).toBe(false);
+    expect(allowsDeviceRotation(540, 720)).toBe(true);
+    expect(allowsDeviceRotation(1114, 720)).toBe(true);
+  });
+});
+
+describe('isSurfaceDuoModel', () => {
+  it('matches Surface Duo and not other phones', () => {
+    expect(isSurfaceDuoModel('Surface Duo', 'Microsoft')).toBe(true);
+    expect(isSurfaceDuoModel('Surface Duo 2', 'Microsoft')).toBe(true);
+    expect(isSurfaceDuoModel('Pixel 7', 'Google')).toBe(false);
+    expect(isSurfaceDuoModel('Galaxy Z Fold5', 'samsung')).toBe(false);
   });
 });
 

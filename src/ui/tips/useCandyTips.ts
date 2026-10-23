@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { loadCoachSeen } from '../../cuddle/guidance';
-import { canShowTip, phaseAfter } from './tipState';
+import { canOffer, phaseAfter, phaseOnShow } from './tipState';
 import type { TipId, TipPhase } from './tipState';
 
 const storageKey = 'petty.tips';
@@ -60,21 +60,32 @@ export function useCandyTips() {
     void AsyncStorage.setItem(storageKey, JSON.stringify(next));
   }, []);
 
+  const reveal = useCallback(
+    (id: TipId) => {
+      setCurrent(id);
+      const next = phaseOnShow(id, storeRef.current.phases[id]);
+      if (next && next !== storeRef.current.phases[id]) {
+        persist({ ...storeRef.current, phases: { ...storeRef.current.phases, [id]: next } });
+      }
+    },
+    [persist],
+  );
+
   const showNext = useCallback(() => {
     const phases = storeRef.current.phases;
     while (queue.current.length > 0) {
       const id = queue.current.shift();
-      if (id && canShowTip(phases[id])) {
-        setCurrent(id);
+      if (id && canOffer(id, phases[id])) {
+        reveal(id);
         return;
       }
     }
     setCurrent(null);
-  }, []);
+  }, [reveal]);
 
   const offer = useCallback(
     (id: TipId) => {
-      if (!ready.current || !canShowTip(storeRef.current.phases[id])) {
+      if (!ready.current || !canOffer(id, storeRef.current.phases[id])) {
         return;
       }
       if (current === id || queue.current.includes(id)) {
@@ -84,9 +95,9 @@ export function useCandyTips() {
         queue.current.push(id);
         return;
       }
-      setCurrent(id);
+      reveal(id);
     },
-    [current],
+    [current, reveal],
   );
 
   const finish = useCallback(

@@ -97,18 +97,19 @@ type CardProps = {
   ledge: string;
   radius: number;
   ledgeHeight?: number;
+  fill?: boolean;
   style?: StyleProp<ViewStyle>;
   children?: ReactNode;
 };
 
-export function LedgeCard({ face, ledge, radius, ledgeHeight = 4, style, children }: CardProps) {
+export function LedgeCard({ face, ledge, radius, ledgeHeight = 4, fill, style, children }: CardProps) {
   return (
-    <View style={[styles.cardOuter, { paddingBottom: ledgeHeight, borderRadius: radius }]}>
+    <View style={[styles.cardOuter, fill && styles.fill, { paddingBottom: ledgeHeight, borderRadius: radius }]}>
       <View
         pointerEvents="none"
         style={[styles.ledge, { top: ledgeHeight, backgroundColor: ledge, borderRadius: radius }]}
       />
-      <View style={[styles.cardFace, { backgroundColor: face, borderRadius: radius }, style]}>{children}</View>
+      <View style={[styles.cardFace, fill && styles.fill, { backgroundColor: face, borderRadius: radius }, style]}>{children}</View>
     </View>
   );
 }
@@ -132,6 +133,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     opacity: 0.48,
   },
+  fill: { flex: 1, alignSelf: 'stretch' },
   cardOuter: {
     shadowColor: '#B0508C',
     shadowOpacity: 0.1,

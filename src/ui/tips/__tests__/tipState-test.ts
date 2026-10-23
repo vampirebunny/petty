@@ -1,4 +1,4 @@
-import { phaseAfter, canShowTip } from '../tipState';
+import { phaseAfter, canShowTip, canOffer, phaseOnShow } from '../tipState';
 
 describe('tip phases', () => {
   it('lets a dismissed tip show once more, then never again', () => {
@@ -12,5 +12,15 @@ describe('tip phases', () => {
     expect(phaseAfter(undefined, 'act')).toBe('done');
     expect(phaseAfter('snoozed', 'act')).toBe('done');
     expect(phaseAfter('done', 'dismiss')).toBe('done');
+  });
+
+  it('retires the move tip the first time it is shown', () => {
+    expect(phaseOnShow('tip.move', undefined)).toBe('done');
+    expect(canOffer('tip.move', undefined)).toBe(true);
+    expect(canOffer('tip.move', phaseOnShow('tip.move', undefined))).toBe(false);
+    expect(canOffer('tip.move', 'snoozed')).toBe(false);
+    expect(canOffer('tip.water', 'snoozed')).toBe(true);
+    expect(phaseOnShow('tip.water', undefined)).toBeUndefined();
+    expect(phaseOnShow('tip.food', 'snoozed')).toBe('snoozed');
   });
 });

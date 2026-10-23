@@ -1,0 +1,228 @@
+# Boop Boop — Catalog art brief (rev 2): patterns, new shapes, toys, furniture
+
+This replaces rev 1 and answers your review. **Treats are on hold** (Part F) until we settle how they work. Build this after cosmetics v2.
+
+**Visual reference:** the "Boop Boop cosmetics v2" canvas: **New clothing shapes**, **New toys, furniture and treats**, and **Patterns**. The canvas dog is hand-drawn. Place everything with our anchors.
+
+**Scope**
+- In: drawing code and item definitions; toy play rules; the furniture plumbing for the dog house and the cat tree; the new squeak sound.
+- Out: prices, tiers, caps, NPC access and shop availability, which belong to the seed brief. Every new shop row stays `hidden`, including `food_fish`.
+- **Dev grant screen** (dev builds only): a list of every catalog item with a Grant button. It writes to the right store by kind: clothing to the Closet, toys to `owned_toys`, furniture to an owned-furniture row (which also places it at its default spot).
+
+---
+
+## Part 0: Switch drawing on shape, not id (do this first)
+
+Hats, boots, neckwear and glasses still pick their drawing by id, so a new id such as `beanie-pink` falls through to the wrong shape.
+
+- **Every slot draws by `shape`**, as jackets already do: hats, boots, neckwear and glasses. Unknown shapes draw nothing and log a warning. They never fall back to another item's shape.
+- **Glasses:** key `glassesStyles` by shape. Existing ids map to their current styles: `classic` → wayfarer, `square` → round, `red-rim` → soft.
+- **Ids:**
+  - The wear id stays the **short id** (`bandana-cherry`), used by `wearItem` and the Closet.
+  - The shop and ledger id is `slot:wearId` (`neckwear:bandana-cherry`).
+  - The tables below give the short id.
+- Existing items must draw exactly as before. Screenshot-diff them before and after.
+
+---
+
+## Part A: Patterns
+
+### Data
+`Colorway.pattern`: `stripes | gingham | plaid | daisies | stars | rainbow`. Base `c`, motif `d`. The plaid accent is always `#F0C94A` for now.
+
+### Unit
+`u = 0.1 × headR`.
+
+### Drawing
+1. Fill the part with `c`.
+2. Clip to the part and draw the pattern in **item-local space**, so it rotates, flips and squashes with the item. That includes stars: they're upright relative to the item, so they tilt with a tilted beret.
+3. Shading from `c` on top at 35% alpha, then the 2.0 item line.
+4. **Which parts get a pattern is explicit per shape** (`patternParts`). No width threshold.
+   - **Patterned:** body panels, hat crowns, bandana triangles, scarf bands and tails, bow-tie wings, collar bands.
+   - **Solid `c`:** straps, strings, cuffs, brim edges, the bow-tie band, knots, buttons.
+   - `top-velvet` patterns the **hatband only**. A patterned top-hat band fills with `c` and lays the `d` stars on top. The plain top hat has no pattern, so its band keeps today's fill (its `d`, the pale band) and stays pixel-identical.
+
+### Cache
+- **Cache one tile per `(pattern, c, d, u rounded to 0.5 px)`** as a recorded Skia picture, drawn untransformed, horizontal, at the origin. **The tile is the whole repeat cell**: two rows for the staggered daisy and star grids, so it repeats seamlessly.
+- **At draw time**, apply the item transform plus a per-slot angle and tile it across the clipped part, so angle and placement aren't in the key.
+- **Daisies:** the tile holds two daisies at two fixed rotations (as on the Patterns board), so no per-item seed is needed.
+- **Rainbow isn't cached.** It's six bands sized to each part's own height, drawn directly as six rects per part.
+- If a cached picture tiled under a clip is too slow on a low-end device, tell me before reaching for a runtime effect.
+
+### Specs (in u)
+
+| Pattern | Spec | Angle at draw time |
+|---|---|---|
+| Stripes | `d` bands, 1u wide, 1u apart | 30° on scarves and bandanas; horizontal on hats and boots; on jackets, **horizontal in each pass's own panel space** (along the spine in the side view, across the chest on the front panel, across the rump on the back panel) |
+| Gingham | Drawn as three explicit tones in the tile, not by blending: `c` base, `d` bands at 45% mixed into `c`, and the **crossings as their own squares**, `d` at 75% mixed into `c`. 1u bands, 1u apart. | 0° (item axis) |
+| Plaid | Wide `d` bands at 50%, 1.4u wide, every 4u both ways, plus a `#F0C94A` 0.3u line at 80% between them | 0° |
+| Daisies | 5 petals (0.6u × 1u) in `d` around a gold center (`#FFC93C`, r 0.55u), 1.6u across, staggered every 4u, two fixed rotations in the tile | 0° |
+| Stars | 5-point stars in `d`, 1.2u across, inner radius 45%, staggered every 3.5u | 0° (tilts with the item) |
+| Rainbow | 6 bands, each 1/6 of the part's height: `#FF7A8A #FFB86B #FFE38F #8FE3A6 #8FD3FF #B9A2F5`. Not cached. | Along the item's main axis |
+
+---
+
+## Part B: New clothing shapes
+
+Sizes are in `headR` unless marked as eye radii.
+
+### Hats (head transform, after the near ear)
+
+**3/4 view:** use the side drawing, positioned by `headFaceOf(...).top` at the current turn, exactly as the existing hats do. Front and back are their own drawings.
+
+**Erect ears:** every new hat (cap, bucket, beret, crown) uses the beanie's existing **`hatPoke`** behavior: after the hat, the erect ears are redrawn through it. No 85% scaling.
+
+| Shape | Side (and 3/4) | Front | Back |
+|---|---|---|---|
+| **Cap** | Dome ~1.7 headR wide, tilted −6°. Brim ~0.9 headR long over the snout, a seam, a band line at the base. **In 3/4,** the brim length is `0.9 × (1 − 0.3 × turn)` headR (0.63 headR at a full 3/4 turn). If its lower edge would still cross the near eye's top (`eyeY − eyeR − 0.05 × headR`), **tilt the brim up** about its base, up to +15°, rather than shortening it further. `d` = brim and top button. | Dome, brim as a flat ellipse below it, above the eyes | Dome and a strap arc, no brim |
+| **Bucket** | Crown ~1.5 headR wide, band in `d`, drooping brim ~2.5 headR across with a dashed stitch line | Same, brim as a wide ellipse | Same |
+| **Beret** | Tilted disc (rx 0.95, ry 0.35 headR) at −12°, a rolled band underneath, a curled stem on top | Flatter disc | Mirrored tilt |
+| **Crown** | Gold band (`c`), 3 points tipped with balls. Center tip gem and band gems use `d` (pink) alternating with fixed `#5AA9E6`. Tilted −8°. | Points centered | Points, no gems |
+
+**Sparkle:** the crown glints every 3–5 s. With reduced motion, show one static sparkle and no animation. The star shades work the same way.
+
+### Glasses (new styles keyed by shape; sizes in eye radii, like the existing styles)
+
+| Shape | Lens | `w`, `h` (half-sizes, eye radii) | Lens color | Glares |
+|---|---|---|---|---|
+| `heart` | Heart | 1.15, 1.05 | **From `d`** at `lensAlpha` **0.45**, within the range of today's lenses, so the eyes stay visible (new styles only; existing styles keep their hardcoded lenses) | 1 short arc |
+| `star` | 5-point star, inner radius 45% | 1.25, 1.25 | From `d` at 0.45 | none, plus the sparkle beside the near lens |
+
+### Neckwear: bow tie
+
+- **Front and side:** two rounded-triangle wings ~1.15 headR across in total, a `d` knot 0.35 × 0.4 headR, and a 0.12 headR band running back along the neck. Same order and anchor as v2 neckwear.
+- **Back mode is per shape now:** `neckBackMode: 'knot' | 'band'`. The bow tie uses **`band`**: in back and back-3/4 it draws the band only, replacing the knot dot. Every other neckwear keeps `knot`.
+- **Belly-up:** the wings are hidden and only the band shows, like the scarf tails.
+
+---
+
+## Part C: New clothing items
+
+| Wear id | Slot | Label | Shape | c | d | Pattern |
+|---|---|---|---|---|---|---|
+| `bandana-cherry` | neckwear | Cherry Bandana | bandana | `#E0526A` | — | — |
+| `scarf-stripe` | neckwear | Candy Stripe Scarf | scarf | `#FF8CC4` | `#FFFFFF` | stripes |
+| `bandana-gingham` | neckwear | Picnic Bandana | bandana | `#E0526A` | `#FFFFFF` | gingham |
+| `bowtie` | neckwear | Navy Bow Tie | bowtie | `#2B3A6B` | `#F0C94A` | — |
+| `bowtie-plaid` | neckwear | Plaid Bow Tie | bowtie | `#C84A4A` | `#2B3A6B` | plaid |
+| `heart` | glasses | Heart Shades | heart | `#FF5FA2` | `#FFB3D6` | — |
+| `heart-sky` | glasses | Sky Heart Shades | heart | `#5AA9E6` | `#BFE3FF` | — |
+| `star` | glasses | Star Shades | star | `#FFC93C` | `#FFE38F` | — |
+| `beanie-pink` | hat | Pink Beanie | beanie | `#FF8CC4` | — | — |
+| `beanie-stripe` | hat | Stripe Beanie | beanie | `#2B3A6B` | `#FFFFFF` | stripes |
+| `cap` | hat | Red Ball Cap | cap | `#D64545` | `#B23434` | — |
+| `cap-sky` | hat | Sky Ball Cap | cap | `#5AA9E6` | `#3F8FCC` | — |
+| `bucket` | hat | Sunny Bucket Hat | bucket | `#FFC93C` | `#E0A01E` | — |
+| `bucket-daisy` | hat | Daisy Bucket Hat | bucket | `#BFE9FF` | `#FFFFFF` | daisies |
+| `beret` | hat | Rose Beret | beret | `#E85A8C` | — | — |
+| `top-velvet` | hat | Midnight Top Hat | top | `#2B1F4A` | `#FFC93C` | stars (band only) |
+| `crown` | hat | Golden Crown | crown | `#FFC93C` | `#FF5FA2` | — |
+| `rain-blue` | boots | Puddle Blue Boots | rain | `#5AA9E6` | — | — |
+| `sneaker-pink` | boots | Bubblegum Sneakers | sneaker | `#FFC2E0` | `#8A5AD6` | — |
+| `sneaker-gold` | boots | Gold High-Tops | sneaker | `#E0B43C` | `#FFF3C4` | — |
+| `puffer-mint` | jacket | Mint Puffer | puffer | `#7FE3BA` | `#CFFBE8` | — |
+| `sweater-lilac` | jacket | Lilac Sweater | sweater | `#B9A2F5` | `#F1EBFF` | — |
+| `puffer-rainbow` | jacket | Rainbow Puffer | puffer | `#FF8CC4` | — | rainbow |
+
+---
+
+## Part D: Toys
+
+Two kinds of toy:
+- **Thrown toys** (everything except the wand and the laser) use the existing play task: a flick throws, and `PLAY_RULES` decides what the pet does. No "give" mode.
+- **Held toys** (`wand`, `laser`) use a new held mode, specified below.
+
+New toy ids are plain, like the existing `ball` and `yarn`. A toy with no play rule stays out of the picker.
+
+### Thrown toys
+
+| Id | Species | Rule |
+|---|---|---|
+| `crinkle` | cat | **The cat ball rule** (stalk, pounce, bat, no carry), plus the crinkle sound **on each bat and each time it hits the floor after a bat**. The sound comes later; it's silent until then. |
+| `mouse` | cat | **The yarn rule exactly.** A **squeak toy**: it plays the new squeak on each pounce, each bat, and each time it hits the floor (after the throw and after a bat). |
+| `bone` | dog | **One id everywhere:** the existing `bone` kind in `ITEM_KINDS` (gripped in the mouth) is the chew bone. Give it a drawing (the Icons board's Chewy Bone) and a play rule. Thrown. The dog fetches it in the mouth, then instead of returning it, **lies down where it caught it and chews** (`jawHold` oscillating, a slight head bob) for 20–40 s, with a small mood gain. A flick works as it does for every toy: it ends the chew, removes the bone and spawns a new one in the air at the finger. Label "Chewy Bone"; the catalog's `toy_chewbone` becomes `bone`. |
+| `rope` | dog | **No rule**, so it isn't in the picker. Icon only. |
+
+### Held toys: a new held play mode
+
+**Entering and leaving:**
+- Picking `wand` or `laser` in the toy picker starts **held mode** instead of a throw.
+- While held mode is on, every touch on the stage steers the toy. No throws, no prop dragging, and taps on props don't trigger actions.
+- A small glossy **Done** button (top right of the stage) ends it. So do picking another toy, or 8 s with no touch.
+- When the finger lifts, the toy stays where it was last placed; touching again picks it back up from there.
+- **Entering held mode stops play:** end the current `fetch` task and put the pet into idle. A thrown toy on the floor stays where it is, untouched, and the pet ignores it until held mode ends.
+
+**Coordinates (all in world space, through the stage scale, never screen pixels):**
+- **Wand:** the finger maps into the world at the **pet's current depth (y)**. Above the pet's floor line, the finger's height becomes the feathers' height `z`; below it, `z` = 0. Clamp x to the stage edges.
+- **Laser:** the dot ignores the pet's depth. It sits on the **finger's own floor point**: x from the finger, y from the finger clamped to the floor's `yMin..yMax`, `z` = 0, depth-scaled like any floor prop.
+
+**Feather wand (`wand`, cat):**
+- **Drawing:** the whole wand is drawn on screen, in the UI layer above the scene. The **feathers sit 0.6 × headR × the actor's scale above the finger point, in world space**, so the finger doesn't hide them and the reach is the same on every phone. The stick runs from the feathers down and out toward the nearest bottom corner, off-screen. Between the stick tip and the feathers is a short string on a damped spring, so the feathers lag, swing and flutter when moved. The feathers' position is the target the cat reacts to.
+- **The cat's behavior:**
+  - It tracks the feathers with its head.
+  - When they're slow and within about 3 body-lengths, it **stalks** toward them.
+  - When they move fast within reach and below its jump ceiling, it **leaps** (`jump` with `targetX` and `heightPx` set to the feathers' height).
+  - When they're low and close, it **swats** with a paw.
+  - **On a catch** (paw or mouth within 0.4 headR of the feathers), the feathers stick for about 0.8 s while the cat wiggles, then pop free with a small tug.
+- **Sound:** a soft rustle while moving fast. Silent is fine until we have one.
+- **Reduced motion:** no string swing; the feathers follow the finger with a short ease.
+
+**Laser pointer (`laser`, cat):**
+- **Drawing:** the pointer device is **fixed at the bottom center of the stage**, in the UI layer. It only **rotates to aim** at the dot. A thin red beam (`#FF4D4D`, 1.5 px, 40% alpha) runs from its tip to the dot. The **dot sits on the floor** at the finger's position, clamped to the floor area and depth-scaled like other floor items, with a soft red glow.
+- **The cat's behavior:**
+  - It chases the dot at its chase speed (sprinting when the dot moves fast).
+  - It **pounces** when the dot stops or slows within range.
+  - **The dot can never be caught:** on a pounce, it slips out from under the paw by about 0.5 headR.
+  - **Ending on a win:** when held mode ends, the cat's last pounce lands on a little sparkle burst and a mood gain, so a session never ends in frustration.
+  - After about 60 s of continuous chasing, the cat tires (normal stamina rules) and just watches the dot.
+- **Sound:** none; lasers are silent.
+
+**Dogs:** neither held toy is offered to dogs for now. Both are `species: cat`.
+
+**Squeaky:** wire the empty `squeak` sound entry to the new file (below). Play it on each bite or shake during the squeaky toy's chew, and once on landing.
+
+### New sound: `assets/sounds/freesound_community-squeeze-toy-104733.mp3`
+- It's already in the bundle. **Re-encode it in place as mp3**, matching the bark and meow files' bitrate and sample rate. Mono. Trim leading and trailing silence. Normalize loudness to the bark's level. Keep it under about 0.5 s; if it's longer, keep the cleanest single squeeze.
+- **Example** (match `-b:a` and `-ar` to the bark file):
+  `ffmpeg -i original.mp3 -af "silenceremove=start_periods=1:start_threshold=-45dB,areverse,silenceremove=start_periods=1:start_threshold=-45dB,areverse,loudnorm=I=-16:TP=-1.5" -ac 1 -ar 44100 -b:a 96k squeak.mp3`
+- Move the original out of the bundle into the source-assets folder.
+- **License:** check the Freesound page's license. If it's not CC0, add the attribution to the credits file.
+- **Pitch variance:** set `playbackRate` to a random value in 0.92–1.08 on each play, through the voice player's existing setting.
+
+---
+
+## Part E: Furniture
+
+Today the cat tree is hardcoded in the catio scene and copied into starter furniture, and there's no furniture kind for the dog house. Build the general version:
+
+1. **Furniture kinds registry:** `{ id, label, species, scenes (where it can go), footprint, defaultSpot per scene, napSpot?, perchSpot? }`. Drawing is per kind.
+2. **Ownership:** player-owned, through the existing owned-furniture rows. A purchase or the dev grant adds a row.
+3. **Placement:** a newly owned piece appears at its `defaultSpot` in its scene, or the nearest free spot. It's draggable like the existing props, and its position saves in `furniturePlaced` as today.
+4. **Cat tree:** keep the existing kind name, **`catTree`**. Remove the hardcoded prop from the catio scene and from starter furniture. It becomes a normal owned kind, placeable in the **catio and the rooms**, not the park. Update the furniture test that expects `catio-tree`: it should now pass only when the cat tree is owned and placed. Test installs lose it; that's fine.
+5. **Dog house** (`dogHouse`, dog): art per the Icons board at room scale. Placeable in the **rooms and any home outdoor scene (yard, patio) if one exists**, not the park or the catio.
+   - **Naps:** `beginIdle` targets the nearest bed today. When a dog house is placed in the current scene, **the dog house wins** over the bed for dogs.
+   - **Doorway:** split the dog house drawing into a **back layer** (roof back, interior shadow) and a **front layer** (front wall with the door opening cut out, roof front). Draw back layer, then the pet, then front layer. The pet's body is hidden behind the front wall and only the head and front paws show through the doorway. No clipping inside the pet's outline, so no halo.
+
+---
+
+## Part F: Treats (on hold)
+
+Don't add treat or meal rows yet. We're settling how treats work first, and the next brief will cover it, including merging `catalog.ts` and `treats/kinds.ts` into one definition, species art for the biscuit, and the species filter. `food_fish` stays hidden.
+
+---
+
+## Done when
+
+- [ ] Hats, boots, neckwear and glasses draw by shape; existing items are pixel-identical
+- [ ] Patterns tile from cached pictures with the angle applied at draw time; rainbow draws directly; `patternParts` decides where patterns go
+- [ ] The cap, bucket, beret and crown work in side, 3/4, front and back, with `hatPoke` ears; the cap brim never covers the eyes; sparkles respect reduced motion
+- [ ] Heart and star lenses take their tint from `d`
+- [ ] The bow tie uses `neckBackMode: 'band'` and hides its wings belly-up
+- [ ] All 23 Part C items can be granted with the dev action; shop rows stay `hidden`
+- [ ] `crinkle`, `mouse` and `bone` play by their thrown rules (flicks replace the toy, as today); the crinkle sounds on bats and floor hits, and the mouse squeaks on pounces, bats and floor hits; `rope` stays out of the picker; the squeaky uses the new squeak with pitch variance
+- [ ] Held mode works for `wand` (feathers follow the finger on a spring; stalk, leap, swat, catch) and `laser` (pointer fixed at the bottom and aiming; the dot on the floor never caught; sessions end on a win); Done, the 8 s idle and switching toys all exit cleanly
+- [ ] Held mode ends any fetch and idles the pet on entry; wand and laser positions are in world space
+- [ ] Furniture kinds exist; `dogHouse` and `catTree` are owned, placed and draggable in their allowed scenes; the dog house wins naps over the bed and hides the body behind its front wall; the cat tree is gone from the hardcoded catio and starter furniture; the furniture test is updated
+- [ ] The dev grant screen writes clothing, toys and furniture to their own stores
+
+Send screenshots of every Part C item on a light and a dark pet (a dog and a cat), and short recordings of each new toy.

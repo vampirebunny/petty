@@ -159,7 +159,7 @@ export function PetShopScreen({
   const split = limited == null && isLandscapeSplit(windowWidth, screenH);
   const pane = split ? windowWidth / 2 : (limited ?? windowWidth);
   const stageWidthPx = pane - 32;
-  const cardWidth = (pane - 32 - 12) / 2;
+  const cardWidth = Math.max(156, Math.min(188, Math.round((pane - 44) / 2.2)));
   const spin = useSharedValue(0);
   const celebrateSpin = useSharedValue(0);
   const celebrateDrop = useSharedValue(0);
@@ -393,6 +393,7 @@ export function PetShopScreen({
           <ScrollView
             style={split ? styles.choices : styles.choicesFill}
             contentContainerStyle={styles.scroll}
+            directionalLockEnabled
             showsVerticalScrollIndicator={false}
           >
             <Animated.View key={day.date} entering={reducedMotion ? undefined : FadeIn.duration(280)} style={styles.picks}>
@@ -450,7 +451,13 @@ export function PetShopScreen({
                   </Text>
                   <Text style={styles.categoryNote}>{group.note}</Text>
                 </View>
-                <View style={styles.grid}>
+                <ScrollView
+                  horizontal
+                  nestedScrollEnabled
+                  directionalLockEnabled
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.categoryRow}
+                >
                   {group.items.map((item) => (
                     <ShopCard
                       key={item.id}
@@ -467,7 +474,7 @@ export function PetShopScreen({
                       onQty={(qty) => setQty(item.id, 'item', qty)}
                     />
                   ))}
-                </View>
+                </ScrollView>
               </View>
             ))}
           </ScrollView>
@@ -571,19 +578,21 @@ function ShopCard({
   const soon = item.shop === 'coming_soon';
   const price = item.price == null ? null : deal ? discounted(item.price, catalog.dealPct) : item.price;
   const clothes = item.category === 'clothes';
+  const artSize = Math.round(width - 24);
   return (
-    <View style={[styles.cardSlot, { width }]}>
+    <View style={[styles.cardSlot, { width }, !butter && styles.cardStretch]}>
       <LedgeCard
         face={butter ? shop.butter : shop.surface}
         ledge={butter ? shop.butterLedge : shop.cardLedge}
         radius={shopRadius.card}
+        fill={!butter}
         style={[styles.card, butter && styles.cardCenter]}
       >
         {butter ? (
           <ItemArt itemId={item.id} catalog={catalog} size={64} soon={soon} />
         ) : (
-          <View style={styles.well}>
-            <ItemArt itemId={item.id} catalog={catalog} size={64} soon={soon} />
+          <View style={[styles.well, { width: artSize, height: artSize }]}>
+            <ItemArt itemId={item.id} catalog={catalog} size={artSize} soon={soon} />
           </View>
         )}
         <Text style={[styles.name, butter && styles.centered]}>{item.name}</Text>
@@ -1017,16 +1026,17 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   categoryNote: { fontFamily: fontFamily.extraBold, fontSize: 12, color: shop.inkMuted },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, paddingHorizontal: 16, marginTop: 4 },
+  categoryRow: { paddingHorizontal: 16, paddingTop: 12, gap: 12, alignItems: 'stretch' },
   cardSlot: { overflow: 'visible' },
+  cardStretch: { alignSelf: 'stretch' },
   card: { padding: 12, gap: 6 },
   cardCenter: { alignItems: 'center' },
   well: {
-    height: 76,
     borderRadius: shopRadius.well,
     backgroundColor: shop.bg,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
   name: { fontFamily: fontFamily.extraBold, fontSize: 14, color: shop.ink },
   centered: { textAlign: 'center' },

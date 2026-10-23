@@ -230,8 +230,6 @@ export function PetView({
       return recorder.finishRecordingAsPicture();
     }, [viewHeight, viewWidth]),
   );
-  const livePicture = useRef<SkPicture | null>(null);
-  const retired = useRef<{ picture: SkPicture; at: number }[]>([]);
   const travelRef = useRef<{
     dest: Scene | null;
     phase: 'exit' | 'fade' | 'enter';
@@ -263,19 +261,9 @@ export function PetView({
       canvas.drawRect(bounds, paint);
     }
     const next = recorder.finishRecordingAsPicture();
-    const previous = livePicture.current ?? picture.value;
-    livePicture.current = next;
+    // Leave the previous picture for GC. dispose() marks the host object dead while Fabric
+    // and the Skia recorder can still read it, which throws and wedges the React scheduler.
     picture.value = next;
-    if (previous !== next) {
-      retired.current.push({ picture: previous, at: now });
-    }
-    const staleBefore = now - 1000;
-    while (retired.current.length > 0 && retired.current[0].at < staleBefore) {
-      const stale = retired.current.shift();
-      if (stale && stale.picture !== livePicture.current) {
-        stale.picture.dispose();
-      }
-    }
   }, [picture]);
   const redrawRef = useRef(redraw);
   useEffect(() => {

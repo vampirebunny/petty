@@ -84,8 +84,6 @@ export function PlaydateStage({ record, reducedMotion, onDone }: Props) {
     let placed: OpeningPhase | null = null;
     let finished = false;
     let running = true;
-    let live: SkPicture | null = null;
-    const retired: { picture: SkPicture; at: number }[] = [];
     const tod = todAt(record.hour);
     const cues = ambientCues(record.version, voiceCues(record.seed, endMs), beats);
     let cueIndex = 0;
@@ -265,14 +263,6 @@ export function PlaydateStage({ record, reducedMotion, onDone }: Props) {
               : undefined;
       drawWorld(canvas, world, viewWidth, viewHeight, tod, reducedMotion, undefined, camera, { bursts, rope, butterfly, zzz });
       const next = recorder.finishRecordingAsPicture();
-      if (live) {
-        retired.push({ picture: live, at: now });
-      }
-      live = next;
-      const staleBefore = now - 1000;
-      while (retired.length > 0 && retired[0].at < staleBefore) {
-        retired.shift()?.picture.dispose();
-      }
       setPicture(next);
       if (!finished && playing && elapsed >= endMs) {
         finished = true;
@@ -284,14 +274,6 @@ export function PlaydateStage({ record, reducedMotion, onDone }: Props) {
     return () => {
       running = false;
       cancelAnimationFrame(raf);
-      const current = live;
-      const pending = retired.splice(0);
-      setTimeout(() => {
-        current?.dispose();
-        for (const stale of pending) {
-          stale.picture.dispose();
-        }
-      }, 1000);
     };
   }, [beats, endMs, record.hour, record.seed, record.version, reducedMotion, viewHeight, viewWidth, world]);
 

@@ -53,8 +53,6 @@ export function PetPreview({ species, breedId, look, height }: Props) {
   const breed = breedId ?? fallbackBreed[species];
   const [picture, setPicture] = useState<SkPicture | null>(null);
   const worldRef = useRef<World | null>(null);
-  const retired = useRef<{ picture: SkPicture; at: number }[]>([]);
-  const live = useRef<SkPicture | null>(null);
 
   // Rebuild the world when the species changes (a dog's idle state does not carry over to a cat),
   // and update the actor in place when only the breed or look changes.
@@ -84,15 +82,7 @@ export function PetPreview({ species, breedId, look, height }: Props) {
       const canvas = recorder.beginRecording(Skia.XYWHRect(0, 0, viewWidth, viewHeight));
       drawWorld(canvas, world, viewWidth, viewHeight, noon, true, previewStageHeight, undefined, undefined, { sky: null });
       const next = recorder.finishRecordingAsPicture();
-      const now = Date.now();
-      if (live.current) {
-        retired.current.push({ picture: live.current, at: now });
-      }
-      live.current = next;
       setPicture(next);
-      while (retired.current.length > 0 && retired.current[0].at < now - 1000) {
-        retired.current.shift()?.picture.dispose();
-      }
     };
 
     const loop = () => {

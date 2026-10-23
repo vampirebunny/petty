@@ -114,7 +114,7 @@ Top to bottom:
 3. **Today's picks:** a horizontally scrolling row on a butter-yellow shelf, plus the countdown chip.
 4. **Featured bundle card.**
 5. **Categories:** Boosts, Clothes, Toys, and Treats, all on the page under the bundle. Each section has a title and where items go: "Goes to your Pantry", "Try on, then Closet", "Goes to your Toy Box". There is no tab bar.
-6. **Item grids:** 2 columns under each category, `always` and `coming_soon` items, filtered by species. `coming_soon` cards sort after the buyable ones in their category. A category with nothing to show is omitted.
+6. **Item rows:** each category is a horizontal scroll of `always` and `coming_soon` items, filtered by species. Cards are a fixed width so the next one peeks in. `coming_soon` cards sort after the buyable ones in their category. A category with nothing to show is omitted.
 
 **Card states:**
 

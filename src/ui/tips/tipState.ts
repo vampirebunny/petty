@@ -15,3 +15,19 @@ export function phaseAfter(phase: TipPhase | undefined, event: 'act' | 'dismiss'
 export function canShowTip(phase: TipPhase | undefined): boolean {
   return phase !== 'done';
 }
+
+// The move tip is finished the moment it appears. A dismiss does not schedule another show.
+// A snoozed move tip was already shown under the old rule, so it stays retired too.
+export function canOffer(id: TipId, phase: TipPhase | undefined): boolean {
+  if (id === 'tip.move') {
+    return phase == null;
+  }
+  return canShowTip(phase);
+}
+
+export function phaseOnShow(id: TipId, phase: TipPhase | undefined): TipPhase | undefined {
+  if (id === 'tip.move') {
+    return 'done';
+  }
+  return phase;
+}

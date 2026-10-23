@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Canvas, Picture, Skia } from '@shopify/react-native-skia';
 import { Pressable } from 'react-native-gesture-handler';
@@ -92,13 +92,6 @@ export function FacingLab({ reducedMotion, onClose }: Props) {
     }
     return recorder.finishRecordingAsPicture();
   }, [reducedMotion, t, theta]);
-
-  useEffect(() => {
-    return () => {
-      grid.dispose();
-      slider.dispose();
-    };
-  }, [grid, slider]);
 
   return (
     <View style={styles.root}>

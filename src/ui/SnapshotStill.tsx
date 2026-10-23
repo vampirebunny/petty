@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import { StyleSheet } from 'react-native';
 import { Canvas, Picture, Skia } from '@shopify/react-native-skia';
 
@@ -34,8 +34,6 @@ export function SnapshotStill({ snapshot, width, height, focus = false }: Props)
     });
     return recorder.finishRecordingAsPicture();
   }, [focus, height, snapshot, width]);
-
-  useEffect(() => () => picture.dispose(), [picture]);
 
   return (
     <Canvas style={[styles.canvas, { width, height }]} pointerEvents="none">

@@ -5,7 +5,7 @@ import { stars } from '../../actor';
 import { moonArc } from '../../actor/sky';
 import type { Env } from './env';
 import { weatherOf } from './env';
-import { cachedPath, circle, clamp01, css, ellipse, fill, glow, gradRect, hash, linearStroke, makePath, mixc, ov, rgba, stroke } from './ink';
+import { cachedPath, circle, clamp01, css, ellipse, fill, glow, gradRect, hash, linearStroke, mixc, ov, rgba, stroke } from './ink';
 
 export type SkyArc = {
   /** The span the sun and moon travel across (the stage for an outdoor backdrop, the pane for a window). */
@@ -105,15 +105,15 @@ export function drawMoonDisc(c: SkCanvas, cx: number, cy: number, r: number, pha
   circle(c, cx, cy, r, '#3d4660', alpha * 0.35 * night);
   const waxing = phase < 0.5;
   const k = Math.abs(Math.cos(phase * 2 * Math.PI));
-  const lit = makePath((p) => {
-    const disc = ov(cx, cy, r, r);
-    const term = ov(cx, cy, Math.max(0.01, r * k), r);
-    p.moveTo(cx, cy - r);
-    p.arcToOval(disc, -90, waxing ? 180 : -180, false);
-    const bulgesRight = waxing ? phase < 0.25 : phase < 0.75;
-    p.arcToOval(term, 90, bulgesRight ? -180 : 180, false);
-    p.close();
-  });
+  const disc = ov(cx, cy, r, r);
+  const term = ov(cx, cy, Math.max(0.01, r * k), r);
+  const bulgesRight = waxing ? phase < 0.25 : phase < 0.75;
+  const lit = Skia.PathBuilder.Make()
+    .moveTo(cx, cy - r)
+    .arcToOval(disc, -90, waxing ? 180 : -180, false)
+    .arcToOval(term, 90, bulgesRight ? -180 : 180, false)
+    .close()
+    .detach();
   if (illum > 0.015) {
     c.drawPath(lit, fill('#f7f2dc', alpha));
     c.save();

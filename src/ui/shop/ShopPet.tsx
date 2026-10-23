@@ -61,8 +61,6 @@ export function ShopPet({ pet, equipped, reducedMotion, width, height }: Props) 
   const petRef = useRef(pet);
   const hopUntil = useRef(0);
   const wornSeen = useRef(wornKey(equipped));
-  const retired = useRef<{ picture: SkPicture; at: number }[]>([]);
-  const live = useRef<SkPicture | null>(null);
 
   useEffect(() => {
     equippedRef.current = equipped;
@@ -127,15 +125,7 @@ export function ShopPet({ pet, equipped, reducedMotion, width, height }: Props) 
       const canvas = recorder.beginRecording(Skia.XYWHRect(0, 0, box.width, box.height));
       drawPetOnly(canvas, world, box.width, box.height, noon, cameraFor(box.width, box.height, petRef.current));
       const next = recorder.finishRecordingAsPicture();
-      const now = Date.now();
-      if (live.current) {
-        retired.current.push({ picture: live.current, at: now });
-      }
-      live.current = next;
       setPicture(next);
-      while (retired.current.length > 0 && retired.current[0].at < now - 1000) {
-        retired.current.shift()?.picture.dispose();
-      }
     };
 
     const loop = () => {
@@ -184,12 +174,6 @@ export function ShopPet({ pet, equipped, reducedMotion, width, height }: Props) 
       running = false;
       cancelAnimationFrame(raf);
       subscription.remove();
-      live.current?.dispose();
-      live.current = null;
-      for (const stale of retired.current) {
-        stale.picture.dispose();
-      }
-      retired.current = [];
     };
   }, []);
 

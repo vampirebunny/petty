@@ -26,17 +26,17 @@ Holding a prop for 400ms lifts it so it can be moved. A tap never moves a prop. 
 
 ## Tips
 
-One candy tooltip shows at a time. Doing the action marks it seen. Dismissing it without acting allows one later show, then never again. Seen tips are stored on the device.
+One candy tooltip shows at a time. Doing the action marks it seen. Dismissing it without acting allows one later show, then never again, except `tip.move`, which is marked seen the moment it appears. Seen tips are stored on the device.
 
 - `tip.water`, `tip.food`, `tip.sleep`: the first time that stat crosses under 30, pointing at the bowl or bed.
 - `tip.cuddle`: the first time Cuddle is entered. Copy is "Stroke his back or head". The ghost finger and the long-press help sheet stay.
-- `tip.move`: after two prop taps, or when a new placeable arrives once a prop tap has already happened. "Hold to move things around".
+- `tip.move`: after two prop taps, or when a new placeable arrives once a prop tap has already happened. "Hold to move things around". The first time it appears it is marked seen, so a later tap or a new placeable does not bring it back.
 
 After a prop tip has been seen, that prop shimmers while its need stays under 30. Reduce Motion turns off the bob, the pulse, and the shimmer.
 
 ## Wide screens
 
-Phones stay portrait. A tablet, spanned Duo, or unfolded foldable (shorter side at least 600dp) may rotate. Portrait, including an upright iPad, keeps the scene stacked above the controls.
+Phones stay portrait. A tablet or an unfolded foldable may rotate once its shorter side is at least 520dp. The landscape split starts at 600dp. Surface Duo rotates on one screen (about 540×720). Opened wide, hinge vertical, the window is about 1114×720 and uses the landscape split. Opened with the hinge horizontal, the window is about 720×1114 and stays stacked. Portrait, including an upright iPad, keeps the scene stacked above the controls.
 
 In landscape, the header (logo, name, Boop counter) stays full width. The scene fills the left side. The controls sit in a 400pt column on the right: need rings, Where, training, and the action panel. The toy card and treat picker open in that column, under the header. The seam is not locked to a fold hinge.
 

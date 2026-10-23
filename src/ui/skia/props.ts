@@ -189,11 +189,11 @@ function drawBed(c: SkCanvas, prop: Prop, env: Env): void {
   ellipse(c, 0, -15 + dip * 1.5, rx - 15, 7.5 - dip, darken(cushion, dip * 0.12));
   ellipse(c, 0, -17.5 + dip * 1.5, rx - 18, 4, '#000000', 0.12 + dip * 0.08);
   // Front of the bolster: a fat crescent over the cushion's front edge.
-  const front = makePath((p) => {
-    p.addArc(ov(0, -11, rx - 1, 14), 0, 180);
-    p.arcToOval(ov(0, -15 + dip * 1.5, rx - 14 + dip * 2, 8), 180, -180, false);
-    p.close();
-  });
+  const front = Skia.PathBuilder.Make()
+    .addArc(ov(0, -11, rx - 1, 14), 0, 180)
+    .arcToOval(ov(0, -15 + dip * 1.5, rx - 14 + dip * 2, 8), 180, -180, false)
+    .close()
+    .detach();
   c.drawPath(front, linear(0, -16, 0, 3, [lighten(col, 0.16), col, darken(col, 0.18)], [0, 0.45, 1]));
   c.drawPath(
     makePath((p) => p.addArc(ov(0, -13.5 + dip, rx - 7, 9.5), 25, 130)),

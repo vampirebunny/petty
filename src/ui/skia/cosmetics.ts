@@ -418,9 +418,7 @@ function clipTo(path: SkPath, mask: SkPath): SkPath {
 }
 
 function rectPath(x: number, y: number, w: number, h: number): SkPath {
-  const path = Skia.Path.Make();
-  path.addRect(Skia.XYWHRect(x, y, w, h));
-  return path;
+  return Skia.Path.Rect(Skia.XYWHRect(x, y, w, h));
 }
 
 function sideSilhouette(geom: Geom, item: WearItem, breath: number, pose: JacketPose): SkPath {
@@ -621,8 +619,7 @@ export function drawChestDetails(
       const pocket = torsoPoint(geom, theta, dy, geom.bodyLen * 0.12, geom.bodyY + geom.bodyH * 0.28);
       const pw = geom.bodyLen * 0.22;
       const ph = geom.bodyH * 0.16;
-      const path = Skia.Path.Make();
-      path.addRRect(Skia.RRectXY(Skia.XYWHRect(pocket.x - pw, pocket.y - ph, pw * 2, ph * 2), ph * 0.4, ph * 0.4));
+      const path = Skia.Path.RRect(Skia.RRectXY(Skia.XYWHRect(pocket.x - pw, pocket.y - ph, pw * 2, ph * 2), ph * 0.4, ph * 0.4));
       paintShape(c, path, highlightTone(item.colorway.c), fur, () => {
         strokeLine(c, pocket.x - pw, pocket.y - ph * 0.7, pocket.x + pw, pocket.y - ph * 0.7, accentOf(item, item.colorway.c), 1.6);
       });
@@ -1013,14 +1010,13 @@ function glassesLayout(face: HeadFace, item: WearItem): GlassesLayout {
 }
 
 function lensPath(shape: 'wayfarer' | 'round' | 'soft', w: number, h: number): SkPath {
+  if (shape === 'soft') {
+    const rr = Math.min(w, h) * 0.6;
+    return Skia.Path.RRect(Skia.RRectXY(Skia.XYWHRect(-w, -h, w * 2, h * 2), rr, rr));
+  }
   const p = Skia.Path.Make();
   if (shape === 'round') {
     p.addOval(oval(0, 0, w, h));
-    return p;
-  }
-  if (shape === 'soft') {
-    const rr = Math.min(w, h) * 0.6;
-    p.addRRect(Skia.RRectXY(Skia.XYWHRect(-w, -h, w * 2, h * 2), rr, rr));
     return p;
   }
   // Wayfarer: a straight brow line and a rounded bottom that dips toward the cheek.
@@ -1149,15 +1145,13 @@ export function drawHatShape(c: SkCanvas, item: WearItem, r: number, fur: string
   }
   c.save();
   c.rotate(-0.1 * (180 / Math.PI), 0, 0);
-  const crown = Skia.Path.Make();
-  crown.addRRect(Skia.RRectXY(Skia.XYWHRect(-r * 0.42, -r * 1.95, r * 0.84, r * 1.05), r * 0.08, r * 0.08));
+  const crown = Skia.Path.RRect(Skia.RRectXY(Skia.XYWHRect(-r * 0.42, -r * 1.95, r * 0.84, r * 1.05), r * 0.08, r * 0.08));
   paintShape(c, crown, item.colorway.c, fur);
   const brim = Skia.Path.Make();
   brim.addOval(oval(0, -r * 0.92, r * sizes.topBrim, r * 0.2));
   paintShape(c, brim, item.colorway.c, fur);
   const band = item.colorway.d ?? mix(item.colorway.c, '#ffffff', 0.55);
-  const wrap = Skia.Path.Make();
-  wrap.addRect(Skia.XYWHRect(-r * 0.42, -r * 1.22, r * 0.84, r * 0.18));
+  const wrap = Skia.Path.Rect(Skia.XYWHRect(-r * 0.42, -r * 1.22, r * 0.84, r * 0.18));
   paintShape(c, wrap, band);
   c.restore();
 }

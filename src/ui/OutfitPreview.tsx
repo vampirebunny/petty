@@ -92,8 +92,6 @@ export function OutfitPreview({
     return recorder.finishRecordingAsPicture();
   }, [ageDays, bare, breedId, cameraY, equipped, height, look, pose, seed, t, vitality, weight, width, zoom]);
 
-  useEffect(() => () => picture.dispose(), [picture]);
-
   return (
     <Canvas style={[styles.canvas, { width, height }]} pointerEvents="none">
       <Picture picture={picture} />
