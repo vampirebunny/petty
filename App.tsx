@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
+import { Fredoka_600SemiBold, Fredoka_700Bold } from '@expo-google-fonts/fredoka';
 import {
   Nunito_400Regular,
   Nunito_600SemiBold,
@@ -34,6 +35,8 @@ export default function App() {
     [fontFamily.bold]: Nunito_700Bold,
     [fontFamily.extraBold]: Nunito_800ExtraBold,
     [fontFamily.black]: Nunito_900Black,
+    [fontFamily.fredokaSemibold]: Fredoka_600SemiBold,
+    [fontFamily.fredokaBold]: Fredoka_700Bold,
   });
   const fontsReady = fontsLoaded || fontError != null;
   const { width: windowWidth } = useWindowDimensions();

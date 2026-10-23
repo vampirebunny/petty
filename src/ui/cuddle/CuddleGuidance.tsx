@@ -1,27 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import Animated, {
-  Easing,
-  cancelAnimation,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withSequence,
-  withTiming,
-} from 'react-native-reanimated';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
-import { coachClosing, coachSteps, cuddleHint, helpItems, helpTitle } from '../../cuddle/guidance';
+import { helpItems, helpTitle } from '../../cuddle/guidance';
 import { minTouch, theme } from '../theme';
-
-export function CuddleHintPill() {
-  return (
-    <View pointerEvents="none" style={styles.pillWrap}>
-      <View style={styles.pill} accessible accessibilityLabel={cuddleHint}>
-        <Text style={styles.pillText}>{cuddleHint}</Text>
-      </View>
-    </View>
-  );
-}
 
 type GhostProps = {
   // View coordinates along the pet's back.
@@ -51,65 +33,6 @@ export function GhostFinger({ from, to, reducedMotion, onDone }: GhostProps) {
       pointerEvents="none"
       style={[styles.ghost, { left: from.x - 16, top: from.y - 16 }, style]}
     />
-  );
-}
-
-type CoachProps = {
-  name: string;
-  // Where to point, in view coordinates. Null points at the middle.
-  target: { x: number; y: number } | null;
-  width: number;
-  height: number;
-  onDone: () => void;
-};
-
-// Three short steps over the play area. Skip is available at every step.
-export function CoachMarks({ name, target, width, height, onDone }: CoachProps) {
-  const [step, setStep] = useState(0);
-  const steps = coachSteps(name);
-  const last = step === steps.length - 1;
-  const pulse = useSharedValue(0);
-  useEffect(() => {
-    pulse.value = withRepeat(withSequence(withTiming(1, { duration: 700 }), withTiming(0, { duration: 700 })), -1);
-    return () => cancelAnimation(pulse);
-  }, [pulse]);
-  const ring = useAnimatedStyle(() => ({
-    opacity: 0.5 + 0.4 * pulse.value,
-    transform: [{ scale: 1 + 0.12 * pulse.value }],
-  }));
-  const point = target ?? { x: width / 2, y: height / 2 };
-  return (
-    <View style={[StyleSheet.absoluteFill, styles.coach]} accessibilityViewIsModal>
-      <Animated.View
-        pointerEvents="none"
-        style={[styles.ring, { left: point.x - 64, top: point.y - 48 }, ring]}
-      />
-      <View style={styles.card}>
-        <Text style={styles.cardStep}>
-          {step + 1} of {steps.length}
-        </Text>
-        <Text style={styles.cardText}>{steps[step]}</Text>
-        {last ? <Text style={styles.cardClosing}>{coachClosing}</Text> : null}
-        <View style={styles.cardRow}>
-          <Pressable
-            style={styles.cardButton}
-            accessibilityRole="button"
-            accessibilityLabel="Skip"
-            onPress={onDone}
-          >
-            <Text style={styles.cardSkip}>Skip</Text>
-          </Pressable>
-          <Pressable
-            style={[styles.cardButton, styles.cardNext]}
-            accessibilityRole="button"
-            accessibilityLabel={last ? 'Got it' : 'Next'}
-            onPress={() => (last ? onDone() : setStep(step + 1))}
-          >
-            <Text style={styles.cardNextText}>{last ? 'Got it' : 'Next'}</Text>
-          </Pressable>
-        </View>
-      </View>
-    </View>
   );
 }
 

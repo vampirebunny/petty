@@ -31,6 +31,12 @@ export type Env = {
   reduced: boolean;
   bowlFill: number;
   waterLevel: number;
+  /** The bed was asked for and Z has not lain down yet. */
+  bedInvited?: boolean;
+  liftedId?: string | null;
+  squishId?: string | null;
+  squishAt?: number;
+  shimmerIds?: readonly string[];
   glows: Glow[];
   // Where a pet is eating or drinking right now, so a bowl can react.
   feeding: { x: number; y: number; kind: 'eat' | 'drink' }[];

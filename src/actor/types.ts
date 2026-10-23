@@ -597,6 +597,8 @@ export type SoundEvent = {
   rate: number;
 };
 
+export type CareInvite = 'food' | 'water' | 'bed';
+
 export type World = {
   actors: Actor[];
   items: Item[];
@@ -609,6 +611,19 @@ export type World = {
   // Food waiting in the bowl, and meals finished since the view last looked.
   foodStocked: boolean;
   premiumMeal?: boolean;
+  // Player taps, oldest first. The prop itself is the queue.
+  invites: CareInvite[];
+  // The invite Z is walking toward or acting on right now.
+  serving: CareInvite | null;
+  // Set the frame he lies down, so the pet record can flip asleep.
+  pendingRest: boolean;
+  restLatched: boolean;
+  glance: { face: 1 | -1; left: number } | null;
+  liftedId: string | null;
+  squishId: string | null;
+  squishAt: number;
+  // Prop ids that should shimmer. The view fills this; the sim never decides it.
+  shimmerIds: string[];
   pendingMeals: number;
   pendingPlayFinds: ('fetch_round' | 'toy_round')[];
   // Mood-point amounts waiting to be shown, one per treat the pet has finished.

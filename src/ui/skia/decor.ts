@@ -49,7 +49,7 @@ export function drawPumpkin(c: SkCanvas, x: number, y: number, s: number, env: E
     poly(c, [x - 6 * s, y - 7.5 * s, x + 6 * s, y - 7.5 * s, x + 4 * s, y - 4.5 * s, x + 1.5 * s, y - 6 * s, x, y - 4 * s, x - 1.5 * s, y - 6 * s, x - 4 * s, y - 4.5 * s], col);
     if (lit > 0.05) {
       // Glows are in stage coordinates; this may be drawn inside a prop's local space.
-      env.glows.push({ x: x + (env.anchor?.x ?? 0), y: y - 9 * s + (env.anchor?.y ?? 0), r: 34 * s, a: lit * 0.7 });
+      env.glows.push({ x: x + (env.anchor?.x ?? 0), y: y - 9 * s + (env.anchor?.y ?? 0), r: 34 * s, a: lit });
     }
   }
 }

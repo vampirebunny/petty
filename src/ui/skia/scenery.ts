@@ -1,4 +1,4 @@
-import { StrokeCap, Skia } from '@shopify/react-native-skia';
+import { ClipOp, StrokeCap, Skia } from '@shopify/react-native-skia';
 import type { SkCanvas } from '@shopify/react-native-skia';
 
 import type { Scene, World } from '../../actor';
@@ -31,6 +31,18 @@ export function drawProp(c: SkCanvas, prop: Prop, env: Env): void {
   env.anchor = { x: prop.x, y: prop.y };
   c.save();
   c.translate(prop.x, prop.y);
+  const lifted = env.liftedId === prop.id;
+  const squishAge = env.squishId === prop.id ? env.t - (env.squishAt ?? env.t) : -1;
+  let pop = lifted ? 1.08 : 1;
+  if (squishAge >= 0 && squishAge < 0.18) {
+    pop *= 1 - 0.06 * Math.sin((squishAge / 0.18) * Math.PI);
+  }
+  if (lifted) {
+    fillOval(c, 0, 8, 46, 12, '#000000', 0.16);
+  }
+  if (pop !== 1) {
+    c.scale(pop, pop);
+  }
   if (prop.scale) {
     c.scale(prop.scale, prop.scale);
   }
@@ -38,6 +50,15 @@ export function drawProp(c: SkCanvas, prop: Prop, env: Env): void {
     c.scale(-1, 1);
   }
   drawPropBody(c, prop, env);
+  if (prop.id && env.shimmerIds?.includes(prop.id) && !env.reduced) {
+    const sweep = (env.t % 3) / 3;
+    c.save();
+    c.clipRect(Skia.XYWHRect(-70, -80, 140, 90), ClipOp.Intersect, true);
+    fillOval(c, -50 + sweep * 120, -20, 16, 28, '#FFFFFF', 0.45);
+    const twinkle = 0.65 + Math.sin(env.t * 4) * 0.35;
+    fillCircle(c, 24, -36, 3.5 * twinkle, '#FFFFFF', 0.8);
+    c.restore();
+  }
   c.restore();
   env.anchor = saved;
 }
@@ -58,7 +79,7 @@ export function drawBackdrop(c: SkCanvas, scene: Scene, env: Env, bleed = 0): vo
 
 // Falling leaves from the scene, rain and snow from the weather, the scene's own colour wash,
 // overcast gloom, and lamp glows. The glows use screen blending and are drawn last so they stay bright.
-export function drawAmbient(c: SkCanvas, world: World, env: Env, bleed = 0): void {
+export function drawAmbient(c: SkCanvas, world: World, env: Env, bleed = 0, skipGlows = false): void {
   const scene = world.scene;
   const ambient = scene.ambient;
   const particles = ambient?.particles;
@@ -88,9 +109,13 @@ export function drawAmbient(c: SkCanvas, world: World, env: Env, bleed = 0): voi
   if (ambient?.tint) {
     c.drawRect(Skia.XYWHRect(left, 0, span, stageHeight), paintOf(ambient.tint));
   }
-  overcastWash(c, left, 0, span, stageHeight, env, scene.time === 'outdoor' ? 0.22 : 0.12);
-  for (const g of env.glows) {
-    glow(c, g.x, g.y, g.r, '#ffc464', 0.8 * g.a);
+  if (!(scene.time === 'indoor' && env.tod.dark > 0.2)) {
+    overcastWash(c, left, 0, span, stageHeight, env, scene.time === 'outdoor' ? 0.22 : 0.12);
+  }
+  if (!skipGlows) {
+    for (const g of env.glows) {
+      glow(c, g.x, g.y, g.r, '#ffc464', 0.8 * g.a);
+    }
   }
 }
 

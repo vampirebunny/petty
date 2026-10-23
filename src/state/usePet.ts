@@ -80,6 +80,7 @@ type PetApi = {
   reportDrank: (fromBowl: boolean) => void;
   reportAte: () => void;
   rest: () => void;
+  beginRest: () => void;
   pet: () => void;
   startCuddle: () => void;
   finishCuddle: (seconds: number) => void;
@@ -706,6 +707,7 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
     [dispatch],
   );
   const rest = useCallback(() => dispatch({ type: 'toggleRest' }), [dispatch]);
+  const beginRest = useCallback(() => dispatch({ type: 'beginRest' }), [dispatch]);
   const pet = useCallback(() => commitProgress({ type: 'pet' }), [commitProgress]);
 
   const rememberGreeting = useCallback(
@@ -790,6 +792,7 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
     reportDrank,
     reportAte,
     rest,
+    beginRest,
     pet,
     rememberGreeting,
     startCuddle,

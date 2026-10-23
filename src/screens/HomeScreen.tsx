@@ -45,15 +45,12 @@ import { basicTreatId } from '../economy/state';
 import { newRequestId, outfitsOwned } from '../economy/service';
 import { canGiveTreat, treatsInInventory } from '../treats';
 import { trackName } from '../sim/tracks';
-import {
-  ghostDelayMs,
-  ghostEligible,
-  loadCoachSeen,
-  saveCoachSeen,
-  startCuddleSession,
-} from '../cuddle/guidance';
-import { ActionButtons } from '../ui/ActionButtons';
-import type { PetAction } from '../ui/ActionButtons';
+import { ghostDelayMs, ghostEligible, startCuddleSession } from '../cuddle/guidance';
+import { HomeActionPanel } from '../ui/HomeActionPanel';
+import { ToyCard } from '../ui/ToyCard';
+import { needThreshold } from '../ui/candyTokens';
+import { CandyTooltip } from '../ui/tips/CandyTooltip';
+import { useCandyTips } from '../ui/tips/useCandyTips';
 import { PlaydateScreen } from './PlaydateScreen';
 import { FacingLab } from './FacingLab';
 import { WardrobeScreen } from './WardrobeScreen';
@@ -68,7 +65,7 @@ import { AttributePops, trainingPopColor, traitPopColor } from '../ui/AttributeP
 import type { PointPop } from '../ui/AttributePops';
 import { formatRest, isResting, restRemainingMs } from '../sim/training';
 import { BadgeCelebration } from '../ui/BadgeCelebration';
-import { Bone, ChevronRight, CircleHelp, Cookie, Moon, Sparkles } from 'lucide-react-native';
+import { Bone, ChevronRight, CircleHelp, Cookie, Droplet, HandHeart, Moon, Soup, Sparkles } from 'lucide-react-native';
 import { playBadgeChime } from '../audio/badge';
 import { GREET } from '../actor/greetings';
 import { PetView } from '../ui/PetView';
@@ -77,8 +74,7 @@ import type { CuddleHandle, StageHandle } from '../ui/PetView';
 import { CuddleFeedback } from '../ui/cuddle/CuddleFeedback';
 import type { FeedbackHandle } from '../ui/cuddle/CuddleFeedback';
 import type { PointAdd } from '../ui/cuddle/pointAdds';
-import { CoachMarks, CuddleHelpSheet, GhostFinger } from '../ui/cuddle/CuddleGuidance';
-import { FurnitureHint } from '../ui/FurnitureHint';
+import { CuddleHelpSheet, GhostFinger } from '../ui/cuddle/CuddleGuidance';
 import { SilentModeHint } from '../ui/SilentModeHint';
 
 const badgeLabels: Record<string, string> = {
@@ -87,10 +83,12 @@ const badgeLabels: Record<string, string> = {
   paw: 'Paw',
 };
 
-function earnedBadges(milestones: string[], species: 'dog' | 'cat') {
-  return Object.keys(badgeLabels)
-    .filter((id) => milestones.includes(id))
-    .map((id) => ({ id, label: id === 'paw' ? trackName(id, species) : badgeLabels[id] }));
+function pieceId(pieces: { id: string; kind: string; contents?: string }[], kind: 'food' | 'water' | 'bed') {
+  return (
+    pieces.find((piece) =>
+      kind === 'bed' ? piece.kind === 'bed' : piece.kind === 'bowl' && (kind === 'water' ? piece.contents === 'water' : piece.contents !== 'water'),
+    )?.id ?? null
+  );
 }
 
 type Props = {
@@ -124,6 +122,7 @@ export default function HomeScreen({ petApi }: Props) {
     givePaw,
     speak,
     rest,
+    beginRest,
     pet,
     rememberGreeting,
     startCuddle,
@@ -147,7 +146,6 @@ export default function HomeScreen({ petApi }: Props) {
     finishPlaydate,
     attemptTrick,
     resolveTraining,
-    seeCoach,
     moveFurniture,
     offerTreat,
     welcomeBack,
@@ -198,7 +196,7 @@ export default function HomeScreen({ petApi }: Props) {
   const [treatOpen, setTreatOpen] = useState(false);
   const [treatNote, setTreatNote] = useState<string | null>(null);
   const [cuddleOn, setCuddleOn] = useState(false);
-  const [coachVisible, setCoachVisible] = useState(false);
+  const tips = useCandyTips();
   const [helpOpen, setHelpOpen] = useState(false);
   const [sessionNumber, setSessionNumber] = useState(0);
   const [ghost, setGhost] = useState<{ from: { x: number; y: number }; to: { x: number; y: number }; key: number } | null>(
@@ -217,7 +215,17 @@ export default function HomeScreen({ petApi }: Props) {
   const [soundOn, setSoundOn] = useState(true);
   const [musicOn, setMusicOn] = useState(true);
   const [silentHintOpen, setSilentHintOpen] = useState(false);
-  const [furnitureHintOpen, setFurnitureHintOpen] = useState(false);
+  const askFeedRef = useRef<() => void>(() => {});
+  const askWaterRef = useRef<() => void>(() => {});
+  const askSleepRef = useRef<() => void>(() => {});
+  const tipsRef = useRef(tips);
+  useEffect(() => {
+    tipsRef.current = tips;
+  }, [tips]);
+  const [popped, setPopped] = useState<string[] | null>(null);
+  const [movePieceId, setMovePieceId] = useState<string | null>(null);
+  const [knownPieceIds, setKnownPieceIds] = useState<string | null>(null);
+  const prevNeeds = useRef<{ h: number; t: number; e: number } | null>(null);
   // null until storage answers. true once shown or already dismissed this install.
   const [silentHintSeen, setSilentHintSeen] = useState<boolean | null>(null);
   const noteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -401,6 +409,8 @@ export default function HomeScreen({ petApi }: Props) {
             feedback.current?.trail(event.x, event.y);
           }
         } else if (event.type === 'stroke') {
+          touchedRef.current = true;
+          tipsRef.current.performed('tip.cuddle');
           handle.touch({ kind: 'stroke', zone: event.zone, x: stage.x });
         } else if (event.type === 'heart') {
           feedback.current?.heart(event.x, event.y);
@@ -409,6 +419,7 @@ export default function HomeScreen({ petApi }: Props) {
           handle.touch({ kind: 'flinch', zone: 'back', x: stage.x });
         } else {
           touchedRef.current = true;
+          tipsRef.current.performed('tip.cuddle');
           handle.touch({ kind: 'scratch', zone: event.zone, x: stage.x });
         }
       }
@@ -441,6 +452,7 @@ export default function HomeScreen({ petApi }: Props) {
       const stage = stagePoint(x, y, viewWidth, viewHeight, contentWidth);
       if (handle.zoneAt(stage.x, stage.y) === 'nose') {
         touchedRef.current = true;
+        tipsRef.current.performed('tip.cuddle');
         handle.touch({ kind: 'boop', zone: 'nose', x: stage.x });
       }
     },
@@ -470,18 +482,12 @@ export default function HomeScreen({ petApi }: Props) {
     flickRef.current = flickHere;
     strokeRef.current = stroke;
   }, [flickHere, softDropHere, stroke]);
-  const furnitureSeenRef = useRef(false);
-  furnitureSeenRef.current = state?.seenCoachMarks.includes('furniture-move') ?? false;
   const moveFurnitureRef = useRef(moveFurniture);
-  moveFurnitureRef.current = moveFurniture;
-  const dragPiece = useRef<string | null>(null);
-  const downPoint = useRef<{ x: number; y: number } | null>(null);
-  const panKind = useRef<'new' | 'piece' | 'floor' | 'hint'>('new');
-  const showFurnitureHint = useCallback(() => setFurnitureHintOpen(true), []);
-  const dismissFurnitureHint = useCallback(() => {
-    setFurnitureHintOpen(false);
-    seeCoach('furniture-move');
-  }, [seeCoach]);
+  useEffect(() => {
+    moveFurnitureRef.current = moveFurniture;
+  }, [moveFurniture]);
+  const holdPiece = useRef<string | null>(null);
+  const flickPiece = useRef<string | null>(null);
   const pieceAt = useCallback(
     (x: number, y: number) => {
       const point = stagePoint(x, y, viewWidth, viewHeight, contentWidth);
@@ -493,85 +499,99 @@ export default function HomeScreen({ petApi }: Props) {
     (x: number, y: number) => {
       const pieceId = pieceAt(x, y);
       if (!pieceId) {
+        tipsRef.current.dismiss();
         dropRef.current(x, y);
         return;
       }
-      if (!furnitureSeenRef.current) {
-        showFurnitureHint();
+      const action = stageHandle.current?.pieceAction(pieceId) ?? null;
+      if (!action) {
+        tipsRef.current.dismiss();
+        return;
+      }
+      stageHandle.current?.squish(pieceId);
+      if (action === 'food') {
+        askFeedRef.current();
+      } else if (action === 'water') {
+        askWaterRef.current();
+      } else {
+        askSleepRef.current();
       }
     },
-    [pieceAt, showFurnitureHint],
+    [pieceAt],
   );
-  const rememberDown = useCallback((x: number, y: number) => {
-    downPoint.current = { x, y };
-    panKind.current = 'new';
-    dragPiece.current = null;
-  }, []);
-  const resolvePan = useCallback(() => {
-    if (panKind.current !== 'new') {
-      return;
-    }
-    const down = downPoint.current;
-    const pieceId = down ? pieceAt(down.x, down.y) : null;
-    if (!pieceId) {
-      panKind.current = 'floor';
-      return;
-    }
-    if (!furnitureSeenRef.current) {
-      panKind.current = 'hint';
-      showFurnitureHint();
-      return;
-    }
-    panKind.current = 'piece';
-    dragPiece.current = pieceId;
-  }, [pieceAt, showFurnitureHint]);
-  const onStagePanMove = useCallback(
+  const onHoldStart = useCallback(
     (x: number, y: number) => {
-      resolvePan();
-      if (panKind.current === 'hint') {
+      const pieceId = pieceAt(x, y);
+      holdPiece.current = pieceId;
+      if (!pieceId) {
         return;
       }
-      const pieceId = dragPiece.current;
-      if (panKind.current === 'piece' && pieceId) {
-        const point = stagePoint(x, y, viewWidth, viewHeight, contentWidth);
-        stageHandle.current?.moveFurniture(pieceId, point.x, point.y);
-        return;
-      }
-      strokeRef.current();
+      stageHandle.current?.setLifted(pieceId);
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     },
-    [contentWidth, resolvePan, viewHeight, viewWidth],
+    [pieceAt],
   );
-  const onStagePanEnd = useCallback(
-    (x: number, y: number, vx: number, vy: number) => {
-      resolvePan();
-      const pieceId = dragPiece.current;
-      const kind = panKind.current;
-      dragPiece.current = null;
-      panKind.current = 'new';
-      downPoint.current = null;
-      if (kind === 'hint') {
+  const onHoldMove = useCallback(
+    (x: number, y: number) => {
+      const pieceId = holdPiece.current;
+      if (!pieceId) {
         return;
       }
-      if (kind === 'piece' && pieceId) {
-        const point = stagePoint(x, y, viewWidth, viewHeight, contentWidth);
-        const placed = stageHandle.current?.moveFurniture(pieceId, point.x, point.y);
-        if (placed) {
-          moveFurnitureRef.current(pieceId, placed.sceneId, placed.x, placed.y);
-        }
+      const point = stagePoint(x, y, viewWidth, viewHeight, contentWidth);
+      stageHandle.current?.moveFurniture(pieceId, point.x, point.y);
+    },
+    [contentWidth, viewHeight, viewWidth],
+  );
+  const onHoldEnd = useCallback(
+    (x: number, y: number) => {
+      const pieceId = holdPiece.current;
+      holdPiece.current = null;
+      stageHandle.current?.setLifted(null);
+      if (!pieceId) {
+        return;
+      }
+      const point = stagePoint(x, y, viewWidth, viewHeight, contentWidth);
+      const placed = stageHandle.current?.moveFurniture(pieceId, point.x, point.y);
+      if (placed) {
+        moveFurnitureRef.current(pieceId, placed.sceneId, placed.x, placed.y);
+      }
+      tipsRef.current.performed('tip.move');
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    },
+    [contentWidth, viewHeight, viewWidth],
+  );
+  const onFlickStart = useCallback(
+    (x: number, y: number) => {
+      flickPiece.current = pieceAt(x, y);
+    },
+    [pieceAt],
+  );
+  const onFlickMove = useCallback((x: number, y: number) => {
+    if (flickPiece.current) {
+      return;
+    }
+    void x;
+    void y;
+    strokeRef.current();
+  }, []);
+  const onFlickEnd = useCallback(
+    (x: number, y: number, vx: number, vy: number) => {
+      const pieceId = flickPiece.current;
+      flickPiece.current = null;
+      if (pieceId) {
         return;
       }
       if (Math.hypot(vx, vy) >= flickSpeedThreshold) {
         flickRef.current(x, y, vx, vy);
       }
     },
-    [contentWidth, resolvePan, viewHeight, viewWidth],
+    [],
   );
   const gesture = useMemo(() => {
     if (cuddleOn) {
       // Cuddle replaces the ball gestures: a drag is a stroke or a scratch, a tap on the nose is a boop.
       const boop = Gesture.Tap()
         .maxDistance(12)
-        .enabled(!coachVisible)
         .onEnd((event, success) => {
           if (success) {
             runOnJS(onCuddleTapStage)(event.x, event.y);
@@ -579,7 +599,6 @@ export default function HomeScreen({ petApi }: Props) {
         });
       const drag = Gesture.Pan()
         .minDistance(4)
-        .enabled(!coachVisible)
         .onUpdate((event) => {
           runOnJS(onCuddleMoveStage)(event.x, event.y);
         })
@@ -589,35 +608,48 @@ export default function HomeScreen({ petApi }: Props) {
       return Gesture.Exclusive(boop, drag);
     }
     const tap = Gesture.Tap()
-      .maxDistance(18)
-      .onEnd((event) => {
-        runOnJS(onStageTap)(event.x, event.y);
-      });
-    const pan = Gesture.Pan()
-      .minDistance(18)
-      .onTouchesDown((event) => {
-        const touch = event.allTouches[0];
-        if (touch) {
-          runOnJS(rememberDown)(touch.x, touch.y);
+      .maxDuration(250)
+      .maxDistance(10)
+      .onEnd((event, success) => {
+        if (success) {
+          runOnJS(onStageTap)(event.x, event.y);
         }
+      });
+    const hold = Gesture.Pan()
+      .activateAfterLongPress(400)
+      .onStart((event) => {
+        runOnJS(onHoldStart)(event.x, event.y);
       })
       .onUpdate((event) => {
-        runOnJS(onStagePanMove)(event.x, event.y);
+        runOnJS(onHoldMove)(event.x, event.y);
+      })
+      .onFinalize((event) => {
+        runOnJS(onHoldEnd)(event.x, event.y);
+      });
+    const flick = Gesture.Pan()
+      .minDistance(10)
+      .onStart((event) => {
+        runOnJS(onFlickStart)(event.x, event.y);
+      })
+      .onUpdate((event) => {
+        runOnJS(onFlickMove)(event.x, event.y);
       })
       .onEnd((event) => {
-        runOnJS(onStagePanEnd)(event.x, event.y, event.velocityX, event.velocityY);
+        runOnJS(onFlickEnd)(event.x, event.y, event.velocityX, event.velocityY);
       });
-    return Gesture.Exclusive(tap, pan);
+    return Gesture.Exclusive(tap, hold, flick);
   }, [
-    coachVisible,
     cuddleOn,
     onCuddleEndStage,
     onCuddleMoveStage,
     onCuddleTapStage,
-    onStagePanEnd,
-    onStagePanMove,
+    onFlickEnd,
+    onFlickMove,
+    onFlickStart,
+    onHoldEnd,
+    onHoldMove,
+    onHoldStart,
     onStageTap,
-    rememberDown,
   ]);
   const petName = state?.name ?? 'Your pet';
 
@@ -627,8 +659,8 @@ export default function HomeScreen({ petApi }: Props) {
       touchActive.current = false;
       cuddleHandle.current?.setGesturing(false);
       setCuddleOn(false);
-      setCoachVisible(false);
       setGhost(null);
+      tipsRef.current.dismiss();
       return;
     }
     cuddleOnRef.current = true;
@@ -639,21 +671,13 @@ export default function HomeScreen({ petApi }: Props) {
     tracker.current.reset();
     touchedRef.current = false;
     touchActive.current = false;
-    void Promise.all([loadCoachSeen(), startCuddleSession()]).then(([seen, session]) => {
-      if (!cuddleOnRef.current) {
-        return;
-      }
-      setSessionNumber(session);
-      if (!seen) {
-        setCoachVisible(true);
+    tipsRef.current.offer('tip.cuddle');
+    void startCuddleSession().then((session) => {
+      if (cuddleOnRef.current) {
+        setSessionNumber(session);
       }
     });
   }, [startCuddle]);
-
-  const dismissCoach = useCallback(() => {
-    setCoachVisible(false);
-    void saveCoachSeen();
-  }, []);
 
   const onCuddleEvent = useCallback(
     (event: CuddleOut | { type: 'interrupted' }) => {
@@ -661,7 +685,6 @@ export default function HomeScreen({ petApi }: Props) {
         cuddleOnRef.current = false;
         touchActive.current = false;
         setCuddleOn(false);
-        setCoachVisible(false);
         setGhost(null);
         flash(
           event.reason === 'tolerance'
@@ -672,9 +695,11 @@ export default function HomeScreen({ petApi }: Props) {
         cuddleOnRef.current = false;
         touchActive.current = false;
         setCuddleOn(false);
-        setCoachVisible(false);
         setGhost(null);
-      } else if (event.petted >= 2) {
+      } else if (event.petted >= 1) {
+        tipsRef.current.performed('tip.cuddle');
+      }
+      if (event.type === 'done' && event.petted >= 2) {
         finishCuddle(event.petted);
       }
     },
@@ -683,7 +708,7 @@ export default function HomeScreen({ petApi }: Props) {
 
   // The ghost finger strokes the back once if a settled pet goes untouched, for the first few sessions.
   useEffect(() => {
-    if (!cuddleOn || coachVisible || !ghostEligible(sessionNumber)) {
+    if (!cuddleOn || tips.current != null || !ghostEligible(sessionNumber)) {
       return undefined;
     }
     let settledAt: number | null = null;
@@ -705,11 +730,11 @@ export default function HomeScreen({ petApi }: Props) {
       }
     }, 200);
     return () => clearInterval(timer);
-  }, [coachVisible, cuddleOn, sessionNumber, stageToView]);
+  }, [cuddleOn, sessionNumber, stageToView, tips.current]);
 
-  // Keeps the coach-mark ring on the pet while the pet settles.
+  // Keeps the cuddle tip on the pet while the pet settles.
   useEffect(() => {
-    if (!coachVisible) {
+    if (tips.current !== 'tip.cuddle') {
       return undefined;
     }
     const update = () => {
@@ -721,7 +746,7 @@ export default function HomeScreen({ petApi }: Props) {
     update();
     const timer = setInterval(update, 300);
     return () => clearInterval(timer);
-  }, [coachVisible, stageToView]);
+  }, [stageToView, tips.current]);
 
   const inventory = economyApi.inventory;
 
@@ -797,6 +822,119 @@ export default function HomeScreen({ petApi }: Props) {
   const preset = sceneById(state?.sceneId ?? 'livingroom');
   const scene = preset;
 
+  useEffect(() => {
+    if (!state) {
+      return;
+    }
+    const next = { h: state.hydration, t: 100 - state.needs.hunger, e: state.needs.energy };
+    const prev = prevNeeds.current;
+    prevNeeds.current = next;
+    if (!prev) {
+      return;
+    }
+    if (prev.h >= needThreshold && next.h < needThreshold) {
+      tips.offer('tip.water');
+    }
+    if (prev.t >= needThreshold && next.t < needThreshold) {
+      tips.offer('tip.food');
+    }
+    if (prev.e >= needThreshold && next.e < needThreshold) {
+      tips.offer('tip.sleep');
+    }
+  }, [state, tips]);
+
+  const pieceIds = home.pieces.map((piece) => piece.id).join('|');
+  if (pieceIds !== knownPieceIds) {
+    const previous = knownPieceIds?.split('|').filter(Boolean) ?? null;
+    const added = previous ? pieceIds.split('|').find((id) => id && !previous.includes(id)) : null;
+    setKnownPieceIds(pieceIds);
+    if (added && tips.propTaps >= 1) {
+      setMovePieceId(added);
+      tips.offer('tip.move');
+    }
+  }
+
+  const freshKey = state
+    ? [
+        state.training.sit?.mastered ? 'sit' : '',
+        state.training.paw?.mastered ? 'paw' : '',
+        state.training.speak?.mastered ? 'speak' : '',
+        ...(['sit', 'speak', 'paw'] as const).filter((id) => state.milestones.includes(id)).map((id) => `badge:${id}`),
+      ]
+        .filter(Boolean)
+        .join('|')
+    : '';
+  const freshIds = freshKey ? freshKey.split('|') : [];
+  if (state && popped == null) {
+    setPopped(freshIds);
+  } else if (popped && freshIds.some((id) => !popped.includes(id))) {
+    setPopped([...popped, ...freshIds.filter((id) => !popped.includes(id))]);
+  }
+  useEffect(() => {
+    if (!state) {
+      return;
+    }
+    const feedBlocked = actionReason(scene, 'feed') || (state.foodInBowl ? 'The food bowl is already full.' : '');
+    const waterBlocked = actionReason(scene, 'refillWater', state.waterLevel);
+    const countPropTap = (kind: 'food' | 'water' | 'bed') => {
+      setMovePieceId(pieceId(home.pieces, kind));
+      const taps = tips.notePropTap();
+      if (taps >= 2) {
+        tips.offer('tip.move');
+      }
+    };
+    askFeedRef.current = () => {
+      if (feedBlocked) {
+        flash(feedBlocked);
+        tips.dismiss();
+        return;
+      }
+      setPlayOpen(false);
+      feed();
+      countPropTap('food');
+      tips.performed('tip.food');
+    };
+    askWaterRef.current = () => {
+      if (waterBlocked) {
+        flash(waterBlocked);
+        tips.dismiss();
+        return;
+      }
+      setPlayOpen(false);
+      refillWater();
+      stageHandle.current?.invite('water');
+      countPropTap('water');
+      tips.performed('tip.water');
+    };
+    askSleepRef.current = () => {
+      if (state.asleep) {
+        rest();
+        tips.dismiss();
+        return;
+      }
+      const result = stageHandle.current?.invite('bed') ?? 'queued';
+      if (result === 'already') {
+        return;
+      }
+      setPlayOpen(false);
+      countPropTap('bed');
+      tips.performed('tip.sleep');
+    };
+  }, [feed, flash, home.pieces, refillWater, rest, scene, state, tips]);
+
+  const tipPieceId =
+    tips.current === 'tip.water'
+      ? pieceId(home.pieces, 'water')
+      : tips.current === 'tip.food'
+        ? pieceId(home.pieces, 'food')
+        : tips.current === 'tip.sleep'
+          ? pieceId(home.pieces, 'bed')
+          : tips.current === 'tip.move'
+            ? movePieceId
+            : null;
+  const tipPlacement = tipPieceId ? home.placements.find((spot) => spot.pieceId === tipPieceId) : null;
+  const propTip = tipPlacement ? stageToView({ x: tipPlacement.x, y: tipPlacement.y }) : null;
+
   if (!state || !mood) {
     return null;
   }
@@ -863,10 +1001,47 @@ export default function HomeScreen({ petApi }: Props) {
   const species = breedById(state.breedId)?.species ?? 'dog';
   const ownsBall = home.ownsBall;
 
-  const actions: PetAction[] = [
+  const tummy = 100 - state.needs.hunger;
+  const feedReason = actionReason(scene, 'feed') || (state.foodInBowl ? 'The food bowl is already full.' : '');
+  const waterReason = actionReason(scene, 'refillWater', state.waterLevel);
+  const careActions = [
+    {
+      id: 'feed',
+      label: 'Feed',
+      blocked: !!feedReason,
+      need: tummy < needThreshold ? 'Hungry!' : null,
+      onPress: () => askFeedRef.current(),
+    },
+    {
+      id: 'refill',
+      label: 'Water',
+      blocked: !!waterReason,
+      need: state.hydration < needThreshold ? 'Thirsty!' : null,
+      onPress: () => askWaterRef.current(),
+    },
+    {
+      id: 'treat',
+      label: 'Treat',
+      onPress: () => {
+        tips.dismiss();
+        setPlayOpen(false);
+        setTreatNote(null);
+        setTreatOpen(true);
+      },
+    },
+    {
+      id: state.asleep ? 'wake' : 'rest',
+      label: state.asleep ? 'Wake' : 'Sleep',
+      need: !state.asleep && state.needs.energy < needThreshold ? 'Sleepy!' : null,
+      onPress: () => askSleepRef.current(),
+    },
+  ];
+  const bondActions = [
     {
       id: 'cuddle',
       label: 'Cuddle',
+      sunk: cuddleOn,
+      onLongPress: () => setHelpOpen(true),
       onPress: () => {
         if (!cuddleOnRef.current) {
           const result = stageHandle.current?.pat() ?? 'none';
@@ -879,52 +1054,29 @@ export default function HomeScreen({ petApi }: Props) {
             return;
           }
         }
+        tips.dismiss();
         toggleCuddle();
-      },
-      onLongPress: () => setHelpOpen(true),
-      active: cuddleOn,
-    },
-    { id: state.asleep ? 'wake' : 'rest', label: state.asleep ? 'Wake' : 'Sleep', onPress: rest },
-    {
-      id: 'treat',
-      label: 'Treat',
-      onPress: () => {
-        setPlayOpen(false);
-        setTreatNote(null);
-        setTreatOpen(true);
-      },
-    },
-    {
-      id: 'feed',
-      label: 'Feed',
-      onPress: () => {
-        setPlayOpen(false);
-        feed();
-      },
-      reason: actionReason(scene, 'feed') || (state.foodInBowl ? 'The food bowl is already full.' : ''),
-    },
-    {
-      id: 'refill',
-      label: 'Refill water',
-      onPress: refillWater,
-      reason: actionReason(scene, 'refillWater', state.waterLevel),
-    },
-    {
-      id: 'playdate',
-      label: playdates.remaining > 0 ? formatCooldown(playdates.remaining) : 'Playdate',
-      onPress: () => {
-        setPlayOpen(false);
-        setWardrobeOpen(false);
-        setPlaydateOpen(true);
       },
     },
     {
       id: 'play',
       label: 'Play',
+      sunk: playOpen,
       onPress: () => {
-        setPlayOpen((open) => !open);
+        tips.dismiss();
+        setTreatOpen(false);
+        setPlayOpen(true);
       },
-      active: playOpen,
+    },
+    {
+      id: 'playdate',
+      label: 'Playdate',
+      onPress: () => {
+        tips.dismiss();
+        setPlayOpen(false);
+        setWardrobeOpen(false);
+        setPlaydateOpen(true);
+      },
     },
   ];
 
@@ -999,7 +1151,7 @@ export default function HomeScreen({ petApi }: Props) {
       setDialog({ kind: 'miss', trackId });
     }
   };
-  const learned: PetAction[] = [
+  const learned = [
     ...(state.training.sit?.mastered ? [{ id: 'sit', label: 'Sit', onPress: sit }] : []),
     ...(state.training.paw?.mastered
       ? [{ id: 'paw', label: speciesLabel('paw', species) ?? 'Give paw', onPress: givePaw }]
@@ -1017,36 +1169,75 @@ export default function HomeScreen({ petApi }: Props) {
         ]
       : []),
   ];
-  const badges = earnedBadges(state.milestones, species).filter(
-    (badge) => badge.id !== 'sit' && badge.id !== 'speak' && badge.id !== 'paw',
-  );
+  const badgeIds = ['sit', 'speak', 'paw'] as const;
+  const tricks = learned.map((trick) => ({
+    ...trick,
+    fresh: popped != null && !popped.includes(trick.id),
+  }));
+  const badgeCoins = badgeIds.flatMap((id) => {
+    if (!state.milestones.includes(id)) {
+      return [];
+    }
+    return [
+      {
+        id,
+        label: id === 'paw' ? (speciesLabel('paw', species) ?? 'Paw') : badgeLabels[id],
+        fresh: popped != null && !popped.includes(`badge:${id}`),
+      },
+    ];
+  });
 
-  const toggles: PetAction[] = [
+  const styleActions = [
     {
       id: 'wardrobe',
       label: 'Wardrobe',
-      onPress: () => setWardrobeOpen(true),
-      active: wardrobeOpen,
+      onPress: () => {
+        tips.dismiss();
+        setWardrobeOpen(true);
+      },
+    },
+    {
+      id: 'personality',
+      label: 'Traits',
+      onPress: () => {
+        tips.dismiss();
+        setPersonalityOpen((open) => !open);
+      },
     },
     {
       id: soundOn ? 'sound' : 'soundOff',
-      label: 'Pet sounds',
-      onPress: toggleSound,
-      active: soundOn,
+      label: 'Sounds',
+      switch: true,
+      checked: soundOn,
+      onPress: () => {
+        tips.dismiss();
+        toggleSound();
+      },
     },
     {
       id: musicOn ? 'music' : 'musicOff',
       label: 'Music',
-      onPress: toggleMusic,
-      active: musicOn,
-    },
-    {
-      id: 'personality',
-      label: 'Personality',
-      onPress: () => setPersonalityOpen((open) => !open),
-      active: personalityOpen,
+      switch: true,
+      checked: musicOn,
+      onPress: () => {
+        tips.dismiss();
+        toggleMusic();
+      },
     },
   ];
+
+  const tipBubble =
+    tips.current === 'tip.cuddle' && coachTarget
+      ? { flavor: 'bond' as const, icon: HandHeart, text: 'Stroke his back or head', bold: 'Stroke', target: coachTarget }
+      : tips.current === 'tip.water' && propTip
+        ? { flavor: 'care' as const, icon: Droplet, text: 'Tap the bowl to give Z water', bold: 'Tap', target: propTip }
+        : tips.current === 'tip.food' && propTip
+          ? { flavor: 'care' as const, icon: Soup, text: 'Tap the bowl to feed Z', bold: 'Tap', target: propTip }
+          : tips.current === 'tip.sleep' && propTip
+            ? { flavor: 'care' as const, icon: Moon, text: 'Tap the bed so Z can nap', bold: 'Tap', target: propTip }
+            : tips.current === 'tip.move' && propTip
+              ? { flavor: 'style' as const, icon: Sparkles, text: 'Hold to move things around', bold: 'Hold', target: propTip }
+              : null;
 
   const trickTitle = (trackId: string) => trackName(trackId, species);
   const shownDialog = dialogLive ? dialog : null;
@@ -1285,6 +1476,12 @@ export default function HomeScreen({ petApi }: Props) {
               onHydrationDelta={applyActorHydration}
               onDrank={reportDrank}
               onAte={reportAte}
+              onFellAsleep={beginRest}
+              shimmerIds={[
+                tips.seen('tip.water') && state.hydration < needThreshold ? pieceId(home.pieces, 'water') : null,
+                tips.seen('tip.food') && tummy < needThreshold ? pieceId(home.pieces, 'food') : null,
+                tips.seen('tip.sleep') && state.needs.energy < needThreshold ? pieceId(home.pieces, 'bed') : null,
+              ].filter((id): id is string => id != null)}
               onPlayFind={noteFind}
               onPointAdds={(adds) => {
                 const shown: PointAdd[] = [];
@@ -1308,13 +1505,15 @@ export default function HomeScreen({ petApi }: Props) {
                 onDone={() => setGhost(null)}
               />
             ) : null}
-            {coachVisible ? (
-              <CoachMarks
-                name={state.name}
-                target={coachTarget}
-                width={viewWidth}
-                height={viewHeight}
-                onDone={dismissCoach}
+            {tipBubble ? (
+              <CandyTooltip
+                flavor={tipBubble.flavor}
+                icon={tipBubble.icon}
+                text={tipBubble.text}
+                boldWord={tipBubble.bold}
+                target={tipBubble.target}
+                bounds={{ width: viewWidth, height: viewHeight }}
+                reducedMotion={reducedMotion}
               />
             ) : null}
           </View>
@@ -1381,43 +1580,16 @@ export default function HomeScreen({ petApi }: Props) {
         {playdates.remaining > 0 ? (
           <Text style={styles.hint}>Next playdate in {formatCooldown(playdates.remaining)}</Text>
         ) : null}
-        <ActionButtons actions={actions} species={species} onBlocked={flash} />
-        {learned.length > 0 || badges.length > 0 ? (
-          <View style={styles.learned}>
-            <Text style={styles.sectionTitle}>Learned Tricks</Text>
-            {learned.length > 0 ? <ActionButtons actions={learned} species={species} /> : null}
-            {badges.length > 0 ? (
-              <View style={styles.scenes}>
-                {badges.map((badge) => (
-                  <View key={badge.id} style={styles.badge} accessible accessibilityLabel={`${badge.label} badge`}>
-                    <Text style={styles.badgeLabel}>{badge.label}</Text>
-                  </View>
-                ))}
-              </View>
-            ) : null}
-          </View>
-        ) : null}
-        {playOpen ? (
-          <View style={styles.scenes}>
-            {ownsBall ? (
-              <Pressable
-                style={[styles.scene, styles.sceneSelected]}
-                onPress={() => {
-                  setPlayOpen(false);
-                  fetchBall();
-                }}
-              >
-                <Text style={[styles.sceneLabel, styles.sceneSelectedLabel]}>Throw ball</Text>
-              </Pressable>
-            ) : (
-              <Text style={styles.hint}>No toys yet.</Text>
-            )}
-          </View>
-        ) : null}
+        <HomeActionPanel
+          species={species}
+          reducedMotion={reducedMotion}
+          care={careActions}
+          bond={bondActions}
+          style={styleActions}
+          tricks={tricks}
+          badges={badgeCoins}
+        />
         {note ? <Text style={styles.hint}>{note}</Text> : null}
-        <View style={styles.utilityButtons}>
-          <ActionButtons actions={toggles} species={species} />
-        </View>
         {personalityOpen ? (
           <View style={styles.personality}>
             <Text style={styles.personalityMeta}>{styleLine}</Text>
@@ -1431,7 +1603,6 @@ export default function HomeScreen({ petApi }: Props) {
         ) : null}
         <CuddleHelpSheet visible={helpOpen} onClose={() => setHelpOpen(false)} />
         <SilentModeHint visible={silentHintOpen} onClose={dismissSilentHint} />
-        <FurnitureHint visible={furnitureHintOpen} onClose={dismissFurnitureHint} />
         <DebugPanel
           state={state}
           mood={mood}
@@ -1453,6 +1624,20 @@ export default function HomeScreen({ petApi }: Props) {
         />
       </ScrollView>
       {trainingDialog}
+      {playOpen ? (
+        <ToyCard
+          top={previewBottom}
+          empty="No toys yet."
+          toys={ownsBall ? [{ id: 'ball', label: 'ball' }] : []}
+          onClose={() => setPlayOpen(false)}
+          onPick={(id) => {
+            if (id === 'ball') {
+              fetchBall();
+            }
+            setPlayOpen(false);
+          }}
+        />
+      ) : null}
       {treatOpen ? (
         <TreatPicker
           choices={treatsInInventory(economyApi.inventory, species)}

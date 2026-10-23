@@ -4,14 +4,14 @@ import type { SkCanvas } from '@shopify/react-native-skia';
 import { applyVariant, depthScale, resolveBreedById } from '../../actor';
 import type { TimeOfDay, World } from '../../actor';
 import { stageHeight, stageWidth } from '../../actor/geometry';
-import { actorTint, lighting, petLightAmount, sceneryTint } from '../../actor/lighting';
+import { actorTint, indoorOverlayAlpha, lighting, petLightAmount, sceneryTint, stepNightFade } from '../../actor/lighting';
 import { skyAt } from '../../actor/sky';
 import type { SkyState } from '../../actor/sky';
 import type { Rgba } from '../../actor/timeOfDay';
 import { buildDecor } from './decor';
 import { clamp, fillOval, paintOf } from './draw';
 import { untinted, withTint, noise } from './ink';
-import { drawLampPools, drawWindowLight, lightRig, shadeActorLayer } from './light';
+import { drawCozyPools, drawLampPools, drawMoonPools, drawNightVeil, drawWindowLight, lightRig, shadeActorLayer } from './light';
 import { drawOverlay } from './marks';
 import { drawActor } from './pet';
 import type { OverlayBurst } from '../../playdate/overlay';
@@ -37,6 +37,17 @@ function drawTinted(canvas: SkCanvas, tint: Rgba, draw: () => void): void {
 }
 
 // A warm pool on the floor under the pet once the room is dark, drawn after the tint with screen blending.
+let cozyShown: number | null = null;
+let cozyAt = 0;
+
+function shownNight(target: number, reduced: boolean): number {
+  const now = Date.now();
+  const dt = cozyAt === 0 ? 1 : (now - cozyAt) / 1000;
+  cozyAt = now;
+  cozyShown = stepNightFade(cozyShown, target, dt, reduced);
+  return cozyShown;
+}
+
 function drawPetLight(canvas: SkCanvas, x: number, y: number, amount: number): void {
   const { radius, color } = lighting.petLight;
   const paint = Skia.Paint();
@@ -142,6 +153,11 @@ export function drawWorld(
     reduced,
     bowlFill: world.bowlFill,
     waterLevel: world.waterLevel,
+    bedInvited: world.invites.includes('bed') || world.serving === 'bed',
+    liftedId: world.liftedId,
+    squishId: world.squishId,
+    squishAt: world.squishAt,
+    shimmerIds: world.shimmerIds,
     glows: [],
     feeding,
     sky,
@@ -150,9 +166,14 @@ export function drawWorld(
     scene,
     bleed,
   };
+  const cozy = scene.time === 'indoor';
+  if (cozy) {
+    env.tod = { ...tod, dark: shownNight(tod.dark, reduced) };
+  }
   env.light = lightRig(scene, env);
-  const roomTint = sceneryTint(scene, tod);
-  const bodyTint = actorTint(scene, tod);
+  const clear = { r: 0, g: 0, b: 0, a: 0 };
+  const roomTint = cozy ? clear : sceneryTint(scene, tod);
+  const bodyTint = cozy ? clear : actorTint(scene, tod);
   const decor = buildDecor(scene, env);
 
   withTint(roomTint, () => {
@@ -161,28 +182,33 @@ export function drawWorld(
   });
   untinted(() => {
     drawWindowLight(canvas, scene, env);
-    if (env.light) {
+    if (env.light && !cozy) {
       drawLampPools(canvas, env.light);
     }
   });
-  if (scene.time === 'indoor') {
-    const glow = petLightAmount(tod.dark);
-    if (glow > 0) {
-      for (const actor of world.actors) {
-        drawPetLight(canvas, actor.x, actor.y, glow);
-      }
-    }
-  }
 
-  // props, pets and the ball are sorted by their baseline so the pet walks behind and in front of furniture
-  const items: { y: number; draw: () => void }[] = [];
+  const lifted = cozy && env.tod.dark > 0.02;
+  const engaged = (id: string | undefined) =>
+    !!id &&
+    world.actors.some((actor) => {
+      const kind = actor.task.type;
+      return actor.task.poi?.propId === id && (kind === 'eat' || kind === 'sleep' || kind === 'treat');
+    });
+
+  // props, pets and the ball are sorted by their baseline so the pet walks behind and in front of furniture.
+  // Indoors at night the pet, his toy, and the prop he is using stay above the navy veil.
+  const items: { y: number; late: boolean; draw: () => void }[] = [];
   for (const prop of scene.props) {
     if ((prop.layer ?? 'sorted') === 'sorted') {
-      items.push({ y: prop.y, draw: () => withTint(roomTint, () => drawProp(canvas, prop, env)) });
+      items.push({
+        y: prop.y,
+        late: lifted && engaged(prop.id),
+        draw: () => withTint(roomTint, () => drawProp(canvas, prop, env)),
+      });
     }
   }
   for (const piece of decor.floor) {
-    items.push({ y: piece.y, draw: () => withTint(roomTint, () => piece.draw(canvas)) });
+    items.push({ y: piece.y, late: false, draw: () => withTint(roomTint, () => piece.draw(canvas)) });
   }
   const span = { x: -bleed - 400, y: -600, w: stageWidth + bleed * 2 + 800, h: stageHeight + 1200 };
   for (const actor of world.actors) {
@@ -204,8 +230,9 @@ export function drawWorld(
     }
     items.push({
       y: sortY,
+      late: lifted,
       draw: () => {
-        const rim = (env.light?.rimStrength ?? 0) > 0.03;
+        const rim = !cozy && (env.light?.rimStrength ?? 0) > 0.03;
         if (bodyTint.a <= 0.001 && !rim) {
           drawActor(canvas, actor, breed, floor, world.t, carrying, world.silhouette === true);
           return;
@@ -227,6 +254,7 @@ export function drawWorld(
     const sag = overlay.rope.sag;
     items.push({
       y: lower + 0.01,
+      late: lifted,
       draw: () => {
         const left = world.actors[0]?.mouthMark;
         const right = world.actors[1]?.mouthMark;
@@ -246,6 +274,7 @@ export function drawWorld(
     }
     items.push({
       y: toy.y,
+      late: lifted,
       draw: () =>
         drawTinted(canvas, bodyTint, () => {
           const radius = 8 * depthScale(toy.y, floor.yMin, floor.yMax);
@@ -264,16 +293,55 @@ export function drawWorld(
   }
   items.sort((a, b) => a.y - b.y);
   for (const item of items) {
-    item.draw();
+    if (!item.late) {
+      item.draw();
+    }
   }
-  withTint(roomTint, () => {
+  if (cozy) {
+    withTint(roomTint, () => {
+      for (const prop of scene.props) {
+        if (prop.layer === 'front' && !engaged(prop.id)) {
+          drawProp(canvas, prop, env);
+        }
+      }
+    });
+    // Room art stays full color. Night is this veil, then the lights that punch through it.
+    drawNightVeil(canvas, bleed, env.tod.dark);
+    untinted(() => {
+      drawMoonPools(canvas, scene, env.tod.dark);
+      if (env.light) {
+        drawCozyPools(canvas, env.light, env.glows);
+      }
+    });
+    const glow = petLightAmount(env.tod.dark);
+    if (glow > 0) {
+      for (const actor of world.actors) {
+        drawPetLight(canvas, actor.x, actor.y, glow);
+      }
+    }
+  }
+  for (const item of items) {
+    if (item.late) {
+      item.draw();
+    }
+  }
+  if (cozy) {
     for (const prop of scene.props) {
-      if (prop.layer === 'front') {
+      if (prop.layer === 'front' && engaged(prop.id)) {
         drawProp(canvas, prop, env);
       }
     }
-  });
-  drawAmbient(canvas, world, env, bleed);
+  }
+  if (!cozy) {
+    withTint(roomTint, () => {
+      for (const prop of scene.props) {
+        if (prop.layer === 'front') {
+          drawProp(canvas, prop, env);
+        }
+      }
+    });
+  }
+  drawAmbient(canvas, world, env, bleed, cozy);
   untinted(() => decor.ambient(canvas));
   if (overlay && (overlay.bursts.length > 0 || overlay.butterfly || (overlay.zzz?.length ?? 0) > 0)) {
     drawOverlay(canvas, overlay.bursts, { butterfly: overlay.butterfly, zzz: overlay.zzz, t: world.t });
@@ -298,7 +366,7 @@ export function drawPetOnly(
   const scale = fit * camera.zoom;
   canvas.scale(scale, scale);
   canvas.translate(-camera.x, -camera.y);
-  const bodyTint = actorTint(scene, tod);
+  const bodyTint = scene.time === 'indoor' ? { r: 0, g: 0, b: 0, a: 0 } : actorTint(scene, tod);
   for (const actor of world.actors) {
     const resolved = resolveBreedById(actor.breedId, actor.look);
     if (!resolved) {

@@ -11,6 +11,7 @@ import {
   darken,
   ellipse,
   fill,
+  glow,
   hash,
   lighten,
   line,
@@ -205,6 +206,11 @@ function drawBed(c: SkCanvas, prop: Prop, env: Env): void {
     line(c, x - 2, y, x + 2, y, lighten(col, 0.4), 1, 0.7);
   }
   pawPrint(c, 0, -2, 3.8, lighten(col, 0.45), 0.9);
+  if (env.bedInvited) {
+    ellipse(c, 0, -20, rx - 16, 6, '#fff6ea', 0.85);
+    ellipse(c, -rx * 0.35, -22, 10, 3.2, '#ffffff', 0.7);
+    glow(c, 0, -16, 28, '#ffd2a8', 0.35);
+  }
 }
 
 function drawRug(c: SkCanvas, prop: Prop): void {

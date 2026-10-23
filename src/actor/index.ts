@@ -89,6 +89,8 @@ export {
   stagePoint,
   startTreat,
   startUserTask,
+  inviteCare,
+  takePendingRest,
   syncActor,
   syncWorldFood,
   syncWorldWater,

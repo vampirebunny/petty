@@ -3,6 +3,7 @@ import type { SkCanvas } from '@shopify/react-native-skia';
 
 import type { Scene } from '../../actor';
 import { stageHeight, stageWidth } from '../../actor/geometry';
+import { indoorOverlayAlpha, lighting } from '../../actor/lighting';
 import type { Env, LampLight, LightRig } from './env';
 import { weatherOf } from './env';
 import { clamp01, ellipse, fill, glow, glowOval, hash, polyPath, untinted } from './ink';
@@ -196,6 +197,81 @@ export function drawLampPools(c: SkCanvas, rig: LightRig): void {
   for (const lamp of rig.lamps) {
     const s = lamp.r / 84;
     glowOval(c, lamp.x, lamp.floorY + 2, 130 * s, 36 * s, '#ffcb7a', 0.32 * lamp.a);
+  }
+}
+
+function channel(hex: string): [number, number, number] {
+  const value = parseInt(hex.slice(1), 16);
+  return [(value >> 16) & 255, (value >> 8) & 255, value & 255];
+}
+
+/** A radial pool: solid color at the center, clear at the rim. No hard edge. */
+export function drawSoftPool(c: SkCanvas, x: number, y: number, r: number, hex: string, a: number): void {
+  if (a <= 0.003 || r <= 0) {
+    return;
+  }
+  const [red, green, blue] = channel(hex);
+  const paint = Skia.Paint();
+  paint.setAntiAlias(true);
+  paint.setShader(
+    Skia.Shader.MakeRadialGradient(
+      Skia.Point(x, y),
+      r,
+      [Skia.Color(`rgba(${red},${green},${blue},${a})`), Skia.Color(`rgba(${red},${green},${blue},0)`)],
+      null,
+      TileMode.Clamp,
+    ),
+  );
+  c.drawCircle(x, y, r, paint);
+}
+
+function drawSoftOval(c: SkCanvas, x: number, y: number, rx: number, ry: number, hex: string, a: number): void {
+  if (a <= 0.003 || rx <= 0 || ry <= 0) {
+    return;
+  }
+  c.save();
+  c.translate(x, y);
+  c.scale(1, ry / rx);
+  drawSoftPool(c, 0, 0, rx, hex, a);
+  c.restore();
+}
+
+/** Light navy veil over an indoor room. The pet is drawn after this, so he stays untinted. */
+export function drawNightVeil(c: SkCanvas, bleed: number, dark: number): void {
+  const alpha = indoorOverlayAlpha(dark);
+  if (alpha <= 0.001) {
+    return;
+  }
+  const paint = Skia.Paint();
+  paint.setAntiAlias(true);
+  paint.setColor(Skia.Color(`rgba(27,35,80,${alpha})`));
+  c.drawRect(Skia.XYWHRect(-bleed, 0, stageWidth + bleed * 2, stageHeight), paint);
+}
+
+/** Indoor lamp and pumpkin glows, drawn after the navy veil. */
+export function drawCozyPools(c: SkCanvas, rig: LightRig, glows: { x: number; y: number; r: number; a: number }[]): void {
+  const { warm, warmAlpha, radiusScale } = lighting.cozyNight;
+  for (const lamp of rig.lamps) {
+    const s = (lamp.r / 84) * radiusScale;
+    drawSoftOval(c, lamp.x, lamp.floorY + 2, 130 * s, 36 * s, warm, warmAlpha * lamp.a);
+  }
+  for (const glow of glows) {
+    drawSoftPool(c, glow.x, glow.y, glow.r * radiusScale, warm, warmAlpha * Math.min(1, glow.a));
+  }
+}
+
+/** Cool moonlight from each window onto the floor in front of it. */
+export function drawMoonPools(c: SkCanvas, scene: Scene, amount: number): void {
+  if (amount < 0.02) {
+    return;
+  }
+  const { moon, moonAlpha, radiusScale } = lighting.cozyNight;
+  for (const prop of scene.props) {
+    if (prop.kind !== 'window') {
+      continue;
+    }
+    const s = prop.scale ?? 1;
+    drawSoftPool(c, prop.x, prop.y + 48 * s, 200 * radiusScale * s, moon, moonAlpha * amount);
   }
 }
 

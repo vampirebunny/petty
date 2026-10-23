@@ -1,5 +1,5 @@
 import { breedById } from '../breeds';
-import { actorTint, lighting, petLightAmount, petLuminance, sceneryTint } from '../lighting';
+import { actorTint, indoorOverlayAlpha, lighting, petLightAmount, petLuminance, sceneryTint, stepNightFade } from '../lighting';
 import { scenes } from '../scenes';
 import { todAt } from '../timeOfDay';
 
@@ -31,4 +31,10 @@ it('caps indoor night tint, leaves the outdoor night tint, and fades the pet lig
   expect(petLightAmount(lighting.petLight.darkAbove)).toBe(0);
   expect(evening).toBeGreaterThan(dusk);
   expect(late).toBeGreaterThan(evening);
+  expect(indoorOverlayAlpha(1)).toBeCloseTo(lighting.cozyNight.alpha, 5);
+  expect(indoorOverlayAlpha(1)).toBeLessThan(lighting.indoorAlphaCap / 2 + 0.02);
+  expect(stepNightFade(null, 1, 0, false)).toBe(1);
+  expect(stepNightFade(0, 1, 0, true)).toBe(1);
+  expect(stepNightFade(0, 1, 0.2, false)).toBeCloseTo(0.2 / lighting.cozyNight.fadeSec, 5);
+  expect(stepNightFade(0.4, 0, 0.3, false)).toBeCloseTo(0.2, 5);
 });

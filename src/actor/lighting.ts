@@ -10,6 +10,17 @@ export const lighting = {
     color: [255, 196, 100] as [number, number, number],
     darkAbove: 0.5,
   },
+  // Indoor night is a light navy veil over the room, about half the old tint strength.
+  cozyNight: {
+    color: '#1B2350',
+    alpha: 0.18,
+    fadeSec: 1.5,
+    warm: '#FFD9A0',
+    warmAlpha: 0.45,
+    moon: '#CFE0FF',
+    moonAlpha: 0.25,
+    radiusScale: 1.25,
+  },
 };
 
 function clamp(value: number, min: number, max: number): number {
@@ -38,6 +49,20 @@ export function sceneryTint(scene: Scene, tod: TimeOfDay): Rgba {
 export function actorTint(scene: Scene, tod: TimeOfDay): Rgba {
   const tint = sceneryTint(scene, tod);
   return { ...tint, a: tint.a * scene.lighting.actorTint };
+}
+
+export function indoorOverlayAlpha(dark: number): number {
+  return lighting.cozyNight.alpha * clamp(dark, 0, 1);
+}
+
+// Move the shown night amount toward `target`. A long gap snaps. Reduce Motion snaps.
+export function stepNightFade(shown: number | null, target: number, dtSec: number, reduced: boolean): number {
+  const next = clamp(target, 0, 1);
+  if (shown == null || reduced || dtSec > 0.5) {
+    return next;
+  }
+  const step = Math.max(0, dtSec) / lighting.cozyNight.fadeSec;
+  return shown + Math.max(-step, Math.min(step, next - shown));
 }
 
 export function petLightAmount(dark: number): number {

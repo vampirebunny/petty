@@ -228,6 +228,16 @@ export function applyEvent(state: PetState, event: PetEvent): EventResult {
     return { state: next, cue: { kind: next.asleep ? 'yawn' : 'none' } };
   }
 
+  // He has curled up. Asleep starts now, so energy ticks and the button can say Wake.
+  if (event.type === 'beginRest') {
+    if (state.asleep) {
+      return { state, cue: { kind: 'none' } };
+    }
+    const next = copyState(state);
+    next.asleep = true;
+    return { state: next, cue: { kind: 'none' } };
+  }
+
   // Cuddle mode starting only wakes the pet. The view runs the task itself, so there is no cue.
   if (event.type === 'cuddleStart') {
     const next = copyState(state);

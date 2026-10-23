@@ -63,7 +63,7 @@ import { obstaclesIn, steerAim } from './furniture';
 import { nearestPoi, poiOf, sceneForSpecies, scenes, stageHeight } from './scenes';
 import type { Scene } from './scenes';
 import { variantFor } from './variation';
-import type { Actor, ActorSource, Anchors, Direction, Idle, IdleMode, JumpKind, PlayState, Pose, SoundEvent, Task, TaskType, Vec, World } from './types';
+import type { Actor, ActorSource, Anchors, CareInvite, Direction, Idle, IdleMode, JumpKind, PlayState, Pose, SoundEvent, Task, TaskType, Vec, World } from './types';
 
 const displayTau = 0.35;
 const idleWeight: Record<IdleMode, number> = { still: 3, pant: 2, purr: 2, nap: 1.5, walk: 2.5, zoom: 0 };
@@ -309,6 +309,15 @@ export function createWorld(actors: Actor[], seed = 1, scene: Scene = scenes.liv
     pendingBowlDrinks: 0,
     pendingPondDrinks: 0,
     foodStocked: false,
+    invites: [],
+    serving: null,
+    pendingRest: false,
+    restLatched: false,
+    glance: null,
+    liftedId: null,
+    squishId: null,
+    squishAt: 0,
+    shimmerIds: [],
     pendingMeals: 0,
     pendingPlayFinds: [],
     pendingTreatMoods: [],
@@ -599,8 +608,15 @@ export function takeTreatMoods(world: World): number[] {
 }
 
 export function syncWorldFood(world: World, stocked: boolean, premium = false): void {
+  const was = world.foodStocked;
   world.foodStocked = stocked;
   world.premiumMeal = premium && stocked;
+  if (stocked && !was && !world.invites.includes('food') && world.serving !== 'food') {
+    world.invites.push('food');
+  }
+  if (!stocked) {
+    clearInvite(world, 'food');
+  }
 }
 
 export function syncWorldWater(world: World, waterLevel: number): void {
@@ -638,11 +654,126 @@ function beginIdle(world: World, actor: Actor, mode: IdleMode): void {
   }
 }
 
+function isBusy(actor: Actor): boolean {
+  if (actor.collapseLeft > 0 || actor.asleep) {
+    return true;
+  }
+  if (actor.task.greet && actor.task.greet.phase === 'run') {
+    return true;
+  }
+  return actor.task.type !== 'idle';
+}
+
+function ownsLocomotion(actor: Actor): boolean {
+  if (actor.task.type === 'fetch' || actor.task.type === 'travel') {
+    return true;
+  }
+  if ((actor.task.type === 'eat' || actor.task.type === 'sleep') && actor.task.stage === 'go') {
+    return true;
+  }
+  return actor.task.type === 'idle' && (actor.idle.mode === 'walk' || actor.idle.mode === 'zoom');
+}
+
+function clearInvite(world: World, kind: CareInvite): void {
+  world.invites = world.invites.filter((item) => item !== kind);
+}
+
+function glanceAt(world: World, actor: Actor, kind: CareInvite): void {
+  if (ownsLocomotion(actor)) {
+    return;
+  }
+  const poi = nearestPoi(world.scene, kind === 'food' ? 'food' : kind === 'water' ? 'water' : 'bed', actor);
+  if (!poi) {
+    return;
+  }
+  world.glance = { face: poi.x >= actor.x ? 1 : -1, left: 0.45 };
+}
+
+function beginInvitedSleep(world: World, actor: Actor): boolean {
+  const bed = nearestPoi(world.scene, 'bed', actor);
+  releaseCarried(world, actor);
+  actor.asleep = false;
+  actor.sleepSec = 0;
+  actor.task = taskOf('sleep', bed ? 'go' : 'sleeping');
+  actor.task.poi = bed ?? undefined;
+  actor.pantT = 0;
+  world.serving = 'bed';
+  return true;
+}
+
+function beginInvite(world: World, actor: Actor, kind: CareInvite): boolean {
+  if (kind === 'bed') {
+    return beginInvitedSleep(world, actor);
+  }
+  const poiType = kind === 'food' ? 'food' : 'water';
+  if (poiOf(world.scene, poiType) == null || !canBehave(actor, 'eat')) {
+    return false;
+  }
+  world.serving = kind;
+  const started = startUserTask(world, actor, kind === 'food' ? 'eat' : 'drink');
+  if (!started) {
+    world.serving = null;
+  }
+  return started;
+}
+
+function startNextInvite(world: World, actor: Actor): boolean {
+  while (world.invites.length > 0) {
+    const kind = world.invites[0];
+    if (world.serving === kind) {
+      return true;
+    }
+    if (beginInvite(world, actor, kind)) {
+      return true;
+    }
+    world.invites.shift();
+  }
+  return false;
+}
+
+function pumpInvites(world: World, actor: Actor): void {
+  if (isBusy(actor) || world.serving) {
+    return;
+  }
+  startNextInvite(world, actor);
+}
+
+function applyGlance(world: World, actor: Actor, dt: number): void {
+  const glance = world.glance;
+  if (!glance || glance.left <= 0) {
+    return;
+  }
+  glance.left -= dt;
+  if (!ownsLocomotion(actor)) {
+    actor.face = glance.face;
+  }
+}
+
+// A tap fills or readies the prop. Z goes now when he is free, and otherwise glances and keeps his task.
+export function inviteCare(world: World, actor: Actor, kind: CareInvite): 'went' | 'queued' | 'already' {
+  if (world.invites.includes(kind) || world.serving === kind) {
+    return 'already';
+  }
+  world.invites.push(kind);
+  if (!isBusy(actor)) {
+    return beginInvite(world, actor, kind) ? 'went' : 'queued';
+  }
+  glanceAt(world, actor, kind);
+  return 'queued';
+}
+
+export function takePendingRest(world: World): boolean {
+  if (!world.pendingRest) {
+    return false;
+  }
+  world.pendingRest = false;
+  return true;
+}
+
 function nextIdle(world: World, actor: Actor): void {
   const breed = breedById(actor.breedId);
-  // Food left in the bowl draws the pet over even if it was busy when the bowl was filled.
-  if (world.foodStocked && poiOf(world.scene, 'food') != null && canBehave(actor, 'eat')) {
-    startUserTask(world, actor, 'eat');
+  // An inviting bowl or bed comes before any random wander.
+  if (startNextInvite(world, actor)) {
     return;
   }
   // Occasional autonomous drink when water is available. Thirst makes this much more likely.
@@ -714,6 +845,9 @@ function noteFetchFind(world: World, actor: Actor): void {
 function goIdle(world: World, actor: Actor): void {
   noteFetchFind(world, actor);
   releaseCarried(world, actor);
+  if (startNextInvite(world, actor)) {
+    return;
+  }
   actor.task = taskOf('idle');
   beginIdle(world, actor, 'still');
 }
@@ -1700,6 +1834,15 @@ function updateActor(world: World, actor: Actor, dt: number): void {
       targets.wagAmp = 0;
       targets.breathAmp = 0.03;
       targets.breathRate = 0.35;
+      // The nap starts when he is down, not when the player tapped.
+      if (!actor.asleep && !world.restLatched) {
+        world.restLatched = true;
+        world.pendingRest = true;
+        clearInvite(world, 'bed');
+        if (world.serving === 'bed') {
+          world.serving = null;
+        }
+      }
     }
   } else if (actor.task.type === 'winddown' && actor.task.stage === 'flop') {
     // Flops down and pants, or purrs.
@@ -1788,10 +1931,19 @@ function updateActor(world: World, actor: Actor, dt: number): void {
           } else {
             world.pendingPondDrinks += 1;
           }
-        }
-        if (actor.task.kind !== 'drink' && world.foodStocked) {
-          world.pendingMeals += 1;
-          world.foodStocked = false;
+          if (world.serving === 'water') {
+            clearInvite(world, 'water');
+            world.serving = null;
+          }
+        } else if (world.serving === 'food' || world.foodStocked) {
+          if (world.foodStocked) {
+            world.pendingMeals += 1;
+            world.foodStocked = false;
+          }
+          clearInvite(world, 'food');
+          if (world.serving === 'food') {
+            world.serving = null;
+          }
         }
         goIdle(world, actor);
       }
@@ -2450,6 +2602,11 @@ export function update(world: World, dt: number): void {
   // The bowl pours in when food is added, empties while the pet eats, and stays empty after.
   world.bowlFill = clamp(world.bowlFill + (eating ? -1 / 6 : world.foodStocked ? 0.8 : -2) * step, 0, 1);
   for (const actor of world.actors) {
+    if (!(actor.task.type === 'sleep' && actor.task.stage === 'sleeping') && !actor.asleep) {
+      world.restLatched = false;
+    }
+    pumpInvites(world, actor);
     updateActor(world, actor, step);
+    applyGlance(world, actor, step);
   }
 }

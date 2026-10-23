@@ -166,6 +166,7 @@ export type PetEvent =
   | { type: 'refillWater' }
   | { type: 'drank'; fromBowl: boolean; now: number }
   | { type: 'toggleRest' }
+  | { type: 'beginRest' }
   | { type: 'pet' }
   | { type: 'cuddleStart' }
   | { type: 'cuddled'; seconds: number }

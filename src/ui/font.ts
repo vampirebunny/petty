@@ -8,4 +8,7 @@ export const fontFamily = {
   bold: 'Nunito_700Bold',
   extraBold: 'Nunito_800ExtraBold',
   black: 'Nunito_900Black',
+  // Candy buttons, headers, coins, and tooltips. The rest of the app stays on Nunito.
+  fredokaSemibold: 'Fredoka_600SemiBold',
+  fredokaBold: 'Fredoka_700Bold',
 } as const;

@@ -24,6 +24,8 @@ import {
   startSceneExit,
   startTreat,
   startUserTask,
+  inviteCare,
+  takePendingRest,
   beginGreeting,
   patGreeting,
   takePendingGreeting,
@@ -72,6 +74,11 @@ export type StageHandle = {
   label: () => string;
   furnitureAt: (x: number, y: number) => string | null;
   moveFurniture: (pieceId: string, x: number, y: number) => { sceneId: string; x: number; y: number } | null;
+  pieceAction: (pieceId: string) => 'food' | 'water' | 'bed' | null;
+  invite: (kind: 'food' | 'water' | 'bed') => 'went' | 'queued' | 'already';
+  setLifted: (pieceId: string | null) => void;
+  squish: (pieceId: string) => void;
+  propPoint: (pieceId: string) => { x: number; y: number } | null;
 };
 
 export type CuddleHandle = {
@@ -110,6 +117,8 @@ type Props = {
   onTraveling?: (active: boolean) => void;
   onPointAdds?: (adds: PointAdd[]) => void;
   onGreeting?: (id: string) => void;
+  onFellAsleep?: () => void;
+  shimmerIds?: readonly string[];
   furniture?: FurniturePiece[];
   placements?: FurniturePlacement[];
   ownsBall?: boolean;
@@ -166,6 +175,8 @@ export function PetView({
   onTraveling,
   onPointAdds,
   onGreeting,
+  onFellAsleep,
+  shimmerIds,
   stageRef,
   furniture = [],
   placements = [],
@@ -316,7 +327,7 @@ export function PetView({
       } else if (kind === 'confused') {
         startUserTask(world, actor, 'confused');
       } else if (kind === 'eat') {
-        startUserTask(world, actor, 'eat');
+        inviteCare(world, actor, 'food');
       } else if (kind === 'refuse') {
         startUserTask(world, actor, 'refuse');
       } else if (kind === 'yawn') {
@@ -489,6 +500,41 @@ export function PetView({
       label: () => worldRef.current.greetLabel ?? '',
       furnitureAt: (x, y) => (travelRef.current ? null : furnitureAt(worldRef.current.scene, x, y)),
       moveFurniture: (pieceId, x, y) => (travelRef.current ? null : movePiece(worldRef.current.scene, pieceId, x, y)),
+      pieceAction: (pieceId) => {
+        const prop = worldRef.current.scene.props.find((item) => item.id === pieceId);
+        if (!prop) {
+          return null;
+        }
+        if (prop.kind === 'bed') {
+          return 'bed';
+        }
+        if (prop.kind === 'bowl' && prop.contents === 'water') {
+          return 'water';
+        }
+        if (prop.kind === 'bowl') {
+          return 'food';
+        }
+        return null;
+      },
+      invite: (kind) => {
+        const actor = worldRef.current.actors[0];
+        if (!actor) {
+          return 'queued';
+        }
+        return inviteCare(worldRef.current, actor, kind);
+      },
+      setLifted: (pieceId) => {
+        worldRef.current.liftedId = pieceId;
+      },
+      squish: (pieceId) => {
+        const world = worldRef.current;
+        world.squishId = pieceId;
+        world.squishAt = world.t;
+      },
+      propPoint: (pieceId) => {
+        const prop = worldRef.current.scene.props.find((item) => item.id === pieceId);
+        return prop ? { x: prop.x, y: prop.y } : null;
+      },
     }),
     [],
   );
@@ -608,6 +654,14 @@ export function PetView({
   useEffect(() => {
     onPointAddsRef.current = onPointAdds;
   }, [onPointAdds]);
+  const onFellAsleepRef = useRef(onFellAsleep);
+  useEffect(() => {
+    onFellAsleepRef.current = onFellAsleep;
+  }, [onFellAsleep]);
+  const shimmerRef = useRef<readonly string[]>(shimmerIds ?? []);
+  useEffect(() => {
+    shimmerRef.current = shimmerIds ?? [];
+  }, [shimmerIds]);
   const hungerRef = useRef(pet.needs.hunger);
   hungerRef.current = pet.needs.hunger;
   const energyRef = useRef(pet.needs.energy);
@@ -619,8 +673,12 @@ export function PetView({
   const step = useCallback(
     (elapsedMs: number) => {
       const world = worldRef.current;
+      world.shimmerIds = [...shimmerRef.current];
       const dt = frameDt(elapsedMs, activeRef.current);
       update(world, dt);
+      if (takePendingRest(world)) {
+        onFellAsleepRef.current?.();
+      }
       const greeted = world.actors[0] ? takePendingGreeting(world.actors[0]) : null;
       if (greeted) {
         onGreetingRef.current?.(greeted);
