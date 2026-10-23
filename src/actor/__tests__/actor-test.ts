@@ -224,6 +224,25 @@ it('lets a dog carry the ball home and a cat bat it three times', () => {
   expect(canBehave(kit, 'fetch')).toBe(false);
 });
 
+it('stays awake when napping is off and still changes idle', () => {
+  const pup = actor();
+  pup.energy = 0;
+  const world = createWorld([pup], 3);
+  world.noNap = true;
+  pup.idle.mode = 'nap';
+  pup.idle.arrived = true;
+  const seen = new Set<string>();
+  for (let step = 0; step < 500; step += 1) {
+    update(world, 0.05);
+    seen.add(`${pup.task.type}:${pup.idle.mode}`);
+    expect(pup.asleep).toBe(false);
+    expect(pup.task.type).not.toBe('sleep');
+    expect(pup.idle.mode).not.toBe('nap');
+  }
+  const idles = [...seen].filter((item) => item.startsWith('idle:'));
+  expect(idles.length).toBeGreaterThan(1);
+});
+
 it('spends energy while running and restores it during an idle nap', () => {
   const runner = actor();
   runner.energy = 1;

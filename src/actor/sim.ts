@@ -916,7 +916,7 @@ function nextIdle(world: World, actor: Actor): void {
   // Zoomies: a short lap at full speed now and then. Youth and energy make them far more frequent.
   const profile = profileOf(actor);
   const zoomWeight =
-    world.reducedMotion || world.noNap || actor.stamina < 0.6 || !isGaitAllowed('canter', maxGaitOf(profile, actor.tired))
+    world.reducedMotion || actor.stamina < 0.6 || !isGaitAllowed('canter', maxGaitOf(profile, actor.tired))
       ? 0
       : profile.zoomies * 4 * actor.energy * (0.5 + 0.5 * actor.mood);
   const weightOf = (mode: IdleMode): number => (mode === 'zoom' ? zoomWeight : idleWeight[mode]);
@@ -1921,7 +1921,7 @@ function updateActor(world: World, actor: Actor, dt: number): void {
     if (actor.collapseLeft <= 0) {
       finishCollapse(world, actor);
     }
-  } else if (!actor.guest && !actor.asleep && actor.energy * 100 + actor.pendingEnergy <= 0) {
+  } else if (!world.noNap && !actor.guest && !actor.asleep && actor.energy * 100 + actor.pendingEnergy <= 0) {
     beginCollapse(world, actor);
   }
   if (actor.asleep && actor.collapseLeft <= 0 && actor.task.type === 'sleep' && actor.task.stage === 'sleeping') {
@@ -2036,70 +2036,82 @@ function updateActor(world: World, actor: Actor, dt: number): void {
       goIdle(world, actor);
     }
   } else if (actor.task.type === 'idle') {
-    actor.idle.t += dt;
-    if (actor.idle.mode === 'zoom') {
-      wagRate = 14;
-      const range = xRangeOf(floor, frame.geom, frame.scale);
-      const waypoint = zoomWaypoint(actor, floor, range);
-      if (waypoint) {
-        move = waypoint;
-        vmax = limit;
-      } else {
-        actor.zoom = null;
-        beginIdle(world, actor, 'still');
-      }
-    } else if (actor.idle.mode === 'walk') {
-      if (!actor.idle.target) {
-        actor.idle.target = {
-          x: floor.xMin + 22 + world.rng() * (floor.xMax - floor.xMin - 44),
-          y: floor.yMin + world.rng() * (floor.yMax - floor.yMin),
-        };
-      }
-      move = actor.idle.target;
-      // A zoomy pet crosses the room near the top of its age speed. A tired one ambles.
-      vmax = limit * 0.82;
-      const arrived =
-        actor.idle.target != null &&
-        Math.hypot(actor.idle.target.x - actor.x, actor.idle.target.y - actor.y) < 6 &&
-        actor.speed < 14;
-      if (arrived || actor.idle.t > actor.idle.dur) {
-        nextIdle(world, actor);
-      }
-    } else {
-      if (actor.idle.mode === 'pant') {
-        targets.pant = 1;
-        targets.breathAmp = 0.05;
-        targets.breathRate = 2.5;
-        targets.wagAmp = 0.12;
-        targets.sit = actor.idle.sit ? 1 : 0;
-      } else if (actor.idle.mode === 'purr') {
-        targets.squint = 0.7;
-        targets.breathAmp = 0.03;
-        targets.breathRate = 3;
-        targets.sit = 1;
-        targets.wagAmp = 0.1;
-      } else if (actor.idle.mode === 'nap') {
-        if (!actor.idle.arrived && actor.idle.target) {
-          move = actor.idle.target;
-          vmax = limit * 0.42;
-          if (Math.hypot(actor.idle.target.x - actor.x, actor.idle.target.y - actor.y) < 5 && actor.speed < 15) {
-            actor.idle.arrived = true;
-            actor.idle.t = 0;
-          }
+    if (world.noNap && actor.idle.mode === 'nap') {
+      nextIdle(world, actor);
+      if (actor.idle.mode === 'nap') {
+        if (actor.task.type === 'idle') {
+          beginIdle(world, actor, 'still');
         } else {
-          targets.lie = 1;
-          targets.headRest = 1;
-          targets.eyes = 1;
-          targets.wagAmp = 0;
-          targets.breathAmp = 0.03;
-          targets.breathRate = 0.35;
+          actor.idle.mode = 'still';
         }
       }
-      if (actor.idle.mode === 'still' || actor.idle.mode === 'pant' || actor.idle.mode === 'purr') {
-        faceCamera = true;
-      }
-      if (actor.idle.arrived && actor.idle.t > actor.idle.dur) {
-        nextIdle(world, actor);
+    }
+    if (actor.task.type === 'idle') {
+      actor.idle.t += dt;
+      if (actor.idle.mode === 'zoom') {
+        wagRate = 14;
+        const range = xRangeOf(floor, frame.geom, frame.scale);
+        const waypoint = zoomWaypoint(actor, floor, range);
+        if (waypoint) {
+          move = waypoint;
+          vmax = limit;
+        } else {
+          actor.zoom = null;
+          beginIdle(world, actor, 'still');
+        }
+      } else if (actor.idle.mode === 'walk') {
+        if (!actor.idle.target) {
+          actor.idle.target = {
+            x: floor.xMin + 22 + world.rng() * (floor.xMax - floor.xMin - 44),
+            y: floor.yMin + world.rng() * (floor.yMax - floor.yMin),
+          };
+        }
+        move = actor.idle.target;
+        // A zoomy pet crosses the room near the top of its age speed. A tired one ambles.
+        vmax = limit * 0.82;
+        const arrived =
+          actor.idle.target != null &&
+          Math.hypot(actor.idle.target.x - actor.x, actor.idle.target.y - actor.y) < 6 &&
+          actor.speed < 14;
+        if (arrived || actor.idle.t > actor.idle.dur) {
+          nextIdle(world, actor);
+        }
+      } else {
+        if (actor.idle.mode === 'pant') {
+          targets.pant = 1;
+          targets.breathAmp = 0.05;
+          targets.breathRate = 2.5;
+          targets.wagAmp = 0.12;
+          targets.sit = actor.idle.sit ? 1 : 0;
+        } else if (actor.idle.mode === 'purr') {
+          targets.squint = 0.7;
+          targets.breathAmp = 0.03;
+          targets.breathRate = 3;
+          targets.sit = 1;
+          targets.wagAmp = 0.1;
+        } else if (actor.idle.mode === 'nap') {
+          if (!actor.idle.arrived && actor.idle.target) {
+            move = actor.idle.target;
+            vmax = limit * 0.42;
+            if (Math.hypot(actor.idle.target.x - actor.x, actor.idle.target.y - actor.y) < 5 && actor.speed < 15) {
+              actor.idle.arrived = true;
+              actor.idle.t = 0;
+            }
+          } else {
+            targets.lie = 1;
+            targets.headRest = 1;
+            targets.eyes = 1;
+            targets.wagAmp = 0;
+            targets.breathAmp = 0.03;
+            targets.breathRate = 0.35;
+          }
+        }
+        if (actor.idle.mode === 'still' || actor.idle.mode === 'pant' || actor.idle.mode === 'purr') {
+          faceCamera = true;
+        }
+        if (actor.idle.arrived && actor.idle.t > actor.idle.dur) {
+          nextIdle(world, actor);
+        }
       }
     }
   } else if (actor.task.type === 'sit') {

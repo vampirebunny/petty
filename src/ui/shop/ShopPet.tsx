@@ -100,6 +100,8 @@ export function ShopPet({ pet, equipped, reducedMotion, width, height }: Props) 
     const world = createWorld([actor], pet.attributes.seed || 1, shopPetScene);
     world.waterLevel = 0;
     world.reducedMotion = reducedMotion;
+    // The shop pet stays awake. Still, pant, purr, walk, and zoomies are fine.
+    world.noNap = true;
     worldRef.current = world;
     return () => {
       worldRef.current = null;

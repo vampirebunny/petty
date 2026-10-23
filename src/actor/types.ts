@@ -664,7 +664,7 @@ export type World = {
   sounds: SoundEvent[];
   // Debug rendering only: draw every actor as a flat black silhouette.
   silhouette?: boolean;
-  // Pets never nap on their own (the adoption preview keeps them awake).
+  // Pets never nap or collapse on their own. Other idles still run.
   noNap?: boolean;
   // The toy gestures and play use. Missing means the ball.
   toyKind?: string;
