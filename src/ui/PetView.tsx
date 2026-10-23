@@ -27,6 +27,8 @@ import {
   clearPlayToy,
   startHeld,
   steerHeld,
+  setPlayTouch,
+  releaseHeldFinger,
   stopHeld,
   startUserTask,
   inviteCare,
@@ -94,6 +96,8 @@ export type StageHandle = {
   clearPlay: () => void;
   startHeld: (kind: 'wand' | 'laser') => void;
   steerHeld: (x: number, y: number, down: boolean) => void;
+  setPlayTouch: (on: boolean) => void;
+  releaseHeldFinger: () => void;
   stopHeld: () => void;
   heldOn: () => boolean;
   propPoint: (pieceId: string) => { x: number; y: number } | null;
@@ -610,6 +614,12 @@ export function PetView({
       },
       steerHeld: (x, y, down) => {
         steerHeld(worldRef.current, x, y, down);
+      },
+      setPlayTouch: (on) => {
+        setPlayTouch(worldRef.current, on);
+      },
+      releaseHeldFinger: () => {
+        releaseHeldFinger(worldRef.current);
       },
       stopHeld: () => {
         stopHeld(worldRef.current);

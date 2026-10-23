@@ -278,23 +278,34 @@ describe('play in the sim', () => {
     expect(world.items.map((item) => item.kind)).toEqual(['mouse']);
   });
 
-  it('pays 3 mood for every 3 seconds of a chase and not for picking the toy up', () => {
+  it('does not pay mood while a toy is only out', () => {
     const pup = spawnActor(source());
     const world = createWorld([pup], 1);
     pup.task = { type: 'fetch', stage: 'chew', t: 0, bats: 0, cool: 0, hold: 30 };
     world.items = [
       { id: 'bone-1', kind: 'bone', state: 'carried', x: pup.x, y: pup.y, z: 0, vx: 0, vy: 0, vz: 0, holderId: pup.id },
     ];
+    run(world, 3, () => undefined);
+    expect(pup.moodPops).toEqual([]);
+  });
+
+  it('pays 3 mood for every 3 seconds the finger keeps a throw moving', () => {
+    const pup = spawnActor(source());
+    const world = createWorld([pup], 1);
+    world.playTouch = true;
     run(world, 2.9, () => undefined);
     expect(pup.moodPops).toEqual([]);
     run(world, 0.2, () => undefined);
     expect(pup.moodPops).toEqual([3]);
     pup.moodPops = [];
-    run(world, 3, () => undefined);
-    expect(pup.moodPops).toEqual([3]);
+    world.playTouch = false;
+    run(world, 0.2, () => undefined);
+    world.playTouch = true;
+    run(world, 2.5, () => undefined);
+    expect(pup.moodPops).toEqual([]);
   });
 
-  it('pays held-toy mood only while the finger stays down', () => {
+  it('pays held-toy mood for continuous movement, not for holding still', () => {
     const kit = spawnActor(source({ id: 'kit', breedId: 'domesticShorthair' }));
     const world = createWorld([kit], 1);
     startHeld(world, 'laser');
@@ -302,17 +313,38 @@ describe('play in the sim', () => {
       world.held.down = true;
     }
     run(world, 3, () => undefined);
-    expect(kit.moodPops).toEqual([3]);
-    kit.moodPops = [];
-    if (world.held) {
-      world.held.down = false;
-    }
-    run(world, 0.2, () => undefined);
-    if (world.held) {
-      world.held.down = true;
-    }
-    run(world, 2.5, () => undefined);
     expect(kit.moodPops).toEqual([]);
+    for (let i = 0; i < 58; i += 1) {
+      if (world.held) {
+        world.held.down = true;
+        world.held.x += 8;
+      }
+      update(world, 0.05);
+    }
+    expect(kit.moodPops).toEqual([]);
+    for (let i = 0; i < 4; i += 1) {
+      if (world.held) {
+        world.held.down = true;
+        world.held.x += 8;
+      }
+      update(world, 0.05);
+    }
+    expect(kit.moodPops).toEqual([3]);
+  });
+
+  it('pays mood on the third tap or throw', () => {
+    const pup = spawnActor(source());
+    const world = createWorld([pup], 1);
+    throwFromEdge(world);
+    throwFromEdge(world);
+    expect(pup.moodPops).toEqual([]);
+    throwFromEdge(world);
+    expect(pup.moodPops).toEqual([3]);
+    throwFromEdge(world);
+    throwFromEdge(world);
+    expect(pup.moodPops).toEqual([3]);
+    throwFromEdge(world);
+    expect(pup.moodPops).toEqual([3, 3]);
   });
 
   it('equips a toy without spawning one when the scene is empty', () => {

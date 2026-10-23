@@ -117,6 +117,8 @@ export {
   clearPlayToy,
   startHeld,
   steerHeld,
+  setPlayTouch,
+  releaseHeldFinger,
   stopHeld,
   throwFromEdge,
   update,

@@ -10,7 +10,9 @@ import {
   overweightPlayWeightBonus,
   playWeightPerHour,
   playHappinessGain,
+  playMoodActCount,
   playMoodIntervalSec,
+  playMoveSpeed,
   weightBurnPerSec,
   weightRunSpeed,
 } from '../sim/config';
@@ -113,6 +115,8 @@ function removeFloorToys(world: World): void {
 export function clearPlayToy(world: World): void {
   const actor = world.actors[0];
   world.held = null;
+  world.playTouch = false;
+  world.playActs = 0;
   removeFloorToys(world);
   if (!actor) {
     return;
@@ -372,6 +376,8 @@ export function createWorld(actors: Actor[], seed = 1, scene: Scene = scenes.liv
     sounds: [],
     held: null,
     playMoodSec: 0,
+    playActs: 0,
+    playTouch: false,
   };
   seedParticles(world);
   return world;
@@ -578,6 +584,18 @@ function releaseCarried(world: World, actor: Actor): void {
   item.vz = 0;
 }
 
+function notePlayAct(world: World): void {
+  const actor = world.actors.find((item) => !item.guest);
+  if (!actor) {
+    return;
+  }
+  world.playActs += 1;
+  if (world.playActs >= playMoodActCount) {
+    world.playActs = 0;
+    actor.moodPops.push(playHappinessGain);
+  }
+}
+
 export function throwFromEdge(world: World): void {
   stopHeld(world);
   const roll = world.rng;
@@ -594,6 +612,7 @@ export function throwFromEdge(world: World): void {
       vz: world.toyKind === 'frisbee' ? 170 : world.toyKind === 'yarn' ? 230 : 330,
     }),
   ];
+  notePlayAct(world);
 }
 
 export function dropBallAt(world: World, x: number, y: number, soft = true): void {
@@ -611,6 +630,7 @@ export function dropBallAt(world: World, x: number, y: number, soft = true): voi
       vz: 0,
     }),
   ];
+  notePlayAct(world);
 }
 
 export function flickBallAt(
@@ -632,6 +652,7 @@ export function flickBallAt(
       vz: velocity.vz,
     }),
   ];
+  notePlayAct(world);
 }
 
 export function takeBowlDrinks(world: World): number {
@@ -1262,6 +1283,7 @@ export function startHeld(world: World, kind: 'wand' | 'laser'): void {
   actor.asleep = false;
   actor.sleepSec = 0;
   world.toyKind = kind;
+  world.playActs = 0;
   if (actor.task.type === 'fetch' || actor.task.type === 'held' || actor.task.type === 'winddown') {
     goIdle(world, actor);
   }
@@ -1293,6 +1315,7 @@ export function startHeld(world: World, kind: 'wand' | 'laser'): void {
 export function stopHeld(world: World): void {
   const actor = world.actors[0];
   world.held = null;
+  world.playTouch = false;
   if (actor && actor.task.type === 'held') {
     goIdle(world, actor);
   }
@@ -1317,6 +1340,18 @@ export function steerHeld(world: World, x: number, y: number, down: boolean): vo
   if (down) {
     held.quiet = 0;
   }
+}
+
+// A throw drag counts as play only while it is still moving. Letting go is separate.
+export function setPlayTouch(world: World, on: boolean): void {
+  world.playTouch = on;
+}
+
+export function releaseHeldFinger(world: World): void {
+  if (world.held) {
+    world.held.down = false;
+  }
+  world.playTouch = false;
 }
 
 function stepHeld(
@@ -3056,14 +3091,11 @@ export function update(world: World, dt: number): void {
   stepPlayMood(world, step);
 }
 
-// Thrown toys pay during the chase. A wand or laser pays only while the finger is down.
-// Stopping either one clears the partial interval, so the next stretch has to last the full 3 seconds.
+// Mood from movement counts only while the toy itself keeps moving.
+// A resting wand, laser, or thrown toy does not. Stopping clears the partial 3 seconds.
 function stepPlayMood(world: World, step: number): void {
   const actor = world.actors.find((item) => !item.guest);
-  const playing =
-    actor != null &&
-    (actor.task.type === 'fetch' || (actor.task.type === 'held' && world.held?.down === true));
-  if (!actor || !playing) {
+  if (!actor || !toyIsMoving(world)) {
     world.playMoodSec = 0;
     return;
   }
@@ -3072,4 +3104,17 @@ function stepPlayMood(world: World, step: number): void {
     world.playMoodSec -= playMoodIntervalSec;
     actor.moodPops.push(playHappinessGain);
   }
+}
+
+function toyIsMoving(world: World): boolean {
+  if (world.playTouch) {
+    return true;
+  }
+  const held = world.held;
+  if (held?.down === true && held.speed >= playMoveSpeed) {
+    return true;
+  }
+  return world.items.some(
+    (item) => !item.kind.startsWith('treat:') && item.state === 'free' && Math.hypot(item.vx, item.vy, item.vz) >= playMoveSpeed,
+  );
 }

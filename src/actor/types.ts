@@ -674,8 +674,12 @@ export type World = {
   toyKind?: string;
   // A wand or laser the player is holding. Floor toys are removed while this is set.
   held: HeldToy | null;
-  // Seconds of the current play streak. Cleared when the chase or the finger stops.
+  // Seconds of continuous toy movement toward the next mood grant. Cleared when the toy stops.
   playMoodSec: number;
+  // Taps and throws toward the next mood grant. Cleared when that grant lands, or the toy is put away.
+  playActs: number;
+  // True while a throw drag is moving fast enough to count as using the toy.
+  playTouch: boolean;
   // Multiplies sim dt. Debug scrubbing uses 0.5 and 0.2.
   timeScale?: number;
   // Toys a greeting may carry. Always includes ball.

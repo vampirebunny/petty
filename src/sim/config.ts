@@ -30,10 +30,13 @@ export const extraHappinessDecayPerHour = -684;
 // Tummy (100 - hunger) and energy must both be at least this for mood to rise.
 // Below this on either ring, awake mood starts draining.
 export const moodNeedFloor = 30;
-// Mood from playing with a toy. Not paid for picking or throwing one.
-// One grant each time this much play has elapsed, when tummy and energy can raise mood.
+// Mood from playing with a toy. Not paid for leaving one out.
+// One grant after this much continuous movement, or after this many taps or throws.
 export const playHappinessGain = 3;
 export const playMoodIntervalSec = 3;
+export const playMoodActCount = 3;
+// World px/s. Slower than this is the toy sitting, not moving.
+export const playMoveSpeed = 40;
 // Empty energy drops the pet for this long, then they wake with a little energy back.
 export const collapseSleepSec = 5;
 export const collapseWakeEnergy = 10;

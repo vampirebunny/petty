@@ -645,7 +645,7 @@ export default function HomeScreen({ petApi }: Props) {
     [contentWidth, pieceAt, viewHeight, viewWidth],
   );
   const onFlickMove = useCallback(
-    (x: number, y: number) => {
+    (x: number, y: number, vx: number, vy: number) => {
       if (stageHandle.current?.heldOn()) {
         const point = stagePoint(x, y, viewWidth, viewHeight, contentWidth);
         stageHandle.current.steerHeld(point.x, point.y, true);
@@ -654,12 +654,19 @@ export default function HomeScreen({ petApi }: Props) {
       if (flickPiece.current) {
         return;
       }
+      stageHandle.current?.setPlayTouch(Math.hypot(vx, vy) >= flickSpeedThreshold);
       void x;
       void y;
       strokeRef.current();
     },
     [contentWidth, viewHeight, viewWidth],
   );
+  const onFlickFinish = useCallback(() => {
+    stageHandle.current?.setPlayTouch(false);
+    if (stageHandle.current?.heldOn()) {
+      stageHandle.current.releaseHeldFinger();
+    }
+  }, []);
   const onFlickEnd = useCallback(
     (x: number, y: number, vx: number, vy: number) => {
       if (stageHandle.current?.heldOn()) {
@@ -671,6 +678,7 @@ export default function HomeScreen({ petApi }: Props) {
         stageHandle.current.steerHeld(point.x, point.y, false);
         return;
       }
+      stageHandle.current?.setPlayTouch(false);
       const pieceId = flickPiece.current;
       flickPiece.current = null;
       if (pieceId) {
@@ -727,10 +735,13 @@ export default function HomeScreen({ petApi }: Props) {
         runOnJS(onFlickStart)(event.x, event.y);
       })
       .onUpdate((event) => {
-        runOnJS(onFlickMove)(event.x, event.y);
+        runOnJS(onFlickMove)(event.x, event.y, event.velocityX, event.velocityY);
       })
       .onEnd((event) => {
         runOnJS(onFlickEnd)(event.x, event.y, event.velocityX, event.velocityY);
+      })
+      .onFinalize(() => {
+        runOnJS(onFlickFinish)();
       });
     return Gesture.Exclusive(tap, hold, flick);
   }, [
@@ -739,6 +750,7 @@ export default function HomeScreen({ petApi }: Props) {
     onCuddleMoveStage,
     onCuddleTapStage,
     onFlickEnd,
+    onFlickFinish,
     onFlickMove,
     onFlickStart,
     onHoldEnd,
