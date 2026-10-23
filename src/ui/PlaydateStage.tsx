@@ -54,9 +54,10 @@ type Props = {
   record: PlaydateRecord;
   reducedMotion: boolean;
   onDone: () => void;
+  onTogether?: () => void;
 };
 
-export function PlaydateStage({ record, reducedMotion, onDone }: Props) {
+export function PlaydateStage({ record, reducedMotion, onDone, onTogether }: Props) {
   const { contentWidth: viewWidth, viewHeight } = useStageSize();
   const beats = useMemo(() => replayBeats(record), [record]);
   const endMs = useMemo(() => playdateEndMs(beats), [beats]);
@@ -71,10 +72,15 @@ export function PlaydateStage({ record, reducedMotion, onDone }: Props) {
   }, [record]);
   const [picture, setPicture] = useState<SkPicture | null>(null);
   const onDoneRef = useRef(onDone);
+  const onTogetherRef = useRef(onTogether);
 
   useEffect(() => {
     onDoneRef.current = onDone;
   }, [onDone]);
+
+  useEffect(() => {
+    onTogetherRef.current = onTogether;
+  }, [onTogether]);
 
   useEffect(() => {
     let raf = 0;
@@ -83,6 +89,7 @@ export function PlaydateStage({ record, reducedMotion, onDone }: Props) {
     let opening: OpeningState = { phase: 'portraitA', elapsed: 0 };
     let placed: OpeningPhase | null = null;
     let finished = false;
+    let toldTogether = false;
     let running = true;
     const tod = todAt(record.hour);
     const cues = ambientCues(record.version, voiceCues(record.seed, endMs), beats);
@@ -156,6 +163,10 @@ export function PlaydateStage({ record, reducedMotion, onDone }: Props) {
         placed = opening.phase;
       }
       const playing = opening.phase === 'play';
+      if (playing && !toldTogether) {
+        toldTogether = true;
+        onTogetherRef.current?.();
+      }
       const step = playing ? dt * playSpeed : dt;
       if (playing) {
         elapsed += step * 1000;

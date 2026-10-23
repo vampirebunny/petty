@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Pressable } from 'react-native-gesture-handler';
 
@@ -39,6 +39,9 @@ function resultNotes(record: PlaydateRecord, petName: string): ResultsNote[] {
 
 type Step = 'partner' | 'place' | 'activity' | 'outfit' | 'play' | 'results';
 
+// Wall-clock wait after both pets have arrived and are in frame together.
+const skipAfterTogetherMs = 3000;
+
 type Props = {
   pet: PetState;
   save: PlaydateSave;
@@ -64,7 +67,32 @@ export function PlaydateScreen({ pet, save, now, remaining, reducedMotion, onSav
   const [replay, setReplay] = useState(false);
   // What the paid playdate added, worked out from the pet before the rewards landed.
   const [gains, setGains] = useState<AttributeGain[] | null>(null);
+  const [skipReady, setSkipReady] = useState(false);
   const finished = useRef(false);
+  const skipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearSkipTimer = () => {
+    if (skipTimer.current != null) {
+      clearTimeout(skipTimer.current);
+      skipTimer.current = null;
+    }
+  };
+
+  useEffect(() => clearSkipTimer, []);
+
+  const resetSkip = () => {
+    clearSkipTimer();
+    setSkipReady(false);
+  };
+
+  const dogsTogether = () => {
+    clearSkipTimer();
+    setSkipReady(false);
+    skipTimer.current = setTimeout(() => {
+      skipTimer.current = null;
+      setSkipReady(true);
+    }, skipAfterTogetherMs);
+  };
 
   const preview = useMemo(() => snapshotPet(pet, pet.equipped, '', 'preview'), [pet]);
   const petSpecies = breedById(pet.breedId)?.species === 'cat' ? 'cat' : 'dog';
@@ -144,6 +172,7 @@ export function PlaydateScreen({ pet, save, now, remaining, reducedMotion, onSav
     finished.current = false;
     setReplay(false);
     setGains(null);
+    resetSkip();
     setRecord(next);
     setStep('play');
   };
@@ -151,6 +180,7 @@ export function PlaydateScreen({ pet, save, now, remaining, reducedMotion, onSav
   const watch = (saved: PlaydateRecord) => {
     finished.current = false;
     setGains(null);
+    resetSkip();
     setReplay(true);
     setRecord(saved);
     setPartner(saved.petB);
@@ -300,10 +330,12 @@ export function PlaydateScreen({ pet, save, now, remaining, reducedMotion, onSav
             <Text style={styles.section}>
               {activityById(record.activityId)?.name ?? 'Playdate'} with {record.petB.name}
             </Text>
-            <PlaydateStage record={record} reducedMotion={reducedMotion} onDone={finish} />
-            <Pressable accessibilityRole="button" accessibilityLabel="Skip to results" onPress={finish} style={styles.start}>
-              <Text style={styles.startLabel}>Skip to results</Text>
-            </Pressable>
+            <PlaydateStage record={record} reducedMotion={reducedMotion} onDone={finish} onTogether={dogsTogether} />
+            {skipReady ? (
+              <Pressable accessibilityRole="button" accessibilityLabel="Skip to results" onPress={finish} style={styles.start}>
+                <Text style={styles.startLabel}>Skip to results</Text>
+              </Pressable>
+            ) : null}
           </View>
         ) : null}
         {step === 'results' && record ? (
@@ -322,6 +354,7 @@ export function PlaydateScreen({ pet, save, now, remaining, reducedMotion, onSav
             onReplay={() => {
               finished.current = true;
               setReplay(true);
+              resetSkip();
               setStep('play');
             }}
             onDone={onClose}
