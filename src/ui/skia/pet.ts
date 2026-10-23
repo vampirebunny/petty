@@ -40,6 +40,7 @@ import {
   drawJacketCollar,
   drawNeckwear,
   drawSleeve,
+  neckAxis,
   neckwearUnderHead,
 } from './cosmetics';
 import { bellyAxisScale, bellyRollOf } from './bellyRoll';
@@ -740,8 +741,7 @@ export function drawActor(
   strokeLine(c, base.x, base.y, head.x - 2, head.y + 3, baseColor, neckWidth);
   const nx = head.x - 2 - base.x;
   const ny = head.y + 3 - base.y;
-  const nl = Math.hypot(nx, ny) || 1;
-  const along = { x: nx / nl, y: ny / nl };
+  const along = neckAxis(head, base, geom.headR);
   // perpendicular to the neck, always pointing down the screen
   const perp = along.x >= 0 ? { x: -along.y, y: along.x } : { x: along.y, y: -along.x };
   const neck = { x: base.x + nx * 0.62, y: base.y + ny * 0.62 };
@@ -801,7 +801,7 @@ export function drawActor(
     if (!neckwear || !neckAnchor || neckAnchor.mode === 'knot') {
       return;
     }
-    const chin = chinAnchor(head, base, R, pitch, cat, view, collarJawOf(face, R));
+    const chin = chinAnchor(head, base, R, pitch, cat, view, collarJawOf(face, R), pose.lie);
     const sway = Math.sin(t * 3) * 0.08 + Math.sin(t * 11) * clamp(actor.speed / 120, 0, 1) * 0.12;
     const chest = markingOf(markings, 'chest')?.color ?? baseColor;
     c.save();

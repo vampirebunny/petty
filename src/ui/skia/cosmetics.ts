@@ -191,7 +191,23 @@ function neckFlat(along: Pt): number {
   return 1 - clamp(Math.abs(along.y) / 0.7, 0, 1);
 }
 
-// Sleep / lie: paint neckwear under the head so the face covers any leftover overlap.
+// Direction from the shoulder toward the head. A sleeping head sits on the shoulders, so the
+// real segment is shorter than the stroke fudge (2px back, 3px down) and that fudge aims the
+// strap through the face. A short neck wears forward, the same way the unmirrored pet faces.
+export function neckAxis(head: Pt, base: Pt, r: number): Pt {
+  const sx = head.x - base.x;
+  const sy = head.y - base.y;
+  if (Math.hypot(sx, sy) < r * 0.5) {
+    return { x: 1, y: 0 };
+  }
+  const nx = sx - 2;
+  const ny = sy + 3;
+  const nl = Math.hypot(nx, ny) || 1;
+  return { x: nx / nl, y: ny / nl };
+}
+
+// Sleep / lie: paint neckwear under the head so the face covers the strap and the bib
+// comes out under the jaw instead of across the muzzle.
 export function neckwearUnderHead(along: Pt): boolean {
   return neckFlat(along) > 0.45;
 }
@@ -205,7 +221,7 @@ export function collarJawOf(face: HeadFace, r: number): Pt {
   };
 }
 
-export function chinAnchor(head: Pt, base: Pt, r: number, pitch: number, cat: boolean, view: number, jaw?: Pt): Pt {
+export function chinAnchor(head: Pt, base: Pt, r: number, pitch: number, cat: boolean, view: number, jaw?: Pt, lie = 0): Pt {
   const toBaseX = base.x - head.x;
   const toBaseY = base.y - head.y;
   const len = Math.hypot(toBaseX, toBaseY) || 1;
@@ -215,6 +231,11 @@ export function chinAnchor(head: Pt, base: Pt, r: number, pitch: number, cat: bo
   // Sleep parks the head on the shoulders: the neck segment is shorter than the head, so the chin
   // must stay on that short segment or the band lands in the face or past the chest.
   const short = clamp(1 - len / (r * 1.25), 0, 1);
+  // Head on the floor: the throat is the underside of the skull, not the midpoint of a stub neck
+  // and not a point past the chest. Anything else draws the bib across the muzzle.
+  if (short > 0.55 || (lie > 0.45 && flat > 0.45)) {
+    return { x: head.x + r * sizes.chinLieX, y: head.y + r * sizes.chinLieY };
+  }
   let dist = r * sizes.chin;
   if (cat) {
     const cs = Math.cos(pitch);
@@ -889,7 +910,8 @@ export function drawNeckwear(
   hang: HangPose = {},
 ): void {
   const flat = neckFlat(along);
-  const hangK = 1 - sizes.neckFlatHang * flat;
+  const lying = flat > 0.45;
+  const hangK = lying ? Math.max(1 - sizes.neckFlatHang * flat, sizes.neckLieHang) : 1 - sizes.neckFlatHang * flat;
   const turned = flat > 0.45 ? 0 : view;
   const hangDir = dropDir(perp, turned, pitch);
   if (item.shape === 'collar') {
@@ -918,7 +940,7 @@ export function drawNeckwear(
     return;
   }
   if (item.shape === 'bandana') {
-    drawBandana(c, chin, perp, along, item, sway + (hang.swing ?? 0) * (hang.dir ?? 1), r, fur, view);
+    drawBandana(c, chin, perp, along, item, sway + (hang.swing ?? 0) * (hang.dir ?? 1), r, fur, view, lying);
     return;
   }
   if (item.shape === 'bow') {
@@ -968,22 +990,33 @@ function unit(p: Pt): Pt {
 // Side view: the band crosses the neck along perp, the triangle hangs from its throat half, and a knot
 // with two tails sits at the back of the neck. 3/4 and front: the band crosses under the chin
 // horizontally and the triangle is centered under it.
-function drawBandana(c: SkCanvas, chin: Pt, perp: Pt, along: Pt, item: WearItem, sway: number, r: number, fur: string, view: number): void {
+function drawBandana(
+  c: SkCanvas,
+  chin: Pt,
+  perp: Pt,
+  along: Pt,
+  item: WearItem,
+  sway: number,
+  r: number,
+  fur: string,
+  view: number,
+  lying = false,
+): void {
   const flat = neckFlat(along);
-  const lying = flat > 0.45;
-  const hangK = 1 - sizes.neckFlatHang * flat;
+  const hangK = lying ? Math.max(1 - sizes.neckFlatHang * flat, sizes.neckLieHang) : 1 - sizes.neckFlatHang * flat;
   const deep = mix(item.colorway.c, '#000000', 0.2);
   const bandColor = mix(item.colorway.c, '#000000', 0.12);
 
-  // Band ends. Lying down: a short strap under the jaw along the neck, as the collar does.
+  // Band ends. Lying down: a short strap under the jaw. The muzzle end stays short so the
+  // cloth hangs onto the chest instead of pointing out through the whiskers.
   let a: Pt;
   let b: Pt;
   let mid: Pt;
   if (lying) {
     const at = offset(chin, perp, r * sizes.collarFlatDrop);
-    a = offset(at, along, -r * sizes.bandanaBand * 0.6);
-    b = offset(at, along, r * sizes.bandanaBand * 0.3);
-    mid = offset(at, perp, r * 0.08);
+    a = offset(at, along, -r * sizes.bandanaBand * 0.42);
+    b = offset(at, along, r * sizes.bandanaBand * 0.2);
+    mid = offset(at, perp, r * 0.06);
   } else {
     const across = unit(lerpPt(perp, { x: 1, y: 0 }, view));
     const span = r * sizes.bandanaBand * (1 - sizes.neckFlatShrink * flat);
@@ -995,23 +1028,43 @@ function drawBandana(c: SkCanvas, chin: Pt, perp: Pt, along: Pt, item: WearItem,
   // Knot and tails at the back of the neck, side view only (hidden behind the neck from the front).
   const knotK = lying ? 1 : 1 - view;
   if (knotK > 0.05) {
-    const tail = (dx: number, dy: number) =>
-      paintShape(c, polygon(capsulePts(a, { x: a.x + dx * r, y: a.y + dy * r }, r * 0.07)), item.colorway.c, fur, undefined, knotK);
-    tail(-sizes.bandanaKnot, sizes.bandanaKnot * 0.6);
-    tail(-sizes.bandanaKnot * 0.4, sizes.bandanaKnot * 1.1);
+    const tail = (back: number, down: number) => {
+      const end = {
+        x: a.x - along.x * back * r + perp.x * down * r,
+        y: a.y - along.y * back * r + perp.y * down * r,
+      };
+      paintShape(c, polygon(capsulePts(a, end, r * 0.07)), item.colorway.c, fur, undefined, knotK);
+    };
+    if (lying) {
+      tail(sizes.bandanaKnot, sizes.bandanaKnot * 0.35);
+      tail(sizes.bandanaKnot * 0.45, sizes.bandanaKnot * 0.9);
+    } else {
+      const stand = (dx: number, dy: number) =>
+        paintShape(c, polygon(capsulePts(a, { x: a.x + dx * r, y: a.y + dy * r }, r * 0.07)), item.colorway.c, fur, undefined, knotK);
+      stand(-sizes.bandanaKnot, sizes.bandanaKnot * 0.6);
+      stand(-sizes.bandanaKnot * 0.4, sizes.bandanaKnot * 1.1);
+    }
     paintShape(c, circlePath(a.x, a.y, r * 0.1), bandColor, fur, undefined, knotK);
   }
 
   // The cloth hangs from the front part of the band: the throat half in side view, the whole width from the front.
-  const start = lying ? 0.2 : 0.45 * (1 - view) + 0.08 * view;
-  const end = lying ? 1 : 1 - 0.08 * view;
+  // Sleep hangs the triangle straight down from the middle of the strap. Following the neck
+  // put the point out through the muzzle once the head was lying on it.
+  const start = lying ? 0.15 : 0.45 * (1 - view) + 0.08 * view;
+  const end = lying ? 0.9 : 1 - 0.08 * view;
   const top1 = lerpPt(a, b, start);
   const top2 = lerpPt(a, b, end);
   const topMid = lerpPt(top1, top2, 0.5);
-  const tip = {
-    x: topMid.x + r * 0.18 * (1 - view) * hangK + sway * r * 1.2 * hangK,
-    y: topMid.y + r * sizes.bandanaDrop * hangK,
-  };
+  const lieDrop = r * sizes.bandanaLieDrop;
+  const tip = lying
+    ? {
+        x: topMid.x + perp.x * lieDrop + along.x * sway * r * 0.35,
+        y: topMid.y + perp.y * lieDrop + along.y * sway * r * 0.35,
+      }
+    : {
+        x: topMid.x + r * 0.18 * (1 - view) * hangK + sway * r * 1.2 * hangK,
+        y: topMid.y + r * sizes.bandanaDrop * hangK,
+      };
   const bow = r * 0.1;
   const cloth = Skia.PathBuilder.Make();
   cloth.moveTo(top1.x, top1.y);

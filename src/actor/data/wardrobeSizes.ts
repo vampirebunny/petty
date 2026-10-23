@@ -11,10 +11,15 @@ export const wardrobeSizes = {
   chinFlatClear: 1.08,
   // When the head sits on the shoulders, put the chin this far along the short head→body segment.
   chinShort: 0.55,
+  // Sleep: throat under the jaw, in head radii. X is toward the muzzle, Y is down the screen.
+  chinLieX: 0.02,
+  chinLieY: 0.58,
   // Collar/bandana span across the neck shrinks this much when the neck is horizontal (avoids a tall face slash).
   neckFlatShrink: 0.85,
   // Tag/bell hang and bandana tip shrink when the neck is flat so they do not sit on the floor.
   neckFlatHang: 0.8,
+  // Sleep still needs a visible bib and tag under the jaw. This is the smallest hang scale.
+  neckLieHang: 0.55,
   // Turned collar sits this far back from the muzzle tip, in muzzle radii (1 ≈ rear of the muzzle / throat).
   collarJawBack: 1.05,
   // Extra drop below the muzzle underside, fraction of headR. Clears the mouth, tag still meets the band.
@@ -24,14 +29,17 @@ export const wardrobeSizes = {
   collarBand: 0.22,
   collarTag: 0.3,
   collarStud: 0.08,
-  // Sleep / lie collar: drop under the jaw and length along the neck (fractions of headR).
-  collarFlatDrop: 0.95,
+  // Sleep / lie collar: a short drop under the jaw, and length along the neck (fractions of headR).
+  // A drop near one head radius planted the strap on the floor, clear of the neck.
+  collarFlatDrop: 0.2,
   collarFlatLen: 0.32,
   bell: 0.33,
   // Bandana, as multiples of headR.
   bandanaBand: 0.62,
   bandanaBandWidth: 0.16,
   bandanaDrop: 1.0,
+  // Sleep bib, straight down from the throat. Shorter than a standing drop so it stays on the chest.
+  bandanaLieDrop: 0.62,
   bandanaHem: 0.1,
   bandanaKnot: 0.26,
   bowWing: 0.62,
