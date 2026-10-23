@@ -228,6 +228,26 @@ describe('park visitor sim', () => {
     expect(world.pendingBowlDrinks).toBe(0);
   });
 
+  it('does not let a visitor nap or fall asleep', () => {
+    const { world } = parkWorld();
+    const guest = addWanderingGuest(world, offer('dozer', 40, 40), { x: 300, y: 400 }, spawnActor);
+    expect(guest).not.toBeNull();
+    guest!.asleep = true;
+    guest!.collapseLeft = 5;
+    guest!.task = { type: 'sleep', stage: 'sleeping', t: 0, bats: 0, cool: 0 };
+    guest!.idle.mode = 'nap';
+    steps(world, 2);
+    expect(guest!.asleep).toBe(false);
+    expect(guest!.collapseLeft).toBe(0);
+    expect(guest!.task.type).not.toBe('sleep');
+    expect(guest!.idle.mode).not.toBe('nap');
+    guest!.idle.t = guest!.idle.dur + 1;
+    steps(world, 40);
+    expect(guest!.idle.mode).not.toBe('nap');
+    expect(guest!.task.type).not.toBe('sleep');
+    expect(guest!.asleep).toBe(false);
+  });
+
   it('can arrive from the cast or as a stranger', () => {
     const stranger = parkStrangerOffer('owner-park', 4);
     expect(stranger.breedId.length).toBeGreaterThan(0);

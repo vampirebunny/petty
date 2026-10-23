@@ -469,6 +469,17 @@ function settlePhases(world: World): void {
     if (!actor) {
       continue;
     }
+    if (actor.asleep || actor.collapseLeft > 0 || actor.task.type === 'sleep' || actor.idle.mode === 'nap') {
+      actor.asleep = false;
+      actor.collapseLeft = 0;
+      actor.sleepSec = 0;
+      actor.task = { type: 'idle', stage: '', t: 0, bats: 0, cool: 0 };
+      actor.idle.mode = 'still';
+      actor.idle.t = 0;
+      actor.idle.dur = 2;
+      actor.idle.target = null;
+      actor.idle.arrived = true;
+    }
     if (guest.phase === 'enter' && actor.task.type === 'idle') {
       guest.phase = 'wander';
     }

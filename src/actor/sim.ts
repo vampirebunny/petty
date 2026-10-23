@@ -907,7 +907,10 @@ function nextIdle(world: World, actor: Actor): void {
   }
   const options = (breed?.species === 'cat' ? ['still', 'purr', 'nap', 'walk'] : ['still', 'pant', 'nap', 'walk']).filter(
     (mode) =>
-      mode !== actor.idle.mode && !(world.reducedMotion && mode === 'walk') && !(world.noNap && mode === 'nap'),
+      mode !== actor.idle.mode &&
+      !(world.reducedMotion && mode === 'walk') &&
+      !(world.noNap && mode === 'nap') &&
+      !(actor.guest && mode === 'nap'),
   ) as IdleMode[];
   const choices = options.length > 0 ? options : (['still'] as IdleMode[]);
   // Zoomies: a short lap at full speed now and then. Youth and energy make them far more frequent.
@@ -1918,7 +1921,7 @@ function updateActor(world: World, actor: Actor, dt: number): void {
     if (actor.collapseLeft <= 0) {
       finishCollapse(world, actor);
     }
-  } else if (!actor.asleep && actor.energy * 100 + actor.pendingEnergy <= 0) {
+  } else if (!actor.guest && !actor.asleep && actor.energy * 100 + actor.pendingEnergy <= 0) {
     beginCollapse(world, actor);
   }
   if (actor.asleep && actor.collapseLeft <= 0 && actor.task.type === 'sleep' && actor.task.stage === 'sleeping') {
