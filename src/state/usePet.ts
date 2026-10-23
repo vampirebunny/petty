@@ -272,13 +272,13 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
       returningRef.current = true;
       try {
         const opened = onAppOpen(current, now);
+        const elapsedH = awayElapsedHours(opened.pet.lastUpdatedAt, now);
         const resumed = resume(opened.pet, now);
         const settled = settleProgress(resumed, now);
         const bursts = [...opened.bursts];
         if (settled.boops > 0 && settled.label) {
           bursts.push({ label: settled.label, amount: settled.boops, coinCount: 5 });
         }
-        const elapsedH = awayElapsedHours(settled.pet.lastUpdatedAt, now);
         if (elapsedH >= AWAY_DECAY.welcomeBackThresholdH) {
           setWelcomeBack(true);
         }
