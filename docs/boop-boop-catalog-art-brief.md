@@ -7,7 +7,7 @@ This replaces rev 1 and answers your review. **Treats are on hold** (Part F) unt
 **Scope**
 - In: drawing code and item definitions; toy play rules; the furniture plumbing for the dog house and the cat tree; the new squeak sound.
 - Out: prices, tiers, caps, NPC access and shop availability, which belong to the seed brief. Every new shop row stays `hidden`, including `food_fish`.
-- **Dev grant screen** (dev builds only): a list of every catalog item with a Grant button. It writes to the right store by kind: clothing to the Closet, toys to `owned_toys`, furniture to an owned-furniture row (which also places it at its default spot).
+- **Dev grant screen** (dev builds only): a list of every catalog item **plus every furniture kind** (`dogHouse`, `catTree`, which aren't catalog rows yet), each with a Grant button. It writes to the right store by kind: clothing to the Closet, toys to `owned_toys`, furniture to an owned-furniture row (which also places it at its default spot).
 
 ---
 
@@ -55,10 +55,10 @@ Hats, boots, neckwear and glasses still pick their drawing by id, so a new id su
 |---|---|---|
 | Stripes | `d` bands, 1u wide, 1u apart | 30° on scarves and bandanas; horizontal on hats and boots; on jackets, **horizontal in each pass's own panel space** (along the spine in the side view, across the chest on the front panel, across the rump on the back panel) |
 | Gingham | Drawn as three explicit tones in the tile, not by blending: `c` base, `d` bands at 45% mixed into `c`, and the **crossings as their own squares**, `d` at 75% mixed into `c`. 1u bands, 1u apart. | 0° (item axis) |
-| Plaid | Wide `d` bands at 50%, 1.4u wide, every 4u both ways, plus a `#F0C94A` 0.3u line at 80% between them | 0° |
+| Plaid | Explicit opaque tones in the tile, no alpha: base `c`; wide bands 1.4u wide every 4u both ways, filled with `mix(c, d, 0.5)`; band crossings as their own squares in `mix(c, d, 0.75)`; a 0.3u accent line halfway between bands in `mix(c, #F0C94A, 0.8)` | 0° |
 | Daisies | 5 petals (0.6u × 1u) in `d` around a gold center (`#FFC93C`, r 0.55u), 1.6u across, staggered every 4u, two fixed rotations in the tile | 0° |
 | Stars | 5-point stars in `d`, 1.2u across, inner radius 45%, staggered every 3.5u | 0° (tilts with the item) |
-| Rainbow | 6 bands, each 1/6 of the part's height: `#FF7A8A #FFB86B #FFE38F #8FE3A6 #8FD3FF #B9A2F5`. Not cached. | Along the item's main axis |
+| Rainbow | 6 bands, each 1/6 of the part's height: `#FF7A8A #FFB86B #FFE38F #8FE3A6 #8FD3FF #B9A2F5`. Not cached. | **Horizontal in each part's own local frame** (after the part's own tilt), stacked top to bottom: across the body on puffer panels (side, front and back), level with a beret's tilt, across a hat crown |
 
 ---
 
@@ -140,7 +140,7 @@ New toy ids are plain, like the existing `ball` and `yarn`. A toy with no play r
 |---|---|---|
 | `crinkle` | cat | **The cat ball rule** (stalk, pounce, bat, no carry), plus the crinkle sound **on each bat and each time it hits the floor after a bat**. The sound comes later; it's silent until then. |
 | `mouse` | cat | **The yarn rule exactly.** A **squeak toy**: it plays the new squeak on each pounce, each bat, and each time it hits the floor (after the throw and after a bat). |
-| `bone` | dog | **One id everywhere:** the existing `bone` kind in `ITEM_KINDS` (gripped in the mouth) is the chew bone. Give it a drawing (the Icons board's Chewy Bone) and a play rule. Thrown. The dog fetches it in the mouth, then instead of returning it, **lies down where it caught it and chews** (`jawHold` oscillating, a slight head bob) for 20–40 s, with a small mood gain. A flick works as it does for every toy: it ends the chew, removes the bone and spawns a new one in the air at the finger. Label "Chewy Bone"; the catalog's `toy_chewbone` becomes `bone`. |
+| `bone` | dog | **One id everywhere:** the existing `bone` kind in `ITEM_KINDS` (gripped in the mouth) is the chew bone. Give it a drawing (the Icons board's Chewy Bone) and a play rule. Thrown. The dog fetches it in the mouth, then instead of returning it, **lies down where it caught it and chews** (`jawHold` oscillating, a slight head bob) for 20–40 s, with a small mood gain. A flick works as it does for every toy: it ends the chew, removes the bone and spawns a new one in the air at the finger. Label "Chewy Bone". **Mood while chewing:** +2 every 5 s, at most +10 per chew. |
 | `rope` | dog | **No rule**, so it isn't in the picker. Icon only. |
 
 ### Held toys: a new held play mode
@@ -148,33 +148,43 @@ New toy ids are plain, like the existing `ball` and `yarn`. A toy with no play r
 **Entering and leaving:**
 - Picking `wand` or `laser` in the toy picker starts **held mode** instead of a throw.
 - While held mode is on, every touch on the stage steers the toy. No throws, no prop dragging, and taps on props don't trigger actions.
-- A small glossy **Done** button (top right of the stage) ends it. So do picking another toy, or 8 s with no touch.
+- A small glossy **Done** button at the **bottom-left of the stage** ends it. The top right is the Boops counter; the bottom center is the laser pointer. So do picking another toy, or 8 s with no touch.
 - When the finger lifts, the toy stays where it was last placed; touching again picks it back up from there.
-- **Entering held mode stops play:** end the current `fetch` task and put the pet into idle. A thrown toy on the floor stays where it is, untouched, and the pet ignores it until held mode ends.
+- **Entering held mode stops play:** end the current `fetch` task and put the pet into idle. A thrown toy on the floor stays where it is, untouched, and the pet ignores it.
+- **Leaving held mode:** the pet stays idle. It doesn't go back to the floor toy. A new throw starts play as usual.
 
 **Coordinates (all in world space, through the stage scale, never screen pixels):**
 - **Wand:** the finger maps into the world at the **pet's current depth (y)**. Above the pet's floor line, the finger's height becomes the feathers' height `z`; below it, `z` = 0. Clamp x to the stage edges.
 - **Laser:** the dot ignores the pet's depth. It sits on the **finger's own floor point**: x from the finger, y from the finger clamped to the floor's `yMin..yMax`, `z` = 0, depth-scaled like any floor prop.
 
 **Feather wand (`wand`, cat):**
-- **Drawing:** the whole wand is drawn on screen, in the UI layer above the scene. The **feathers sit 0.6 × headR × the actor's scale above the finger point, in world space**, so the finger doesn't hide them and the reach is the same on every phone. The stick runs from the feathers down and out toward the nearest bottom corner, off-screen. Between the stick tip and the feathers is a short string on a damped spring, so the feathers lag, swing and flutter when moved. The feathers' position is the target the cat reacts to.
+- **Drawing:** the whole wand is drawn on screen, in the UI layer above the scene. The **feathers sit 0.6 × headR × the actor's scale above the finger point, in world space**, so the finger doesn't hide them and the reach is the same on every phone. The stick runs from the feathers down and out toward the **bottom-right** corner, off-screen, away from the Done button. Between the stick tip and the feathers is a short string on a damped spring, so the feathers lag, swing and flutter when moved. The feathers' position is the target the cat reacts to.
 - **The cat's behavior:**
-  - It tracks the feathers with its head.
-  - When they're slow and within about 3 body-lengths, it **stalks** toward them.
-  - When they move fast within reach and below its jump ceiling, it **leaps** (`jump` with `targetX` and `heightPx` set to the feathers' height).
-  - When they're low and close, it **swats** with a paw.
-  - **On a catch** (paw or mouth within 0.4 headR of the feathers), the feathers stick for about 0.8 s while the cat wiggles, then pop free with a small tug.
+  - **Numbers** (world units; `B` = the cat's body length × scale, `H` = bodyH × scale, `R` = headR × scale; `v` = the feathers' speed in world px/s, smoothed over 100 ms; `d` = horizontal distance from the cat's head to the feathers):
+    - **Slow:** `v` < 60. **Fast:** `v` > 250.
+    - **Within reach (leap):** `d` ≤ 1.5 B, and the feathers' height is at most the clamped ceiling from `resolveJump(actor, { heightPx: 10000 })`. A bare `resolveJump(actor)` is the normal hop, not the ceiling. The leap itself passes `targetX` as the feathers' x and `heightPx` as the feathers' height; `resolveJump` clamps that height to the same cap.
+    - **Low:** feathers' height < 0.8 H. **Close:** `d` ≤ 0.8 B.
+  - It always tracks the feathers with its head.
+  - **Stalk:** slow and `d` ≤ 3 B. It crouches and creeps toward them.
+  - **Leap:** fast and within reach. `jump` with `targetX` and `heightPx` set to the feathers' position. At most one leap every 1.2 s.
+  - **Swat:** low and close. A paw swipe, at most one every 0.6 s.
+  - **Otherwise:** it watches, with its tail twitching, or trots toward the feathers if `d` > 3 B.
+  - **Priority** when several match in the same frame (first match wins): **catch → leap → swat → stalk → trot or watch**. Cooldowns count as "doesn't match," so a leap on cooldown falls through to swat.
+  - **On a catch** (paw or mouth within 0.4 R of the feathers), the feathers stick for 0.8 s while the cat wiggles, then pop free with a small tug.
 - **Sound:** a soft rustle while moving fast. Silent is fine until we have one.
 - **Reduced motion:** no string swing; the feathers follow the finger with a short ease.
 
 **Laser pointer (`laser`, cat):**
 - **Drawing:** the pointer device is **fixed at the bottom center of the stage**, in the UI layer. It only **rotates to aim** at the dot. A thin red beam (`#FF4D4D`, 1.5 px, 40% alpha) runs from its tip to the dot. The **dot sits on the floor** at the finger's position, clamped to the floor area and depth-scaled like other floor items, with a soft red glow.
 - **The cat's behavior:**
-  - It chases the dot at its chase speed (sprinting when the dot moves fast).
-  - It **pounces** when the dot stops or slows within range.
-  - **The dot can never be caught:** on a pounce, it slips out from under the paw by about 0.5 headR.
-  - **Ending on a win:** when held mode ends, the cat's last pounce lands on a little sparkle burst and a mood gain, so a session never ends in frustration.
-  - After about 60 s of continuous chasing, the cat tires (normal stamina rules) and just watches the dot.
+  - **Same numbers as the wand:** `v` = the dot's speed (world px/s, smoothed over 100 ms), slow < 60, fast > 250; `d` = distance from the cat's front paws to the dot.
+  - **Chase:** it runs at its normal chase speed, and **sprints** while the dot is fast.
+  - **Pounce:** when the dot is slow and `d` ≤ 1.2 B. At most one pounce every 0.8 s.
+  - **Priority:** watch → pounce → chase. During the 10 s sit, pounce and chase do not match.
+  - **The dot can never be caught:** on a pounce, the dot is drawn at the finger point plus a slip offset of 0.5 R **in the cat's facing direction** (just ahead of the paw), clamped to the floor. The offset eases back to 0 over 400 ms.
+  - **Stamina** works as for any chase: when it runs out, the cat is held to a trot and keeps chasing.
+  - **Watch break** (a separate, new behavior): after 60 s of chase-plus-pounce time, the cat sits and watches the dot for 10 s, tracking it with its head and twitching its tail. The clock counts chase and pounce time and does not reset when the cat pounces. The sit is not part of the clock. When the 10 s end, the clock starts over and the chase resumes.
+  - **Ending on a win:** when held mode ends, if the cat chased for at least 15 s, its last pounce lands on a little sparkle burst. The sparkle always shows, but it pays **+10 mood (the same as a treat) at most once every 10 minutes**, so quick on-off sessions can't farm it.
 - **Sound:** none; lasers are silent.
 
 **Dogs:** neither held toy is offered to dogs for now. Both are `species: cat`.
@@ -185,8 +195,8 @@ New toy ids are plain, like the existing `ball` and `yarn`. A toy with no play r
 - It's already in the bundle. **Re-encode it in place as mp3**, matching the bark and meow files' bitrate and sample rate. Mono. Trim leading and trailing silence. Normalize loudness to the bark's level. Keep it under about 0.5 s; if it's longer, keep the cleanest single squeeze.
 - **Example** (match `-b:a` and `-ar` to the bark file):
   `ffmpeg -i original.mp3 -af "silenceremove=start_periods=1:start_threshold=-45dB,areverse,silenceremove=start_periods=1:start_threshold=-45dB,areverse,loudnorm=I=-16:TP=-1.5" -ac 1 -ar 44100 -b:a 96k squeak.mp3`
-- Move the original out of the bundle into the source-assets folder.
-- **License:** check the Freesound page's license. If it's not CC0, add the attribution to the credits file.
+- Re-encode in place at that same path. Keep the original in a new, unbundled folder, `design/audio-sources/`.
+- **License:** all our sounds, this one included, are royalty-free for commercial use with no attribution required. No credits file needed.
 - **Pitch variance:** set `playbackRate` to a random value in 0.92–1.08 on each play, through the voice player's existing setting.
 
 ---
@@ -199,9 +209,11 @@ Today the cat tree is hardcoded in the catio scene and copied into starter furni
 2. **Ownership:** player-owned, through the existing owned-furniture rows. A purchase or the dev grant adds a row.
 3. **Placement:** a newly owned piece appears at its `defaultSpot` in its scene, or the nearest free spot. It's draggable like the existing props, and its position saves in `furniturePlaced` as today.
 4. **Cat tree:** keep the existing kind name, **`catTree`**. Remove the hardcoded prop from the catio scene and from starter furniture. It becomes a normal owned kind, placeable in the **catio and the rooms**, not the park. Update the furniture test that expects `catio-tree`: it should now pass only when the cat tree is owned and placed. Test installs lose it; that's fine.
-5. **Dog house** (`dogHouse`, dog): art per the Icons board at room scale. Placeable in the **rooms and any home outdoor scene (yard, patio) if one exists**, not the park or the catio.
+5. **Dog house** (`dogHouse`, dog): art per the Icons board at room scale. Placeable in the **living room and the bedroom** only.
    - **Naps:** `beginIdle` targets the nearest bed today. When a dog house is placed in the current scene, **the dog house wins** over the bed for dogs.
-   - **Doorway:** split the dog house drawing into a **back layer** (roof back, interior shadow) and a **front layer** (front wall with the door opening cut out, roof front). Draw back layer, then the pet, then front layer. The pet's body is hidden behind the front wall and only the head and front paws show through the doorway. No clipping inside the pet's outline, so no halo.
+   - **Doorway:** split the drawing into a **back layer** (roof back, interior shadow) and a **front layer** (front wall with the door opening cut out, roof front).
+   - **Normally**, both layers sort together with the house's baseline, the way the bed sorts against pets today, so a dog standing in front of the house draws in front of it.
+   - **Only while the napping dog is at the house's `napSpot`**, use the sandwich: back layer, then that dog, then front layer. The body is hidden behind the wall and only the head and front paws show through the doorway. No clipping inside the pet's outline, so no halo. Other pets keep normal baseline sorting.
 
 ---
 

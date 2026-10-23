@@ -4,7 +4,7 @@ import { sceneById, scenes } from './scenes';
 import type { Vec } from './types';
 
 // Owned, movable pieces. Everything else in a room is scenery.
-export const furnitureKinds = ['bowl', 'bed', 'litterbox', 'catTree', 'planter', 'catioPost'] as const;
+export const furnitureKinds = ['bowl', 'bed', 'litterbox', 'catTree', 'planter', 'catioPost', 'dogHouse'] as const;
 
 export type FurnitureKind = (typeof furnitureKinds)[number];
 
@@ -340,6 +340,12 @@ export function movePiece(scene: Scene, pieceId: string, x: number, y: number): 
   if (!prop || !isFurnitureKind(prop.kind)) {
     return null;
   }
+  if (prop.kind === 'dogHouse' && scene.id !== 'livingroom' && scene.id !== 'bedroom') {
+    return null;
+  }
+  if (prop.kind === 'catTree' && scene.id === 'park') {
+    return null;
+  }
   const next = clampToFloor({ x, y }, scene.floor);
   const dx = next.x - prop.x;
   const dy = next.y - prop.y;
@@ -429,19 +435,94 @@ function outsidePoint(obstacle: Obstacle, vx: number, vy: number): Vec {
   };
 }
 
-function sidePoint(obstacle: Obstacle, from: Vec, goal: Vec): Vec {
+function standingPoint(obstacle: Obstacle, vx: number, vy: number, bounds: Floor): Vec | null {
+  if (Math.hypot(vx, vy) < 1e-4) {
+    return null;
+  }
+  const point = clampToFloor(outsidePoint(obstacle, vx, vy), bounds);
+  return contains(obstacle, point) ? null : point;
+}
+
+// A way around the obstacle that stays on the floor the pet can actually stand on.
+// A side that clamps back into the ellipse is dropped, and a near-tie keeps the
+// side closer to the pet so the choice does not flip every step.
+function sidePoint(obstacle: Obstacle, from: Vec, goal: Vec, bounds: Floor): Vec {
   const dx = goal.x - from.x;
   const dy = goal.y - from.y;
   const len = Math.hypot(dx, dy) || 1;
-  const left = outsidePoint(obstacle, -dy / len, dx / len);
-  const right = outsidePoint(obstacle, dy / len, -dx / len);
-  const leftDist = Math.hypot(left.x - goal.x, left.y - goal.y);
-  const rightDist = Math.hypot(right.x - goal.x, right.y - goal.y);
-  return leftDist <= rightDist ? left : right;
+  const options = [
+    standingPoint(obstacle, -dy / len, dx / len, bounds),
+    standingPoint(obstacle, dy / len, -dx / len, bounds),
+  ].filter((point): point is Vec => point != null);
+  if (options.length === 0) {
+    return clampToFloor(goal, bounds);
+  }
+  options.sort((a, b) => {
+    const goalA = Math.hypot(a.x - goal.x, a.y - goal.y);
+    const goalB = Math.hypot(b.x - goal.x, b.y - goal.y);
+    if (Math.abs(goalA - goalB) > 12) {
+      return goalA - goalB;
+    }
+    return Math.hypot(a.x - from.x, a.y - from.y) - Math.hypot(b.x - from.x, b.y - from.y);
+  });
+  return options[0];
+}
+
+// Leave an obstacle the pet is already standing in. The tangent toward the goal is
+// skipped when that goal sits nearly along the radius: the sign chatters and the pet spins.
+// Any exit the floor clamp pushes back inside the ellipse is skipped for the next one.
+function escapePoint(obstacle: Obstacle, from: Vec, goal: Vec, bounds: Floor): Vec {
+  const gx = goal.x - from.x;
+  const gy = goal.y - from.y;
+  const rx = (from.x - obstacle.x) / obstacle.hw;
+  const ry = (from.y - obstacle.y) / obstacle.hd;
+  const rlen = Math.hypot(rx, ry);
+  const dirs: Vec[] = [];
+  if (rlen > 0.05) {
+    const ox = rx / rlen;
+    const oy = ry / rlen;
+    const tx = -oy;
+    const ty = ox;
+    const glen = Math.hypot(gx, gy);
+    const along = glen < 1 ? 0 : (tx * gx + ty * gy) / glen;
+    if (along > 0.25) {
+      dirs.push({ x: ox + tx, y: oy + ty });
+    } else if (along < -0.25) {
+      dirs.push({ x: ox - tx, y: oy - ty });
+    }
+    dirs.push({ x: ox, y: oy }, { x: tx, y: ty }, { x: -tx, y: -ty });
+  }
+  dirs.push({ x: gx, y: gy }, { x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 });
+  for (const dir of dirs) {
+    const point = standingPoint(obstacle, dir.x, dir.y, bounds);
+    if (point) {
+      return point;
+    }
+  }
+  return clampToFloor(goal, bounds);
+}
+
+// A goal the floor clamp leaves inside an obstacle can never be reached, and steering
+// around it makes the pet orbit. Slide that goal out to a point the pet can stand on.
+function pullGoalOut(goal: Vec, obstacles: Obstacle[], bounds: Floor): Vec {
+  let next = clampToFloor(goal, bounds);
+  for (let step = 0; step < 4; step += 1) {
+    const obstacle = obstacles.find((item) => contains(item, next));
+    if (!obstacle) {
+      return next;
+    }
+    const outside = escapePoint(obstacle, next, goal, bounds);
+    if (contains(obstacle, outside)) {
+      return next;
+    }
+    next = outside;
+  }
+  return next;
 }
 
 // The point to walk toward. The goal itself when the way is clear.
 export function steerAim(from: Vec, goal: Vec, obstacles: Obstacle[], floor: Floor): Vec {
+  const clear = pullGoalOut(goal, obstacles, floor);
   let blocked: Obstacle | null = null;
   let depth = Infinity;
   for (const obstacle of obstacles) {
@@ -454,38 +535,22 @@ export function steerAim(from: Vec, goal: Vec, obstacles: Obstacle[], floor: Flo
     }
   }
   if (blocked) {
-    // Step out toward the goal, not only straight away from the middle. A straight-out step
-    // beside a wall points off the floor, and the pet stays inside and never reaches the bowl.
-    const gx = goal.x - from.x;
-    const gy = goal.y - from.y;
-    const rx = (from.x - blocked.x) / blocked.hw;
-    const ry = (from.y - blocked.y) / blocked.hd;
-    const rlen = Math.hypot(rx, ry);
-    let vx = gx;
-    let vy = gy;
-    if (rlen > 0.15) {
-      const tx = -ry / rlen;
-      const ty = rx / rlen;
-      const sign = tx * gx + ty * gy >= 0 ? 1 : -1;
-      vx = rx / rlen + sign * tx;
-      vy = ry / rlen + sign * ty;
-    }
-    return clampToFloor(outsidePoint(blocked, vx, vy), floor);
+    return escapePoint(blocked, from, clear, floor);
   }
 
   let nearest: Obstacle | null = null;
   let nearestT = Infinity;
   for (const obstacle of obstacles) {
-    const t = firstHitT(from, goal, obstacle);
+    const t = firstHitT(from, clear, obstacle);
     if (t != null && t < nearestT) {
       nearestT = t;
       nearest = obstacle;
     }
   }
   if (!nearest) {
-    return goal;
+    return clear;
   }
-  return clampToFloor(sidePoint(nearest, from, goal), floor);
+  return sidePoint(nearest, from, clear, floor);
 }
 
 // The front-most furniture ellipse under a stage point. Scenery returns null.

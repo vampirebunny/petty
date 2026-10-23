@@ -15,7 +15,8 @@ import { drawCozyPools, drawLampPools, drawMoonPools, drawNightVeil, drawWindowL
 import { drawOverlay } from './marks';
 import { drawActor } from './pet';
 import type { OverlayBurst } from '../../playdate/overlay';
-import { drawAmbient, drawBackdrop, drawProp, drawToyShape, drawTreatShape } from './scenery';
+import { drawDogHouse } from './props';
+import { drawAmbient, drawBackdrop, drawHeldPlay, drawProp, drawToyShape, drawTreatShape } from './scenery';
 import type { Contact, Env } from './scenery';
 
 function drawTinted(canvas: SkCanvas, tint: Rgba, draw: () => void): void {
@@ -198,6 +199,26 @@ export function drawWorld(
   const items: { y: number; late: boolean; draw: () => void }[] = [];
   for (const prop of scene.props) {
     if ((prop.layer ?? 'sorted') === 'sorted') {
+      const napper =
+        prop.kind === 'dogHouse'
+          ? world.actors.find(
+              (actor) =>
+                actor.task.type === 'idle' &&
+                actor.idle.mode === 'nap' &&
+                Math.hypot(actor.x - prop.x, actor.y - prop.y) < 36,
+            )
+          : undefined;
+      if (napper) {
+        const drawPart = (part: 'back' | 'front') => {
+          canvas.save();
+          canvas.translate(prop.x, prop.y);
+          drawDogHouse(canvas, part);
+          canvas.restore();
+        };
+        items.push({ y: napper.y - 0.2, late: false, draw: () => withTint(roomTint, () => drawPart('back')) });
+        items.push({ y: napper.y + 0.2, late: false, draw: () => withTint(roomTint, () => drawPart('front')) });
+        continue;
+      }
       items.push({
         y: prop.y,
         late: lifted && engaged(prop.id),
@@ -232,12 +253,12 @@ export function drawWorld(
       draw: () => {
         const rim = !cozy && (env.light?.rimStrength ?? 0) > 0.03;
         if (bodyTint.a <= 0.001 && !rim) {
-          drawActor(canvas, actor, breed, floor, world.t, carrying, world.silhouette === true);
+          drawActor(canvas, actor, breed, floor, world.t, carrying, world.silhouette === true, world.reducedMotion);
           return;
         }
         // The pet gets its own layer: tint and rim light are painted SrcATop, so only the pet is touched.
         canvas.saveLayer();
-        drawActor(canvas, actor, breed, floor, world.t, carrying, world.silhouette === true);
+        drawActor(canvas, actor, breed, floor, world.t, carrying, world.silhouette === true, world.reducedMotion);
         if (world.silhouette !== true) {
           shadeActorLayer(canvas, env, actor, bodyTint, span);
         } else if (bodyTint.a > 0.001) {
@@ -339,6 +360,9 @@ export function drawWorld(
       }
     });
   }
+  if (world.held) {
+    drawHeldPlay(canvas, world);
+  }
   drawAmbient(canvas, world, env, bleed, cozy);
   untinted(() => decor.ambient(canvas));
   if (overlay && (overlay.bursts.length > 0 || overlay.butterfly || (overlay.zzz?.length ?? 0) > 0)) {
@@ -371,7 +395,7 @@ export function drawPetOnly(
       continue;
     }
     const breed = applyVariant(resolved, actor.variant);
-    drawTinted(canvas, bodyTint, () => drawActor(canvas, actor, breed, floor, world.t, null, world.silhouette === true));
+    drawTinted(canvas, bodyTint, () => drawActor(canvas, actor, breed, floor, world.t, null, world.silhouette === true, world.reducedMotion));
   }
   canvas.restore();
 }

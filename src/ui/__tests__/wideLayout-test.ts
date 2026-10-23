@@ -2,6 +2,8 @@ import { stageHeight, stageWidth } from '../../actor/scenes';
 import {
   allowsDeviceRotation,
   controlScale,
+  duoOpenedBoopEdge,
+  duoOpenedTopInset,
   isLandscapeSplit,
   isSurfaceDuoModel,
   phoneColumnWidth,
@@ -35,6 +37,22 @@ describe('isSurfaceDuoModel', () => {
     expect(isSurfaceDuoModel('Surface Duo 2', 'Microsoft')).toBe(true);
     expect(isSurfaceDuoModel('Pixel 7', 'Google')).toBe(false);
     expect(isSurfaceDuoModel('Galaxy Z Fold5', 'samsung')).toBe(false);
+  });
+});
+
+describe('duoOpenedBoopEdge', () => {
+  it('pulls the total in from the status icons on a wide Android landscape window', () => {
+    expect(duoOpenedBoopEdge('android', 1024, 720)).toBe(96);
+    expect(duoOpenedBoopEdge('android', 1114, 720)).toBe(96);
+    expect(duoOpenedBoopEdge('android', 540, 720)).toBe(16);
+    expect(duoOpenedBoopEdge('ios', 1194, 834)).toBe(16);
+  });
+});
+describe('duoOpenedTopInset', () => {
+  it('clears the status bar only on an opened Duo', () => {
+    expect(duoOpenedTopInset(true, 1114, 720)).toBe(48);
+    expect(duoOpenedTopInset(true, 540, 720)).toBe(0);
+    expect(duoOpenedTopInset(false, 1114, 720)).toBe(0);
   });
 });
 

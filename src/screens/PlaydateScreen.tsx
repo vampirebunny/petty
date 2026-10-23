@@ -21,6 +21,7 @@ import type { ResultsNote } from '../ui/PlaydateResults';
 import { PlaydateStage } from '../ui/PlaydateStage';
 import { SnapshotStill } from '../ui/SnapshotStill';
 import { CandyButton } from '../ui/closet/CandyButton';
+import { PhoneColumn } from '../ui/PhoneColumn';
 import { WardrobePicker } from '../ui/WardrobePicker';
 import { minTouch } from '../ui/theme';
 
@@ -157,7 +158,7 @@ export function PlaydateScreen({ pet, save, now, remaining, reducedMotion, onSav
     setStep('play');
   };
 
-  return (
+  const screen = (
     <View style={styles.root}>
       <View style={styles.header}>
         <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={back} style={styles.headerButton}>
@@ -330,6 +331,9 @@ export function PlaydateScreen({ pet, save, now, remaining, reducedMotion, onSav
       )}
     </View>
   );
+  // Partner, place, activity, playback, and results stay a phone column. The outfit step
+  // uses the whole window so the preview and the closet can sit side by side.
+  return step === 'outfit' ? screen : <PhoneColumn>{screen}</PhoneColumn>;
 }
 
 const styles = StyleSheet.create({

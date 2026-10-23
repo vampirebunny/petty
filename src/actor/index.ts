@@ -113,6 +113,9 @@ export {
   debugFlipFace,
   debugGreeting,
   planGreeting,
+  startHeld,
+  steerHeld,
+  stopHeld,
   throwFromEdge,
   update,
 } from './sim';

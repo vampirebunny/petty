@@ -30,8 +30,7 @@ export function WardrobePicker({ subject, owned, equipped, onEquip, reducedMotio
   const t = useOutfitClock(reducedMotion);
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const limited = useLimitedContentWidth();
-  // The playdate outfit step sits in a phone column, so it stays stacked. The wardrobe screen
-  // has the whole window and splits preview and options.
+  // A closet that has the whole window splits. Inside a phone column it stays stacked.
   const split = limited == null && isLandscapeSplit(windowWidth, windowHeight);
   const width = limited ?? windowWidth;
   const previewW = Math.min(420, (split ? windowWidth / 2 : width) - 32);

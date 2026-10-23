@@ -9,6 +9,7 @@ import {
   healthyWeightBand,
   overweightPlayWeightBonus,
   playWeightPerHour,
+  treatMoodGain,
   weightBurnPerSec,
   weightRunSpeed,
 } from '../sim/config';
@@ -63,7 +64,7 @@ import { obstaclesIn, steerAim } from './furniture';
 import { nearestPoi, poiOf, sceneForSpecies, scenes, stageHeight } from './scenes';
 import type { Poi, Scene } from './scenes';
 import { variantFor } from './variation';
-import type { Actor, ActorSource, Anchors, CareInvite, Direction, Idle, IdleMode, JumpKind, PlayState, Pose, SoundEvent, Task, TaskType, Vec, World } from './types';
+import type { Actor, ActorSource, Anchors, CareInvite, Direction, HeldToy, Idle, IdleMode, JumpKind, PlayState, Pose, SoundEvent, Task, TaskType, Vec, World } from './types';
 
 const displayTau = 0.35;
 const idleWeight: Record<IdleMode, number> = { still: 3, pant: 2, purr: 2, nap: 1.5, walk: 2.5, zoom: 0 };
@@ -344,6 +345,7 @@ export function createWorld(actors: Actor[], seed = 1, scene: Scene = scenes.liv
     reducedMotion: false,
     particles: [],
     sounds: [],
+    held: null,
   };
   seedParticles(world);
   return world;
@@ -549,6 +551,7 @@ function releaseCarried(world: World, actor: Actor): void {
 }
 
 export function throwFromEdge(world: World): void {
+  stopHeld(world);
   const roll = world.rng;
   const floor = world.scene.floor;
   world.items = [
@@ -566,6 +569,7 @@ export function throwFromEdge(world: World): void {
 }
 
 export function dropBallAt(world: World, x: number, y: number, soft = true): void {
+  stopHeld(world);
   const roll = world.rng;
   const floor = world.scene.floor;
   world.items = [
@@ -587,6 +591,7 @@ export function flickBallAt(
   y: number,
   velocity: { vx: number; vy: number; vz: number },
 ): void {
+  stopHeld(world);
   const floor = world.scene.floor;
   world.items = [
     makeToyItem(world, {
@@ -668,7 +673,22 @@ function beginIdle(world: World, actor: Actor, mode: IdleMode): void {
     actor.idle.dur = 30;
   }
   actor.idle.sit = mode === 'purr' ? true : mode === 'pant' ? roll() < 0.5 : false;
-  const bed = mode === 'nap' ? nearestPoi(world.scene, 'bed', actor) : null;
+  const dog = breedById(actor.breedId)?.species !== 'cat';
+  let house: { x: number; y: number; propId?: string } | null = null;
+  if (mode === 'nap' && dog) {
+    let bestD = Infinity;
+    for (const prop of world.scene.props) {
+      if (prop.kind !== 'dogHouse') {
+        continue;
+      }
+      const dist = Math.hypot(prop.x - actor.x, prop.y - actor.y);
+      if (dist < bestD) {
+        bestD = dist;
+        house = { x: prop.x, y: prop.y, propId: prop.id };
+      }
+    }
+  }
+  const bed = house ?? (mode === 'nap' ? nearestPoi(world.scene, 'bed', actor) : null);
   if (bed) {
     actor.idle.target = { x: bed.x, y: bed.y };
     actor.idle.arrived = false;
@@ -1152,8 +1172,195 @@ export function startTreat(world: World, actor: Actor, treatId: string, moodGain
   return true;
 }
 
+function squeak(world: World, actorId: string): void {
+  world.sounds.push({ actorId, sound: 'squeak', rate: 0.92 + world.rng() * 0.16 });
+}
+
 function updateItems(world: World, dt: number): void {
+  const before = world.items.map((item) => item.z);
   stepItems(world.items, world.scene, dt);
+  const actorId = world.actors[0]?.id;
+  if (!actorId) {
+    return;
+  }
+  world.items.forEach((item, index) => {
+    if (before[index] > 2 && item.z <= 0 && (item.kind === 'mouse' || item.kind === 'squeaky')) {
+      squeak(world, actorId);
+    }
+  });
+}
+
+export function startHeld(world: World, kind: 'wand' | 'laser'): void {
+  const actor = world.actors[0];
+  if (!actor) {
+    return;
+  }
+  if (actor.task.type === 'fetch' || actor.task.type === 'held') {
+    goIdle(world, actor);
+  }
+  const x = actor.x + actor.face * 48;
+  world.held = {
+    kind,
+    x,
+    y: actor.y,
+    z: 36,
+    down: false,
+    quiet: 0,
+    chase: 0,
+    watch: 0,
+    leap: 0,
+    swat: 0,
+    pounce: 0,
+    catch: 0,
+    slip: 0,
+    moodAt: -1e9,
+    featherX: x,
+    featherZ: 36,
+    prevX: x,
+    speed: 0,
+    spark: 0,
+  };
+  actor.task = taskOf('held');
+}
+
+export function stopHeld(world: World): void {
+  const actor = world.actors[0];
+  world.held = null;
+  if (actor && actor.task.type === 'held') {
+    goIdle(world, actor);
+  }
+}
+
+export function steerHeld(world: World, x: number, y: number, down: boolean): void {
+  const held = world.held;
+  const actor = world.actors[0];
+  if (!held || !actor) {
+    return;
+  }
+  const floor = world.scene.floor;
+  held.x = Math.min(floor.xMax, Math.max(floor.xMin, x));
+  if (held.kind === 'laser') {
+    held.y = Math.min(floor.yMax, Math.max(floor.yMin, y));
+    held.z = 0;
+  } else {
+    held.y = actor.y;
+    held.z = y < actor.y ? actor.y - y : 0;
+  }
+  held.down = down;
+  if (down) {
+    held.quiet = 0;
+  }
+}
+
+function stepHeld(
+  world: World,
+  actor: Actor,
+  held: HeldToy,
+  dt: number,
+  frame: { geom: { bodyLen: number; bodyH: number; headR: number }; scale: number },
+  limit: number,
+  targets: Pose,
+): { move: Vec | null; vmax: number } {
+  held.leap = Math.max(0, held.leap - dt);
+  held.swat = Math.max(0, held.swat - dt);
+  held.pounce = Math.max(0, held.pounce - dt);
+  held.catch = Math.max(0, held.catch - dt);
+  held.spark = Math.max(0, held.spark - dt);
+  held.slip = Math.max(0, held.slip - dt / 0.4);
+  if (!held.down) {
+    held.quiet += dt;
+  }
+  if (held.quiet > 8) {
+    stopHeld(world);
+    return { move: null, vmax: 0 };
+  }
+  const instant = Math.abs(held.x - held.prevX) / Math.max(dt, 0.016);
+  held.prevX = held.x;
+  held.speed += (instant - held.speed) * Math.min(1, dt / 0.1);
+  const B = frame.geom.bodyLen * frame.scale;
+  const H = frame.geom.bodyH * frame.scale;
+  const R = frame.geom.headR * frame.scale;
+  const slow = held.speed < 60;
+  const fast = held.speed > 250;
+  actor.face = held.x >= actor.x ? 1 : -1;
+  if (held.kind === 'laser') {
+    if (held.watch > 0) {
+      held.watch -= dt;
+      if (held.watch <= 0) {
+        held.chase = 0;
+      }
+      targets.sit = 1;
+      targets.wagAmp = 0.35;
+      return { move: null, vmax: 0 };
+    }
+    held.chase += dt;
+    if (held.chase >= 60) {
+      held.watch = 10;
+      targets.sit = 1;
+      targets.wagAmp = 0.35;
+      return { move: null, vmax: 0 };
+    }
+    const paws = actor.x + actor.face * B * 0.35;
+    const dist = Math.hypot(held.x - paws, held.y - actor.y);
+    if (slow && dist <= 1.2 * B && held.pounce <= 0 && actor.z === 0 && !actor.jump) {
+      held.pounce = 0.8;
+      held.slip = 1;
+      jump(actor, { targetX: held.x + actor.face * 0.5 * R, heightPx: H * 0.7, reduced: world.reducedMotion });
+      if (held.chase >= 15) {
+        held.spark = 1.2;
+        if (world.t - held.moodAt >= 600) {
+          world.pendingTreatMoods.push(treatMoodGain);
+          held.moodAt = world.t;
+        }
+      }
+      targets.wagAmp = 0.4;
+      return { move: null, vmax: 0 };
+    }
+    const pace = actor.tired ? limit : fast ? limit : limit * 0.55;
+    targets.wagAmp = 0.45;
+    return { move: { x: held.x, y: held.y }, vmax: pace };
+  }
+  const lift = 0.6 * R;
+  if (held.catch <= 0) {
+    const follow = world.reducedMotion ? 10 : 6;
+    held.featherX += (held.x - held.featherX) * Math.min(1, dt * follow);
+    held.featherZ += (held.z + lift - held.featherZ) * Math.min(1, dt * follow);
+  }
+  const d = Math.abs(held.featherX - actor.x);
+  const ceiling = resolveJump(actor, { heightPx: 10000, reduced: world.reducedMotion })?.heightPx ?? 0;
+  const inReach = d <= 1.5 * B && held.featherZ <= ceiling;
+  const mouth = Math.hypot(held.featherX - actor.x, held.featherZ - (actor.z + R));
+  if (held.catch > 0 || mouth < 0.4 * R) {
+    if (held.catch <= 0) {
+      held.catch = 0.8;
+    }
+    targets.wiggle = 1;
+    targets.wagAmp = 0.8;
+    return { move: null, vmax: 0 };
+  }
+  if (fast && inReach && held.leap <= 0 && actor.z === 0 && !actor.jump) {
+    held.leap = 1.2;
+    jump(actor, { targetX: held.featherX, heightPx: held.featherZ, reduced: world.reducedMotion });
+    return { move: null, vmax: 0 };
+  }
+  if (held.featherZ < 0.8 * H && d <= 0.8 * B && held.swat <= 0) {
+    held.swat = 0.6;
+    targets.paw = 1;
+    targets.wagAmp = 0.4;
+    return { move: null, vmax: 0 };
+  }
+  if (slow && d <= 3 * B) {
+    targets.stalk = 1;
+    targets.wagAmp = 0.25;
+    return { move: { x: held.featherX - actor.face * R, y: held.y }, vmax: limit * 0.16 };
+  }
+  if (d > 3 * B) {
+    targets.wagAmp = 0.4;
+    return { move: { x: held.featherX, y: held.y }, vmax: limit * 0.55 };
+  }
+  targets.sit = 1;
+  targets.wagAmp = 0.3;
+  return { move: null, vmax: 0 };
 }
 
 function between(world: World, min: number, max: number): number {
@@ -2108,6 +2315,13 @@ function updateActor(world: World, actor: Actor, dt: number): void {
       actor.cuddle = null;
       goIdle(world, actor);
     }
+  } else if (actor.task.type === 'held' && world.held) {
+    const steered = stepHeld(world, actor, world.held, dt, frame, limit, targets);
+    move = steered.move;
+    vmax = steered.vmax;
+    wagRate = 12;
+  } else if (actor.task.type === 'held') {
+    goIdle(world, actor);
   } else if (actor.task.type === 'fetch') {
     if (!actor.play) {
       actor.play = newPlay(world, actor, profile, mods);
@@ -2245,7 +2459,10 @@ function updateActor(world: World, actor: Actor, dt: number): void {
           launch(actor, 'hop', 160);
           task.bats += 1;
           task.cool = 0.5;
-          if (toyKind === 'yarn' && task.bats >= 2) {
+          if (toyKind === 'mouse') {
+            squeak(world, actor.id);
+          }
+          if ((toyKind === 'yarn' || toyKind === 'mouse') && task.bats >= 2) {
             setStage(actor, 'roll', between(world, 1.2, 1.8));
           } else if (task.bats >= 3) {
             actor.task = windDown(world, actor, profile);
@@ -2253,7 +2470,11 @@ function updateActor(world: World, actor: Actor, dt: number): void {
         } else if (near && !cat && task.cool <= 0) {
           toy.state = 'carried';
           toy.holderId = actor.id;
-          if (toyKind === 'squeaky') {
+          if (toyKind === 'bone') {
+            task.bats = 0;
+            setStage(actor, 'chew', between(world, 20, 40));
+          } else if (toyKind === 'squeaky') {
+            squeak(world, actor.id);
             setStage(actor, 'shake', between(world, 1, 1.5));
           } else if (play.returns) {
             setStage(actor, 'return');
@@ -2281,6 +2502,9 @@ function updateActor(world: World, actor: Actor, dt: number): void {
       faceToy();
       if (task.t > (task.hold ?? 1)) {
         if (pounceAt(world, actor, toy, reach)) {
+          if (toyKind === 'mouse') {
+            squeak(world, actor.id);
+          }
           setStage(actor, 'pounce');
         }
       }
@@ -2330,10 +2554,20 @@ function updateActor(world: World, actor: Actor, dt: number): void {
         setStage(actor, 'chew', between(world, 2, 3));
       }
     } else if (stage === 'chew') {
-      // Flops down and chews.
+      // Flops down and chews. A bone stays down where it was caught.
       targets.lie = 1;
-      targets.headDown = 0.5;
+      targets.headDown = toyKind === 'bone' ? 0.35 + Math.sin(task.t * 7) * 0.15 : 0.5;
       targets.wagAmp = 0.15;
+      if (toyKind === 'bone') {
+        targets.jawHold = 0.45 + Math.sin(task.t * 9) * 0.55;
+        const paid = Math.min(5, Math.floor(task.t / 5));
+        if (paid > task.bats) {
+          world.pendingTreatMoods.push(2);
+          task.bats = paid;
+        }
+      } else if (toyKind === 'squeaky' && Math.floor(task.t * 1.4) !== Math.floor((task.t - dt) * 1.4)) {
+        squeak(world, actor.id);
+      }
       if (task.t > (task.hold ?? 2.5)) {
         releaseCarried(world, actor);
         actor.task = windDown(world, actor, profile);
@@ -2411,10 +2645,13 @@ function updateActor(world: World, actor: Actor, dt: number): void {
   if (move && !(actor.jump && jumpOwnsMotion(actor))) {
     const tx = traveling ? move.x : clamp(move.x, xClampLo, xClampHi);
     const ty = clamp(move.y, floor.yMin, floor.yMax);
+    const reach = traveling
+      ? floor
+      : { xMin: xClampLo, xMax: xClampHi, yMin: floor.yMin, yMax: floor.yMax };
     const aim =
       traveling || actor.z > 1
         ? { x: tx, y: ty }
-        : steerAim({ x: actor.x, y: actor.y }, { x: tx, y: ty }, obstaclesIn(world.scene, actor.task.poi?.propId ?? null), floor);
+        : steerAim({ x: actor.x, y: actor.y }, { x: tx, y: ty }, obstaclesIn(world.scene, actor.task.poi?.propId ?? null), reach);
     const dx = aim.x - actor.x;
     const dy = aim.y - actor.y;
     const distance = Math.hypot(dx, dy);

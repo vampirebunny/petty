@@ -54,7 +54,12 @@ export const wardrobeSizes = {
     classic: { shape: 'wayfarer', w: 1.4, h: 1.15, frame: 0.42, lens: '#12141c', lensAlpha: 0.62, glares: 2 },
     square: { shape: 'round', w: 1.3, h: 1.3, frame: 0.26, lens: '#9fd0ff', lensAlpha: 0.22, glares: 1 },
     'red-rim': { shape: 'soft', w: 1.4, h: 1.2, frame: 0.4, lens: '#ffffff', lensAlpha: 0.12, glares: 1 },
-  } as Record<string, { shape: 'wayfarer' | 'round' | 'soft'; w: number; h: number; frame: number; lens: string; lensAlpha: number; glares: number }>,
+    heart: { shape: 'heart', w: 1.15, h: 1.05, frame: 0.36, lens: '#FFB3D6', lensAlpha: 0.45, glares: 1 },
+    star: { shape: 'star', w: 1.25, h: 1.25, frame: 0.34, lens: '#FFE38F', lensAlpha: 0.45, glares: 0 },
+  } as Record<
+    string,
+    { shape: 'wayfarer' | 'round' | 'soft' | 'heart' | 'star'; w: number; h: number; frame: number; lens: string; lensAlpha: number; glares: number }
+  >,
   // Temple arm width as a fraction of the frame, and how far back on the head it reaches (fraction of headR).
   glassesArm: 0.75,
   glassesArmReach: 0.6,

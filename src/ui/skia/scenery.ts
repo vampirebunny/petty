@@ -2,7 +2,7 @@ import { StrokeCap, Skia } from '@shopify/react-native-skia';
 import type { SkCanvas } from '@shopify/react-native-skia';
 
 import type { Scene, World } from '../../actor';
-import { stageHeight, stageWidth } from '../../actor/geometry';
+import { depthScale, stageHeight, stageWidth } from '../../actor/geometry';
 import type { Prop } from '../../actor/scenes';
 import { drawBackdropLayers } from './backdrop';
 import { fillCircle, fillOval, oval, paintOf } from './draw';
@@ -212,6 +212,45 @@ export function drawTreatShape(c: SkCanvas, id: string, x: number, y: number, ra
     const twinkle = 0.85 + Math.sin(t * 6) * 0.15;
     fillCircle(c, x, y - radius * 0.05, radius * 0.28 * twinkle, '#ff7ba5');
     fillCircle(c, x, y - radius * 0.05, radius * 0.12, '#fff6fb');
+  }
+}
+
+export function drawHeldPlay(c: SkCanvas, world: World): void {
+  const held = world.held;
+  const actor = world.actors[0];
+  if (!held || !actor) {
+    return;
+  }
+  if (held.kind === 'laser') {
+    const floor = world.scene.floor;
+    const scale = depthScale(held.y, floor.yMin, floor.yMax);
+    const slip = held.slip * 0.5 * 18 * actor.face;
+    const x = Math.min(floor.xMax, Math.max(floor.xMin, held.x + slip));
+    const y = held.y;
+    const origin = { x: stageWidth / 2, y: stageHeight - 28 };
+    const angle = Math.atan2(y - origin.y, x - origin.x);
+    c.save();
+    c.translate(origin.x, origin.y);
+    c.rotate((angle * 180) / Math.PI, 0, 0);
+    const body = Skia.Path.Make();
+    body.addRRect(Skia.RRectXY(Skia.XYWHRect(-16, -10, 32, 22), 6, 6));
+    c.drawPath(body, paintOf('#2a2a32'));
+    c.drawCircle(18, 0, 5, paintOf('#ff4d4d'));
+    c.restore();
+    c.drawLine(origin.x, origin.y, x, y, paintOf('#FF4D4D', 0.4, 1.5));
+    fillCircle(c, x, y, 10 * scale, '#ff4d4d', 0.28);
+    fillCircle(c, x, y, 3.5 * scale, '#ff4d4d');
+    if (held.spark > 0) {
+      fillCircle(c, x, y, 8 + held.spark * 6, '#fff6c8', 0.65 * Math.min(1, held.spark));
+    }
+    return;
+  }
+  const y = held.y - held.featherZ;
+  c.drawLine(held.featherX, y, stageWidth + 30, stageHeight + 10, paintOf('#8a5a32', 1, 2.4));
+  fillCircle(c, held.featherX, y, 8, '#e85a8c');
+  fillCircle(c, held.featherX + 7, y + 4, 5, '#f2c230');
+  if (held.spark > 0) {
+    fillCircle(c, held.x, held.y - 20, 6 + held.spark * 4, '#fff6c8', 0.7 * Math.min(1, held.spark));
   }
 }
 

@@ -42,6 +42,7 @@ import {
   drawSleeve,
   neckwearUnderHead,
 } from './cosmetics';
+import { bellyAxisScale, bellyRollOf } from './bellyRoll';
 import { coatWeights } from './coatFade';
 import {
   clamp,
@@ -181,6 +182,7 @@ export function drawActor(
   t: number,
   carrying: string | null,
   silhouette = false,
+  reduced = false,
 ): void {
   const posed = actor.jump && actor.jump.phase !== 'turn' ? actor.jump.visual : null;
   if (actor.jump) {
@@ -405,9 +407,39 @@ export function drawActor(
   const foreSide = pose.lie > 0.5 ? -1 : 1;
   const depthSpan = Math.max(geom.bodyLen, 1);
 
-  // Roll-over mirrors the torso, legs, and tail about the body's center line. The head stays upright.
-  const bellyScale = 1 - 2 * pose.belly;
+  // Roll-over spins the torso about its spine. The cosine scale lets the legs and tail
+  // pass through. The body is drawn back out to its cross-section so the edge-on frame
+  // keeps the girth instead of collapsing into a line. The head stays upright.
+  const roll = bellyRollOf(pose.belly);
+  const bellyScale = bellyAxisScale(roll);
   const bodyCenterY = geom.bodyY + dy;
+  // `body` keeps underside shading on the ground side. `detail` is the side-view
+  // surface (belly, markings, coat): it flips with the roll and fades out while edge-on.
+  const paintRolled = (centerY: number, mode: 'body' | 'detail', paint: () => void): void => {
+    if (pose.belly <= 0.001) {
+      paint();
+      return;
+    }
+    if (mode === 'detail' && roll.detail <= 0.001) {
+      return;
+    }
+    const boost = mode === 'body' ? roll.sil / bellyScale : roll.sil / Math.abs(bellyScale);
+    c.save();
+    c.translate(0, centerY);
+    c.scale(1, boost);
+    c.translate(0, -centerY);
+    const fadeDetail = mode === 'detail' && roll.detail < 0.999;
+    if (fadeDetail) {
+      const fade = Skia.Paint();
+      fade.setAlphaf(roll.detail);
+      c.saveLayer(fade);
+    }
+    paint();
+    if (fadeDetail) {
+      c.restore();
+    }
+    c.restore();
+  };
   c.save();
   if (posed && posed.hip !== 0) {
     c.translate(posed.hip, 0);
@@ -451,33 +483,54 @@ export function drawActor(
   });
   planned.sort((a, b) => a.depth - b.depth);
   const bodyDepth = projectLocal({ f: 0, l: 0, h: 0 }, thetaFacing).depth;
-  const paintLeg = (spec: (typeof planned)[number]): { x: number; y: number; shin: number } => {
+  const paintLeg = (spec: (typeof planned)[number], rolled = false): { x: number; y: number; shin: number } => {
     const near = spec.depth >= bodyDepth;
     const norm = clamp(spec.depth / depthSpan, -1, 1);
-    const drawn = drawLeg(
-      c,
-      spec.hipP,
-      spec.footP,
-      geom,
-      spec.fore ? foreSide : -1,
-      near ? legColor : mix(legColor, '#000000', 0.28),
-      bootOn,
-      !near,
-      sockColor,
-      geom.gray.chest,
-      spec.fore ? sleeve : null,
-      legColor,
-      footTilt(spec.fore),
-      near ? 1 : 1 - facingConfig.legNarrow,
-      1 + facingConfig.pawDepth * norm,
+    const stroke = (hip: Pt, foot: Pt) =>
+      drawLeg(
+        c,
+        hip,
+        foot,
+        geom,
+        spec.fore ? foreSide : -1,
+        near ? legColor : mix(legColor, '#000000', 0.28),
+        bootOn,
+        !near,
+        sockColor,
+        geom.gray.chest,
+        spec.fore ? sleeve : null,
+        legColor,
+        footTilt(spec.fore),
+        near ? 1 : 1 - facingConfig.legNarrow,
+        1 + facingConfig.pawDepth * norm,
+      );
+    // The back-view leg pass draws after the roll transform is restored.
+    if (!rolled) {
+      return stroke(spec.hipP, spec.footP);
+    }
+    // The roll scale would squash the stroke into a hairline. Draw the limb at its
+    // rolled position with that scale undone, so the leg keeps its thickness.
+    const projectY = (y: number) => bodyCenterY + (y - bodyCenterY) * bellyScale;
+    c.save();
+    c.translate(0, bodyCenterY);
+    c.scale(1, 1 / bellyScale);
+    c.translate(0, -bodyCenterY);
+    const drawn = stroke(
+      { x: spec.hipP.x, y: projectY(spec.hipP.y) },
+      { x: spec.footP.x, y: projectY(spec.footP.y) },
     );
-    return drawn;
+    c.restore();
+    return {
+      x: drawn.x,
+      y: bodyCenterY + (drawn.y - bodyCenterY) / bellyScale,
+      shin: drawn.shin,
+    };
   };
   const behind = planned.filter((spec) => spec.depth < bodyDepth);
   const ahead = planned.filter((spec) => spec.depth >= bodyDepth);
   const drawnPaws: { x: number; y: number; shin: number }[] = [];
   for (const spec of behind) {
-    drawnPaws.push(paintLeg(spec));
+    drawnPaws.push(paintLeg(spec, pose.belly > 0.001));
   }
 
   // torso: tail, body, markings, ribs, coat
@@ -486,13 +539,25 @@ export function drawActor(
   c.translate(geom.Px, geom.Py);
   c.rotate(deg(theta), 0, 0);
   c.translate(-geom.Px, -geom.Py);
-  if (rig.chest > 0.08 && !(jacket && rig.view === 'front34')) {
-    const bib = points ? (breed.accent ?? muzzleColorOf(breed, markings)) : mix(baseColor, '#ffffff', 0.18);
-    fillOval(c, 0, geom.bodyY + geom.bodyH * 0.16, geom.bodyH * 0.34 * rig.chest, geom.bodyH * 0.28, bib, rig.chest);
-    shadeOval(c, 0, geom.bodyY + geom.bodyH * 0.16, geom.bodyH * 0.34 * rig.chest, geom.bodyH * 0.28);
-  }
-  if (rig.rear > 0.35) {
-    fillOval(c, 0, geom.bodyY - geom.bodyH * 0.08, geom.bodyH * 0.42, geom.bodyH * 0.36, mix(baseColor, '#000000', 0.18), rig.rear * 0.55);
+  if ((rig.chest > 0.08 && !(jacket && rig.view === 'front34')) || rig.rear > 0.35) {
+    paintRolled(geom.bodyY, 'detail', () => {
+      if (rig.chest > 0.08 && !(jacket && rig.view === 'front34')) {
+        const bib = points ? (breed.accent ?? muzzleColorOf(breed, markings)) : mix(baseColor, '#ffffff', 0.18);
+        fillOval(c, 0, geom.bodyY + geom.bodyH * 0.16, geom.bodyH * 0.34 * rig.chest, geom.bodyH * 0.28, bib, rig.chest);
+        shadeOval(c, 0, geom.bodyY + geom.bodyH * 0.16, geom.bodyH * 0.34 * rig.chest, geom.bodyH * 0.28);
+      }
+      if (rig.rear > 0.35) {
+        fillOval(
+          c,
+          0,
+          geom.bodyY - geom.bodyH * 0.08,
+          geom.bodyH * 0.42,
+          geom.bodyH * 0.36,
+          mix(baseColor, '#000000', 0.18),
+          rig.rear * 0.55,
+        );
+      }
+    });
   }
   c.save();
   c.translate(geom.Px, geom.Py);
@@ -526,93 +591,102 @@ export function drawActor(
     paintTail();
   }
   const breath = 1 + pose.breathAmp * Math.sin(actor.breathPh);
+  // Edge-on the flank turns toward the camera: a little darker, with a rounder shade.
+  const rolledCoat = roll.bulk > 0.001 ? mix(baseColor, '#000000', 0.14 * roll.bulk) : baseColor;
+  const form = 1 + roll.bulk;
   c.save();
   c.translate(0, geom.bodyY);
   c.scale(posed?.scaleX ?? 1, posed?.scaleY ?? 1);
   c.translate(0, -geom.bodyY);
-  if (rig.view === 'front') {
-    const chestW = geom.bodyH * 1.1;
-    const chestH = geom.bodyH;
-    fillOval(c, 0, geom.bodyY + chestH * 0.08, chestW / 2, chestH / 2, baseColor);
-    shadeOval(c, 0, geom.bodyY + chestH * 0.08, chestW / 2, chestH / 2);
-  } else if (rig.view === 'back') {
-    fillOval(c, 0, geom.bodyY, geom.bodyH * 0.52, geom.bodyH * 0.48, mix(baseColor, '#000000', 0.12));
-    shadeOval(c, 0, geom.bodyY, geom.bodyH * 0.52, geom.bodyH * 0.48);
-  } else {
-    fillOval(c, 0, geom.bodyY, layout.bodyRx, layout.bodyRy * breath, baseColor);
-  }
-  if (!axial) {
-    fillOval(
-      c,
-      4,
-      geom.bodyY + geom.bodyH * 0.22,
-      geom.bodyLen * 0.38,
-      geom.bodyH * 0.22 * breath,
-      mix(baseColor, '#ffffff', 0.18),
-    );
-  }
-  if (!axial && breed.pattern === 'stripes' && !tabby) {
-    c.save();
-    clipOval(c, 0, geom.bodyY, geom.bodyLen / 2, (geom.bodyH / 2) * breath);
-    const stripes = Skia.Path.Make();
-    for (let i = 0; i < 6; i += 1) {
-      const sx = -geom.bodyLen * 0.34 + i * geom.bodyLen * 0.14;
-      stripes.moveTo(sx, geom.bodyY - geom.bodyH * 0.5);
-      stripes.quadTo(sx + 6, geom.bodyY - geom.bodyH * 0.1, sx + 2, geom.bodyY + geom.bodyH * 0.12);
+  paintRolled(geom.bodyY, 'body', () => {
+    if (rig.view === 'front') {
+      const chestW = geom.bodyH * 1.1;
+      const chestH = geom.bodyH;
+      fillOval(c, 0, geom.bodyY + chestH * 0.08, chestW / 2, chestH / 2, rolledCoat);
+      shadeOval(c, 0, geom.bodyY + chestH * 0.08, chestW / 2, chestH / 2, form);
+    } else if (rig.view === 'back') {
+      fillOval(c, 0, geom.bodyY, geom.bodyH * 0.52, geom.bodyH * 0.48, mix(rolledCoat, '#000000', 0.12));
+      shadeOval(c, 0, geom.bodyY, geom.bodyH * 0.52, geom.bodyH * 0.48, form);
+    } else {
+      fillOval(c, 0, geom.bodyY, layout.bodyRx, layout.bodyRy * breath, rolledCoat);
     }
-    c.drawPath(stripes, paintOf(mix(baseColor, '#000000', 0.5), 0.55 * rig.foreshorten, 4));
-    c.restore();
-  }
-  const markingView = rig.rear > 0.5 ? 'back' : rig.view === 'front' ? 'front' : 'side';
-  drawBodyMarkings(c, geom, markings, breath, bodyDeco, markingView);
-  if (geom.gray.chest > 0.01 && rig.view !== 'back') {
-    // Senior frosting on the chest, over a locked white bib or the coat.
-    frostOval(
-      c,
-      axial ? 0 : geom.bodyLen * 0.37,
-      geom.bodyY + geom.bodyH * 0.2,
-      axial ? geom.bodyH * 0.22 : geom.bodyLen * 0.13,
-      geom.bodyH * 0.36,
-      frostColorOf(markingOf(markings, 'chest')?.color ?? baseColor),
-      geom.gray.chest,
-    );
-  }
-  if (!axial) {
-    shadeOval(c, 0, geom.bodyY, geom.bodyLen / 2, (geom.bodyH / 2) * breath);
-  }
-  if (!axial && actor.displayWeight < -0.35) {
-    const ribs = Skia.Path.Make();
-    for (let r = 0; r < 4; r += 1) {
-      const rx = geom.bodyLen * (0.06 + r * 0.07);
-      ribs.moveTo(rx, geom.bodyY - geom.bodyH * 0.02);
-      ribs.quadTo(rx + 4, geom.bodyY + geom.bodyH * 0.12, rx + 1, geom.bodyY + geom.bodyH * 0.3);
-    }
-    c.drawPath(ribs, paintOf('#000000', ((-actor.displayWeight - 0.35) / 0.65) * 0.38 * rig.foreshorten, 1.4));
-  }
-  if (jacket && jacketAnchor && coats.side > 0.01) {
-    const placed = { sit: pose.sit, theta, dy, foreshorten: rig.foreshorten, belly: pose.belly };
-    c.save();
-    c.translate(jacketAnchor.x * geom.bodyLen, jacketAnchor.y * geom.bodyH);
-    drawJacket(c, geom, jacket, breath, baseColor, { ...placed, pass: 'side', alpha: coats.side });
-    c.restore();
-  }
-  if (jacket && coats.front > 0.01) {
-    c.save();
+  });
+  paintRolled(geom.bodyY, 'detail', () => {
     if (!axial) {
-      c.translate(geom.Px, geom.Py);
-      c.scale(1 / Math.max(rig.foreshorten, 0.001), 1);
-      c.translate(-geom.Px, -geom.Py);
+      fillOval(
+        c,
+        4,
+        geom.bodyY + geom.bodyH * 0.22,
+        geom.bodyLen * 0.38,
+        geom.bodyH * 0.22 * breath,
+        mix(baseColor, '#ffffff', 0.18),
+      );
     }
-    drawJacket(c, geom, jacket, breath, baseColor, {
-      pass: 'front',
-      sit: pose.sit,
-      theta,
-      dy,
-      foreshorten: 1,
-      belly: pose.belly,
-      alpha: coats.front,
+    if (!axial && breed.pattern === 'stripes' && !tabby) {
+      c.save();
+      clipOval(c, 0, geom.bodyY, geom.bodyLen / 2, (geom.bodyH / 2) * breath);
+      const stripes = Skia.Path.Make();
+      for (let i = 0; i < 6; i += 1) {
+        const sx = -geom.bodyLen * 0.34 + i * geom.bodyLen * 0.14;
+        stripes.moveTo(sx, geom.bodyY - geom.bodyH * 0.5);
+        stripes.quadTo(sx + 6, geom.bodyY - geom.bodyH * 0.1, sx + 2, geom.bodyY + geom.bodyH * 0.12);
+      }
+      c.drawPath(stripes, paintOf(mix(baseColor, '#000000', 0.5), 0.55 * rig.foreshorten, 4));
+      c.restore();
+    }
+    const markingView = rig.rear > 0.5 ? 'back' : rig.view === 'front' ? 'front' : 'side';
+    drawBodyMarkings(c, geom, markings, breath, bodyDeco, markingView);
+    if (geom.gray.chest > 0.01 && rig.view !== 'back') {
+      // Senior frosting on the chest, over a locked white bib or the coat.
+      frostOval(
+        c,
+        axial ? 0 : geom.bodyLen * 0.37,
+        geom.bodyY + geom.bodyH * 0.2,
+        axial ? geom.bodyH * 0.22 : geom.bodyLen * 0.13,
+        geom.bodyH * 0.36,
+        frostColorOf(markingOf(markings, 'chest')?.color ?? baseColor),
+        geom.gray.chest,
+      );
+    }
+    if (!axial && actor.displayWeight < -0.35) {
+      const ribs = Skia.Path.Make();
+      for (let r = 0; r < 4; r += 1) {
+        const rx = geom.bodyLen * (0.06 + r * 0.07);
+        ribs.moveTo(rx, geom.bodyY - geom.bodyH * 0.02);
+        ribs.quadTo(rx + 4, geom.bodyY + geom.bodyH * 0.12, rx + 1, geom.bodyY + geom.bodyH * 0.3);
+      }
+      c.drawPath(ribs, paintOf('#000000', ((-actor.displayWeight - 0.35) / 0.65) * 0.38 * rig.foreshorten, 1.4));
+    }
+    if (jacket && jacketAnchor && coats.side > 0.01) {
+      const placed = { sit: pose.sit, theta, dy, foreshorten: rig.foreshorten, belly: pose.belly };
+      c.save();
+      c.translate(jacketAnchor.x * geom.bodyLen, jacketAnchor.y * geom.bodyH);
+      drawJacket(c, geom, jacket, breath, baseColor, { ...placed, pass: 'side', alpha: coats.side });
+      c.restore();
+    }
+    if (jacket && coats.front > 0.01) {
+      c.save();
+      if (!axial) {
+        c.translate(geom.Px, geom.Py);
+        c.scale(1 / Math.max(rig.foreshorten, 0.001), 1);
+        c.translate(-geom.Px, -geom.Py);
+      }
+      drawJacket(c, geom, jacket, breath, baseColor, {
+        pass: 'front',
+        sit: pose.sit,
+        theta,
+        dy,
+        foreshorten: 1,
+        belly: pose.belly,
+        alpha: coats.front,
+      });
+      c.restore();
+    }
+  });
+  if (!axial) {
+    paintRolled(geom.bodyY, 'body', () => {
+      shadeOval(c, 0, geom.bodyY, geom.bodyLen / 2, (geom.bodyH / 2) * breath, form);
     });
-    c.restore();
   }
   if (rig.tail === 'over') {
     paintTail();
@@ -623,7 +697,7 @@ export function drawActor(
 
   if (!coats.legsInBackPass) {
     for (const spec of ahead) {
-      drawnPaws.push(paintLeg(spec));
+      drawnPaws.push(paintLeg(spec, pose.belly > 0.001));
     }
     if (jacket && coats.side + coats.front > 0.01) {
       drawChestDetails(c, geom, jacket, baseColor, theta, dy, actor.swing, rig.dir, pose.belly, coats.side + coats.front);
@@ -745,7 +819,14 @@ export function drawActor(
   if (underHead) {
     wearNeck();
   } else if (neckAnchor?.mode === 'knot' && neckwear) {
-    fillCircle(c, neck.x + neckAnchor.x * R, neck.y + neckAnchor.y * R, R * 0.16, neckwear.colorway.c);
+    if (neckwear.shape === 'bowtie') {
+      const band = R * 0.12;
+      const path = Skia.Path.Make();
+      path.addRRect(Skia.RRectXY(Skia.XYWHRect(neck.x + neckAnchor.x * R - R * 0.28, neck.y + neckAnchor.y * R - band / 2, R * 0.56, band), band, band));
+      c.drawPath(path, paintOf(neckwear.colorway.c));
+    } else {
+      fillCircle(c, neck.x + neckAnchor.x * R, neck.y + neckAnchor.y * R, R * 0.16, neckwear.colorway.c);
+    }
   }
   const eyeR = face.eyeR;
   const ex = face.nearEye.x;
@@ -983,7 +1064,7 @@ export function drawActor(
       if (hat && hatAnchor) {
         c.save();
         c.translate(hatAnchor.x * R, hatAnchor.y * R);
-        drawHat(c, hat, R, face, baseColor);
+        drawHat(c, hat, R, face, baseColor, rig.view === 'back' ? 'back' : 'side', t, reduced);
         c.restore();
       }
       return;
@@ -1004,14 +1085,15 @@ export function drawActor(
     if (glasses && glassAnchor?.mode === 'full') {
       c.save();
       c.translate(glassAnchor.x * R, glassAnchor.y * R);
-      drawGlassesFront(c, glasses, face, R, baseColor);
+      drawGlassesFront(c, glasses, face, R, baseColor, t, reduced);
       c.restore();
     }
     if (hat && hatAnchor) {
       c.save();
       c.translate(hatAnchor.x * R, hatAnchor.y * R);
-      drawHat(c, hat, R, face, baseColor);
-      if (hat.id === 'beanie' && profile.hatPoke) {
+      drawHat(c, hat, R, face, baseColor, rig.view === 'front' ? 'front' : 'side', t, reduced);
+      const pokeHat = hat.shape === 'beanie' || hat.shape === 'cap' || hat.shape === 'bucket' || hat.shape === 'beret' || hat.shape === 'crown';
+      if (pokeHat && profile.hatPoke) {
         c.save();
         clipRectAbove(c, -R * 0.55, R * 3);
         if (sideK > 0.001) {

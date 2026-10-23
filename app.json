@@ -51,12 +51,7 @@
           "enableBackgroundRecording": false
         }
       ],
-      [
-        "expo-screen-orientation",
-        {
-          "initialOrientation": "PORTRAIT"
-        }
-      ],
+      "expo-screen-orientation",
       "expo-asset",
       "expo-secure-store",
       "expo-web-browser",
@@ -74,7 +69,8 @@
         }
       ],
       "expo-font",
-      "expo-sqlite"
+      "expo-sqlite",
+      "./plugins/withPhonePortrait.js"
     ],
     "extra": {
       "eas": {

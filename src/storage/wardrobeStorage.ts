@@ -43,6 +43,18 @@ export async function loadCloset(ownerId: string, equipped: Equipped): Promise<W
   return next;
 }
 
+const listeners = new Set<() => void>();
+
+export function subscribeCloset(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
 export async function saveCloset(ownerId: string, closet: WardrobeCloset): Promise<void> {
   await AsyncStorage.setItem(keyFor(ownerId), JSON.stringify(closet));
+  for (const listener of listeners) {
+    listener();
+  }
 }

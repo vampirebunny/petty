@@ -31,7 +31,8 @@ export type TaskType =
   | 'cuddle'
   | 'travel'
   | 'greet'
-  | 'treat';
+  | 'treat'
+  | 'held';
 
 // Silhouette vocabulary. Each breed picks one value per slot, and the renderer draws the matching shape.
 export type EarType =
@@ -596,6 +597,28 @@ export type Particle = { x: number; y: number; v: number; ph: number };
 // Cuddle content clips. Boop, flinch, swat, and shake-off stay silent.
 export type CuddleSound = 'cuddle_purr' | 'cuddle_happy' | 'cuddle_pant';
 
+export type HeldToy = {
+  kind: 'wand' | 'laser';
+  x: number;
+  y: number;
+  z: number;
+  down: boolean;
+  quiet: number;
+  chase: number;
+  watch: number;
+  leap: number;
+  swat: number;
+  pounce: number;
+  catch: number;
+  slip: number;
+  moodAt: number;
+  featherX: number;
+  featherZ: number;
+  prevX: number;
+  speed: number;
+  spark: number;
+};
+
 export type SoundEvent = {
   actorId: string;
   sound: 'bark' | 'meow' | 'growl' | 'sneeze' | 'sneeze_cat' | 'trill' | 'bell' | 'squeak' | CuddleSound;
@@ -643,6 +666,8 @@ export type World = {
   noNap?: boolean;
   // The toy gestures and play use. Missing means the ball.
   toyKind?: string;
+  // A wand or laser the player is holding. The pet ignores floor toys while this is set.
+  held: HeldToy | null;
   // Multiplies sim dt. Debug scrubbing uses 0.5 and 0.2.
   timeScale?: number;
   // Toys a greeting may carry. Always includes ball.

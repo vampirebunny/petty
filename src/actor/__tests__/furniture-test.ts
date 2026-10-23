@@ -35,6 +35,37 @@ it('reaches the food bowl from inside the litter box and the water bowl', () => 
   }
 });
 
+it('walks off a bed that overlaps the screen edge without spinning', () => {
+  const home = starterFurniture('dog');
+  const scene = applyFurniture(scenes.livingroom, home.pieces, home.placed);
+  const bed = scene.props.find((prop) => prop.kind === 'bed');
+  expect(bed).toBeTruthy();
+  const actor = spawnActor(
+    { id: 'pet', breedId: 'retriever', ageDays: 400, weight: 0, vitality: 1, equipped: {}, asleep: false },
+    { x: bed?.x ?? 0, y: bed?.y ?? 0 },
+  );
+  const world = createWorld([actor], 1, scene);
+  actor.task.type = 'idle';
+  actor.task.stage = '';
+  actor.task.poi = undefined;
+  actor.idle.mode = 'walk';
+  actor.idle.dur = 999;
+  actor.idle.t = 0;
+  actor.idle.arrived = false;
+  actor.idle.target = { x: 40, y: bed?.y ?? 0 };
+  let flips = 0;
+  let last = actor.octant;
+  for (let i = 0; i < 180; i += 1) {
+    update(world, 1 / 30);
+    if (i > 60 && actor.octant !== last) {
+      flips += 1;
+      last = actor.octant;
+    }
+  }
+  expect(flips).toBeLessThan(6);
+  expect(Math.hypot(actor.x - (bed?.x ?? 0), actor.y - (bed?.y ?? 0))).toBeGreaterThan(40);
+});
+
 it('walks onto a bowl it is using and around one that is in the way', () => {
   const open = steerAim({ x: 100, y: 400 }, { x: 300, y: 400 }, [], floor);
   expect(open).toEqual({ x: 300, y: 400 });
@@ -63,7 +94,7 @@ it('keeps the litter box out of a dog room', () => {
   expect(scene.props.some((prop) => prop.kind === 'litterbox')).toBe(false);
   expect(scene.pois.some((poi) => poi.type === 'litter')).toBe(false);
   expect(dog.pieces.some((piece) => piece.kind === 'litterbox')).toBe(false);
-  expect(starterFurniture('cat').pieces.some((piece) => piece.id === 'catio-tree')).toBe(true);
+  expect(starterFurniture('cat').pieces.some((piece) => piece.id === 'catio-tree')).toBe(false);
   expect(starterFurniture('dog').pieces.some((piece) => piece.id === 'catio-tree')).toBe(false);
   expect(starterFurniture('cat').pieces.some((piece) => piece.id === 'bedroom-food' || piece.id === 'bedroom-water')).toBe(false);
 });
@@ -105,4 +136,14 @@ it('clamps a dragged bowl to the walkable floor', () => {
     y: scenes.livingroom.floor.yMin,
   });
   expect(placePiece(home.placed, 'missing', 'livingroom', 100, 300, owned)).toBeNull();
+});
+
+it('draws a cat tree only after it is owned and placed', () => {
+  const home = starterFurniture('cat');
+  const bare = applyFurniture(scenes.catio, home.pieces, home.placed);
+  expect(bare.props.some((prop) => prop.kind === 'catTree')).toBe(false);
+  const pieces = [...home.pieces, { id: 'catio-tree', kind: 'catTree' as const }];
+  const placed = [...home.placed, { pieceId: 'catio-tree', sceneId: 'catio', x: 500, y: 400 }];
+  const scene = applyFurniture(scenes.catio, pieces, placed);
+  expect(scene.props.find((prop) => prop.id === 'catio-tree')).toMatchObject({ kind: 'catTree', x: 500, y: 400 });
 });

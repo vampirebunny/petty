@@ -40,6 +40,7 @@ import type { BoopCounterHandle } from '../ui/BoopCounter';
 import { fontFamily } from '../ui/font';
 import { iconStroke } from '../ui/theme';
 import { usePet } from '../state/usePet';
+import { grantDevItem } from '../dev/grant';
 import { usePlayerHome } from '../state/usePlayerHome';
 import { useEconomy } from '../economy/useEconomy';
 import { basicTreatId } from '../economy/state';
@@ -75,6 +76,7 @@ import { GREET } from '../actor/greetings';
 import { PetView } from '../ui/PetView';
 import { PhoneColumn } from '../ui/PhoneColumn';
 import { useStageSize } from '../ui/useStageSize';
+import { useOpenedDuoBoopEdge, useOpenedDuoTopInset } from '../ui/useDeviceOrientation';
 import { FitScale } from '../ui/FitScale';
 import { isLandscapeSplit, phoneColumnWidth } from '../ui/wideLayout';
 import type { CuddleHandle, StageHandle } from '../ui/PetView';
@@ -214,6 +216,8 @@ export default function HomeScreen({ petApi }: Props) {
   >(null);
   const [previewBottom, setPreviewBottom] = useState(0);
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const duoTop = useOpenedDuoTopInset();
+  const boopEdge = useOpenedDuoBoopEdge();
   const split = isLandscapeSplit(windowWidth, windowHeight);
   const [stagePane, setStagePane] = useState<{ width: number; height: number } | null>(null);
   const stageFrame = split
@@ -243,6 +247,7 @@ export default function HomeScreen({ petApi }: Props) {
   const [facingOpen, setFacingOpen] = useState(false);
   const [personalityOpen, setPersonalityOpen] = useState(false);
   const [playOpen, setPlayOpen] = useState(false);
+  const [heldPlay, setHeldPlay] = useState(false);
   const [treatOpen, setTreatOpen] = useState(false);
   const [treatNote, setTreatNote] = useState<string | null>(null);
   const [cuddleOn, setCuddleOn] = useState(false);
@@ -557,11 +562,20 @@ export default function HomeScreen({ petApi }: Props) {
   const onStageTap = useCallback(
     (x: number, y: number) => {
       tipsRef.current.dismiss();
+      if (stageHandle.current?.heldOn()) {
+        const point = stagePoint(x, y, viewWidth, viewHeight, contentWidth);
+        if (point.x < 96 && point.y > stageHeight - 76) {
+          stageHandle.current.stopHeld();
+          return;
+        }
+        stageHandle.current.steerHeld(point.x, point.y, false);
+        return;
+      }
       if (!pieceAt(x, y)) {
         dropRef.current(x, y);
       }
     },
-    [pieceAt],
+    [contentWidth, pieceAt, viewHeight, viewWidth],
   );
   const onHoldStart = useCallback(
     (x: number, y: number) => {
@@ -606,20 +620,42 @@ export default function HomeScreen({ petApi }: Props) {
   );
   const onFlickStart = useCallback(
     (x: number, y: number) => {
+      if (stageHandle.current?.heldOn()) {
+        const point = stagePoint(x, y, viewWidth, viewHeight, contentWidth);
+        stageHandle.current.steerHeld(point.x, point.y, true);
+        return;
+      }
       flickPiece.current = pieceAt(x, y);
     },
-    [pieceAt],
+    [contentWidth, pieceAt, viewHeight, viewWidth],
   );
-  const onFlickMove = useCallback((x: number, y: number) => {
-    if (flickPiece.current) {
-      return;
-    }
-    void x;
-    void y;
-    strokeRef.current();
-  }, []);
+  const onFlickMove = useCallback(
+    (x: number, y: number) => {
+      if (stageHandle.current?.heldOn()) {
+        const point = stagePoint(x, y, viewWidth, viewHeight, contentWidth);
+        stageHandle.current.steerHeld(point.x, point.y, true);
+        return;
+      }
+      if (flickPiece.current) {
+        return;
+      }
+      void x;
+      void y;
+      strokeRef.current();
+    },
+    [contentWidth, viewHeight, viewWidth],
+  );
   const onFlickEnd = useCallback(
     (x: number, y: number, vx: number, vy: number) => {
+      if (stageHandle.current?.heldOn()) {
+        const point = stagePoint(x, y, viewWidth, viewHeight, contentWidth);
+        if (point.x < 96 && point.y > stageHeight - 76) {
+          stageHandle.current.stopHeld();
+          return;
+        }
+        stageHandle.current.steerHeld(point.x, point.y, false);
+        return;
+      }
       const pieceId = flickPiece.current;
       flickPiece.current = null;
       if (pieceId) {
@@ -629,7 +665,7 @@ export default function HomeScreen({ petApi }: Props) {
         flickRef.current(x, y, vx, vy);
       }
     },
-    [],
+    [contentWidth, viewHeight, viewWidth],
   );
   const gesture = useMemo(() => {
     if (cuddleOn) {
@@ -993,7 +1029,6 @@ export default function HomeScreen({ petApi }: Props) {
 
   if (playdateOpen) {
     return (
-      <PhoneColumn>
       <PlaydateScreen
         pet={state}
         save={playdates.save}
@@ -1005,7 +1040,6 @@ export default function HomeScreen({ petApi }: Props) {
         onClose={() => setPlaydateOpen(false)}
         owned={owned}
       />
-      </PhoneColumn>
     );
   }
 
@@ -1503,7 +1537,7 @@ export default function HomeScreen({ petApi }: Props) {
         accessibilityLabel="Boop Boop"
         accessibilityIgnoresInvertColors
       />
-      <View pointerEvents="none" style={styles.nameSlot}>
+      <View pointerEvents="none" style={[styles.nameSlot, { paddingHorizontal: 148 + (boopEdge - 16) }]}>
         <Text accessibilityRole="header" style={styles.name} numberOfLines={1}>
           {state.name}
         </Text>
@@ -1513,6 +1547,7 @@ export default function HomeScreen({ petApi }: Props) {
         value={economyApi.balance}
         payoutActive={burst != null}
         pending={pendingBoops}
+        fromEdge={boopEdge}
         onPress={() => leaveForShop()}
       />
     </View>
@@ -1528,6 +1563,11 @@ export default function HomeScreen({ petApi }: Props) {
           toys={playableToys.map((id) => ({ id, label: catalogItem(id)?.name ?? (id === 'ball' ? 'Ball' : id) }))}
           onClose={() => setPlayOpen(false)}
           onPick={(id) => {
+            if (id === 'wand' || id === 'laser') {
+              stageHandle.current?.startHeld(id);
+              setPlayOpen(false);
+              return;
+            }
             const swapped = stageHandle.current?.swapToy(id) ?? false;
             chooseToy(id, !swapped);
             setPlayOpen(false);
@@ -1673,6 +1713,12 @@ export default function HomeScreen({ petApi }: Props) {
           greetingIds={() => stageHandle.current?.greetingIds() ?? []}
           greetingLabel={() => stageHandle.current?.label() ?? ''}
           onFacing={() => setFacingOpen(true)}
+          onGrant={(id) => {
+            if (!state.ownerId) {
+              return;
+            }
+            void grantDevItem(state.ownerId, species, state.equipped, id);
+          }}
         />
     </ScrollView>
   );
@@ -1680,7 +1726,7 @@ export default function HomeScreen({ petApi }: Props) {
   return (
     <View style={styles.screen}>
       <View
-        style={styles.root}
+        style={[styles.root, { paddingTop: 64 + duoTop }]}
         accessibilityElementsHidden={placesOpen}
         importantForAccessibility={placesOpen ? 'no-hide-descendants' : 'auto'}
       >
@@ -1758,6 +1804,7 @@ export default function HomeScreen({ petApi }: Props) {
               onAte={reportAte}
               onFellAsleep={beginRest}
               onPlayFind={noteFind}
+              onHeld={setHeldPlay}
               onPointAdds={(adds) => {
                 const shown: PointAdd[] = [];
                 for (const gain of adds) {
@@ -1770,6 +1817,11 @@ export default function HomeScreen({ petApi }: Props) {
                 feedback.current?.pointAdds(shown);
               }}
             />
+            {heldPlay ? (
+              <View pointerEvents="none" style={styles.heldDone}>
+                <Text style={styles.heldDoneText}>Done</Text>
+              </View>
+            ) : null}
             <CuddleFeedback feedbackRef={feedback} reducedMotion={reducedMotion} />
             {ghost && cuddleOn ? (
               <GhostFinger
@@ -1840,6 +1892,22 @@ export default function HomeScreen({ petApi }: Props) {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
+  },
+  heldDone: {
+    position: 'absolute',
+    left: 12,
+    bottom: 12,
+    backgroundColor: '#fffaf4',
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: '#e4d3c4',
+  },
+  heldDoneText: {
+    color: '#3a2a22',
+    fontSize: 13,
+    fontWeight: '600',
   },
   layout: {
     flex: 1,

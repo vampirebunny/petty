@@ -24,6 +24,9 @@ import {
   startSceneEnter,
   startSceneExit,
   startTreat,
+  startHeld,
+  steerHeld,
+  stopHeld,
   startUserTask,
   inviteCare,
   takePendingRest,
@@ -81,6 +84,10 @@ export type StageHandle = {
   squish: (pieceId: string) => void;
   // Changes the toy in play. True when a toy was already out and only its kind changed.
   swapToy: (kind: string) => boolean;
+  startHeld: (kind: 'wand' | 'laser') => void;
+  steerHeld: (x: number, y: number, down: boolean) => void;
+  stopHeld: () => void;
+  heldOn: () => boolean;
   propPoint: (pieceId: string) => { x: number; y: number } | null;
   // Walks off the right and fades the room, then calls back instead of entering a scene.
   depart: (onLeft: () => void) => void;
@@ -128,6 +135,7 @@ type Props = {
   placements?: FurniturePlacement[];
   toys?: string[];
   playToy?: string | null;
+  onHeld?: (on: boolean) => void;
   // Measured scene pane. Omitted on a stacked layout, which sizes from the window.
   frame?: StageFrame;
 };
@@ -190,6 +198,7 @@ export function PetView({
   placements = [],
   toys = [],
   playToy = null,
+  onHeld,
   frame,
 }: Props) {
   const { viewWidth, viewHeight } = useStageSize(frame);
@@ -546,6 +555,18 @@ export function PetView({
         }
         return swapped;
       },
+      startHeld: (kind) => {
+        startHeld(worldRef.current, kind);
+        onHeldRef.current?.(true);
+      },
+      steerHeld: (x, y, down) => {
+        steerHeld(worldRef.current, x, y, down);
+      },
+      stopHeld: () => {
+        stopHeld(worldRef.current);
+        onHeldRef.current?.(false);
+      },
+      heldOn: () => worldRef.current.held != null,
       propPoint: (pieceId) => {
         const prop = worldRef.current.scene.props.find((item) => item.id === pieceId);
         return prop ? { x: prop.x, y: prop.y } : null;
@@ -670,6 +691,11 @@ export function PetView({
     onHydrationRef.current(delta);
   }, []);
 
+  const onHeldRef = useRef(onHeld);
+  const heldWas = useRef(false);
+  useEffect(() => {
+    onHeldRef.current = onHeld;
+  }, [onHeld]);
   const onStatusRef = useRef(onStatus);
   useEffect(() => {
     onStatusRef.current = onStatus;
@@ -846,6 +872,11 @@ export function PetView({
         }
         if (pointAdds.length > 0) {
           onPointAddsRef.current?.(pointAdds);
+        }
+        const holding = world.held != null;
+        if (holding !== heldWas.current) {
+          heldWas.current = holding;
+          onHeldRef.current?.(holding);
         }
         const status = statusOf(actor);
         if (status !== statusRef.current) {

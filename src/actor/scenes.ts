@@ -25,6 +25,7 @@ export const propKinds = [
   'catioScreen',
   'catioPost',
   'catTree',
+  'dogHouse',
   'shelf',
   'hammock',
   'planter',

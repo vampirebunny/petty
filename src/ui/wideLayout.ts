@@ -39,6 +39,27 @@ export function isLandscapeSplit(width: number, height: number): boolean {
   return isLargeWindow(width, height) && width > height;
 }
 
+// Status icons on an opened Duo's right screen cover a Boop total parked at the screen edge.
+export const openedDuoTopInset = 48;
+export const openedDuoBoopEdge = 96;
+
+export function looksSpannedDuo(width: number, height: number): boolean {
+  const short = Math.min(width, height);
+  const long = Math.max(width, height);
+  // Spanned Duo is about 1100×720. This stays under an iPad mini (about 1133×744).
+  return short >= 680 && short <= 740 && long >= 1040 && long <= 1160;
+}
+
+export function duoOpenedBoopEdge(os: string, width: number, height: number): number {
+  // The wide landscape layout is the opened Duo. The model string on that device does not match,
+  // and its window is a little under the spanned-size guess, so the name check never moved the total.
+  return os === 'android' && isLandscapeSplit(width, height) ? openedDuoBoopEdge : 16;
+}
+
+export function duoOpenedTopInset(isDuo: boolean, width: number, height: number): number {
+  return isDuo && isLargeWindow(width, height) ? openedDuoTopInset : 0;
+}
+
 // The control column is designed at phone width. A narrower column scales that layout down.
 export function controlScale(columnWidth: number, design = phoneColumnWidth): number {
   if (columnWidth <= 0 || design <= 0) {

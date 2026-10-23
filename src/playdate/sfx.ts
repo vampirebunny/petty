@@ -45,7 +45,7 @@ const table: Record<string, Row | null> = {
   growl: clip('growl', { jaw: true, once: true }),
   trill: clip('trill', { jaw: true }),
   rest: { dog: clip('cuddle_pant', { jaw: true }), cat: clip('cuddle_purr') },
-  squeak: null,
+  squeak: clip('squeak'),
   boing: null,
   whoosh: null,
 };

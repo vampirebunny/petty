@@ -71,6 +71,41 @@ export const PLAY_RULES: PlayRule[] = [
     allows: ['stalk', 'pounce', 'bat', 'roll', 'tangle'],
     endWith: 'purr',
   },
+  {
+    species: 'cat',
+    itemKind: 'crinkle',
+    steps: ['chase', 'bat', 'bat', 'bat'],
+    allows: ['stalk', 'pounce', 'bat'],
+    endWith: 'purr',
+  },
+  {
+    species: 'cat',
+    itemKind: 'mouse',
+    steps: ['chase', 'pounce', 'bat', 'bat'],
+    allows: ['stalk', 'pounce', 'bat', 'roll', 'tangle'],
+    endWith: 'purr',
+  },
+  {
+    species: 'dog',
+    itemKind: 'bone',
+    steps: ['chase', 'grab', 'chew'],
+    allows: ['catchRoll', 'flopChew'],
+    endWith: 'sit_pant',
+  },
+  {
+    species: 'cat',
+    itemKind: 'wand',
+    steps: ['chase'],
+    allows: [],
+    endWith: 'idle',
+  },
+  {
+    species: 'cat',
+    itemKind: 'laser',
+    steps: ['chase'],
+    allows: [],
+    endWith: 'idle',
+  },
 ];
 
 export function playRuleFor(species: 'dog' | 'cat', itemKind: string): PlayRule | null {

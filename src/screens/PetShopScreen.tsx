@@ -43,6 +43,7 @@ import { ensureShopDay, loadShopCatalog } from '../economy/shopState';
 import { refreshShopCatalog } from '../economy/shopSync';
 import type { Equipped, OutfitSlot, PetState } from '../sim/types';
 import { useLimitedContentWidth } from '../ui/PhoneColumn';
+import { useOpenedDuoBoopEdge, useOpenedDuoTopInset } from '../ui/useDeviceOrientation';
 import { isLandscapeSplit } from '../ui/wideLayout';
 import { fontFamily } from '../ui/font';
 import { Glossy, LedgeCard } from '../ui/shop/Glossy';
@@ -158,6 +159,8 @@ export function PetShopScreen({
   const limited = useLimitedContentWidth();
   const split = limited == null && isLandscapeSplit(windowWidth, screenH);
   const pane = split ? windowWidth / 2 : (limited ?? windowWidth);
+  const duoTop = useOpenedDuoTopInset();
+  const boopEdge = useOpenedDuoBoopEdge();
   const stageWidthPx = pane - 32;
   const cardWidth = Math.max(156, Math.min(188, Math.round((pane - 44) / 2.2)));
   const spin = useSharedValue(0);
@@ -351,7 +354,7 @@ export function PetShopScreen({
 
   return (
     <View style={styles.root}>
-      <View style={styles.header}>
+      <View style={[styles.header, duoTop > 0 ? { paddingTop: 54 + duoTop } : null]}>
         <View style={styles.headerLead}>
           <Image
             source={require('../../assets/icon.png')}
@@ -367,10 +370,10 @@ export function PetShopScreen({
             )}
           </Pressable>
         </View>
-        <Text style={styles.title} pointerEvents="none" numberOfLines={1}>
+        <Text style={[styles.title, boopEdge > 16 ? { right: 124 + (boopEdge - 16) } : null]} pointerEvents="none" numberOfLines={1}>
           Pet Shop
         </Text>
-        <Glossy variant="white" style={styles.pill}>
+        <Glossy variant="white" style={[styles.pill, boopEdge > 16 ? { marginRight: boopEdge - 16 } : null]}>
           <StillCoin size={28} />
           <Text style={styles.pillText}>{money(balance)}</Text>
         </Glossy>

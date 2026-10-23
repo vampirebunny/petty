@@ -21,7 +21,6 @@ export function createCatioScene(stageWidth: number, stageHeight: number): Scene
     { kind: 'shelf', x: stageWidth / 3, y: horizon * 0.56, w: 64, layer: 'back' },
     { kind: 'shelf', x: (stageWidth * 2) / 3, y: horizon * 0.38, w: 64, layer: 'back' },
     // Deck furniture.
-    { kind: 'catTree', id: 'catio-tree', x: stageWidth * 0.8, y: horizon + 70 },
     { kind: 'planter', id: 'catio-grass', x: stageWidth * 0.2, y: horizon + 48, w: 64, plant: 'catgrass' },
     { kind: 'planter', id: 'catio-flowers', x: stageWidth * 0.42, y: horizon + 40, w: 48, plant: 'flowers' },
     { kind: 'scratcher', x: stageWidth * 0.06, y: stageHeight - 150, h: 74 },

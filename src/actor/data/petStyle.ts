@@ -7,6 +7,11 @@ export const petStyle = {
     ink: '#1e140e',
     inkMix: 0.75,
   },
+  // Belly roll. The torso spins about its spine. `girth` is the edge-on thickness
+  // as a fraction of the side-view height, so the body never flattens into a line.
+  roll: {
+    girth: 0.72,
+  },
   shade: {
     enabled: true,
     shadowAlpha: 0.14,

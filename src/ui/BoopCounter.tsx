@@ -21,13 +21,18 @@ type Props = {
   payoutActive: boolean;
   pending: number;
   onPress?: () => void;
+  /** Distance from the right edge. Defaults to the phone header inset. */
+  fromEdge?: number;
 };
 
 function formatBoops(value: number): string {
   return new Intl.NumberFormat('en-US').format(value);
 }
 
-export const BoopCounter = forwardRef<BoopCounterHandle, Props>(function BoopCounter({ value, payoutActive, pending, onPress }, ref) {
+export const BoopCounter = forwardRef<BoopCounterHandle, Props>(function BoopCounter(
+  { value, payoutActive, pending, onPress, fromEdge },
+  ref,
+) {
   const [shown, setShown] = useState(value);
   const [announced, setAnnounced] = useState(value);
   const shownRef = useRef(value);
@@ -159,12 +164,13 @@ export const BoopCounter = forwardRef<BoopCounterHandle, Props>(function BoopCou
     transform: [{ scale: pill.value }],
   }));
 
+  const place = fromEdge == null ? null : { right: fromEdge };
   const face = (
     <Animated.View
       accessibilityElementsHidden={onPress != null}
       importantForAccessibility={onPress != null ? 'no-hide-descendants' : 'auto'}
       accessibilityLabel={onPress ? undefined : `${announced} Boops`}
-      style={[styles.pill, onPress ? null : styles.hit, pillStyle]}
+      style={[styles.pill, onPress ? null : styles.hit, place, pillStyle]}
       onLayout={rememberCoin}
     >
       <View ref={coinRef} onLayout={rememberCoin}>
@@ -179,7 +185,7 @@ export const BoopCounter = forwardRef<BoopCounterHandle, Props>(function BoopCou
   }
 
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel={`${announced} Boops. Open Pet Shop`} onPress={onPress} style={styles.hit}>
+    <Pressable accessibilityRole="button" accessibilityLabel={`${announced} Boops. Open Pet Shop`} onPress={onPress} style={[styles.hit, place]}>
       {face}
     </Pressable>
   );

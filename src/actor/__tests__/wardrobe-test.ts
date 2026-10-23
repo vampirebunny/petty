@@ -1,6 +1,6 @@
 import { generateCast } from '../../playdate/npcs';
 import { migrateEquipped, starterCloset, withStarter } from '../closet';
-import { jacketHasSleeves, outfitSlots, wardrobe, wearItem } from '../wardrobe';
+import { jacketHasSleeves, neckBackMode, outfitSlots, wardrobe, wearItem } from '../wardrobe';
 import type { OutfitSlot } from '../../sim/types';
 
 describe('wardrobe closet', () => {
@@ -42,6 +42,43 @@ describe('wardrobe closet', () => {
     expect(jacketHasSleeves(wearItem('jacket', 'rain')!)).toBe(true);
     expect(jacketHasSleeves(wearItem('jacket', 'puffer')!)).toBe(false);
     expect(jacketHasSleeves(wearItem('jacket', 'vest')!)).toBe(false);
+  });
+
+  it('adds the catalog art pieces by shape', () => {
+    const ids = [
+      ['neckwear', 'bandana-cherry', 'bandana'],
+      ['neckwear', 'scarf-stripe', 'scarf'],
+      ['neckwear', 'bandana-gingham', 'bandana'],
+      ['neckwear', 'bowtie', 'bowtie'],
+      ['neckwear', 'bowtie-plaid', 'bowtie'],
+      ['glasses', 'heart', 'heart'],
+      ['glasses', 'heart-sky', 'heart'],
+      ['glasses', 'star', 'star'],
+      ['hat', 'beanie-pink', 'beanie'],
+      ['hat', 'beanie-stripe', 'beanie'],
+      ['hat', 'cap', 'cap'],
+      ['hat', 'cap-sky', 'cap'],
+      ['hat', 'bucket', 'bucket'],
+      ['hat', 'bucket-daisy', 'bucket'],
+      ['hat', 'beret', 'beret'],
+      ['hat', 'top-velvet', 'top'],
+      ['hat', 'crown', 'crown'],
+      ['boots', 'rain-blue', 'rain'],
+      ['boots', 'sneaker-pink', 'sneaker'],
+      ['boots', 'sneaker-gold', 'sneaker'],
+      ['jacket', 'puffer-mint', 'puffer'],
+      ['jacket', 'sweater-lilac', 'sweater'],
+      ['jacket', 'puffer-rainbow', 'puffer'],
+    ] as const;
+    expect(ids).toHaveLength(23);
+    for (const [slot, id, shape] of ids) {
+      expect(wearItem(slot, id)).toMatchObject({ id, shape });
+    }
+    expect(wearItem('hat', 'top')?.colorway.d).toBe('#f4dede');
+    expect(wearItem('hat', 'top-velvet')?.patternParts).toEqual(['band']);
+    expect(wearItem('jacket', 'puffer-rainbow')?.colorway.pattern).toBe('rainbow');
+    expect(neckBackMode('bowtie')).toBe('band');
+    expect(neckBackMode('scarf')).toBe('knot');
   });
 
   it('dresses npc partners from the full catalog', () => {

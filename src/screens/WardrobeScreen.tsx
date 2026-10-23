@@ -3,6 +3,7 @@ import { Image, StyleSheet, Text, View } from 'react-native';
 import type { OwnedItem } from '../actor/closet';
 import type { Equipped, OutfitSlot, PetState } from '../sim/types';
 import { BoopCounter } from '../ui/BoopCounter';
+import { useOpenedDuoBoopEdge, useOpenedDuoTopInset } from '../ui/useDeviceOrientation';
 import { CandyButton } from '../ui/closet/CandyButton';
 import { closet } from '../ui/closet/closetStyle';
 import { fontFamily } from '../ui/font';
@@ -31,8 +32,10 @@ export function WardrobeScreen({
   reducedMotion,
   title,
 }: Props) {
+  const duoTop = useOpenedDuoTopInset();
+  const boopEdge = useOpenedDuoBoopEdge();
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { paddingTop: 64 + duoTop }]}>
       <View style={styles.header}>
         <Image
           source={require('../../assets/icon.png')}
@@ -43,14 +46,14 @@ export function WardrobeScreen({
         <Text
           accessibilityRole="header"
           pointerEvents="none"
-          style={styles.title}
+          style={[styles.title, boopEdge > 16 ? { marginRight: 132 + (boopEdge - 16) } : null]}
           numberOfLines={1}
           adjustsFontSizeToFit
           minimumFontScale={0.75}
         >
           {title ?? `${pet.name}'s wardrobe`}
         </Text>
-        <BoopCounter value={boops} payoutActive={false} pending={0} onPress={onOpenStore} />
+        <BoopCounter value={boops} payoutActive={false} pending={0} fromEdge={boopEdge} onPress={onOpenStore} />
       </View>
       <WardrobePicker
         subject={{

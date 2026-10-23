@@ -24,7 +24,7 @@ it('registers live ball and stub toy kinds', () => {
   expect(ITEM_KINDS.ball.stub).toBeUndefined();
   expect(ITEM_KINDS.frisbee.stub).toBe(true);
   expect(ITEM_KINDS.squeaky.stub).toBe(true);
-  expect(ITEM_KINDS.bone.stub).toBe(true);
+  expect(ITEM_KINDS.bone.stub).toBeUndefined();
   expect(ITEM_KINDS.jingleBall.stub).toBe(true);
 });
 
@@ -33,6 +33,18 @@ it('steps free ball physics without leaving the floor', () => {
   stepItem(item, scenes.livingroom, 0.05);
   expect(item.z).toBeGreaterThanOrEqual(0);
   expect(item.state).toBe('free');
+});
+
+it('gives the new toys the play rules they copy', () => {
+  const catBall = playRuleFor('cat', 'ball');
+  const yarn = playRuleFor('cat', 'yarn');
+  expect(playRuleFor('cat', 'crinkle')).toMatchObject({ steps: catBall?.steps, allows: catBall?.allows });
+  expect(playRuleFor('cat', 'mouse')).toMatchObject({ steps: yarn?.steps, allows: yarn?.allows });
+  expect(playRuleFor('dog', 'bone')?.steps).toContain('chew');
+  expect(playRuleFor('dog', 'rope')).toBeNull();
+  expect(playRuleFor('cat', 'wand')?.species).toBe('cat');
+  expect(playRuleFor('dog', 'laser')).toBeNull();
+  expect(playRuleFor('cat', 'laser')?.species).toBe('cat');
 });
 
 it('gives the nearest actor the item and breaks ties with rng', () => {

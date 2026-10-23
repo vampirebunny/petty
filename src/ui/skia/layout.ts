@@ -38,6 +38,7 @@ export function footprint(prop: Prop): number {
     bush: 34,
     fence: 150,
     catTree: 48,
+    dogHouse: 46,
     planter: 30,
     scratcher: 22,
     pumpkin: 14,
