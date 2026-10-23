@@ -16,6 +16,7 @@ import { playBloop } from '../../audio/bloop';
 import { fontFamily } from '../../ui/font';
 import type { BoopCounterHandle } from '../../ui/BoopCounter';
 import { PawCoin } from './PawCoin';
+import { hasWindowSize, usableCoinCenter } from './windowSample';
 
 const coinSize = 56;
 const dropMs = 950;
@@ -129,13 +130,25 @@ function FlyingCoin({
   const phase = useSharedValue(0);
   const spin = useSharedValue(0);
   const arriveRef = useRef(onArrive);
+  const launched = useRef(false);
+  const reported = useRef(false);
   useEffect(() => {
     arriveRef.current = onArrive;
   }, [onArrive]);
 
   useEffect(() => {
-    const notify = (coinIndex: number) => arriveRef.current(coinIndex);
+    const notify = (coinIndex: number) => {
+      if (reported.current) {
+        return;
+      }
+      reported.current = true;
+      arriveRef.current(coinIndex);
+    };
     const launch = () => {
+      if (launched.current) {
+        return;
+      }
+      launched.current = true;
       aim(() => {
         phase.value = 1;
         fly.value = withTiming(1, { duration: flyMs, easing: Easing.bezier(0.5, 0, 0.9, 0.6) }, (done) => {
@@ -156,7 +169,17 @@ function FlyingCoin({
         }
       }),
     );
-    return () => clearTimeout(dropSound);
+    // If the drop animation never reports completion, still show the coin and send it.
+    const backup = setTimeout(() => {
+      drop.value = 1;
+      launch();
+    }, delay + dropMs + 50);
+    const arriveBackup = setTimeout(() => notify(index), delay + dropMs + flyMs + 160);
+    return () => {
+      clearTimeout(dropSound);
+      clearTimeout(backup);
+      clearTimeout(arriveBackup);
+    };
   }, [aim, delay, drop, fly, index, phase, spin]);
 
   const style = useAnimatedStyle(() => {
@@ -233,6 +256,7 @@ export function BoopsPayout({
   void hopPet;
   const overlayRef = useRef<View>(null);
   const [frame, setFrame] = useState<Frame | null>(null);
+  const placedRef = useRef(false);
   const targetX = useSharedValue(0);
   const targetY = useSharedValue(0);
   const labelY = useSharedValue(0);
@@ -259,6 +283,38 @@ export function BoopsPayout({
     doneRef.current();
   }, [reducedMotion]);
 
+  const place = useCallback((x: number, y: number, width: number, height: number) => {
+    if (!hasWindowSize({ x, y, width, height })) {
+      return false;
+    }
+    const local = { x: origin.x - x, y: origin.y - y };
+    const coin = usableCoinCenter(counter.current?.coinCenterInWindow());
+    const target = coin ? { x: coin.x - x, y: coin.y - y } : { x: local.x, y: local.y - 180 };
+    // Reanimated shared values are updated when the overlay is measured.
+    // eslint-disable-next-line react-hooks/immutability
+    targetX.value = target.x;
+    // eslint-disable-next-line react-hooks/immutability
+    targetY.value = target.y;
+    if (coin) {
+      // eslint-disable-next-line react-hooks/immutability
+      labelY.value = target.y;
+      setLabelReady(true);
+    }
+    placedRef.current = true;
+    setFrame((current) => {
+      if (!current) {
+        return { origin: local, target };
+      }
+      const dx = local.x - current.origin.x;
+      const dy = local.y - current.origin.y;
+      if (dx * dx + dy * dy < 36) {
+        return current;
+      }
+      return { ...current, origin: local };
+    });
+    return true;
+  }, [counter, labelY, origin.x, origin.y, targetX, targetY]);
+
   const aim = useCallback((then: () => void) => {
     const overlay = overlayRef.current;
     if (!overlay) {
@@ -266,8 +322,8 @@ export function BoopsPayout({
       return;
     }
     overlay.measureInWindow((x, y, width, height) => {
-      if (width !== 0 || height !== 0) {
-        const coin = counter.current?.coinCenterInWindow();
+      if (hasWindowSize({ x, y, width, height })) {
+        const coin = usableCoinCenter(counter.current?.coinCenterInWindow());
         if (coin) {
           targetX.value = coin.x - x;
           targetY.value = coin.y - y;
@@ -281,29 +337,51 @@ export function BoopsPayout({
 
   const measure = useCallback(() => {
     overlayRef.current?.measureInWindow((x, y, width, height) => {
-      if (width === 0 && height === 0) {
-        return;
-      }
-      const local = { x: origin.x - x, y: origin.y - y };
-      const coin = counter.current?.coinCenterInWindow();
-      const target = coin ? { x: coin.x - x, y: coin.y - y } : { x: local.x, y: local.y - 180 };
-      targetX.value = target.x;
-      targetY.value = target.y;
-      if (coin) {
-        labelY.value = target.y;
-        setLabelReady(true);
-      }
-      setFrame((current) => current ?? { origin: local, target });
+      place(x, y, width, height);
     });
-  }, [counter, labelY, origin.x, origin.y, targetX, targetY]);
+  }, [place]);
 
   useEffect(() => {
-    if (reducedMotion || labelReady) {
+    if (reducedMotion || frame) {
       return;
     }
-    const retry = requestAnimationFrame(() => measure());
-    return () => cancelAnimationFrame(retry);
-  }, [labelReady, measure, reducedMotion]);
+    let attempt = 0;
+    let retry = 0;
+    let cancelled = false;
+    const finishUnmeasured = () => {
+      if (cancelled || placedRef.current) {
+        return;
+      }
+      place(0, 0, 1, 1);
+    };
+    const read = () => {
+      const overlay = overlayRef.current;
+      if (!overlay) {
+        return;
+      }
+      overlay.measureInWindow((x, y, width, height) => {
+        if (cancelled) {
+          return;
+        }
+        if (place(x, y, width, height)) {
+          return;
+        }
+        attempt += 1;
+        if (attempt < 8) {
+          retry = requestAnimationFrame(read);
+          return;
+        }
+        finishUnmeasured();
+      });
+    };
+    retry = requestAnimationFrame(read);
+    const giveUp = setTimeout(finishUnmeasured, 400);
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(retry);
+      clearTimeout(giveUp);
+    };
+  }, [frame, place, reducedMotion]);
 
   useEffect(() => {
     if (reducedMotion) {
@@ -324,7 +402,7 @@ export function BoopsPayout({
   };
 
   return (
-    <View ref={overlayRef} pointerEvents="none" style={styles.overlay} onLayout={measure}>
+    <View ref={overlayRef} pointerEvents="none" collapsable={false} style={styles.overlay} onLayout={measure}>
       {frame && !reducedMotion ? (
         <>
           {labelReady ? <PlusLabel amount={amount} labelY={labelY} /> : null}
@@ -352,6 +430,7 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFill,
     zIndex: 15,
     elevation: 15,
+    backgroundColor: 'transparent',
   },
   coin: {
     position: 'absolute',

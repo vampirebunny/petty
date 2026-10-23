@@ -70,7 +70,7 @@ export function PawCoin({ size, spinAngle, shine, shineMs = 1600 }: Props) {
   const faceStyle = useAnimatedStyle(() => {
     const turn = (spinAngle.value * Math.PI) / 180;
     return {
-      transform: [{ scaleX: Math.max(0.001, Math.abs(Math.cos(turn))) }],
+      transform: [{ scaleX: Math.max(0.08, Math.abs(Math.cos(turn))) }],
     };
   });
   const darkenStyle = useAnimatedStyle(() => {

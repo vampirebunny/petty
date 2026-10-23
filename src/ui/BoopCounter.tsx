@@ -50,9 +50,18 @@ export const BoopCounter = forwardRef<BoopCounterHandle, Props>(function BoopCou
   valueRef.current = value;
 
   const rememberCoin = () => {
-    coinRef.current?.measureInWindow((x, y, width, height) => {
-      coinWindow.current = { x: x + width / 2, y: y + height / 2 };
-    });
+    const read = (attempt: number) => {
+      coinRef.current?.measureInWindow((x, y, width, height) => {
+        if (width < 1 || height < 1) {
+          if (attempt < 4) {
+            requestAnimationFrame(() => read(attempt + 1));
+          }
+          return;
+        }
+        coinWindow.current = { x: x + width / 2, y: y + height / 2 };
+      });
+    };
+    read(0);
   };
 
   const animate = useCallback((to: number, duration: number) => {

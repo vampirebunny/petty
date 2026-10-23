@@ -35,6 +35,7 @@ import { PetShopScreen } from './PetShopScreen';
 import { placeFlavors, placeIcons, speciesLabel } from '../ui/actionIcons';
 import { CandyShell, candyInk, tints } from '../ui/candy';
 import { BoopsPayout } from '../components/currency/BoopsPayout';
+import { acceptStageOrigin } from '../components/currency/windowSample';
 import { BoopCounter } from '../ui/BoopCounter';
 import type { BoopCounterHandle } from '../ui/BoopCounter';
 import { fontFamily } from '../ui/font';
@@ -206,6 +207,7 @@ export default function HomeScreen({ petApi }: Props) {
   const stageViewRef = useRef<View>(null);
   const [stageWindow, setStageWindow] = useState({ x: 0, y: 0 });
   const [stageReady, setStageReady] = useState(false);
+  const skippedStageZero = useRef(false);
   const paidBurst = useRef<number | null>(null);
   const cancelBurstsRef = useRef(cancelBursts);
   useEffect(() => {
@@ -854,10 +856,29 @@ export default function HomeScreen({ petApi }: Props) {
   }, [inventory, setCareTreatCount]);
 
   const rememberStage = useCallback(() => {
-    stageViewRef.current?.measureInWindow((x, y) => {
-      setStageWindow((prev) => (prev.x === x && prev.y === y ? prev : { x, y }));
-      setStageReady(true);
-    });
+    let attempt = 0;
+    const read = () => {
+      const node = stageViewRef.current;
+      if (!node) {
+        return;
+      }
+      node.measureInWindow((x, y, width, height) => {
+        const decision = acceptStageOrigin({ x, y, width, height }, skippedStageZero.current);
+        skippedStageZero.current = decision.skippedZero;
+        if (!decision.ok) {
+          attempt += 1;
+          if (attempt < 8) {
+            requestAnimationFrame(read);
+          } else {
+            setStageReady(true);
+          }
+          return;
+        }
+        setStageWindow((prev) => (prev.x === x && prev.y === y ? prev : { x, y }));
+        setStageReady(true);
+      });
+    };
+    read();
   }, []);
 
   const milestones = state?.milestones;
