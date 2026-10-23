@@ -322,6 +322,11 @@ export function setDirection(actor: Actor, direction: Direction | null): void {
     return;
   }
   actor.direction = direction;
+  if (actor.idle.mode === 'stalk') {
+    actor.idle.mode = 'still';
+    actor.idle.birdId = undefined;
+    actor.idle.arrived = true;
+  }
   if (!direction) {
     return;
   }
@@ -383,6 +388,12 @@ export function createWorld(actors: Actor[], seed = 1, scene: Scene = scenes.liv
     playMoodSec: 0,
     playActs: 0,
     playTouch: false,
+    birds: [],
+    birdCast: null,
+    birdSeed: null,
+    stageBleed: 0,
+    birdClimate: { dark: 0, precip: null, month: 5 },
+    birdChirps: 0,
   };
   seedParticles(world);
   return world;
@@ -393,6 +404,12 @@ export function takeSounds(world: World): SoundEvent[] {
   const sounds = world.sounds;
   world.sounds = [];
   return sounds;
+}
+
+export function takeBirdChirps(world: World): number {
+  const chirps = world.birdChirps;
+  world.birdChirps = 0;
+  return chirps;
 }
 
 export function syncActor(actor: Actor, source: ActorSource): void {
@@ -457,6 +474,8 @@ export function setWorldScene(world: World, scene: Scene): void {
     return;
   }
   clearParkGuests(world);
+  world.birds = [];
+  world.birdCast = null;
   world.scene = scene;
   const home = homeOf(scene);
   const bed = poiOf(scene, 'bed');
@@ -520,6 +539,8 @@ export function startSceneExit(world: World, actor: Actor): void {
 // Cuts to `scene` with the pet waiting off the left, then walking in to the home spot.
 export function startSceneEnter(world: World, actor: Actor, scene: Scene): void {
   clearParkGuests(world);
+  world.birds = [];
+  world.birdCast = null;
   scene = sceneForSpecies(scene, sceneSpeciesOf(world.actors.filter((item) => !item.guest)));
   world.scene = scene;
   clearItems(world);
@@ -736,6 +757,7 @@ function beginIdle(world: World, actor: Actor, mode: IdleMode): void {
   actor.idle.mode = mode;
   actor.idle.t = 0;
   actor.idle.target = null;
+  actor.idle.birdId = undefined;
   actor.idle.arrived = true;
   actor.idle.dur =
     mode === 'still'
@@ -1024,6 +1046,9 @@ function nextIdle(world: World, actor: Actor): void {
     startUserTask(world, actor, 'drink');
     return;
   }
+  if (tryBirdStalk(world, actor)) {
+    return;
+  }
   const options = (breed?.species === 'cat' ? ['still', 'purr', 'nap', 'walk'] : ['still', 'pant', 'nap', 'walk']).filter(
     (mode) =>
       mode !== actor.idle.mode &&
@@ -1060,6 +1085,68 @@ const idleVoiceChance = 0.06;
 const idleVoiceCooldown = 60;
 
 // Now and then a resting pet pipes up on its own. Rare, never while moving or asleep, and rate limited.
+const stalkReach = 280;
+const stalkGiveUp = 8;
+
+function birdById(world: World, id: string | undefined): Bird | null {
+  if (!id) {
+    return null;
+  }
+  return world.birds.find((bird) => bird.id === id) ?? null;
+}
+
+function groundBirdNear(world: World, actor: Actor, range: number): Bird | null {
+  let best: Bird | null = null;
+  let bestD = range;
+  for (const bird of world.birds) {
+    if (bird.spot.on !== 'ground') {
+      continue;
+    }
+    if (bird.state === 'away' || bird.state === 'flyOut' || bird.state === 'flyIn') {
+      continue;
+    }
+    const dist = Math.hypot(bird.x - actor.x, bird.y - actor.y);
+    if (dist < bestD) {
+      best = bird;
+      bestD = dist;
+    }
+  }
+  return best;
+}
+
+function stalkingCat(actor: Actor): boolean {
+  return (
+    !actor.guest &&
+    breedById(actor.breedId)?.species === 'cat' &&
+    actor.task.type === 'idle' &&
+    actor.idle.mode === 'stalk' &&
+    actor.z <= 0 &&
+    !actor.jump
+  );
+}
+
+// A free cat in the park sometimes creeps up on a ground bird. The pounce is what flushes it.
+function tryBirdStalk(world: World, actor: Actor): boolean {
+  if (actor.guest || breedById(actor.breedId)?.species !== 'cat') {
+    return false;
+  }
+  if (!world.scene.birds?.length) {
+    return false;
+  }
+  if (actor.direction || world.park?.guests.some((guest) => guest.phase === 'hello')) {
+    return false;
+  }
+  const bird = groundBirdNear(world, actor, stalkReach);
+  if (!bird || world.rng() > 0.4) {
+    return false;
+  }
+  beginIdle(world, actor, 'stalk');
+  actor.idle.birdId = bird.id;
+  actor.idle.arrived = false;
+  actor.idle.dur = stalkGiveUp;
+  return true;
+}
+
 function maybeIdleVoice(world: World, actor: Actor, mode: IdleMode): void {
   if (mode !== 'still' && mode !== 'pant' && mode !== 'purr') {
     return;
@@ -2196,6 +2283,42 @@ function updateActor(world: World, actor: Actor, dt: number): void {
           actor.zoom = null;
           beginIdle(world, actor, 'still');
         }
+      } else if (actor.idle.mode === 'stalk') {
+        const bird = birdById(world, actor.idle.birdId);
+        const gone = !bird || bird.state === 'away' || bird.state === 'flyOut' || bird.state === 'flyIn' || bird.spot.on !== 'ground';
+        const hello = world.park?.guests.some((guest) => guest.phase === 'hello') === true;
+        if (gone || hello) {
+          beginIdle(world, actor, 'still');
+        } else if (actor.jump) {
+          targets.stalk = 1;
+          targets.crouch = 0.55;
+        } else if (actor.idle.arrived && actor.z <= 0) {
+          beginIdle(world, actor, 'still');
+        } else {
+          targets.stalk = 1;
+          targets.crouch = 0.55;
+          const gap = BIRD_SPECIES[bird.species].startle * 0.6 + 16;
+          const dx = bird.x - actor.x;
+          const dy = bird.y - actor.y;
+          const dist = Math.hypot(dx, dy) || 1;
+          const stop = { x: bird.x - (dx / dist) * gap, y: bird.y - (dy / dist) * gap };
+          actor.idle.target = stop;
+          snapFacing(actor, bird.x >= actor.x ? 1 : -1);
+          if (dist <= gap + 8) {
+            const dir: 1 | -1 = bird.x >= actor.x ? 1 : -1;
+            const launched = jump(actor, { targetX: bird.x - dir * 28, wiggle: false, reduced: world.reducedMotion });
+            if (launched) {
+              actor.idle.arrived = true;
+            } else if (actor.idle.t > actor.idle.dur) {
+              beginIdle(world, actor, 'still');
+            }
+          } else if (actor.idle.t > actor.idle.dur) {
+            beginIdle(world, actor, 'still');
+          } else {
+            move = stop;
+            vmax = Math.min(limit * 0.14, 40);
+          }
+        }
       } else if (actor.idle.mode === 'walk') {
         if (!actor.idle.target) {
           actor.idle.target = {
@@ -3136,6 +3259,7 @@ export function update(world: World, dt: number): void {
     }
   }
   stepParkVisitors(world, spawnActor, setDirection);
+  stepSceneBirds(world, step);
   stepPlayMood(world, step);
 }
 
@@ -3165,4 +3289,57 @@ function toyIsMoving(world: World): boolean {
   return world.items.some(
     (item) => !item.kind.startsWith('treat:') && item.state === 'free' && Math.hypot(item.vx, item.vy, item.vz) >= playMoveSpeed,
   );
+}
+
+function birdWorldOf(world: World): BirdWorld {
+  const bleed = world.stageBleed;
+  return {
+    dark: world.birdClimate.dark,
+    precip: world.birdClimate.precip,
+    month: world.birdClimate.month,
+    xMin: -bleed,
+    xMax: stageWidth + bleed,
+    yTop: 0,
+  };
+}
+
+function syncBirdCast(world: World): void {
+  const spots = world.scene.birds;
+  if (!spots || spots.length === 0) {
+    world.birds = [];
+    world.birdCast = null;
+    return;
+  }
+  if (world.birdSeed == null || world.birdSeed === world.birdCast) {
+    return;
+  }
+  world.birdCast = world.birdSeed;
+  world.birds = spawnBirds(spots, birdWorldOf(world), world.birdSeed);
+}
+
+function birdThreats(world: World): BirdThreat[] {
+  const threats: BirdThreat[] = world.actors.map((actor) => ({
+    x: actor.x,
+    y: actor.y,
+    speed: actor.speed,
+    scare: stalkingCat(actor) ? 0.6 : 1,
+  }));
+  for (const toy of world.items) {
+    if (toy.state === 'free' && toy.z > 8) {
+      threats.push({ x: toy.x, y: toy.y, speed: 300, scare: 1.3 });
+    }
+  }
+  return threats;
+}
+
+function stepSceneBirds(world: World, dt: number): void {
+  syncBirdCast(world);
+  if (world.birds.length === 0) {
+    return;
+  }
+  stepBirds(world.birds, dt, birdThreats(world), birdWorldOf(world), (event) => {
+    if (event.type === 'chirp') {
+      world.birdChirps += 1;
+    }
+  });
 }
