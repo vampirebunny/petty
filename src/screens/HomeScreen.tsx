@@ -75,6 +75,7 @@ import { GREET } from '../actor/greetings';
 import { PetView } from '../ui/PetView';
 import { PhoneColumn } from '../ui/PhoneColumn';
 import { useStageSize } from '../ui/useStageSize';
+import { FitScale } from '../ui/FitScale';
 import { isLandscapeSplit, phoneColumnWidth } from '../ui/wideLayout';
 import type { CuddleHandle, StageHandle } from '../ui/PetView';
 import { CuddleFeedback } from '../ui/cuddle/CuddleFeedback';
@@ -1582,6 +1583,115 @@ export default function HomeScreen({ petApi }: Props) {
     </>
   );
 
+  const controls = (
+    <ScrollView style={styles.controls} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        <NeedRings needs={state.needs} hydration={state.hydration} />
+        {welcomeBack ? (
+          <Pressable onPress={dismissWelcome} accessibilityRole="button">
+            <Text style={styles.hint}>{state.name} missed you!</Text>
+          </Pressable>
+        ) : null}
+        <View style={styles.where}>
+          <Text style={styles.sectionTitle}>Where</Text>
+          <Pressable
+            onPress={() => {
+              if (state.care.pendingReward) {
+                const trackId = state.care.pendingReward.trackId;
+                const paid = resolveTraining('none');
+                if (paid) {
+                  noteGain(trackId, paid.before, paid.after);
+                }
+                setDialog(null);
+              }
+              setPlacesOpen(true);
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={`Go somewhere. ${state.name} is in the ${preset.name}`}
+          >
+            {({ pressed }) => {
+              const flavor = placeFlavors[preset.iconId ?? preset.id] ?? 'peach';
+              const tint = tints[flavor];
+              const Icon = placeIcons[preset.iconId ?? preset.id] ?? placeIcons.livingroom;
+              const ink = candyInk(tint);
+              return (
+                <CandyShell tint={tint} radius={24} pressed={pressed} uid={whereUid} style={styles.whereRow}>
+                  <View style={[styles.whereBubble, { shadowColor: tint.lip }]}>
+                    <Icon size={24} strokeWidth={iconStroke + 1} color={tint.icon} />
+                  </View>
+                  <View style={styles.whereCopy}>
+                    <Text style={[styles.whereKicker, { color: ink }]}>{state.name} is in the</Text>
+                    <Text style={[styles.whereName, { color: ink }]} numberOfLines={1}>
+                      {preset.name}
+                    </Text>
+                  </View>
+                  <View style={[styles.wherePill, { shadowColor: tint.lip }]}>
+                    <Text style={[styles.wherePillText, { color: ink }]} numberOfLines={1}>
+                      Go somewhere
+                    </Text>
+                    <ChevronRight size={16} strokeWidth={iconStroke + 1} color={ink} />
+                  </View>
+                </CandyShell>
+              );
+            }}
+          </Pressable>
+        </View>
+        <TrainingRings
+          pet={state}
+          species={species}
+          onPractice={practice}
+          highlightId={unlocking}
+          reducedMotion={reducedMotion}
+          now={clock}
+          disabled={dialogLive}
+        />
+        {playdates.remaining > 0 ? (
+          <Text style={styles.hint}>Next playdate in {formatCooldown(playdates.remaining)}</Text>
+        ) : null}
+        <HomeActionPanel
+          species={species}
+          reducedMotion={reducedMotion}
+          care={careActions}
+          bond={bondActions}
+          style={styleActions}
+          tricks={tricks}
+          badges={badgeCoins}
+        />
+        {note ? <Text style={styles.hint}>{note}</Text> : null}
+        {personalityOpen ? (
+          <View style={styles.personality}>
+            <Text style={styles.personalityMeta}>{styleLine}</Text>
+            {traits.map((trait) => (
+              <Text key={trait} style={styles.score}>
+                {traitLabel[trait]} {formatScore(attributeScore(state, trait))} /{' '}
+                {state.attributes.potential[trait]}
+              </Text>
+            ))}
+          </View>
+        ) : null}
+        <CuddleHelpSheet visible={helpOpen} onClose={() => setHelpOpen(false)} />
+        <SilentModeHint visible={silentHintOpen} onClose={dismissSilentHint} />
+        <DebugPanel
+          state={state}
+          mood={mood}
+          cue={cue}
+          onAdvance={advanceBy}
+          onAge={setAge}
+          onVitality={setVitalityValue}
+          onWeight={setWeightValue}
+          hour={hour}
+          onHour={setHour}
+          onReset={reset}
+          onNewPet={retire}
+          onFlip={() => stageHandle.current?.flipFace()}
+          onTimeScale={(scale) => stageHandle.current?.setTimeScale(scale)}
+          onPlayGreeting={(id) => stageHandle.current?.playGreeting(id)}
+          greetingIds={() => stageHandle.current?.greetingIds() ?? []}
+          greetingLabel={() => stageHandle.current?.label() ?? ''}
+          onFacing={() => setFacingOpen(true)}
+        />
+    </ScrollView>
+  );
+
   return (
     <View style={styles.screen}>
       <View
@@ -1626,7 +1736,11 @@ export default function HomeScreen({ petApi }: Props) {
             ref={stageViewRef}
             collapsable={false}
             onLayout={rememberStage}
-            style={{ width: viewWidth, height: viewHeight, alignSelf: 'center' }}
+            style={
+              split
+                ? { width: '100%', height: '100%', maxWidth: '100%', maxHeight: '100%' }
+                : { width: viewWidth, height: viewHeight, alignSelf: 'center' }
+            }
           >
             <PetView
               frame={stageFrame}
@@ -1706,113 +1820,14 @@ export default function HomeScreen({ petApi }: Props) {
           </View>
         </GestureDetector>
       </View>
-      <View style={split ? styles.controlColumn : styles.controlsHost}>
-      <ScrollView style={styles.controls} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <NeedRings needs={state.needs} hydration={state.hydration} />
-        {welcomeBack ? (
-          <Pressable onPress={dismissWelcome} accessibilityRole="button">
-            <Text style={styles.hint}>{state.name} missed you!</Text>
-          </Pressable>
-        ) : null}
-        <View style={styles.where}>
-          <Text style={styles.sectionTitle}>Where</Text>
-          <Pressable
-            onPress={() => {
-              if (state.care.pendingReward) {
-                const trackId = state.care.pendingReward.trackId;
-                const paid = resolveTraining('none');
-                if (paid) {
-                  noteGain(trackId, paid.before, paid.after);
-                }
-                setDialog(null);
-              }
-              setPlacesOpen(true);
-            }}
-            accessibilityRole="button"
-            accessibilityLabel={`Go somewhere. ${state.name} is in the ${preset.name}`}
-          >
-            {({ pressed }) => {
-              const flavor = placeFlavors[preset.iconId ?? preset.id] ?? 'peach';
-              const tint = tints[flavor];
-              const Icon = placeIcons[preset.iconId ?? preset.id] ?? placeIcons.livingroom;
-              const ink = candyInk(tint);
-              return (
-                <CandyShell tint={tint} radius={24} pressed={pressed} uid={whereUid} style={styles.whereRow}>
-                  <View style={[styles.whereBubble, { shadowColor: tint.lip }]}>
-                    <Icon size={24} strokeWidth={iconStroke + 1} color={tint.icon} />
-                  </View>
-                  <View style={styles.whereCopy}>
-                    <Text style={[styles.whereKicker, { color: ink }]}>{state.name} is in the</Text>
-                    <Text style={[styles.whereName, { color: ink }]} numberOfLines={1}>
-                      {preset.name}
-                    </Text>
-                  </View>
-                  <View style={[styles.wherePill, { shadowColor: tint.lip }]}>
-                    <Text style={[styles.wherePillText, { color: ink }]}>Go somewhere</Text>
-                    <ChevronRight size={16} strokeWidth={iconStroke + 1} color={ink} />
-                  </View>
-                </CandyShell>
-              );
-            }}
-          </Pressable>
-        </View>
-        <TrainingRings
-          pet={state}
-          species={species}
-          onPractice={practice}
-          highlightId={unlocking}
-          reducedMotion={reducedMotion}
-          now={clock}
-          disabled={dialogLive}
-        />
-        {playdates.remaining > 0 ? (
-          <Text style={styles.hint}>Next playdate in {formatCooldown(playdates.remaining)}</Text>
-        ) : null}
-        <HomeActionPanel
-          species={species}
-          reducedMotion={reducedMotion}
-          care={careActions}
-          bond={bondActions}
-          style={styleActions}
-          tricks={tricks}
-          badges={badgeCoins}
-        />
-        {note ? <Text style={styles.hint}>{note}</Text> : null}
-        {personalityOpen ? (
-          <View style={styles.personality}>
-            <Text style={styles.personalityMeta}>{styleLine}</Text>
-            {traits.map((trait) => (
-              <Text key={trait} style={styles.score}>
-                {traitLabel[trait]} {formatScore(attributeScore(state, trait))} /{' '}
-                {state.attributes.potential[trait]}
-              </Text>
-            ))}
-          </View>
-        ) : null}
-        <CuddleHelpSheet visible={helpOpen} onClose={() => setHelpOpen(false)} />
-        <SilentModeHint visible={silentHintOpen} onClose={dismissSilentHint} />
-        <DebugPanel
-          state={state}
-          mood={mood}
-          cue={cue}
-          onAdvance={advanceBy}
-          onAge={setAge}
-          onVitality={setVitalityValue}
-          onWeight={setWeightValue}
-          hour={hour}
-          onHour={setHour}
-          onReset={reset}
-          onNewPet={retire}
-          onFlip={() => stageHandle.current?.flipFace()}
-          onTimeScale={(scale) => stageHandle.current?.setTimeScale(scale)}
-          onPlayGreeting={(id) => stageHandle.current?.playGreeting(id)}
-          greetingIds={() => stageHandle.current?.greetingIds() ?? []}
-          greetingLabel={() => stageHandle.current?.label() ?? ''}
-          onFacing={() => setFacingOpen(true)}
-        />
-      </ScrollView>
-      {split ? sheets : null}
-      </View>
+      {split ? (
+        <FitScale designWidth={phoneColumnWidth} style={styles.controlColumn}>
+          {controls}
+          {sheets}
+        </FitScale>
+      ) : (
+        <View style={styles.controlsHost}>{controls}</View>
+      )}
       {split ? null : sheets}
         </View>
       </View>
@@ -1864,16 +1879,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   stagePane: {
-    flex: 1,
+    flexGrow: 1,
+    flexShrink: 1,
+    flexBasis: 0,
+    width: 0,
     minWidth: 0,
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
   },
   controlColumn: {
-    width: phoneColumnWidth,
-    flexShrink: 0,
+    flexGrow: 0,
+    flexShrink: 1,
+    flexBasis: phoneColumnWidth,
+    maxWidth: phoneColumnWidth,
+    minWidth: 0,
     minHeight: 0,
+    overflow: 'hidden',
     position: 'relative',
     borderLeftWidth: StyleSheet.hairlineWidth,
     borderLeftColor: '#D0D8E3',
@@ -2011,6 +2033,7 @@ const styles = StyleSheet.create({
   },
   whereCopy: {
     flex: 1,
+    minWidth: 0,
     gap: 1,
   },
   whereKicker: {
@@ -2027,6 +2050,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     flexDirection: 'row',
     alignItems: 'center',
+    flexShrink: 1,
     gap: 2,
     paddingHorizontal: 12,
     shadowOpacity: 0.35,

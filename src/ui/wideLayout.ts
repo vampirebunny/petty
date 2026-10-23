@@ -39,6 +39,14 @@ export function isLandscapeSplit(width: number, height: number): boolean {
   return isLargeWindow(width, height) && width > height;
 }
 
+// The control column is designed at phone width. A narrower column scales that layout down.
+export function controlScale(columnWidth: number, design = phoneColumnWidth): number {
+  if (columnWidth <= 0 || design <= 0) {
+    return 1;
+  }
+  return Math.min(1, columnWidth / design);
+}
+
 // Fit the 640×680 stage in a box. Extra width is sky and floor; height follows the stage.
 export function stageSizeFor(width: number, height: number, maxHeightShare = stackedHeightShare) {
   const byWidth = Math.max(minStageWidth, width);

@@ -38,6 +38,6 @@ After a prop tip has been seen, that prop shimmers while its need stays under 30
 
 Phones stay portrait. A tablet or an unfolded foldable may rotate once its shorter side is at least 520dp. The landscape split starts at 600dp. Surface Duo rotates on one screen (about 540×720). Opened wide, hinge vertical, the window is about 1114×720 and uses the landscape split. Opened with the hinge horizontal, the window is about 720×1114 and stays stacked. Portrait, including an upright iPad, keeps the scene stacked above the controls.
 
-In landscape, the header (logo, name, Boop counter) stays full width. The scene fills the left side. The controls sit in a 400pt column on the right: need rings, Where, training, and the action panel. The toy card and treat picker open in that column, under the header. The seam is not locked to a fold hinge.
+In landscape, the header (logo, name, Boop counter) stays full width. The scene fills the left side. The controls sit in a column on the right, at most 400pt. When that column is narrower, the rings, Where card, training, and action panel scale down together so they stay on screen. The toy card and treat picker open in that column, under the header. The seam is not locked to a fold hinge.
 
 Wardrobe and the Pet Shop put the preview on the left and the choices on the right. Pantry, playdate, places, and adopt stay one centered column of that same width so they do not stretch across the window. The playdate outfit step stays in that column.

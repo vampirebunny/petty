@@ -1,6 +1,7 @@
 import { stageHeight, stageWidth } from '../../actor/scenes';
 import {
   allowsDeviceRotation,
+  controlScale,
   isLandscapeSplit,
   isSurfaceDuoModel,
   phoneColumnWidth,
@@ -34,6 +35,15 @@ describe('isSurfaceDuoModel', () => {
     expect(isSurfaceDuoModel('Surface Duo 2', 'Microsoft')).toBe(true);
     expect(isSurfaceDuoModel('Pixel 7', 'Google')).toBe(false);
     expect(isSurfaceDuoModel('Galaxy Z Fold5', 'samsung')).toBe(false);
+  });
+});
+
+describe('controlScale', () => {
+  it('shrinks a column that is narrower than a phone and leaves a full column alone', () => {
+    expect(controlScale(phoneColumnWidth)).toBe(1);
+    expect(controlScale(480)).toBe(1);
+    expect(controlScale(320)).toBeCloseTo(320 / phoneColumnWidth);
+    expect(controlScale(0)).toBe(1);
   });
 });
 
