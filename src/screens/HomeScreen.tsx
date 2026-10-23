@@ -1045,12 +1045,6 @@ export default function HomeScreen({ petApi }: Props) {
       onPress: () => setPersonalityOpen((open) => !open),
       active: personalityOpen,
     },
-    {
-      id: 'help',
-      label: 'Help',
-      onPress: () => setHelpOpen(true),
-      active: helpOpen,
-    },
   ];
 
   const trickTitle = (trackId: string) => trackName(trackId, species);
