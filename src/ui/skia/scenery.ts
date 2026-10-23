@@ -120,14 +120,14 @@ export function drawToyShape(c: SkCanvas, kind: string, x: number, y: number, ra
   if (kind === 'yarn') {
     fillCircle(c, x, y, radius, '#d9628f');
     for (const k of [-0.5, 0, 0.5]) {
-      const arc = Skia.Path.Make();
+      const arc = Skia.PathBuilder.Make();
       arc.addArc(oval(x, y, radius * (0.95 - Math.abs(k) * 0.4), radius * 0.95), 200 + k * 40, 130);
-      c.drawPath(arc, paintOf('#a8406a', 0.9, 1.2));
+      c.drawPath(arc.build(), paintOf('#a8406a', 0.9, 1.2));
     }
-    const thread = Skia.Path.Make();
+    const thread = Skia.PathBuilder.Make();
     thread.moveTo(x + radius * 0.8, y + radius * 0.5);
     thread.cubicTo(x + radius * 1.8, y + radius * 0.9, x + radius * 1.5, y + radius * 1.5, x + radius * 2.6, y + radius * 1.1 + Math.sin(t * 2) * 0.8);
-    c.drawPath(thread, paintOf('#d9628f', 1, 1.4));
+    c.drawPath(thread.build(), paintOf('#d9628f', 1, 1.4));
     return;
   }
   if (kind === 'stick') {
@@ -140,10 +140,10 @@ export function drawToyShape(c: SkCanvas, kind: string, x: number, y: number, ra
     return;
   }
   if (kind === 'rope') {
-    const lying = Skia.Path.Make();
+    const lying = Skia.PathBuilder.Make();
     lying.moveTo(x - radius * 1.8, y);
     lying.quadTo(x - radius * 0.2, y + radius * 0.9, x + radius * 1.6, y + radius * 0.15);
-    c.drawPath(lying, paintOf('#c4553a', 1, 2.6));
+    c.drawPath(lying.build(), paintOf('#c4553a', 1, 2.6));
     return;
   }
   if (kind === 'mouse') {
@@ -151,10 +151,10 @@ export function drawToyShape(c: SkCanvas, kind: string, x: number, y: number, ra
     fillCircle(c, x + radius * 0.85, y - radius * 0.15, radius * 0.45, '#d7dbe2');
     fillCircle(c, x + radius * 1.05, y - radius * 0.55, radius * 0.22, '#e7b7c4');
     fillCircle(c, x + radius * 1.05, y - radius * 0.55, radius * 0.08, '#3a2a32');
-    const tail = Skia.Path.Make();
+    const tail = Skia.PathBuilder.Make();
     tail.moveTo(x - radius * 0.9, y);
     tail.quadTo(x - radius * 1.6, y - radius * 0.8, x - radius * 1.3, y - radius * 1.3);
-    c.drawPath(tail, paintOf('#c4c8d0', 1, 2));
+    c.drawPath(tail.build(), paintOf('#c4c8d0', 1, 2));
     return;
   }
   if (kind === 'crinkle') {
@@ -232,9 +232,9 @@ export function drawHeldPlay(c: SkCanvas, world: World): void {
     c.save();
     c.translate(origin.x, origin.y);
     c.rotate((angle * 180) / Math.PI, 0, 0);
-    const body = Skia.Path.Make();
+    const body = Skia.PathBuilder.Make();
     body.addRRect(Skia.RRectXY(Skia.XYWHRect(-16, -10, 32, 22), 6, 6));
-    c.drawPath(body, paintOf('#2a2a32'));
+    c.drawPath(body.build(), paintOf('#2a2a32'));
     c.drawCircle(18, 0, 5, paintOf('#ff4d4d'));
     c.restore();
     c.drawLine(origin.x, origin.y, x, y, paintOf('#FF4D4D', 0.4, 1.5));
@@ -256,8 +256,8 @@ export function drawHeldPlay(c: SkCanvas, world: World): void {
 
 export function drawBallShape(c: SkCanvas, x: number, y: number, radius: number): void {
   fillCircle(c, x, y, radius, '#df5340');
-  const shine = Skia.Path.Make();
+  const shine = Skia.PathBuilder.Make();
   shine.addArc(oval(x, y, radius * 0.62, radius * 0.62), 162, 117);
-  c.drawPath(shine, paintOf('#ffffff', 0.75, 1.6));
+  c.drawPath(shine.build(), paintOf('#ffffff', 0.75, 1.6));
   fillCircle(c, x + radius * 0.35, y - radius * 0.4, radius * 0.22, '#ffffff', 0.55);
 }

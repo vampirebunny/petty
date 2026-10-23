@@ -104,19 +104,19 @@ function drawLeg(
   const ey = target.y - knee.y;
   const length = Math.hypot(ex, ey) || 1;
   const paw = { x: knee.x + (ex / length) * bone, y: knee.y + (ey / length) * bone };
-  const leg = Skia.Path.Make();
+  const leg = Skia.PathBuilder.Make();
   leg.moveTo(hip.x, hip.y);
   leg.lineTo(knee.x, knee.y);
   leg.lineTo(paw.x, paw.y);
-  c.drawPath(leg, paintOf(color, 1, geom.legWidth * widthScale));
+  c.drawPath(leg.build(), paintOf(color, 1, geom.legWidth * widthScale));
   if (petStyle.shade.enabled) {
     const s = petStyle.shade;
     const back = -geom.legWidth * s.legOffset;
-    const stripe = Skia.Path.Make();
+    const stripe = Skia.PathBuilder.Make();
     stripe.moveTo(hip.x + back, hip.y);
     stripe.lineTo(knee.x + back, knee.y);
     stripe.lineTo(paw.x + back, paw.y);
-    c.drawPath(stripe, paintOf('#000000', s.legAlpha, geom.legWidth * s.legStripe));
+    c.drawPath(stripe.build(), paintOf('#000000', s.legAlpha, geom.legWidth * s.legStripe));
   }
   // A boot foot replaces the paw oval, which would poke out once the boot tilts with the shin.
   if (!boot) {
@@ -625,13 +625,13 @@ export function drawActor(
     if (!axial && breed.pattern === 'stripes' && !tabby) {
       c.save();
       clipOval(c, 0, geom.bodyY, geom.bodyLen / 2, (geom.bodyH / 2) * breath);
-      const stripes = Skia.Path.Make();
+      const stripes = Skia.PathBuilder.Make();
       for (let i = 0; i < 6; i += 1) {
         const sx = -geom.bodyLen * 0.34 + i * geom.bodyLen * 0.14;
         stripes.moveTo(sx, geom.bodyY - geom.bodyH * 0.5);
         stripes.quadTo(sx + 6, geom.bodyY - geom.bodyH * 0.1, sx + 2, geom.bodyY + geom.bodyH * 0.12);
       }
-      c.drawPath(stripes, paintOf(mix(baseColor, '#000000', 0.5), 0.55 * rig.foreshorten, 4));
+      c.drawPath(stripes.build(), paintOf(mix(baseColor, '#000000', 0.5), 0.55 * rig.foreshorten, 4));
       c.restore();
     }
     const markingView = rig.rear > 0.5 ? 'back' : rig.view === 'front' ? 'front' : 'side';
@@ -649,13 +649,13 @@ export function drawActor(
       );
     }
     if (!axial && actor.displayWeight < -0.35) {
-      const ribs = Skia.Path.Make();
+      const ribs = Skia.PathBuilder.Make();
       for (let r = 0; r < 4; r += 1) {
         const rx = geom.bodyLen * (0.06 + r * 0.07);
         ribs.moveTo(rx, geom.bodyY - geom.bodyH * 0.02);
         ribs.quadTo(rx + 4, geom.bodyY + geom.bodyH * 0.12, rx + 1, geom.bodyY + geom.bodyH * 0.3);
       }
-      c.drawPath(ribs, paintOf('#000000', ((-actor.displayWeight - 0.35) / 0.65) * 0.38 * rig.foreshorten, 1.4));
+      c.drawPath(ribs.build(), paintOf('#000000', ((-actor.displayWeight - 0.35) / 0.65) * 0.38 * rig.foreshorten, 1.4));
     }
     if (jacket && jacketAnchor && coats.side > 0.01) {
       const placed = { sit: pose.sit, theta, dy, foreshorten: rig.foreshorten, belly: pose.belly };
@@ -821,9 +821,9 @@ export function drawActor(
   } else if (neckAnchor?.mode === 'knot' && neckwear) {
     if (neckwear.shape === 'bowtie') {
       const band = R * 0.12;
-      const path = Skia.Path.Make();
+      const path = Skia.PathBuilder.Make();
       path.addRRect(Skia.RRectXY(Skia.XYWHRect(neck.x + neckAnchor.x * R - R * 0.28, neck.y + neckAnchor.y * R - band / 2, R * 0.56, band), band, band));
-      c.drawPath(path, paintOf(neckwear.colorway.c));
+      c.drawPath(path.build(), paintOf(neckwear.colorway.c));
     } else {
       fillCircle(c, neck.x + neckAnchor.x * R, neck.y + neckAnchor.y * R, R * 0.16, neckwear.colorway.c);
     }
@@ -918,14 +918,14 @@ export function drawActor(
     farEar(sideK);
   }
   if (breed.pattern === 'stripes' && !tabby) {
-    const marks = Skia.Path.Make();
+    const marks = Skia.PathBuilder.Make();
     marks.moveTo(-R * 0.1, -R * 0.92);
     marks.lineTo(-R * 0.1, -R * 0.55);
     marks.moveTo(R * 0.15, -R * 0.88);
     marks.lineTo(R * 0.2, -R * 0.55);
     marks.moveTo(-R * 0.36, -R * 0.84);
     marks.lineTo(-R * 0.4, -R * 0.52);
-    c.drawPath(marks, paintOf(mix(baseColor, '#000000', 0.5), 0.6, 2.6));
+    c.drawPath(marks.build(), paintOf(mix(baseColor, '#000000', 0.5), 0.6, 2.6));
   }
   drawHeadMarkingsBelow(c, headCtx);
   shadeOval(c, 0, 0, cat ? R * 1.06 : R, cat ? R * 0.96 : R);
@@ -966,23 +966,23 @@ export function drawActor(
   if (cat) {
     fillOval(c, noseX, noseY, R * 0.11 * noseK, R * 0.08 * noseK, darkPoints ? '#8a6a5c' : '#e59aa6');
     if (jaw < 0.04 && turn < 0.99 && face.front < 0.99) {
-      const mouth = Skia.Path.Make();
+      const mouth = Skia.PathBuilder.Make();
       mouth.moveTo(mx + mrx * 0.82, my - R * 0.02);
       mouth.lineTo(mx + mrx * 0.82, my + R * 0.1);
       mouth.moveTo(mx + mrx * 0.82, my + R * 0.1);
       mouth.quadTo(mx + mrx * 0.5, my + R * 0.2, mx + mrx * 0.15, my + R * 0.1);
-      c.drawPath(mouth, paintOf('#281919', 0.55 * (1 - turn) * (1 - face.front), 1.1));
+      c.drawPath(mouth.build(), paintOf('#281919', 0.55 * (1 - turn) * (1 - face.front), 1.1));
     }
     const pale = points || isDarkCoat(baseColor);
     const whisker = pale ? '#ebebf0' : '#ffffff';
     const whiskerAlpha = pale ? 0.75 : 0.85;
     for (const dir of face.front > 0.02 ? [1, -1] : [1]) {
-      const whiskers = Skia.Path.Make();
+      const whiskers = Skia.PathBuilder.Make();
       for (let wk = -1; wk <= 1; wk += 1) {
         whiskers.moveTo(mx + dir * mrx * 0.3, my + R * 0.04 + wk * 0.03 * R);
         whiskers.lineTo(mx + dir * (mrx + R * 0.95), my + R * 0.02 + wk * R * 0.22);
       }
-      c.drawPath(whiskers, paintOf(whisker, dir < 0 ? whiskerAlpha * face.front : whiskerAlpha, 1.1));
+      c.drawPath(whiskers.build(), paintOf(whisker, dir < 0 ? whiskerAlpha * face.front : whiskerAlpha, 1.1));
     }
   } else {
     const noseTurn = Math.max(turn, face.front);
@@ -992,13 +992,13 @@ export function drawActor(
   if ((turn > 0.01 || face.front > 0.01) && jaw < 0.04) {
     const wy = noseY + mry * 0.45;
     const s = R * 0.13;
-    const mouthW = Skia.Path.Make();
+    const mouthW = Skia.PathBuilder.Make();
     mouthW.moveTo(noseX, noseY + R * 0.05);
     mouthW.lineTo(noseX, wy);
     mouthW.moveTo(noseX - s, wy - R * 0.02);
     mouthW.quadTo(noseX - s / 2, wy + R * 0.09, noseX, wy);
     mouthW.quadTo(noseX + s / 2, wy + R * 0.09, noseX + s, wy - R * 0.02);
-    c.drawPath(mouthW, paintOf('#281919', 0.6 * Math.max(turn, face.front), 1.1));
+    c.drawPath(mouthW.build(), paintOf('#281919', 0.6 * Math.max(turn, face.front), 1.1));
   }
   fillOval(c, ex + R * 0.02, ey + R * 0.4, R * 0.2, R * 0.12, '#ff738c', 0.3 * Math.min(cf, 1));
   if (face.farEyeAlpha > 0.001) {
@@ -1207,12 +1207,12 @@ export function drawActor(
       const size = (10 + k * 8) * 0.55;
       const zx = hx + 10 + k * 18;
       const zy = hy - R * scale - 6 - k * 26;
-      const mark = Skia.Path.Make();
+      const mark = Skia.PathBuilder.Make();
       mark.moveTo(zx, zy - size);
       mark.lineTo(zx + size, zy - size);
       mark.lineTo(zx, zy);
       mark.lineTo(zx + size, zy);
-      c.drawPath(mark, paintOf('#5C6B80', (1 - k) * 0.9 * sleepy, 1.6, StrokeCap.Round));
+      c.drawPath(mark.build(), paintOf('#5C6B80', (1 - k) * 0.9 * sleepy, 1.6, StrokeCap.Round));
     }
   }
 }

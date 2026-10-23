@@ -27,7 +27,7 @@ function record(w: number, h: number, draw: (canvas: SkCanvas) => void): SkPictu
 }
 
 function starPath(cx: number, cy: number, outer: number, inner: number): SkPath {
-  const path = Skia.Path.Make();
+  const path = Skia.PathBuilder.Make();
   for (let i = 0; i < 10; i += 1) {
     const radius = i % 2 === 0 ? outer : inner;
     const angle = -Math.PI / 2 + (i * Math.PI) / 5;
@@ -40,7 +40,7 @@ function starPath(cx: number, cy: number, outer: number, inner: number): SkPath 
     }
   }
   path.close();
-  return path;
+  return path.detach();
 }
 
 function daisy(canvas: SkCanvas, x: number, y: number, u: number, turn: number, petal: string): void {

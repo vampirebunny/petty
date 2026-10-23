@@ -1,5 +1,5 @@
 import { BlendMode, PaintStyle, Skia, StrokeCap, StrokeJoin, TileMode } from '@shopify/react-native-skia';
-import type { SkCanvas, SkPaint, SkPath, SkRect } from '@shopify/react-native-skia';
+import type { SkCanvas, SkPaint, SkPath, SkPathBuilder, SkRect } from '@shopify/react-native-skia';
 
 import type { Rgba } from '../../actor/timeOfDay';
 
@@ -248,25 +248,25 @@ export function poly(c: SkCanvas, pts: readonly number[], color: string, a = 1):
 }
 
 export function polyPath(pts: readonly number[]): SkPath {
-  const p = Skia.Path.Make();
+  const p = Skia.PathBuilder.Make();
   p.moveTo(pts[0], pts[1]);
   for (let i = 2; i < pts.length; i += 2) {
     p.lineTo(pts[i], pts[i + 1]);
   }
   p.close();
-  return p;
+  return p.detach();
 }
 
-export function makePath(build: (p: SkPath) => void): SkPath {
-  const p = Skia.Path.Make();
+export function makePath(build: (p: SkPathBuilder) => void): SkPath {
+  const p = Skia.PathBuilder.Make();
   build(p);
-  return p;
+  return p.detach();
 }
 
 const paths = new Map<string, SkPath>();
 
 /** A path built once and reused, for static outlines keyed by their parameters. */
-export function cachedPath(key: string, build: (p: SkPath) => void): SkPath {
+export function cachedPath(key: string, build: (p: SkPathBuilder) => void): SkPath {
   const hit = paths.get(key);
   if (hit) {
     return hit;

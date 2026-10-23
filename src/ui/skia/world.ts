@@ -280,10 +280,10 @@ export function drawWorld(
         if (!left || !right) {
           return;
         }
-        const curve = Skia.Path.Make();
+        const curve = Skia.PathBuilder.Make();
         curve.moveTo(left.x, left.y);
         curve.quadTo((left.x + right.x) / 2, (left.y + right.y) / 2 + sag, right.x, right.y);
-        canvas.drawPath(curve, paintOf('#c4553a', 1, 3.2));
+        canvas.drawPath(curve.build(), paintOf('#c4553a', 1, 3.2));
       },
     });
   }

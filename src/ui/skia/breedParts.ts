@@ -62,12 +62,12 @@ export function drawTail(c: SkCanvas, breed: Breed, geom: Geom, wag: number, col
         const p1 = { x: tx - 16, y: ty - 6 };
         const p2 = { x: tx - 18 + wag * 10, y: ty - 34 };
         const p3 = { x: tx + 6 + wag * 8, y: ty - 44 };
-        const path = Skia.Path.Make();
+        const path = Skia.PathBuilder.Make();
         path.moveTo(p0.x, p0.y);
         path.cubicTo(p1.x, p1.y, p2.x, p2.y, p3.x, p3.y);
         width = 13 * fluff;
-        c.drawPath(path, paintOf(color, 1, width));
-        shadeTail(c, path, width);
+        c.drawPath(path.build(), paintOf(color, 1, width));
+        shadeTail(c, path.build(), width);
         tuftsAlong(c, [bez3(p0, p1, p2, p3, 0.3), bez3(p0, p1, p2, p3, 0.55), bez3(p0, p1, p2, p3, 0.8)].map((p) => ({ x: p.x - 3, y: p.y })), 5, color, 0);
         fillCircle(c, p3.x, p3.y, 7, color);
         tip = p3;
@@ -93,11 +93,11 @@ export function drawTail(c: SkCanvas, breed: Breed, geom: Geom, wag: number, col
         const p0 = { x: tx, y: ty };
         const p1 = { x: tx - length * 0.4, y: ty - 4 };
         const p2 = { x: tx - Math.cos(angle) * length, y: ty - Math.sin(angle) * length };
-        const path = Skia.Path.Make();
+        const path = Skia.PathBuilder.Make();
         path.moveTo(p0.x, p0.y);
         path.quadTo(p1.x, p1.y, p2.x, p2.y);
-        c.drawPath(path, paintOf(color, 1, 9));
-        shadeTail(c, path, 9);
+        c.drawPath(path.build(), paintOf(color, 1, 9));
+        shadeTail(c, path.build(), 9);
         for (let k = 1; k <= 6; k += 1) {
           const p = bez2(p0, p1, p2, k / 7);
           fillOval(c, p.x, p.y + 5, 5, 6.5 - k * 0.3, deco.feather);
@@ -131,13 +131,13 @@ export function drawTail(c: SkCanvas, breed: Breed, geom: Geom, wag: number, col
         // A tight double curl sitting on the rump.
         const cx = tx - 3 + wag * 4;
         const cy = ty - 11;
-        const outer = Skia.Path.Make();
+        const outer = Skia.PathBuilder.Make();
         outer.addArc(oval(cx, cy, 11, 11), 80, 300);
-        c.drawPath(outer, paintOf(color, 1, 7));
-        shadeTail(c, outer, 7);
-        const inner = Skia.Path.Make();
+        c.drawPath(outer.build(), paintOf(color, 1, 7));
+        shadeTail(c, outer.build(), 7);
+        const inner = Skia.PathBuilder.Make();
         inner.addArc(oval(cx + 1, cy + 1, 5.5, 5.5), 80, 300);
-        c.drawPath(inner, paintOf(mix(color, '#000000', 0.18), 1, 4.6));
+        c.drawPath(inner.build(), paintOf(mix(color, '#000000', 0.18), 1, 4.6));
         tip = { x: cx, y: cy };
         break;
       }
@@ -146,7 +146,7 @@ export function drawTail(c: SkCanvas, breed: Breed, geom: Geom, wag: number, col
         const thin = breed.tailType === 'catThin';
         width = thin ? 4.4 : 6.2;
         const sway = wag * 30;
-        const path = Skia.Path.Make();
+        const path = Skia.PathBuilder.Make();
         path.moveTo(tx, ty);
         if (thin) {
           path.cubicTo(tx - 28, ty + 6, tx - 54, ty - 6, tx - 46 + sway, ty - 44);
@@ -155,8 +155,8 @@ export function drawTail(c: SkCanvas, breed: Breed, geom: Geom, wag: number, col
           path.cubicTo(tx - 24, ty + 8, tx - 40, ty - 8, tx - 34 + sway, ty - 38);
           tip = { x: tx - 34 + sway, y: ty - 38 };
         }
-        c.drawPath(path, paintOf(color, 1, width));
-        shadeTail(c, path, width);
+        c.drawPath(path.build(), paintOf(color, 1, width));
+        shadeTail(c, path.build(), width);
         break;
       }
       case 'catPlume':
@@ -169,11 +169,11 @@ export function drawTail(c: SkCanvas, breed: Breed, geom: Geom, wag: number, col
         const p1 = { x: tx - (bushy ? 26 : 22), y: ty + 10 };
         const p2 = { x: tx - (bushy ? 48 : 34), y: ty - 8 };
         const p3 = { x: tx - (bushy ? 40 : 28) + sway, y: ty - (bushy ? 48 : 34) };
-        const path = Skia.Path.Make();
+        const path = Skia.PathBuilder.Make();
         path.moveTo(p0.x, p0.y);
         path.cubicTo(p1.x, p1.y, p2.x, p2.y, p3.x, p3.y);
-        c.drawPath(path, paintOf(color, 1, width));
-        shadeTail(c, path, width);
+        c.drawPath(path.build(), paintOf(color, 1, width));
+        shadeTail(c, path.build(), width);
         const samples = bushy ? [0.2, 0.34, 0.48, 0.62, 0.76, 0.9] : [0.35, 0.6, 0.85];
         for (const sample of samples) {
           const p = bez3(p0, p1, p2, p3, sample);
@@ -258,13 +258,13 @@ export function drawBodyMarkings(
     }
     if (back) {
       // Tabby stripes down the back and sides.
-      const stripes = Skia.Path.Make();
+      const stripes = Skia.PathBuilder.Make();
       for (let i = 0; i < 7; i += 1) {
         const sx = -geom.bodyLen * 0.38 + i * geom.bodyLen * 0.12;
         stripes.moveTo(sx, geom.bodyY - geom.bodyH * 0.5);
         stripes.quadTo(sx + 6, geom.bodyY - geom.bodyH * 0.12, sx + 2, geom.bodyY + geom.bodyH * 0.14);
       }
-      c.drawPath(stripes, paintOf(back.color, 0.6, 4));
+      c.drawPath(stripes.build(), paintOf(back.color, 0.6, 4));
     }
     c.restore();
   }
@@ -326,8 +326,8 @@ export type EarPaint = { color: string; inner: string; feather: string };
 type EarPaths = { outer: SkPath; inner: SkPath; tuft: SkPath | null };
 
 function stiffEar(breed: Breed, R: number, e: number): EarPaths {
-  const outer = Skia.Path.Make();
-  const inner = Skia.Path.Make();
+  const outer = Skia.PathBuilder.Make();
+  const inner = Skia.PathBuilder.Make();
   let tuft: SkPath | null = null;
   switch (breed.earType) {
     case 'erectTall': {
@@ -392,18 +392,19 @@ function stiffEar(breed: Breed, R: number, e: number): EarPaths {
       inner.close();
       if (breed.earType === 'tufted') {
         // Lynx tufts: three short spikes at the tip.
-        tuft = Skia.Path.Make();
+        const spikes = Skia.PathBuilder.Make();
         for (const dx of [-0.1, 0.06, 0.22]) {
-          tuft.moveTo(R * (0.12 + dx - 0.05), tipY + R * 0.14);
-          tuft.lineTo(R * (0.12 + dx * 1.6), tipY - R * 0.42 * (0.7 + e * 0.3));
-          tuft.lineTo(R * (0.12 + dx + 0.07), tipY + R * 0.14);
-          tuft.close();
+          spikes.moveTo(R * (0.12 + dx - 0.05), tipY + R * 0.14);
+          spikes.lineTo(R * (0.12 + dx * 1.6), tipY - R * 0.42 * (0.7 + e * 0.3));
+          spikes.lineTo(R * (0.12 + dx + 0.07), tipY + R * 0.14);
+          spikes.close();
         }
+        tuft = spikes.detach();
       }
       break;
     }
   }
-  return { outer, inner, tuft };
+  return { outer: outer.detach(), inner: inner.detach(), tuft };
 }
 
 export type EarArgs = {
@@ -484,17 +485,17 @@ export function drawEar(c: SkCanvas, breed: Breed, geom: Geom, paint: EarPaint, 
     c.save();
     c.translate(-R * 0.1 + args.shift.x + (args.far && !args.pair ? -R * 0.35 : 0), -R * 0.62 + args.shift.y);
     c.rotate(deg(args.far ? 0.28 : 0.4), 0, 0);
-    const cap = Skia.Path.Make();
+    const cap = Skia.PathBuilder.Make();
     cap.moveTo(-R * 0.34 * s, R * 0.1 * s);
     cap.quadTo(-R * 0.1 * s, -R * 0.34 * s, R * 0.3 * s, -R * 0.12 * s);
     cap.quadTo(R * 0.4 * s, R * 0.2 * s, R * 0.1 * s, R * 0.32 * s);
     cap.quadTo(-R * 0.2 * s, R * 0.3 * s, -R * 0.34 * s, R * 0.1 * s);
     cap.close();
-    c.drawPath(cap, paintOf(color, args.alpha));
+    c.drawPath(cap.build(), paintOf(color, args.alpha));
     if (innerOn) {
       fillOval(c, R * 0.02 * s, R * 0.05 * s, R * 0.16 * s, R * 0.11 * s, paint.inner, 0.7 * args.alpha);
     }
-    shadePath(c, cap, args.alpha);
+    shadePath(c, cap.build(), args.alpha);
     c.restore();
     return;
   }
@@ -504,14 +505,14 @@ export function drawEar(c: SkCanvas, breed: Breed, geom: Geom, paint: EarPaint, 
     c.save();
     c.translate(-R * 0.1 + args.shift.x, -R * 0.62 + args.shift.y);
     c.rotate(deg(args.far ? -0.12 : 0.1 + args.angle * 0.3), 0, 0);
-    const path = Skia.Path.Make();
+    const path = Skia.PathBuilder.Make();
     path.moveTo(-R * 0.34 * s, R * 0.02);
     path.quadTo(-R * 0.05 * s, -R * 0.42 * s, R * 0.34 * s, -R * 0.06 * s);
     path.quadTo(R * 0.4 * s, R * 0.36 * s, R * 0.08 * s, R * 0.46 * s);
     path.quadTo(-R * 0.26 * s, R * 0.34 * s, -R * 0.34 * s, R * 0.02);
     path.close();
-    c.drawPath(path, paintOf(color, args.alpha));
-    shadePath(c, path, args.alpha);
+    c.drawPath(path.build(), paintOf(color, args.alpha));
+    shadePath(c, path.build(), args.alpha);
     c.restore();
     return;
   }
@@ -520,13 +521,13 @@ export function drawEar(c: SkCanvas, breed: Breed, geom: Geom, paint: EarPaint, 
   c.rotate(deg(args.angle), 0, 0);
   if (breed.earType === 'longDrape') {
     // Long drape: narrow at the top, hanging well below the jaw.
-    const path = Skia.Path.Make();
+    const path = Skia.PathBuilder.Make();
     path.moveTo(-R * 0.2 * e, 0);
     path.cubicTo(-R * 0.55 * e, R * 0.5 * e, -R * 0.45 * e, R * 1.5 * e, 0, R * 1.62 * e);
     path.cubicTo(R * 0.45 * e, R * 1.5 * e, R * 0.5 * e, R * 0.5 * e, R * 0.2 * e, 0);
     path.close();
-    c.drawPath(path, paintOf(color, args.alpha));
-    shadePath(c, path, args.alpha);
+    c.drawPath(path.build(), paintOf(color, args.alpha));
+    shadePath(c, path.build(), args.alpha);
   } else {
     // Soft flop: a rounded ear with a feathered edge.
     fillOval(c, 0, R * 0.55 * e, R * 0.4 * e, R * 0.85 * e, color, args.alpha);
@@ -575,26 +576,26 @@ export function drawSkull(c: SkCanvas, ctx: HeadCtx, coat: string, profile = tru
     const my = m.y - m.ry * 0.7;
     const cx = (ax + mx) / 2 - stop * R * 0.1;
     const cy = (ay + my) / 2 + stop * R * 0.3;
-    const path = Skia.Path.Make();
+    const path = Skia.PathBuilder.Make();
     path.moveTo(ax - R * 0.2, ay + R * 0.05);
     path.quadTo(cx, cy, mx, my);
     path.lineTo(m.x + m.rx * 0.9, m.y + m.ry * 0.5);
     path.lineTo(R * 0.1, R * 0.7);
     path.close();
-    c.drawPath(path, paintOf(coat, side));
+    c.drawPath(path.build(), paintOf(coat, side));
   }
   if (bridged && t > 0.01) {
     // 3/4: the snout bridge runs from between the eyes down to the muzzle.
     const cxEyes = (face.nearEye.x + face.farEye.x) / 2;
     const topY = face.nearEye.y + R * 0.05;
     const topW = R * 0.22 * breed.muzzleWidth;
-    const path = Skia.Path.Make();
+    const path = Skia.PathBuilder.Make();
     path.moveTo(cxEyes - topW, topY);
     path.lineTo(cxEyes + topW, topY);
     path.lineTo(m.x + m.rx * 0.9, m.y - m.ry * 0.1);
     path.lineTo(m.x - m.rx * 0.9, m.y - m.ry * 0.1);
     path.close();
-    c.drawPath(path, paintOf(coat, t));
+    c.drawPath(path.build(), paintOf(coat, t));
   }
 }
 
@@ -626,7 +627,7 @@ export function drawHeadMarkingsBelow(c: SkCanvas, ctx: HeadCtx): void {
     // Forehead stripes: seen along the top of the head from the side, in a row with an "M" at the 3/4 turn.
     const sideXs = [-0.36, -0.1, 0.15];
     const frontXs = [-0.2, 0, 0.2];
-    const marks = Skia.Path.Make();
+    const marks = Skia.PathBuilder.Make();
     c.save();
     clipOval(c, 0, 0, R, R);
     sideXs.forEach((sx, i) => {
@@ -641,13 +642,13 @@ export function drawHeadMarkingsBelow(c: SkCanvas, ctx: HeadCtx): void {
       marks.lineTo(midX + R * 0.11, -R * 0.56);
       marks.lineTo(midX + R * 0.22, -R * 0.4);
     }
-    c.drawPath(marks, paintOf(tabbyM.color, 0.65, Math.max(2, R * 0.1)));
+    c.drawPath(marks.build(), paintOf(tabbyM.color, 0.65, Math.max(2, R * 0.1)));
     c.restore();
   }
   const cheekBars = markingOf(ctx.markings, 'cheekBars');
   if (cheekBars) {
     // Two curved bars running back from under each eye.
-    const bars = Skia.Path.Make();
+    const bars = Skia.PathBuilder.Make();
     const bar = (x: number, dir: number, alpha: number): void => {
       if (alpha <= 0.01) {
         return;
@@ -660,14 +661,14 @@ export function drawHeadMarkingsBelow(c: SkCanvas, ctx: HeadCtx): void {
     c.save();
     clipOval(c, 0, 0, R, R);
     bar(near.x, 1, 1);
-    c.drawPath(bars, paintOf(cheekBars.color, 0.6, Math.max(1.6, R * 0.07)));
+    c.drawPath(bars.build(), paintOf(cheekBars.color, 0.6, Math.max(1.6, R * 0.07)));
     if (farAlpha > 0.01) {
-      const farBars = Skia.Path.Make();
+      const farBars = Skia.PathBuilder.Make();
       for (const dy of [1.9, 2.9]) {
         farBars.moveTo(far.x + eyeR * 0.6, far.y + eyeR * dy);
         farBars.quadTo(far.x + eyeR * 2.2, far.y + eyeR * (dy + 0.5), far.x + eyeR * 3.4, far.y + eyeR * (dy + 0.1));
       }
-      c.drawPath(farBars, paintOf(cheekBars.color, 0.6 * farAlpha, Math.max(1.6, R * 0.07)));
+      c.drawPath(farBars.build(), paintOf(cheekBars.color, 0.6 * farAlpha, Math.max(1.6, R * 0.07)));
     }
     c.restore();
   }
@@ -697,13 +698,13 @@ export function drawHeadMarkingsBelow(c: SkCanvas, ctx: HeadCtx): void {
     const ny = dx / len;
     const w0 = R * (0.06 + 0.08 * t);
     const w1 = R * (0.16 + 0.16 * t);
-    const path = Skia.Path.Make();
+    const path = Skia.PathBuilder.Make();
     path.moveTo(p0.x + nx * w0, p0.y + ny * w0);
     path.lineTo(p1.x + nx * w1, p1.y + ny * w1);
     path.lineTo(p1.x - nx * w1, p1.y - ny * w1);
     path.lineTo(p0.x - nx * w0, p0.y - ny * w0);
     path.close();
-    c.drawPath(path, paintOf(blaze.color));
+    c.drawPath(path.build(), paintOf(blaze.color));
   }
 
   const mask = markingOf(ctx.markings, 'blackMask');
@@ -740,14 +741,14 @@ export function drawHeadMarkingsAbove(c: SkCanvas, ctx: HeadCtx): void {
   if (wrinkles) {
     const cx = R * 0.35 * (1 - t) + midX * t;
     const w = R * (0.28 + 0.2 * t);
-    const lines = Skia.Path.Make();
+    const lines = Skia.PathBuilder.Make();
     for (const y of [-0.62, -0.46]) {
       lines.moveTo(cx - w, R * y + R * 0.04);
       lines.quadTo(cx, R * y - R * 0.12, cx + w, R * y + R * 0.04);
     }
     lines.moveTo(cx, near.y - eyeR * 2.6);
     lines.quadTo(cx - R * 0.03, near.y - eyeR * 3.4, cx, near.y - eyeR * 4.2);
-    c.drawPath(lines, paintOf(wrinkles.color, 0.85, Math.max(1.4, R * 0.07)));
+    c.drawPath(lines.build(), paintOf(wrinkles.color, 0.85, Math.max(1.4, R * 0.07)));
   }
 }
 
@@ -766,9 +767,9 @@ export function earColorOf(breed: Breed, markings: readonly ResolvedMarking[]): 
 export function drawEye(c: SkCanvas, ex: number, ey: number, eyeR: number, closed: number, breed: Breed, cf: number): void {
   const cat = breed.species === 'cat';
   if (closed > 0.6) {
-    const lid = Skia.Path.Make();
+    const lid = Skia.PathBuilder.Make();
     lid.addArc(oval(ex, ey - eyeR * 0.3, eyeR * 1.1, eyeR * 1.1), 27, 126);
-    c.drawPath(lid, paintOf('#1b1512', 1, 2));
+    c.drawPath(lid.build(), paintOf('#1b1512', 1, 2));
     return;
   }
   const open = 1 - closed;

@@ -101,22 +101,14 @@ export function strokeOval(
 }
 
 export function polygon(points: [number, number][]): SkPath {
-  const path = Skia.Path.Make();
-  points.forEach(([x, y], index) => {
-    if (index === 0) {
-      path.moveTo(x, y);
-    } else {
-      path.lineTo(x, y);
-    }
-  });
-  path.close();
-  return path;
+  return Skia.Path.Polygon(
+    points.map(([x, y]) => ({ x, y })),
+    true,
+  );
 }
 
 export function clipOval(c: SkCanvas, cx: number, cy: number, rx: number, ry: number): void {
-  const path = Skia.Path.Make();
-  path.addOval(oval(cx, cy, rx, ry));
-  c.clipPath(path, ClipOp.Intersect, true);
+  c.clipPath(Skia.Path.Oval(oval(cx, cy, rx, ry)), ClipOp.Intersect, true);
 }
 
 export function fillGradient(c: SkCanvas, x: number, y: number, w: number, h: number, top: string, bottom: string): void {

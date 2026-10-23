@@ -109,20 +109,20 @@ function outlinedLine(
 }
 
 function outlinedQuad(c: SkCanvas, a: Pt, mid: Pt, b: Pt, color: string, width: number, fur?: string, alpha = 1): void {
-  const path = Skia.Path.Make();
+  const path = Skia.PathBuilder.Make();
   path.moveTo(a.x, a.y);
   path.quadTo(mid.x, mid.y, b.x, b.y);
   if (fur && isDarkCoat(fur)) {
-    c.drawPath(path, edgePaint('#FFF4FA', 0.8 * alpha, width + 4));
+    c.drawPath(path.build(), edgePaint('#FFF4FA', 0.8 * alpha, width + 4));
   }
-  c.drawPath(path, edgePaint(outlineOf(color), alpha, width + sizes.outline));
-  c.drawPath(path, edgePaint(color, alpha, width));
+  c.drawPath(path.build(), edgePaint(outlineOf(color), alpha, width + sizes.outline));
+  c.drawPath(path.build(), edgePaint(color, alpha, width));
 }
 
 function circlePath(x: number, y: number, r: number): SkPath {
-  const path = Skia.Path.Make();
+  const path = Skia.PathBuilder.Make();
   path.addCircle(x, y, Math.max(r, 0.5));
-  return path;
+  return path.detach();
 }
 
 function offset(at: Pt, dir: Pt, distance: number): Pt {
@@ -175,9 +175,9 @@ function dashed(color: string, width: number, on: number, off: number, alpha = 1
 }
 
 function ovalArc(cx: number, cy: number, rx: number, ry: number, start: number, sweep: number): SkPath {
-  const path = Skia.Path.Make();
+  const path = Skia.PathBuilder.Make();
   path.addArc(Skia.XYWHRect(cx - rx, cy - ry, rx * 2, ry * 2), start, sweep);
-  return path;
+  return path.detach();
 }
 
 function roundStroke(color: string, alpha: number, width: number) {
@@ -438,9 +438,9 @@ function poolHem(p: Pt, geom: Geom, pose: JacketPose): Pt {
 }
 
 function ovalPath(cx: number, cy: number, rx: number, ry: number): SkPath {
-  const path = Skia.Path.Make();
+  const path = Skia.PathBuilder.Make();
   path.addOval(oval(cx, cy, Math.max(rx, 0.5), Math.max(ry, 0.5)));
-  return path;
+  return path.detach();
 }
 
 function clipTo(path: SkPath, mask: SkPath): SkPath {
@@ -476,13 +476,13 @@ function sideSilhouette(geom: Geom, item: WearItem, breath: number, pose: Jacket
     const hemY = cy + geom.bodyH / 2 + 0.25 * geom.L;
     const hemRear = poolHem({ x: -geom.bodyLen / 2 - geom.bodyLen * 0.15, y: hemY }, geom, pose);
     const hemFront = poolHem({ x: geom.bodyLen * 0.5, y: hemY }, geom, pose);
-    const path = Skia.Path.Make();
+    const path = Skia.PathBuilder.Make();
     path.moveTo(rearTop.x, rearTop.y);
     path.quadTo(0, cy - ry, frontTop.x, frontTop.y);
     path.lineTo(hemFront.x, hemFront.y);
     path.quadTo((hemFront.x + hemRear.x) / 2, hemY + geom.bodyH * 0.05, hemRear.x, hemRear.y);
     path.close();
-    return path;
+    return path.detach();
   }
   const extra = shape === 'hoodie' ? geom.bodyH * 0.04 : 0;
   const body = ovalPath(0, cy, geom.bodyLen / 2, ry + extra);
@@ -522,20 +522,20 @@ function panelPath(geom: Geom, item: WearItem, pass: 'front' | 'back', pose: Jac
     const left = poolHem({ x: cx - rx - flare, y: hem }, geom, pose);
     const right = poolHem({ x: cx + rx + flare, y: hem }, geom, pose);
     const top = cy - ry * 0.85;
-    const flared = Skia.Path.Make();
+    const flared = Skia.PathBuilder.Make();
     flared.moveTo(cx - rx * 0.7, top);
     flared.lineTo(cx + rx * 0.7, top);
     flared.lineTo(right.x, right.y);
     flared.lineTo(left.x, left.y);
     flared.close();
-    path = clipTo(unionOf([path, flared]), flared);
-    path = unionOf([ovalPath(cx, cy, rx, ry * 0.8), flared]);
+    path = clipTo(unionOf([path, flared.build()]), flared.build());
+    path = unionOf([ovalPath(cx, cy, rx, ry * 0.8), flared.build()]);
   }
   return path;
 }
 
 function quilt(c: SkCanvas, x: number, y: number, w: number, h: number, color: string): void {
-  const q = Skia.Path.Make();
+  const q = Skia.PathBuilder.Make();
   const step = h * 0.45;
   for (let i = x - w; i < x + w * 2; i += step) {
     q.moveTo(i, y - h);
@@ -543,7 +543,7 @@ function quilt(c: SkCanvas, x: number, y: number, w: number, h: number, color: s
     q.moveTo(i, y + h);
     q.lineTo(i + h, y - h);
   }
-  c.drawPath(q, paintOf(color, 0.55, 1.2));
+  c.drawPath(q.build(), paintOf(color, 0.55, 1.2));
 }
 
 function drawJacketDetails(c: SkCanvas, geom: Geom, item: WearItem, path: SkPath, breath: number, pose: JacketPose): void {
@@ -566,14 +566,14 @@ function drawJacketDetails(c: SkCanvas, geom: Geom, item: WearItem, path: SkPath
       const x = origin + seg * (i + 0.5);
       c.drawPath(ovalArc(x, cy - ry * 0.35, seg * 0.28, ry * 0.22, 200, 140), roundStroke(light, 0.7, ry * 0.1));
     }
-    const scallop = Skia.Path.Make();
+    const scallop = Skia.PathBuilder.Make();
     const y = cy + ry;
     for (let i = 0; i < 6; i += 1) {
       const x = -geom.bodyLen * 0.4 + i * geom.bodyLen * 0.16;
       scallop.moveTo(x, y);
       scallop.quadTo(x + geom.bodyLen * 0.08, y + ry * 0.18, x + geom.bodyLen * 0.16, y);
     }
-    c.drawPath(scallop, roundStroke(shadow, 0.9, 1.6));
+    c.drawPath(scallop.build(), roundStroke(shadow, 0.9, 1.6));
   } else if (shape === 'sweater') {
     const stripe = accentOf(item, stripeTint(color));
     if (pass !== 'front') {
@@ -628,12 +628,12 @@ function drawCollarFlaps(c: SkCanvas, geom: Geom, item: WearItem, fur: string): 
   const y = geom.bodyY - geom.bodyH * 0.42;
   const x = geom.bodyLen * 0.28;
   const flap = (sign: number) => {
-    const path = Skia.Path.Make();
+    const path = Skia.PathBuilder.Make();
     path.moveTo(x * 0.2, y);
     path.lineTo(x * sign, y + geom.headR * 0.45);
     path.lineTo(x * sign * 0.35, y + geom.headR * 0.15);
     path.close();
-    paintShape(c, path, shadowTone(item.colorway.c), fur);
+    paintShape(c, path.build(), shadowTone(item.colorway.c), fur);
   };
   flap(1);
   flap(-0.15);
@@ -716,18 +716,18 @@ export function drawJacketCollar(c: SkCanvas, base: Pt, perp: Pt, along: Pt, ite
   const thick = r * (item.shape === 'puffer' ? 0.44 : item.shape === 'sweater' ? 0.4 : item.shape === 'vest' ? 0.36 : 0.3);
   const color = item.shape === 'raincoat' ? shadowTone(item.colorway.c) : item.colorway.c;
   outlinedQuad(c, a, mid, b, color, thick, fur);
-  const line = Skia.Path.Make();
+  const line = Skia.PathBuilder.Make();
   line.moveTo(a.x, a.y);
   line.quadTo(mid.x, mid.y, b.x, b.y);
   if (item.shape === 'sweater') {
-    c.drawPath(line, dashed(shadowTone(item.colorway.c), thick * 0.9, 1.3, 1.7));
-    c.drawPath(line, dashed(shadowTone(item.colorway.c), thick * 0.45, 1.3, 1.7));
+    c.drawPath(line.build(), dashed(shadowTone(item.colorway.c), thick * 0.9, 1.3, 1.7));
+    c.drawPath(line.build(), dashed(shadowTone(item.colorway.c), thick * 0.45, 1.3, 1.7));
   } else if (item.shape === 'puffer') {
-    const hi = Skia.Path.Make();
+    const hi = Skia.PathBuilder.Make();
     const lift = thick * 0.22;
     hi.moveTo(a.x + along.x * lift, a.y + along.y * lift);
     hi.quadTo(mid.x + along.x * lift, mid.y + along.y * lift, b.x + along.x * lift, b.y + along.y * lift);
-    c.drawPath(hi, roundStroke(highlightTone(item.colorway.c), 0.7, thick * 0.25));
+    c.drawPath(hi.build(), roundStroke(highlightTone(item.colorway.c), 0.7, thick * 0.25));
   }
 }
 
@@ -838,10 +838,10 @@ function drawScarf(
       const at = { x: a.x + across.x * t, y: a.y + across.y * t };
       strokeLine(c, at.x - perp.x * r * 0.12, at.y - perp.y * r * 0.12, at.x + perp.x * r * 0.16, at.y + perp.y * r * 0.16, stripe, 1.5);
     }
-    const knit = Skia.Path.Make();
+    const knit = Skia.PathBuilder.Make();
     knit.moveTo(a.x, a.y);
     knit.quadTo(mid.x, mid.y, b.x, b.y);
-    c.drawPath(knit, dashed(shadow, 1.2, 2, 2));
+    c.drawPath(knit.build(), dashed(shadow, 1.2, 2, 2));
   }
   if (belly > 0.45) {
     return;
@@ -1013,19 +1013,19 @@ function drawBandana(c: SkCanvas, chin: Pt, perp: Pt, along: Pt, item: WearItem,
     y: topMid.y + r * sizes.bandanaDrop * hangK,
   };
   const bow = r * 0.1;
-  const cloth = Skia.Path.Make();
+  const cloth = Skia.PathBuilder.Make();
   cloth.moveTo(top1.x, top1.y);
   cloth.lineTo(top2.x, top2.y);
   cloth.quadTo((top2.x + tip.x) / 2 + bow, (top2.y + tip.y) / 2, tip.x, tip.y);
   cloth.quadTo((top1.x + tip.x) / 2 - bow, (top1.y + tip.y) / 2, top1.x, top1.y);
   cloth.close();
-  paintShape(c, cloth, item.colorway.c, fur, () => {
+  paintShape(c, cloth.build(), item.colorway.c, fur, () => {
     // A darker hem along the two lower edges, and a soft fold shadow just under the band.
-    const hem = Skia.Path.Make();
+    const hem = Skia.PathBuilder.Make();
     hem.moveTo(top1.x, top1.y);
     hem.quadTo((top1.x + tip.x) / 2 - bow, (top1.y + tip.y) / 2, tip.x, tip.y);
     hem.quadTo((top2.x + tip.x) / 2 + bow, (top2.y + tip.y) / 2, top2.x, top2.y);
-    c.drawPath(hem, edgePaint(deep, 1, r * sizes.bandanaHem * 2));
+    c.drawPath(hem.build(), edgePaint(deep, 1, r * sizes.bandanaHem * 2));
     strokeLine(c, top1.x, top1.y + r * 0.08, top2.x, top2.y + r * 0.08, '#000000', r * 0.12, 0.14, StrokeCap.Round);
   }, 1, patternPaint(item, 'cloth', r * 0.1));
 
@@ -1072,13 +1072,13 @@ function lensPath(shape: 'wayfarer' | 'round' | 'soft' | 'heart' | 'star', w: nu
     const rr = Math.min(w, h) * 0.6;
     return Skia.Path.RRect(Skia.RRectXY(Skia.XYWHRect(-w, -h, w * 2, h * 2), rr, rr));
   }
-  const p = Skia.Path.Make();
+  const p = Skia.PathBuilder.Make();
   if (shape === 'heart') {
     p.moveTo(0, h * 0.95);
     p.cubicTo(-w * 1.15, h * 0.15, -w * 1.05, -h, 0, -h * 0.2);
     p.cubicTo(w * 1.05, -h, w * 1.15, h * 0.15, 0, h * 0.95);
     p.close();
-    return p;
+    return p.detach();
   }
   if (shape === 'star') {
     const outer = Math.min(w, h);
@@ -1095,11 +1095,11 @@ function lensPath(shape: 'wayfarer' | 'round' | 'soft' | 'heart' | 'star', w: nu
       }
     }
     p.close();
-    return p;
+    return p.detach();
   }
   if (shape === 'round') {
     p.addOval(oval(0, 0, w, h));
-    return p;
+    return p.detach();
   }
   // Wayfarer: a straight brow line and a rounded bottom that dips toward the cheek.
   p.moveTo(-w, -h * 0.8);
@@ -1107,7 +1107,7 @@ function lensPath(shape: 'wayfarer' | 'round' | 'soft' | 'heart' | 'star', w: nu
   p.quadTo(w * 1.12, h * 0.55, w * 0.25, h);
   p.quadTo(-w * 0.7, h * 1.05, -w, h * 0.15);
   p.close();
-  return p;
+  return p.detach();
 }
 
 function drawLensAt(c: SkCanvas, L: GlassesLayout, at: Pt, scale: Pt, alpha: number, item: WearItem, fur: string): void {
@@ -1230,14 +1230,14 @@ export function drawHatShape(
   reduced = false,
 ): void {
   if (item.shape === 'beanie') {
-    const cap = Skia.Path.Make();
+    const cap = Skia.PathBuilder.Make();
     cap.moveTo(-r * 0.98, -r * 0.28);
     cap.quadTo(-r * 1.05, -r * 1.4, -r * 0.05, -r * 1.34);
     cap.quadTo(r * 0.98, -r * 1.3, r * 0.92, -r * 0.28);
     cap.close();
     paintShape(
       c,
-      cap,
+      cap.build(),
       item.colorway.c,
       fur,
       () => {
@@ -1250,13 +1250,13 @@ export function drawHatShape(
       1,
       patternPaint(item, 'crown', r * 0.1),
     );
-    const band = Skia.Path.Make();
+    const band = Skia.PathBuilder.Make();
     band.moveTo(-r * 0.98, -r * 0.02);
     band.lineTo(r * 0.92, -r * 0.04);
     band.lineTo(r * 0.9, -r * (0.04 + sizes.beanieRib));
     band.lineTo(-r * 0.96, -r * sizes.beanieRib);
     band.close();
-    paintShape(c, band, mix(item.colorway.c, '#000000', 0.12), fur);
+    paintShape(c, band.build(), mix(item.colorway.c, '#000000', 0.12), fur);
     paintShape(c, circlePath(-r * 0.05, -r * 1.4, r * sizes.beaniePom), '#f6f6f6');
     return;
   }
@@ -1300,9 +1300,9 @@ export function drawHatShape(
   c.rotate(-0.1 * (180 / Math.PI), 0, 0);
   const crown = Skia.Path.RRect(Skia.RRectXY(Skia.XYWHRect(-r * 0.42, -r * 1.95, r * 0.84, r * 1.05), r * 0.08, r * 0.08));
   paintShape(c, crown, item.colorway.c, fur);
-  const brim = Skia.Path.Make();
+  const brim = Skia.PathBuilder.Make();
   brim.addOval(oval(0, -r * 0.92, r * sizes.topBrim, r * 0.2));
-  paintShape(c, brim, item.colorway.c, fur);
+  paintShape(c, brim.build(), item.colorway.c, fur);
   const bandPattern = patternPaint(item, 'band', r * 0.1);
   const wrap = Skia.Path.Rect(Skia.XYWHRect(-r * 0.42, -r * 1.22, r * 0.84, r * 0.18));
   if (bandPattern) {
@@ -1315,9 +1315,9 @@ export function drawHatShape(
 }
 
 function domePath(rx: number, ry: number, y: number): SkPath {
-  const path = Skia.Path.Make();
+  const path = Skia.PathBuilder.Make();
   path.addOval(oval(0, y, rx, ry));
-  return path;
+  return path.detach();
 }
 
 function drawCap(c: SkCanvas, item: WearItem, r: number, fur: string, face: HeadFace | undefined, view: HatView): void {
@@ -1325,17 +1325,17 @@ function drawCap(c: SkCanvas, item: WearItem, r: number, fur: string, face: Head
   const crown = patternPaint(item, 'crown', r * 0.1);
   if (view === 'front') {
     paintShape(c, domePath(r * 0.85, r * 0.5, -r * 0.72), item.colorway.c, fur, undefined, 1, crown);
-    const brim = Skia.Path.Make();
+    const brim = Skia.PathBuilder.Make();
     brim.addOval(oval(0, -r * 0.32, r * 0.95, r * 0.14));
-    paintShape(c, brim, accent, fur);
+    paintShape(c, brim.build(), accent, fur);
     fillCircle(c, 0, -r * 1.15, r * 0.07, accent);
     return;
   }
   if (view === 'back') {
     paintShape(c, domePath(r * 0.82, r * 0.55, -r * 0.7), item.colorway.c, fur, undefined, 1, crown);
-    const strap = Skia.Path.Make();
+    const strap = Skia.PathBuilder.Make();
     strap.addArc(oval(0, -r * 0.15, r * 0.72, r * 0.22), 15, 150);
-    c.drawPath(strap, edgePaint(accent, 1, Math.max(1.5, r * 0.08)));
+    c.drawPath(strap.build(), edgePaint(accent, 1, Math.max(1.5, r * 0.08)));
     return;
   }
   const turn = face?.turn ?? 0;
@@ -1354,9 +1354,9 @@ function drawCap(c: SkCanvas, item: WearItem, r: number, fur: string, face: Head
   c.save();
   c.translate(r * 0.2, baseY);
   c.rotate(deg(tilt), 0, 0);
-  const brim = Skia.Path.Make();
+  const brim = Skia.PathBuilder.Make();
   brim.addOval(oval(length * 0.45, 0, length * 0.5, r * 0.09));
-  paintShape(c, brim, accent, fur);
+  paintShape(c, brim.build(), accent, fur);
   c.restore();
   fillCircle(c, 0, -r * 1.35, r * 0.07, accent);
 }
@@ -1367,12 +1367,12 @@ function drawBucket(c: SkCanvas, item: WearItem, r: number, fur: string, view: H
   paintShape(c, domePath(r * 0.75, r * 0.55, -r * 0.85), item.colorway.c, fur, undefined, 1, crown);
   paintShape(c, Skia.Path.Rect(Skia.XYWHRect(-r * 0.72, -r * 0.55, r * 1.44, r * 0.16)), accent, fur);
   const brimW = view === 'front' ? r * 1.25 : r * 1.15;
-  const brim = Skia.Path.Make();
+  const brim = Skia.PathBuilder.Make();
   brim.addOval(oval(0, -r * 0.28, brimW, r * 0.16));
-  paintShape(c, brim, item.colorway.c, fur);
-  const stitch = Skia.Path.Make();
+  paintShape(c, brim.build(), item.colorway.c, fur);
+  const stitch = Skia.PathBuilder.Make();
   stitch.addArc(oval(0, -r * 0.28, brimW * 0.92, r * 0.12), view === 'back' ? 200 : 20, 140);
-  c.drawPath(stitch, dashed(accent, 1.4, 2, 2));
+  c.drawPath(stitch.build(), dashed(accent, 1.4, 2, 2));
 }
 
 function drawBeret(c: SkCanvas, item: WearItem, r: number, fur: string, view: HatView): void {
@@ -1394,12 +1394,12 @@ function drawCrown(c: SkCanvas, item: WearItem, r: number, fur: string, view: Ha
   const points = view === 'front' ? [-0.45, 0, 0.45] : [-0.5, 0, 0.5];
   points.forEach((at, index) => {
     const x = at * r;
-    const tip = Skia.Path.Make();
+    const tip = Skia.PathBuilder.Make();
     tip.moveTo(x - r * 0.22, -r * 0.55);
     tip.lineTo(x, -r * 1.15);
     tip.lineTo(x + r * 0.22, -r * 0.55);
     tip.close();
-    paintShape(c, tip, gold, fur);
+    paintShape(c, tip.build(), gold, fur);
     fillCircle(c, x, -r * 1.18, r * 0.07, gold);
     if (view !== 'back') {
       fillCircle(c, x, -r * 0.95, r * 0.06, index === 1 ? pink : blue);

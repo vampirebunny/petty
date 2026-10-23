@@ -68,7 +68,7 @@ function drawFloorPattern(c: SkCanvas, scene: Scene, bleed: number): void {
   const color = floor.lineColor ?? 'rgba(0,0,0,0.12)';
   const left = -bleed;
   const right = stageWidth + bleed;
-  const path = Skia.Path.Make();
+  const path = Skia.PathBuilder.Make();
   if (floor.pattern === 'lines') {
     for (let i = 1; i < 4; i += 1) {
       const y = floor.horizon + i * i * 9 + 6;
@@ -108,7 +108,7 @@ function drawFloorPattern(c: SkCanvas, scene: Scene, bleed: number): void {
   } else {
     return;
   }
-  c.drawPath(path, stroke(color, 1, 1));
+  c.drawPath(path.build(), stroke(color, 1, 1));
 }
 
 /** Grass tufts, live: they lean with the wind and part around a pet's paws. */
@@ -124,7 +124,7 @@ function drawGrass(c: SkCanvas, scene: Scene, env: Env): void {
   const color = mixc(scene.floor.lineColor ?? 'rgba(0,0,0,0.12)', 'rgba(120,100,50,0.25)', (1 - f.lush) * 0.6);
   const wind = env.reduced ? 0 : env.wind ?? 0.2;
   const pets = env.contacts ?? [];
-  const path = Skia.Path.Make();
+  const path = Skia.PathBuilder.Make();
   // On wide screens the tufts repeat into the bleed, so the lawn doesn't go bare at the sides.
   const bleed = env.bleed ?? 0;
   const tiles = bleed > 0 ? [-1, 0, 1] : [0];
@@ -150,7 +150,7 @@ function drawGrass(c: SkCanvas, scene: Scene, env: Env): void {
     path.moveTo(tuft.x + s * 0.5, tuft.y);
     path.lineTo(tuft.x + s * 0.7 + tip * 0.8, tuft.y - s);
   }
-  c.drawPath(path, stroke(color, 1.3, 1 - cover));
+  c.drawPath(path.build(), stroke(color, 1.3, 1 - cover));
 }
 
 /**

@@ -26,11 +26,11 @@ function drawEmote(c: SkCanvas, burst: OverlayBurst): void {
     c.drawLine(0, -12, 0, -2, paintOf('#f2c14e', alpha, 2.4));
     fillCircle(c, 0, 3, 1.8, '#f2c14e', alpha);
   } else if (emote === 'question') {
-    const hook = Skia.Path.Make();
+    const hook = Skia.PathBuilder.Make();
     hook.moveTo(-4, -8);
     hook.quadTo(0, -14, 4, -8);
     hook.quadTo(5, -2, 0, 0);
-    c.drawPath(hook, paintOf('#7eb6ff', alpha, 2));
+    c.drawPath(hook.build(), paintOf('#7eb6ff', alpha, 2));
     fillCircle(c, 0, 5, 1.6, '#7eb6ff', alpha);
   } else if (emote === 'sweat') {
     fillOval(c, 8, -2, 3.2, 5, '#8ec8f5', 0.9 * alpha);
@@ -79,12 +79,12 @@ function drawZzz(c: SkCanvas, x: number, y: number, phase: number): void {
     const size = (10 + k * 8) * 0.55;
     const zx = x + 10 + k * 18;
     const zy = y - 6 - k * 26;
-    const mark = Skia.Path.Make();
+    const mark = Skia.PathBuilder.Make();
     mark.moveTo(zx, zy - size);
     mark.lineTo(zx + size, zy - size);
     mark.lineTo(zx, zy);
     mark.lineTo(zx + size, zy);
-    c.drawPath(mark, paintOf('#5C6B80', (1 - k) * 0.9, 1.6));
+    c.drawPath(mark.build(), paintOf('#5C6B80', (1 - k) * 0.9, 1.6));
   }
 }
 

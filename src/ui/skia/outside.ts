@@ -35,14 +35,14 @@ export function drawOutsideView(c: SkCanvas, x: number, y: number, w: number, h:
     return y + h * base + Math.sin(wx / (90 * freq)) * h * amp + Math.sin(wx / (31 * freq) + 1.3) * h * amp * 0.35;
   };
   const hill = (base: number, amp: number, freq: number, color: string) => {
-    const p = Skia.Path.Make();
+    const p = Skia.PathBuilder.Make();
     p.moveTo(x, y + h);
     for (let lx = x; lx <= x + w + 6; lx += 6) {
       p.lineTo(lx, hillY(lx, amp, base, freq));
     }
     p.lineTo(x + w, y + h);
     p.close();
-    c.drawPath(p, fill(color));
+    c.drawPath(p.build(), fill(color));
   };
   const farGreen = snow > 0.2 ? mixc('#cdd6e3', '#ffffff', snow * 0.5) : grassTone(mixc('#86b874', '#c9a45e', f.turn * 0.6), f);
   hill(0.58, 0.05, 1.3, nightShade(haze(farGreen, 0.5)));

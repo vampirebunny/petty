@@ -33,7 +33,7 @@ export function drawPrecip(c: SkCanvas, x: number, y: number, w: number, h: numb
   if (weather.precip === 'rain') {
     const count = Math.min(240, Math.round(((w * h) / 1300) * weather.intensity * density));
     const slant = wind * 0.32;
-    const path = Skia.Path.Make();
+    const path = Skia.PathBuilder.Make();
     for (let i = 0; i < count; i += 1) {
       const len = 13 * scale * (0.7 + hash(i, salt + 3) * 0.6);
       const speed = 560 * scale * (0.85 + hash(i, salt + 1) * 0.3);
@@ -45,12 +45,12 @@ export function drawPrecip(c: SkCanvas, x: number, y: number, w: number, h: numb
       path.moveTo(px, py);
       path.lineTo(px - slant * len, py - len);
     }
-    c.drawPath(path, stroke('rgba(214,228,244,0.62)', 1.15 * scale, 0.55 + 0.35 * weather.intensity));
+    c.drawPath(path.build(), stroke('rgba(214,228,244,0.62)', 1.15 * scale, 0.55 + 0.35 * weather.intensity));
     return;
   }
   const count = Math.min(200, Math.round(((w * h) / 1500) * weather.intensity * density));
-  const near = Skia.Path.Make();
-  const far = Skia.Path.Make();
+  const near = Skia.PathBuilder.Make();
+  const far = Skia.PathBuilder.Make();
   for (let i = 0; i < count; i += 1) {
     const depth = hash(i, salt + 5);
     const r = scale * (0.9 + depth * 2.1);
@@ -61,8 +61,8 @@ export function drawPrecip(c: SkCanvas, x: number, y: number, w: number, h: numb
     const fx = (((hash(i, salt) * w + wind * 26 * scale * t * (0.5 + depth) + sway) % w) + w) % w;
     (depth > 0.55 ? near : far).addCircle(x + fx, y + fy - 5, r);
   }
-  c.drawPath(far, fill('#e9f0ff', 0.7));
-  c.drawPath(near, fill('#ffffff', 0.95));
+  c.drawPath(far.build(), fill('#e9f0ff', 0.7));
+  c.drawPath(near.build(), fill('#ffffff', 0.95));
 }
 
 /** Little splash rings where rain hits the ground. */
@@ -74,7 +74,7 @@ export function drawSplashes(c: SkCanvas, scene: Scene, env: Env): void {
   const floor = scene.floor;
   const bleed = env.bleed ?? 0;
   const count = Math.round(30 * weather.intensity);
-  const path = Skia.Path.Make();
+  const path = Skia.PathBuilder.Make();
   for (let i = 0; i < count; i += 1) {
     const period = 0.45 + hash(i, 41) * 0.4;
     const phase = env.t / period + hash(i, 42);
@@ -88,7 +88,7 @@ export function drawSplashes(c: SkCanvas, scene: Scene, env: Env): void {
     const r = (1.5 + k * 6) * depth;
     path.addOval(Skia.XYWHRect(px - r, py - r * 0.3, r * 2, r * 0.6));
   }
-  c.drawPath(path, stroke('#e4eef8', 1, 0.45));
+  c.drawPath(path.build(), stroke('#e4eef8', 1, 0.45));
 }
 
 function freeSpot(scene: Scene, x: number, y: number, pad: number): boolean {
@@ -147,14 +147,14 @@ export function drawGroundSnow(c: SkCanvas, scene: Scene, env: Env): void {
   const left = -bleed;
   const span = stageWidth + bleed * 2;
   gradRect(c, left, floor.horizon, span, stageHeight - floor.horizon, '#f4f7ff', '#e4ebf7', clamp01(cover * 1.1) * 0.92);
-  const drift = Skia.Path.Make();
+  const drift = Skia.PathBuilder.Make();
   drift.moveTo(left, floor.horizon + 6);
   for (let x = left; x <= left + span + 20; x += 20) {
     drift.lineTo(x, floor.horizon - 2 - hash(Math.round(x / 20), 71) * 5 * cover);
   }
   drift.lineTo(left + span, floor.horizon + 6);
   drift.close();
-  c.drawPath(drift, fill('#f7f9ff', clamp01(cover * 1.2)));
+  c.drawPath(drift.build(), fill('#f7f9ff', clamp01(cover * 1.2)));
   // A few blue-grey hollows so the snow reads as a surface, not a flat fill.
   for (let i = 0; i < 9; i += 1) {
     const px = left + hash(i, 72) * span;
@@ -190,13 +190,13 @@ export function drawGlassWeather(c: SkCanvas, x: number, y: number, w: number, h
   }
   if (weather.snowCover > 0.05) {
     const s = weather.snowCover;
-    const pile = Skia.Path.Make();
+    const pile = Skia.PathBuilder.Make();
     pile.moveTo(x, y + h);
     pile.quadTo(x + w * 0.08, y + h - 12 * s, x + w * 0.3, y + h - 3 * s);
     pile.lineTo(x + w * 0.7, y + h - 3 * s);
     pile.quadTo(x + w * 0.92, y + h - 12 * s, x + w, y + h);
     pile.close();
-    c.drawPath(pile, fill('#f5f8ff', 0.95));
+    c.drawPath(pile.build(), fill('#f5f8ff', 0.95));
   }
   c.restore();
 }
