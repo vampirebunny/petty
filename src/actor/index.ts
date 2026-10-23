@@ -114,6 +114,7 @@ export {
   debugFlipFace,
   debugGreeting,
   planGreeting,
+  clearPlayToy,
   startHeld,
   steerHeld,
   stopHeld,

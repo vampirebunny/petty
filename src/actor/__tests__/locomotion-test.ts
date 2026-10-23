@@ -19,7 +19,7 @@ import {
   stepStamina,
 } from '../locomotion';
 import { breedById } from '../breeds';
-import { createWorld, equipToy, spawnActor, startUserTask, update } from '../sim';
+import { clearPlayToy, createWorld, equipToy, spawnActor, startHeld, startUserTask, throwFromEdge, update } from '../sim';
 import type { ActorSource } from '../types';
 
 const stats = { stamina: 0.5, agility: 0.5, boldness: 0.5, obedience: 0.5 };
@@ -241,6 +241,54 @@ describe('play in the sim', () => {
     expect(pup.task.stage).toBe('chase');
     expect(pup.task.t).toBe(1.2);
     expect(world.toyKind).toBe('squeaky');
+  });
+
+  it('removes the floor toy when a wand or laser starts', () => {
+    const kit = spawnActor(source({ id: 'kit', breedId: 'domesticShorthair' }));
+    const world = createWorld([kit], 1);
+    world.items = [
+      { id: 'treat-1', kind: 'treat:biscuit', state: 'free', x: 80, y: 200, z: 0, vx: 0, vy: 0, vz: 0 },
+      { id: 'mouse-1', kind: 'mouse', state: 'free', x: 180, y: 220, z: 0, vx: 0, vy: 0, vz: 0 },
+    ];
+    kit.task = { type: 'fetch', stage: 'chase', t: 1, bats: 0, cool: 0 };
+    startHeld(world, 'laser');
+    expect(world.items.map((item) => item.kind)).toEqual(['treat:biscuit']);
+    expect(world.held?.kind).toBe('laser');
+    expect(kit.task.type).toBe('held');
+  });
+
+  it('clears a held toy and a floor toy together', () => {
+    const kit = spawnActor(source({ id: 'kit', breedId: 'domesticShorthair' }));
+    const world = createWorld([kit], 1);
+    startHeld(world, 'laser');
+    world.items = [{ id: 'mouse-1', kind: 'mouse', state: 'free', x: 180, y: 220, z: 0, vx: 0, vy: 0, vz: 0 }];
+    clearPlayToy(world);
+    expect(world.held).toBeNull();
+    expect(world.items).toEqual([]);
+    expect(kit.task.type).toBe('idle');
+  });
+
+  it('replaces a held toy when another toy is thrown', () => {
+    const kit = spawnActor(source({ id: 'kit', breedId: 'domesticShorthair' }));
+    const world = createWorld([kit], 1);
+    startHeld(world, 'laser');
+    world.toyKind = 'mouse';
+    throwFromEdge(world);
+    expect(world.held).toBeNull();
+    expect(world.items.map((item) => item.kind)).toEqual(['mouse']);
+  });
+
+  it('pays mood while a bone is chewed', () => {
+    const pup = spawnActor(source());
+    const world = createWorld([pup], 1);
+    pup.task = { type: 'fetch', stage: 'chew', t: 4.95, bats: 0, cool: 0, hold: 30 };
+    world.toyKind = 'bone';
+    world.items = [
+      { id: 'bone-1', kind: 'bone', state: 'carried', x: pup.x, y: pup.y, z: 0, vx: 0, vy: 0, vz: 0, holderId: pup.id },
+    ];
+    update(world, 0.1);
+    expect(pup.moodPops).toEqual([2]);
+    expect(pup.task.stage).toBe('chew');
   });
 
   it('equips a toy without spawning one when the scene is empty', () => {

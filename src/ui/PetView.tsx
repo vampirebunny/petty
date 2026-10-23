@@ -24,6 +24,7 @@ import {
   startSceneEnter,
   startSceneExit,
   startTreat,
+  clearPlayToy,
   startHeld,
   steerHeld,
   stopHeld,
@@ -87,6 +88,10 @@ export type StageHandle = {
   squish: (pieceId: string) => void;
   // Changes the toy in play. True when a toy was already out and only its kind changed.
   swapToy: (kind: string) => boolean;
+  // The toy in the scene, or the wand or laser being held.
+  playKind: () => string | null;
+  // Removes the toy and stops play.
+  clearPlay: () => void;
   startHeld: (kind: 'wand' | 'laser') => void;
   steerHeld: (x: number, y: number, down: boolean) => void;
   stopHeld: () => void;
@@ -583,6 +588,21 @@ export function PetView({
           redrawRef.current();
         }
         return swapped;
+      },
+      playKind: () => {
+        const world = worldRef.current;
+        if (world.held) {
+          return world.held.kind;
+        }
+        return world.items.find((item) => !item.kind.startsWith('treat:'))?.kind ?? null;
+      },
+      clearPlay: () => {
+        const held = worldRef.current.held != null;
+        clearPlayToy(worldRef.current);
+        if (held) {
+          onHeldRef.current?.(false);
+        }
+        redrawRef.current();
       },
       startHeld: (kind) => {
         startHeld(worldRef.current, kind);

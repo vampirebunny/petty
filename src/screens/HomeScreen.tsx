@@ -1623,15 +1623,29 @@ export default function HomeScreen({ petApi }: Props) {
           top={sheetTop}
           empty="No toys yet."
           toys={playableToys.map((id) => ({ id, label: catalogItem(id)?.name ?? (id === 'ball' ? 'Ball' : id) }))}
+          selectedId={state.activeToyId}
           onClose={() => setPlayOpen(false)}
           onPick={(id) => {
-            if (id === 'wand' || id === 'laser') {
-              stageHandle.current?.startHeld(id);
+            const playing = stageHandle.current?.playKind() ?? null;
+            if (playing === id) {
+              stageHandle.current?.clearPlay();
+              chooseToy(id, 'clear');
               setPlayOpen(false);
               return;
             }
-            const swapped = stageHandle.current?.swapToy(id) ?? false;
-            chooseToy(id, !swapped);
+            if (id === 'wand' || id === 'laser') {
+              const gained = chooseToy(id, 'hold');
+              stageHandle.current?.startHeld(id);
+              if (gained > 0) {
+                showMoodBurst(gained);
+              }
+            } else {
+              stageHandle.current?.clearPlay();
+              const gained = chooseToy(id, 'throw');
+              if (gained > 0) {
+                showMoodBurst(gained);
+              }
+            }
             setPlayOpen(false);
           }}
         />
@@ -1881,7 +1895,12 @@ export default function HomeScreen({ petApi }: Props) {
               onAte={reportAte}
               onFellAsleep={beginRest}
               onPlayFind={noteFind}
-              onHeld={setHeldPlay}
+              onHeld={(on) => {
+                setHeldPlay(on);
+                if (!on) {
+                  chooseToy('', 'clearHeld');
+                }
+              }}
               parkVisitors
               parkOffers={parkOffers}
               parkStranger={parkStranger}

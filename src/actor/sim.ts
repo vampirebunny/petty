@@ -21,6 +21,8 @@ import type { PlayBehavior } from '../items/playRules';
 import { bodyFrame, depthScale, geomOf, headFaceOf, PET_SIZE, reachOf, speedMax, stageWidth, travelGateX, xRangeOf } from './geometry';
 import { applyGesture, gestureOwns, gestureWantsCamera } from './gestures';
 import { GREET, greetClip, motionMods, planGreeting, scriptFor } from './greetings';
+import { BIRD_SPECIES, spawnBirds, stepBirds } from './birds';
+import type { Bird, BirdThreat, BirdWorld } from './birds';
 import { abortParkHello, clearParkGuests, stepParkVisitors } from './parkVisitors';
 import type { GreetPlan } from './greetings';
 import { cancelJump, jump, jumpConfig, jumpOwnsMotion, resolveJump, stepJump } from './jump';
@@ -68,7 +70,7 @@ import { variantFor } from './variation';
 import type { Actor, ActorSource, Anchors, CareInvite, Direction, HeldToy, Idle, IdleMode, JumpKind, PlayState, Pose, SoundEvent, Task, TaskType, Vec, World } from './types';
 
 const displayTau = 0.35;
-const idleWeight: Record<IdleMode, number> = { still: 3, pant: 2, purr: 2, nap: 1.5, walk: 2.5, zoom: 0 };
+const idleWeight: Record<IdleMode, number> = { still: 3, pant: 2, purr: 2, nap: 1.5, walk: 2.5, zoom: 0, stalk: 0 };
 // Horizontal speed below this is a settle, not a step. Above it, the body faces that direction.
 const faceDeadzone = 8;
 
@@ -100,6 +102,25 @@ function makeToyItem(world: World, partial: Partial<Item> & Pick<Item, 'state'>)
 
 function clearItems(world: World): void {
   world.items = [];
+}
+
+function removeFloorToys(world: World): void {
+  world.items = world.items.filter((item) => item.kind.startsWith('treat:'));
+}
+
+// Takes the toy out of the scene and stops the chase. A treat on the floor stays.
+export function clearPlayToy(world: World): void {
+  const actor = world.actors[0];
+  world.held = null;
+  removeFloorToys(world);
+  if (!actor) {
+    return;
+  }
+  if (actor.task.type === 'fetch' || actor.task.type === 'held' || actor.task.type === 'winddown') {
+    actor.play = null;
+    actor.task = taskOf('idle');
+    beginIdle(world, actor, 'still');
+  }
 }
 
 // Points play at this toy. A toy already in the scene keeps its place and motion and only changes kind.
@@ -1234,7 +1255,12 @@ export function startHeld(world: World, kind: 'wand' | 'laser'): void {
   if (!actor) {
     return;
   }
-  if (actor.task.type === 'fetch' || actor.task.type === 'held') {
+  abortParkHello(world);
+  removeFloorToys(world);
+  actor.asleep = false;
+  actor.sleepSec = 0;
+  world.toyKind = kind;
+  if (actor.task.type === 'fetch' || actor.task.type === 'held' || actor.task.type === 'winddown') {
     goIdle(world, actor);
   }
   const x = actor.x + actor.face * 48;
@@ -1348,7 +1374,7 @@ function stepHeld(
       if (held.chase >= 15) {
         held.spark = 1.2;
         if (world.t - held.moodAt >= 600) {
-          world.pendingTreatMoods.push(treatMoodGain);
+          actor.moodPops.push(treatMoodGain);
           held.moodAt = world.t;
         }
       }
@@ -2626,7 +2652,7 @@ function updateActor(world: World, actor: Actor, dt: number): void {
         targets.jawHold = 0.45 + Math.sin(task.t * 9) * 0.55;
         const paid = Math.min(5, Math.floor(task.t / 5));
         if (paid > task.bats) {
-          world.pendingTreatMoods.push(2);
+          actor.moodPops.push(2);
           task.bats = paid;
         }
       } else if (toyKind === 'squeaky' && Math.floor(task.t * 1.4) !== Math.floor((task.t - dt) * 1.4)) {

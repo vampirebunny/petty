@@ -17,6 +17,7 @@ import {
   debugJump,
   deriveMood,
   openTickMs,
+  playHappinessGain,
   resolveReward,
   resume,
   setAgeDays,
@@ -86,7 +87,7 @@ type PetApi = {
   startCuddle: () => void;
   finishCuddle: (seconds: number) => void;
   fetchBall: () => void;
-  chooseToy: (id: string, launch: boolean) => void;
+  chooseToy: (id: string, action: 'throw' | 'hold' | 'clear' | 'clearHeld') => number;
   throwAt: (x: number, y: number) => void;
   flickAt: (x: number, y: number, vx: number, vy: number) => void;
   setScene: (sceneId: string) => void;
@@ -754,20 +755,34 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
   );
   const fetchBall = useCallback(() => dispatch({ type: 'fetch' }), [dispatch]);
   const chooseToy = useCallback(
-    (id: string, launch: boolean) => {
+    (id: string, action: 'throw' | 'hold' | 'clear' | 'clearHeld') => {
       const current = stateRef.current;
-      if (!current || !id) {
-        return;
+      if (!current) {
+        return 0;
       }
-      const next = current.activeToyId === id ? current : { ...current, activeToyId: id };
-      if (!launch) {
-        if (next !== current) {
+      if (action === 'clear' || action === 'clearHeld') {
+        const active = current.activeToyId;
+        const drop = action === 'clearHeld' ? active === 'wand' || active === 'laser' : active === id;
+        if (drop && active) {
+          publish({ ...current, activeToyId: undefined });
+        }
+        return 0;
+      }
+      if (!id) {
+        return 0;
+      }
+      const base = { ...current, activeToyId: id, asleep: false };
+      if (action === 'hold') {
+        const next = applyHappinessDelta(base, playHappinessGain);
+        const gained = Math.round(next.needs.happiness - current.needs.happiness);
+        if (gained !== 0 || next.activeToyId !== current.activeToyId || next.asleep !== current.asleep) {
           publish(next);
         }
-        return;
+        return Math.max(0, gained);
       }
-      const result = applyEvent(next, { type: 'fetch' });
+      const result = applyEvent(base, { type: 'fetch' });
       publish(result.state, result.cue);
+      return Math.round(result.state.needs.happiness - current.needs.happiness);
     },
     [publish],
   );

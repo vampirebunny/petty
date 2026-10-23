@@ -672,7 +672,7 @@ export type World = {
   noNap?: boolean;
   // The toy gestures and play use. Missing means the ball.
   toyKind?: string;
-  // A wand or laser the player is holding. The pet ignores floor toys while this is set.
+  // A wand or laser the player is holding. Floor toys are removed while this is set.
   held: HeldToy | null;
   // Multiplies sim dt. Debug scrubbing uses 0.5 and 0.2.
   timeScale?: number;

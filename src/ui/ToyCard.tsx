@@ -14,11 +14,12 @@ type Props = {
   toys: ToyChoice[];
   top: number;
   empty: string;
+  selectedId?: string;
   onClose: () => void;
   onPick: (id: string) => void;
 };
 
-export function ToyCard({ toys, top, empty, onClose, onPick }: Props) {
+export function ToyCard({ toys, top, empty, selectedId, onClose, onPick }: Props) {
   return (
     <View style={[styles.layer, { top }]} pointerEvents="box-none">
       <Pressable style={styles.dim} accessibilityLabel="Close toys" onPress={onClose} />
@@ -33,8 +34,9 @@ export function ToyCard({ toys, top, empty, onClose, onPick }: Props) {
                 key={toy.id}
                 accessibilityRole="button"
                 accessibilityLabel={toy.label}
+                accessibilityState={{ selected: toy.id === selectedId }}
                 onPress={() => onPick(toy.id)}
-                style={styles.toy}
+                style={[styles.toy, toy.id === selectedId ? styles.toyOn : null]}
               >
                 <ToyGlyph kind={toy.id} />
                 <Text style={styles.label}>{toy.label}</Text>
@@ -103,6 +105,11 @@ const styles = StyleSheet.create({
     width: 88,
     alignItems: 'center',
     gap: 4,
+    borderRadius: 16,
+    paddingVertical: 4,
+  },
+  toyOn: {
+    backgroundColor: '#E7F3FF',
   },
   glyph: {
     width: 72,
