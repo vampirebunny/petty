@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 
 import type { OwnedItem } from '../actor/closet';
 import type { Equipped, OutfitSlot, PetState } from '../sim/types';
@@ -21,6 +21,12 @@ export function WardrobeScreen({ pet, owned, equipped, onEquip, onClose, reduced
   return (
     <View style={styles.root}>
       <View style={styles.header}>
+        <Image
+          source={require('../../assets/icon.png')}
+          style={styles.logo}
+          accessibilityLabel="Boop Boop"
+          accessibilityIgnoresInvertColors
+        />
         <Text accessibilityRole="header" style={styles.title} numberOfLines={1}>
           {title ?? `${pet.name}'s wardrobe`}
         </Text>
@@ -51,11 +57,20 @@ const styles = StyleSheet.create({
     paddingTop: 64,
   },
   header: {
-    paddingHorizontal: 16,
-    minHeight: 52,
+    height: 52,
     justifyContent: 'center',
   },
+  logo: {
+    position: 'absolute',
+    left: 20,
+    top: 2,
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+  },
   title: {
+    textAlign: 'center',
+    paddingHorizontal: 76,
     color: closet.ink,
     fontSize: 20,
     fontFamily: fontFamily.black,

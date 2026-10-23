@@ -46,7 +46,6 @@ import { basicTreatId } from '../economy/state';
 import { catalogItem } from '../economy/catalog';
 import { newRequestId, outfitsOwned } from '../economy/service';
 import { refreshShopCatalog } from '../economy/shopSync';
-import type { ShopCategory } from '../economy/shop';
 import { playRuleFor } from '../items/playRules';
 import { canGiveTreat, treatsInInventory } from '../treats';
 import { trackName } from '../sim/tracks';
@@ -195,7 +194,7 @@ export default function HomeScreen({ petApi }: Props) {
   const economyApi = useEconomy(state != null);
   const [clock, setClock] = useState(() => Date.now());
   const [pantryOpen, setPantryOpen] = useState(false);
-  const [shopTab, setShopTab] = useState<ShopCategory | null>(null);
+  const [shopOpen, setShopOpen] = useState(false);
   const [, setShopStamp] = useState(0);
   const counterRef = useRef<BoopCounterHandle>(null);
   const stageViewRef = useRef<View>(null);
@@ -237,7 +236,7 @@ export default function HomeScreen({ petApi }: Props) {
       return;
     }
     setPlacesOpen(false);
-    setShopTab(null);
+    setShopOpen(false);
   }, [homeSnapToken]);
   const whereUid = useId().replace(/:/g, '');
   const [facingOpen, setFacingOpen] = useState(false);
@@ -1032,7 +1031,7 @@ export default function HomeScreen({ petApi }: Props) {
     );
   }
 
-  if (shopTab) {
+  if (shopOpen) {
     return (
       <PetShopScreen
         pet={state}
@@ -1040,11 +1039,10 @@ export default function HomeScreen({ petApi }: Props) {
         inventory={economyApi.inventory}
         toys={home.toys}
         species={breedById(state.breedId)?.species === 'cat' ? 'cat' : 'dog'}
-        initialTab={shopTab}
         reducedMotion={reducedMotion}
-        onClose={() => setShopTab(null)}
+        onClose={() => setShopOpen(false)}
         onOpenCloset={() => {
-          setShopTab(null);
+          setShopOpen(false);
           setPantryOpen(false);
           setWardrobeOpen(true);
         }}
@@ -1058,7 +1056,7 @@ export default function HomeScreen({ petApi }: Props) {
       <PantryScreen
         inventory={economyApi.inventory}
         onClose={() => setPantryOpen(false)}
-        onStore={() => setShopTab('treats')}
+        onStore={() => setShopOpen(true)}
         onServe={(itemId) => {
           const used = economyApi.useItem(state, itemId, {}, newRequestId());
           if (used.ok && used.pet) {
@@ -1339,15 +1337,15 @@ export default function HomeScreen({ petApi }: Props) {
 
   const sheetTop = split ? 0 : previewBottom;
   const trickTitle = (trackId: string) => trackName(trackId, species);
-  const leaveForShop = (tab: ShopCategory) => {
+  const leaveForShop = () => {
     setPlacesOpen(false);
     setDialog(null);
     const stage = stageHandle.current;
     if (!stage) {
-      setShopTab(tab);
+      setShopOpen(true);
       return;
     }
-    stage.depart(() => setShopTab(tab));
+    stage.depart(() => setShopOpen(true));
   };
   const shownDialog = dialogLive ? dialog : null;
   let trainingDialog: ReactNode = null;
@@ -1447,7 +1445,7 @@ export default function HomeScreen({ petApi }: Props) {
             }
           },
         }}
-        secondary={{ label: 'Pet Shop', onPress: () => leaveForShop('treats') }}
+        secondary={{ label: 'Pet Shop', onPress: () => leaveForShop() }}
       />
     );
   } else if (shownDialog?.kind === 'break') {
@@ -1476,7 +1474,7 @@ export default function HomeScreen({ petApi }: Props) {
               return;
             }
             if (!windOwned && !windCheck.ok) {
-              leaveForShop('boosts');
+              leaveForShop();
               return;
             }
             const requestId = newRequestId();
@@ -1527,7 +1525,7 @@ export default function HomeScreen({ petApi }: Props) {
         value={economyApi.balance}
         payoutActive={burst != null}
         pending={pendingBoops}
-        onPress={() => leaveForShop('treats')}
+        onPress={() => leaveForShop()}
       />
     </View>
   );
@@ -1828,7 +1826,7 @@ export default function HomeScreen({ petApi }: Props) {
             reducedMotion={reducedMotion}
             onPick={setScene}
             onClose={() => setPlacesOpen(false)}
-            onShop={() => leaveForShop('treats')}
+            onShop={() => leaveForShop()}
           />
           </PhoneColumn>
         </View>

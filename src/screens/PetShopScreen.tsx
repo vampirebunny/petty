@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   Easing,
@@ -45,7 +45,7 @@ import type { Equipped, OutfitSlot, PetState } from '../sim/types';
 import { useLimitedContentWidth } from '../ui/PhoneColumn';
 import { isLandscapeSplit } from '../ui/wideLayout';
 import { fontFamily } from '../ui/font';
-import { Glossy, LedgeCard, glossInk } from '../ui/shop/Glossy';
+import { Glossy, LedgeCard } from '../ui/shop/Glossy';
 import { ItemArt } from '../ui/shop/ItemArt';
 import { ShopStage } from '../ui/shop/ShopStage';
 import { shop, shopRadius } from '../ui/shop/theme';
@@ -58,17 +58,16 @@ type Props = {
   inventory: InventoryRow[];
   toys: string[];
   species: SpeciesId;
-  initialTab?: ShopCategory;
   reducedMotion: boolean;
   onClose: () => void;
   onOpenCloset: () => void;
 };
 
-const tabs: { id: ShopCategory; label: string; title: string; note: string }[] = [
-  { id: 'treats', label: 'Treats', title: 'Treats & Food', note: 'Goes to your Pantry' },
-  { id: 'clothes', label: 'Clothes', title: 'Clothes', note: 'Try on, then Closet' },
-  { id: 'toys', label: 'Toys', title: 'Toys', note: 'Goes to your Toy Box' },
-  { id: 'boosts', label: 'Boosts', title: 'Boosts', note: 'Goes to your Pantry' },
+const categories: { id: ShopCategory; title: string; note: string }[] = [
+  { id: 'boosts', title: 'Boosts', note: 'Goes to your Pantry' },
+  { id: 'clothes', title: 'Clothes', note: 'Try on, then Closet' },
+  { id: 'toys', title: 'Toys', note: 'Goes to your Toy Box' },
+  { id: 'treats', title: 'Treats & Food', note: 'Goes to your Pantry' },
 ];
 
 function money(amount: number): string {
@@ -151,7 +150,6 @@ export function PetShopScreen({
   inventory,
   toys,
   species,
-  initialTab = 'treats',
   reducedMotion,
   onClose,
   onOpenCloset,
@@ -167,7 +165,6 @@ export function PetShopScreen({
   const celebrateDrop = useSharedValue(0);
   const [now, setNow] = useState(() => Date.now());
   const [clock, setClock] = useState(() => Date.now());
-  const [tab, setTab] = useState<ShopCategory>(initialTab);
   const [cart, setCart] = useState<CartRow[]>([]);
   const [sheet, setSheet] = useState(false);
   const [note, setNote] = useState<string | null>(null);
@@ -293,9 +290,12 @@ export function PetShopScreen({
   const canBuy = !!quote?.ok && cart.length > 0 && short === 0 && !busy;
   const today = localDay(clock);
   const bundle = catalog ? featuredBundle(catalog, today) : null;
-  const grid = catalog ? tabItems(catalog, tab, species) : [];
+  const groups = catalog
+    ? categories
+        .map((entry) => ({ ...entry, items: tabItems(catalog, entry.id, species) }))
+        .filter((entry) => entry.items.length > 0)
+    : [];
   const remain = day ? nextLocalMidnight(day.date) - clock : 0;
-  const tabMeta = tabs.find((entry) => entry.id === tab) ?? tabs[0];
 
   const add = (id: string, kind: CartRow['kind']) => {
     setCart((rows) => {
@@ -352,14 +352,22 @@ export function PetShopScreen({
   return (
     <View style={styles.root}>
       <View style={styles.header}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={onClose} style={styles.backHit}>
-          {({ pressed }) => (
-            <Glossy variant="white" pressed={pressed} style={styles.backFace}>
-              <ChevronLeft size={22} strokeWidth={2.8} color={shop.inkStrong} />
-            </Glossy>
-          )}
-        </Pressable>
-        <Text style={styles.title} pointerEvents="none">
+        <View style={styles.headerLead}>
+          <Image
+            source={require('../../assets/icon.png')}
+            style={styles.logo}
+            accessibilityLabel="Boop Boop"
+            accessibilityIgnoresInvertColors
+          />
+          <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={onClose} style={styles.backHit}>
+            {({ pressed }) => (
+              <Glossy variant="white" pressed={pressed} style={styles.backFace}>
+                <ChevronLeft size={22} strokeWidth={2.8} color={shop.inkStrong} />
+              </Glossy>
+            )}
+          </Pressable>
+        </View>
+        <Text style={styles.title} pointerEvents="none" numberOfLines={1}>
           Pet Shop
         </Text>
         <Glossy variant="white" style={styles.pill}>
@@ -384,7 +392,6 @@ export function PetShopScreen({
           </View>
           <ScrollView
             style={split ? styles.choices : styles.choicesFill}
-            stickyHeaderIndices={[2]}
             contentContainerStyle={styles.scroll}
             showsVerticalScrollIndicator={false}
           >
@@ -434,53 +441,35 @@ export function PetShopScreen({
                 onAdd={() => add(bundle.id, 'bundle')}
                 onQty={(qty) => setQty(bundle.id, 'bundle', qty)}
               />
-            ) : (
-              <View />
-            )}
-            <View style={styles.tabsSticky}>
-              <View style={styles.tabRow}>
-                {tabs.map((entry) => {
-                  const on = entry.id === tab;
-                  return (
-                    <Pressable
-                      key={entry.id}
-                      accessibilityRole="tab"
-                      accessibilityState={{ selected: on }}
-                      onPress={() => setTab(entry.id)}
-                      style={styles.tabHit}
-                    >
-                      {({ pressed }) => (
-                        <Glossy variant={on ? 'pink' : 'white'} pressed={pressed} style={styles.tabFace}>
-                          <Text style={[styles.tabText, { color: glossInk[on ? 'pink' : 'white'] }]}>{entry.label}</Text>
-                        </Glossy>
-                      )}
-                    </Pressable>
-                  );
-                })}
+            ) : null}
+            {groups.map((group) => (
+              <View key={group.id} style={styles.category}>
+                <View style={styles.categoryHead}>
+                  <Text style={styles.section} accessibilityRole="header">
+                    {group.title}
+                  </Text>
+                  <Text style={styles.categoryNote}>{group.note}</Text>
+                </View>
+                <View style={styles.grid}>
+                  {group.items.map((item) => (
+                    <ShopCard
+                      key={item.id}
+                      item={item}
+                      catalog={catalog}
+                      deal={item.id === dealId}
+                      fresh={isNewItem(item, today)}
+                      owned={!item.stackable && owned.has(item.id)}
+                      row={cart.find((entry) => entry.kind === 'item' && entry.id === item.id) ?? null}
+                      wearing={wearingHas(wearing, item.id)}
+                      width={cardWidth}
+                      onAdd={() => add(item.id, 'item')}
+                      onRemove={() => remove(item.id, 'item')}
+                      onQty={(qty) => setQty(item.id, 'item', qty)}
+                    />
+                  ))}
+                </View>
               </View>
-              <View style={styles.tabTitle}>
-                <Text style={styles.section}>{tabMeta.title}</Text>
-                <Text style={styles.tabNote}>{tabMeta.note}</Text>
-              </View>
-            </View>
-            <View style={styles.grid}>
-              {grid.map((item) => (
-                <ShopCard
-                  key={item.id}
-                  item={item}
-                  catalog={catalog}
-                  deal={item.id === dealId}
-                  fresh={isNewItem(item, today)}
-                  owned={!item.stackable && owned.has(item.id)}
-                  row={cart.find((entry) => entry.kind === 'item' && entry.id === item.id) ?? null}
-                  wearing={wearingHas(wearing, item.id)}
-                  width={cardWidth}
-                  onAdd={() => add(item.id, 'item')}
-                  onRemove={() => remove(item.id, 'item')}
-                  onQty={(qty) => setQty(item.id, 'item', qty)}
-                />
-              ))}
-            </View>
+            ))}
           </ScrollView>
         </View>
       )}
@@ -976,12 +965,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 10,
   },
+  headerLead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  logo: { width: 48, height: 48, borderRadius: 12 },
   backHit: { width: 44, height: 44 },
   backFace: { width: 44, height: 44 },
   title: {
     position: 'absolute',
-    left: 16,
-    right: 16,
+    left: 124,
+    right: 124,
     top: 62,
     textAlign: 'center',
     fontFamily: fontFamily.fredokaBold,
@@ -1017,19 +1008,15 @@ const styles = StyleSheet.create({
   countChip: { minHeight: 30, flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10 },
   countText: { fontFamily: fontFamily.extraBold, fontSize: 12, color: shop.inkAccent },
   pickRow: { paddingHorizontal: 16, paddingTop: 12, gap: 10 },
-  tabsSticky: { backgroundColor: shop.bg, paddingTop: 12, paddingBottom: 10, gap: 10 },
-  tabRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16 },
-  tabHit: { flex: 1 },
-  tabFace: { minHeight: 44, width: '100%' },
-  tabText: { fontFamily: fontFamily.black, fontSize: 14 },
-  tabTitle: {
+  category: { gap: 10 },
+  categoryHead: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     gap: 8,
   },
-  tabNote: { fontFamily: fontFamily.extraBold, fontSize: 12, color: shop.inkMuted },
+  categoryNote: { fontFamily: fontFamily.extraBold, fontSize: 12, color: shop.inkMuted },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, paddingHorizontal: 16, marginTop: 4 },
   cardSlot: { overflow: 'visible' },
   card: { padding: 12, gap: 6 },

@@ -22,11 +22,11 @@ Building the real catalog (items, prices, art) is a separate body of work. This 
 | Field | Notes |
 |---|---|
 | `shop` | `always` · `rotation` · `coming_soon` · `hidden`. Starter items and anything not sold are `hidden`. `coming_soon` shows the card with no price or buy button. |
-| `category` | `treats` · `clothes` · `toys` · `boosts` (shop tab), if not already derivable from `kind` |
+| `category` | `boosts` · `clothes` · `toys` · `treats` (shop section), if not already derivable from `kind` |
 | `species` | Optional, e.g. `['dog']`. Omitted means any pet. |
 | `isNewUntil` | Optional local calendar date, `YYYY-MM-DD`, inclusive. Shows the NEW badge through that date. |
 | `description` | Optional one line, e.g. "Ends a trick's rest early" |
-| `sort` | Order inside a tab |
+| `sort` | Order inside a category |
 
 Drop `min_renderer` for now; nothing compares against it until the catalog is remote.
 
@@ -54,7 +54,7 @@ Add bundles to `shopConfig.ts`: `{ id, name, price, contents: [{ itemId, qty }],
 
 ## 2. Species
 
-- **Toys the current pet can't play with are hidden** everywhere in the shop: tabs, picks and the deal. A cat is never offered a frisbee.
+- **Toys the current pet can't play with are hidden** everywhere in the shop: categories, picks and the deal. A cat is never offered a frisbee.
 - Clothes work for dogs and cats, so they have no species.
 - Bought toys still belong to the player. A future pet of the other species can use them if the species fits.
 
@@ -90,7 +90,7 @@ Known gap, fine for now: changing the device clock changes the picks.
   - a gold glossy **"DEAL −20%"** badge on the top-right corner, slightly tilted and overlapping the card edge
   - a line under the name: "Deal of the day · ~~1,200~~"
   - the discounted price in the price row
-- **Where the deal price applies:** the pick card, the cart line, the total and the charge. If the deal item also appears in its tab (an `always` item), its tab card shows the same deal price and badge.
+- **Where the deal price applies:** the pick card, the cart line, the total and the charge. If the deal item also appears in its category (an `always` item), its category card shows the same deal price and badge.
 - **Midnight with a deal item in the cart:** reprice it to full price, update the total, and show a short note in the cart: "Today's deal ended. Price updated." This is intended.
 
 ---
@@ -113,8 +113,8 @@ Top to bottom:
    - The chip says "Trying on: Rain Boots", or "Add clothes to try them on" when no clothes are in the cart.
 3. **Today's picks:** a horizontally scrolling row on a butter-yellow shelf, plus the countdown chip.
 4. **Featured bundle card.**
-5. **Category tabs:** Treats · Clothes · Toys · Boosts. The tab bar sticks under the pet stage. Each tab shows a title and where items go: "Goes to your Pantry", "Try on, then Closet", "Goes to your Toy Box".
-6. **Item grid:** 2 columns, `always` and `coming_soon` items, filtered by species. `coming_soon` cards sort after the buyable ones in their tab.
+5. **Categories:** Boosts, Clothes, Toys, and Treats, all on the page under the bundle. Each section has a title and where items go: "Goes to your Pantry", "Try on, then Closet", "Goes to your Toy Box". There is no tab bar.
+6. **Item grids:** 2 columns under each category, `always` and `coming_soon` items, filtered by species. `coming_soon` cards sort after the buyable ones in their category. A category with nothing to show is omitted.
 
 **Card states:**
 
@@ -168,7 +168,7 @@ If anything fails, nothing is charged or granted. Then queue a `player_state` pu
 ## 9. Second Wind and entry points
 
 - **Keep the break pop-up's one-tap buy-and-use** when the player has no Second Wind but can afford one. It now charges the `catalog.ts` price, the same as the shop.
-- **When they can't afford it**, the button opens the Pet Shop on the Boosts tab.
+- **When they can't afford it**, the button opens the Pet Shop. Boosts is the first merch category.
 - Other entry points: a Pet Shop entry wherever the Closet and Pantry are reached, and the Pantry's shop button.
 - **Rename "Pet Store" to "Pet Shop" everywhere:** the Pantry, the out-of-treats modal and the break pop-up.
 - The shop is available from first launch.
