@@ -7,6 +7,9 @@ import { readLegacyCloset, writePetNow } from '../db/sqlitePetStorage';
 import { getDb, transaction } from '../db/database';
 import { currentOwner, ownerIsReady } from '../db/currentOwner';
 import { catalog, catalogItem, starterOutfits, storeItems, type CatalogItem, type TreatEffects } from './catalog';
+import { touchPlayerHome } from '../db/playerHome';
+import { listedPrice, quoteCart } from './shopState';
+import type { CartInput, PricedLine, SpeciesId } from './shop';
 import { queueCoupled, queuePlayer } from '../sync/queue';
 import { economyConfig, type PlayFindKind } from './economyConfig';
 import { localDay } from './clock';
@@ -288,7 +291,8 @@ function applyTreatEffects(pet: PetState, effects: TreatEffects, gateHunger: boo
 
 export function canAfford(itemId: string, qty = 1): Check {
   const item = catalogItem(itemId);
-  if (!item || !item.available || item.price == null) {
+  const price = listedPrice(itemId);
+  if (!item || !item.available || price == null || item.kind === 'toy') {
     return { ok: false, reason: 'not_available' };
   }
   if (qty < 1) {
@@ -297,7 +301,7 @@ export function canAfford(itemId: string, qty = 1): Check {
   if (item.kind === 'outfit' && (quantity(itemId) > 0 || qty > 1)) {
     return { ok: false, reason: 'already_owned' };
   }
-  if (balance() < item.price * qty) {
+  if (balance() < price * qty) {
     return { ok: false, reason: 'insufficient_boops' };
   }
   return { ok: true };
@@ -345,7 +349,10 @@ export function canUse(pet: PetState, itemId: string, opts: UseOpts = {}, now = 
 }
 
 function commitPurchase(item: CatalogItem, qty: number, key: string): void {
-  const price = item.price ?? 0;
+  const price = listedPrice(item.id);
+  if (price == null || item.kind === 'toy') {
+    throw new Error('not_available');
+  }
   insertTransaction('purchase', key, item.id, [
     { asset: 'boops', delta: -price * qty },
     { asset: item.id, delta: qty },
@@ -378,6 +385,47 @@ function commitUse(pet: PetState, item: CatalogItem, opts: UseOpts, key: string,
       [trickId]: { ...track, restUntil: null, focusUsed: 0, hadNoTreat: false },
     },
   };
+}
+
+export function purchaseCart(
+  lines: CartInput[],
+  requestId: string,
+  species: SpeciesId,
+): Check & { charge?: number; lines?: PricedLine[]; includesClothes?: boolean } {
+  try {
+    const result = transaction(() => {
+      ensureOwnerRows();
+      if (hasKey(requestId)) {
+        return { ok: true as const };
+      }
+      const priced = quoteCart(lines, species, balance());
+      if (!priced.ok) {
+        return priced;
+      }
+      insertTransaction('purchase', requestId, 'cart', [
+        { asset: 'boops', delta: -priced.charge },
+        ...priced.inventory,
+      ]);
+      const owner = ownerId();
+      for (const toyId of priced.toys) {
+        db().runSync('INSERT OR IGNORE INTO owned_toys (owner_id, toy_id) VALUES (?, ?)', owner, toyId);
+      }
+      return {
+        ok: true as const,
+        charge: priced.charge,
+        lines: priced.lines,
+        includesClothes: priced.includesClothes,
+      };
+    });
+    emit();
+    if (result.ok) {
+      touchPlayerHome();
+      queuePlayer();
+    }
+    return result;
+  } catch (error) {
+    return { ok: false, reason: error instanceof Error ? error.message : 'unknown' };
+  }
 }
 
 export function purchase(itemId: string, qty: number, requestId: string): Check {

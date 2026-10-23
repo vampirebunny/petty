@@ -1,4 +1,4 @@
-import { createWorld, inviteCare, spawnActor, takePendingRest, update } from '../sim';
+import { createWorld, inviteCare, spawnActor, syncWorldFood, takePendingRest, update } from '../sim';
 import { scenes } from '../scenes';
 import type { ActorSource } from '../types';
 
@@ -29,6 +29,16 @@ it('starts a free pet toward food and keeps a later invite queued', () => {
   expect(actor.task.kind).not.toBe('drink');
   update(world, 0.05);
   expect(world.invites).toContain('water');
+});
+
+it('walks to a bowl that was filled before the eat cue arrived', () => {
+  const { world, actor } = pup();
+  syncWorldFood(world, true);
+  expect(world.invites).toEqual(['food']);
+  expect(actor.task.type).not.toBe('eat');
+  expect(inviteCare(world, actor, 'food')).toBe('went');
+  expect(actor.task.type).toBe('eat');
+  expect(actor.task.kind).not.toBe('drink');
 });
 
 it('ignores a second tap on an invite that is already waiting', () => {

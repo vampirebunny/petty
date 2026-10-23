@@ -18,7 +18,11 @@ function playClip(player: AudioPlayer | null, load: () => AudioPlayer): void {
       .seekTo(0)
       .catch(() => undefined)
       .then(() => {
-        active.play();
+        try {
+          active.play();
+        } catch {
+          // stay silent
+        }
       });
   } catch {
     // stay silent

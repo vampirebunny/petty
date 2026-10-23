@@ -71,11 +71,17 @@ export function playVoice(event: SoundEvent): void {
     player.shouldCorrectPitch = false;
     player.setPlaybackRate(rate);
     // A finished clip sits at its end, so wait for the rewind before playing or the repeat is dropped.
+    // play() runs after the rewind, so a session that is not active yet (common right after
+    // the app returns) must be caught here. The try above has already finished.
     void player
       .seekTo(0)
       .catch(() => undefined)
       .then(() => {
-        player.play();
+        try {
+          player.play();
+        } catch {
+          // stay silent
+        }
       });
   } catch {
     // stay silent

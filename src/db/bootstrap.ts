@@ -18,6 +18,9 @@ const dataDeletes = [
   'DELETE FROM owned_furniture',
   'DELETE FROM home_layouts',
   'DELETE FROM push_queue',
+  'DELETE FROM shop_day',
+  'DELETE FROM shop_pick_history',
+  'DELETE FROM shop_catalog_cache',
   "DELETE FROM meta WHERE key != 'storageVersion'",
 ];
 

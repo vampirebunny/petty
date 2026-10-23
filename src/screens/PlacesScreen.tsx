@@ -1,5 +1,6 @@
 import { useId } from 'react';
-import { ChevronLeft, Cookie, Shirt } from 'lucide-react-native';
+import { ChevronLeft, Cookie, Shirt, Store } from 'lucide-react-native';
+import type { LucideIcon } from 'lucide-react-native';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { scenesFor } from '../actor';
@@ -17,10 +18,11 @@ type Props = {
   onClose: () => void;
   onPantry: () => void;
   onCloset: () => void;
+  onShop: () => void;
   reducedMotion: boolean;
 };
 
-export function PlacesScreen({ species, currentSceneId, petName, onPick, onClose, onPantry, onCloset }: Props) {
+export function PlacesScreen({ species, currentSceneId, petName, onPick, onClose, onPantry, onCloset, onShop }: Props) {
   const backUid = useId().replace(/:/g, '');
   const places = scenesFor(species).filter((scene) => scene.group === 'home');
   return (
@@ -55,6 +57,7 @@ export function PlacesScreen({ species, currentSceneId, petName, onPick, onClose
           ))}
           <DestinationCard label="Pantry" blurb="Treats and snacks" tintName="butter" Icon={Cookie} onPress={onPantry} />
           <DestinationCard label="Closet" blurb={`${petName}'s clothes`} tintName="orchid" Icon={Shirt} onPress={onCloset} />
+          <DestinationCard label="Pet Shop" blurb="Treats, toys, and clothes" tintName="lilac" Icon={Store} onPress={onShop} />
         </View>
       </ScrollView>
     </View>
@@ -109,7 +112,7 @@ function DestinationCard({
   label: string;
   blurb: string;
   tintName: TintName;
-  Icon: (typeof placeIcons)['livingroom'];
+  Icon: LucideIcon;
   onPress: () => void;
 }) {
   const uid = useId().replace(/:/g, '');
@@ -132,7 +135,7 @@ function DestinationCard({
   );
 }
 
-function IconBubble({ tint, Icon }: { tint: Tint; Icon: (typeof placeIcons)['livingroom'] }) {
+function IconBubble({ tint, Icon }: { tint: Tint; Icon: LucideIcon }) {
   return (
     <View style={[styles.bubble, { shadowColor: tint.lip }]}>
       <Icon size={30} strokeWidth={iconStroke + 1} color={tint.icon} />

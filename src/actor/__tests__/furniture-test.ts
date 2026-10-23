@@ -91,6 +91,7 @@ it('drops the bedroom bowls from a save that still has them', () => {
 
 it('hits a bowl and misses the rug', () => {
   expect(furnitureAt(scenes.livingroom, 540, 330)).toBe('livingroom-food');
+  expect(furnitureAt(scenes.livingroom, 570, 314)).toBe('livingroom-food');
   expect(furnitureAt(scenes.livingroom, 330, 440)).toBeNull();
 });
 

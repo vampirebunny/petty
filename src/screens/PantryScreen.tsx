@@ -45,7 +45,7 @@ export function PantryScreen({ inventory, onClose, onStore, onServe }: Props) {
           </View>
           <Text style={[styles.name, { color: ink }]}>Treats × {basic}</Text>
           {special > 0 ? <Text style={[styles.meta, { color: ink }]}>Special treats × {special}</Text> : null}
-          {basic <= 0 ? <Text style={[styles.meta, { color: ink }]}>Out of treats. The Pet Store has more.</Text> : null}
+          {basic <= 0 ? <Text style={[styles.meta, { color: ink }]}>Out of treats. The Pet Shop has more.</Text> : null}
           <Sparkle style={styles.sparkle} opacity={0.9} />
         </CandyShell>
         {foods.map((row) => {
@@ -73,7 +73,7 @@ export function PantryScreen({ inventory, onClose, onStore, onServe }: Props) {
           {({ pressed }) => (
             <CandyShell tint={tints.lilac} radius={24} pressed={pressed} uid={`${backUid}store`} style={styles.store}>
               <Store size={22} strokeWidth={iconStroke + 1} color={tints.lilac.icon} />
-              <Text style={[styles.storeText, { color: candyInk(tints.lilac) }]}>Pet Store</Text>
+              <Text style={[styles.storeText, { color: candyInk(tints.lilac) }]}>Pet Shop</Text>
             </CandyShell>
           )}
         </Pressable>

@@ -14,6 +14,7 @@ import {
 import type { Breed, Species } from '../actor/types';
 import { attributesFor, generateOffers } from '../sim';
 import type { Look, PetAttributes } from '../sim';
+import { refreshShopCatalog } from '../economy/shopSync';
 import { loadDraft, saveDraft } from '../storage/session';
 import type { AdoptionDraft } from '../storage/session';
 import { PetPreview } from '../ui/PetPreview';
@@ -76,6 +77,10 @@ function SpeciesToggle({
 export function AdoptScreen({ onAdopt }: Props) {
   const [draft, setDraft] = useState<AdoptionDraft | null>(null);
   const draftRef = useRef<AdoptionDraft | null>(null);
+
+  useEffect(() => {
+    void refreshShopCatalog();
+  }, []);
 
   useEffect(() => {
     let cancelled = false;

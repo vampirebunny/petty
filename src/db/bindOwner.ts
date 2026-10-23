@@ -69,6 +69,32 @@ export function copyOwnerRows(from: string, to: string): void {
   for (const row of toys) {
     database.runSync('INSERT OR IGNORE INTO owned_toys (owner_id, toy_id) VALUES (?, ?)', to, row.toy_id);
   }
+  copyRowIfMissing(
+    'SELECT COUNT(*) AS n FROM shop_day WHERE owner_id = ?',
+    () => {
+      database.runSync(
+        `INSERT INTO shop_day (owner_id, date, picks, deal_id)
+         SELECT ?, date, picks, deal_id FROM shop_day WHERE owner_id = ?`,
+        to,
+        from,
+      );
+    },
+    from,
+    to,
+  );
+  const history = database.getAllSync<{ date: string; slot: string; item_id: string }>(
+    'SELECT date, slot, item_id FROM shop_pick_history WHERE owner_id = ?',
+    from,
+  );
+  for (const row of history) {
+    database.runSync(
+      'INSERT OR IGNORE INTO shop_pick_history (owner_id, date, slot, item_id) VALUES (?, ?, ?, ?)',
+      to,
+      row.date,
+      row.slot,
+      row.item_id,
+    );
+  }
   const pieces = database.getAllSync<{ piece_id: string; json: string }>(
     'SELECT piece_id, json FROM owned_furniture WHERE owner_id = ?',
     from,

@@ -31,7 +31,7 @@ import {
 } from '../storage/session';
 import { PlacesScreen } from './PlacesScreen';
 import { PantryScreen } from './PantryScreen';
-import { StoreScreen } from './StoreScreen';
+import { PetShopScreen } from './PetShopScreen';
 import { placeFlavors, placeIcons, speciesLabel } from '../ui/actionIcons';
 import { CandyShell, candyInk, tints } from '../ui/candy';
 import { BoopsPayout } from '../components/currency/BoopsPayout';
@@ -42,7 +42,11 @@ import { usePet } from '../state/usePet';
 import { usePlayerHome } from '../state/usePlayerHome';
 import { useEconomy } from '../economy/useEconomy';
 import { basicTreatId } from '../economy/state';
+import { catalogItem } from '../economy/catalog';
 import { newRequestId, outfitsOwned } from '../economy/service';
+import { refreshShopCatalog } from '../economy/shopSync';
+import type { ShopCategory } from '../economy/shop';
+import { playRuleFor } from '../items/playRules';
 import { canGiveTreat, treatsInInventory } from '../treats';
 import { trackName } from '../sim/tracks';
 import { ghostDelayMs, ghostEligible, startCuddleSession } from '../cuddle/guidance';
@@ -163,7 +167,9 @@ export default function HomeScreen({ petApi }: Props) {
   const economyApi = useEconomy(state != null);
   const [clock, setClock] = useState(() => Date.now());
   const [pantryOpen, setPantryOpen] = useState(false);
-  const [storeOpen, setStoreOpen] = useState(false);
+  const [shopTab, setShopTab] = useState<ShopCategory | null>(null);
+  const [, setShopStamp] = useState(0);
+  const [playToy, setPlayToy] = useState<string | null>(null);
   const counterRef = useRef<BoopCounterHandle>(null);
   const stageViewRef = useRef<View>(null);
   const [stageWindow, setStageWindow] = useState({ x: 0, y: 0 });
@@ -245,6 +251,14 @@ export default function HomeScreen({ petApi }: Props) {
       }
     });
     preloadBloops();
+    const pullShop = () => {
+      void refreshShopCatalog().then((ok) => {
+        if (ok) {
+          setShopStamp((value) => value + 1);
+        }
+      });
+    };
+    pullShop();
     const appState = AppState.addEventListener('change', (next) => {
       const background = next !== 'active';
       suspendMusic(background);
@@ -254,6 +268,7 @@ export default function HomeScreen({ petApi }: Props) {
         cancelBurstsRef.current();
       } else {
         unmuteBloops();
+        pullShop();
       }
     });
     return () => {
@@ -891,6 +906,7 @@ export default function HomeScreen({ petApi }: Props) {
       }
       setPlayOpen(false);
       feed();
+      stageHandle.current?.invite('food');
       countPropTap('food');
       tips.performed('tip.food');
     };
@@ -959,8 +975,24 @@ export default function HomeScreen({ petApi }: Props) {
     return <FacingLab reducedMotion={reducedMotion} onClose={() => setFacingOpen(false)} />;
   }
 
-  if (storeOpen) {
-    return <StoreScreen balance={economyApi.balance} onClose={() => setStoreOpen(false)} />;
+  if (shopTab) {
+    return (
+      <PetShopScreen
+        pet={state}
+        balance={economyApi.balance}
+        inventory={economyApi.inventory}
+        toys={home.toys}
+        species={breedById(state.breedId)?.species === 'cat' ? 'cat' : 'dog'}
+        initialTab={shopTab}
+        reducedMotion={reducedMotion}
+        onClose={() => setShopTab(null)}
+        onOpenCloset={() => {
+          setShopTab(null);
+          setPantryOpen(false);
+          setWardrobeOpen(true);
+        }}
+      />
+    );
   }
 
   if (pantryOpen) {
@@ -968,7 +1000,7 @@ export default function HomeScreen({ petApi }: Props) {
       <PantryScreen
         inventory={economyApi.inventory}
         onClose={() => setPantryOpen(false)}
-        onStore={() => setStoreOpen(true)}
+        onStore={() => setShopTab('treats')}
         onServe={(itemId) => {
           const used = economyApi.useItem(state, itemId, {}, newRequestId());
           if (used.ok && used.pet) {
@@ -999,7 +1031,7 @@ export default function HomeScreen({ petApi }: Props) {
       ? archetypeNames[origin]
       : `Born: ${archetypeNames[origin]} · Style: ${archetypeStyleNames[style]}`;
   const species = breedById(state.breedId)?.species ?? 'dog';
-  const ownsBall = home.ownsBall;
+  const playableToys = home.toys.filter((id) => playRuleFor(species, id));
 
   const tummy = 100 - state.needs.hunger;
   const feedReason = actionReason(scene, 'feed') || (state.foodInBowl ? 'The food bowl is already full.' : '');
@@ -1322,7 +1354,7 @@ export default function HomeScreen({ petApi }: Props) {
     trainingDialog = (
       <FunModal
         title="Uh oh, no treats left!"
-        body={`The Pet Store has more treats. ${state.name} still had fun practicing.`}
+        body={`The Pet Shop has more treats. ${state.name} still had fun practicing.`}
         icon={Cookie}
         tint="peach"
         reducedMotion={reducedMotion}
@@ -1338,7 +1370,7 @@ export default function HomeScreen({ petApi }: Props) {
             }
           },
         }}
-        secondary={{ label: 'Pet Store', onPress: () => setStoreOpen(true) }}
+        secondary={{ label: 'Pet Shop', onPress: () => setShopTab('treats') }}
       />
     );
   } else if (shownDialog?.kind === 'break') {
@@ -1349,7 +1381,8 @@ export default function HomeScreen({ petApi }: Props) {
       ? `${state.name} lost focus! Treats help ${state.name} stay focused longer. ${state.name} can practice again in ${remain}.`
       : `Great work on ${label}! ${state.name} can practice again in ${remain}.`;
     const windOwned = economyApi.inventory.some((row) => row.itemId === 'second_wind' && row.qty > 0);
-    const windAffordable = economyApi.canAfford('second_wind').ok;
+    const windCheck = economyApi.canAfford('second_wind');
+    const windUnavailable = !windCheck.ok && windCheck.reason !== 'insufficient_boops';
     trainingDialog = (
       <FunModal
         title={`${state.name} needs a break!`}
@@ -1359,10 +1392,14 @@ export default function HomeScreen({ petApi }: Props) {
         reducedMotion={reducedMotion}
         top={previewBottom}
         primary={{
-          label: windOwned ? 'Second Wind' : windAffordable ? 'Buy Second Wind' : 'Pet Store',
+          label: windOwned ? 'Second Wind' : windUnavailable ? 'OK' : windCheck.ok ? 'Buy Second Wind' : 'Pet Shop',
           onPress: () => {
-            if (!windOwned && !windAffordable) {
-              setStoreOpen(true);
+            if (!windOwned && windUnavailable) {
+              setDialog(null);
+              return;
+            }
+            if (!windOwned && !windCheck.ok) {
+              setShopTab('boosts');
               return;
             }
             const requestId = newRequestId();
@@ -1377,7 +1414,7 @@ export default function HomeScreen({ petApi }: Props) {
             setDialog(null);
           },
         }}
-        secondary={{ label: 'OK', onPress: () => setDialog(null) }}
+        secondary={windUnavailable ? undefined : { label: 'OK', onPress: () => setDialog(null) }}
       />
     );
   }
@@ -1460,7 +1497,8 @@ export default function HomeScreen({ petApi }: Props) {
               pet={state}
               furniture={home.pieces}
               placements={home.placements}
-              ownsBall={home.ownsBall}
+              toys={playableToys}
+              playToy={playToy}
               cueKind={cue.kind}
               cueToken={cue.token}
               treatId={cue.treatId}
@@ -1628,12 +1666,11 @@ export default function HomeScreen({ petApi }: Props) {
         <ToyCard
           top={previewBottom}
           empty="No toys yet."
-          toys={ownsBall ? [{ id: 'ball', label: 'ball' }] : []}
+          toys={playableToys.map((id) => ({ id, label: catalogItem(id)?.name ?? (id === 'ball' ? 'Ball' : id) }))}
           onClose={() => setPlayOpen(false)}
           onPick={(id) => {
-            if (id === 'ball') {
-              fetchBall();
-            }
+            setPlayToy(id);
+            fetchBall();
             setPlayOpen(false);
           }}
         />
@@ -1687,6 +1724,10 @@ export default function HomeScreen({ petApi }: Props) {
             onCloset={() => {
               setPlacesOpen(false);
               setWardrobeOpen(true);
+            }}
+            onShop={() => {
+              setPlacesOpen(false);
+              setShopTab('treats');
             }}
           />
         </View>

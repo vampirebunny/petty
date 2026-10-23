@@ -121,7 +121,8 @@ type Props = {
   shimmerIds?: readonly string[];
   furniture?: FurniturePiece[];
   placements?: FurniturePlacement[];
-  ownsBall?: boolean;
+  toys?: string[];
+  playToy?: string | null;
 };
 
 function sourceOf(pet: PetState) {
@@ -180,7 +181,8 @@ export function PetView({
   stageRef,
   furniture = [],
   placements = [],
-  ownsBall = false,
+  toys = [],
+  playToy = null,
 }: Props) {
   const { viewWidth, viewHeight } = useStageSize();
   const widthRef = useRef(viewWidth);
@@ -199,6 +201,10 @@ export function PetView({
   const activeRef = useRef(AppState.currentState === 'active');
   const hourRef = useRef(hour);
   const reducedRef = useRef(reducedMotion);
+  const toysRef = useRef(toys);
+  const playToyRef = useRef(playToy);
+  toysRef.current = toys;
+  playToyRef.current = playToy;
   const todRef = useRef<TimeOfDay>(todAt(12));
   const todAtMs = useRef(0);
   if (hourRef.current !== hour) {
@@ -355,11 +361,12 @@ export function PetView({
           rng: world.rng,
         });
         if (plan) {
-          const pool = ownsBall ? ['ball'] : [];
-          world.toyPool = pool;
+          world.toyPool = toysRef.current;
           beginGreeting(world, actor, plan);
         }
       } else if (kind === 'fetch') {
+        const picked = playToyRef.current;
+        world.toyPool = picked ? [picked] : toysRef.current;
         startUserTask(world, actor, 'fetch', 1, nextDrop, nextFlick);
       } else if (kind === 'treat') {
         const mood = nextMood ?? 0;
@@ -370,7 +377,7 @@ export function PetView({
       }
       redraw();
     },
-    [ownsBall, redraw],
+    [redraw],
   );
 
   const beginTravel = useCallback(

@@ -50,7 +50,16 @@ export function playBloop(coinIndex: number): void {
     player.volume = volumes[coinIndex] ?? volumes[volumes.length - 1];
     player.shouldCorrectPitch = false;
     player.setPlaybackRate(playbackRate(1 + (Math.random() * 2 - 1) * 0.03));
-    void player.seekTo(0).then(() => player.play());
+    void player
+      .seekTo(0)
+      .catch(() => undefined)
+      .then(() => {
+        try {
+          player.play();
+        } catch {
+          // stay silent
+        }
+      });
   } catch {
     // stay silent
   }

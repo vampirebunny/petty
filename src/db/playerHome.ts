@@ -36,6 +36,10 @@ function emit(): void {
   }
 }
 
+export function touchPlayerHome(): void {
+  emit();
+}
+
 export function toysOf(ownerId: string): string[] {
   const rows = getDb().getAllSync<{ toy_id: string }>('SELECT toy_id FROM owned_toys WHERE owner_id = ?', ownerId);
   return rows.map((row) => row.toy_id);

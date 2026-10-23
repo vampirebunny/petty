@@ -88,6 +88,27 @@ CREATE TABLE IF NOT EXISTS push_queue (
   kind TEXT NOT NULL,
   payload TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS shop_day (
+  owner_id TEXT PRIMARY KEY NOT NULL,
+  date TEXT NOT NULL,
+  picks TEXT NOT NULL,
+  deal_id TEXT
+);
+CREATE TABLE IF NOT EXISTS shop_pick_history (
+  owner_id TEXT NOT NULL,
+  date TEXT NOT NULL,
+  slot TEXT NOT NULL,
+  item_id TEXT NOT NULL,
+  PRIMARY KEY (owner_id, date, slot)
+);
+CREATE TABLE IF NOT EXISTS shop_catalog_cache (
+  id INTEGER PRIMARY KEY NOT NULL CHECK (id = 1),
+  active_json TEXT,
+  active_version INTEGER,
+  pending_json TEXT,
+  pending_version INTEGER,
+  pending_on TEXT
+);
 `;
 
 const DROP_LEGACY = `
@@ -103,6 +124,9 @@ DROP TABLE IF EXISTS owned_toys;
 DROP TABLE IF EXISTS owned_furniture;
 DROP TABLE IF EXISTS home_layouts;
 DROP TABLE IF EXISTS push_queue;
+DROP TABLE IF EXISTS shop_day;
+DROP TABLE IF EXISTS shop_pick_history;
+DROP TABLE IF EXISTS shop_catalog_cache;
 DROP TABLE IF EXISTS meta;
 `;
 

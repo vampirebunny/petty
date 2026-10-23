@@ -361,6 +361,15 @@ function ellipseOf(prop: Prop): Obstacle | null {
   return { id: prop.id, x: prop.x, y: prop.y, hw: Math.max(1, footprint(prop)), hd: furnitureDepth };
 }
 
+// The bowl sprite sits above its floor point. A tap on the rim should still count.
+function tapEllipse(prop: Prop): Obstacle | null {
+  const obstacle = ellipseOf(prop);
+  if (!obstacle || prop.kind !== 'bowl') {
+    return obstacle;
+  }
+  return { ...obstacle, y: prop.y - 12, hw: Math.max(obstacle.hw, 40), hd: 36 };
+}
+
 export function obstaclesIn(scene: Scene, openPropId: string | null): Obstacle[] {
   const list: Obstacle[] = [];
   for (const prop of scene.props) {
@@ -484,7 +493,7 @@ export function furnitureAt(scene: Scene, x: number, y: number): string | null {
   let best: { id: string; y: number } | null = null;
   const point = { x, y };
   for (const prop of scene.props) {
-    const obstacle = ellipseOf(prop);
+    const obstacle = tapEllipse(prop);
     if (!obstacle || !contains(obstacle, point)) {
       continue;
     }

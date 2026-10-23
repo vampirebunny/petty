@@ -4,31 +4,31 @@ import type { FurniturePiece, FurniturePlacement } from '../actor/furniture';
 import {
   furnitureOf,
   layoutOf,
-  ownsToy,
   subscribePlayerHome,
+  toysOf,
   type SpeciesId,
 } from '../db/playerHome';
 
 export function usePlayerHome(ownerId: string | undefined, species: SpeciesId) {
   const [pieces, setPieces] = useState<FurniturePiece[]>([]);
   const [placements, setPlacements] = useState<FurniturePlacement[]>([]);
-  const [ownsBall, setOwnsBall] = useState(false);
+  const [toys, setToys] = useState<string[]>([]);
 
   useEffect(() => {
     if (!ownerId) {
       setPieces([]);
       setPlacements([]);
-      setOwnsBall(false);
+      setToys([]);
       return;
     }
     const load = () => {
       setPieces(furnitureOf(ownerId));
       setPlacements(layoutOf(ownerId, species));
-      setOwnsBall(ownsToy(ownerId, 'ball'));
+      setToys(toysOf(ownerId));
     };
     load();
     return subscribePlayerHome(load);
   }, [ownerId, species]);
 
-  return { pieces, placements, ownsBall };
+  return { pieces, placements, toys };
 }

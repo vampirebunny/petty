@@ -750,11 +750,16 @@ function applyGlance(world: World, actor: Actor, dt: number): void {
 }
 
 // A tap fills or readies the prop. Z goes now when he is free, and otherwise glances and keeps his task.
+// A bowl that was only marked full still starts the walk: stocking food queues the invite before the cue arrives.
 export function inviteCare(world: World, actor: Actor, kind: CareInvite): 'went' | 'queued' | 'already' {
-  if (world.invites.includes(kind) || world.serving === kind) {
+  if (world.serving === kind) {
     return 'already';
   }
-  world.invites.push(kind);
+  if (!world.invites.includes(kind)) {
+    world.invites.push(kind);
+  } else if (isBusy(actor)) {
+    return 'already';
+  }
   if (!isBusy(actor)) {
     return beginInvite(world, actor, kind) ? 'went' : 'queued';
   }
