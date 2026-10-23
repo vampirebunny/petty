@@ -156,7 +156,7 @@ export default function HomeScreen({ petApi }: Props) {
     rememberGreeting,
     startCuddle,
     finishCuddle,
-    fetchBall,
+    chooseToy,
     throwAt,
     flickAt,
     setScene,
@@ -195,7 +195,6 @@ export default function HomeScreen({ petApi }: Props) {
   const [pantryOpen, setPantryOpen] = useState(false);
   const [shopTab, setShopTab] = useState<ShopCategory | null>(null);
   const [, setShopStamp] = useState(0);
-  const [playToy, setPlayToy] = useState<string | null>(null);
   const counterRef = useRef<BoopCounterHandle>(null);
   const stageViewRef = useRef<View>(null);
   const [stageWindow, setStageWindow] = useState({ x: 0, y: 0 });
@@ -1065,6 +1064,13 @@ export default function HomeScreen({ petApi }: Props) {
       : `Born: ${archetypeNames[origin]} · Style: ${archetypeStyleNames[style]}`;
   const species = breedById(state.breedId)?.species ?? 'dog';
   const playableToys = home.toys.filter((id) => playRuleFor(species, id));
+  const savedToy = state.activeToyId;
+  const activeToy =
+    savedToy && playableToys.includes(savedToy)
+      ? savedToy
+      : playableToys.includes('ball')
+        ? 'ball'
+        : (playableToys[0] ?? 'ball');
 
   const tummy = 100 - state.needs.hunger;
   const feedReason = actionReason(scene, 'feed') || (state.foodInBowl ? 'The food bowl is already full.' : '');
@@ -1545,7 +1551,7 @@ export default function HomeScreen({ petApi }: Props) {
               furniture={home.pieces}
               placements={home.placements}
               toys={playableToys}
-              playToy={playToy}
+              playToy={activeToy}
               cueKind={cue.kind}
               cueToken={cue.token}
               treatId={cue.treatId}
@@ -1722,8 +1728,8 @@ export default function HomeScreen({ petApi }: Props) {
           toys={playableToys.map((id) => ({ id, label: catalogItem(id)?.name ?? (id === 'ball' ? 'Ball' : id) }))}
           onClose={() => setPlayOpen(false)}
           onPick={(id) => {
-            setPlayToy(id);
-            fetchBall();
+            const swapped = stageHandle.current?.swapToy(id) ?? false;
+            chooseToy(id, !swapped);
             setPlayOpen(false);
           }}
         />

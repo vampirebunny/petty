@@ -7,6 +7,7 @@ import type { SkPicture } from '@shopify/react-native-skia';
 
 import {
   createWorld,
+  equipToy,
   cuddleBackPath,
   cuddleTouch,
   cuddleZoneAt,
@@ -78,6 +79,8 @@ export type StageHandle = {
   invite: (kind: 'food' | 'water' | 'bed') => 'went' | 'queued' | 'already';
   setLifted: (pieceId: string | null) => void;
   squish: (pieceId: string) => void;
+  // Changes the toy in play. True when a toy was already out and only its kind changed.
+  swapToy: (kind: string) => boolean;
   propPoint: (pieceId: string) => { x: number; y: number } | null;
   // Walks off the right and fades the room, then calls back instead of entering a scene.
   depart: (onLeft: () => void) => void;
@@ -379,8 +382,7 @@ export function PetView({
           beginGreeting(world, actor, plan);
         }
       } else if (kind === 'fetch') {
-        const picked = playToyRef.current;
-        world.toyPool = picked ? [picked] : toysRef.current;
+        world.toyKind = playToyRef.current || 'ball';
         startUserTask(world, actor, 'fetch', 1, nextDrop, nextFlick);
       } else if (kind === 'treat') {
         const mood = nextMood ?? 0;
@@ -563,6 +565,13 @@ export function PetView({
         const world = worldRef.current;
         world.squishId = pieceId;
         world.squishAt = world.t;
+      },
+      swapToy: (kind) => {
+        const swapped = equipToy(worldRef.current, kind);
+        if (swapped) {
+          redrawRef.current();
+        }
+        return swapped;
       },
       propPoint: (pieceId) => {
         const prop = worldRef.current.scene.props.find((item) => item.id === pieceId);

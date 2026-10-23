@@ -100,6 +100,20 @@ function clearItems(world: World): void {
   world.items = [];
 }
 
+// Points play at this toy. A toy already in the scene keeps its place and motion and only changes kind.
+export function equipToy(world: World, kind: string): boolean {
+  world.toyKind = kind;
+  const toys = world.items.filter((item) => !item.kind.startsWith('treat:'));
+  if (toys.length === 0) {
+    return false;
+  }
+  for (const toy of toys) {
+    toy.kind = kind;
+    toy.id = `${kind}-1`;
+  }
+  return true;
+}
+
 function freeToy(world: World): Item | null {
   return world.items.find((item) => item.state === 'free') ?? null;
 }

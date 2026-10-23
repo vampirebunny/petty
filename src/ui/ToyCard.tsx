@@ -23,7 +23,7 @@ export function ToyCard({ toys, top, empty, onClose, onPick }: Props) {
     <View style={[styles.layer, { top }]} pointerEvents="box-none">
       <Pressable style={styles.dim} accessibilityLabel="Close toys" onPress={onClose} />
       <View style={styles.card}>
-        <Text style={styles.title}>Play</Text>
+        <Text style={styles.title}>Toy Box</Text>
         {toys.length === 0 ? (
           <Text style={styles.empty}>{empty}</Text>
         ) : (

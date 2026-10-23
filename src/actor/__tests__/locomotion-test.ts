@@ -19,7 +19,7 @@ import {
   stepStamina,
 } from '../locomotion';
 import { breedById } from '../breeds';
-import { createWorld, spawnActor, startUserTask, update } from '../sim';
+import { createWorld, equipToy, spawnActor, startUserTask, update } from '../sim';
 import type { ActorSource } from '../types';
 
 const stats = { stamina: 0.5, agility: 0.5, boldness: 0.5, obedience: 0.5 };
@@ -210,6 +210,45 @@ describe('play in the sim', () => {
     expect(held).toBeGreaterThanOrEqual(0.45);
     expect(held).toBeLessThanOrEqual(1.6);
     expect(pup.task.stage).not.toBe('bow');
+  });
+
+  it('throws the equipped toy', () => {
+    const pup = spawnActor(source());
+    const world = createWorld([pup], 1);
+    world.toyKind = 'frisbee';
+    startUserTask(world, pup, 'fetch', 1, { x: 100, y: 200 }, { vx: 80, vy: 0, vz: 40 });
+    expect(world.items[0]?.kind).toBe('frisbee');
+    expect(pup.task.type).toBe('fetch');
+  });
+
+  it('swaps a toy in place and keeps the chase', () => {
+    const pup = spawnActor(source());
+    const world = createWorld([pup], 1);
+    pup.task = { type: 'fetch', stage: 'chase', t: 1.2, bats: 0, cool: 0 };
+    world.items = [{ id: 'ball-1', kind: 'ball', state: 'free', x: 120, y: 200, z: 40, vx: 30, vy: 5, vz: 10 }];
+    expect(equipToy(world, 'squeaky')).toBe(true);
+    expect(world.items[0]).toMatchObject({
+      id: 'squeaky-1',
+      kind: 'squeaky',
+      state: 'free',
+      x: 120,
+      y: 200,
+      z: 40,
+      vx: 30,
+      vy: 5,
+      vz: 10,
+    });
+    expect(pup.task.stage).toBe('chase');
+    expect(pup.task.t).toBe(1.2);
+    expect(world.toyKind).toBe('squeaky');
+  });
+
+  it('equips a toy without spawning one when the scene is empty', () => {
+    const pup = spawnActor(source());
+    const world = createWorld([pup], 1);
+    expect(equipToy(world, 'yarn')).toBe(false);
+    expect(world.items).toEqual([]);
+    expect(world.toyKind).toBe('yarn');
   });
 
   it('has a cat stalk, wiggle and pounce at a toy lying still', () => {

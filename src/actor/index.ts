@@ -77,6 +77,7 @@ export { outfitSlots, wardrobe, wearItem } from './wardrobe';
 export {
   createWorld,
   dropBallAt,
+  equipToy,
   flickBallAt,
   frameDt,
   isSceneTravel,

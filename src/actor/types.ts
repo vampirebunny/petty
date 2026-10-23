@@ -638,7 +638,7 @@ export type World = {
   silhouette?: boolean;
   // Pets never nap on their own (the adoption preview keeps them awake).
   noNap?: boolean;
-  // The toy a play session uses. Default is the ball.
+  // The toy gestures and play use. Missing means the ball.
   toyKind?: string;
   // Multiplies sim dt. Debug scrubbing uses 0.5 and 0.2.
   timeScale?: number;

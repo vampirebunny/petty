@@ -85,6 +85,7 @@ type PetApi = {
   startCuddle: () => void;
   finishCuddle: (seconds: number) => void;
   fetchBall: () => void;
+  chooseToy: (id: string, launch: boolean) => void;
   throwAt: (x: number, y: number) => void;
   flickAt: (x: number, y: number, vx: number, vy: number) => void;
   setScene: (sceneId: string) => void;
@@ -730,6 +731,24 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
     [commitProgress],
   );
   const fetchBall = useCallback(() => dispatch({ type: 'fetch' }), [dispatch]);
+  const chooseToy = useCallback(
+    (id: string, launch: boolean) => {
+      const current = stateRef.current;
+      if (!current || !id) {
+        return;
+      }
+      const next = current.activeToyId === id ? current : { ...current, activeToyId: id };
+      if (!launch) {
+        if (next !== current) {
+          publish(next);
+        }
+        return;
+      }
+      const result = applyEvent(next, { type: 'fetch' });
+      publish(result.state, result.cue);
+    },
+    [publish],
+  );
   const throwAt = useCallback(
     (x: number, y: number) => dispatch({ type: 'fetch', drop: { x, y } }),
     [dispatch],
@@ -803,6 +822,7 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
     startCuddle,
     finishCuddle,
     fetchBall,
+    chooseToy,
     throwAt,
     flickAt,
     setScene,

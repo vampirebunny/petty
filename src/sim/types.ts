@@ -148,6 +148,8 @@ export type PetState = {
   seenCoachMarks: string[];
   // Second greeting of the last long combo. Shorts and closers are not stored.
   lastGreetingId?: string;
+  // Toy equipped from the Toy Box. Missing means the ball. Stays until another toy is picked.
+  activeToyId?: string;
   // Set when the pet is retired. The sim never loads a pet that has this.
   retiredAt?: number;
 };
