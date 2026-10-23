@@ -45,6 +45,7 @@ import {
   takeMeals,
   takePlayFinds,
   takeTreatMoods,
+  takeTreatFinishes,
   takePondDrinks,
   takeCuddleOut,
   takeSounds,
@@ -129,6 +130,8 @@ type Props = {
   onAte?: () => void;
   onPlayFind?: (kind: 'fetch_round' | 'toy_round', at: { x: number; y: number }) => void;
   onTreatMood?: (amount: number) => void;
+  onTreatEaten?: () => void;
+  onTreatSkipped?: () => void;
   onTraveling?: (active: boolean) => void;
   onPointAdds?: (adds: PointAdd[]) => void;
   onGreeting?: (id: string) => void;
@@ -195,6 +198,8 @@ export function PetView({
   onAte,
   onPlayFind,
   onTreatMood,
+  onTreatEaten,
+  onTreatSkipped,
   onTraveling,
   onPointAdds,
   onGreeting,
@@ -332,9 +337,13 @@ export function PetView({
     moodGain?: number;
   } | null>(null);
   const onTreatMoodRef = useRef(onTreatMood);
+  const onTreatEatenRef = useRef(onTreatEaten);
+  const onTreatSkippedRef = useRef(onTreatSkipped);
   useEffect(() => {
     onTreatMoodRef.current = onTreatMood;
-  }, [onTreatMood]);
+    onTreatEatenRef.current = onTreatEaten;
+    onTreatSkippedRef.current = onTreatSkipped;
+  }, [onTreatEaten, onTreatMood, onTreatSkipped]);
   const petRef = useRef(pet);
   const elapsedRef = useRef(elapsedH);
   const onGreetingRef = useRef(onGreeting);
@@ -402,8 +411,11 @@ export function PetView({
       } else if (kind === 'treat') {
         const mood = nextMood ?? 0;
         const started = startTreat(world, actor, nextTreatId || 'biscuit', mood);
-        if (!started && mood > 0) {
-          onTreatMoodRef.current?.(mood);
+        if (!started) {
+          onTreatSkippedRef.current?.();
+          if (mood > 0) {
+            onTreatMoodRef.current?.(mood);
+          }
         }
       }
       redraw();
@@ -850,6 +862,10 @@ export function PetView({
       for (const kind of takePlayFinds(world)) {
         const at = actor ? { x: actor.x, y: actor.y } : { x: 0, y: 0 };
         onPlayFindRef.current?.(kind, at);
+      }
+      const finishes = takeTreatFinishes(world);
+      for (let i = 0; i < finishes; i += 1) {
+        onTreatEatenRef.current?.();
       }
       for (const amount of takeTreatMoods(world)) {
         onTreatMoodRef.current?.(amount);

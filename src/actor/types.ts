@@ -656,6 +656,10 @@ export type World = {
   pendingPlayFinds: ('fetch_round' | 'toy_round')[];
   // Mood-point amounts waiting to be shown, one per treat the pet has finished.
   pendingTreatMoods: number[];
+  // Treat bites finished since the view last looked, including bites with no mood.
+  pendingTreatFinishes: number;
+  // The treat the pet is walking to or chewing. Cleared once that bite is settled.
+  liveTreat: { mood: number } | null;
   t: number;
   rng: () => number;
   scene: Scene;

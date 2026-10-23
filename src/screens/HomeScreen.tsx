@@ -64,6 +64,8 @@ import { usePlaydates } from '../state/usePlaydates';
 import { formatCooldown } from '../playdate/cooldown';
 import { DebugPanel } from '../ui/DebugPanel';
 import { NeedRings } from '../ui/NeedRings';
+import { needHold, presentNeeds, sumHolds } from '../ui/needHold';
+import type { NeedHold } from '../ui/needHold';
 import { TrainingRings } from '../ui/TrainingRings';
 import { FunModal } from '../ui/FunModal';
 import { TreatPicker } from '../ui/TreatPicker';
@@ -210,6 +212,8 @@ export default function HomeScreen({ petApi }: Props) {
     cancelBurstsRef.current = cancelBursts;
   }, [cancelBursts]);
   const [pops, setPops] = useState<PointPop[] | null>(null);
+  const [treatHolds, setTreatHolds] = useState<NeedHold[]>([]);
+  const treatHoldsRef = useRef<NeedHold[]>([]);
   const clearPops = useCallback(() => setPops(null), []);
   const [dialog, setDialog] = useState<
     | { kind: 'good' | 'miss' | 'out' | 'break'; trackId: string }
@@ -1215,6 +1219,33 @@ export default function HomeScreen({ petApi }: Props) {
     const mood = { color: tints.pink.icon, amount: gain, label: 'Mood' };
     setPops((current) => (current ? [...current, mood] : [mood]));
   };
+  const rememberTreat = (before: typeof state.needs, after: typeof state.needs) => {
+    const next = [...treatHoldsRef.current, needHold(before, after)];
+    treatHoldsRef.current = next;
+    setTreatHolds(next);
+  };
+  const releaseTreatHold = (end: 'oldest' | 'newest') => {
+    const queue = treatHoldsRef.current;
+    if (queue.length === 0) {
+      return;
+    }
+    const released = end === 'oldest' ? queue[0] : queue[queue.length - 1];
+    const next = end === 'oldest' ? queue.slice(1) : queue.slice(0, -1);
+    treatHoldsRef.current = next;
+    setTreatHolds(next);
+    const shown: PointPop[] = [];
+    const tummy = Math.round(-released.hunger);
+    if (tummy > 0) {
+      shown.push({ color: tints.peach.icon, amount: tummy, label: 'Tummy' });
+    }
+    const energy = Math.round(released.energy);
+    if (energy > 0) {
+      shown.push({ color: tints.butter.icon, amount: energy, label: 'Energy' });
+    }
+    if (shown.length > 0) {
+      setPops((current) => (current ? [...current, ...shown] : shown));
+    }
+  };
   const noteGain = (trackId: string, before: typeof state, after: typeof state, deferMood = false) => {
     const steps = shownAttributeSteps(before, after);
     const ordered = [
@@ -1406,6 +1437,7 @@ export default function HomeScreen({ petApi }: Props) {
             }
             const paid = resolveTraining('treat', used.pet);
             if (paid) {
+              rememberTreat(paid.before.needs, paid.after.needs);
               afterPayout(trackId, paid.before, paid.after, true);
             }
           },
@@ -1620,6 +1652,7 @@ export default function HomeScreen({ petApi }: Props) {
               );
               return;
             }
+            rememberTreat(state.needs, used.pet.needs);
             offerTreat(treatId, used.pet);
             setTreatOpen(false);
             setTreatNote(null);
@@ -1631,7 +1664,7 @@ export default function HomeScreen({ petApi }: Props) {
 
   const controls = (
     <ScrollView style={styles.controls} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <NeedRings needs={state.needs} hydration={state.hydration} />
+        <NeedRings needs={presentNeeds(state.needs, sumHolds(treatHolds))} hydration={state.hydration} />
         {welcomeBack ? (
           <Pressable onPress={dismissWelcome} accessibilityRole="button">
             <Text style={styles.hint}>{state.name} missed you!</Text>
@@ -1813,6 +1846,8 @@ export default function HomeScreen({ petApi }: Props) {
               treatId={cue.treatId}
               moodGain={cue.moodGain}
               onTreatMood={showMoodBurst}
+              onTreatEaten={() => releaseTreatHold('oldest')}
+              onTreatSkipped={() => releaseTreatHold('newest')}
               drop={cue.drop}
               flick={cue.flick}
               hour={hour}

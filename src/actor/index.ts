@@ -100,6 +100,7 @@ export {
   takeMeals,
   takePlayFinds,
   takeTreatMoods,
+  takeTreatFinishes,
   takeEnergyDelta,
   takeEnergyPops,
   takeMoodPops,

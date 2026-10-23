@@ -340,6 +340,8 @@ export function createWorld(actors: Actor[], seed = 1, scene: Scene = scenes.liv
     pendingMeals: 0,
     pendingPlayFinds: [],
     pendingTreatMoods: [],
+    pendingTreatFinishes: 0,
+    liveTreat: null,
     t: 0,
     rng: makeRng(seed),
     scene: sceneForSpecies(scene, sceneSpeciesOf(actors)),
@@ -637,6 +639,31 @@ export function takeTreatMoods(world: World): number[] {
   const amounts = world.pendingTreatMoods;
   world.pendingTreatMoods = [];
   return amounts;
+}
+
+export function takeTreatFinishes(world: World): number {
+  const count = world.pendingTreatFinishes;
+  world.pendingTreatFinishes = 0;
+  return count;
+}
+
+// The bite counts as soon as the treat is gone: eaten, or dropped because something else took over.
+function finishLiveTreat(world: World): void {
+  const live = world.liveTreat;
+  if (!live) {
+    return;
+  }
+  world.liveTreat = null;
+  for (const actor of world.actors) {
+    if (actor.task.type === 'treat') {
+      actor.task.mood = undefined;
+    }
+  }
+  world.items = world.items.filter((item) => !item.kind.startsWith('treat:'));
+  world.pendingTreatFinishes += 1;
+  if (live.mood > 0) {
+    world.pendingTreatMoods.push(live.mood);
+  }
 }
 
 export function syncWorldFood(world: World, stocked: boolean, premium = false): void {
@@ -1149,6 +1176,7 @@ export function startTreat(world: World, actor: Actor, treatId: string, moodGain
   if (!treatId || !startUserTask(world, actor, 'idle')) {
     return false;
   }
+  finishLiveTreat(world);
   const floor = world.scene.floor;
   const sized = travelScale(actor, floor);
   const standOff = sized ? sized.scale * (sized.geom.bodyLen / 2 + 28) : 56;
@@ -1176,7 +1204,9 @@ export function startTreat(world: World, actor: Actor, treatId: string, moodGain
   ];
   actor.task = taskOf('treat', 'go');
   actor.task.poi = { x, y, face };
-  actor.task.mood = moodGain > 0 ? moodGain : undefined;
+  const mood = moodGain > 0 ? moodGain : 0;
+  actor.task.mood = mood > 0 ? mood : undefined;
+  world.liveTreat = { mood };
   actor.pantT = 0;
   return true;
 }
@@ -2329,13 +2359,8 @@ function updateActor(world: World, actor: Actor, dt: number): void {
         targets.headDown = 1;
         targets.wagAmp = 0.85;
         wagRate = 18;
-        if (actor.task.t > 1.6 && treat) {
-          const mood = actor.task.mood ?? 0;
-          world.items = world.items.filter((item) => item !== treat);
-          if (mood > 0) {
-            world.pendingTreatMoods.push(mood);
-            actor.task.mood = undefined;
-          }
+        if (actor.task.t > 1.6) {
+          finishLiveTreat(world);
         }
         if (actor.task.t > 2.4) {
           world.items = world.items.filter((item) => !item.kind.startsWith('treat:'));
@@ -3002,6 +3027,9 @@ export function update(world: World, dt: number): void {
     }
     updateActor(world, actor, step);
     if (!actor.guest) {
+      if (world.liveTreat && actor.task.type !== 'treat') {
+        finishLiveTreat(world);
+      }
       applyGlance(world, actor, step);
     }
   }
