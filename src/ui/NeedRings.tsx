@@ -6,6 +6,7 @@ import Svg, { Circle } from 'react-native-svg';
 import type { Needs } from '../sim/types';
 import { candyInk, tints } from './candy';
 import type { TintName } from './candy';
+import { fontFamily } from './font';
 import { iconStroke } from './theme';
 
 type Props = {
@@ -13,10 +14,14 @@ type Props = {
   hydration: number;
 };
 
-const ringSize = 54;
-const stroke = 6;
-const ringRadius = 22;
+// Geometry lives in a 100-unit box so the ring can grow with its column and still
+// keep the stroke inside the edges. The value sits under the icon, so the ring
+// is larger than the old icon-only disc.
+const box = 100;
+const stroke = 8;
+const ringRadius = (box - stroke) / 2;
 const circumference = 2 * Math.PI * ringRadius;
+const iconSize = 22;
 
 const lowThreshold = 25;
 const alarmArc = '#D93A3F';
@@ -98,16 +103,16 @@ export function Ring({
   const tint = tints[need.tint];
   const alarm = clamped < (need.alarmBelow ?? lowThreshold) && !need.noAlarm;
   const caption = hint ?? (tiers.find((tier) => clamped >= tier.min) ?? tiers[tiers.length - 1]).text;
-  const status = hint ? caption : `${caption} · ${Math.round(clamped)}%`;
+  const shown = Math.round(clamped);
   const ink = candyInk(tint);
-  const labelText = `${label} ${Math.round(clamped)} percent, ${caption.replace('!', '')}`;
+  const labelText = `${label} ${shown} percent, ${caption.replace('!', '')}`;
   const body = (
     <View style={styles.face}>
       <View style={styles.ring}>
-        <Svg width={ringSize} height={ringSize}>
+        <Svg width="100%" height="100%" viewBox={`0 0 ${box} ${box}`}>
           <Circle
-            cx={ringSize / 2}
-            cy={ringSize / 2}
+            cx={box / 2}
+            cy={box / 2}
             r={ringRadius}
             stroke="rgba(255,255,255,0.9)"
             strokeWidth={stroke}
@@ -115,8 +120,8 @@ export function Ring({
           />
           {clamped > 0 ? (
             <Circle
-              cx={ringSize / 2}
-              cy={ringSize / 2}
+              cx={box / 2}
+              cy={box / 2}
               r={ringRadius}
               stroke={alarm ? alarmArc : tint.icon}
               strokeWidth={stroke}
@@ -124,15 +129,18 @@ export function Ring({
               strokeDasharray={`${circumference} ${circumference}`}
               strokeDashoffset={circumference * (1 - clamped / 100)}
               fill="none"
-              transform={`rotate(-90 ${ringSize / 2} ${ringSize / 2})`}
+              transform={`rotate(-90 ${box / 2} ${box / 2})`}
             />
           ) : null}
         </Svg>
-        <View style={styles.glyph}>
-          <View style={styles.glyphShadow}>
-            <Icon size={24} strokeWidth={iconStroke + 1} color="#FFFFFF" />
+        <View style={styles.core}>
+          <View style={styles.glyph}>
+            <View style={styles.glyphShadow}>
+              <Icon size={iconSize} strokeWidth={iconStroke + 1} color="#FFFFFF" />
+            </View>
+            <Icon size={iconSize} strokeWidth={iconStroke + 1} color={tint.icon} />
           </View>
-          <Icon size={24} strokeWidth={iconStroke + 1} color={tint.icon} />
+          <Text style={[styles.value, { color: alarm ? alarmText : ink }]}>{shown}%</Text>
         </View>
         {alarm ? (
           <View style={styles.badge}>
@@ -144,7 +152,7 @@ export function Ring({
         {label}
       </Text>
       <Text style={[styles.status, { color: alarm ? alarmText : ink }, alarm && styles.statusAlarm]} numberOfLines={1}>
-        {status}
+        {caption}
       </Text>
     </View>
   );
@@ -194,31 +202,48 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
   },
   ring: {
-    width: ringSize,
-    height: ringSize,
+    alignSelf: 'center',
+    width: '100%',
+    maxWidth: 88,
+    aspectRatio: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  glyph: {
+  core: {
     position: 'absolute',
-    width: 24,
-    height: 24,
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 1,
+  },
+  glyph: {
+    width: iconSize,
+    height: iconSize,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   glyphShadow: {
     position: 'absolute',
-    top: 2,
-    left: 0,
+    top: 1,
+  },
+  value: {
+    fontFamily: fontFamily.black,
+    fontSize: 14,
+    lineHeight: 16,
   },
   label: {
+    fontFamily: fontFamily.black,
     fontSize: 13,
-    fontWeight: '900',
   },
   status: {
+    fontFamily: fontFamily.extraBold,
     fontSize: 11,
-    fontWeight: '800',
   },
   statusAlarm: {
-    fontWeight: '900',
+    fontFamily: fontFamily.black,
   },
   badge: {
     position: 'absolute',
