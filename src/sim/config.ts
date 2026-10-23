@@ -34,7 +34,7 @@ export const moodNeedFloor = 30;
 // One grant after this much continuous movement, or after this many taps or throws.
 export const playHappinessGain = 3;
 export const playMoodIntervalSec = 3;
-export const playMoodActCount = 3;
+export const playMoodActCount = 5;
 // World px/s. Slower than this is the toy sitting, not moving.
 export const playMoveSpeed = 40;
 // Empty energy drops the pet for this long, then they wake with a little energy back.

@@ -19,6 +19,7 @@ import {
   stepStamina,
 } from '../locomotion';
 import { breedById } from '../breeds';
+import { playMoodActCount } from '../../sim/config';
 import { clearPlayToy, createWorld, equipToy, spawnActor, startHeld, startUserTask, throwFromEdge, update } from '../sim';
 import type { ActorSource } from '../types';
 
@@ -332,16 +333,18 @@ describe('play in the sim', () => {
     expect(kit.moodPops).toEqual([3]);
   });
 
-  it('pays mood on the third tap or throw', () => {
+  it('pays mood on the fifth tap or throw', () => {
     const pup = spawnActor(source());
     const world = createWorld([pup], 1);
-    throwFromEdge(world);
-    throwFromEdge(world);
+    for (let i = 0; i < playMoodActCount - 1; i += 1) {
+      throwFromEdge(world);
+    }
     expect(pup.moodPops).toEqual([]);
     throwFromEdge(world);
     expect(pup.moodPops).toEqual([3]);
-    throwFromEdge(world);
-    throwFromEdge(world);
+    for (let i = 0; i < playMoodActCount - 1; i += 1) {
+      throwFromEdge(world);
+    }
     expect(pup.moodPops).toEqual([3]);
     throwFromEdge(world);
     expect(pup.moodPops).toEqual([3, 3]);

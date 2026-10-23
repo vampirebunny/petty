@@ -132,7 +132,7 @@ Two kinds of toy:
 - **Thrown toys** (everything except the wand and the laser) use the existing play task: a flick throws, and `PLAY_RULES` decides what the pet does. No "give" mode.
 - **Held toys** (`wand`, `laser`) use a new held mode, specified below.
 
-**Mood.** Leaving a toy out does not change mood, and neither does a pet chasing or chewing on its own. Mood rises by **+3** when the toy keeps moving for **3 seconds**, or when the user **taps or throws 3 times**. Either one is enough. The movement clock clears when the toy stops, so the next stretch has to last the full 3 seconds. The tap count clears when the grant lands, or when the toy is put away. Tummy and energy both have to be at least 30. The bone's old chew bonus and the laser's +10 win bonus are not used.
+**Mood.** Leaving a toy out does not change mood, and neither does a pet chasing or chewing on its own. Mood rises by **+3** when the toy keeps moving for **3 seconds**, or when the user **taps or throws 5 times**. Either one is enough. The movement clock clears when the toy stops, so the next stretch has to last the full 3 seconds. The tap count clears when the grant lands, or when the toy is put away. Tummy and energy both have to be at least 30. The bone's old chew bonus and the laser's +10 win bonus are not used.
 
 New toy ids are plain, like the existing `ball` and `yarn`. A toy with no play rule stays out of the picker.
 
@@ -142,7 +142,7 @@ New toy ids are plain, like the existing `ball` and `yarn`. A toy with no play r
 |---|---|---|
 | `crinkle` | cat | **The cat ball rule** (stalk, pounce, bat, no carry), plus the crinkle sound **on each bat and each time it hits the floor after a bat**. The sound comes later; it's silent until then. |
 | `mouse` | cat | **The yarn rule exactly.** A **squeak toy**: it plays the new squeak on each pounce, each bat, and each time it hits the floor (after the throw and after a bat). |
-| `bone` | dog | **One id everywhere:** the existing `bone` kind in `ITEM_KINDS` (gripped in the mouth) is the chew bone. Give it a drawing (the Icons board's Chewy Bone) and a play rule. Thrown. The dog fetches it in the mouth, then instead of returning it, **lies down where it caught it and chews** (`jawHold` oscillating, a slight head bob) for 20–40 s. Chewing does not raise mood. Mood is the shared clock above: 3 seconds of the toy moving, or 3 taps or throws. A flick works as it does for every toy: it ends the chew, removes the bone and spawns a new one in the air at the finger. Label "Chewy Bone". |
+| `bone` | dog | **One id everywhere:** the existing `bone` kind in `ITEM_KINDS` (gripped in the mouth) is the chew bone. Give it a drawing (the Icons board's Chewy Bone) and a play rule. Thrown. The dog fetches it in the mouth, then instead of returning it, **lies down where it caught it and chews** (`jawHold` oscillating, a slight head bob) for 20–40 s. Chewing does not raise mood. Mood is the shared clock above: 3 seconds of the toy moving, or 5 taps or throws. A flick works as it does for every toy: it ends the chew, removes the bone and spawns a new one in the air at the finger. Label "Chewy Bone". |
 | `rope` | dog | **No rule**, so it isn't in the picker. Icon only. |
 
 ### Held toys: a new held play mode
