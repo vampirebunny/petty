@@ -1,5 +1,5 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
 
 import { fontFamily } from './font';
@@ -20,13 +20,14 @@ type Props = {
   value: number;
   payoutActive: boolean;
   pending: number;
+  onPress?: () => void;
 };
 
 function formatBoops(value: number): string {
   return new Intl.NumberFormat('en-US').format(value);
 }
 
-export const BoopCounter = forwardRef<BoopCounterHandle, Props>(function BoopCounter({ value, payoutActive, pending }, ref) {
+export const BoopCounter = forwardRef<BoopCounterHandle, Props>(function BoopCounter({ value, payoutActive, pending, onPress }, ref) {
   const [shown, setShown] = useState(value);
   const [announced, setAnnounced] = useState(value);
   const shownRef = useRef(value);
@@ -158,10 +159,12 @@ export const BoopCounter = forwardRef<BoopCounterHandle, Props>(function BoopCou
     transform: [{ scale: pill.value }],
   }));
 
-  return (
+  const face = (
     <Animated.View
-      accessibilityLabel={`${announced} Boops`}
-      style={[styles.pill, pillStyle]}
+      accessibilityElementsHidden={onPress != null}
+      importantForAccessibility={onPress != null ? 'no-hide-descendants' : 'auto'}
+      accessibilityLabel={onPress ? undefined : `${announced} Boops`}
+      style={[styles.pill, onPress ? null : styles.hit, pillStyle]}
       onLayout={rememberCoin}
     >
       <View ref={coinRef} onLayout={rememberCoin}>
@@ -170,13 +173,26 @@ export const BoopCounter = forwardRef<BoopCounterHandle, Props>(function BoopCou
       <Text style={styles.value}>{formatBoops(shown)}</Text>
     </Animated.View>
   );
+
+  if (!onPress) {
+    return face;
+  }
+
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel={`${announced} Boops. Open Pet Shop`} onPress={onPress} style={styles.hit}>
+      {face}
+    </Pressable>
+  );
 });
 
 const styles = StyleSheet.create({
-  pill: {
+  hit: {
     position: 'absolute',
     right: 16,
-    top: 0,
+    // Home header is 52 tall and the pill is 30, so this sits on the same line as the name.
+    top: 11,
+  },
+  pill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,

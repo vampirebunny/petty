@@ -2,6 +2,8 @@
 
 The pet screen's action panel is cotton-candy: glossy pink, blue, and lilac controls. Need rings, training cards, the Where card, the room height, the Expo Go gear, and the debug Settings link stay as they were.
 
+The Boops counter in the upper right opens the Pet Shop.
+
 ## Sections
 
 Care (pink): Feed, Water, Treat, Sleep. Sleep says Wake only once the pet is actually asleep.

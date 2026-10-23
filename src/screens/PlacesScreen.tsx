@@ -1,14 +1,12 @@
 import { useId } from 'react';
-import { ChevronLeft, Cookie, Shirt, Store } from 'lucide-react-native';
-import type { LucideIcon } from 'lucide-react-native';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ChevronLeft } from 'lucide-react-native';
+import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 
-import { scenesFor } from '../actor';
-import type { Scene } from '../actor';
-import { placeFlavors, placeIcons } from '../ui/actionIcons';
-import { CandyShell, GRAY, Sparkle, WHITE, candyInk, tints } from '../ui/candy';
-import type { Tint, TintName } from '../ui/candy';
-import { iconStroke } from '../ui/theme';
+import { fontFamily } from '../ui/font';
+import { LocationButton } from '../ui/places/LocationButton';
+import { locationIcons } from '../ui/places/locationIcons';
+import { spotsFor } from '../ui/places/spots';
 
 type Props = {
   species: 'dog' | 'cat';
@@ -16,143 +14,92 @@ type Props = {
   petName: string;
   onPick: (sceneId: string) => void;
   onClose: () => void;
-  onPantry: () => void;
-  onCloset: () => void;
   onShop: () => void;
   reducedMotion: boolean;
 };
 
-export function PlacesScreen({ species, currentSceneId, petName, onPick, onClose, onPantry, onCloset, onShop }: Props) {
-  const backUid = useId().replace(/:/g, '');
-  const places = scenesFor(species).filter((scene) => scene.group === 'home');
+export function PlacesScreen({ species, currentSceneId, petName, onPick, onClose, onShop, reducedMotion }: Props) {
+  const { width } = useWindowDimensions();
+  const column = Math.max(0, (width - 12 * 2 - 8) / 2);
+  const iconSize = Math.min(132, column);
+  const spots = spotsFor(species);
+
   return (
     <View style={styles.root}>
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.header}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={onClose} style={styles.backHit}>
-            {({ pressed }) => (
-              <CandyShell tint={GRAY} radius={16} pressed={pressed} uid={backUid} style={styles.backFace}>
-                <ChevronLeft size={22} strokeWidth={iconStroke + 1} color={GRAY.icon} />
-              </CandyShell>
-            )}
-          </Pressable>
+          <BackButton onPress={onClose} />
           <View style={styles.titles}>
             <Text style={styles.title}>Where to?</Text>
             <Text style={styles.subtitle}>Pick a spot for {petName}</Text>
           </View>
         </View>
         <View style={styles.grid}>
-          {places.map((scene) => (
-            <PlaceCard
-              key={scene.id}
-              scene={scene}
-              current={scene.id === currentSceneId}
-              onPress={() => {
-                if (scene.id !== currentSceneId) {
-                  onPick(scene.id);
-                }
-                onClose();
-              }}
-            />
-          ))}
-          <DestinationCard label="Pantry" blurb="Treats and snacks" tintName="butter" Icon={Cookie} onPress={onPantry} />
-          <DestinationCard label="Closet" blurb={`${petName}'s clothes`} tintName="orchid" Icon={Shirt} onPress={onCloset} />
-          <DestinationCard label="Pet Shop" blurb="Treats, toys, and clothes" tintName="lilac" Icon={Store} onPress={onShop} />
+          {spots.map((spot, index) => {
+            const Icon = locationIcons[spot.id];
+            return (
+              <View key={spot.id} style={[styles.cell, { width: column }]}>
+                <LocationButton
+                  label={spot.label}
+                  Icon={Icon}
+                  size={iconSize}
+                  bobIndex={index}
+                  isCurrent={spot.sceneId != null && spot.sceneId === currentSceneId}
+                  reducedMotion={reducedMotion}
+                  onPress={() => {
+                    if (spot.sceneId == null) {
+                      onShop();
+                      return;
+                    }
+                    if (spot.sceneId !== currentSceneId) {
+                      onPick(spot.sceneId);
+                    }
+                    onClose();
+                  }}
+                />
+              </View>
+            );
+          })}
         </View>
       </ScrollView>
     </View>
   );
 }
 
-function PlaceCard({ scene, current, onPress }: { scene: Scene; current: boolean; onPress: () => void }) {
-  const uid = useId().replace(/:/g, '');
-  const flavor = placeFlavors[scene.iconId ?? scene.id] ?? 'peach';
-  const tint = tints[flavor];
-  const Icon = placeIcons[scene.iconId ?? scene.id] ?? placeIcons.livingroom;
-  const ink = candyInk(tint);
+function BackButton({ onPress }: { onPress: () => void }) {
+  const id = `back${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
   return (
-    <Pressable
-      style={styles.cardHit}
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityState={{ selected: current }}
-      accessibilityLabel={current ? `${scene.name}. You are here` : scene.name}
-    >
+    <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={onPress} style={styles.backHit}>
       {({ pressed }) => (
-        <CandyShell tint={tint} radius={28} selected={current} pressed={pressed} uid={uid} style={styles.card}>
-          <IconBubble tint={tint} Icon={Icon} />
-          <Text style={[styles.name, { color: ink }]} numberOfLines={1}>
-            {scene.name}
-          </Text>
-          {scene.blurb ? (
-            <Text style={[styles.blurb, { color: ink }]} numberOfLines={2}>
-              {scene.blurb}
-            </Text>
-          ) : null}
-          {current ? (
-            <View style={styles.sticker}>
-              <Text style={[styles.stickerText, { color: ink }]}>{'You\u2019re here'}</Text>
-            </View>
-          ) : (
-            <Sparkle style={styles.sparkle} opacity={0.9} />
-          )}
-        </CandyShell>
+        <View style={styles.backWrap}>
+          <View style={styles.backLip} />
+          <View style={[styles.backFace, pressed && styles.backPressed]}>
+            <Svg width={48} height={48} style={StyleSheet.absoluteFill} pointerEvents="none">
+              <Defs>
+                <LinearGradient id={id} gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="48">
+                  <Stop offset="0" stopColor="#FFFFFF" />
+                  <Stop offset="1" stopColor="#E6E8F1" />
+                </LinearGradient>
+              </Defs>
+              <Circle cx={24} cy={24} r={24} fill={`url(#${id})`} />
+            </Svg>
+            <ChevronLeft size={24} strokeWidth={3} color="#6B6F8A" />
+          </View>
+        </View>
       )}
     </Pressable>
-  );
-}
-
-function DestinationCard({
-  label,
-  blurb,
-  tintName,
-  Icon,
-  onPress,
-}: {
-  label: string;
-  blurb: string;
-  tintName: TintName;
-  Icon: LucideIcon;
-  onPress: () => void;
-}) {
-  const uid = useId().replace(/:/g, '');
-  const tint = tints[tintName];
-  const ink = candyInk(tint);
-  return (
-    <Pressable style={styles.cardHit} onPress={onPress} accessibilityRole="button" accessibilityLabel={label}>
-      {({ pressed }) => (
-        <CandyShell tint={tint} radius={28} pressed={pressed} uid={uid} style={styles.card}>
-          <IconBubble tint={tint} Icon={Icon} />
-          <Text style={[styles.name, { color: ink }]} numberOfLines={1}>
-            {label}
-          </Text>
-          <Text style={[styles.blurb, { color: ink }]} numberOfLines={2}>
-            {blurb}
-          </Text>
-        </CandyShell>
-      )}
-    </Pressable>
-  );
-}
-
-function IconBubble({ tint, Icon }: { tint: Tint; Icon: LucideIcon }) {
-  return (
-    <View style={[styles.bubble, { shadowColor: tint.lip }]}>
-      <Icon size={30} strokeWidth={iconStroke + 1} color={tint.icon} />
-    </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#F4F7FB',
+    backgroundColor: '#F6F7FB',
     paddingTop: 64,
   },
   scroll: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 12,
     paddingBottom: 40,
-    gap: 18,
   },
   header: {
     flexDirection: 'row',
@@ -160,84 +107,59 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   backHit: {
-    width: 44,
+    width: 48,
+    height: 52,
+  },
+  backWrap: {
+    width: 48,
+    height: 52,
+  },
+  backLip: {
+    position: 'absolute',
+    top: 4,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#CACDDC',
   },
   backFace: {
-    width: 44,
-    height: 44,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#282C50',
+    shadowOpacity: 0.1,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 4,
+  },
+  backPressed: {
+    transform: [{ translateY: 2 }],
   },
   titles: {
     flex: 1,
     gap: 2,
   },
   title: {
-    fontSize: 28,
-    fontWeight: '900',
-    color: '#243044',
+    fontFamily: fontFamily.black,
+    fontSize: 34,
+    letterSpacing: -0.5,
+    color: '#2C2F4A',
   },
   subtitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#5C6B80',
+    fontFamily: fontFamily.bold,
+    fontSize: 15,
+    color: '#6B6F8A',
   },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    columnGap: 14,
-    rowGap: 18,
+    columnGap: 8,
+    rowGap: 30,
+    paddingTop: 36,
   },
-  cardHit: {
-    width: '47%',
-  },
-  card: {
-    height: 150,
+  cell: {
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-  },
-  bubble: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: WHITE,
-    shadowOpacity: 0.4,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 3,
-  },
-  name: {
-    fontSize: 16,
-    fontWeight: '900',
-    textAlign: 'center',
-  },
-  blurb: {
-    fontSize: 11.5,
-    fontWeight: '800',
-    textAlign: 'center',
-  },
-  sticker: {
-    position: 'absolute',
-    top: 10,
-    right: 8,
-    backgroundColor: WHITE,
-    borderRadius: 8,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  stickerText: {
-    fontSize: 10,
-    fontWeight: '900',
-  },
-  sparkle: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    width: 10,
-    height: 10,
   },
 });

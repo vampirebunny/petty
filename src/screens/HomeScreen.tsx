@@ -37,6 +37,7 @@ import { CandyShell, candyInk, tints } from '../ui/candy';
 import { BoopsPayout } from '../components/currency/BoopsPayout';
 import { BoopCounter } from '../ui/BoopCounter';
 import type { BoopCounterHandle } from '../ui/BoopCounter';
+import { fontFamily } from '../ui/font';
 import { iconStroke } from '../ui/theme';
 import { usePet } from '../state/usePet';
 import { usePlayerHome } from '../state/usePlayerHome';
@@ -1470,14 +1471,17 @@ export default function HomeScreen({ petApi }: Props) {
             accessibilityLabel="Boop Boop"
             accessibilityIgnoresInvertColors
           />
-          <Text style={styles.name} numberOfLines={1}>
-            {state.name}
-          </Text>
+          <View pointerEvents="none" style={styles.nameSlot}>
+            <Text accessibilityRole="header" style={styles.name} numberOfLines={1}>
+              {state.name}
+            </Text>
+          </View>
           <BoopCounter
             ref={counterRef}
             value={economyApi.balance}
             payoutActive={burst != null}
             pending={pendingBoops}
+            onPress={() => setShopTab('treats')}
           />
         </View>
         <GestureDetector gesture={gesture}>
@@ -1717,14 +1721,6 @@ export default function HomeScreen({ petApi }: Props) {
             reducedMotion={reducedMotion}
             onPick={setScene}
             onClose={() => setPlacesOpen(false)}
-            onPantry={() => {
-              setPlacesOpen(false);
-              setPantryOpen(true);
-            }}
-            onCloset={() => {
-              setPlacesOpen(false);
-              setWardrobeOpen(true);
-            }}
             onShop={() => {
               setPlacesOpen(false);
               setShopTab('treats');
@@ -1783,24 +1779,33 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   header: {
-    paddingHorizontal: 20,
-    minHeight: 52,
+    height: 52,
     justifyContent: 'center',
   },
   logo: {
     position: 'absolute',
     left: 20,
+    top: 2,
     width: 48,
     height: 48,
     borderRadius: 12,
   },
+  // Equal insets keep the name on the screen center. The Boop pill is wider than
+  // the logo, so both sides use that wider clearance and a long name still clears it.
+  nameSlot: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    paddingHorizontal: 148,
+  },
   name: {
     textAlign: 'center',
-    // Leaves room on both sides so a long name never runs under the logo.
-    marginLeft: 60,
-    marginRight: 128,
+    fontFamily: fontFamily.fredokaBold,
     fontSize: 28,
-    fontWeight: '700',
+    lineHeight: 34,
     color: '#243044',
   },
   score: {
