@@ -388,13 +388,11 @@ const sceneDefs = {
       { kind: 'bed', id: 'livingroom-bed', x: 110, y: 540, w: 112, color: '#c2653d' },
       { kind: 'bowl', id: 'livingroom-food', x: 540, y: 330, color: '#2f7d5b', contents: 'kibble' },
       { kind: 'bowl', id: 'livingroom-water', x: 500, y: 560, color: '#3f78b5', contents: 'water' },
-      { kind: 'litterbox', id: 'livingroom-litter', x: 180, y: 360, w: 78, color: '#d9d3c7' },
     ],
     pois: [
       { id: 'bowl', type: 'food', x: 540, y: 330, face: 1, propId: 'livingroom-food' },
       { id: 'water', type: 'water', x: 500, y: 560, face: 1, propId: 'livingroom-water' },
       { id: 'bed', type: 'bed', x: 110, y: 542, propId: 'livingroom-bed' },
-      { id: 'litter', type: 'litter', x: 180, y: 360, face: -1, propId: 'livingroom-litter' },
       { id: 'home', type: 'home', x: 300, y: 440 },
     ],
   },
@@ -472,11 +470,9 @@ const sceneDefs = {
       { kind: 'lamp', x: 540, y: 208 },
       { kind: 'rug', x: 330, y: 470, w: 380, h: 120, color: '#9a86c0', layer: 'back' },
       { kind: 'bed', id: 'bedroom-bed', x: 520, y: 560, w: 112, color: '#d98b3a' },
-      { kind: 'litterbox', id: 'bedroom-litter', x: 220, y: 300, w: 78, color: '#d9d3c7' },
     ],
     pois: [
       { id: 'bed', type: 'bed', x: 520, y: 562, propId: 'bedroom-bed' },
-      { id: 'litter', type: 'litter', x: 220, y: 300, face: -1, propId: 'bedroom-litter' },
       { id: 'home', type: 'home', x: 320, y: 470 },
     ],
   },
@@ -563,13 +559,13 @@ function hasLitter(scene: Scene): boolean {
   return scene.props.some((prop) => prop.kind === 'litterbox') || scene.pois.some((poi) => poi.type === 'litter');
 }
 
-// Indoor presets keep a litter box in the data. Dogs never see it: no prop, no potty spot.
+// No home keeps a litter box. Drop one if a scene still lists it.
 // A species-limited scene (the catio) falls back to the living room for the other species.
 export function sceneForSpecies(scene: Scene, species: 'dog' | 'cat'): Scene {
   if (scene.species && scene.species !== species) {
     return sceneForSpecies(scenes.livingroom, species);
   }
-  if (species === 'cat' || !hasLitter(scene)) {
+  if (!hasLitter(scene)) {
     return scene;
   }
   const cached = noLitterCache.get(scene);

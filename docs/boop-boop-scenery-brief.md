@@ -62,7 +62,7 @@ The `previews/` PNGs were rendered from this exact code through CanvasKit, using
   - Tree, bush and fence: seasonal and snowy.
   - Bench: cast-iron legs, wet sheen after rain.
   - Pond: stone rim, lily pads, reeds, rain rings.
-  - Litterbox: sand and a scoop; sand flies when the cat digs.
+  - Litter boxes are not placed in any room.
 - **Props react to pets**
   - The bed dips and bushes rustle.
   - Grass parts around paws and the pond splashes.

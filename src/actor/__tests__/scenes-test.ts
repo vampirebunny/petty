@@ -82,15 +82,15 @@ it('enables an action only when the scene has its point', () => {
   expect(pup.task.type).toBe('sleep');
 });
 
-it('keeps the litter box for cats and drops it for dogs', () => {
-  expect(scenes.livingroom.props.some((prop) => prop.kind === 'litterbox')).toBe(true);
-  expect(poiOf(scenes.livingroom, 'litter')).not.toBeNull();
-  const forCat = sceneForSpecies(scenes.livingroom, 'cat');
-  const forDog = sceneForSpecies(scenes.livingroom, 'dog');
-  expect(forCat).toBe(scenes.livingroom);
-  expect(forDog.props.some((prop) => prop.kind === 'litterbox')).toBe(false);
-  expect(poiOf(forDog, 'litter')).toBeNull();
-  expect(sceneForSpecies(forDog, 'dog')).toBe(forDog);
+it('keeps litter boxes out of every room', () => {
+  expect(scenes.livingroom.props.some((prop) => prop.kind === 'litterbox')).toBe(false);
+  expect(poiOf(scenes.livingroom, 'litter')).toBeNull();
+  expect(scenes.bedroom.props.some((prop) => prop.kind === 'litterbox')).toBe(false);
+  expect(poiOf(scenes.bedroom, 'litter')).toBeNull();
+  expect(sceneForSpecies(scenes.bedroom, 'cat')).toBe(scenes.bedroom);
+  expect(sceneForSpecies(scenes.bedroom, 'dog')).toBe(scenes.bedroom);
+  expect(sceneForSpecies(scenes.livingroom, 'dog')).toBe(scenes.livingroom);
+  expect(sceneForSpecies(scenes.livingroom, 'cat')).toBe(scenes.livingroom);
   expect(sceneForSpecies(scenes.park, 'dog')).toBe(scenes.park);
 
   const pup = spawnActor({
@@ -111,8 +111,10 @@ it('keeps the litter box for cats and drops it for dogs', () => {
     equipped: {},
     asleep: false,
   });
-  const dogWorld = createWorld([pup], 1, scenes.livingroom);
-  const catWorld = createWorld([kit], 1, scenes.livingroom);
+  const dogWorld = createWorld([pup], 1, scenes.bedroom);
+  const catWorld = createWorld([kit], 1, scenes.bedroom);
+  const catLivingRoom = createWorld([kit], 1, scenes.livingroom);
+  expect(poiOf(catLivingRoom.scene, 'litter')).toBeNull();
   expect(scenesFor('dog').map((scene) => scene.id)).toEqual(['livingroom', 'bedroom', 'park']);
   expect(scenesFor('cat').map((scene) => scene.id)).toEqual(['livingroom', 'bedroom', 'park', 'catio']);
   expect(scenesFor(['dog', 'cat']).some((scene) => scene.id === 'catio')).toBe(true);
@@ -129,9 +131,9 @@ it('keeps the litter box for cats and drops it for dogs', () => {
   expect(mixed.scene.id).toBe('catio');
 
   expect(poiOf(dogWorld.scene, 'litter')).toBeNull();
-  expect(poiOf(catWorld.scene, 'litter')).not.toBeNull();
+  expect(poiOf(catWorld.scene, 'litter')).toBeNull();
   startUserTask(dogWorld, pup, 'potty');
   startUserTask(catWorld, kit, 'potty');
   expect(pup.task.poi).toBeUndefined();
-  expect(kit.task.poi).toEqual(poiOf(catWorld.scene, 'litter'));
+  expect(kit.task.poi).toBeUndefined();
 });

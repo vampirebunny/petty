@@ -1,4 +1,12 @@
-import { placePiece, shopFurnitureSpot, starterFurniture, type FurniturePiece, type FurniturePlacement, type ShopFurnitureId } from '../actor/furniture';
+import {
+  isRetiredPiece,
+  placePiece,
+  shopFurnitureSpot,
+  starterFurniture,
+  type FurniturePiece,
+  type FurniturePlacement,
+  type ShopFurnitureId,
+} from '../actor/furniture';
 import { startingToys } from '../sim/config';
 import { getDb } from './database';
 
@@ -62,7 +70,7 @@ export function grantToyOnce(ownerId: string): void {
 
 export function furnitureOf(ownerId: string): FurniturePiece[] {
   const rows = getDb().getAllSync<{ json: string }>('SELECT json FROM owned_furniture WHERE owner_id = ?', ownerId);
-  return rows.map((row) => JSON.parse(row.json) as FurniturePiece);
+  return rows.map((row) => JSON.parse(row.json) as FurniturePiece).filter((piece) => !isRetiredPiece(piece.id));
 }
 
 export function layoutOf(ownerId: string, species: SpeciesId): FurniturePlacement[] {
@@ -75,7 +83,10 @@ export function layoutOf(ownerId: string, species: SpeciesId): FurniturePlacemen
     return [];
   }
   const parsed: unknown = JSON.parse(row.placements);
-  return Array.isArray(parsed) ? (parsed as FurniturePlacement[]) : [];
+  if (!Array.isArray(parsed)) {
+    return [];
+  }
+  return (parsed as FurniturePlacement[]).filter((place) => !isRetiredPiece(place.pieceId));
 }
 
 export function hasLayout(ownerId: string, species: SpeciesId): boolean {

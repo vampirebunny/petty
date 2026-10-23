@@ -65,7 +65,7 @@ Implementation:
 - Key `balances`, `inventory`, `owner_state`, `transactions`, and the new toys/furniture/layout storage by **owner id** instead of `id = 1`.
 - `useItem` stays one local transaction: decrement player inventory and apply the effect to the pet.
 - **One home per species.** Layout is keyed by `(owner, species)`. Ownership of a piece is per player. The same piece may be placed in both homes at once; placements are independent, and placing it in one home does not remove it from the other.
-- **Starter furniture is once per owner per species.** The first dog inserts dog starter pieces only when that id is not already owned, and writes starter placements only into the dog layout. The first cat does the same for the cat layout and adds cat-only pieces (litterboxes, catio). A later pet of that species moves into the existing home. `createPet` does not copy furniture onto the pet.
+- **Starter furniture is once per owner per species.** The first dog inserts dog starter pieces only when that id is not already owned, and writes starter placements only into the dog layout. The first cat does the same for the cat layout and adds cat-only catio pieces. Litter boxes are not starter furniture. A later pet of that species moves into the existing home. `createPet` does not copy furniture onto the pet.
 - **Toys are once per owner.** The ball is granted when the owner has none. The first cat does not get a second ball.
 - The species layout is the only source of positions. `applyFurniture` draws a piece only when that layout has an entry for it. No preset-position fallback. An owned piece with no placement in the current home is not drawn there.
 - Equipping never removes Closet ownership (`withStarter` behavior is fine).

@@ -5,7 +5,7 @@ import { createWorld, spawnActor, startUserTask, update } from '../sim';
 const floor = { xMin: 0, xMax: 640, yMin: 200, yMax: 650 };
 const bowl = { id: 'bowl', x: 300, y: 400, hw: 34, hd: 28 };
 
-it('reaches the food bowl from inside the litter box and the water bowl', () => {
+it('reaches the food bowl from the left of the room and from the water bowl', () => {
   const home = starterFurniture('cat');
   const scene = applyFurniture(scenes.livingroom, home.pieces, home.placed);
   for (const [x, y] of [
@@ -94,9 +94,11 @@ it('keeps the litter box out of a dog room', () => {
   expect(scene.props.some((prop) => prop.kind === 'litterbox')).toBe(false);
   expect(scene.pois.some((poi) => poi.type === 'litter')).toBe(false);
   expect(dog.pieces.some((piece) => piece.kind === 'litterbox')).toBe(false);
+  expect(starterFurniture('cat').pieces.some((piece) => piece.kind === 'litterbox')).toBe(false);
   expect(starterFurniture('cat').pieces.some((piece) => piece.id === 'catio-tree')).toBe(false);
   expect(starterFurniture('dog').pieces.some((piece) => piece.id === 'catio-tree')).toBe(false);
   expect(starterFurniture('cat').pieces.some((piece) => piece.id === 'bedroom-food' || piece.id === 'bedroom-water')).toBe(false);
+  expect(starterFurniture('cat').pieces.some((piece) => piece.id === 'livingroom-litter' || piece.id === 'bedroom-litter')).toBe(false);
 });
 
 it('drops the bedroom bowls from a save that still has them', () => {
@@ -106,18 +108,33 @@ it('drops the bedroom bowls from a save that still has them', () => {
       { id: 'bedroom-food', kind: 'bowl', contents: 'kibble' },
       { id: 'bedroom-water', kind: 'bowl', contents: 'water' },
       { id: 'livingroom-food', kind: 'bowl', contents: 'kibble' },
+      { id: 'livingroom-litter', kind: 'litterbox', color: '#d9d3c7' },
+      { id: 'bedroom-litter', kind: 'litterbox', color: '#d9d3c7' },
     ],
     [
       { pieceId: 'bedroom-food', sceneId: 'bedroom', x: 120, y: 340 },
       { pieceId: 'bedroom-water', sceneId: 'bedroom', x: 130, y: 590 },
       { pieceId: 'livingroom-food', sceneId: 'livingroom', x: 540, y: 330 },
+      { pieceId: 'livingroom-litter', sceneId: 'livingroom', x: 180, y: 360 },
+      { pieceId: 'bedroom-litter', sceneId: 'bedroom', x: 220, y: 300 },
     ],
   );
   expect(kept.furniture.map((piece) => piece.id)).toEqual(['livingroom-food']);
   expect(kept.placed.map((place) => place.pieceId)).toEqual(['livingroom-food']);
+  const livingRoom = applyFurniture(scenes.livingroom, kept.furniture, kept.placed);
+  expect(livingRoom.props.some((prop) => prop.kind === 'litterbox')).toBe(false);
+  expect(livingRoom.pois.some((poi) => poi.type === 'litter')).toBe(false);
+  const stillOwned = applyFurniture(
+    scenes.livingroom,
+    [{ id: 'livingroom-litter', kind: 'litterbox', color: '#d9d3c7' }],
+    [{ pieceId: 'livingroom-litter', sceneId: 'livingroom', x: 180, y: 360 }],
+  );
+  expect(stillOwned.props.some((prop) => prop.kind === 'litterbox')).toBe(false);
+  expect(stillOwned.pois.some((poi) => poi.type === 'litter')).toBe(false);
   const bedroom = applyFurniture(scenes.bedroom, kept.furniture, kept.placed);
   expect(bedroom.props.some((prop) => prop.kind === 'bowl')).toBe(false);
-  expect(bedroom.pois.some((poi) => poi.type === 'food' || poi.type === 'water')).toBe(false);
+  expect(bedroom.props.some((prop) => prop.kind === 'litterbox')).toBe(false);
+  expect(bedroom.pois.some((poi) => poi.type === 'food' || poi.type === 'water' || poi.type === 'litter')).toBe(false);
 });
 
 it('hits a bowl and misses the rug', () => {

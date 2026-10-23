@@ -160,7 +160,7 @@ export function starterFurniture(species: 'dog' | 'cat'): { pieces: FurniturePie
       continue;
     }
     for (const prop of scene.props) {
-      if (species === 'dog' && prop.kind === 'litterbox') {
+      if (prop.kind === 'litterbox') {
         continue;
       }
       const piece = pieceFromProp(prop);
@@ -212,8 +212,12 @@ function readPlaced(value: unknown): FurniturePlacement[] | null {
   return value.filter(isPlacement);
 }
 
-// Bowls that used to live in the bedroom. Saved pets still own them until load drops them.
-const retiredPieceIds = new Set(['bedroom-food', 'bedroom-water']);
+// Pieces removed from the rooms. Saved homes still list them until load drops them.
+const retiredPieceIds = new Set(['bedroom-food', 'bedroom-water', 'livingroom-litter', 'bedroom-litter']);
+
+export function isRetiredPiece(id: string): boolean {
+  return retiredPieceIds.has(id);
+}
 
 function dropRetired(pieces: FurniturePiece[], placed: FurniturePlacement[]): { furniture: FurniturePiece[]; placed: FurniturePlacement[] } {
   return {
@@ -254,12 +258,15 @@ export function applyFurniture(scene: Scene, pieces: FurniturePiece[], placed: F
   const shift = new Map<string, { dx: number; dy: number }>();
 
   for (const prop of scene.props) {
+    if (prop.kind === 'litterbox') {
+      continue;
+    }
     if (!prop.id || !isFurnitureKind(prop.kind)) {
       props.push(prop);
       continue;
     }
     const place = here.get(prop.id);
-    if (!place || !owned.has(prop.id)) {
+    if (!place || !owned.has(prop.id) || retiredPieceIds.has(prop.id)) {
       continue;
     }
     const x = place.x;
@@ -272,7 +279,7 @@ export function applyFurniture(scene: Scene, pieces: FurniturePiece[], placed: F
   const added: string[] = [];
   for (const [id, place] of here) {
     const piece = owned.get(id);
-    if (!piece) {
+    if (!piece || piece.kind === 'litterbox' || retiredPieceIds.has(id)) {
       continue;
     }
     props.push(propFromPiece(piece, place.x, place.y));
@@ -282,6 +289,9 @@ export function applyFurniture(scene: Scene, pieces: FurniturePiece[], placed: F
   const pois: Poi[] = [];
   for (const poi of scene.pois) {
     if (poi.propId && !props.some((prop) => prop.id === poi.propId)) {
+      continue;
+    }
+    if (poi.type === 'litter') {
       continue;
     }
     const delta = poi.propId ? shift.get(poi.propId) : undefined;
