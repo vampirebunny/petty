@@ -1,4 +1,4 @@
-import { ClipOp, StrokeCap, Skia } from '@shopify/react-native-skia';
+import { StrokeCap, Skia } from '@shopify/react-native-skia';
 import type { SkCanvas } from '@shopify/react-native-skia';
 
 import type { Scene, World } from '../../actor';
@@ -50,15 +50,6 @@ export function drawProp(c: SkCanvas, prop: Prop, env: Env): void {
     c.scale(-1, 1);
   }
   drawPropBody(c, prop, env);
-  if (prop.id && env.shimmerIds?.includes(prop.id) && !env.reduced) {
-    const sweep = (env.t % 3) / 3;
-    c.save();
-    c.clipRect(Skia.XYWHRect(-70, -80, 140, 90), ClipOp.Intersect, true);
-    fillOval(c, -50 + sweep * 120, -20, 16, 28, '#FFFFFF', 0.45);
-    const twinkle = 0.65 + Math.sin(env.t * 4) * 0.35;
-    fillCircle(c, 24, -36, 3.5 * twinkle, '#FFFFFF', 0.8);
-    c.restore();
-  }
   c.restore();
   env.anchor = saved;
 }
@@ -153,6 +144,45 @@ export function drawToyShape(c: SkCanvas, kind: string, x: number, y: number, ra
     lying.moveTo(x - radius * 1.8, y);
     lying.quadTo(x - radius * 0.2, y + radius * 0.9, x + radius * 1.6, y + radius * 0.15);
     c.drawPath(lying, paintOf('#c4553a', 1, 2.6));
+    return;
+  }
+  if (kind === 'mouse') {
+    fillOval(c, x, y, radius * 1.15, radius * 0.7, '#c4c8d0');
+    fillCircle(c, x + radius * 0.85, y - radius * 0.15, radius * 0.45, '#d7dbe2');
+    fillCircle(c, x + radius * 1.05, y - radius * 0.55, radius * 0.22, '#e7b7c4');
+    fillCircle(c, x + radius * 1.05, y - radius * 0.55, radius * 0.08, '#3a2a32');
+    const tail = Skia.Path.Make();
+    tail.moveTo(x - radius * 0.9, y);
+    tail.quadTo(x - radius * 1.6, y - radius * 0.8, x - radius * 1.3, y - radius * 1.3);
+    c.drawPath(tail, paintOf('#c4c8d0', 1, 2));
+    return;
+  }
+  if (kind === 'crinkle') {
+    fillCircle(c, x, y, radius, '#7ec8e3');
+    fillCircle(c, x - radius * 0.2, y - radius * 0.15, radius * 0.55, '#f4f7fb', 0.55);
+    return;
+  }
+  if (kind === 'bone') {
+    c.save();
+    c.translate(x, y);
+    c.rotate(-18, 0, 0);
+    c.drawLine(-radius * 0.7, 0, radius * 0.7, 0, paintOf('#f3e2c4', 1, radius * 0.55));
+    fillCircle(c, -radius * 0.85, -radius * 0.18, radius * 0.38, '#f3e2c4');
+    fillCircle(c, -radius * 0.85, radius * 0.18, radius * 0.38, '#f3e2c4');
+    fillCircle(c, radius * 0.85, -radius * 0.18, radius * 0.38, '#f3e2c4');
+    fillCircle(c, radius * 0.85, radius * 0.18, radius * 0.38, '#f3e2c4');
+    c.restore();
+    return;
+  }
+  if (kind === 'wand') {
+    c.drawLine(x - radius * 0.2, y + radius * 1.4, x + radius * 0.8, y - radius * 1.2, paintOf('#8a5a32', 1, 2.2));
+    fillCircle(c, x + radius * 0.9, y - radius * 1.35, radius * 0.45, '#e85a8c');
+    fillCircle(c, x + radius * 1.25, y - radius * 1.05, radius * 0.28, '#f2c230');
+    return;
+  }
+  if (kind === 'laser') {
+    fillCircle(c, x, y, radius * 0.55, '#ff4d4d', 0.35);
+    fillCircle(c, x, y, radius * 0.22, '#ff4d4d');
     return;
   }
   if (kind === 'squeaky') {

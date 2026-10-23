@@ -335,7 +335,6 @@ export function createWorld(actors: Actor[], seed = 1, scene: Scene = scenes.liv
     liftedId: null,
     squishId: null,
     squishAt: 0,
-    shimmerIds: [],
     pendingMeals: 0,
     pendingPlayFinds: [],
     pendingTreatMoods: [],

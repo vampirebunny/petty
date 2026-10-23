@@ -76,7 +76,6 @@ export type StageHandle = {
   label: () => string;
   furnitureAt: (x: number, y: number) => string | null;
   moveFurniture: (pieceId: string, x: number, y: number) => { sceneId: string; x: number; y: number } | null;
-  pieceAction: (pieceId: string) => 'food' | 'water' | 'bed' | null;
   invite: (kind: 'food' | 'water' | 'bed') => 'went' | 'queued' | 'already';
   setLifted: (pieceId: string | null) => void;
   squish: (pieceId: string) => void;
@@ -125,7 +124,6 @@ type Props = {
   onPointAdds?: (adds: PointAdd[]) => void;
   onGreeting?: (id: string) => void;
   onFellAsleep?: () => void;
-  shimmerIds?: readonly string[];
   furniture?: FurniturePiece[];
   placements?: FurniturePlacement[];
   toys?: string[];
@@ -187,7 +185,6 @@ export function PetView({
   onPointAdds,
   onGreeting,
   onFellAsleep,
-  shimmerIds,
   stageRef,
   furniture = [],
   placements = [],
@@ -527,22 +524,6 @@ export function PetView({
       label: () => worldRef.current.greetLabel ?? '',
       furnitureAt: (x, y) => (travelRef.current ? null : furnitureAt(worldRef.current.scene, x, y)),
       moveFurniture: (pieceId, x, y) => (travelRef.current ? null : movePiece(worldRef.current.scene, pieceId, x, y)),
-      pieceAction: (pieceId) => {
-        const prop = worldRef.current.scene.props.find((item) => item.id === pieceId);
-        if (!prop) {
-          return null;
-        }
-        if (prop.kind === 'bed') {
-          return 'bed';
-        }
-        if (prop.kind === 'bowl' && prop.contents === 'water') {
-          return 'water';
-        }
-        if (prop.kind === 'bowl') {
-          return 'food';
-        }
-        return null;
-      },
       invite: (kind) => {
         const actor = worldRef.current.actors[0];
         if (!actor) {
@@ -713,10 +694,6 @@ export function PetView({
   useEffect(() => {
     onFellAsleepRef.current = onFellAsleep;
   }, [onFellAsleep]);
-  const shimmerRef = useRef<readonly string[]>(shimmerIds ?? []);
-  useEffect(() => {
-    shimmerRef.current = shimmerIds ?? [];
-  }, [shimmerIds]);
   const hungerRef = useRef(pet.needs.hunger);
   hungerRef.current = pet.needs.hunger;
   const energyRef = useRef(pet.needs.energy);
@@ -728,7 +705,6 @@ export function PetView({
   const step = useCallback(
     (elapsedMs: number) => {
       const world = worldRef.current;
-      world.shimmerIds = [...shimmerRef.current];
       const dt = frameDt(elapsedMs, activeRef.current);
       update(world, dt);
       if (takePendingRest(world)) {

@@ -598,7 +598,7 @@ export type CuddleSound = 'cuddle_purr' | 'cuddle_happy' | 'cuddle_pant';
 
 export type SoundEvent = {
   actorId: string;
-  sound: 'bark' | 'meow' | 'growl' | 'sneeze' | 'sneeze_cat' | 'trill' | 'bell' | CuddleSound;
+  sound: 'bark' | 'meow' | 'growl' | 'sneeze' | 'sneeze_cat' | 'trill' | 'bell' | 'squeak' | CuddleSound;
   rate: number;
 };
 
@@ -627,8 +627,6 @@ export type World = {
   liftedId: string | null;
   squishId: string | null;
   squishAt: number;
-  // Prop ids that should shimmer. The view fills this; the sim never decides it.
-  shimmerIds: string[];
   pendingMeals: number;
   pendingPlayFinds: ('fetch_round' | 'toy_round')[];
   // Mood-point amounts waiting to be shown, one per treat the pet has finished.

@@ -556,24 +556,9 @@ export default function HomeScreen({ petApi }: Props) {
   );
   const onStageTap = useCallback(
     (x: number, y: number) => {
-      const pieceId = pieceAt(x, y);
-      if (!pieceId) {
-        tipsRef.current.dismiss();
+      tipsRef.current.dismiss();
+      if (!pieceAt(x, y)) {
         dropRef.current(x, y);
-        return;
-      }
-      const action = stageHandle.current?.pieceAction(pieceId) ?? null;
-      if (!action) {
-        tipsRef.current.dismiss();
-        return;
-      }
-      stageHandle.current?.squish(pieceId);
-      if (action === 'food') {
-        askFeedRef.current();
-      } else if (action === 'water') {
-        askWaterRef.current();
-      } else {
-        askSleepRef.current();
       }
     },
     [pieceAt],
@@ -1329,11 +1314,11 @@ export default function HomeScreen({ petApi }: Props) {
     tips.current === 'tip.cuddle' && coachTarget
       ? { flavor: 'bond' as const, icon: HandHeart, text: 'Stroke his back or head', bold: 'Stroke', target: coachTarget }
       : tips.current === 'tip.water' && propTip
-        ? { flavor: 'care' as const, icon: Droplet, text: 'Tap the bowl to give Z water', bold: 'Tap', target: propTip }
+        ? { flavor: 'care' as const, icon: Droplet, text: 'Press Water to give Z a drink', bold: 'Water', target: propTip }
         : tips.current === 'tip.food' && propTip
-          ? { flavor: 'care' as const, icon: Soup, text: 'Tap the bowl to feed Z', bold: 'Tap', target: propTip }
+          ? { flavor: 'care' as const, icon: Soup, text: 'Press Feed to fill the bowl', bold: 'Feed', target: propTip }
           : tips.current === 'tip.sleep' && propTip
-            ? { flavor: 'care' as const, icon: Moon, text: 'Tap the bed so Z can nap', bold: 'Tap', target: propTip }
+            ? { flavor: 'care' as const, icon: Moon, text: 'Press Sleep so Z can nap', bold: 'Sleep', target: propTip }
             : tips.current === 'tip.move' && propTip
               ? { flavor: 'style' as const, icon: Sparkles, text: 'Hold to move things around', bold: 'Hold', target: propTip }
               : null;
@@ -1772,17 +1757,6 @@ export default function HomeScreen({ petApi }: Props) {
               onDrank={reportDrank}
               onAte={reportAte}
               onFellAsleep={beginRest}
-              shimmerIds={[
-                tips.seen('tip.water') && state.hydration < needThreshold
-                  ? (placedInScene(home.pieces, home.placements, scene.id, 'water')?.pieceId ?? null)
-                  : null,
-                tips.seen('tip.food') && tummy < needThreshold
-                  ? (placedInScene(home.pieces, home.placements, scene.id, 'food')?.pieceId ?? null)
-                  : null,
-                tips.seen('tip.sleep') && state.needs.energy < needThreshold
-                  ? (placedInScene(home.pieces, home.placements, scene.id, 'bed')?.pieceId ?? null)
-                  : null,
-              ].filter((id): id is string => id != null)}
               onPlayFind={noteFind}
               onPointAdds={(adds) => {
                 const shown: PointAdd[] = [];
