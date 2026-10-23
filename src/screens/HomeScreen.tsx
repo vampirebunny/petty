@@ -1074,9 +1074,11 @@ export default function HomeScreen({ petApi }: Props) {
         pet={state}
         owned={owned}
         equipped={state.equipped}
+        boops={economyApi.balance}
         onEquip={equip}
         reducedMotion={reducedMotion}
         onClose={() => setWardrobeOpen(false)}
+        onOpenStore={() => setShopOpen(true)}
       />
     );
   }

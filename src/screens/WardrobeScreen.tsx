@@ -2,6 +2,7 @@ import { Image, StyleSheet, Text, View } from 'react-native';
 
 import type { OwnedItem } from '../actor/closet';
 import type { Equipped, OutfitSlot, PetState } from '../sim/types';
+import { BoopCounter } from '../ui/BoopCounter';
 import { CandyButton } from '../ui/closet/CandyButton';
 import { closet } from '../ui/closet/closetStyle';
 import { fontFamily } from '../ui/font';
@@ -11,13 +12,25 @@ type Props = {
   pet: PetState;
   owned: readonly OwnedItem[];
   equipped: Equipped;
+  boops: number;
   onEquip: (slot: OutfitSlot, itemId: string | null) => void;
   onClose: () => void;
+  onOpenStore: () => void;
   reducedMotion: boolean;
   title?: string;
 };
 
-export function WardrobeScreen({ pet, owned, equipped, onEquip, onClose, reducedMotion, title }: Props) {
+export function WardrobeScreen({
+  pet,
+  owned,
+  equipped,
+  boops,
+  onEquip,
+  onClose,
+  onOpenStore,
+  reducedMotion,
+  title,
+}: Props) {
   return (
     <View style={styles.root}>
       <View style={styles.header}>
@@ -27,9 +40,17 @@ export function WardrobeScreen({ pet, owned, equipped, onEquip, onClose, reduced
           accessibilityLabel="Boop Boop"
           accessibilityIgnoresInvertColors
         />
-        <Text accessibilityRole="header" style={styles.title} numberOfLines={1}>
+        <Text
+          accessibilityRole="header"
+          pointerEvents="none"
+          style={styles.title}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.75}
+        >
           {title ?? `${pet.name}'s wardrobe`}
         </Text>
+        <BoopCounter value={boops} payoutActive={false} pending={0} onPress={onOpenStore} />
       </View>
       <WardrobePicker
         subject={{
@@ -70,7 +91,9 @@ const styles = StyleSheet.create({
   },
   title: {
     textAlign: 'center',
-    paddingHorizontal: 76,
+    // Clears the logo on the left and the Boop total on the right.
+    marginLeft: 76,
+    marginRight: 132,
     color: closet.ink,
     fontSize: 20,
     fontFamily: fontFamily.black,
