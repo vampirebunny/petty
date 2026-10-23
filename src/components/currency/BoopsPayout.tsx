@@ -146,6 +146,8 @@ function FlyingCoin({
       });
     };
     spin.value = withRepeat(withTiming(360, { duration: spinMs, easing: Easing.linear }), -1, false);
+    const landAt = delay + Math.round(dropMs * 0.28);
+    const dropSound = setTimeout(() => playBloop(index), landAt);
     drop.value = withDelay(
       delay,
       withTiming(1, { duration: dropMs, easing: Easing.linear }, (finished) => {
@@ -154,6 +156,7 @@ function FlyingCoin({
         }
       }),
     );
+    return () => clearTimeout(dropSound);
   }, [aim, delay, drop, fly, index, phase, spin]);
 
   const style = useAnimatedStyle(() => {

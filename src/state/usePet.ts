@@ -113,6 +113,7 @@ type PetApi = {
   commitPet: (pet: PetState, cueKind?: Cue['kind']) => void;
   noteFind: (kind: PlayFindKind, at?: { x: number; y: number }) => void;
   burst: Burst | null;
+  pendingBoops: number;
   dismissBurst: () => void;
   cancelBursts: () => void;
 };
@@ -127,6 +128,8 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
   const treatCountRef = useRef(0);
   const [welcomeBack, setWelcomeBack] = useState(false);
   const [burst, setBurst] = useState<Burst | null>(null);
+  const [pendingBoops, setPendingBoops] = useState(0);
+  const burstRef = useRef<Burst | null>(null);
   const burstQueue = useRef<Burst[]>([]);
   const burstSeq = useRef(0);
   const greetAfter = useRef<{ elapsedH: number } | null>(null);
@@ -187,19 +190,26 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
     return { ...item, id: burstSeq.current };
   }, []);
 
+  const showBursts = useCallback((head: Burst | null) => {
+    burstRef.current = head;
+    const waiting = burstQueue.current.reduce((sum, item) => sum + item.amount, head?.amount ?? 0);
+    setBurst(head);
+    setPendingBoops(waiting);
+  }, []);
+
   const pushBurst = useCallback((item: Burst) => {
     if (item.amount <= 0) {
       return;
     }
     const tagged = stamp(item);
-    setBurst((current) => {
-      if (current) {
-        burstQueue.current.push(tagged);
-        return current;
-      }
-      return tagged;
-    });
-  }, [stamp]);
+    const head = burstRef.current;
+    if (head) {
+      burstQueue.current.push(tagged);
+      showBursts(head);
+      return;
+    }
+    showBursts(tagged);
+  }, [showBursts, stamp]);
 
   const enqueueOpen = useCallback((rewards: OpenRewards): boolean => {
     const bursts = rewards.bursts.filter((item) => item.amount > 0);
@@ -217,16 +227,16 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
       return false;
     }
     const tagged = bursts.map(stamp);
-    setBurst((current) => {
-      if (current) {
-        burstQueue.current.push(...tagged);
-        return current;
-      }
+    const head = burstRef.current;
+    if (head) {
+      burstQueue.current.push(...tagged);
+      showBursts(head);
+    } else {
       burstQueue.current.push(...tagged.slice(1));
-      return tagged[0];
-    });
+      showBursts(tagged[0]);
+    }
     return true;
-  }, [stamp]);
+  }, [showBursts, stamp]);
 
   const afterPayouts = useCallback(() => {
     const greet = greetAfter.current;
@@ -242,17 +252,17 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
 
   const dismissBurst = useCallback(() => {
     const next = burstQueue.current.shift() ?? null;
-    setBurst(next);
+    showBursts(next);
     if (!next) {
       afterPayouts();
     }
-  }, [afterPayouts]);
+  }, [afterPayouts, showBursts]);
 
   const cancelBursts = useCallback(() => {
     burstQueue.current = [];
-    setBurst(null);
+    showBursts(null);
     afterPayouts();
-  }, [afterPayouts]);
+  }, [afterPayouts, showBursts]);
 
   const settleReturn = useCallback(
     (current: PetState, now: number) => {
@@ -813,6 +823,7 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
     commitPet,
     noteFind,
     burst,
+    pendingBoops,
     dismissBurst,
     cancelBursts,
   };

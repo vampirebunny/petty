@@ -156,6 +156,7 @@ export default function HomeScreen({ petApi }: Props) {
     commitPet,
     noteFind,
     burst,
+    pendingBoops,
     dismissBurst,
     cancelBursts,
   } = petApi;
@@ -1244,7 +1245,12 @@ export default function HomeScreen({ petApi }: Props) {
           <Text style={styles.name} numberOfLines={1}>
             {state.name}
           </Text>
-          <BoopCounter ref={counterRef} value={economyApi.balance} payoutActive={burst != null} />
+          <BoopCounter
+            ref={counterRef}
+            value={economyApi.balance}
+            payoutActive={burst != null}
+            pending={pendingBoops}
+          />
         </View>
         <GestureDetector gesture={gesture}>
           <View
@@ -1444,7 +1450,6 @@ export default function HomeScreen({ petApi }: Props) {
           greetingIds={() => stageHandle.current?.greetingIds() ?? []}
           greetingLabel={() => stageHandle.current?.label() ?? ''}
           onFacing={() => setFacingOpen(true)}
-          ledger={economyApi.ledger}
         />
       </ScrollView>
       {trainingDialog}

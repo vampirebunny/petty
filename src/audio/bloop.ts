@@ -4,7 +4,7 @@ import type { AudioPlayer } from 'expo-audio';
 import { playbackRate, soundEnabled } from './voice';
 
 const clip = require('../../assets/sounds/floraphonic-marimba-bloop-2-188149.mp3');
-const poolSize = 5;
+const poolSize = 10;
 const volumes = [1, 0.9, 0.85, 0.8, 0.8];
 
 let players: AudioPlayer[] = [];
@@ -50,7 +50,7 @@ export function playBloop(coinIndex: number): void {
     player.volume = volumes[coinIndex] ?? volumes[volumes.length - 1];
     player.shouldCorrectPitch = false;
     player.setPlaybackRate(playbackRate(1 + (Math.random() * 2 - 1) * 0.03));
-    player.play();
+    void player.seekTo(0).then(() => player.play());
   } catch {
     // stay silent
   }

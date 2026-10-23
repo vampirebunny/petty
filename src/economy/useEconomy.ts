@@ -24,7 +24,6 @@ export function useEconomy(ready: boolean) {
   return {
     balance: wallet?.balance ?? 0,
     inventory: (wallet?.inventory ?? []) as InventoryRow[],
-    ledger: wallet?.ledger ?? [],
     purchase,
     useItem,
     buyAndUse,

@@ -17,7 +17,7 @@ import { levelsToPay, stagesToPay } from './levels';
 export type Check = { ok: true } | { ok: false; reason: string };
 export type UseOpts = { context?: 'casual' | 'training'; trickId?: string };
 export type InventoryRow = { itemId: string; qty: number };
-export type WalletSnapshot = { balance: number; inventory: InventoryRow[]; ledger: string[] };
+export type WalletSnapshot = { balance: number; inventory: InventoryRow[] };
 export type Burst = {
   label: string;
   amount: number;
@@ -234,17 +234,9 @@ function snapshot(): WalletSnapshot {
     'SELECT item_id, quantity FROM inventory WHERE owner_id = ? AND quantity > 0',
     ownerId(),
   );
-  const rows = db().getAllSync<{ source: string; idempotency_key: string; asset: string; delta: number }>(
-    `SELECT t.source, t.idempotency_key, l.asset, l.delta
-     FROM transactions t JOIN transaction_lines l ON l.transaction_id = t.id
-     WHERE t.owner_id = ?
-     ORDER BY t.device_time DESC LIMIT 40`,
-    ownerId(),
-  );
   return {
     balance: balance(),
     inventory: inventory.map((row) => ({ itemId: row.item_id, qty: row.quantity })),
-    ledger: rows.map((row) => `${row.source} ${row.idempotency_key} ${row.asset} ${row.delta > 0 ? '+' : ''}${row.delta}`),
   };
 }
 
@@ -275,10 +267,6 @@ export function getQuantity(itemId: string): number {
 
 export function getCatalog(): CatalogItem[] {
   return storeItems();
-}
-
-export function getLedger(): string[] {
-  return snapshot().ledger;
 }
 
 function clampNeed(value: number): number {

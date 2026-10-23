@@ -19,18 +19,20 @@ export type BoopCounterHandle = {
 type Props = {
   value: number;
   payoutActive: boolean;
+  pending: number;
 };
 
 function formatBoops(value: number): string {
   return new Intl.NumberFormat('en-US').format(value);
 }
 
-export const BoopCounter = forwardRef<BoopCounterHandle, Props>(function BoopCounter({ value, payoutActive }, ref) {
+export const BoopCounter = forwardRef<BoopCounterHandle, Props>(function BoopCounter({ value, payoutActive, pending }, ref) {
   const [shown, setShown] = useState(value);
   const [announced, setAnnounced] = useState(value);
   const shownRef = useRef(value);
   const targetRef = useRef(value);
   const valueRef = useRef(value);
+  const seeded = useRef(false);
   const holding = useRef(false);
   const gen = useRef(0);
   const frame = useRef(0);
@@ -113,6 +115,18 @@ export const BoopCounter = forwardRef<BoopCounterHandle, Props>(function BoopCou
   }));
 
   useEffect(() => {
+    if (!seeded.current) {
+      if (pending > value) {
+        return;
+      }
+      seeded.current = true;
+      const baseline = Math.max(0, value - pending);
+      shownRef.current = baseline;
+      targetRef.current = baseline;
+      setShown(baseline);
+      setAnnounced(baseline);
+      return;
+    }
     if (payoutActive) {
       return;
     }
@@ -134,7 +148,7 @@ export const BoopCounter = forwardRef<BoopCounterHandle, Props>(function BoopCou
     if (value < shownRef.current && targetRef.current !== value) {
       animate(value, countDownMs);
     }
-  }, [animate, payoutActive, value]);
+  }, [animate, payoutActive, pending, value]);
 
   useEffect(() => {
     return () => cancelAnimationFrame(frame.current);
