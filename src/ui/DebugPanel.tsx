@@ -252,9 +252,9 @@ export function DebugPanel({
       </View>
       {typeof __DEV__ !== 'undefined' && __DEV__ && onGrant ? (
         <View style={styles.actions}>
-          {[...catalog.map((item) => item.id), 'dogHouse', 'catTree'].map((id) => (
-            <Pressable key={id} style={styles.button} onPress={() => onGrant(id)}>
-              <Text style={styles.buttonLabel}>{id}</Text>
+          {catalog.map((item) => (
+            <Pressable key={item.id} style={styles.button} onPress={() => onGrant(item.id)}>
+              <Text style={styles.buttonLabel}>{item.id}</Text>
             </Pressable>
           ))}
         </View>

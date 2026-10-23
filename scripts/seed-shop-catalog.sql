@@ -1,7 +1,6 @@
--- Re-seed the shop catalog from the catalog seed brief. Safe to run again.
--- Requires 20261023160000_catalog_seed.sql. A change bumps shop_config.version
--- through the existing trigger. Do not bump it again here.
--- The project owner runs this in the Supabase SQL editor. Do not run it from an agent.
+-- Same rows as supabase/migrations/20261023170000_shop_catalog_rows.sql.
+-- `supabase db push` applies that migration. This file is the copy the closet-name test reads.
+-- Safe to run again. A change bumps shop_config.version through the existing trigger.
 
 insert into public.shop_config (id, pick_slots, no_repeat_days, deal_pct, version)
 values (1, '["clothes","toys","treats_or_boosts"]'::jsonb, 5, 20, 1)
