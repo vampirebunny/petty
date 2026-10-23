@@ -108,6 +108,43 @@ it('walks to a bowl prop when the scene has no food point', () => {
   expect(actor.task.poi?.propId).toBe('livingroom-food');
 });
 
+it('lies down when the bed center is outside the standing range', () => {
+  const { world, actor } = pup();
+  actor.x = 300;
+  actor.y = 440;
+  actor.vx = 0;
+  actor.vy = 0;
+  actor.speed = 0;
+  expect(inviteCare(world, actor, 'bed')).toBe('went');
+  for (let step = 0; step < 800 && !world.pendingRest; step += 1) {
+    update(world, 0.05);
+  }
+  expect(actor.task.stage).toBe('sleeping');
+  expect(actor.asleep).toBe(false);
+  expect(takePendingRest(world)).toBe(true);
+});
+
+it('lies down on the bedroom bed from the middle of the room', () => {
+  const actor = spawnActor({
+    id: 'pup',
+    breedId: 'retriever',
+    ageDays: 400,
+    weight: 24,
+    vitality: 1,
+    equipped: {},
+    asleep: false,
+  });
+  actor.x = 300;
+  actor.y = 470;
+  const world = createWorld([actor], 2, scenes.bedroom);
+  expect(inviteCare(world, actor, 'bed')).toBe('went');
+  for (let step = 0; step < 800 && !world.pendingRest; step += 1) {
+    update(world, 0.05);
+  }
+  expect(actor.task.stage).toBe('sleeping');
+  expect(takePendingRest(world)).toBe(true);
+});
+
 it('keeps the pet awake until he is lying on the bed', () => {
   const { world, actor } = pup();
   inviteCare(world, actor, 'bed');

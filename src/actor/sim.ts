@@ -2139,10 +2139,23 @@ function updateActor(world: World, actor: Actor, dt: number): void {
   } else if (actor.task.type === 'sleep') {
     const bed = actor.task.poi ?? poiOf(world.scene, 'bed');
     if (actor.task.stage === 'go' && bed) {
-      move = { x: bed.x, y: bed.y };
+      // Both home beds sit past the stage edge. The body clamp stops the pet short of that
+      // center, so requiring the center itself means the nap never starts.
+      const range = xRangeOf(floor, frame.geom, frame.scale);
+      const spot = {
+        x: clamp(bed.x, range.lo, range.hi),
+        y: clamp(bed.y, floor.yMin, floor.yMax),
+      };
+      move = spot;
       vmax = limit * 0.5;
-      if (Math.hypot(bed.x - actor.x, bed.y - actor.y) < 5 && actor.speed < 15) {
+      if (Math.hypot(spot.x - actor.x, spot.y - actor.y) < 8 && actor.speed < 20) {
         actor.task.stage = 'sleeping';
+        actor.x = spot.x;
+        actor.y = spot.y;
+        actor.vx = 0;
+        actor.vy = 0;
+        actor.speed = 0;
+        move = null;
       }
     } else {
       targets.lie = 1;
