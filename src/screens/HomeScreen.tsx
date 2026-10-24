@@ -1430,11 +1430,11 @@ export default function HomeScreen({ petApi }: Props) {
     tips.current === 'tip.cuddle' && coachTarget
       ? { flavor: 'bond' as const, icon: HandHeart, text: 'Stroke his back or head', bold: 'Stroke', target: coachTarget }
       : tips.current === 'tip.water' && propTip
-        ? { flavor: 'care' as const, icon: Droplet, text: 'Press Water to give Z a drink', bold: 'Water', target: propTip }
+        ? { flavor: 'care' as const, icon: Droplet, text: `Press Water to give ${petName} a drink`, bold: 'Water', target: propTip }
         : tips.current === 'tip.food' && propTip
           ? { flavor: 'care' as const, icon: Soup, text: 'Press Feed to fill the bowl', bold: 'Feed', target: propTip }
           : tips.current === 'tip.sleep' && propTip
-            ? { flavor: 'care' as const, icon: Moon, text: 'Press Sleep so Z can nap', bold: 'Sleep', target: propTip }
+            ? { flavor: 'care' as const, icon: Moon, text: `Press Sleep so ${petName} can nap`, bold: 'Sleep', target: propTip }
             : tips.current === 'tip.move' && propTip
               ? { flavor: 'style' as const, icon: Sparkles, text: 'Hold to move things around', bold: 'Hold', target: propTip }
               : null;
