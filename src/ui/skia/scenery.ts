@@ -10,8 +10,8 @@ import type { Env } from './env';
 import { glow } from './ink';
 import { extras, drawPropBody } from './props';
 import { overcastWash } from './sky';
-import { treatArtFor, type TreatArtTemplate } from '../../economy/treatArt';
 import { drawPrecip } from './weatherFx';
+import { drawFeatherBundle, drawLaserPointer, laserTip } from './itemShapes';
 // Registers the catio prop kinds.
 import './catioProps';
 
@@ -26,6 +26,9 @@ export type { Contact, Env, Glow, LightRig } from './env';
 export { drawSkyPane } from './sky';
 export { drawShapes } from './shapes';
 export { registerProp } from './props';
+// Toy and treat art lives in itemShapes.ts; these keep the old import path working.
+export { BOX_PER_RADIUS, drawBallShape, drawFeatherBundle, drawLaserPointer, drawToyShape, drawTreatShape, treatArt } from './itemShapes';
+export type { ArtDetail, TreatArt } from './itemShapes';
 
 export function drawProp(c: SkCanvas, prop: Prop, env: Env): void {
   const saved = env.anchor;
@@ -111,220 +114,9 @@ export function drawAmbient(c: SkCanvas, world: World, env: Env, bleed = 0, skip
   }
 }
 
-// Every toy kind the pet can play with: the ball, a flat frisbee, a ball of yarn with a trailing thread, and a squeaky toy.
-export function drawToyShape(c: SkCanvas, kind: string, x: number, y: number, radius: number, t = 0): void {
-  if (kind === 'frisbee') {
-    fillOval(c, x, y, radius * 1.5, radius * 0.5, '#3a8fd8');
-    fillOval(c, x, y - radius * 0.1, radius * 1.05, radius * 0.3, '#7cc0f2');
-    return;
-  }
-  if (kind === 'yarn') {
-    fillCircle(c, x, y, radius, '#d9628f');
-    for (const k of [-0.5, 0, 0.5]) {
-      const arc = Skia.PathBuilder.Make();
-      arc.addArc(oval(x, y, radius * (0.95 - Math.abs(k) * 0.4), radius * 0.95), 200 + k * 40, 130);
-      c.drawPath(arc.build(), paintOf('#a8406a', 0.9, 1.2));
-    }
-    const thread = Skia.PathBuilder.Make();
-    thread.moveTo(x + radius * 0.8, y + radius * 0.5);
-    thread.cubicTo(x + radius * 1.8, y + radius * 0.9, x + radius * 1.5, y + radius * 1.5, x + radius * 2.6, y + radius * 1.1 + Math.sin(t * 2) * 0.8);
-    c.drawPath(thread.build(), paintOf('#d9628f', 1, 1.4));
-    return;
-  }
-  if (kind === 'stick') {
-    c.save();
-    c.translate(x, y);
-    c.rotate(28, 0, 0);
-    c.drawLine(-radius * 1.5, 0, radius * 1.5, 0, paintOf('#8a5a32', 1, 3));
-    c.drawLine(-radius * 1.2, -radius * 0.25, -radius * 0.4, radius * 0.15, paintOf('#6b4424', 1, 1.6));
-    c.restore();
-    return;
-  }
-  if (kind === 'rope') {
-    const lying = Skia.PathBuilder.Make();
-    lying.moveTo(x - radius * 1.8, y);
-    lying.quadTo(x - radius * 0.2, y + radius * 0.9, x + radius * 1.6, y + radius * 0.15);
-    c.drawPath(lying.build(), paintOf('#c4553a', 1, 2.6));
-    return;
-  }
-  if (kind === 'mouse') {
-    fillOval(c, x, y, radius * 1.15, radius * 0.7, '#c4c8d0');
-    fillCircle(c, x + radius * 0.85, y - radius * 0.15, radius * 0.45, '#d7dbe2');
-    fillCircle(c, x + radius * 1.05, y - radius * 0.55, radius * 0.22, '#e7b7c4');
-    fillCircle(c, x + radius * 1.05, y - radius * 0.55, radius * 0.08, '#3a2a32');
-    const tail = Skia.PathBuilder.Make();
-    tail.moveTo(x - radius * 0.9, y);
-    tail.quadTo(x - radius * 1.6, y - radius * 0.8, x - radius * 1.3, y - radius * 1.3);
-    c.drawPath(tail.build(), paintOf('#c4c8d0', 1, 2));
-    return;
-  }
-  if (kind === 'crinkle') {
-    fillCircle(c, x, y, radius, '#7ec8e3');
-    fillCircle(c, x - radius * 0.2, y - radius * 0.15, radius * 0.55, '#f4f7fb', 0.55);
-    return;
-  }
-  if (kind === 'bone') {
-    c.save();
-    c.translate(x, y);
-    c.rotate(-18, 0, 0);
-    c.drawLine(-radius * 0.7, 0, radius * 0.7, 0, paintOf('#f3e2c4', 1, radius * 0.55));
-    fillCircle(c, -radius * 0.85, -radius * 0.18, radius * 0.38, '#f3e2c4');
-    fillCircle(c, -radius * 0.85, radius * 0.18, radius * 0.38, '#f3e2c4');
-    fillCircle(c, radius * 0.85, -radius * 0.18, radius * 0.38, '#f3e2c4');
-    fillCircle(c, radius * 0.85, radius * 0.18, radius * 0.38, '#f3e2c4');
-    c.restore();
-    return;
-  }
-  if (kind === 'wand') {
-    c.drawLine(x - radius * 0.2, y + radius * 1.4, x + radius * 0.8, y - radius * 1.2, paintOf('#8a5a32', 1, 2.2));
-    fillCircle(c, x + radius * 0.9, y - radius * 1.35, radius * 0.45, '#e85a8c');
-    fillCircle(c, x + radius * 1.25, y - radius * 1.05, radius * 0.28, '#f2c230');
-    return;
-  }
-  if (kind === 'laser') {
-    fillCircle(c, x, y, radius * 0.55, '#ff4d4d', 0.35);
-    fillCircle(c, x, y, radius * 0.22, '#ff4d4d');
-    return;
-  }
-  if (kind === 'squeaky') {
-    fillOval(c, x, y, radius * 1.1, radius * 0.75, '#f2c230');
-    fillCircle(c, x + radius * 0.85, y - radius * 0.3, radius * 0.5, '#f2c230');
-    fillCircle(c, x + radius * 1.0, y - radius * 0.4, radius * 0.1, '#3a2a10');
-    return;
-  }
-  drawBallShape(c, x, y, radius);
-}
 
-// A biscuit is the treat we can draw today. Other ids get a simple variant until they have their own art.
-function drawBone(c: SkCanvas, x: number, y: number, radius: number, fill: string): void {
-  c.save();
-  c.translate(x, y);
-  c.rotate(-18, 0, 0);
-  c.drawLine(-radius * 0.7, 0, radius * 0.7, 0, paintOf(fill, 1, radius * 0.42));
-  fillCircle(c, -radius * 0.85, -radius * 0.16, radius * 0.34, fill);
-  fillCircle(c, -radius * 0.85, radius * 0.16, radius * 0.34, fill);
-  fillCircle(c, radius * 0.85, -radius * 0.16, radius * 0.34, fill);
-  fillCircle(c, radius * 0.85, radius * 0.16, radius * 0.34, fill);
-  c.restore();
-}
-
-function drawLegacyBiscuitFish(c: SkCanvas, x: number, y: number, radius: number): void {
-  fillOval(c, x, y, radius * 1.15, radius * 0.62, '#e7b15a');
-  fillOval(c, x + radius * 0.85, y, radius * 0.38, radius * 0.28, '#e7b15a');
-  fillCircle(c, x + radius * 1.05, y - radius * 0.08, radius * 0.08, '#8a5a32');
-  fillCircle(c, x - radius * 0.2, y - radius * 0.05, radius * 0.1, '#c9842f');
-}
-
-function drawLegacySpecial(c: SkCanvas, x: number, y: number, radius: number, t: number): void {
-  fillCircle(c, x, y + radius * 0.08, radius, '#c9842f');
-  fillCircle(c, x, y, radius * 0.92, '#e7b15a');
-  fillCircle(c, x - radius * 0.22, y - radius * 0.28, radius * 0.55, '#f3d48a', 0.9);
-  fillCircle(c, x - radius * 0.28, y + radius * 0.08, radius * 0.16, '#8a5a32');
-  fillCircle(c, x + radius * 0.22, y - radius * 0.22, radius * 0.13, '#8a5a32');
-  fillCircle(c, x + radius * 0.08, y + radius * 0.28, radius * 0.12, '#8a5a32');
-  const twinkle = 0.85 + Math.sin(t * 6) * 0.15;
-  fillCircle(c, x, y - radius * 0.05, radius * 0.28 * twinkle, '#ff7ba5');
-  fillCircle(c, x, y - radius * 0.05, radius * 0.12, '#fff6fb');
-}
-
-function drawCookie(c: SkCanvas, x: number, y: number, radius: number, fill: string, chip: string): void {
-  fillCircle(c, x, y + radius * 0.08, radius, chip);
-  fillCircle(c, x, y, radius * 0.92, fill);
-  fillCircle(c, x - radius * 0.22, y - radius * 0.28, radius * 0.55, '#f3d48a', 0.9);
-  fillCircle(c, x - radius * 0.28, y + radius * 0.08, radius * 0.16, chip);
-  fillCircle(c, x + radius * 0.22, y - radius * 0.22, radius * 0.13, chip);
-  fillCircle(c, x + radius * 0.08, y + radius * 0.28, radius * 0.12, chip);
-}
-
-export function drawTreatTemplate(
-  c: SkCanvas,
-  template: TreatArtTemplate,
-  x: number,
-  y: number,
-  radius: number,
-  colors: { c: string; d?: string },
-  t = 0,
-): void {
-  const fill = colors.c;
-  const accent = colors.d ?? fill;
-  if (template === 'bone') {
-    drawBone(c, x, y, radius, fill);
-    return;
-  }
-  if (template === 'fish') {
-    fillOval(c, x, y, radius * 1.15, radius * 0.62, fill);
-    fillOval(c, x + radius * 0.85, y, radius * 0.38, radius * 0.28, fill);
-    fillCircle(c, x + radius * 1.05, y - radius * 0.08, radius * 0.08, accent);
-    fillCircle(c, x - radius * 0.2, y - radius * 0.05, radius * 0.1, accent);
-    return;
-  }
-  if (template === 'chew_stick') {
-    c.save();
-    c.translate(x, y);
-    c.rotate(-24, 0, 0);
-    c.drawLine(-radius * 1.1, 0, radius * 1.1, 0, paintOf(fill, 1, radius * 0.38));
-    c.drawLine(-radius * 0.7, -radius * 0.22, radius * 0.4, -radius * 0.22, paintOf(accent, 1, radius * 0.08));
-    c.drawLine(-radius * 0.2, radius * 0.18, radius * 0.9, radius * 0.18, paintOf(accent, 1, radius * 0.08));
-    c.restore();
-    return;
-  }
-  if (template === 'can') {
-    fillOval(c, x, y - radius * 0.55, radius * 0.7, radius * 0.28, accent);
-    c.drawLine(x, y - radius * 0.55, x, y + radius * 0.45, paintOf(fill, 1, radius * 1.35));
-    fillOval(c, x, y + radius * 0.45, radius * 0.7, radius * 0.28, fill);
-    fillOval(c, x, y - radius * 0.55, radius * 0.45, radius * 0.16, '#fff6fb');
-    return;
-  }
-  if (template === 'steak') {
-    fillOval(c, x, y, radius * 1.15, radius * 0.7, fill);
-    fillCircle(c, x - radius * 0.55, y - radius * 0.15, radius * 0.38, accent);
-    fillCircle(c, x + radius * 0.45, y + radius * 0.1, radius * 0.28, '#f3d48a');
-    return;
-  }
-  if (template === 'bowl') {
-    fillOval(c, x, y + radius * 0.15, radius * 1.05, radius * 0.55, fill);
-    fillOval(c, x, y - radius * 0.05, radius * 0.85, radius * 0.38, accent);
-    fillOval(c, x, y + radius * 0.35, radius * 1.05, radius * 0.22, fill);
-    return;
-  }
-  drawCookie(c, x, y, radius, fill, accent);
-  if (template === 'cookie_center') {
-    const twinkle = 0.85 + Math.sin(t * 6) * 0.15;
-    fillCircle(c, x, y - radius * 0.05, radius * 0.28 * twinkle, accent);
-    fillCircle(c, x, y - radius * 0.05, radius * 0.12, '#fff6fb');
-  }
-}
-
-export function drawTreatShape(
-  c: SkCanvas,
-  id: string,
-  x: number,
-  y: number,
-  radius: number,
-  t = 0,
-  species: 'dog' | 'cat' | null = null,
-): void {
-  if (id === 'biscuit' && species === 'cat') {
-    drawLegacyBiscuitFish(c, x, y, radius);
-    return;
-  }
-  if (id === 'biscuit') {
-    drawBone(c, x, y, radius, '#e7b15a');
-    return;
-  }
-  if (id === 'special') {
-    drawLegacySpecial(c, x, y, radius, t);
-    return;
-  }
-  const art = treatArtFor(id);
-  if (art) {
-    drawTreatTemplate(c, art.template, x, y, radius, art, t);
-    return;
-  }
-  drawCookie(c, x, y, radius, '#e7b15a', '#c9842f');
-}
-
-export function drawHeldPlay(c: SkCanvas, world: World): void {
+// `t` sways the wand's feathers; pass the scene clock (env.t) where it is available.
+export function drawHeldPlay(c: SkCanvas, world: World, t = 0): void {
   const held = world.held;
   const actor = world.actors[0];
   if (!held || !actor) {
@@ -337,36 +129,31 @@ export function drawHeldPlay(c: SkCanvas, world: World): void {
     const x = Math.min(floor.xMax, Math.max(floor.xMin, held.x + slip));
     const y = held.y;
     const origin = { x: stageWidth / 2, y: stageHeight - 28 };
-    const angle = Math.atan2(y - origin.y, x - origin.x);
-    c.save();
-    c.translate(origin.x, origin.y);
-    c.rotate((angle * 180) / Math.PI, 0, 0);
-    const body = Skia.PathBuilder.Make();
-    body.addRRect(Skia.RRectXY(Skia.XYWHRect(-16, -10, 32, 22), 6, 6));
-    c.drawPath(body.build(), paintOf('#2a2a32'));
-    c.drawCircle(18, 0, 5, paintOf('#ff4d4d'));
-    c.restore();
-    c.drawLine(origin.x, origin.y, x, y, paintOf('#FF4D4D', 0.4, 1.5));
-    fillCircle(c, x, y, 10 * scale, '#ff4d4d', 0.28);
-    fillCircle(c, x, y, 3.5 * scale, '#ff4d4d');
+    const angle = (Math.atan2(y - origin.y, x - origin.x) * 180) / Math.PI;
+    const tip = laserTip(origin.x, origin.y, angle, 36);
+    c.drawLine(tip.x, tip.y, x, y, paintOf('#FF4D6A', 0.4, 1.5));
+    drawLaserPointer(c, origin.x, origin.y, angle, 36);
+    fillCircle(c, x, y, 10 * scale, '#FF4D6A', 0.25);
+    fillCircle(c, x, y, 3.5 * scale, '#FF3355');
     if (held.spark > 0) {
       fillCircle(c, x, y, 8 + held.spark * 6, '#fff6c8', 0.65 * Math.min(1, held.spark));
     }
     return;
   }
-  const y = held.y - held.featherZ;
-  c.drawLine(held.featherX, y, stageWidth + 30, stageHeight + 10, paintOf('#8a5a32', 1, 2.4));
-  fillCircle(c, held.featherX, y, 8, '#e85a8c');
-  fillCircle(c, held.featherX + 7, y + 4, 5, '#f2c230');
+  // Feather wand: the stick comes in from off-screen, a short string drops to the bell, and the
+  // feathers hang around (featherX, y), the point the pet chases.
+  const fy = held.y - held.featherZ;
+  const bellY = fy - 12;
+  const tip = { x: held.featherX + 18, y: bellY - 26 };
+  const handle = { x: stageWidth + 30, y: stageHeight + 10 };
+  c.drawLine(tip.x, tip.y, handle.x, handle.y, paintOf('#7A4A22', 1, 5, StrokeCap.Round));
+  c.drawLine(tip.x, tip.y, handle.x, handle.y, paintOf('#C98C55', 1, 2.4, StrokeCap.Round));
+  const string = Skia.PathBuilder.Make();
+  string.moveTo(tip.x, tip.y);
+  string.quadTo(held.featherX + 12, bellY - 14, held.featherX, bellY - 2);
+  c.drawPath(string.build(), paintOf('#9E8AB0', 1, 1.2));
+  drawFeatherBundle(c, held.featherX, bellY, 0.7, t);
   if (held.spark > 0) {
     fillCircle(c, held.x, held.y - 20, 6 + held.spark * 4, '#fff6c8', 0.7 * Math.min(1, held.spark));
   }
-}
-
-export function drawBallShape(c: SkCanvas, x: number, y: number, radius: number): void {
-  fillCircle(c, x, y, radius, '#df5340');
-  const shine = Skia.PathBuilder.Make();
-  shine.addArc(oval(x, y, radius * 0.62, radius * 0.62), 162, 117);
-  c.drawPath(shine.build(), paintOf('#ffffff', 0.75, 1.6));
-  fillCircle(c, x + radius * 0.35, y - radius * 0.4, radius * 0.22, '#ffffff', 0.55);
 }

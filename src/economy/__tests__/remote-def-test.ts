@@ -7,7 +7,17 @@ import {
   setAppVersionForTest,
 } from '../remoteDefs';
 import { materializeShop, priceCart, type RemoteShopItem } from '../shop';
+import { treatArt } from '../../ui/skia/itemShapes';
 import { treatTemplateFor } from '../treatArt';
+
+jest.mock('@shopify/react-native-skia', () => ({
+  PaintStyle: {},
+  StrokeCap: {},
+  StrokeJoin: {},
+  Skia: {},
+  TileMode: {},
+  vec: () => ({ x: 0, y: 0 }),
+}));
 
 const collar = {
   v: 1,
@@ -143,4 +153,17 @@ it('keeps biscuit and special on their original templates', () => {
   expect(treatTemplateFor('special')).toBe('cookie_center');
   expect(treatTemplateFor('treat_jerky')).toBe('chew_stick');
   expect(treatTemplateFor('treat_tuna')).toBe('can');
+});
+
+it('picks the shop picture from the treat effect', () => {
+  expect(treatArt('biscuit', 'dog')).toBe('bone');
+  expect(treatArt('biscuit', 'cat')).toBe('fish');
+  expect(treatArt('special', null)).toBe('mood');
+  expect(treatArt('treat_jerky', 'dog')).toBe('energy');
+  expect(treatArt('treat_tuna', 'cat')).toBe('energy');
+  expect(treatArt('food_fish', 'cat')).toBe('meal');
+  expect(treatArt('food_steak', 'dog')).toBe('meal');
+  expect(treatArt('food_gourmet', null)).toBe('meal');
+  expect(treatArt('second_wind', null)).toBe('special');
+  expect(treatArt('treat_maple', null)).toBe('cookie');
 });

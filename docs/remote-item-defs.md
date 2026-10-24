@@ -74,7 +74,7 @@ Patterns: `stripes`, `gingham`, `plaid`, `daisies`, `stars`, `rainbow`. Parts ar
 
 Reactions: `wag_burst`, `hop`, `spin`, `purr_headbump` (`KNOWN_REACTIONS` in `src/economy/treatArt.ts`).
 
-Treat art (`KNOWN_TREAT_ART` in the same file): `bone`, `fish`, `cookie`, `cookie_center`, `chew_stick`, `can`, `steak`, `bowl`. `biscuit` and `special` keep their original drawings. Jerky, tuna, and the three foods use temporary drawings on the newer templates.
+Treat art (`KNOWN_TREAT_ART` in the same file): `bone`, `fish`, `cookie`, `cookie_center`, `chew_stick`, `can`, `steak`, `bowl`. A def still has to name one of these, with a hex `c`, or it is dropped. That template and its colors do not change the picture. The picture comes from the effect: `fill: "energy"` is the energy bar, `fill: "mood"` is the heart, a premium meal is the bowl, `biscuit` is a bone for dogs and a fish for cats, Second Wind is wind and a sparkle, and anything else is the cookie.
 
 An unknown `v`, shape, pattern, part, reaction, template, or effect field drops the def. `shop = 'coming_soon'` can still show a gift placeholder. Any other shop value omits the row. A bad row does not crash the shop.
 

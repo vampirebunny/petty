@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Canvas, Picture, Skia } from '@shopify/react-native-skia';
 
 import { drawToyShape } from './skia/scenery';
+import { ICON_RADIUS } from './shop/ItemArt';
 import { fontFamily } from './font';
 
 export type ToyChoice = {
@@ -53,7 +54,8 @@ function ToyGlyph({ kind }: { kind: string }) {
   const picture = useMemo(() => {
     const recorder = Skia.PictureRecorder();
     const canvas = recorder.beginRecording(Skia.XYWHRect(0, 0, 72, 72));
-    drawToyShape(canvas, kind, 36, 40, 22);
+    const mid = 36;
+    drawToyShape(canvas, kind, mid, mid, 72 * ICON_RADIUS, 0, 'icon');
     return recorder.finishRecordingAsPicture();
   }, [kind]);
   return (

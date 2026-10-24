@@ -306,7 +306,7 @@ export function drawWorld(
             const bob = nibbling ? Math.sin(world.t * 18) * 1.4 : 0;
             const actor = world.actors[0];
             const breed = actor ? resolveBreedById(actor.breedId, actor.look) : null;
-            drawTreatShape(canvas, treatId, toy.x, toy.y - toy.z - radius + bob, radius * 1.25, world.t, breed?.species ?? null);
+            drawTreatShape(canvas, treatId, toy.x, toy.y - toy.z - radius + bob, radius, world.t, breed?.species ?? null);
             return;
           }
           drawToyShape(canvas, toy.kind, toy.x, toy.y - toy.z - radius, radius, world.t);
@@ -378,7 +378,7 @@ export function drawWorld(
     });
   }
   if (world.held) {
-    drawHeldPlay(canvas, world);
+    drawHeldPlay(canvas, world, env.t);
   }
   withTint(roomTint, () => {
     for (const bird of world.birds) {
