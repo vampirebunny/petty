@@ -24,7 +24,7 @@ export function planTimePayout(
   const cfg = economyConfig.timeAccrual;
   const hourMs = 3_600_000;
   const msPerBoop = hourMs / cfg.boopsPerHour;
-  if (now <= owner.timePaidThrough || now < owner.lastTrustedTime) {
+  if (now <= owner.timePaidThrough) {
     return { owner, amount: 0, save: false, day: localDay(now) };
   }
   const next = { ...owner, lastTrustedTime: now };

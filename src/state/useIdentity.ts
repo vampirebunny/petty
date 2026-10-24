@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 
-import { bindInstallToAuth } from '../db/bindOwner';
+import { readAccountLinked } from '../db/accountMeta';
+import { rebindOwner } from '../db/bindOwner';
 import { bootstrapLocal } from '../db/bootstrap';
 import { setCurrentOwner } from '../db/currentOwner';
+import { authTransition, setAuthTransition } from './sessionGate';
 import {
   getCachedInstallId,
   getCachedUserId,
@@ -28,8 +30,11 @@ export function useIdentity(): Identity {
     let unsubscribe: (() => void) | undefined;
 
     setBeforeSessionPublish(async (nextUserId) => {
+      if (authTransition() !== 'idle') {
+        return;
+      }
       const install = await getOrCreateInstallId();
-      await bindInstallToAuth(install, nextUserId);
+      await rebindOwner(install, nextUserId);
       setCurrentOwner(nextUserId);
     });
 
@@ -54,16 +59,37 @@ export function useIdentity(): Identity {
           return;
         }
         void (async () => {
+          if (authTransition() !== 'idle') {
+            setCachedUserId(next);
+            if (!cancelled) {
+              setUserId(next);
+            }
+            return;
+          }
+          let owner = next;
           if (next) {
             const install = id ?? (await getOrCreateInstallId());
-            await bindInstallToAuth(install, next);
+            await rebindOwner(install, next);
             setCurrentOwner(next);
-          } else if (id) {
-            setCurrentOwner(id);
+          } else if (readAccountLinked()) {
+            setAuthTransition('reauth');
+          } else {
+            const previous = getCachedUserId();
+            if (previous) {
+              const { ensureAnonymousUserId } = await import('../compliance/identity');
+              const created = await ensureAnonymousUserId();
+              if (created && created !== previous) {
+                await rebindOwner(previous, created);
+                setCurrentOwner(created);
+                owner = created;
+              }
+            } else if (id) {
+              setCurrentOwner(id);
+            }
           }
-          setCachedUserId(next);
+          setCachedUserId(owner);
           if (!cancelled) {
-            setUserId(next);
+            setUserId(owner);
           }
         })();
       });

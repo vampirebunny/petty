@@ -1,13 +1,14 @@
 import * as SQLite from 'expo-sqlite';
 
-export const storageVersion = 2;
+export const storageVersion = 3;
 
-const SCHEMA = `
+export const schemaSql = `
 CREATE TABLE IF NOT EXISTS transactions (
   id TEXT PRIMARY KEY NOT NULL,
   owner_id TEXT NOT NULL,
   idempotency_key TEXT NOT NULL,
   source TEXT NOT NULL,
+  kind TEXT NOT NULL DEFAULT 'earn',
   source_ref TEXT,
   device_time TEXT NOT NULL,
   server_time TEXT,
@@ -19,12 +20,16 @@ CREATE TABLE IF NOT EXISTS transactions (
 );
 CREATE TABLE IF NOT EXISTS transaction_lines (
   transaction_id TEXT NOT NULL,
+  line_no INTEGER NOT NULL,
   asset TEXT NOT NULL,
   delta INTEGER NOT NULL,
   unit_price INTEGER,
   deal INTEGER NOT NULL DEFAULT 0,
   serial INTEGER,
-  PRIMARY KEY (transaction_id, asset)
+  toy_id TEXT,
+  furniture_id TEXT,
+  scene TEXT,
+  PRIMARY KEY (transaction_id, line_no)
 );
 CREATE TABLE IF NOT EXISTS limited_confirms (
   request_id TEXT PRIMARY KEY NOT NULL,
@@ -104,6 +109,10 @@ CREATE TABLE IF NOT EXISTS push_queue (
   kind TEXT NOT NULL,
   payload TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS ledger_outbox (
+  idempotency_key TEXT PRIMARY KEY NOT NULL,
+  payload TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS shop_day (
   owner_id TEXT PRIMARY KEY NOT NULL,
   date TEXT NOT NULL,
@@ -146,6 +155,7 @@ DROP TABLE IF EXISTS retired_pets;
 DROP TABLE IF EXISTS owned_toys;
 DROP TABLE IF EXISTS owned_furniture;
 DROP TABLE IF EXISTS home_layouts;
+DROP TABLE IF EXISTS ledger_outbox;
 DROP TABLE IF EXISTS push_queue;
 DROP TABLE IF EXISTS shop_day;
 DROP TABLE IF EXISTS shop_pick_history;
@@ -184,11 +194,11 @@ export function getDb(): SQLite.SQLiteDatabase {
     const version = row ? Number(row.value) : 0;
     if (version < storageVersion) {
       db.execSync(DROP_LEGACY);
-      db.execSync(SCHEMA);
+      db.execSync(schemaSql);
       db.runSync("INSERT INTO meta (key, value) VALUES ('storageVersion', ?)", String(storageVersion));
       pendingAsyncWipe = true;
     } else {
-      db.execSync(SCHEMA);
+      db.execSync(schemaSql);
       ensureLedgerColumns(db);
     }
   }

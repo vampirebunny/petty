@@ -50,7 +50,7 @@ it('leaves needs and weight unchanged when the clock moves backward', () => {
 
   expect(after.needs).toEqual(before.needs);
   expect(after.weight).toBe(before.weight);
-  expect(after.lastUpdatedAt).toBe(before.lastUpdatedAt - hourMs);
+  expect(after.lastUpdatedAt).toBe(before.lastUpdatedAt);
 });
 
 it('rewrites bornAt when debug age changes and clamps the weight index', () => {

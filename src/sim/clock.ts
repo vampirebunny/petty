@@ -63,7 +63,7 @@ export function resume(state: PetState, now: number): PetState {
     needs,
     asleep: state.asleep,
     weight: applyAwayWeight(state.weight, elapsedH),
-    lastUpdatedAt: now,
+    lastUpdatedAt: now < state.lastUpdatedAt ? state.lastUpdatedAt : now,
     weightAppliedAt: now,
   };
   const home =

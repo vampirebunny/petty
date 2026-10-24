@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, AppState } from 'react-native';
+import * as Network from 'expo-network';
 
 import { flickToThrow } from '../input/flick';
 import { cancelReminders, syncReminder } from '../reminders/notifications';
@@ -25,9 +26,14 @@ import {
   tickForeground,
 } from '../sim';
 import type { Cue, Look, Mood, OutfitSlot, PetAttributes, PetEvent, PetState, Trait } from '../sim';
-import { createUuid } from '../compliance/identity';
+import { createUuid, getCachedInstallId } from '../compliance/identity';
 import { bootstrapLocal, wipeLocalData } from '../db/bootstrap';
-import { grantSpeciesHome, grantToyOnce, moveOwnedPiece } from '../db/playerHome';
+import { readAccountLinked, readStandby, serverNow, setOtherDeviceLabel, setStandby } from '../db/accountMeta';
+import { grantSpeciesHome, moveOwnedPiece } from '../db/playerHome';
+import { claimDevice, hasUnsentPlay, peekActiveDevice, touchLastSeen } from '../sync/activeDevice';
+import { devicePhrase } from '../sync/deviceLabel';
+import { reconcileFromServer } from '../sync/reconcile';
+import { authTransition, onInstallState, saveGeneration, setAuthTransition, setSettleRequest } from './sessionGate';
 import { speciesOf } from '../sim/tracks';
 import { sqlitePetStorage } from '../db/sqlitePetStorage';
 import { getDb } from '../db/database';
@@ -42,7 +48,7 @@ import {
   type Burst,
   type OpenRewards,
 } from '../economy/service';
-import { queueCoupled, queuePet, queuePlayer, queueRetire, kick } from '../sync/queue';
+import { queuePet, queuePlayer, queueRetire, kick } from '../sync/queue';
 import type { PetStorage } from '../storage/PetStorage';
 import {
   clearDraft,
@@ -144,6 +150,8 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
   const remindersRef = useRef(true);
   const saveQueue = useRef(Promise.resolve());
   const activeRef = useRef(AppState.currentState === 'active');
+  const statusRef = useRef(AppState.currentState);
+  const considerOpenRef = useRef<(pet: PetState) => void>(() => undefined);
   const returningRef = useRef(false);
 
   useEffect(() => {
@@ -166,15 +174,24 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
       });
     }
     const snapshot = next;
+    const generation = saveGeneration();
     saveQueue.current = saveQueue.current
       .catch(() => undefined)
-      .then(() => storageRef.current.save(snapshot))
-      .then(() =>
-        syncReminder(snapshot, remindersRef.current, Date.now(), {
+      .then(() => {
+        if (saveGeneration() !== generation) {
+          return undefined;
+        }
+        return storageRef.current.save(snapshot);
+      })
+      .then(() => {
+        if (saveGeneration() !== generation || readStandby()) {
+          return true;
+        }
+        return syncReminder(snapshot, remindersRef.current, Date.now(), {
           enabled: careRef.current,
           basicTreats: treatCountRef.current,
-        }),
-      )
+        });
+      })
       .then((allowed) => {
         if (remindersRef.current && !allowed) {
           remindersRef.current = false;
@@ -184,7 +201,7 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
         return undefined;
       })
       .then(() => {
-        if (sync) {
+        if (sync && saveGeneration() === generation && authTransition() === 'idle') {
           queuePet(snapshot);
         }
       });
@@ -322,7 +339,7 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
       setCareRemindersOnState(care);
       setReady(true);
       if (loaded) {
-        settleReturn(loaded, Date.now());
+        considerOpenRef.current(loaded);
         void resumeLimitedPurchases().then((result) => {
           if (cancelled) {
             return;
@@ -345,12 +362,12 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
     return () => {
       cancelled = true;
     };
-  }, [settleReturn, storage]);
+  }, [publish, settleReturn, storage]);
 
   useEffect(() => {
     const timer = setInterval(() => {
       const current = stateRef.current;
-      if (!current || !activeRef.current) {
+      if (!current || !activeRef.current || authTransition() !== 'idle' || readStandby()) {
         return;
       }
       publish(tickForeground(current, Date.now()), undefined, false);
@@ -362,30 +379,119 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
     return () => clearInterval(timer);
   }, [publish, pushBurst]);
 
+  const claimThenSettle = useCallback(
+    (current: PetState) => {
+      void (async () => {
+        setAuthTransition('reconciling');
+        const claim = await claimDevice();
+        if (!claim) {
+          setAuthTransition('idle');
+          settleReturn(current, serverNow());
+          return;
+        }
+        const install = getCachedInstallId();
+        const other = Boolean(claim.active_device_id_before && claim.active_device_id_before !== install);
+        if (other) {
+          await reconcileFromServer(claim);
+        }
+        setAuthTransition('idle');
+        settleReturn(stateRef.current ?? current, serverNow());
+      })();
+    },
+    [settleReturn],
+  );
+
+  const considerOpen = useCallback(
+    (current: PetState) => {
+      if (authTransition() !== 'idle' || readStandby()) {
+        return;
+      }
+      if (!readAccountLinked()) {
+        settleReturn(current, Date.now());
+        return;
+      }
+      void (async () => {
+        const net = await Network.getNetworkStateAsync();
+        if (!net.isConnected) {
+          settleReturn(current, serverNow());
+          return;
+        }
+        const peek = await peekActiveDevice();
+        const install = getCachedInstallId();
+        if (peek?.active_device_id && peek.active_device_id !== install) {
+          setOtherDeviceLabel(peek.active_device_label);
+          const phrase = devicePhrase(peek.active_device_label);
+          const message = hasUnsentPlay()
+            ? `You're playing on ${phrase}. Play on this device since then will be replaced. Anything you bought here is safe. If you tap Not now, that play stays on this device until you tap Play here, which replaces it the same way.`
+            : `You're playing on ${phrase}. Continue here?`;
+          Alert.alert('Continue here?', message, [
+            { text: 'Not now', onPress: () => setStandby(true) },
+            { text: 'Continue', onPress: () => claimThenSettle(current) },
+          ]);
+          return;
+        }
+        claimThenSettle(current);
+      })();
+    },
+    [claimThenSettle, settleReturn],
+  );
+
+  useEffect(() => {
+    considerOpenRef.current = considerOpen;
+  }, [considerOpen]);
+
+  useEffect(() => {
+    return onInstallState(() => {
+      void storageRef.current.load().then((loaded) => {
+        if (!loaded) {
+          return;
+        }
+        stateRef.current = loaded;
+        setState(loaded);
+        if (!readStandby()) {
+          void syncReminder(loaded, remindersRef.current, Date.now(), {
+            enabled: careRef.current,
+            basicTreats: treatCountRef.current,
+          });
+        }
+      });
+    });
+  }, []);
+
+  useEffect(() => {
+    setSettleRequest(() => {
+      const current = stateRef.current;
+      if (current && authTransition() === 'idle') {
+        settleReturn(current, serverNow());
+      }
+    });
+    return () => setSettleRequest(null);
+  }, [settleReturn]);
+
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (status) => {
-      const active = status === 'active';
-      const becameActive = active && !activeRef.current;
-      const left = !active && activeRef.current;
-      activeRef.current = active;
+      const previous = statusRef.current;
+      statusRef.current = status;
+      activeRef.current = status === 'active';
       const current = stateRef.current;
       if (!current) {
         return;
       }
       const now = Date.now();
-      if (left) {
-        payoutTimeAccrual('live', now);
+      if (previous === 'active' && status === 'background') {
+        payoutTimeAccrual('live', serverNow(now));
         const resolved = current.care.pendingReward ? resolveReward(current, now, 'none') : current;
         publish({ ...resolved, lastUpdatedAt: now, weightAppliedAt: now });
+        void touchLastSeen();
         kick(true);
         return;
       }
-      if (becameActive) {
-        settleReturn(current, now);
+      if (status === 'active' && previous === 'background') {
+        considerOpen(current);
       }
     });
     return () => subscription.remove();
-  }, [publish, settleReturn]);
+  }, [considerOpen, publish]);
 
   const dispatch = useCallback(
     (event: PetEvent) => {
@@ -482,11 +588,7 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
       .catch(() => undefined);
   }, []);
 
-  const retire = useCallback(() => {
-    const current = stateRef.current;
-    if (!current) {
-      return;
-    }
+  const retireNow = useCallback((current: PetState) => {
     const frozen: PetState = { ...current, equipped: {}, retiredAt: Date.now() };
     const draftCleared = clearDraft();
     stateRef.current = null;
@@ -511,17 +613,56 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
       .catch(() => undefined);
   }, []);
 
+  const retire = useCallback(() => {
+    const current = stateRef.current;
+    if (!current) {
+      return;
+    }
+    void (async () => {
+      if (readAccountLinked()) {
+        const net = await Network.getNetworkStateAsync();
+        if (!net.isConnected) {
+          Alert.alert('Goodbye', "You'll need internet to do this.");
+          return;
+        }
+        const claim = await claimDevice();
+        const install = getCachedInstallId();
+        if (claim && claim.active_device_id_before && claim.active_device_id_before !== install) {
+          await reconcileFromServer(claim);
+          Alert.alert('Caught up', 'All caught up from your other device!');
+          return;
+        }
+      }
+      retireNow(current);
+    })();
+  }, [retireNow]);
+
   const adopt = useCallback(
     (breedId: string, attributes: PetAttributes, look: Look, name: string, ownerId: string) => {
-      const now = Date.now();
-      const id = createUuid();
-      grantToyOnce(ownerId);
-      grantSpeciesHome(ownerId, speciesOf(breedId));
-      const created = createPet({ id, ownerId, name, breedId, look, attributes, now });
-      const opened = onAppOpen(created, now);
-      enqueueOpen(opened);
-      publish(opened.pet, { kind: 'none' });
-      void clearDraft();
+      void (async () => {
+        if (readAccountLinked()) {
+          const net = await Network.getNetworkStateAsync();
+          if (!net.isConnected) {
+            Alert.alert('Adoption', "You'll need internet to do this.");
+            return;
+          }
+          const claim = await claimDevice();
+          const install = getCachedInstallId();
+          if (claim && claim.active_device_id_before && claim.active_device_id_before !== install) {
+            await reconcileFromServer(claim);
+            Alert.alert('Caught up', 'All caught up from your other device!');
+            return;
+          }
+        }
+        const now = Date.now();
+        const id = createUuid();
+        grantSpeciesHome(ownerId, speciesOf(breedId));
+        const created = createPet({ id, ownerId, name, breedId, look, attributes, now });
+        const opened = onAppOpen(created, now);
+        enqueueOpen(opened);
+        publish(opened.pet, { kind: 'none' });
+        void clearDraft();
+      })();
     },
     [enqueueOpen, publish],
   );

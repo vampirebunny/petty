@@ -1,4 +1,6 @@
 import {
+  furnitureDefinition,
+  grantPieces,
   isRetiredPiece,
   placePiece,
   shopFurnitureSpot,
@@ -9,24 +11,23 @@ import {
 } from '../actor/furniture';
 import { startingToys } from '../sim/config';
 import { getDb } from './database';
+import { writeLedgerEntry } from './ledgerWrite';
 
 export type SpeciesId = 'dog' | 'cat';
 
 export type PlayerDoc = {
-  boops: number;
-  inventory: { itemId: string; qty: number }[];
   ownerState: {
     timePaidThrough: number;
     timeCappedDay: string | null;
     lastTrustedTime: number;
-    serverTimeOffsetMs: number;
     loginStreak: number;
     loginLastClaimedDay: string | null;
     lastOpenAt: number;
   } | null;
-  toys: string[];
-  furniture: FurniturePiece[];
   layouts: Partial<Record<SpeciesId, FurniturePlacement[]>>;
+  shopDay: { date: string; picks: string; dealId: string | null } | null;
+  shopPickHistory: { date: string; slot: string; itemId: string }[];
+  dailyCounters: { day: string; petId: string; key: string; count: number }[];
 };
 
 const listeners = new Set<() => void>();
@@ -64,7 +65,22 @@ export function ownsToy(ownerId: string, toyId: string): boolean {
 
 export function grantToyOnce(ownerId: string): void {
   const toyId = startingToys[0];
-  getDb().runSync('INSERT OR IGNORE INTO owned_toys (owner_id, toy_id) VALUES (?, ?)', ownerId, toyId);
+  const key = `toy:${toyId}`;
+  const database = getDb();
+  const taken = database.getFirstSync<{ id: string }>(
+    'SELECT id FROM transactions WHERE owner_id = ? AND idempotency_key = ?',
+    ownerId,
+    key,
+  );
+  if (taken) {
+    return;
+  }
+  const id =
+    globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function'
+      ? globalThis.crypto.randomUUID()
+      : `toy-${Date.now()}`;
+  writeLedgerEntry(ownerId, id, 'starter_grant', key, null, [{ asset: 'toy', delta: 1, toyId }]);
+  database.runSync('INSERT OR IGNORE INTO owned_toys (owner_id, toy_id) VALUES (?, ?)', ownerId, toyId);
   emit();
 }
 
@@ -102,13 +118,40 @@ export function hasLayout(ownerId: string, species: SpeciesId): boolean {
 export function grantSpeciesHome(ownerId: string, species: SpeciesId): void {
   const database = getDb();
   const starter = starterFurniture(species);
-  for (const piece of starter.pieces) {
-    database.runSync(
-      'INSERT OR IGNORE INTO owned_furniture (owner_id, piece_id, json) VALUES (?, ?, ?)',
+  const speciesOnly = grantPieces(species, 'species');
+  const homeKey = `home:${species}`;
+  const taken = database.getFirstSync<{ id: string }>(
+    'SELECT id FROM transactions WHERE owner_id = ? AND idempotency_key = ?',
+    ownerId,
+    homeKey,
+  );
+  if (!taken && speciesOnly.pieces.length > 0) {
+    const id =
+      globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function'
+        ? globalThis.crypto.randomUUID()
+        : `home-${species}-${Date.now()}`;
+    writeLedgerEntry(
       ownerId,
-      piece.id,
-      JSON.stringify(piece),
+      id,
+      'starter_grant',
+      homeKey,
+      null,
+      speciesOnly.placed.map((place) => ({
+        asset: 'furniture',
+        delta: 1,
+        furnitureId: place.pieceId,
+        scene: place.sceneId,
+      })),
     );
+    for (const piece of speciesOnly.pieces) {
+      const defined = furnitureDefinition(piece.id) ?? piece;
+      database.runSync(
+        'INSERT OR IGNORE INTO owned_furniture (owner_id, piece_id, json) VALUES (?, ?, ?)',
+        ownerId,
+        piece.id,
+        JSON.stringify(defined),
+      );
+    }
   }
   if (!hasLayout(ownerId, species)) {
     database.runSync(
@@ -167,11 +210,6 @@ export function moveOwnedPiece(
 
 export function playerDoc(ownerId: string): PlayerDoc {
   const database = getDb();
-  const balance = database.getFirstSync<{ boops: number }>('SELECT boops FROM balances WHERE owner_id = ?', ownerId);
-  const inventory = database.getAllSync<{ item_id: string; quantity: number }>(
-    'SELECT item_id, quantity FROM inventory WHERE owner_id = ? AND quantity > 0',
-    ownerId,
-  );
   const owner = database.getFirstSync<{
     time_paid_through: number;
     time_capped_day: string | null;
@@ -192,22 +230,31 @@ export function playerDoc(ownerId: string): PlayerDoc {
       layoutDoc[row.species] = Array.isArray(parsed) ? (parsed as FurniturePlacement[]) : [];
     }
   }
+  const shop = database.getFirstSync<{ date: string; picks: string; deal_id: string | null }>(
+    'SELECT date, picks, deal_id FROM shop_day WHERE owner_id = ?',
+    ownerId,
+  );
+  const history = database.getAllSync<{ date: string; slot: string; item_id: string }>(
+    'SELECT date, slot, item_id FROM shop_pick_history WHERE owner_id = ?',
+    ownerId,
+  );
+  const counters = database.getAllSync<{ day: string; pet_id: string; key: string; count: number }>(
+    'SELECT day, pet_id, key, count FROM daily_counters',
+  );
   return {
-    boops: balance?.boops ?? 0,
-    inventory: inventory.map((row) => ({ itemId: row.item_id, qty: row.quantity })),
     ownerState: owner
       ? {
           timePaidThrough: owner.time_paid_through,
           timeCappedDay: owner.time_capped_day,
           lastTrustedTime: owner.last_trusted_time,
-          serverTimeOffsetMs: owner.server_time_offset_ms,
           loginStreak: owner.login_streak,
           loginLastClaimedDay: owner.login_last_claimed_day,
           lastOpenAt: owner.last_open_at,
         }
       : null,
-    toys: toysOf(ownerId),
-    furniture: furnitureOf(ownerId),
     layouts: layoutDoc,
+    shopDay: shop ? { date: shop.date, picks: shop.picks, dealId: shop.deal_id } : null,
+    shopPickHistory: history.map((row) => ({ date: row.date, slot: row.slot, itemId: row.item_id })),
+    dailyCounters: counters.map((row) => ({ day: row.day, petId: row.pet_id, key: row.key, count: row.count })),
   };
 }

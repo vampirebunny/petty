@@ -1,18 +1,20 @@
 import { canRaiseMood } from '../sim/mood';
 import { clampWeight } from '../sim/care';
-import { clampMax, clampMin } from '../sim/config';
+import { clampMax, clampMin, startingToys } from '../sim/config';
 import { isResting } from '../sim/training';
 import type { PetState } from '../sim/types';
 import { readLegacyCloset, writePetNow } from '../db/sqlitePetStorage';
 import { getDb, transaction } from '../db/database';
 import { currentOwner, ownerIsReady } from '../db/currentOwner';
 import { catalog, catalogItem, starterOutfits, storeItems, type CatalogItem, type TreatEffects } from './catalog';
-import { shopFurniture, type ShopFurnitureId } from '../actor/furniture';
-import { grantOwnedFurniture, touchPlayerHome } from '../db/playerHome';
-import { listedPrice, loadShopCatalog, quoteCart } from './shopState';
+import { furnitureDefinition, grantPieces, shopFurniture, shopFurnitureSpot, type ShopFurnitureId } from '../actor/furniture';
+import { writeLedgerEntry, type LedgerLine } from '../db/ledgerWrite';
+import { moveOwnedPiece, touchPlayerHome } from '../db/playerHome';
+import { speciesOf } from '../sim/tracks';
+import { listedPrice, quoteCart } from './shopState';
 import type { CartInput, PricedLine, SpeciesId } from './shop';
+import { serverNow } from '../db/accountMeta';
 import { queueCoupled, queuePlayer } from '../sync/queue';
-import { appVersion } from './remoteDefs';
 import { economyConfig, type PlayFindKind } from './economyConfig';
 import { localDay } from './clock';
 import { planTimePayout } from './accrual';
@@ -234,47 +236,37 @@ function writeOwner(row: ReturnType<typeof readOwner>): void {
   );
 }
 
-function insertTransaction(
-  source: string,
-  key: string,
-  sourceRef: string | null,
-  lines: { asset: string; delta: number; unitPrice?: number | null; deal?: boolean; serial?: number | null }[],
-): void {
-  const id = newRequestId();
+function applyLedgerLine(owner: string, line: LedgerLine): void {
+  if (line.delta === 0) {
+    return;
+  }
+  if (line.asset === 'boops') {
+    setBalance(balance() + line.delta);
+  } else if (line.asset === 'toy' && line.toyId) {
+    if (line.delta > 0) {
+      db().runSync('INSERT OR IGNORE INTO owned_toys (owner_id, toy_id) VALUES (?, ?)', owner, line.toyId);
+    }
+  } else if (line.asset === 'furniture' && line.furnitureId) {
+    if (line.delta > 0) {
+      const defined = furnitureDefinition(line.furnitureId);
+      const piece = defined ?? { id: line.furnitureId, kind: 'bed' as const };
+      db().runSync(
+        'INSERT OR IGNORE INTO owned_furniture (owner_id, piece_id, json) VALUES (?, ?, ?)',
+        owner,
+        line.furnitureId,
+        JSON.stringify(piece),
+      );
+    }
+  } else {
+    setQuantity(line.asset, quantity(line.asset) + line.delta);
+  }
+}
+
+function insertTransaction(source: string, key: string, sourceRef: string | null, lines: LedgerLine[]): void {
   const owner = ownerId();
-  const catalogVersion = loadShopCatalog()?.version ?? null;
-  db().runSync(
-    `INSERT INTO transactions (id, owner_id, idempotency_key, source, source_ref, device_time, app_version, config_version, catalog_version)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    id,
-    owner,
-    key,
-    source,
-    sourceRef,
-    new Date().toISOString(),
-    appVersion(),
-    economyConfig.version,
-    catalogVersion,
-  );
+  writeLedgerEntry(owner, newRequestId(), source, key, sourceRef, lines);
   for (const line of lines) {
-    db().runSync(
-      `INSERT INTO transaction_lines (transaction_id, asset, delta, unit_price, deal, serial)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      id,
-      line.asset,
-      line.delta,
-      line.unitPrice ?? null,
-      line.deal ? 1 : 0,
-      line.serial ?? null,
-    );
-    if (line.delta === 0) {
-      continue;
-    }
-    if (line.asset === 'boops') {
-      setBalance(balance() + line.delta);
-    } else {
-      setQuantity(line.asset, quantity(line.asset) + line.delta);
-    }
+    applyLedgerLine(owner, line);
   }
 }
 
@@ -479,7 +471,7 @@ export function purchaseCart(
       if (!priced.ok) {
         return priced;
       }
-      const ledger: { asset: string; delta: number; unitPrice?: number | null; deal?: boolean }[] = [
+      const ledger: LedgerLine[] = [
         { asset: 'boops', delta: -priced.charge },
       ];
       for (const line of priced.lines) {
@@ -496,14 +488,18 @@ export function purchaseCart(
           deal: match?.deal ?? false,
         });
       }
-      insertTransaction('purchase', requestId, 'cart', ledger);
-      const owner = ownerId();
       for (const toyId of priced.toys) {
-        db().runSync('INSERT OR IGNORE INTO owned_toys (owner_id, toy_id) VALUES (?, ?)', owner, toyId);
+        ledger.push({ asset: 'toy', delta: 1, toyId });
       }
       for (const kind of priced.furniture) {
+        ledger.push({ asset: 'furniture', delta: 1, furnitureId: kind, scene: sceneId });
+      }
+      insertTransaction('purchase', requestId, 'cart', ledger);
+      const owner = ownerId();
+      for (const kind of priced.furniture) {
         if (Object.prototype.hasOwnProperty.call(shopFurniture, kind)) {
-          grantOwnedFurniture(owner, species, kind as ShopFurnitureId, sceneId);
+          const spot = shopFurnitureSpot(kind as ShopFurnitureId, sceneId);
+          moveOwnedPiece(owner, species, kind, spot.sceneId, spot.x, spot.y);
         }
       }
       return {
@@ -713,7 +709,7 @@ export function ensureStarter(now = Date.now()): void {
     if (hasKey('starter')) {
       return;
     }
-    const lines: { asset: string; delta: number }[] = [{ asset: 'boops', delta: economyConfig.starter.boops }];
+    const lines: LedgerLine[] = [{ asset: 'boops', delta: economyConfig.starter.boops }];
     for (const [itemId, qty] of Object.entries(economyConfig.starter.items)) {
       lines.push({ asset: itemId, delta: qty });
     }
@@ -738,7 +734,7 @@ function grantBoops(source: string, key: string, ref: string | null, amount: num
   return amount;
 }
 
-export function payoutTimeAccrual(mode: 'live' | 'return', now = Date.now()): number {
+export function payoutTimeAccrual(mode: 'live' | 'return', now = serverNow()): number {
   let wrote = false;
   const amount = transaction(() => {
     ensureOwnerRows(now);
@@ -898,12 +894,16 @@ export function onAppOpen(pet: PetState, now = Date.now()): OpenRewards {
   const rewards = transaction(() => {
     ensureOwnerRows(now);
     if (!hasKey('starter')) {
-      const lines: { asset: string; delta: number }[] = [{ asset: 'boops', delta: economyConfig.starter.boops }];
+      const lines: LedgerLine[] = [{ asset: 'boops', delta: economyConfig.starter.boops }];
       for (const [itemId, qty] of Object.entries(economyConfig.starter.items)) {
         lines.push({ asset: itemId, delta: qty });
       }
       for (const outfit of starterOutfits()) {
         lines.push({ asset: outfit.id, delta: 1 });
+      }
+      lines.push({ asset: 'toy', delta: 1, toyId: startingToys[0] });
+      for (const place of grantPieces(speciesOf(pet.breedId), 'shared').placed) {
+        lines.push({ asset: 'furniture', delta: 1, furnitureId: place.pieceId, scene: place.sceneId });
       }
       grantLines('starter_grant', 'starter', null, lines);
       const seeded = readOwner();

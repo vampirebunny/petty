@@ -1,7 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { createUuid } from '../compliance/identity';
-import { getDb } from './database';
+import { notifyInstallState } from '../state/sessionGate';
+import { getDb, transaction } from './database';
+import { ownerIdTables } from './ownerTables';
+
+export { ownerIdTables };
 
 function copyRowIfMissing(sqlCount: string, sqlCopy: () => void, from: string, to: string): void {
   const database = getDb();
@@ -155,16 +159,35 @@ export function copyOwnerRows(from: string, to: string): void {
       row.app_version,
       row.config_version,
     );
-    const lines = database.getAllSync<{ asset: string; delta: number }>(
-      'SELECT asset, delta FROM transaction_lines WHERE transaction_id = ?',
+    const lines = database.getAllSync<{
+      line_no: number;
+      asset: string;
+      delta: number;
+      unit_price: number | null;
+      deal: number;
+      serial: number | null;
+      toy_id: string | null;
+      furniture_id: string | null;
+      scene: string | null;
+    }>(
+      'SELECT line_no, asset, delta, unit_price, deal, serial, toy_id, furniture_id, scene FROM transaction_lines WHERE transaction_id = ?',
       row.id,
     );
     for (const line of lines) {
       database.runSync(
-        'INSERT INTO transaction_lines (transaction_id, asset, delta) VALUES (?, ?, ?)',
+        `INSERT INTO transaction_lines (
+           transaction_id, line_no, asset, delta, unit_price, deal, serial, toy_id, furniture_id, scene
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         id,
+        line.line_no,
         line.asset,
         line.delta,
+        line.unit_price,
+        line.deal,
+        line.serial,
+        line.toy_id,
+        line.furniture_id,
+        line.scene,
       );
     }
   }
@@ -210,18 +233,62 @@ async function movePlaydates(from: string, to: string): Promise<void> {
   }
 }
 
-export async function bindInstallToAuth(installId: string, authId: string): Promise<void> {
-  if (!installId || !authId || installId === authId) {
-    return;
-  }
+function rewriteOwnerColumn(table: (typeof ownerIdTables)[number], from: string, to: string): void {
   const database = getDb();
-  const done = database.getFirstSync<{ value: string }>("SELECT value FROM meta WHERE key = 'bindAuthId'");
-  if (done?.value === authId) {
+  database.runSync(`UPDATE ${table} SET owner_id = ? WHERE owner_id = ?`, to, from);
+}
+
+function rewriteQueuePayloads(from: string, to: string): void {
+  const database = getDb();
+  const rows = database.getAllSync<{ seq: number; payload: string }>('SELECT seq, payload FROM push_queue');
+  for (const row of rows) {
+    try {
+      const parsed = JSON.parse(row.payload) as { doc?: { ownerId?: string }; id?: string };
+      if (parsed.doc?.ownerId !== from) {
+        continue;
+      }
+      parsed.doc.ownerId = to;
+      database.runSync('UPDATE push_queue SET payload = ? WHERE seq = ?', JSON.stringify(parsed), row.seq);
+    } catch {
+      // A payload that is not JSON stays queued.
+    }
+  }
+}
+
+async function moveOwnerKey(prefix: string, from: string, to: string): Promise<void> {
+  const sourceKey = `${prefix}${from}`;
+  const destKey = `${prefix}${to}`;
+  const dest = await AsyncStorage.getItem(destKey);
+  if (dest != null) {
+    await AsyncStorage.removeItem(sourceKey);
     return;
   }
-  rewritePetTable('pet', installId, authId);
-  rewritePetTable('retired_pets', installId, authId);
-  copyOwnerRows(installId, authId);
-  await movePlaydates(installId, authId);
-  database.runSync("INSERT OR REPLACE INTO meta (key, value) VALUES ('bindAuthId', ?)", authId);
+  const source = await AsyncStorage.getItem(sourceKey);
+  if (source == null) {
+    return;
+  }
+  await AsyncStorage.setItem(destKey, source);
+  await AsyncStorage.removeItem(sourceKey);
+}
+
+/** One transaction. Rewrites every owner-keyed row from `from` to `to`, then installs that state. */
+export async function rebindOwner(from: string, to: string): Promise<void> {
+  if (!from || !to || from === to) {
+    return;
+  }
+  transaction(() => {
+    for (const table of ownerIdTables) {
+      rewriteOwnerColumn(table, from, to);
+    }
+    rewritePetTable('pet', from, to);
+    rewritePetTable('retired_pets', from, to);
+    rewriteQueuePayloads(from, to);
+  });
+  await movePlaydates(from, to);
+  await moveOwnerKey('petty.wardrobe.', from, to);
+  notifyInstallState();
+}
+
+export async function bindInstallToAuth(installId: string, authId: string): Promise<void> {
+  await rebindOwner(installId, authId);
 }

@@ -1,11 +1,14 @@
+import { getCachedInstallId } from '../compliance/identity';
 import { getSupabase } from '../compliance/supabase';
+import { readStandby, setStandby, setSyncedRevision } from '../db/accountMeta';
 import { currentOwner } from '../db/currentOwner';
 import { getDb } from '../db/database';
 import { playerDoc } from '../db/playerHome';
 import type { PetState } from '../sim/types';
+import { authTransition } from '../state/sessionGate';
 
 export const petDocSchema = 2;
-export const playerDocSchema = 1;
+export const playerDocSchema = 2;
 
 type PetPayload = {
   id: string;
@@ -116,26 +119,32 @@ export function kick(immediate = false): void {
   }, immediate ? 0 : delayMs);
 }
 
-async function send(kind: string, payload: PetPayload | PlayerPayload): Promise<'ok' | 'stale' | 'retry'> {
+async function send(kind: string, payload: PetPayload | PlayerPayload): Promise<'ok' | 'stale' | 'not_active' | 'retry' | 'drop'> {
   const supabase = getSupabase();
-  if (!supabase) {
+  const deviceId = getCachedInstallId();
+  if (!supabase || !deviceId) {
     return 'retry';
   }
   if (kind === 'push_player_state') {
     const body = payload as PlayerPayload;
     const { data, error } = await supabase.rpc('push_player_state', {
+      p_device_id: deviceId,
       p_doc: body.doc,
       p_doc_schema: body.docSchema,
       p_local_revision: body.localRevision,
       p_client_updated_at: body.clientUpdatedAt,
     });
     if (error) {
-      return 'retry';
+      return /owner mismatch/i.test(error.message) ? 'drop' : 'retry';
     }
-    return data === 'stale' ? 'stale' : 'ok';
+    if (data === 'stale' || data === 'not_active') {
+      return data;
+    }
+    return 'ok';
   }
   const body = payload as PetPayload;
   const { data, error } = await supabase.rpc(kind, {
+    p_device_id: deviceId,
     p_id: body.id,
     p_doc: body.doc,
     p_doc_schema: body.docSchema,
@@ -143,13 +152,16 @@ async function send(kind: string, payload: PetPayload | PlayerPayload): Promise<
     p_client_updated_at: body.clientUpdatedAt,
   });
   if (error) {
-    return 'retry';
+    return /owner mismatch/i.test(error.message) ? 'drop' : 'retry';
   }
-  return data === 'stale' ? 'stale' : 'ok';
+  if (data === 'stale' || data === 'not_active') {
+    return data;
+  }
+  return 'ok';
 }
 
 async function flush(): Promise<void> {
-  if (running) {
+  if (running || authTransition() !== 'idle' || readStandby()) {
     return;
   }
   const row = getDb().getFirstSync<{ seq: number; kind: string; payload: string }>(
@@ -157,16 +169,29 @@ async function flush(): Promise<void> {
   );
   if (!row) {
     delayMs = 400;
+    void flushOutbox();
     return;
   }
   running = true;
   let again = false;
   try {
     const result = await send(row.kind, JSON.parse(row.payload) as PetPayload | PlayerPayload);
-    if (result === 'ok' || result === 'stale') {
+    if (result === 'ok' || result === 'drop') {
+      if (result === 'drop') {
+        console.warn('owner mismatch on push; dropping the queued row');
+      }
       getDb().runSync('DELETE FROM push_queue WHERE seq = ?', row.seq);
+      const sent = JSON.parse(row.payload) as { localRevision?: number };
+      if (result === 'ok' && typeof sent.localRevision === 'number') {
+        setSyncedRevision(sent.localRevision);
+      }
       delayMs = 400;
       again = true;
+    } else if (result === 'not_active') {
+      setStandby(true);
+    } else if (result === 'stale') {
+      const { reconcileFromServer } = await import('./reconcile');
+      void reconcileFromServer();
     } else {
       delayMs = Math.min(delayMs * 2, 60_000);
       again = true;
@@ -181,6 +206,51 @@ async function flush(): Promise<void> {
     const more = getDb().getFirstSync<{ seq: number }>('SELECT seq FROM push_queue LIMIT 1');
     if (more) {
       kick();
+    } else {
+      void flushOutbox();
+    }
+  }
+}
+
+async function flushOutbox(): Promise<void> {
+  if (authTransition() !== 'idle' || readStandby()) {
+    return;
+  }
+  const supabase = getSupabase();
+  const deviceId = getCachedInstallId();
+  if (!supabase || !deviceId) {
+    return;
+  }
+  const rows = getDb().getAllSync<{ idempotency_key: string; payload: string }>(
+    'SELECT idempotency_key, payload FROM ledger_outbox',
+  );
+  if (rows.length === 0) {
+    return;
+  }
+  const entries = rows.map((row) => JSON.parse(row.payload) as unknown);
+  const { data, error } = await supabase.rpc('append_ledger_entries', {
+    p_device_id: deviceId,
+    p_entries: entries,
+    p_replay: false,
+  });
+  if (error) {
+    return;
+  }
+  if (data === 'not_active') {
+    setStandby(true);
+    return;
+  }
+  const results = Array.isArray(data) ? data : [];
+  for (const row of rows) {
+    const match = results.find((item) => {
+      if (!item || typeof item !== 'object') {
+        return false;
+      }
+      const key = (item as { idempotency_key?: string }).idempotency_key;
+      return key === row.idempotency_key;
+    }) as { status?: string } | undefined;
+    if (match?.status === 'ok' || match?.status === 'duplicate' || match?.status === 'invalid') {
+      getDb().runSync('DELETE FROM ledger_outbox WHERE idempotency_key = ?', row.idempotency_key);
     }
   }
 }

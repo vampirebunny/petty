@@ -104,6 +104,12 @@ export async function ensureAnonymousUserId(): Promise<string | null> {
   try {
     const existing = await supabase.auth.getSession();
     const already = existing.data.session?.user.id ?? null;
+    if (already == null) {
+      const { readAccountLinked } = await import('../db/accountMeta');
+      if (readAccountLinked()) {
+        return null;
+      }
+    }
     if (already) {
       if (beforeSessionPublish) {
         await beforeSessionPublish(already);

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
 import { Fredoka_600SemiBold, Fredoka_700Bold } from '@expo-google-fonts/fredoka';
@@ -20,6 +20,7 @@ import HomeScreen from './src/screens/HomeScreen';
 import { useAgeGate } from './src/state/useAgeGate';
 import { useIdentity } from './src/state/useIdentity';
 import { usePet } from './src/state/usePet';
+import { StandbyOverlay } from './src/ui/StandbyOverlay';
 import { fontFamily } from './src/ui/font';
 import { PhoneColumn } from './src/ui/PhoneColumn';
 import { useDeviceOrientation } from './src/ui/useDeviceOrientation';
@@ -27,7 +28,7 @@ import { useDeviceOrientation } from './src/ui/useDeviceOrientation';
 export default function App() {
   useDeviceOrientation();
   const pet = usePet();
-  const { setOwnerId, setRemindersOn, adopt, ready: petReady, state: petState } = pet;
+  const { setRemindersOn, adopt, ready: petReady, state: petState } = pet;
   const identity = useIdentity();
   const gate = useAgeGate({ onUnavailable: () => setRemindersOn(false) });
   const [fontsLoaded, fontError] = useFonts({
@@ -44,15 +45,6 @@ export default function App() {
   const splashSize = Math.min(200, Math.round(windowWidth * 0.5));
   // True only in the session where the pet was just adopted, so the intro shows once and is not saved.
   const [meeting, setMeeting] = useState(false);
-
-  useEffect(() => {
-    if (!identity.ready || !identity.ownerId || !petState) {
-      return;
-    }
-    if (petState.ownerId !== identity.ownerId) {
-      setOwnerId(identity.ownerId);
-    }
-  }, [identity.ownerId, identity.ready, petState, setOwnerId]);
 
   let screen = (
     <View style={styles.loading}>
@@ -111,6 +103,7 @@ export default function App() {
   return (
     <GestureHandlerRootView style={styles.root}>
       {screen}
+      <StandbyOverlay />
       <StatusBar style="auto" />
     </GestureHandlerRootView>
   );
