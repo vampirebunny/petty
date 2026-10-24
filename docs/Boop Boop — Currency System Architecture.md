@@ -343,7 +343,7 @@ interface CurrencyService {
 
 - `Result` returns `{ ok, transactionId?, reason? }`. Reasons are codes such as `insufficient_boops`, `not_available`, `already_owned`, `boost_budget_reached`, `training_only_top`, `daily_limit`, `not_resting`, `already_claimed`, so the UI can show a friendly modal.
 - `grant` enforces each source's limit from config. Calling it twice with the same `ref` returns the first result instead of paying again.
-- `onAppOpen` pays what's due (the return time payout, welcome back, level-ups and stage grants) and reports the daily login as waiting. It plays nothing itself. The home screen claims that login and plays it as paw coins with the other grants, then the time-away greeting.
+- `onAppOpen` pays what's due (the return time payout, welcome back, level-ups and stage grants) and reports the daily login as waiting. It plays nothing itself. The home screen claims that login and plays it as paw coins with the other grants, then the time-away greeting and, when the open is more than 3 hours after the last one, the +energy chip that fills energy to 100 (PRD R2.1).
 
 ## Default economy config
 
