@@ -57,11 +57,12 @@ jest.mock('@react-native-async-storage/async-storage', () => {
 type Local = { url: string; anon: string; service: string };
 
 /** Jest swaps in Expo's fetch, which cannot read these local responses. */
-function nodeFetch(input: string | URL, init?: { method?: string; headers?: HeadersInit; body?: BodyInit | null }): Promise<Response> {
-  const target = new URL(String(input));
+function nodeFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  const request = typeof input === 'string' || input instanceof URL ? null : input;
+  const target = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url);
   const body = init?.body == null ? undefined : String(init.body);
   const headers: Record<string, string> = {};
-  new Headers(init?.headers).forEach((value, key) => {
+  new Headers(init?.headers ?? request?.headers).forEach((value, key) => {
     headers[key] = value;
   });
   if (body != null) {
@@ -73,7 +74,7 @@ function nodeFetch(input: string | URL, init?: { method?: string; headers?: Head
         hostname: target.hostname,
         port: target.port,
         path: `${target.pathname}${target.search}`,
-        method: init?.method ?? 'GET',
+        method: init?.method ?? request?.method ?? 'GET',
         headers,
       },
       (res) => {
@@ -537,8 +538,9 @@ const live = process.env.BOOP_HARNESS === '1';
     const anonResult = await withClient(guest, () => installServerPet());
     expect(anonResult).toBe('home');
 
+    const nobody = await createUser(true);
     const empty = makeClient('iPhone', 'UTC');
-    await adoptSession(empty, anon, true);
+    await adoptSession(empty, nobody, true);
     const welcome = await withClient(empty, async () => {
       const result = await installServerPet();
       expect(readAccountLinked()).toBe(false);

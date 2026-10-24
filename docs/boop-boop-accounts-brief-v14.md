@@ -4,7 +4,7 @@
 
 **[v14+] Follow-up.** A later pass folds in the rest of that review: ask before taking the slot, the real earn source strings, reinstall by `is_anonymous`, a dead session only on an invalid refresh token, an atomic claim id, no rewind of `lastUpdatedAt`, a save generation, claim on adoption confirm, guest deletion that survives a crash, and an injected harness. A further pass runs the guest delete before the account delete, stores a device label for the handoff sentence, warns on **Continue** when local play would be dropped, and leaves single-session Auth off. Those edits are marked **[v14+]**.
 
-**Phase A shipped** on `main` (`b371792`). The app rebinds every owner-keyed table in one step, writes the economy as ledger lines with an outbox, and peeks before claiming so only one device plays. Server SQL is `supabase/migrations/20261024200000_ledger_and_active_device.sql`. Apply that yourself; it does not delete users. The next launch of an existing install wipes the on-device database once, because the storage version moved to 3. Sign-in, Welcome, and deletion UI are not built yet.
+**Phase A shipped** on `main` (`b371792`). The app rebinds every owner-keyed table in one step, writes the economy as ledger lines with an outbox, and peeks before claiming so only one device plays. Server SQL is `supabase/migrations/20261024200000_ledger_and_active_device.sql`. Apply that yourself; it does not delete users. The next launch of an existing install wipes the on-device database once, because the storage version moved to 3. Sign-in, Welcome, and deletion UI landed in later phases on `accounts-phase-b`.
 
 **Phase B shipped** on `accounts-phase-b`. The app has `expo-apple-authentication` and `@react-native-google-signin/google-signin`, the `boopboop` scheme, a PKCE Supabase client, and the Apple credential helper. Server SQL is `supabase/migrations/20261024210000_profiles_and_health.sql` (`profiles`, `check_handle_available`, `app_health`). Apply that yourself after the Phase A migration; it does not delete users. Edge functions are `apple_store_token`, `delete_account`, and `supersede_guest`. Guest tokens are checked with the project JWKS. The Google Web client ID, iOS client ID, and reversed iOS scheme are in `.env.local`, and that scheme is on the Google plugin in `app.json`. `@react-native-google-signin/google-signin` 16.1.5 has no nonce argument, so turn on Supabase **Skip nonce check** for Google.
 
@@ -20,7 +20,9 @@
 
 **Phase H shipped** on `accounts-phase-b`. Settings can sign in, and deleting an account or guest progress wipes this device and returns to Welcome.
 
-**Phase I shipped** on `accounts-phase-b`. The two-device harness enters a database, owner, install id, clock, and Supabase client per device. `npm run test:harness` runs it against local Supabase (`npx supabase start`). The default test run does not need Docker.
+**Phase I shipped** on `accounts-phase-b`. The two-device harness enters a database, owner, install id, clock, and Supabase client per device. `npm run test:harness` runs it against local Supabase (`npx supabase start`). The default test run does not need Docker. The last run passed 12 of 12, with a negative-balance rate of 0.
+
+**Hosted setup is done** on `unfatkwtzfkqnnbgzuqs`. Migrations through `20261024250000_ledger_source_ambiguity.sql` are applied. New sign-ups, manual linking, and anonymous sign-ins are on. Confirm email stays on. Captcha stays off, so anonymous sign-in is not blocked. `apple_store_token`, `delete_account`, and `supersede_guest` are deployed with JWT verification, and the Apple edge secrets are set. What remains is a development build and testing on devices.
 
 The two simplifications still hold:
 1. **The ledger has its own table** (`ledger_entries`) and its own append-only sync. `player_state` never carries a ledger, balance, or inventory.
@@ -641,18 +643,21 @@ These bugs only show up when two devices interleave, so test them in code, not b
 
 ## 15. Manual setup (me, not code)
 
-- Supabase Auth: Apple and Google providers on; **manual linking** on; add `boopboop://auth-callback` to the redirect URL allow list.
-- Supabase Auth sessions: make sure the **inactivity timeout** and **time-box** are off (or very long), so guest sessions don't die on their own (A5b). **[v14+] Leave Single session per user off.** A second sign-in must not revoke the other device's session. Both devices stay signed in (§0, A5).
-- Apple provider Client IDs: bundle ID, then Services ID. Secret key: JWT from the `.p8` (needed for the Android web flow; regenerate within 6 months).
-- Google: OAuth clients for Web (redirect `https://<project-ref>.supabase.co/auth/v1/callback`), iOS, and Android (one per SHA-1: EAS key, Play app signing key, debug if used). Supabase Google Client IDs: Web first, then iOS and Android. Client secret: the Web client's.
-- Edge function secrets: done (§3). **`supersede_guest` verifies guest access tokens with the project JWKS** (`/auth/v1/.well-known/jwks.json`), not the legacy JWT secret.
-- Google public IDs are in `.env.local`: `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`, `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`, and `EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME`. The Google config plugin is in `app.json` with that reversed iOS scheme. The Web client secret stays in the Supabase Google provider. Set the same `EXPO_PUBLIC_` names on the EAS development, preview, and production environments before a cloud build. `.env.local` is not uploaded.
-- Enable `pg_cron` and schedule `select public.cleanup_empty_anonymous_users();` (daily is enough). The function is `supabase/migrations/20261024240000_anonymous_cleanup.sql`. Apply that yourself; creating the function does not delete users.
-- Wipe test data in Supabase when Phase A says so (A0).
-- Before resubmitting: update the privacy policy and App Store privacy label (user ID, plus email if Apple/Google provides one).
-- Mark the superseded sections in `docs/boop-boop-accounts-friends-brief.md` (or ask Cursor to).
+Done on hosted project `unfatkwtzfkqnnbgzuqs`:
 
-Cursor: list any values you still need from me, as a checklist.
+- Migrations through `20261024250000_ledger_source_ambiguity.sql`. Applying them does not delete users. `20261024240000_anonymous_cleanup.sql` only creates `cleanup_empty_anonymous_users()`.
+- Auth: Apple and Google on, new sign-ups on, **manual linking** on, anonymous sign-ins on, `boopboop://auth-callback` allowed. Inactivity timeout and time-box off. **Single session per user** off, so a second sign-in does not revoke the other device. Confirm email stays on. Captcha stays off.
+- Apple provider Client IDs: bundle ID, then Services ID. The provider secret is the JWT from the `.p8` (regenerate within 6 months).
+- Google: Web, iOS, and Android client IDs on the provider, Web first. **Skip nonce check** is on, because `@react-native-google-signin/google-signin` 16.1.5 sends no nonce.
+- Edge functions deployed: `apple_store_token`, `delete_account`, `supersede_guest`. Secrets set: `APPLE_PRIVATE_KEY`, `APPLE_KEY_ID`, `APPLE_TEAM_ID`, `APPLE_BUNDLE_ID` (`app.mylisto.boop`), `APPLE_SERVICES_ID`. `supersede_guest` verifies guest tokens with the project JWKS.
+- `pg_cron` runs `select public.cleanup_empty_anonymous_users();` daily.
+- The parts of `docs/boop-boop-accounts-friends-brief.md` that v14 replaces are marked at the top of that file.
+
+Still open:
+
+- A development build, then testing on devices. Before the cloud build, set `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`, `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`, and `EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME` on the EAS development, preview, and production environments. `.env.local` is not uploaded.
+- Before resubmitting: update the privacy policy and App Store privacy label (user ID, plus email if Apple/Google provides one).
+- Wipe test data in Supabase when real players are about to arrive (A0).
 
 ---
 
