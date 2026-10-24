@@ -10,6 +10,7 @@ import {
   getCachedInstallId,
   getCachedUserId,
   getOrCreateInstallId,
+  onIdentityReset,
   setBeforeSessionPublish,
   setCachedUserId,
 } from '../compliance/identity';
@@ -157,6 +158,15 @@ export function useIdentity(): Identity {
       unsubscribe?.();
     };
   }, []);
+
+  useEffect(
+    () =>
+      onIdentityReset((next) => {
+        setInstallId(next);
+        setUserId(null);
+      }),
+    [],
+  );
 
   return {
     ready,

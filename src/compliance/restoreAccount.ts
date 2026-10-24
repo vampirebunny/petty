@@ -230,11 +230,15 @@ async function copyConsent(): Promise<void> {
   requestAgeGateRefresh();
 }
 
-export async function supersedePendingGuest(): Promise<void> {
+/** True when there is no pending guest, or that guest was deleted. False leaves the token in place. */
+export async function supersedePendingGuest(): Promise<boolean> {
   const token = await SecureStore.getItemAsync(pendingSupersedeKey).catch(() => null);
   const supabase = getSupabase();
-  if (!token || !supabase) {
-    return;
+  if (!token) {
+    return true;
+  }
+  if (!supabase) {
+    return false;
   }
   const { data, error } = await supabase.functions.invoke('supersede_guest', {
     body: { guest_access_token: token },
@@ -242,7 +246,9 @@ export async function supersedePendingGuest(): Promise<void> {
   const ok = data && typeof data === 'object' && 'ok' in data && data.ok === true;
   if (!error && ok) {
     await SecureStore.deleteItemAsync(pendingSupersedeKey).catch(() => undefined);
+    return true;
   }
+  return false;
 }
 
 export async function beginRestore(

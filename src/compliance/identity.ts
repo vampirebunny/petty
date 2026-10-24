@@ -7,6 +7,33 @@ const installIdKey = 'boop.installId';
 let cachedInstallId: string | null = null;
 let cachedUserId: string | null = null;
 
+type ResetListener = (installId: string) => void;
+
+const resetListeners = new Set<ResetListener>();
+
+export function onIdentityReset(listener: ResetListener): () => void {
+  resetListeners.add(listener);
+  return () => {
+    resetListeners.delete(listener);
+  };
+}
+
+/** New install id after a full wipe. Welcome starts clean without a restart. */
+export async function rotateInstallId(): Promise<string> {
+  const created = createUuid();
+  cachedInstallId = created;
+  cachedUserId = null;
+  try {
+    await SecureStore.setItemAsync(installIdKey, created);
+  } catch {
+    // Memory still holds the id for this session.
+  }
+  for (const listener of resetListeners) {
+    listener(created);
+  }
+  return created;
+}
+
 type SessionHook = (userId: string) => Promise<void>;
 
 let beforeSessionPublish: SessionHook | null = null;

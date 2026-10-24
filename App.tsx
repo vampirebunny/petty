@@ -22,6 +22,7 @@ import { useAgeGate } from './src/state/useAgeGate';
 import { useIdentity } from './src/state/useIdentity';
 import { usePet } from './src/state/usePet';
 import { onAccountFlags, readRestoreInProgress } from './src/db/accountMeta';
+import { onLocalWiped } from './src/compliance/accountWipe';
 import { clearLeftoverGuestSession, installServerPet, supersedePendingGuest } from './src/compliance/restoreAccount';
 import { StandbyOverlay } from './src/ui/StandbyOverlay';
 import { FinishSignIn } from './src/ui/FinishSignIn';
@@ -84,6 +85,14 @@ export default function App() {
   const [meeting, setMeeting] = useState(false);
   const [, setAccountTick] = useState(0);
   useEffect(() => onAccountFlags(() => setAccountTick((value) => value + 1)), []);
+  useEffect(
+    () =>
+      onLocalWiped(() => {
+        setMeeting(false);
+        setEntry('welcome');
+      }),
+    [],
+  );
 
   let screen = (
     <View style={styles.loading}>

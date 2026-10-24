@@ -59,6 +59,7 @@ import { CandyTooltip } from '../ui/tips/CandyTooltip';
 import { useCandyTips } from '../ui/tips/useCandyTips';
 import { PlaydateScreen } from './PlaydateScreen';
 import { ClothingLab } from './ClothingLab';
+import { SettingsScreen } from './SettingsScreen';
 import { FacingLab } from './FacingLab';
 import { WardrobeScreen } from './WardrobeScreen';
 import { parkOfferFromSnapshot, parkStrangerOffer } from '../playdate/npcs';
@@ -78,7 +79,7 @@ import { AttributePops, trainingPopColor, traitPopColor } from '../ui/AttributeP
 import type { PointPop } from '../ui/AttributePops';
 import { formatRest, isResting, restRemainingMs } from '../sim/training';
 import { BadgeCelebration } from '../ui/BadgeCelebration';
-import { Bone, ChevronRight, CircleHelp, Cookie, Droplet, HandHeart, Moon, Soup, Sparkles } from 'lucide-react-native';
+import { Bone, ChevronRight, CircleHelp, Cookie, Droplet, HandHeart, Moon, Settings, Soup, Sparkles } from 'lucide-react-native';
 import { playBadgeChime } from '../audio/badge';
 import { GREET } from '../actor/greetings';
 import { PetView } from '../ui/PetView';
@@ -265,6 +266,7 @@ export default function HomeScreen({ petApi }: Props) {
   const whereUid = useId().replace(/:/g, '');
   const [facingOpen, setFacingOpen] = useState(false);
   const [clothingOpen, setClothingOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [personalityOpen, setPersonalityOpen] = useState(false);
   const [playOpen, setPlayOpen] = useState(false);
   const [heldPlay, setHeldPlay] = useState(false);
@@ -1099,6 +1101,14 @@ export default function HomeScreen({ petApi }: Props) {
     );
   }
 
+  if (settingsOpen) {
+    return (
+      <PhoneColumn>
+        <SettingsScreen petName={state.name} onClose={() => setSettingsOpen(false)} />
+      </PhoneColumn>
+    );
+  }
+
   if (facingOpen) {
     return (
       <PhoneColumn>
@@ -1632,7 +1642,28 @@ export default function HomeScreen({ petApi }: Props) {
         accessibilityLabel="Boop Boop"
         accessibilityIgnoresInvertColors
       />
-      <View pointerEvents="none" style={[styles.nameSlot, { paddingHorizontal: 148 + (boopEdge - 16) }]}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Settings"
+        onPress={() => setSettingsOpen(true)}
+        style={styles.settingsHit}
+      >
+        {({ pressed }) => (
+          <CandyShell tint={tints.pink} radius={22} uid="home-settings" pressed={pressed} style={styles.settings}>
+            <Settings color={candyInk(tints.pink)} size={22} strokeWidth={iconStroke} />
+          </CandyShell>
+        )}
+      </Pressable>
+      <View
+        pointerEvents="none"
+        style={[
+          styles.nameSlot,
+          {
+            paddingLeft: Math.max(148 + (boopEdge - 16), 128),
+            paddingRight: 148 + (boopEdge - 16),
+          },
+        ]}
+      >
         <Text accessibilityRole="header" style={styles.name} numberOfLines={1}>
           {state.name}
         </Text>
@@ -2187,6 +2218,18 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 12,
+  },
+  settingsHit: {
+    position: 'absolute',
+    left: 76,
+    top: 4,
+    zIndex: 2,
+  },
+  settings: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   // Equal insets keep the name on the screen center. The Boop pill is wider than
   // the logo, so both sides use that wider clearance and a long name still clears it.

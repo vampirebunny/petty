@@ -18,6 +18,8 @@
 
 **Phase G shipped** on `accounts-phase-b`. The day-3 backup prompt shows on idle Home, and a dead linked session asks to sign in again.
 
+**Phase H shipped** on `accounts-phase-b`. Settings can sign in, and deleting an account or guest progress wipes this device and returns to Welcome.
+
 The two simplifications still hold:
 1. **The ledger has its own table** (`ledger_entries`) and its own append-only sync. `player_state` never carries a ledger, balance, or inventory.
 2. **No legacy path.** There are no real players yet. Wipe the test data (A0); every account starts with a ledger.
@@ -643,7 +645,7 @@ These bugs only show up when two devices interleave, so test them in code, not b
 - Google: OAuth clients for Web (redirect `https://<project-ref>.supabase.co/auth/v1/callback`), iOS, and Android (one per SHA-1: EAS key, Play app signing key, debug if used). Supabase Google Client IDs: Web first, then iOS and Android. Client secret: the Web client's.
 - Edge function secrets: done (§3). **`supersede_guest` verifies guest access tokens with the project JWKS** (`/auth/v1/.well-known/jwks.json`), not the legacy JWT secret.
 - Google public IDs are in `.env.local`: `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`, `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`, and `EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME`. The Google config plugin is in `app.json` with that reversed iOS scheme. The Web client secret stays in the Supabase Google provider. Set the same `EXPO_PUBLIC_` names on the EAS development, preview, and production environments before a cloud build. `.env.local` is not uploaded.
-- Enable `pg_cron` for the anonymous-user cleanup.
+- Enable `pg_cron` and schedule `select public.cleanup_empty_anonymous_users();` (daily is enough). The function is `supabase/migrations/20261024240000_anonymous_cleanup.sql`. Apply that yourself; creating the function does not delete users.
 - Wipe test data in Supabase when Phase A says so (A0).
 - Before resubmitting: update the privacy policy and App Store privacy label (user ID, plus email if Apple/Google provides one).
 - Mark the superseded sections in `docs/boop-boop-accounts-friends-brief.md` (or ask Cursor to).

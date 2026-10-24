@@ -27,14 +27,7 @@ const dataDeletes = [
 
 export async function wipeAsyncPlayerData(): Promise<void> {
   const keys = await AsyncStorage.getAllKeys();
-  const drop = keys.filter(
-    (key) =>
-      key === 'petty.pet' ||
-      key === 'petty.draft' ||
-      key.startsWith('petty.playdates.') ||
-      key.startsWith('petty.wardrobe.') ||
-      key.startsWith('petty.economy.'),
-  );
+  const drop = keys.filter((key) => key.startsWith('petty.'));
   if (drop.length > 0) {
     await AsyncStorage.multiRemove(drop);
   }

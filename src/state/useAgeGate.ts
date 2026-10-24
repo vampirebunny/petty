@@ -18,8 +18,8 @@ import {
 } from '../age/storage';
 import { PRIVACY_VERSION, TERMS_VERSION } from '../config/legal';
 import { onAgeGateRefresh } from './ageGateRefresh';
+import { eraseUnder13 } from '../compliance/deleteAccount';
 import {
-  deleteGuestAccount,
   enqueueAgeDetermination,
   enqueueAgeStatusChanged,
   enqueueTermsAccepted,
@@ -62,24 +62,16 @@ export function useAgeGate({ onUnavailable }: Options) {
     setPhase('unavailable');
   }, []);
 
-  const downgrade = useCallback(async (hadAccount: boolean) => {
-    if (hadAccount) {
-      await setPendingDeletion(true);
-    }
+  const downgrade = useCallback(async () => {
     await savePendingConsentRecords([]);
-    if (!hadAccount) {
-      await setPendingDeletion(false);
-      return;
-    }
-    if (await deleteGuestAccount()) {
-      await setPendingDeletion(false);
-    }
+    const erased = await eraseUnder13();
+    await setPendingDeletion(!erased);
   }, []);
 
   const refresh = useCallback(() => {
     return enqueueWork(async () => {
       if (await loadPendingDeletion()) {
-        if (await deleteGuestAccount()) {
+        if (await eraseUnder13()) {
           await setPendingDeletion(false);
         }
       }
@@ -94,9 +86,7 @@ export function useAgeGate({ onUnavailable }: Options) {
       }
 
       if (next?.confirmed && next.status === 'under13') {
-        if (stored && stored.status !== 'under13') {
-          await downgrade(terms != null);
-        }
+        await downgrade();
         finishUnavailable(false);
         return;
       }
@@ -134,7 +124,7 @@ export function useAgeGate({ onUnavailable }: Options) {
       const confirmed = { ...confirmYes(stored, now), confirmed: true };
       await saveAgeRecord(confirmed);
       if (confirmed.status === 'under13') {
-        await downgrade(false);
+        await downgrade();
         finishUnavailable(false);
         return;
       }
@@ -156,11 +146,10 @@ export function useAgeGate({ onUnavailable }: Options) {
     return enqueueWork(async () => {
       const confirmed = { ...confirmNo(Date.now()), confirmed: true };
       await saveAgeRecord(confirmed);
-      await savePendingConsentRecords([]);
-      await setPendingDeletion(false);
+      await downgrade();
       finishUnavailable(false);
     });
-  }, [enqueueWork, finishUnavailable]);
+  }, [downgrade, enqueueWork, finishUnavailable]);
 
   const acceptUpdatedTerms = useCallback(() => {
     return enqueueWork(async () => {
@@ -216,7 +205,7 @@ export function useAgeGate({ onUnavailable }: Options) {
       }
       void enqueueWork(async () => {
         if (await loadPendingDeletion()) {
-          if (await deleteGuestAccount()) {
+          if (await eraseUnder13()) {
             await setPendingDeletion(false);
           }
         }
