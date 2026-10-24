@@ -54,6 +54,7 @@ import {
   takeSounds,
   takeBirdChirps,
   stageBleed,
+  noteEnergyPop,
   takeEnergyDelta,
   takeEnergyPops,
   takeMoodPops,
@@ -127,6 +128,7 @@ type Props = {
   cueToken: number;
   treatId?: string;
   moodGain?: number;
+  energyGain?: number;
   drop?: { x: number; y: number };
   flick?: { vx: number; vy: number; vz: number };
   elapsedH?: number;
@@ -198,6 +200,7 @@ export function PetView({
   drop,
   flick,
   elapsedH,
+  energyGain,
   snapSceneToken = 0,
   hour,
   reducedMotion,
@@ -348,7 +351,9 @@ export function PetView({
     elapsedH?: number;
     treatId?: string;
     moodGain?: number;
+    energyGain?: number;
   } | null>(null);
+  const energyPopToken = useRef<number | null>(null);
   const onTreatMoodRef = useRef(onTreatMood);
   const onTreatEatenRef = useRef(onTreatEaten);
   const onTreatSkippedRef = useRef(onTreatSkipped);
@@ -368,8 +373,14 @@ export function PetView({
       nextFlick?: typeof flick,
       nextTreatId?: string,
       nextMood?: number,
+      nextEnergy?: number,
+      token?: number,
     ) => {
       const actor = worldRef.current.actors[0];
+      if (actor && nextEnergy != null && nextEnergy > 0 && token != null && energyPopToken.current !== token) {
+        energyPopToken.current = token;
+        noteEnergyPop(actor, nextEnergy);
+      }
       if (!actor || kind === 'none') {
         return;
       }
@@ -489,13 +500,17 @@ export function PetView({
   }, [beginTravel, redraw, scene, snapSceneToken]);
 
   useEffect(() => {
+    petRef.current = pet;
+  }, [pet]);
+
+  useEffect(() => {
     elapsedRef.current = elapsedH;
     if (travelRef.current) {
-      pendingCue.current = { kind: cueKind, token: cueToken, drop, flick, elapsedH, treatId, moodGain };
+      pendingCue.current = { kind: cueKind, token: cueToken, drop, flick, elapsedH, treatId, moodGain, energyGain };
       return;
     }
-    applyCue(cueKind, drop, flick, treatId, moodGain);
-  }, [applyCue, cueKind, cueToken, drop, elapsedH, flick, moodGain, treatId]);
+    applyCue(cueKind, drop, flick, treatId, moodGain, energyGain, cueToken);
+  }, [applyCue, cueKind, cueToken, drop, elapsedH, energyGain, flick, moodGain, treatId]);
 
   useImperativeHandle(
     cuddleRef,
@@ -671,9 +686,6 @@ export function PetView({
   );
 
   const cuddleLive = useRef(false);
-  useEffect(() => {
-    petRef.current = pet;
-  }, [pet]);
   useEffect(() => {
     elapsedRef.current = elapsedH;
   }, [elapsedH]);
@@ -886,7 +898,7 @@ export function PetView({
             if (queued.elapsedH != null) {
               elapsedRef.current = queued.elapsedH;
             }
-            applyCue(queued.kind, queued.drop, queued.flick, queued.treatId, queued.moodGain);
+            applyCue(queued.kind, queued.drop, queued.flick, queued.treatId, queued.moodGain, queued.energyGain, queued.token);
           }
         }
       }

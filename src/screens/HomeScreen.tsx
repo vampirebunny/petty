@@ -1996,6 +1996,7 @@ export default function HomeScreen({ petApi }: Props) {
               cuddleRef={cuddleHandle}
               stageRef={stageHandle}
               elapsedH={cue.elapsedH}
+              energyGain={cue.energyGain}
               snapSceneToken={homeSnapToken}
               onGreeting={rememberGreeting}
               onCuddleEvent={onCuddleEvent}

@@ -32,7 +32,7 @@ export type Burst = {
   origin?: { x: number; y: number };
   id?: number;
 };
-export type OpenRewards = { pet: PetState; bursts: Burst[]; login: LoginOffer };
+export type OpenRewards = { pet: PetState; bursts: Burst[]; login: LoginOffer; awayMs: number };
 
 const listeners = new Set<(snapshot: WalletSnapshot) => void>();
 
@@ -951,7 +951,12 @@ export function onAppOpen(pet: PetState, now = Date.now()): OpenRewards {
     owner.last_open_at = now;
     writeOwner(owner);
     writePetNow(progressed.pet);
-    return { pet: progressed.pet, bursts, login: loginOffer(owner.login_last_claimed_day, owner.login_streak, localDay(now)) };
+    return {
+      pet: progressed.pet,
+      bursts,
+      login: loginOffer(owner.login_last_claimed_day, owner.login_streak, localDay(now)),
+      awayMs: away,
+    };
   });
   emit();
   queueCoupled(rewards.pet);

@@ -202,6 +202,7 @@ export type Cue = {
     | 'treat';
   treatId?: string;
   moodGain?: number;
+  energyGain?: number;
   drop?: { x: number; y: number };
   flick?: { vx: number; vy: number; vz: number };
   elapsedH?: number;

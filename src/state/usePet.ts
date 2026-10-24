@@ -6,6 +6,7 @@ import { flickToThrow } from '../input/flick';
 import { cancelReminders, syncReminder } from '../reminders/notifications';
 import { AWAY_DECAY } from '../sim/awayDecayConfig';
 import { awayElapsedHours } from '../sim/awayDecay';
+import { openReturnFollowUp, returnEnergyAfterMs } from '../sim/returnEnergy';
 import { applyRewardTreat } from '../treats/rules';
 import {
   applyEvent,
@@ -78,6 +79,7 @@ export type PetCue = {
   elapsedH?: number;
   treatId?: string;
   moodGain?: number;
+  energyGain?: number;
 };
 
 type PetApi = {
@@ -201,6 +203,7 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
   const burstQueue = useRef<Burst[]>([]);
   const burstSeq = useRef(0);
   const greetAfter = useRef<{ elapsedH: number } | null>(null);
+  const fillEnergyAfter = useRef(false);
   const stateRef = useRef<PetState | null>(null);
   const tokenRef = useRef(0);
   const storageRef = useRef(storage);
@@ -228,6 +231,7 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
         elapsedH: nextCue.elapsedH,
         treatId: nextCue.treatId,
         moodGain: nextCue.moodGain,
+        energyGain: nextCue.energyGain,
       });
     }
     const snapshot = next;
@@ -319,13 +323,19 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
 
   const afterPayouts = useCallback(() => {
     const greet = greetAfter.current;
-    if (!greet) {
+    const fill = fillEnergyAfter.current;
+    if (!greet && !fill) {
       return;
     }
     greetAfter.current = null;
+    fillEnergyAfter.current = false;
     const current = stateRef.current;
-    if (current) {
-      publish(current, { kind: 'greet', elapsedH: greet.elapsedH });
+    if (!current) {
+      return;
+    }
+    const follow = openReturnFollowUp(current, greet, fill);
+    if (follow.pet !== current || follow.cue) {
+      publish(follow.pet, follow.cue);
     }
   }, [publish]);
 
@@ -366,14 +376,21 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
         }
         const awayMin = elapsedH * 60;
         const greet = awayMin >= 2;
+        if (opened.awayMs > returnEnergyAfterMs) {
+          fillEnergyAfter.current = true;
+        }
         const playing = enqueueOpen({ ...opened, pet: settled.pet, bursts });
-        if (playing && greet) {
-          greetAfter.current = { elapsedH };
+        const payoutsShowing = playing || burstRef.current != null;
+        if (payoutsShowing) {
+          if (greet) {
+            greetAfter.current = { elapsedH };
+          }
           publish(settled.pet);
-        } else if (greet) {
-          publish(settled.pet, { kind: 'greet', elapsedH });
         } else {
-          publish(settled.pet);
+          const follow = openReturnFollowUp(settled.pet, greet ? { elapsedH } : null, fillEnergyAfter.current);
+          fillEnergyAfter.current = false;
+          greetAfter.current = null;
+          publish(follow.pet, follow.cue);
         }
       } finally {
         returningRef.current = false;
