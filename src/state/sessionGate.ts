@@ -3,9 +3,17 @@ export type AuthTransition = 'idle' | 'linking' | 'restoring' | 'reconciling' | 
 let transition: AuthTransition = 'idle';
 let generation = 0;
 const installListeners = new Set<() => void>();
+const transitionListeners = new Set<() => void>();
 
 export function authTransition(): AuthTransition {
   return transition;
+}
+
+export function onAuthTransition(listener: () => void): () => void {
+  transitionListeners.add(listener);
+  return () => {
+    transitionListeners.delete(listener);
+  };
 }
 
 /** Leaving idle bumps the save generation so a save already on `saveQueue` does not write. */
@@ -14,6 +22,9 @@ export function setAuthTransition(next: AuthTransition): void {
     bumpSaveGeneration();
   }
   transition = next;
+  for (const listener of transitionListeners) {
+    listener();
+  }
 }
 
 export function saveGeneration(): number {
@@ -91,4 +102,14 @@ export function setPlayHereRequest(listener: (() => void) | null): void {
 
 export function requestPlayHere(): void {
   playHereRequest?.();
+}
+
+let lockedSettle: (() => void) | null = null;
+
+export function setLockedSettle(listener: (() => void) | null): void {
+  lockedSettle = listener;
+}
+
+export function settleUnderLock(): void {
+  lockedSettle?.();
 }

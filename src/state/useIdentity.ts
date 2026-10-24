@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { AppState } from 'react-native';
 
 import { readAccountLinked } from '../db/accountMeta';
 import { rebindOwner } from '../db/bindOwner';
@@ -13,6 +14,12 @@ import {
   setCachedUserId,
 } from '../compliance/identity';
 import { pingAuthHealth } from '../compliance/authHealth';
+import {
+  clearRefreshRetry,
+  noteRefreshRetry,
+  recoverLinkedSession,
+  refreshRetryIsDue,
+} from '../compliance/reauth';
 import { getSupabase } from '../compliance/supabase';
 
 export type Identity = {
@@ -67,32 +74,50 @@ export function useIdentity(): Identity {
             }
             return;
           }
-          let owner = next;
-          if (!next) {
-            const online = await pingAuthHealth();
-            if (!online) {
-              return;
-            }
-          }
           if (next) {
             const install = id ?? (await getOrCreateInstallId());
             await rebindOwner(install, next);
             setCurrentOwner(next);
-          } else if (readAccountLinked()) {
-            setAuthTransition('reauth');
-          } else {
-            const previous = getCachedUserId();
-            if (previous) {
-              const { ensureAnonymousUserId } = await import('../compliance/identity');
-              const created = await ensureAnonymousUserId();
-              if (created && created !== previous) {
-                await rebindOwner(previous, created);
-                setCurrentOwner(created);
-                owner = created;
-              }
-            } else if (id) {
-              setCurrentOwner(id);
+            setCachedUserId(next);
+            if (!cancelled) {
+              setUserId(next);
             }
+            return;
+          }
+          if (readAccountLinked()) {
+            const outcome = await recoverLinkedSession();
+            if (outcome.kind === 'restored') {
+              clearRefreshRetry();
+              setCachedUserId(outcome.userId);
+              if (!cancelled) {
+                setUserId(outcome.userId);
+              }
+              return;
+            }
+            if (outcome.kind === 'dead') {
+              clearRefreshRetry();
+              setAuthTransition('reauth');
+              return;
+            }
+            noteRefreshRetry();
+            return;
+          }
+          const online = await pingAuthHealth();
+          if (!online) {
+            return;
+          }
+          let owner = next;
+          const previous = getCachedUserId();
+          if (previous) {
+            const { ensureAnonymousUserId } = await import('../compliance/identity');
+            const created = await ensureAnonymousUserId();
+            if (created && created !== previous) {
+              await rebindOwner(previous, created);
+              setCurrentOwner(created);
+              owner = created;
+            }
+          } else if (id) {
+            setCurrentOwner(id);
           }
           setCachedUserId(owner);
           if (!cancelled) {
@@ -103,8 +128,31 @@ export function useIdentity(): Identity {
       unsubscribe = () => data.subscription.unsubscribe();
     })();
 
+    const subscription = AppState.addEventListener('change', (status) => {
+      if (status !== 'active' || !refreshRetryIsDue() || !readAccountLinked() || authTransition() !== 'idle') {
+        return;
+      }
+      void (async () => {
+        const outcome = await recoverLinkedSession();
+        if (cancelled) {
+          return;
+        }
+        if (outcome.kind === 'restored') {
+          clearRefreshRetry();
+          setCachedUserId(outcome.userId);
+          setUserId(outcome.userId);
+          return;
+        }
+        if (outcome.kind === 'dead') {
+          clearRefreshRetry();
+          setAuthTransition('reauth');
+        }
+      })();
+    });
+
     return () => {
       cancelled = true;
+      subscription.remove();
       setBeforeSessionPublish(null);
       unsubscribe?.();
     };

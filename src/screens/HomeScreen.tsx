@@ -71,6 +71,8 @@ import type { NeedHold } from '../ui/needHold';
 import { TrainingRings } from '../ui/TrainingRings';
 import { FunModal } from '../ui/FunModal';
 import { HandlePrompt } from '../ui/HandleScreen';
+import { Day3Prompt } from '../ui/Day3Prompt';
+import { ReauthPrompt } from '../ui/ReauthPrompt';
 import { TreatPicker } from '../ui/TreatPicker';
 import { AttributePops, trainingPopColor, traitPopColor } from '../ui/AttributePops';
 import type { PointPop } from '../ui/AttributePops';
@@ -1890,6 +1892,23 @@ export default function HomeScreen({ petApi }: Props) {
     </ScrollView>
   );
 
+  const homeIdle =
+    stageReady &&
+    !placesOpen &&
+    !facingOpen &&
+    !clothingOpen &&
+    !personalityOpen &&
+    !playOpen &&
+    !heldPlay &&
+    !treatOpen &&
+    !feedOpen &&
+    !cuddleOn &&
+    !helpOpen &&
+    !silentHintOpen &&
+    !dialogLive &&
+    !burst &&
+    tips.current == null;
+
   return (
     <View style={styles.screen}>
       <View
@@ -2062,26 +2081,9 @@ export default function HomeScreen({ petApi }: Props) {
           onDone={finishBurst}
         />
       ) : null}
-      <HandlePrompt
-        petName={state.name}
-        idle={
-          stageReady &&
-          !placesOpen &&
-          !facingOpen &&
-          !clothingOpen &&
-          !personalityOpen &&
-          !playOpen &&
-          !heldPlay &&
-          !treatOpen &&
-          !feedOpen &&
-          !cuddleOn &&
-          !helpOpen &&
-          !silentHintOpen &&
-          !dialogLive &&
-          !burst &&
-          tips.current == null
-        }
-      />
+      <HandlePrompt petName={state.name} idle={homeIdle} />
+      <Day3Prompt petName={state.name} idle={homeIdle} />
+      <ReauthPrompt petName={state.name} idle={homeIdle} />
     </View>
   );
 }

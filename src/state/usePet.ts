@@ -26,6 +26,7 @@ import {
   tickForeground,
 } from '../sim';
 import type { Cue, Look, Mood, OutfitSlot, PetAttributes, PetEvent, PetState, Trait } from '../sim';
+import { noteForegroundDay } from '../compliance/accountPrompts';
 import { createUuid, getCachedInstallId } from '../compliance/identity';
 import { bootstrapLocal, wipeLocalData } from '../db/bootstrap';
 import { readAccountLinked, readStandby, readSyncedRevision, serverNow, setOtherDeviceLabel, setStandby } from '../db/accountMeta';
@@ -41,6 +42,7 @@ import {
   openPathSuppressed,
   saveGeneration,
   setAuthTransition,
+  setLockedSettle,
   setPlayHereRequest,
   setSettleRequest,
 } from './sessionGate';
@@ -381,6 +383,7 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
   );
 
   useEffect(() => {
+    noteForegroundDay();
     let cancelled = false;
     void bootstrapLocal()
       .then(() => Promise.all([storage.load(), loadRemindersEnabled(), loadCareRemindersEnabled()]))
@@ -611,10 +614,23 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
   }, [takeSlot]);
 
   useEffect(() => {
+    setLockedSettle(() => {
+      const current = stateRef.current;
+      if (current) {
+        settleReturn(current, serverNow());
+      }
+    });
+    return () => setLockedSettle(null);
+  }, [settleReturn]);
+
+  useEffect(() => {
     const subscription = AppState.addEventListener('change', (status) => {
       const previous = statusRef.current;
       statusRef.current = status;
       activeRef.current = status === 'active';
+      if (status === 'active') {
+        noteForegroundDay();
+      }
       const current = stateRef.current;
       if (!current) {
         return;

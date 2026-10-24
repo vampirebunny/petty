@@ -16,6 +16,8 @@
 
 **Phase F shipped** on `accounts-phase-b`. A linked device asks **Continue here** before taking the slot, and standby keeps the sleeping pet until **Play here**.
 
+**Phase G shipped** on `accounts-phase-b`. The day-3 backup prompt shows on idle Home, and a dead linked session asks to sign in again.
+
 The two simplifications still hold:
 1. **The ledger has its own table** (`ledger_entries`) and its own append-only sync. `player_state` never carries a ledger, balance, or inventory.
 2. **No legacy path.** There are no real players yet. Wipe the test data (A0); every account starts with a ledger.
