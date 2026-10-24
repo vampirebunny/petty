@@ -4,7 +4,7 @@ import { sceneById, scenes } from './scenes';
 import type { Vec } from './types';
 
 // Owned, movable pieces. Everything else in a room is scenery.
-export const furnitureKinds = ['bowl', 'bed', 'litterbox', 'catTree', 'planter', 'catioPost', 'dogHouse'] as const;
+export const furnitureKinds = ['bowl', 'bed', 'litterbox', 'catTree', 'planter', 'catioPost', 'dogHouse', 'scratcher'] as const;
 
 export type FurnitureKind = (typeof furnitureKinds)[number];
 
@@ -43,9 +43,32 @@ export const shopFurniture = {
       bedroom: { x: 420, y: 380 },
     },
   },
+  scratcher: {
+    scenes: ['catio', 'livingroom', 'bedroom'] as const,
+    spot: {
+      catio: { x: 38, y: 530 },
+      livingroom: { x: 150, y: 500 },
+      bedroom: { x: 160, y: 440 },
+    },
+  },
 } as const;
 
 export type ShopFurnitureId = keyof typeof shopFurniture;
+
+export function furnitureDefinition(id: string): FurniturePiece | null {
+  for (const scene of Object.values(scenes)) {
+    for (const prop of scene.props) {
+      if (prop.id === id) {
+        return pieceFromProp(prop);
+      }
+    }
+  }
+  if (Object.prototype.hasOwnProperty.call(shopFurniture, id)) {
+    const kind = id as ShopFurnitureId;
+    return kind === 'scratcher' ? { id: kind, kind, h: 74 } : { id: kind, kind };
+  }
+  return null;
+}
 
 export function shopFurnitureSpot(kind: ShopFurnitureId, sceneId: string): { sceneId: string; x: number; y: number } {
   const spec = shopFurniture[kind];
@@ -174,6 +197,28 @@ export function starterFurniture(species: 'dog' | 'cat'): { pieces: FurniturePie
   const starter = { pieces, placed };
   starterCache.set(species, starter);
   return starter;
+}
+
+export function grantPieces(
+  species: 'dog' | 'cat',
+  which: 'shared' | 'species',
+): { pieces: FurniturePiece[]; placed: FurniturePlacement[] } {
+  const pack = starterFurniture(species);
+  const pieces: FurniturePiece[] = [];
+  const placed: FurniturePlacement[] = [];
+  for (const piece of pack.pieces) {
+    const place = pack.placed.find((row) => row.pieceId === piece.id);
+    const scene = place ? sceneById(place.sceneId) : undefined;
+    const speciesOnly = Boolean(scene?.species);
+    if (which === 'species' ? !speciesOnly : speciesOnly) {
+      continue;
+    }
+    pieces.push(piece);
+    if (place) {
+      placed.push(place);
+    }
+  }
+  return { pieces, placed };
 }
 
 function isPiece(value: unknown): value is FurniturePiece {
@@ -378,11 +423,11 @@ export function movePiece(scene: Scene, pieceId: string, x: number, y: number): 
   if (!prop || !isFurnitureKind(prop.kind)) {
     return null;
   }
-  if (prop.kind === 'dogHouse' && scene.id !== 'livingroom' && scene.id !== 'bedroom') {
-    return null;
-  }
-  if (prop.kind === 'catTree' && scene.id === 'park') {
-    return null;
+  if (prop.kind in shopFurniture) {
+    const allowed = shopFurniture[prop.kind as ShopFurnitureId].scenes as readonly string[];
+    if (!allowed.includes(scene.id)) {
+      return null;
+    }
   }
   const next = clampToFloor({ x, y }, scene.floor);
   const dx = next.x - prop.x;

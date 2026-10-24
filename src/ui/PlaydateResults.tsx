@@ -373,14 +373,17 @@ const styles = StyleSheet.create({
   },
   title: {
     color: theme.ink,
-    fontSize: 22,
-    fontFamily: fontFamily.extraBold,
+    fontSize: 28,
+    lineHeight: 34,
+    fontFamily: fontFamily.fredokaBold,
+    textAlign: 'center',
   },
   subtitle: {
     color: theme.muted,
     fontSize: 15,
     fontFamily: fontFamily.semibold,
     marginTop: 2,
+    textAlign: 'center',
   },
   chips: {
     flexDirection: 'row',

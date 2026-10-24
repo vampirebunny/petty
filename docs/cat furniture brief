@@ -1,0 +1,164 @@
+Brief: Cat furniture interactions (scratching pole + cat tree), extensible to future furniture
+Goal
+
+When the cat is idle and has a scratching pole or cat tree placed in the room, it sometimes uses it on its own: it scratches, climbs, perches and comes back down. Build this as a general furniture affordance system, so future items like a cat tree house, wall shelves, a window perch or a hammock only need config and a few new animations, not new behavior code.
+
+Use the existing idle selector, procedural rig, prop placement/drag system and scene layering. Don’t rebuild them.
+
+1. Idle trigger
+Each time the idle selector picks a behavior, roll FURNITURE_IDLE_CHANCE = 0.05. This must be a config value, not hardcoded.
+On a hit, gather every affordance on placed furniture that is eligible right now (species, age, energy, cooldown, reachable). Pick one by weight.
+If nothing is eligible, fall through to the normal idle behaviors with no wasted turn.
+Each affordance has a cooldown (default 3 minutes) so the cat doesn’t loop on the same item.
+Gating:
+Low energy (under 25): no climbing or jumping. Scratching is allowed. If the cat is already on a perch, it naps there.
+Kitten: can climb but is clumsy (see below). Senior: scratches and uses only the lowest platform.
+Dogs ignore cat-only items. Filter with species: ['cat'] on each affordance.
+2. Affordance data model (per item config)
+ts
+type Affordance = {
+  type: 'scratch' | 'climb' | 'perch' | 'hide' | 'jumpTo';
+  species: ('cat' | 'dog')[];
+  weight: number;            // relative pick chance
+  anchor: { x: number; y: number }; // item-local coords
+  approachSide: 'left' | 'right' | 'either';
+  scratchOrientation?: 'vertical' | 'horizontal';
+  durationMs: [min, max];
+  cooldownMs: number;
+  minAgeStage?: AgeStage; maxAgeStage?: AgeStage;
+};
+
+type FurnitureGeometry = {
+  posts?: { x: number; yBottom: number; yTop: number; width: number }[]; // climbable/scratchable
+  surfaces?: { x0: number; x1: number; y: number; id: string }[];        // perches/platforms
+  occluderLayer?: string; // front art layer drawn OVER the pet (for houses/holes)
+};
+Scratching pole: one post with a vertical scratch affordance.
+Cat tree: posts (scratch + climb), 2–3 platform surfaces (perch), and a base pad (horizontal scratch).
+Navigation graph: the nodes are the floor plus every surface on all placed furniture. Edges are:
+jump when the vertical and horizontal gaps are within the cat’s jump range
+climb along a post
+drop going down
+Max jump height = baseJump × agilityFactor × ageFactor. Kittens and seniors get roughly 0.6× and 0.5×.
+Build the graph across items, so a future shelf placed near the tree becomes reachable automatically.
+3. Rendering and layering
+The cat draws in front of posts and platforms. Paws visibly overlap the post.
+Items with an occluderLayer (future tree house) split into a back layer and a front layer. The cat draws between them.
+Head view rule (keep the existing rule): side view while scratching, climbing and jumping. The 3/4 head is allowed only once the cat is sitting or loafing on a surface.
+Dragging:
+Block dragging an item while the cat is on it or using it, or
+have the cat hop off first (preferred), then let the drag continue.
+Never move the cat with the furniture.
+4. Scratching the pole (vertical scratch). This is the key drawing.
+
+Express everything in the cat’s own body measurements (torsoLen, frontLegLen, hindLegLen, bodyHeight) so it works across breeds, ages and weight index.
+
+a. Approach. Walk to a stop point where the cat’s chest is about 0.35 × torsoLen from the post, facing the post, in side view.
+
+b. Rear up (≈400ms, ease-out)
+
+Pivot the torso around the hip joint, from horizontal to 65–75° above horizontal.
+Hind legs stay planted, bending about 15° at the knee. Weight shifts back.
+Front legs swing up and extend almost straight (elbow about 170°).
+Paw target on the post: y = hipY − torsoLen·sin(angle) − frontLegLen·0.9, with x at the post’s near edge.
+Tail drops low to the floor behind for balance, with a slight upward curl at the tip.
+
+c. Scratch loop (4–8 strokes, ≈2.5 Hz)
+
+Paws alternate, half a cycle out of phase.
+Each stroke: the paw presses into the post, drags down about 15% of frontLegLen, lifts slightly off the post, and resets up.
+Secondary motion:
+Shoulder blades bob with each stroke.
+The back arches a few degrees on each pull.
+The butt does a tiny side-to-side wiggle (1–2px).
+Claws: while a paw is in contact, draw 3 tiny darker curved strokes at the paw tip. Hide them when the paw lifts.
+Face: eyes half-closed and content, ears tilted slightly back.
+FX: at the contact point, 2–3 small specks in the post’s rope color fall and fade over about 400ms.
+Sound: a short scratch sound per stroke. A new royalty-free asset is needed; leave a hook if there isn’t one yet.
+
+d. Finish
+
+Drop back to all fours (≈300ms).
+50% of the time, follow with a front stretch: chest low, front legs forward, butt up, tail high, held about 800ms.
+Then return to idle.
+
+Variants
+
+Kitten: reach is 70% as high, scratch rate is about 4 Hz with more frantic strokes, and there’s a 20% chance of a little hop or stumble at the end.
+Senior: 2–4 strokes and a lower reach (torso about 55°).
+5. Horizontal scratch (cat tree base pad, and future scratch mats)
+Stand on the pad facing along it, side view.
+Chest stays low and the butt stays up (a downward-dog-like pose). Front legs reach forward along the surface.
+Same alternating pull, but the paws drag backward toward the body.
+3–6 strokes, same FX.
+6. Climbing and using the cat tree
+
+Real cats jump platform to platform far more than they climb posts. Use jumps whenever a platform is in range. Use the post climb only when the gap exceeds jump range.
+
+Jump up
+
+Crouch, 300–600ms:
+Body lowers.
+Hind legs gather under the body.
+Butt wiggles 2–3 times.
+Eyes stay fixed on the target and the tail tip twitches.
+Launch, ≈120ms: hind legs extend fully, body stretches long, front legs reach forward and up.
+Arc: a parabola whose apex is about 15% above the target surface. Body angle follows the velocity. Tail streams behind.
+Land:
+Front paws touch down first.
+Hind legs tuck in and land ≈80ms later.
+A small squash on the body (≈5%).
+Brief settle.
+
+Post climb (gaps beyond jump range)
+
+Body goes vertical, parallel to the post, offset by half the body width so the cat hugs the post face.
+Inchworm cycle:
+Front paws alternate reaching up, about 40% of frontLegLen per reach, so the body stretches.
+Then both hind legs push together, so the body compresses.
+Speed is about 1 body length per second.
+The tail hangs down and sways.
+At a platform edge: front paws hook over, there’s a short scramble of hind legs pushing, and the cat pulls up onto the surface.
+
+On a perch (8–25s). Pick one:
+
+Loaf, with the 3/4 head looking around.
+Sit and look around.
+Groom a paw.
+Dangle the tail over the edge, swaying slowly.
+One front paw hanging off the edge (a cute, rare option).
+Nap, if energy is under 40.
+
+On the top platform, add a rare “survey the kingdom” sit (head turns slowly, chest out).
+
+Descend
+
+Jump down platform to platform. Use the reverse of the jump, with front paws reaching down first and a softer landing squash.
+Hop to the floor only from a surface below a safe height. Kittens and seniors always step down through each platform.
+No backward climbing down posts.
+
+Kitten clumsiness
+
+15% chance a jump lands short: front paws catch the edge, hind legs scramble, then the kitten pulls up.
+It never falls to the floor.
+7. Interruptions (must feel natural, never teleport)
+Any user action interrupts the furniture behavior: petting button, ball or toy thrown, feeding, greeting on app open, outing.
+Scratching or rear-up: drop to all fours, then respond.
+On a perch: take the quickest legal path down (jumps or drops), then respond.
+If the app was backgrounded with the cat on a perch, the return greeting starts with the cat hopping down.
+Pathfinding failure (item moved, unreachable): abort quietly and return to normal idle.
+8. Future furniture (config only, no new systems)
+Item	Affordances	Drawing notes
+Cat tree house / condo	hide, perch on the roof, sleep inside	Uses occluderLayer. Cat ducks its head and slides in through the hole. While inside, rotate between tail sticking out (swaying), eyes peeking out of the hole, or fully hidden. Tap the house to coax the cat out.
+Wall shelves	perch surfaces + jump edges only	Must be placed on walls (drag constrained to the wall zone). Arranged as stair steps so the jump graph connects them.
+Window perch	perch + watch	Faces the window; tail swish, ears forward, occasional chatter sound when birds or rain are outside.
+Hammock	perch / sleep	The surface sags under the cat, with sag scaled by the weight index.
+Scratch mat	scratch (horizontal)	Reuses section 5.
+9. Debug and test
+Add a dev-only menu to force each affordance, plus a toggle that sets FURNITURE_IDLE_CHANCE to 1.0.
+Test cases:
+Kitten, adult and senior.
+Underweight and overweight (paw targets must still land on the post).
+Pole on the left vs right side of the room.
+Tree dragged mid-behavior.
+A ball thrown while the cat is on the top platform.

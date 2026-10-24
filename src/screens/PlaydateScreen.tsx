@@ -21,6 +21,7 @@ import type { ResultsNote } from '../ui/PlaydateResults';
 import { PlaydateStage } from '../ui/PlaydateStage';
 import { SnapshotStill } from '../ui/SnapshotStill';
 import { CandyButton } from '../ui/closet/CandyButton';
+import { fontFamily } from '../ui/font';
 import { PhoneColumn } from '../ui/PhoneColumn';
 import { WardrobePicker } from '../ui/WardrobePicker';
 import { minTouch } from '../ui/theme';
@@ -194,7 +195,11 @@ export function PlaydateScreen({ pet, save, now, remaining, reducedMotion, onSav
         <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={back} style={styles.headerButton}>
           <Text style={styles.headerLabel}>{step === 'play' ? 'Leave' : 'Back'}</Text>
         </Pressable>
-        <Text style={styles.title}>{heading}</Text>
+        <View pointerEvents="none" style={styles.titleSlot}>
+          <Text accessibilityRole="header" style={styles.title} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
+            {heading}
+          </Text>
+        </View>
       </View>
       {cooling && step !== 'play' && step !== 'results' ? <Text style={styles.countdown}>{countdown}</Text> : null}
       {step === 'outfit' ? (
@@ -327,7 +332,7 @@ export function PlaydateScreen({ pet, save, now, remaining, reducedMotion, onSav
         ) : null}
         {step === 'play' && record ? (
           <View style={styles.stack}>
-            <Text style={styles.section}>
+            <Text style={styles.activity}>
               {activityById(record.activityId)?.name ?? 'Playdate'} with {record.petB.name}
             </Text>
             <PlaydateStage record={record} reducedMotion={reducedMotion} onDone={finish} onTogether={dogsTogether} />
@@ -376,12 +381,12 @@ const styles = StyleSheet.create({
     paddingTop: 64,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    height: 52,
+    justifyContent: 'center',
     paddingHorizontal: 16,
-    gap: 12,
   },
   headerButton: {
+    alignSelf: 'flex-start',
     minWidth: minTouch,
     minHeight: minTouch,
     justifyContent: 'center',
@@ -390,11 +395,21 @@ const styles = StyleSheet.create({
     color: '#16466F',
     fontSize: 16,
   },
+  titleSlot: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    paddingHorizontal: 96,
+  },
   title: {
-    flex: 1,
+    textAlign: 'center',
+    fontFamily: fontFamily.fredokaBold,
+    fontSize: 28,
+    lineHeight: 34,
     color: '#243044',
-    fontSize: 18,
-    fontWeight: '600',
   },
   countdown: {
     paddingHorizontal: 20,
@@ -431,6 +446,13 @@ const styles = StyleSheet.create({
     color: '#243044',
     fontSize: 18,
     fontWeight: '600',
+  },
+  activity: {
+    textAlign: 'center',
+    fontFamily: fontFamily.fredokaBold,
+    fontSize: 22,
+    lineHeight: 28,
+    color: '#243044',
   },
   card: {
     flexDirection: 'row',

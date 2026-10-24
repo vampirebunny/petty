@@ -57,6 +57,7 @@ insert into public.shop_items (id, name, category, price, shop, species, descrip
   ('laser', 'Laser Pointer', 'toys', 2000, 'rotation', array['cat'], null, 8, true, 'standard', null),
   ('dogHouse', 'Dog House', 'home', 6000, 'always', array['dog'], null, 0, true, 'standard', null),
   ('catTree', 'Cat Tree', 'home', 6000, 'always', array['cat'], null, 1, true, 'standard', null),
+  ('scratcher', 'Scratch Pole', 'home', 2500, 'always', array['cat'], null, 2, true, 'standard', null),
   ('biscuit', 'Biscuit', 'treats', 15, 'always', null, null, 0, true, 'standard', null),
   ('special', 'Salmon Bites', 'treats', 40, 'always', null, null, 1, true, 'standard', null),
   ('treat_jerky', 'Chicken Jerky', 'treats', 80, 'always', array['dog'], null, 2, true, 'standard', null),

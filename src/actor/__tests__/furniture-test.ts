@@ -164,3 +164,14 @@ it('draws a cat tree only after it is owned and placed', () => {
   const scene = applyFurniture(scenes.catio, pieces, placed);
   expect(scene.props.find((prop) => prop.id === 'catio-tree')).toMatchObject({ kind: 'catTree', x: 500, y: 400 });
 });
+
+it('leaves the scratch pole out of the catio until it is owned', () => {
+  const home = starterFurniture('cat');
+  expect(home.pieces.some((piece) => piece.kind === 'scratcher')).toBe(false);
+  const bare = applyFurniture(scenes.catio, home.pieces, home.placed);
+  expect(bare.props.some((prop) => prop.kind === 'scratcher')).toBe(false);
+  const pieces = [...home.pieces, { id: 'scratcher', kind: 'scratcher' as const, h: 74 }];
+  const placed = [...home.placed, { pieceId: 'scratcher', sceneId: 'catio', x: 38, y: 530 }];
+  const scene = applyFurniture(scenes.catio, pieces, placed);
+  expect(scene.props.find((prop) => prop.id === 'scratcher')).toMatchObject({ kind: 'scratcher', x: 38, y: 530, h: 74 });
+});

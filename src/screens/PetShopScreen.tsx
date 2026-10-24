@@ -73,7 +73,7 @@ const categories: { id: ShopCategory; title: string; note: string }[] = [
   { id: 'treats', title: 'Treats & Food', note: 'Goes to your Pantry' },
   { id: 'clothes', title: 'Clothes', note: 'Try on, then Closet' },
   { id: 'toys', title: 'Toys', note: 'Goes to your Toy Box' },
-  { id: 'home', title: 'Home', note: 'Goes in your home' },
+  { id: 'home', title: 'Furniture', note: 'Goes in your home' },
   { id: 'boosts', title: 'Boosts', note: 'Goes to your Pantry' },
 ];
 

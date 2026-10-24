@@ -1,3 +1,4 @@
+import { shopFurniture, type ShopFurnitureId } from '../actor/furniture';
 import { grantOwnedFurniture, touchPlayerHome } from '../db/playerHome';
 import { getDb } from '../db/database';
 import { catalogItem } from '../economy/catalog';
@@ -10,9 +11,18 @@ export async function grantDevItem(
   equipped: Equipped,
   id: string,
 ): Promise<void> {
-  if (id === 'dogHouse' || id === 'catTree') {
-    const sceneId = id === 'catTree' && species === 'cat' ? 'catio' : 'livingroom';
-    grantOwnedFurniture(ownerId, species, id, sceneId);
+  if (Object.prototype.hasOwnProperty.call(shopFurniture, id)) {
+    const kind = id as ShopFurnitureId;
+    const allowed = shopFurniture[kind].scenes as readonly string[];
+    const sceneId =
+      kind === 'dogHouse'
+        ? 'livingroom'
+        : species === 'cat' && allowed.includes('catio')
+          ? 'catio'
+          : allowed.includes('livingroom')
+            ? 'livingroom'
+            : allowed[0];
+    grantOwnedFurniture(ownerId, species, kind, sceneId);
     touchPlayerHome();
     return;
   }
