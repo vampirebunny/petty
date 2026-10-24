@@ -94,6 +94,50 @@ async function signInWithAppleAndroid(): Promise<AuthCredential | null> {
   };
 }
 
+function redirectParam(url: string, key: string): string | null {
+  const parsed = new URL(url);
+  return parsed.searchParams.get(key) ?? new URLSearchParams(parsed.hash.replace(/^#/, '')).get(key);
+}
+
+/**
+ * Android guest linking. Opens the `linkIdentity` URL and returns the PKCE code.
+ * Does not call `exchangeCodeForSession` or `signInWithOAuth`.
+ */
+export async function beginAppleLink(): Promise<AuthCredential | null> {
+  if (Platform.OS === 'ios') {
+    return signInWithAppleIos();
+  }
+  const supabase = getSupabase();
+  if (!supabase) {
+    return null;
+  }
+  const oauth = await supabase.auth.linkIdentity({
+    provider: 'apple',
+    options: { redirectTo: appleAuthRedirect, skipBrowserRedirect: true },
+  });
+  if (oauth.error || !oauth.data.url) {
+    throw oauth.error ?? new Error('Apple sign-in did not return a URL');
+  }
+  const result = await WebBrowser.openAuthSessionAsync(oauth.data.url, appleAuthRedirect);
+  if (result.type !== 'success') {
+    return null;
+  }
+  const described = redirectParam(result.url, 'error_description') ?? redirectParam(result.url, 'error');
+  if (described) {
+    throw new Error(described);
+  }
+  const code = redirectParam(result.url, 'code');
+  if (!code) {
+    return null;
+  }
+  return {
+    provider: 'apple',
+    idToken: null,
+    rawNonce: null,
+    pkceCode: code,
+  };
+}
+
 export async function signInWithApple(): Promise<AuthCredential | null> {
   if (Platform.OS === 'ios') {
     return signInWithAppleIos();

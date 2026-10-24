@@ -1,6 +1,12 @@
 import { getCachedInstallId } from '../compliance/identity';
 import { getSupabase } from '../compliance/supabase';
-import { readLocalRevision, readSyncedRevision, setOtherDeviceLabel, setServerOffsetMs } from '../db/accountMeta';
+import {
+  readLocalRevision,
+  readSyncedRevision,
+  setHandleSaved,
+  setOtherDeviceLabel,
+  setServerOffsetMs,
+} from '../db/accountMeta';
 import { getDb } from '../db/database';
 import { deviceLabel } from './deviceLabel';
 
@@ -69,6 +75,9 @@ export async function claimDevice(): Promise<ClaimResult | null> {
     return null;
   }
   const claim = data as ClaimResult;
+  if (claim.has_handle) {
+    setHandleSaved(true);
+  }
   const serverNowMs = Date.parse(claim.server_now);
   if (Number.isFinite(serverNowMs)) {
     setServerOffsetMs(serverNowMs - Date.now());

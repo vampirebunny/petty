@@ -6,6 +6,10 @@
 
 **Phase A shipped** on `main` (`b371792`). The app rebinds every owner-keyed table in one step, writes the economy as ledger lines with an outbox, and peeks before claiming so only one device plays. Server SQL is `supabase/migrations/20261024200000_ledger_and_active_device.sql`. Apply that yourself; it does not delete users. The next launch of an existing install wipes the on-device database once, because the storage version moved to 3. Sign-in, Welcome, and deletion UI are not built yet.
 
+**Phase B shipped** on `accounts-phase-b`. The app has `expo-apple-authentication` and `@react-native-google-signin/google-signin`, the `boopboop` scheme, a PKCE Supabase client, and the Apple credential helper. Server SQL is `supabase/migrations/20261024210000_profiles_and_health.sql` (`profiles`, `check_handle_available`, `app_health`). Apply that yourself after the Phase A migration; it does not delete users. Edge functions are `apple_store_token`, `delete_account`, and `supersede_guest`. Guest tokens are checked with the project JWKS. The Google Web client ID, iOS client ID, and reversed iOS scheme are in `.env.local`, and that scheme is on the Google plugin in `app.json`. `@react-native-google-signin/google-signin` 16.1.5 has no nonce argument, so turn on Supabase **Skip nonce check** for Google.
+
+**Phase C shipped** on `accounts-phase-b`. The sign-in sheet, guest linking, and the handle screen are in the app. The sheet is not mounted from Home. Saving a handle is `supabase/migrations/20261024220000_claim_handle.sql`. Apply that yourself; it does not delete users. A link that finds an existing account does not restore it yet.
+
 The two simplifications still hold:
 1. **The ledger has its own table** (`ledger_entries`) and its own append-only sync. `player_state` never carries a ledger, balance, or inventory.
 2. **No legacy path.** There are no real players yet. Wipe the test data (A0); every account starts with a ledger.

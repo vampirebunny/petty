@@ -69,6 +69,7 @@ import { needHold, presentNeeds, sumHolds } from '../ui/needHold';
 import type { NeedHold } from '../ui/needHold';
 import { TrainingRings } from '../ui/TrainingRings';
 import { FunModal } from '../ui/FunModal';
+import { HandlePrompt } from '../ui/HandleScreen';
 import { TreatPicker } from '../ui/TreatPicker';
 import { AttributePops, trainingPopColor, traitPopColor } from '../ui/AttributePops';
 import type { PointPop } from '../ui/AttributePops';
@@ -1994,6 +1995,24 @@ export default function HomeScreen({ petApi }: Props) {
           onDone={finishBurst}
         />
       ) : null}
+      <HandlePrompt
+        petName={state.name}
+        idle={
+          stageReady &&
+          !placesOpen &&
+          !facingOpen &&
+          !personalityOpen &&
+          !playOpen &&
+          !heldPlay &&
+          !treatOpen &&
+          !cuddleOn &&
+          !helpOpen &&
+          !silentHintOpen &&
+          !dialogLive &&
+          !burst &&
+          tips.current == null
+        }
+      />
     </View>
   );
 }

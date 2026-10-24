@@ -17,6 +17,40 @@ export function readAccountLinked(): boolean {
 
 export function setAccountLinked(linked: boolean): void {
   writeMeta('accountLinked', linked ? '1' : '0');
+  notifyAccountFlags();
+}
+
+export function readHandleSaved(): boolean {
+  return readMeta('handleSaved') === '1';
+}
+
+export function setHandleSaved(saved: boolean): void {
+  writeMeta('handleSaved', saved ? '1' : '0');
+  notifyAccountFlags();
+}
+
+export function readAppleTokenMissing(): boolean {
+  return readMeta('appleTokenMissing') === '1';
+}
+
+export function setAppleTokenMissing(missing: boolean): void {
+  writeMeta('appleTokenMissing', missing ? '1' : '0');
+  notifyAccountFlags();
+}
+
+const accountFlagListeners = new Set<() => void>();
+
+export function onAccountFlags(listener: () => void): () => void {
+  accountFlagListeners.add(listener);
+  return () => {
+    accountFlagListeners.delete(listener);
+  };
+}
+
+function notifyAccountFlags(): void {
+  for (const listener of accountFlagListeners) {
+    listener();
+  }
 }
 
 export function readStandby(): boolean {
