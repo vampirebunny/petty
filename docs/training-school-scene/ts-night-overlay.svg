@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="600" viewBox="0 0 390 600">
+  <!-- Topmost layer at evening/night: room tint + glowing garland bulbs + lamp-warm floor pool. -->
+  <defs>
+    <radialGradient id="bulbGlow">
+      <stop offset="0" stop-color="#FFE29A" stop-opacity="0.95"/>
+      <stop offset="0.35" stop-color="#FFE29A" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#FFE29A" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="floorGlow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#FFD9A8" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#FFD9A8" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="390" height="600" fill="#2E2070" opacity="0.32"/>
+  <ellipse cx="195" cy="480" rx="190" ry="110" fill="url(#floorGlow)"/>
+  <g fill="url(#bulbGlow)">
+    <circle cx="32.5" cy="37.5" r="16"/><circle cx="65" cy="43" r="16"/><circle cx="97.5" cy="47.3" r="16"/><circle cx="130" cy="50.4" r="16"/><circle cx="162.5" cy="52.2" r="16"/><circle cx="195" cy="52.8" r="16"/><circle cx="227.5" cy="52.2" r="16"/><circle cx="260" cy="50.4" r="16"/><circle cx="292.5" cy="47.3" r="16"/><circle cx="325" cy="43" r="16"/><circle cx="357.5" cy="37.5" r="16"/>
+  </g>
+  <g fill="#FFF3C4">
+    <ellipse cx="32.5" cy="37.5" rx="3" ry="4"/><ellipse cx="65" cy="43" rx="3" ry="4"/><ellipse cx="97.5" cy="47.3" rx="3" ry="4"/><ellipse cx="130" cy="50.4" rx="3" ry="4"/><ellipse cx="162.5" cy="52.2" rx="3" ry="4"/><ellipse cx="195" cy="52.8" rx="3" ry="4"/><ellipse cx="227.5" cy="52.2" rx="3" ry="4"/><ellipse cx="260" cy="50.4" rx="3" ry="4"/><ellipse cx="292.5" cy="47.3" rx="3" ry="4"/><ellipse cx="325" cy="43" rx="3" ry="4"/><ellipse cx="357.5" cy="37.5" rx="3" ry="4"/>
+  </g>
+</svg>

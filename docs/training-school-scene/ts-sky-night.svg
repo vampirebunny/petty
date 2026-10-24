@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="600" viewBox="0 0 390 600">
+  <defs>
+    <linearGradient id="skyNight" gradientUnits="userSpaceOnUse" x1="0" y1="96" x2="0" y2="285">
+      <stop offset="0" stop-color="#2B2A6B"/>
+      <stop offset="1" stop-color="#5B4C9E"/>
+    </linearGradient>
+  </defs>
+  <rect width="390" height="600" fill="url(#skyNight)"/>
+  <circle cx="190" cy="140" r="24" fill="#FFF3C4" opacity="0.15"/>
+  <path d="M190 125A15 15 0 1 0 190 155A11 15 0 1 1 190 125Z" fill="#FFF3C4"/>
+  <g fill="#FFF3C4">
+    <path d="M80 130l1.6 4.4 4.4 1.6-4.4 1.6-1.6 4.4-1.6-4.4-4.4-1.6 4.4-1.6z"/>
+    <path d="M128 112l1.2 3.3 3.3 1.2-3.3 1.2-1.2 3.3-1.2-3.3-3.3-1.2 3.3-1.2z"/>
+    <path d="M150 168l1.2 3.3 3.3 1.2-3.3 1.2-1.2 3.3-1.2-3.3-3.3-1.2 3.3-1.2z"/>
+    <path d="M62 190l1.2 3.3 3.3 1.2-3.3 1.2-1.2 3.3-1.2-3.3-3.3-1.2 3.3-1.2z"/>
+    <path d="M214 176l1.6 4.4 4.4 1.6-4.4 1.6-1.6 4.4-1.6-4.4-4.4-1.6 4.4-1.6z"/>
+    <path d="M104 150l1 2.6 2.6 1-2.6 1-1 2.6-1-2.6-2.6-1 2.6-1z"/>
+  </g>
+  <path d="M30 252Q90 214 150 240T262 232V292H30Z" fill="#4E5A9A"/>
+  <path d="M30 264Q120 238 200 258T262 252V292H30Z" fill="#435089"/>
+  <rect x="104" y="222" width="7" height="26" rx="3" fill="#6A5A7A"/>
+  <circle cx="107" cy="214" r="17" fill="#4A6E8F"/><circle cx="95" cy="223" r="11" fill="#4A6E8F"/><circle cx="119" cy="223" r="11" fill="#4A6E8F"/>
+  <g fill="#C9C3E8">
+    <rect x="40" y="259" width="190" height="4" rx="2"/><rect x="40" y="269" width="190" height="4" rx="2"/>
+    <path d="M44 280V257L48 252L52 257V280Z"/><path d="M64 280V257L68 252L72 257V280Z"/><path d="M84 280V257L88 252L92 257V280Z"/><path d="M104 280V257L108 252L112 257V280Z"/><path d="M124 280V257L128 252L132 257V280Z"/><path d="M144 280V257L148 252L152 257V280Z"/><path d="M164 280V257L168 252L172 257V280Z"/><path d="M184 280V257L188 252L192 257V280Z"/><path d="M204 280V257L208 252L212 257V280Z"/>
+  </g>
+</svg>

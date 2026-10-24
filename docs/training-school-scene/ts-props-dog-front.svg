@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="600" viewBox="0 0 390 600">
+  <!-- In front of the pet. Tunnel (left), agility hurdle (right). -->
+  <g id="tunnel">
+    <ellipse cx="60" cy="592" rx="72" ry="7" fill="#3B2357" opacity="0.12"/>
+    <rect x="-20" y="524" width="132" height="64" rx="32" fill="#FFB3DA"/>
+    <path d="M6 526V586M30 524V588M54 524V588M78 524V588" stroke="#F59BC8" stroke-width="3"/>
+    <ellipse cx="112" cy="556" rx="18" ry="32" fill="#FFC9E4" stroke="#F59BC8" stroke-width="3"/>
+    <ellipse cx="114" cy="556" rx="12" ry="25" fill="#C76A9C"/>
+  </g>
+  <g id="hurdle">
+    <ellipse cx="330" cy="590" rx="52" ry="6" fill="#3B2357" opacity="0.1"/>
+    <rect x="296" y="514" width="9" height="70" rx="4.5" fill="#A9DBFF"/>
+    <rect x="356" y="514" width="9" height="70" rx="4.5" fill="#A9DBFF"/>
+    <g fill="#FFFFFF"><rect x="296" y="556" width="9" height="6"/><rect x="356" y="556" width="9" height="6"/><circle cx="300.5" cy="514" r="5.5"/><circle cx="360.5" cy="514" r="5.5"/></g>
+    <rect x="290" y="534" width="80" height="12" rx="6" fill="#FFFFFF" stroke="#FF9EC9" stroke-width="2"/>
+    <g fill="#FF9EC9"><rect x="306" y="535" width="8" height="10"/><rect x="322" y="535" width="8" height="10"/><rect x="338" y="535" width="8" height="10"/><rect x="354" y="535" width="8" height="10"/></g>
+    <rect x="288" y="580" width="26" height="8" rx="4" fill="#8CC7EF"/>
+    <rect x="348" y="580" width="26" height="8" rx="4" fill="#8CC7EF"/>
+  </g>
+</svg>
