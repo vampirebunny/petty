@@ -4,6 +4,8 @@
 
 **[v14+] Follow-up.** A later pass folds in the rest of that review: ask before taking the slot, the real earn source strings, reinstall by `is_anonymous`, a dead session only on an invalid refresh token, an atomic claim id, no rewind of `lastUpdatedAt`, a save generation, claim on adoption confirm, guest deletion that survives a crash, and an injected harness. A further pass runs the guest delete before the account delete, stores a device label for the handoff sentence, warns on **Continue** when local play would be dropped, and leaves single-session Auth off. Those edits are marked **[v14+]**.
 
+**Phase A shipped** on `main` (`b371792`). The app rebinds every owner-keyed table in one step, writes the economy as ledger lines with an outbox, and peeks before claiming so only one device plays. Server SQL is `supabase/migrations/20261024200000_ledger_and_active_device.sql`. Apply that yourself; it does not delete users. The next launch of an existing install wipes the on-device database once, because the storage version moved to 3. Sign-in, Welcome, and deletion UI are not built yet.
+
 The two simplifications still hold:
 1. **The ledger has its own table** (`ledger_entries`) and its own append-only sync. `player_state` never carries a ledger, balance, or inventory.
 2. **No legacy path.** There are no real players yet. Wipe the test data (A0); every account starts with a ledger.
@@ -339,7 +341,7 @@ Adopting a pet and saying goodbye (retiring) are pet changes. On a device that t
 - Add a public, unauthenticated health endpoint for A5's online check (an edge function or a trivial RPC that returns `ok`).
 - Create `profiles` as the accounts-friends brief specifies, with `on delete cascade` from `auth.users`. `profiles` is readable **only by its owner**.
 - **Handle availability:** RPC `check_handle_available(p_handle)` (security definer) returns available / taken / reserved / invalid. Seed a `reserved_handles` table with: admin, boopboop, support, moderator, plus common profanity. Case-insensitive.
-- Edge function secrets already set: `APPLE_PRIVATE_KEY`, `APPLE_KEY_ID`, `APPLE_TEAM_ID`, `APPLE_BUNDLE_ID`, `APPLE_SERVICES_ID`. Use these names. `client_id` = `APPLE_BUNDLE_ID` for native iOS tokens and `APPLE_SERVICES_ID` for Android web-flow tokens. `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are provided automatically. `supersede_guest` also needs the project's JWT secret (or JWKS) to verify guest tokens; tell me which you need.
+- Edge function secrets already set: `APPLE_PRIVATE_KEY`, `APPLE_KEY_ID`, `APPLE_TEAM_ID`, `APPLE_BUNDLE_ID`, `APPLE_SERVICES_ID`. Use these names. `client_id` = `APPLE_BUNDLE_ID` for native iOS tokens and `APPLE_SERVICES_ID` for Android web-flow tokens. `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are provided automatically. `supersede_guest` verifies guest access tokens with the project JWKS (`/auth/v1/.well-known/jwks.json`), not the legacy JWT secret. An expired guest token still verifies.
 - Ask me for the public IDs you need (Google Web client ID for `webClientId`, iOS client ID and its reversed URL scheme).
 
 ---
@@ -627,7 +629,8 @@ These bugs only show up when two devices interleave, so test them in code, not b
 - Supabase Auth sessions: make sure the **inactivity timeout** and **time-box** are off (or very long), so guest sessions don't die on their own (A5b). **[v14+] Leave Single session per user off.** A second sign-in must not revoke the other device's session. Both devices stay signed in (§0, A5).
 - Apple provider Client IDs: bundle ID, then Services ID. Secret key: JWT from the `.p8` (needed for the Android web flow; regenerate within 6 months).
 - Google: OAuth clients for Web (redirect `https://<project-ref>.supabase.co/auth/v1/callback`), iOS, and Android (one per SHA-1: EAS key, Play app signing key, debug if used). Supabase Google Client IDs: Web first, then iOS and Android. Client secret: the Web client's.
-- Edge function secrets: done (§3), plus whatever `supersede_guest` needs to verify tokens.
+- Edge function secrets: done (§3). **`supersede_guest` verifies guest access tokens with the project JWKS** (`/auth/v1/.well-known/jwks.json`), not the legacy JWT secret.
+- Google public IDs are in `.env.local`: `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`, `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`, and `EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME`. The Google config plugin is in `app.json` with that reversed iOS scheme. The Web client secret stays in the Supabase Google provider. Set the same `EXPO_PUBLIC_` names on the EAS development, preview, and production environments before a cloud build. `.env.local` is not uploaded.
 - Enable `pg_cron` for the anonymous-user cleanup.
 - Wipe test data in Supabase when Phase A says so (A0).
 - Before resubmitting: update the privacy policy and App Store privacy label (user ID, plus email if Apple/Google provides one).

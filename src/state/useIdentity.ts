@@ -12,6 +12,7 @@ import {
   setBeforeSessionPublish,
   setCachedUserId,
 } from '../compliance/identity';
+import { pingAuthHealth } from '../compliance/authHealth';
 import { getSupabase } from '../compliance/supabase';
 
 export type Identity = {
@@ -67,6 +68,12 @@ export function useIdentity(): Identity {
             return;
           }
           let owner = next;
+          if (!next) {
+            const online = await pingAuthHealth();
+            if (!online) {
+              return;
+            }
+          }
           if (next) {
             const install = id ?? (await getOrCreateInstallId());
             await rebindOwner(install, next);

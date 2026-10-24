@@ -3,11 +3,13 @@
     "name": "Boop Boop",
     "slug": "boop-boop",
     "version": "1.0.0",
+    "scheme": "boopboop",
     "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
+      "usesAppleSignIn": true,
       "bundleIdentifier": "app.mylisto.boop",
       "entitlements": {
         "com.apple.developer.declared-age-range": true
@@ -70,6 +72,13 @@
       ],
       "./plugins/withAndroidR8Optimize.js",
       "expo-font",
+      "expo-apple-authentication",
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.258906929083-hubgfqmc81rnc09ut0kv3ov183rbp62q"
+        }
+      ],
       "expo-sqlite",
       "./plugins/withPhonePortrait.js"
     ],
