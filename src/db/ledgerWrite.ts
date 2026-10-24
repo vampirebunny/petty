@@ -28,6 +28,7 @@ export function writeLedgerEntry(
   key: string,
   sourceRef: string | null,
   lines: LedgerLine[],
+  options?: { outbox?: boolean },
 ): void {
   const database = getDb();
   const kind = ledgerKind(source);
@@ -65,6 +66,9 @@ export function writeLedgerEntry(
       line.scene ?? null,
     );
   });
+  if (options?.outbox === false) {
+    return;
+  }
   database.runSync(
     'INSERT OR REPLACE INTO ledger_outbox (idempotency_key, payload) VALUES (?, ?)',
     key,

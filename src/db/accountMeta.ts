@@ -112,3 +112,34 @@ export function readLocalRevision(): number {
   const parsed = raw ? Number(raw) : 0;
   return Number.isFinite(parsed) ? parsed : 0;
 }
+
+export function setLocalRevision(revision: number): void {
+  writeMeta('localRevision', String(revision));
+}
+
+export type RestoreProgress = { startedAt: number; guestUserId: string };
+
+export function readRestoreInProgress(): RestoreProgress | null {
+  const raw = readMeta('restoreInProgress');
+  if (!raw) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(raw) as RestoreProgress;
+    if (typeof parsed.startedAt !== 'number' || typeof parsed.guestUserId !== 'string') {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+export function setRestoreInProgress(progress: RestoreProgress | null): void {
+  if (!progress) {
+    getDb().runSync("DELETE FROM meta WHERE key = 'restoreInProgress'");
+  } else {
+    writeMeta('restoreInProgress', JSON.stringify(progress));
+  }
+  notifyAccountFlags();
+}

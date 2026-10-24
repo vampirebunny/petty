@@ -48,3 +48,27 @@ export function setSettleRequest(listener: (() => void) | null): void {
 export function requestSettle(): void {
   settleRequest?.();
 }
+
+let settleNextInstall = false;
+let installFinished: (() => void) | null = null;
+
+/** Reload the pet from SQLite and settle that pet once. Resolves after the reload. */
+export function prepareInstalledPet(): Promise<void> {
+  settleNextInstall = true;
+  return new Promise((resolve) => {
+    installFinished = resolve;
+    notifyInstallState();
+  });
+}
+
+export function consumeInstalledSettle(): boolean {
+  const due = settleNextInstall;
+  settleNextInstall = false;
+  return due;
+}
+
+export function finishInstalledPet(): void {
+  const done = installFinished;
+  installFinished = null;
+  done?.();
+}

@@ -17,6 +17,7 @@ import {
   type TermsAcceptance,
 } from '../age/storage';
 import { PRIVACY_VERSION, TERMS_VERSION } from '../config/legal';
+import { onAgeGateRefresh } from './ageGateRefresh';
 import {
   deleteGuestAccount,
   enqueueAgeDetermination,
@@ -199,6 +200,8 @@ export function useAgeGate({ onUnavailable }: Options) {
     },
     [refresh],
   );
+
+  useEffect(() => onAgeGateRefresh(() => void refresh()), [refresh]);
 
   useEffect(() => {
     void refresh();

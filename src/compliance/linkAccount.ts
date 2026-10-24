@@ -7,10 +7,14 @@ import { finishHandlePrompt, requireHandleNow } from './handlePrompt';
 
 export type LinkResult =
   | { ok: true; needsHandle: boolean }
-  | { ok: false; reason: 'already_linked' | 'failed'; message: string };
+  | {
+      ok: false;
+      reason: 'already_linked';
+      sessionReady: boolean;
+      providerRefreshToken?: string;
+    }
+  | { ok: false; reason: 'failed'; message: string };
 
-const alreadyLinkedMessage =
-  'That sign-in already belongs to an account. Bringing it back is not ready yet.';
 const failedMessage = "We couldn't sign you in. Try again.";
 
 export function isAlreadyLinkedError(error: unknown): boolean {
@@ -22,7 +26,10 @@ async function pause(ms: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function storeAppleToken(body: { authorizationCode?: string; refresh_token?: string }): Promise<boolean> {
+export async function storeAppleToken(body: {
+  authorizationCode?: string;
+  refresh_token?: string;
+}): Promise<boolean> {
   const supabase = getSupabase();
   if (!supabase) {
     return false;
@@ -55,17 +62,18 @@ export async function linkGuest(credential: AuthCredential): Promise<LinkResult>
       const exchanged = await supabase.auth.exchangeCodeForSession(credential.pkceCode);
       if (exchanged.error) {
         if (isAlreadyLinkedError(exchanged.error)) {
-          return { ok: false, reason: 'already_linked', message: alreadyLinkedMessage };
+          return { ok: false, reason: 'already_linked', sessionReady: false };
         }
         return { ok: false, reason: 'failed', message: failedMessage };
       }
       const nextId = exchanged.data.user?.id;
       if (priorSession && nextId && nextId !== priorSession.user.id) {
-        await supabase.auth.setSession({
-          access_token: priorSession.access_token,
-          refresh_token: priorSession.refresh_token,
-        });
-        return { ok: false, reason: 'already_linked', message: alreadyLinkedMessage };
+        return {
+          ok: false,
+          reason: 'already_linked',
+          sessionReady: true,
+          providerRefreshToken: exchanged.data.session?.provider_refresh_token ?? refreshToken,
+        };
       }
       refreshToken = exchanged.data.session?.provider_refresh_token ?? refreshToken;
     } else if (credential.idToken) {
@@ -76,7 +84,7 @@ export async function linkGuest(credential: AuthCredential): Promise<LinkResult>
       });
       if (linked.error) {
         if (isAlreadyLinkedError(linked.error)) {
-          return { ok: false, reason: 'already_linked', message: alreadyLinkedMessage };
+          return { ok: false, reason: 'already_linked', sessionReady: false };
         }
         return { ok: false, reason: 'failed', message: failedMessage };
       }
@@ -105,7 +113,7 @@ export async function linkGuest(credential: AuthCredential): Promise<LinkResult>
     return { ok: true, needsHandle: true };
   } catch (error) {
     if (isAlreadyLinkedError(error)) {
-      return { ok: false, reason: 'already_linked', message: alreadyLinkedMessage };
+      return { ok: false, reason: 'already_linked', sessionReady: false };
     }
     return { ok: false, reason: 'failed', message: failedMessage };
   } finally {

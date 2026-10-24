@@ -33,7 +33,15 @@ import { grantSpeciesHome, moveOwnedPiece } from '../db/playerHome';
 import { claimDevice, hasUnsentPlay, peekActiveDevice, touchLastSeen } from '../sync/activeDevice';
 import { devicePhrase } from '../sync/deviceLabel';
 import { reconcileFromServer } from '../sync/reconcile';
-import { authTransition, onInstallState, saveGeneration, setAuthTransition, setSettleRequest } from './sessionGate';
+import {
+  authTransition,
+  consumeInstalledSettle,
+  finishInstalledPet,
+  onInstallState,
+  saveGeneration,
+  setAuthTransition,
+  setSettleRequest,
+} from './sessionGate';
 import { speciesOf } from '../sim/tracks';
 import { sqlitePetStorage } from '../db/sqlitePetStorage';
 import { getDb } from '../db/database';
@@ -443,20 +451,34 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
   useEffect(() => {
     return onInstallState(() => {
       void storageRef.current.load().then((loaded) => {
-        if (!loaded) {
-          return;
-        }
-        stateRef.current = loaded;
-        setState(loaded);
-        if (!readStandby()) {
-          void syncReminder(loaded, remindersRef.current, Date.now(), {
-            enabled: careRef.current,
-            basicTreats: treatCountRef.current,
-          });
+        const settling = consumeInstalledSettle();
+        try {
+          if (!loaded) {
+            if (settling) {
+              stateRef.current = null;
+              setState(null);
+            }
+            return;
+          }
+          stateRef.current = loaded;
+          setState(loaded);
+          if (!readStandby()) {
+            void syncReminder(loaded, remindersRef.current, Date.now(), {
+              enabled: careRef.current,
+              basicTreats: treatCountRef.current,
+            });
+          }
+          if (settling) {
+            settleReturn(loaded, serverNow());
+          }
+        } finally {
+          if (settling) {
+            finishInstalledPet();
+          }
         }
       });
     });
-  }, []);
+  }, [settleReturn]);
 
   useEffect(() => {
     setSettleRequest(() => {

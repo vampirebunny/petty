@@ -1,26 +1,21 @@
-import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import { Platform } from 'react-native';
 
 import type { AuthCredential } from './appleCredential';
 
 let configured = false;
 
-function configureGoogle(): void {
-  if (configured) {
-    return;
-  }
-  const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
-  const iosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
-  if (!webClientId) {
-    throw new Error('Google sign-in is not configured');
-  }
-  GoogleSignin.configure({ webClientId, iosClientId });
-  configured = true;
-}
-
 /** Native Google sign-in. This library version has no nonce argument. */
 export async function signInWithGoogle(): Promise<AuthCredential | null> {
-  configureGoogle();
+  const { GoogleSignin, statusCodes } = await import('@react-native-google-signin/google-signin');
+  if (!configured) {
+    const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+    const iosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
+    if (!webClientId) {
+      throw new Error('Google sign-in is not configured');
+    }
+    GoogleSignin.configure({ webClientId, iosClientId });
+    configured = true;
+  }
   if (Platform.OS === 'android') {
     await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
   }

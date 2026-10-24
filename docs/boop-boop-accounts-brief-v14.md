@@ -8,7 +8,9 @@
 
 **Phase B shipped** on `accounts-phase-b`. The app has `expo-apple-authentication` and `@react-native-google-signin/google-signin`, the `boopboop` scheme, a PKCE Supabase client, and the Apple credential helper. Server SQL is `supabase/migrations/20261024210000_profiles_and_health.sql` (`profiles`, `check_handle_available`, `app_health`). Apply that yourself after the Phase A migration; it does not delete users. Edge functions are `apple_store_token`, `delete_account`, and `supersede_guest`. Guest tokens are checked with the project JWKS. The Google Web client ID, iOS client ID, and reversed iOS scheme are in `.env.local`, and that scheme is on the Google plugin in `app.json`. `@react-native-google-signin/google-signin` 16.1.5 has no nonce argument, so turn on Supabase **Skip nonce check** for Google.
 
-**Phase C shipped** on `accounts-phase-b`. The sign-in sheet, guest linking, and the handle screen are in the app. The sheet is not mounted from Home. Saving a handle is `supabase/migrations/20261024220000_claim_handle.sql`. Apply that yourself; it does not delete users. A link that finds an existing account does not restore it yet.
+**Phase C shipped** on `accounts-phase-b`. The sign-in sheet, guest linking, and the handle screen are in the app. The sheet is not mounted from Home. Saving a handle is `supabase/migrations/20261024220000_claim_handle.sql`. Apply that yourself; it does not delete users.
+
+**Phase D shipped** on `accounts-phase-b`. A guest sign-in that already belongs to an account restores that account, and a killed restore shows Finish signing in. `supabase/migrations/20261024230000_pull_has_handle.sql` makes `pull_account_state` report a saved handle. Apply that yourself; it does not delete users.
 
 The two simplifications still hold:
 1. **The ledger has its own table** (`ledger_entries`) and its own append-only sync. `player_state` never carries a ledger, balance, or inventory.

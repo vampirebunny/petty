@@ -7,6 +7,8 @@ import { beginAppleLink, type AuthCredential } from '../compliance/appleCredenti
 import { signInWithGoogle } from '../compliance/googleCredential';
 import { linkGuest } from '../compliance/linkAccount';
 import { pingAuthHealth } from '../compliance/authHealth';
+import { beginRestore } from '../compliance/restoreAccount';
+import { getSupabase } from '../compliance/supabase';
 import { CandyShell, candyInk, tints } from './candy';
 import { iconStroke } from './theme';
 
@@ -94,7 +96,27 @@ export function AccountSheet({ reason, petName, onClose, onCredential }: Props) 
           return;
         }
         if (linkReasons.has(reason)) {
+          const prior = await getSupabase()?.auth.getSession();
+          const session = prior?.data.session;
           const linked = await linkGuest(credential);
+          if (!linked.ok && linked.reason === 'already_linked') {
+            const restored = await beginRestore({
+              credential,
+              guestAccessToken: session?.access_token ?? null,
+              guestRefreshToken: session?.refresh_token ?? null,
+              guestUserId: session?.user.id ?? null,
+              sessionReady: linked.sessionReady,
+              providerRefreshToken: linked.providerRefreshToken,
+            });
+            if (!restored.ok) {
+              if (!('cancelled' in restored)) {
+                setNote(restored.message);
+              }
+              return;
+            }
+            onClose();
+            return;
+          }
           if (!linked.ok) {
             setNote(linked.message);
             return;
