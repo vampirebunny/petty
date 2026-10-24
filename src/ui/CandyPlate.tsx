@@ -73,45 +73,49 @@ export function CandyPlate({ flavor, height, radius, pill = false, pressed = fal
           },
         ]}
       >
-        <Svg width={width} height={height} style={StyleSheet.absoluteFill} pointerEvents="none">
-          <Defs>
-            <RadialGradient id={`body${uid}`} cx="32%" cy="18%" rx="120%" ry="95%" fx="32%" fy="18%">
-              <Stop offset="0" stopColor={tone.stops[0]} />
-              <Stop offset="0.32" stopColor={tone.stops[1]} />
-              <Stop offset="0.72" stopColor={tone.stops[2]} />
-              <Stop offset="1" stopColor={tone.stops[3]} />
-            </RadialGradient>
-            <LinearGradient id={`shade${uid}`} x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0" stopColor={tone.edge} stopOpacity="0" />
-              <Stop offset="1" stopColor={tone.edge} stopOpacity="0.3" />
-            </LinearGradient>
-            <LinearGradient id={`shine${uid}`} x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0" stopColor="#FFFFFF" stopOpacity="0.95" />
-              <Stop offset="0.5" stopColor="#FFFFFF" stopOpacity="0.35" />
-              <Stop offset="1" stopColor="#FFFFFF" stopOpacity="0" />
-            </LinearGradient>
-          </Defs>
-          {width > 0 ? (
-            <G>
-              <Rect x={0} y={0} width={width} height={height} rx={radius} fill={`url(#body${uid})`} />
-              <Rect x={0} y={height * 0.6} width={width} height={height * 0.4} fill={`url(#shade${uid})`} />
-              <Rect
-                x={width * 0.07}
-                y={4}
-                width={shineWidth}
-                height={shine}
-                rx={Math.min(radius - 4, shine / 2)}
-                fill={`url(#shine${uid})`}
-              />
-              {tone.gloss ? (
-                <G rotation={-25} origin="18, 14">
-                  <Ellipse cx="18" cy="14" rx="5.5" ry="3" fill="#FFFFFF" />
-                </G>
-              ) : null}
-            </G>
-          ) : null}
-        </Svg>
-        {children}
+        <View pointerEvents="none" style={[styles.glossClip, { borderRadius: radius }]}>
+          <Svg width={width} height={height} style={styles.gloss} pointerEvents="none">
+            <Defs>
+              <RadialGradient id={`body${uid}`} cx="32%" cy="18%" rx="120%" ry="95%" fx="32%" fy="18%">
+                <Stop offset="0" stopColor={tone.stops[0]} />
+                <Stop offset="0.32" stopColor={tone.stops[1]} />
+                <Stop offset="0.72" stopColor={tone.stops[2]} />
+                <Stop offset="1" stopColor={tone.stops[3]} />
+              </RadialGradient>
+              <LinearGradient id={`shade${uid}`} x1="0" y1="0" x2="0" y2="1">
+                <Stop offset="0" stopColor={tone.edge} stopOpacity="0" />
+                <Stop offset="1" stopColor={tone.edge} stopOpacity="0.3" />
+              </LinearGradient>
+              <LinearGradient id={`shine${uid}`} x1="0" y1="0" x2="0" y2="1">
+                <Stop offset="0" stopColor="#FFFFFF" stopOpacity="0.95" />
+                <Stop offset="0.5" stopColor="#FFFFFF" stopOpacity="0.35" />
+                <Stop offset="1" stopColor="#FFFFFF" stopOpacity="0" />
+              </LinearGradient>
+            </Defs>
+            {width > 0 ? (
+              <G>
+                <Rect x={0} y={0} width={width} height={height} rx={radius} fill={`url(#body${uid})`} />
+                <Rect x={0} y={height * 0.6} width={width} height={height * 0.4} fill={`url(#shade${uid})`} />
+                <Rect
+                  x={width * 0.07}
+                  y={4}
+                  width={shineWidth}
+                  height={shine}
+                  rx={Math.min(radius - 4, shine / 2)}
+                  fill={`url(#shine${uid})`}
+                />
+                {tone.gloss ? (
+                  <G rotation={-25} origin="18, 14">
+                    <Ellipse cx="18" cy="14" rx="5.5" ry="3" fill="#FFFFFF" />
+                  </G>
+                ) : null}
+              </G>
+            ) : null}
+          </Svg>
+        </View>
+        <View style={styles.content} collapsable={false}>
+          {children}
+        </View>
       </View>
     </View>
   );
@@ -128,7 +132,7 @@ export function PearlBubble({ flavor, size, children }: BubbleProps) {
   const tone = candyFlavors[flavor];
   return (
     <View style={[styles.bubble, { width: size, height: size, borderRadius: size / 2, shadowColor: tone.label }]}>
-      <Svg width={size} height={size} style={StyleSheet.absoluteFill} pointerEvents="none">
+      <Svg width={size} height={size} style={styles.gloss} pointerEvents="none">
         <Defs>
           <RadialGradient id={`pearl${uid}`} cx="35%" cy="28%" rx="70%" ry="70%">
             <Stop offset="0" stopColor="#FFFFFF" />
@@ -143,7 +147,9 @@ export function PearlBubble({ flavor, size, children }: BubbleProps) {
         <Rect x="0" y="0" width={size} height={size} rx={size / 2} fill={`url(#pearl${uid})`} />
         <Rect x="0" y="0" width={size} height={size} rx={size / 2} fill={`url(#pearlShade${uid})`} />
       </Svg>
-      {children}
+      <View style={styles.bubbleIcon} collapsable={false}>
+        {children}
+      </View>
     </View>
   );
 }
@@ -197,6 +203,7 @@ const styles = StyleSheet.create({
     position: 'relative',
     alignSelf: 'stretch',
   },
+  // No elevation. On Android an elevated lip is drawn above the face, which hides the icon and label.
   ledge: {
     position: 'absolute',
     left: 0,
@@ -204,14 +211,24 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.35,
     shadowRadius: 12,
-    elevation: 6,
   },
   face: {
     position: 'absolute',
     left: 0,
     right: 0,
     top: 0,
+  },
+  glossClip: {
+    ...StyleSheet.absoluteFill,
     overflow: 'hidden',
+    zIndex: 0,
+  },
+  gloss: {
+    ...StyleSheet.absoluteFill,
+  },
+  content: {
+    flex: 1,
+    zIndex: 1,
   },
   bubble: {
     alignItems: 'center',
@@ -219,7 +236,12 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.28,
     shadowRadius: 5,
-    elevation: 3,
+  },
+  bubbleIcon: {
+    ...StyleSheet.absoluteFill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
   },
   need: {
     position: 'relative',
