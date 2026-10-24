@@ -7,7 +7,6 @@ const tracks: number[] = [
   require('../../assets/background music/grumpynora-lay-back-619255.mp3'),
   require('../../assets/background music/ikoliks_aj-background-music-320427.mp3'),
   require('../../assets/background music/ilyatruhanov-for-p-453681.mp3'),
-  require('../../assets/background music/kontraa-hype-drill-music-438398.mp3'),
   require('../../assets/background music/kontraa-water-afro-pop-music-445661.mp3'),
   require('../../assets/background music/kornevmusic-upbeat-happy-corporate-487426.mp3'),
   require('../../assets/background music/mfcc-background-music-274290.mp3'),
