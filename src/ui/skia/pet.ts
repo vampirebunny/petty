@@ -20,7 +20,6 @@ import {
   drawHeadMarkingsAbove,
   drawHeadMarkingsBelow,
   drawRuff,
-  clipRectAbove,
   drawSkull,
   drawTail,
   earColorOf,
@@ -670,14 +669,14 @@ export function drawActor(
       }
       c.drawPath(ribs.build(), paintOf('#000000', ((-actor.displayWeight - 0.35) / 0.65) * 0.38 * rig.foreshorten, 1.4));
     }
-    if (jacket && jacketAnchor && coats.side > 0.01) {
+    if (jacket && jacket.shape !== 'raincoat' && jacketAnchor && coats.side > 0.01) {
       const placed = { sit: pose.sit, theta, dy, foreshorten: rig.foreshorten, belly: pose.belly };
       c.save();
       c.translate(jacketAnchor.x * geom.bodyLen, jacketAnchor.y * geom.bodyH);
       drawJacket(c, geom, jacket, breath, baseColor, { ...placed, pass: 'side', alpha: coats.side });
       c.restore();
     }
-    if (jacket && coats.front > 0.01) {
+    if (jacket && jacket.shape !== 'raincoat' && coats.front > 0.01) {
       c.save();
       if (!axial) {
         c.translate(geom.Px, geom.Py);
@@ -711,6 +710,59 @@ export function drawActor(
   if (!coats.legsInBackPass) {
     for (const spec of ahead) {
       drawnPaws.push(paintLeg(spec, pose.belly > 0.001));
+    }
+    // The raincoat follows the legs, with a loop cut at each hip, so the leg shows through the opening.
+    if (jacket?.shape === 'raincoat') {
+      c.save();
+      c.translate(0, dy);
+      c.translate(geom.Px, geom.Py);
+      c.rotate(deg(theta), 0, 0);
+      c.translate(-geom.Px, -geom.Py);
+      c.save();
+      if (!axial) {
+        c.translate(geom.Px, geom.Py);
+        c.scale(Math.max(rig.foreshorten, 0.001), 1);
+        c.translate(-geom.Px, -geom.Py);
+      }
+      c.translate(0, geom.bodyY);
+      c.scale(posed?.scaleX ?? 1, posed?.scaleY ?? 1);
+      c.translate(0, -geom.bodyY);
+      paintRolled(geom.bodyY, 'detail', () => {
+        if (jacketAnchor && coats.side > 0.01) {
+          c.save();
+          c.translate(jacketAnchor.x * geom.bodyLen, jacketAnchor.y * geom.bodyH);
+          drawJacket(c, geom, jacket, breath, baseColor, {
+            sit: pose.sit,
+            theta,
+            dy,
+            foreshorten: rig.foreshorten,
+            belly: pose.belly,
+            pass: 'side',
+            alpha: coats.side,
+          });
+          c.restore();
+        }
+        if (coats.front > 0.01) {
+          c.save();
+          if (!axial) {
+            c.translate(geom.Px, geom.Py);
+            c.scale(1 / Math.max(rig.foreshorten, 0.001), 1);
+            c.translate(-geom.Px, -geom.Py);
+          }
+          drawJacket(c, geom, jacket, breath, baseColor, {
+            pass: 'front',
+            sit: pose.sit,
+            theta,
+            dy,
+            foreshorten: 1,
+            belly: pose.belly,
+            alpha: coats.front,
+          });
+          c.restore();
+        }
+      });
+      c.restore();
+      c.restore();
     }
     if (jacket && coats.side + coats.front > 0.01) {
       drawChestDetails(c, geom, jacket, baseColor, theta, dy, actor.swing, rig.dir, pose.belly, coats.side + coats.front);
@@ -1087,12 +1139,14 @@ export function drawActor(
       drawGlassesBack(c, glasses, face, R, baseColor);
       c.restore();
     }
-    if (sideK > 0.001) {
+    if (!hat && sideK > 0.001) {
       nearEar(sideK);
     }
     if (frontK > 0.001) {
       frontEar(true, frontK);
-      frontEar(false, frontK);
+      if (!hat) {
+        frontEar(false, frontK);
+      }
     }
     if (glasses && glassAnchor?.mode === 'full') {
       c.save();
@@ -1104,21 +1158,14 @@ export function drawActor(
       c.save();
       c.translate(hatAnchor.x * R, hatAnchor.y * R);
       drawHat(c, hat, R, face, baseColor, rig.view === 'front' ? 'front' : 'side', t, reduced);
-      const pokeHat = hat.shape === 'beanie' || hat.shape === 'cap' || hat.shape === 'bucket' || hat.shape === 'beret' || hat.shape === 'crown';
-      if (pokeHat && profile.hatPoke) {
-        c.save();
-        clipRectAbove(c, -R * 0.55, R * 3);
-        if (sideK > 0.001) {
-          farEar(sideK);
-          nearEar(sideK);
-        }
-        if (frontK > 0.001) {
-          frontEar(true, frontK);
-          frontEar(false, frontK);
-        }
-        c.restore();
-      }
       c.restore();
+      // The far ear stays behind the hat. The near ear is drawn after it, so the hat sits between them.
+      if (sideK > 0.001) {
+        nearEar(sideK);
+      }
+      if (frontK > 0.001) {
+        frontEar(false, frontK);
+      }
     }
   });
 
@@ -1132,7 +1179,7 @@ export function drawActor(
     shadeOval(c, 0, geom.bodyY, geom.bodyH * 0.52, geom.bodyH * 0.48);
     c.restore();
   }
-  if (jacket && coats.back > 0.01) {
+  if (jacket && jacket.shape !== 'raincoat' && coats.back > 0.01) {
     c.save();
     c.translate(0, dy);
     c.translate(geom.Px, geom.Py);
@@ -1172,6 +1219,23 @@ export function drawActor(
     if (jacket && coats.side + coats.front > 0.01) {
       drawChestDetails(c, geom, jacket, baseColor, theta, dy, actor.swing, rig.dir, pose.belly, coats.side + coats.front);
     }
+  }
+  if (jacket?.shape === 'raincoat' && coats.back > 0.01) {
+    c.save();
+    c.translate(0, dy);
+    c.translate(geom.Px, geom.Py);
+    c.rotate(deg(theta), 0, 0);
+    c.translate(-geom.Px, -geom.Py);
+    drawJacket(c, geom, jacket, breath, baseColor, {
+      pass: 'back',
+      sit: pose.sit,
+      theta,
+      dy,
+      foreshorten: 1,
+      belly: pose.belly,
+      alpha: coats.back,
+    });
+    c.restore();
   }
 
   if (rig.tail === 'top' && rig.view !== 'back') {

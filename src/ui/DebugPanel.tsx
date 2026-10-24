@@ -30,6 +30,7 @@ type Props = {
   greetingIds?: () => string[];
   greetingLabel?: () => string;
   onFacing?: () => void;
+  onClothing?: () => void;
   onGrant?: (id: string) => void;
 };
 
@@ -127,6 +128,7 @@ export function DebugPanel({
   greetingIds,
   greetingLabel,
   onFacing,
+  onClothing,
   onGrant,
 }: Props) {
   const [open, setOpen] = useState(false);
@@ -159,6 +161,11 @@ export function DebugPanel({
         {onFacing ? (
           <Pressable style={styles.button} onPress={onFacing}>
             <Text style={styles.buttonLabel}>Facing</Text>
+          </Pressable>
+        ) : null}
+        {typeof __DEV__ !== 'undefined' && __DEV__ && onClothing ? (
+          <Pressable style={styles.button} onPress={onClothing}>
+            <Text style={styles.buttonLabel}>Clothing</Text>
           </Pressable>
         ) : null}
         {[1, 0.5, 0.2].map((scale) => (

@@ -4,13 +4,13 @@ import type { SkCanvas, SkPicture } from '@shopify/react-native-skia';
 import { wardrobeSizes } from '../../actor/data/wardrobeSizes';
 import { jacketHasSleeves, type WearItem } from '../../actor/wardrobe';
 import type { OutfitSlot } from '../../sim/types';
-import { fillOval } from './draw';
 import {
   drawBoot,
   drawGlassesBack,
   drawGlassesFront,
   drawHatShape,
   drawHood,
+  setOutlineScale,
   drawJacket,
   drawJacketCollar,
   drawNeckwear,
@@ -31,7 +31,7 @@ export function drawItemIcon(c: SkCanvas, slot: OutfitSlot, item: WearItem, bg: 
     // Hats sit on the shelf: the head's top line is near the bottom of the box.
     c.save();
     c.translate(50, 86);
-    drawHatShape(c, item, 30, bg);
+    drawHatShape(c, item, 30, bg, undefined, 'side', 0, false, true);
     c.restore();
     return;
   }
@@ -57,17 +57,20 @@ export function drawItemIcon(c: SkCanvas, slot: OutfitSlot, item: WearItem, bg: 
     c.translate(0, -g.bodyY);
     const base = { x: g.bodyLen / 2 - 14, y: g.bodyY - 2 };
     const neckWidth = g.headR * 1.35;
-    fillOval(c, 0, g.bodyY, g.bodyLen / 2, g.bodyH / 2, '#c4a882', 0.12);
-    fillOval(c, g.bodyLen / 2, g.bodyY - g.bodyH * 0.55, g.headR, g.headR * 0.92, '#c4a882', 0.12);
-    if (item.shape === 'hoodie') {
-      drawHood(c, base, PERP, ALONG, item, g.headR, neckWidth, bg);
+    setOutlineScale(1 / k);
+    try {
+      if (item.shape === 'hoodie') {
+        drawHood(c, base, PERP, ALONG, item, g.headR, neckWidth, bg);
+      }
+      drawJacket(c, g, item, 1, bg);
+      if (jacketHasSleeves(item)) {
+        const hip = { x: g.bodyLen * 0.28, y: g.bodyY + g.bodyH * 0.25 };
+        drawSleeve(c, hip, { x: hip.x + 2, y: hip.y + g.L * 0.45 }, g, item, false, bg);
+      }
+      drawJacketCollar(c, base, PERP, ALONG, item, g.headR, neckWidth, bg);
+    } finally {
+      setOutlineScale(1);
     }
-    drawJacket(c, g, item, 1, bg);
-    if (jacketHasSleeves(item)) {
-      const hip = { x: g.bodyLen * 0.28, y: g.bodyY + g.bodyH * 0.25 };
-      drawSleeve(c, hip, { x: hip.x + 2, y: hip.y + g.L * 0.45 }, g, item, false, bg);
-    }
-    drawJacketCollar(c, base, PERP, ALONG, item, g.headR, neckWidth, bg);
     c.restore();
     return;
   }
@@ -76,8 +79,13 @@ export function drawItemIcon(c: SkCanvas, slot: OutfitSlot, item: WearItem, bg: 
   c.save();
   c.translate(46, 86);
   c.scale(k, k);
-  drawBoot(c, { x: 7, y: -seg }, { x: 7, y: 0 }, g, item, true, bg, 0);
-  drawBoot(c, { x: -6, y: -seg }, { x: -6, y: 0 }, g, item, false, bg, 0);
+  setOutlineScale(1 / k);
+  try {
+    drawBoot(c, { x: 7, y: -seg }, { x: 7, y: 0 }, g, item, true, bg, 0);
+    drawBoot(c, { x: -6, y: -seg }, { x: -6, y: 0 }, g, item, false, bg, 0);
+  } finally {
+    setOutlineScale(1);
+  }
   c.restore();
 }
 

@@ -118,12 +118,69 @@ it('drops an unknown shape, pattern, or schema version, and keeps a coming-soon 
       id: 'hat:stripe',
       def: { v: 1, kind: 'outfit', slot: 'hat', shape: 'party', label: 'Nope', colorway: { c: '#111111', pattern: 'stripes' } },
     }),
-    row({ id: 'neckwear:next', def: { ...collar, v: 2 } }),
+    row({ id: 'neckwear:next', def: { ...collar, v: 3 } }),
     row({ id: 'soon:thing', name: 'Soon', shop: 'coming_soon', price: null, def: { v: 1, kind: 'outfit', shape: 'nope' } }),
   ]);
   expect(unknown.items.map((entry) => entry.id)).toEqual(['soon:thing']);
   expect(unknown.items[0]?.shop).toBe('coming_soon');
   expect(unknown.items[0]?.price).toBeNull();
+});
+
+it('accepts schema v2 parts and baffles, and drops unknown or bad fills', () => {
+  const journal: string[] = [];
+  rememberActiveDefs(
+    {
+      version: 4,
+      items: [
+        row({
+          id: 'boots:hightop-remote',
+          def: {
+            v: 2,
+            kind: 'outfit',
+            slot: 'boots',
+            shape: 'hightop',
+            label: 'Remote High-Tops',
+            colorway: {
+              c: '#E0B43C',
+              parts: { sole: '#112233', nope: '#ffffff', stripe: 'gold' },
+            },
+          },
+        }),
+        row({
+          id: 'jacket:baffle-remote',
+          def: {
+            v: 2,
+            kind: 'outfit',
+            slot: 'jacket',
+            shape: 'puffer',
+            label: 'Remote Puffer',
+            colorway: { c: '#FF8CC4', baffles: ['#111111', 'nope', '#222222'] },
+          },
+        }),
+        row({
+          id: 'jacket:sweater-baffle',
+          def: {
+            v: 2,
+            kind: 'outfit',
+            slot: 'jacket',
+            shape: 'sweater',
+            label: 'Remote Sweater',
+            colorway: { c: '#D64545', baffles: ['#111111'] },
+          },
+        }),
+      ],
+    },
+    (id) => {
+      journal.push(id);
+    },
+  );
+  expect(journal).toEqual(['boots:hightop-remote', 'jacket:baffle-remote', 'jacket:sweater-baffle']);
+  expect(wearItem('boots', 'hightop-remote')).toMatchObject({
+    shape: 'hightop',
+    colorway: { c: '#E0B43C', parts: { sole: '#112233' } },
+  });
+  expect(wearItem('jacket', 'baffle-remote')?.colorway.baffles).toEqual(['#111111', '#222222']);
+  expect(wearItem('jacket', 'sweater-baffle')?.colorway.baffles).toBeUndefined();
 });
 
 it('ignores a remote def for a bundled id', () => {

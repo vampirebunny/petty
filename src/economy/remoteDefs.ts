@@ -1,6 +1,18 @@
 import Constants from 'expo-constants';
 
-import { bindRemoteWear, KNOWN_PATTERNS, KNOWN_SHAPES, PATTERN_PARTS, wardrobe, type CollarAccent, type WearItem } from '../actor/wardrobe';
+import {
+  bindRemoteWear,
+  DEF_SCHEMA_MAX,
+  KNOWN_PATTERNS,
+  KNOWN_SHAPES,
+  PART_NAMES,
+  PATTERN_PARTS,
+  wardrobe,
+  type CollarAccent,
+  type PartFill,
+  type PatternId,
+  type WearItem,
+} from '../actor/wardrobe';
 import { getDb } from '../db/database';
 import { setExtraTreatArt, clearExtraTreatArt, KNOWN_REACTIONS, KNOWN_TREAT_ART, type TreatArt, type TreatArtTemplate } from './treatArt';
 import { bindRemoteCatalog, catalog, type CatalogItem, type ItemKind, type TreatEffects, type TreatReaction } from './catalog';
@@ -120,12 +132,61 @@ function readEffects(value: unknown): { hunger: number; weight: number; mood: nu
   return { hunger: row.hunger, weight: row.weight, mood: row.mood };
 }
 
+function readPartFill(raw: unknown): PartFill | null {
+  if (typeof raw === 'string') {
+    return hex.test(raw) ? raw : null;
+  }
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw) || !onlyKeys(raw, ['pattern', 'c', 'd'])) {
+    return null;
+  }
+  const row = raw as { pattern?: unknown; c?: unknown; d?: unknown };
+  if (typeof row.pattern !== 'string' || !KNOWN_PATTERNS.includes(row.pattern as PatternId)) {
+    return null;
+  }
+  if (row.c != null && (typeof row.c !== 'string' || !hex.test(row.c))) {
+    return null;
+  }
+  if (row.d != null && (typeof row.d !== 'string' || !hex.test(row.d))) {
+    return null;
+  }
+  return {
+    pattern: row.pattern as PatternId,
+    ...(typeof row.c === 'string' ? { c: row.c } : {}),
+    ...(typeof row.d === 'string' ? { d: row.d } : {}),
+  };
+}
+
+function readPartFills(value: unknown, names: readonly string[]): WearItem['colorway']['parts'] {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return undefined;
+  }
+  const out: Partial<Record<string, PartFill>> = {};
+  for (const [key, raw] of Object.entries(value)) {
+    if (!names.includes(key)) {
+      continue;
+    }
+    const fill = readPartFill(raw);
+    if (fill) {
+      out[key] = fill;
+    }
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+function readBaffles(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+  const colors = value.filter((entry): entry is string => typeof entry === 'string' && hex.test(entry));
+  return colors.length > 0 ? colors : undefined;
+}
+
 function acceptDef(id: string, def: unknown, rowSpecies: SpeciesId[] | null | undefined, name: string): Accepted | null {
   if (!def || typeof def !== 'object' || Array.isArray(def)) {
     return null;
   }
   const row = def as { v?: unknown; kind?: unknown };
-  if (row.v !== 1 || (row.kind !== 'outfit' && row.kind !== 'treat')) {
+  if (typeof row.v !== 'number' || row.v < 1 || row.v > DEF_SCHEMA_MAX || (row.kind !== 'outfit' && row.kind !== 'treat')) {
     return null;
   }
   if (row.kind === 'outfit') {
@@ -163,10 +224,17 @@ function acceptOutfit(id: string, def: object, _rowSpecies: SpeciesId[] | null |
   if (!row.colorway || typeof row.colorway !== 'object' || Array.isArray(row.colorway)) {
     return null;
   }
-  if (!onlyKeys(row.colorway, ['c', 'd', 'pattern', 'accent'])) {
+  if (!onlyKeys(row.colorway, ['c', 'd', 'pattern', 'accent', 'parts', 'baffles'])) {
     return null;
   }
-  const colorway = row.colorway as { c?: unknown; d?: unknown; pattern?: unknown; accent?: unknown };
+  const colorway = row.colorway as {
+    c?: unknown;
+    d?: unknown;
+    pattern?: unknown;
+    accent?: unknown;
+    parts?: unknown;
+    baffles?: unknown;
+  };
   if (typeof colorway.c !== 'string' || !hex.test(colorway.c)) {
     return null;
   }
@@ -196,6 +264,9 @@ function acceptOutfit(id: string, def: object, _rowSpecies: SpeciesId[] | null |
   if (row.lensTint != null && (slot !== 'glasses' || typeof row.lensTint !== 'string' || !hex.test(row.lensTint))) {
     return null;
   }
+  const named = PART_NAMES[row.shape] ?? [];
+  const partFills = readPartFills(colorway.parts, named);
+  const baffles = row.shape === 'puffer' ? readBaffles(colorway.baffles) : undefined;
   const wear: WearItem = {
     id: wearId,
     slot,
@@ -206,6 +277,8 @@ function acceptOutfit(id: string, def: object, _rowSpecies: SpeciesId[] | null |
       ...(typeof colorway.d === 'string' ? { d: colorway.d } : {}),
       ...(typeof colorway.pattern === 'string' ? { pattern: colorway.pattern as WearItem['colorway']['pattern'] } : {}),
       ...(typeof colorway.accent === 'string' ? { accent: colorway.accent as CollarAccent } : {}),
+      ...(partFills ? { parts: partFills } : {}),
+      ...(baffles && baffles.length > 0 ? { baffles } : {}),
     },
     ...(patternParts ? { patternParts } : {}),
     ...(typeof row.lensTint === 'string' ? { lensTint: row.lensTint } : {}),

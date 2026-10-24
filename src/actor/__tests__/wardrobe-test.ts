@@ -42,7 +42,7 @@ describe('wardrobe closet', () => {
     expect(hoodie).toMatchObject({ id: 'hoodie', label: 'Cozy Hoodie', shape: 'hoodie', colorway: { c: '#FF9FCB', d: '#8A5AD6' } });
     expect(jacketHasSleeves(hoodie!)).toBe(true);
     expect(jacketHasSleeves(wearItem('jacket', 'sweater')!)).toBe(true);
-    expect(jacketHasSleeves(wearItem('jacket', 'rain')!)).toBe(true);
+    expect(jacketHasSleeves(wearItem('jacket', 'rain')!)).toBe(false);
     expect(jacketHasSleeves(wearItem('jacket', 'puffer')!)).toBe(false);
     expect(jacketHasSleeves(wearItem('jacket', 'vest')!)).toBe(false);
   });
@@ -68,7 +68,7 @@ describe('wardrobe closet', () => {
       ['hat', 'crown', 'crown'],
       ['boots', 'rain-blue', 'rain'],
       ['boots', 'sneaker-pink', 'sneaker'],
-      ['boots', 'sneaker-gold', 'sneaker'],
+      ['boots', 'sneaker-gold', 'hightop'],
       ['jacket', 'puffer-mint', 'puffer'],
       ['jacket', 'sweater-lilac', 'sweater'],
       ['jacket', 'puffer-rainbow', 'puffer'],
@@ -79,7 +79,15 @@ describe('wardrobe closet', () => {
     }
     expect(wearItem('hat', 'top')?.colorway.d).toBe('#f4dede');
     expect(wearItem('hat', 'top-velvet')?.patternParts).toEqual(['band']);
-    expect(wearItem('jacket', 'puffer-rainbow')?.colorway.pattern).toBe('rainbow');
+    expect(wearItem('jacket', 'puffer-rainbow')?.colorway.pattern).toBeUndefined();
+    expect(wearItem('jacket', 'puffer-rainbow')?.colorway.baffles).toEqual([
+      '#FF8CC4',
+      '#FFB15C',
+      '#FFE16B',
+      '#8FE3A8',
+      '#7EC8F5',
+      '#B9A2F5',
+    ]);
     expect(neckBackMode('bowtie')).toBe('band');
     expect(neckBackMode('scarf')).toBe('knot');
   });

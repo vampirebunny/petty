@@ -58,6 +58,7 @@ import { needThreshold } from '../ui/candyTokens';
 import { CandyTooltip } from '../ui/tips/CandyTooltip';
 import { useCandyTips } from '../ui/tips/useCandyTips';
 import { PlaydateScreen } from './PlaydateScreen';
+import { ClothingLab } from './ClothingLab';
 import { FacingLab } from './FacingLab';
 import { WardrobeScreen } from './WardrobeScreen';
 import { parkOfferFromSnapshot, parkStrangerOffer } from '../playdate/npcs';
@@ -261,6 +262,7 @@ export default function HomeScreen({ petApi }: Props) {
   }, [homeSnapToken]);
   const whereUid = useId().replace(/:/g, '');
   const [facingOpen, setFacingOpen] = useState(false);
+  const [clothingOpen, setClothingOpen] = useState(false);
   const [personalityOpen, setPersonalityOpen] = useState(false);
   const [playOpen, setPlayOpen] = useState(false);
   const [heldPlay, setHeldPlay] = useState(false);
@@ -1103,6 +1105,14 @@ export default function HomeScreen({ petApi }: Props) {
     );
   }
 
+  if (clothingOpen) {
+    return (
+      <PhoneColumn>
+        <ClothingLab reducedMotion={reducedMotion} onClose={() => setClothingOpen(false)} />
+      </PhoneColumn>
+    );
+  }
+
   if (shopOpen) {
     return (
       <PetShopScreen
@@ -1869,6 +1879,7 @@ export default function HomeScreen({ petApi }: Props) {
           greetingIds={() => stageHandle.current?.greetingIds() ?? []}
           greetingLabel={() => stageHandle.current?.label() ?? ''}
           onFacing={() => setFacingOpen(true)}
+          onClothing={() => setClothingOpen(true)}
           onGrant={(id) => {
             if (!state.ownerId) {
               return;
@@ -2057,6 +2068,7 @@ export default function HomeScreen({ petApi }: Props) {
           stageReady &&
           !placesOpen &&
           !facingOpen &&
+          !clothingOpen &&
           !personalityOpen &&
           !playOpen &&
           !heldPlay &&

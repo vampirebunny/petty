@@ -26,9 +26,11 @@ export const wardrobeSizes = {
   collarJawDrop: 0.12,
   // How far a turned head pulls the chin from the neck toward the jaw. Keep below 1 so sit/3/4 stays on the neck.
   collarJawBlend: 0.38,
-  collarBand: 0.22,
+  collarBand: 0.27,
   collarTag: 0.3,
   collarStud: 0.08,
+  collarCharm: 0.24,
+  collarRing: 0.07,
   // Sleep / lie collar: a short drop under the jaw, and length along the neck (fractions of headR).
   // A drop near one head radius planted the strap on the floor, clear of the neck.
   collarFlatDrop: 0.2,
@@ -36,20 +38,34 @@ export const wardrobeSizes = {
   bell: 0.33,
   // Bandana, as multiples of headR.
   bandanaBand: 0.62,
-  bandanaBandWidth: 0.16,
+  bandanaBandWidth: 0.17,
+  // Side-view cloth spans this fraction of the band, from the back of the neck toward the throat.
+  bandanaClothFrom: 0.22,
+  bandanaClothTo: 0.96,
   bandanaDrop: 1.0,
   // Sleep bib, straight down from the throat. Shorter than a standing drop so it stays on the chest.
   bandanaLieDrop: 0.62,
   bandanaHem: 0.1,
   bandanaKnot: 0.26,
   bowWing: 0.62,
+  bowtieReach: 0.6,
   bowHeight: 0.4,
   scarfBand: 0.34,
+  scarfThick: 0.42,
+  scarfKnotW: 0.2,
+  scarfKnotH: 0.16,
+  scarfTailLen: 0.9,
+  scarfTailHalf: 0.15,
   scarfTail: 0.3,
   scarfTailLong: 1.15,
   scarfTailShort: 0.9,
-  hatScale: 1.12,
+  hatScale: 1,
   hatTurn: 0.12,
+  // Hat base, in head radii. Negative sits the base up toward the crown.
+  hatSeat: -0.78,
+  hatTilt: -10,
+  hatIconTilt: -6,
+  beretTilt: -10,
   beanieRib: 0.4,
   beaniePom: 0.3,
   ribLine: 0.045,
@@ -62,7 +78,7 @@ export const wardrobeSizes = {
     classic: { shape: 'wayfarer', w: 1.4, h: 1.15, frame: 0.42, lens: '#12141c', lensAlpha: 0.62, glares: 2 },
     square: { shape: 'round', w: 1.3, h: 1.3, frame: 0.26, lens: '#9fd0ff', lensAlpha: 0.22, glares: 1 },
     'red-rim': { shape: 'soft', w: 1.4, h: 1.2, frame: 0.4, lens: '#ffffff', lensAlpha: 0.12, glares: 1 },
-    heart: { shape: 'heart', w: 1.15, h: 1.05, frame: 0.36, lens: '#FFB3D6', lensAlpha: 0.45, glares: 1 },
+    heart: { shape: 'heart', w: 1.55, h: 1.45, frame: 0.42, lens: '#FFB3D6', lensAlpha: 0.45, glares: 1 },
     star: { shape: 'star', w: 1.25, h: 1.25, frame: 0.34, lens: '#FFE38F', lensAlpha: 0.45, glares: 0 },
   } as Record<
     string,
@@ -90,7 +106,11 @@ export const wardrobeSizes = {
   hood: 0.32,
   // Boots. Top is a fraction of the knee-to-paw segment. Toe is a multiple of the paw oval.
   bootTop: 0.45,
+  rainTop: 0.35,
   sneakerTop: 0.78,
+  hightopTop: 0.55,
+  // Red-boot fold, in head radii, added on each side of the shaft.
+  bootCuffFlare: 0.047,
   bootShaftExtra: 2,
   bootToeX: 1.3,
   bootToeY: 1.25,

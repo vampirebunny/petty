@@ -632,17 +632,31 @@ const scratchPole: ShopListing = {
   shop: 'always',
   tier: 'standard',
   species: ['cat'],
-  price: 2500,
+  price: 4000,
   sort: 2,
   stackable: false,
 };
 
 // A downloaded catalog from before this item existed still shows it on the Furniture shelf.
+const furnitureShelfPrices: Record<string, number> = {
+  scratcher: 4000,
+  catTree: 8000,
+};
+
 export function withScratchPole(catalog: ShopCatalog): ShopCatalog {
-  if (catalog.items.some((item) => item.id === scratchPole.id)) {
-    return catalog;
+  let changed = false;
+  const items = catalog.items.map((item) => {
+    const price = furnitureShelfPrices[item.id];
+    if (price == null || item.price === price) {
+      return item;
+    }
+    changed = true;
+    return { ...item, price };
+  });
+  if (!items.some((item) => item.id === scratchPole.id)) {
+    return { ...catalog, items: [...items, scratchPole] };
   }
-  return { ...catalog, items: [...catalog.items, scratchPole] };
+  return changed ? { ...catalog, items } : catalog;
 }
 
 export function itemDefsFromCatalog(

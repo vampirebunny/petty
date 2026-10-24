@@ -119,10 +119,10 @@ Sizes are in `headR` unless marked as eye radii.
 | `crown` | hat | Golden Crown | crown | `#FFC93C` | `#FF5FA2` | — |
 | `rain-blue` | boots | Puddle Blue Boots | rain | `#5AA9E6` | — | — |
 | `sneaker-pink` | boots | Bubblegum Sneakers | sneaker | `#FFC2E0` | `#8A5AD6` | — |
-| `sneaker-gold` | boots | Gold High-Tops | sneaker | `#E0B43C` | `#FFF3C4` | — |
+| `sneaker-gold` | boots | Gold High-Tops | hightop | `#E0B43C` | `#FFF3C4` | — |
 | `puffer-mint` | jacket | Mint Puffer | puffer | `#7FE3BA` | `#CFFBE8` | — |
 | `sweater-lilac` | jacket | Lilac Sweater | sweater | `#B9A2F5` | `#F1EBFF` | — |
-| `puffer-rainbow` | jacket | Rainbow Puffer | puffer | `#FF8CC4` | — | rainbow |
+| `puffer-rainbow` | jacket | Rainbow Puffer | puffer | `#FF8CC4` | — | baffles `#FF8CC4 #FFB15C #FFE16B #8FE3A8 #7EC8F5 #B9A2F5` |
 
 ---
 

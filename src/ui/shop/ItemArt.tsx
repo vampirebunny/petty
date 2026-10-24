@@ -1,12 +1,15 @@
 import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Canvas, Group, Picture, Skia } from '@shopify/react-native-skia';
+import type { SkCanvas } from '@shopify/react-native-skia';
 import Svg, { Circle, Defs, Ellipse, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
 
+import { todAt } from '../../actor/timeOfDay';
 import { wearItem } from '../../actor/wardrobe';
 import type { ShopCatalog } from '../../economy/shop';
+import type { Env } from '../skia/env';
 import { ICON_BOX, itemIconPicture } from '../skia/itemIcon';
-import { drawToyShape, drawTreatShape } from '../skia/scenery';
+import { drawProp, drawToyShape, drawTreatShape } from '../skia/scenery';
 import { shop } from './theme';
 
 // Toy and treat art is authored to fit its own box, so every item uses the same radius. The box is
@@ -58,6 +61,35 @@ function MysteryBox({ size }: { size: number }) {
   );
 }
 
+const furnitureIconEnv: Env = {
+  tod: todAt(14),
+  t: 0,
+  reduced: true,
+  bowlFill: 1,
+  waterLevel: 1,
+  glows: [],
+  feeding: [],
+};
+
+// Shop tiles show the same drawing as the room, fitted into the tile.
+function drawFurnitureIcon(canvas: SkCanvas, itemId: string, size: number): void {
+  const prop =
+    itemId === 'scratcher'
+      ? { id: itemId, kind: itemId, x: 0, y: 0, h: 74 }
+      : { id: itemId, kind: itemId, x: 0, y: 0 };
+  const bounds =
+    itemId === 'scratcher'
+      ? { x0: -40, y0: -86, x1: 44, y1: 12 }
+      : { x0: -104, y0: -214, x1: 104, y1: 14 };
+  const pad = size * 0.1;
+  const scale = Math.min((size - pad * 2) / (bounds.x1 - bounds.x0), (size - pad * 2) / (bounds.y1 - bounds.y0));
+  canvas.save();
+  canvas.translate(size / 2 - ((bounds.x0 + bounds.x1) / 2) * scale, size / 2 - ((bounds.y0 + bounds.y1) / 2) * scale);
+  canvas.scale(scale, scale);
+  drawProp(canvas, prop, furnitureIconEnv);
+  canvas.restore();
+}
+
 export function ItemArt({ itemId, catalog, size, soon, species = null }: Props) {
   const item = catalog?.items.find((entry) => entry.id === itemId) ?? null;
   const wear = item?.slot && item.wearId ? wearItem(item.slot, item.wearId) : null;
@@ -69,7 +101,9 @@ export function ItemArt({ itemId, catalog, size, soon, species = null }: Props) 
     const canvas = recorder.beginRecording(Skia.XYWHRect(0, 0, size, size));
     const radius = size * ICON_RADIUS;
     const mid = size / 2;
-    if (item.category === 'toys') {
+    if (item.id === 'catTree' || item.id === 'scratcher') {
+      drawFurnitureIcon(canvas, item.id, size);
+    } else if (item.category === 'toys') {
       drawToyShape(canvas, item.id, mid, mid, radius, 0, 'icon');
     } else {
       drawTreatShape(canvas, item.id, mid, mid, radius, 0, species, 'icon');
