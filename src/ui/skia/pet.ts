@@ -123,11 +123,6 @@ function drawLeg(
   if (!boot) {
     fillOval(c, paw.x + 3, paw.y - 3, geom.pawRx * pawScale, geom.pawRy * pawScale, color);
   }
-  if (claws > 0.4 && !boot) {
-    for (let i = -1; i <= 1; i += 1) {
-      strokeLine(c, paw.x + i * 2.2, paw.y - 1, paw.x + i * 2.2 + 0.6, paw.y + 4, '#6b5436', 0.9);
-    }
-  }
   if (sock) {
     // Socks or tan lower legs: the lower half of the leg and the paw in the marking color.
     const sockColor = far ? mix(sock, '#000000', 0.32) : sock;
@@ -148,6 +143,23 @@ function drawLeg(
   }
   if (!boot) {
     shadeOval(c, paw.x + 3, paw.y - 3, geom.pawRx * pawScale, geom.pawRy * pawScale);
+  }
+  if (claws > 0.01 && !boot) {
+    // Drawn last so socks, frost and shade do not paint over them. They come out of the toe end of the
+    // paw along the shin, fanned a little, and grow with `claws` so a half-sheathed paw shows stubs.
+    const dirX = Math.cos(Math.atan2(paw.y - knee.y, paw.x - knee.x));
+    const dirY = Math.sin(Math.atan2(paw.y - knee.y, paw.x - knee.x));
+    const cx = paw.x + 3 + dirX * geom.pawRx * pawScale * 0.75;
+    const cy = paw.y - 3 + dirY * geom.pawRy * pawScale * 0.75;
+    const len = (2 + 2.5 * claws) * pawScale;
+    for (let i = -1; i <= 1; i += 1) {
+      const sx = cx - dirY * i * geom.pawRy * 0.55;
+      const sy = cy + dirX * i * geom.pawRy * 0.55;
+      const fan = i * 0.25;
+      const tx = dirX * Math.cos(fan) - dirY * Math.sin(fan);
+      const ty = dirX * Math.sin(fan) + dirY * Math.cos(fan);
+      strokeLine(c, sx, sy, sx + tx * len, sy + ty * len, '#efe6d6', 1.1);
+    }
   }
   if (sleeve) {
     drawSleeve(c, hip, knee, geom, sleeve, far, fur);
@@ -247,6 +259,18 @@ export function drawActor(
     theta += posed.pitch;
     dy += posed.dy;
   }
+  // Furniture rear (scratching a post, climbing) pivots on the hind hips, not the torso pivot. Rotating
+  // about Px/Py lifted the hips off the floor, so the hind legs over-reached and the paws floated.
+  // `rearShift` moves the whole body so the hind hip lands back where it sat before the rear.
+  const furnitureRear = actor.furniture?.rig.rear ?? 0;
+  const rearShift = { x: 0, y: 0 };
+  if (Math.abs(furnitureRear) > 0.001) {
+    const level = torsoPoint(geom, theta + furnitureRear, dy, geom.hindX, geom.hipY);
+    const reared = torsoPoint(geom, theta, dy, geom.hindX, geom.hipY);
+    rearShift.x = level.x - reared.x;
+    rearShift.y = level.y - reared.y;
+    dy += rearShift.y;
+  }
   const barkOpen = actor.bark.open;
   // Streaming back at a gallop pulls the ears flat and stretches the tail out behind the body.
   const earBackNow = pose.earBack + 0.35 * pose.stream + (posed?.ear ?? 0);
@@ -321,6 +345,9 @@ export function drawActor(
     0.13 * shadowFade,
   );
   c.translate(0, -actor.z / scale);
+  if (rearShift.x !== 0) {
+    c.translate(rearShift.x, 0);
+  }
   const thetaFacing = actor.debugTheta ?? blendedTheta(actor.octantFrom, actor.octant, actor.octantBlend, rig.dir);
   if (pose.walk > 0.05) {
     const frontness = Math.abs(Math.sin(thetaFacing));
@@ -332,11 +359,21 @@ export function drawActor(
     c.saveLayer(outlineLayerPaint(baseColor));
   }
 
+  // A furniture paw target for this leg, if the current furniture phase poses it.
+  const furnitureFoot = (fore: boolean, near: boolean) => {
+    const rigged = actor.furniture?.rig;
+    const pair = fore ? rigged?.reach : rigged?.hind;
+    return pair ? (near ? pair.near : pair.far) : null;
+  };
+  const furnitureTarget = (hip: Pt, paw: { x: number; y: number; ground?: boolean }): Pt => ({
+    x: hip.x + paw.x,
+    y: paw.ground ? paw.y : hip.y + paw.y,
+  });
+
   const footAt = (hip: Pt, fore: boolean, leg: 0 | 1 | 2 | 3, nearFore: boolean, kicker = false): Pt => {
-    const reach = actor.furniture?.rig.reach;
-    if (reach && fore) {
-      const paw = nearFore ? reach.near : reach.far;
-      return { x: hip.x + paw.x, y: hip.y + paw.y };
+    const posedPaw = furnitureFoot(fore, nearFore);
+    if (posedPaw) {
+      return furnitureTarget(hip, posedPaw);
     }
     const offset = leg === 1 || leg === 2 ? Math.PI : 0;
     const gait = blendedFoot(actor.gait, leg, actor.phase, geom.L, actor.share);
@@ -488,7 +525,12 @@ export function drawActor(
     const hipP = torsoPoint(geom, theta, dy, hipLocalX, hipLocalY);
     const stepped = projectLocal({ f: df, l: 0, h: lift }, thetaFacing);
     const origin = projectLocal({ f: 0, l: 0, h: 0 }, thetaFacing);
-    const footP = { x: hipP.x + stepped.x - origin.x, y: stepped.y - origin.y };
+    // Furniture targets are exact contact points (a post face, the pad top), so they skip the age lift
+    // scale and the step projection, which would shift a reaching paw off the surface.
+    const posedPaw = furnitureFoot(spec.fore, spec.l > 0);
+    const footP = posedPaw
+      ? furnitureTarget(hipP, posedPaw)
+      : { x: hipP.x + stepped.x - origin.x, y: stepped.y - origin.y };
     const depth = projectLocal({ f: spec.localX, l: spec.l, h: 0 }, thetaFacing).depth;
     return { ...spec, hipP, footP, depth };
   });
@@ -514,7 +556,7 @@ export function drawActor(
         footTilt(spec.fore),
         near ? 1 : 1 - facingConfig.legNarrow,
         1 + facingConfig.pawDepth * norm,
-        spec.fore ? (actor.furniture?.rig.claws ?? 0) : 0,
+        spec.fore || actor.furniture?.rig.hind ? (actor.furniture?.rig.claws ?? 0) : 0,
       );
     // The back-view leg pass draws after the roll transform is restored.
     if (!rolled) {
@@ -783,12 +825,22 @@ export function drawActor(
     headX = geom.Px + rx * cs - ry * sn;
     headY = geom.Py + frame.dy + rx * sn + ry * cs + posed.dy;
   }
+  if (Math.abs(furnitureRear) > 0.001) {
+    // The torso rears but frame.head does not know about it, so the head stayed at standing height
+    // while the chest rose and the neck stretched to reach it. Carry the head with the body.
+    const rx = headX - geom.Px;
+    const ry = headY - geom.Py - frame.dy;
+    const cs = Math.cos(-furnitureRear);
+    const sn = Math.sin(-furnitureRear);
+    headX = geom.Px + rx * cs - ry * sn;
+    headY = geom.Py + frame.dy + rx * sn + ry * cs + rearShift.y;
+  }
   const head = {
     x: headX + shift.x,
     y: headY + shift.y + pose.headPush * geom.headR * 0.15,
   };
   const pitch =
-    (frame.pitch + pose.headRot - 0.9 * pose.headUp + Math.sin(t * 9) * 0.12 * pose.rubSway + (posed?.head ?? 0)) *
+    (frame.pitch + pose.headRot - 0.9 * pose.headUp + Math.sin(t * 9) * 0.12 * pose.rubSway + (posed?.head ?? 0) - 0.45 * furnitureRear) *
     (1 - 0.7 * Math.max(rig.headFront, rig.rear));
   // Side view joins the neck at the front of the chest. Front and back replace that
   // body with a centered oval, so the same shoulder sits out to the side. A thick
@@ -849,7 +901,7 @@ export function drawActor(
   const sideTuck = (1 - Math.max(face.turn, face.front)) * (rig.rear <= 0 ? 1 : Math.max(0, 1 - rig.rear / 0.55));
   const mouthLocal = { x: rawMouth.x - 4 * sideTuck, y: rawMouth.y + sideTuck };
   const mouth = toyMouthLocal(head, pitch, mouthLocal.x, mouthLocal.y);
-  actor.mouthMark = toyMouthStage(actor, mouth, rig.dir, scale);
+  actor.mouthMark = toyMouthStage(actor, { x: mouth.x + rearShift.x, y: mouth.y }, rig.dir, scale);
   const drawCarry = (): void => {
     if (carrying !== null) {
       drawToyShape(c, carrying, mouthLocal.x, mouthLocal.y, 8);
@@ -1269,14 +1321,14 @@ export function drawActor(
 
   // Head point in stage space, unflipped, so a mark can sit above the weather.
   actor.headMark = {
-    x: actor.x + rig.dir * scale * head.x,
+    x: actor.x + rig.dir * scale * (head.x + rearShift.x),
     y: actor.y - actor.z + scale * head.y,
   };
 
   // sleep marks float up from the head in screen space, so they never mirror
   const sleepy = pose.lie * pose.eyes;
   if (sleepy >= 0.5) {
-    const hx = actor.x + rig.dir * scale * head.x;
+    const hx = actor.x + rig.dir * scale * (head.x + rearShift.x);
     const hy = actor.y - actor.z + scale * head.y;
     for (let i = 0; i < 3; i += 1) {
       const k = (t * 0.5 + i / 3) % 1;

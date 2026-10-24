@@ -18,7 +18,7 @@ Decisions (implemented)
 - Condo, shelves, window perch, hammock, and scratch mat are not built. The affordance config is what they would plug into.
 
 1. Idle trigger
-Each time the idle selector picks a behavior, roll FURNITURE_IDLE_CHANCE = 0.05. This must be a config value, not hardcoded.
+Each time the idle selector picks a behavior, roll FURNITURE_IDLE_CHANCE = 1. This must be a config value, not hardcoded.
 On a hit, gather every affordance on placed furniture that is eligible right now (species, age, energy, cooldown, reachable). Pick one by weight.
 If nothing is eligible, fall through to the normal idle behaviors with no wasted turn.
 Each affordance has a cooldown (default 3 minutes) so the cat doesn’t loop on the same item.

@@ -1090,15 +1090,15 @@ function nextIdle(world: World, actor: Actor): void {
   if (!actor.guest && startNextInvite(world, actor)) {
     return;
   }
+  if (tryFurnitureIdle(world, actor)) {
+    return;
+  }
   // Occasional autonomous drink when water is available. Thirst makes this much more likely.
   if (!actor.guest && canAutonomousDrink(world) && world.rng() < 0.08 + 0.72 * (1 - actor.hydration) && canBehave(actor, 'eat')) {
     startUserTask(world, actor, 'drink');
     return;
   }
   if (tryBirdStalk(world, actor)) {
-    return;
-  }
-  if (tryFurnitureIdle(world, actor)) {
     return;
   }
   const options = (breed?.species === 'cat' ? ['still', 'purr', 'nap', 'walk'] : ['still', 'pant', 'nap', 'walk']).filter(
@@ -2996,8 +2996,10 @@ function updateActor(world: World, actor: Actor, dt: number): void {
   const traveling = actor.task.type === 'travel';
   const { lo: xLo, hi: xHi } = xRangeOf(floor, frame.geom, frame.scale);
   const greetWide = actor.task.type === 'greet';
-  const xClampLo = greetWide ? xLo - 110 : xLo;
-  const xClampHi = greetWide ? xHi + 110 : xHi;
+  // Floor furniture can sit inside the body inset (the catio scratch pole). Let the cat walk up to the floor edge to use it.
+  const onFurnitureFloor = actor.furniture != null && actor.furniture.pin == null;
+  const xClampLo = greetWide ? xLo - 110 : onFurnitureFloor ? floor.xMin : xLo;
+  const xClampHi = greetWide ? xHi + 110 : onFurnitureFloor ? floor.xMax : xHi;
   const desired = { x: 0, y: 0 };
   if (move && !(actor.jump && jumpOwnsMotion(actor))) {
     const tx = traveling ? move.x : clamp(move.x, xClampLo, xClampHi);
@@ -3008,7 +3010,12 @@ function updateActor(world: World, actor: Actor, dt: number): void {
     const aim =
       traveling || actor.z > 1
         ? { x: tx, y: ty }
-        : steerAim({ x: actor.x, y: actor.y }, { x: tx, y: ty }, obstaclesIn(world.scene, actor.task.poi?.propId ?? null), reach);
+        : steerAim(
+            { x: actor.x, y: actor.y },
+            { x: tx, y: ty },
+            obstaclesIn(world.scene, actor.furniture?.pieceId ?? actor.task.poi?.propId ?? null),
+            reach,
+          );
     const dx = aim.x - actor.x;
     const dy = aim.y - actor.y;
     const distance = Math.hypot(dx, dy);

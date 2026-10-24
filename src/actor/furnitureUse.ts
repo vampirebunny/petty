@@ -4,8 +4,8 @@ import { depthScale, geomOf, PET_SIZE } from './geometry';
 import type { Actor, Pose, World } from './types';
 import type { Prop } from './scenes';
 
-// Named config. nextIdle rolls this before the normal idle pick.
-export const FURNITURE_IDLE_CHANCE = 0.05;
+// Named config. nextIdle rolls this before the normal idle pick when a scratch pole or tree is eligible.
+export const FURNITURE_IDLE_CHANCE = 1;
 export const FURNITURE_COOLDOWN_SEC = 180;
 
 const htmlTorso = 58;
@@ -31,11 +31,15 @@ export const catTreeLayout = {
 
 export type AgeBand = 'kitten' | 'adult' | 'senior';
 
-export type FurnitureReach = { x: number; y: number };
+// x is forward from the hip. y is from the hip, or from the floor under the cat when `ground` is set,
+// so a paw on a scratch pad or a stretch lands on the surface instead of at shoulder height.
+export type FurnitureReach = { x: number; y: number; ground?: boolean };
 
 export type FurnitureRig = {
   rear: number;
   reach: { near: FurnitureReach; far: FurnitureReach } | null;
+  // Hind paws gripping a post while climbing. Null keeps the normal standing feet.
+  hind: { near: FurnitureReach; far: FurnitureReach } | null;
   claws: number;
   specks: { x: number; y: number; age: number; life: number }[];
 };
@@ -88,6 +92,8 @@ export type FurnitureRun = {
   path: Edge[];
   edge: number;
   pin: { x: number; z: number } | null;
+  // Where the last phase left the body, so the next phase eases out of it instead of snapping.
+  from: { rear: number; x: number | null; z: number | null };
   rig: FurnitureRig;
   anchorX: number;
   anchorY: number;
@@ -331,7 +337,7 @@ function cool(world: World, actor: Actor, id: string): void {
 }
 
 function emptyRig(): FurnitureRig {
-  return { rear: 0, reach: null, claws: 0, specks: [] };
+  return { rear: 0, reach: null, hind: null, claws: 0, specks: [] };
 }
 
 function approachX(prop: Prop, scratch: 'vertical' | 'horizontal' | null, torso: number, face: 1 | -1): number {
@@ -342,10 +348,34 @@ function approachX(prop: Prop, scratch: 'vertical' | 'horizontal' | null, torso:
   return prop.x + post.x - face * (post.w / 2 + torso * 0.35);
 }
 
+// The body inset keeps a wandering pet fully on stage. A pole in the catio corner sits inside that inset,
+// so the walk target has to use the floor itself or the cat stops short and never scratches.
+function clampToFloor(world: World, x: number, y: number): { x: number; y: number } {
+  const floor = world.scene.floor;
+  return {
+    x: Math.min(floor.xMax, Math.max(floor.xMin, x)),
+    y: Math.min(floor.yMax, Math.max(floor.yMin, y)),
+  };
+}
+
+function standFace(world: World, actor: Actor, prop: Prop, scratch: 'vertical' | 'horizontal' | null, torso: number): 1 | -1 {
+  const prefer: 1 | -1 = prop.x >= actor.x ? 1 : -1;
+  if (!scratch) {
+    return prefer;
+  }
+  const gap = (face: 1 | -1): number => {
+    const ideal = approachX(prop, scratch, torso, face);
+    return Math.abs(clampToFloor(world, ideal, prop.y).x - ideal);
+  };
+  const other: 1 | -1 = prefer === 1 ? -1 : 1;
+  return gap(other) + 8 < gap(prefer) ? other : prefer;
+}
+
 function makeRun(world: World, actor: Actor, choice: Choice): FurnitureRun {
   const band = ageBand(actor.displayAgeDays);
-  const face: 1 | -1 = choice.prop.x >= actor.x ? 1 : -1;
   const torso = torsoOf(actor);
+  const face = standFace(world, actor, choice.prop, choice.scratch, torso);
+  const anchor = clampToFloor(world, approachX(choice.prop, choice.scratch, torso, face), choice.prop.y);
   const path = choice.kind === 'visit' ? planRoute(choice.prop, band, torso, actor.stats.agility, 'floor', choice.goal) ?? [] : [];
   const roll = world.rng();
   const strokes = band === 'kitten' ? 5 + Math.floor(roll * 5) : band === 'senior' ? 2 + Math.floor(roll * 3) : 4 + Math.floor(roll * 5);
@@ -363,20 +393,21 @@ function makeRun(world: World, actor: Actor, choice: Choice): FurnitureRun {
     leaving: false,
     perch: 'sit',
     strokes,
-    stroke: 0,
+    stroke: -1,
     strokeHz: band === 'kitten' ? 4 : band === 'senior' ? 2 : 2.5,
     wantStretch: world.rng() < 0.5,
     short: band === 'kitten' && world.rng() < 0.15,
     path,
     edge: 0,
     pin: null,
+    from: { rear: 0, x: null, z: null },
     rig: emptyRig(),
-    anchorX: approachX(choice.prop, choice.scratch, torso, face),
-    anchorY: choice.prop.y,
+    anchorX: anchor.x,
+    anchorY: anchor.y,
   };
 }
 
-// Starts a use when something is eligible. The 5% roll lives in tryFurnitureIdle.
+// Starts a use when something is eligible. The roll lives in tryFurnitureIdle.
 export function beginFurniture(world: World, actor: Actor): boolean {
   const options = choicesFor(world, actor);
   if (options.length === 0) {
@@ -439,47 +470,109 @@ function propOf(world: World, id: string): Prop | null {
   return world.scene.props.find((prop) => prop.id === id) ?? null;
 }
 
+// Phases that pose the paws themselves. Every other phase starts with the rig cleared, so a climb or a
+// jump never leaves the forelegs hanging in the air or the body tilted once the cat is up on a platform.
+const posedPhases: FurniturePhase[] = ['rear', 'scratch', 'drop', 'stretch', 'climb', 'pull', 'land'];
+
 function enter(run: FurnitureRun, phase: FurniturePhase, dur: number): void {
+  run.from = { rear: run.rig.rear, x: run.pin?.x ?? null, z: run.pin?.z ?? null };
   run.phase = phase;
   run.t = 0;
   run.dur = dur;
   run.pin = null;
+  if (!posedPhases.includes(phase)) {
+    run.rig.rear = 0;
+    run.rig.reach = null;
+    run.rig.hind = null;
+    run.rig.claws = 0;
+  }
 }
 
-function poseScratch(run: FurnitureRun, actor: Actor, targets: Pose, contact: boolean): void {
+function smooth(k: number): number {
+  const c = Math.max(0, Math.min(1, k));
+  return c * c * (3 - 2 * c);
+}
+
+// One scratch stroke, u in 0..1. The working paw hooks in at the top, drags down with the claws out for
+// the first 60%, then lifts off and swings back up clear of the surface.
+function strokeCurve(u: number): { drag: number; off: number; contact: boolean } {
+  if (u < 0.6) {
+    const k = u / 0.6;
+    // Fast start, slow finish: the claws catch, then the pull runs out.
+    return { drag: 1 - (1 - k) * (1 - k), off: 0, contact: true };
+  }
+  const k = smooth((u - 0.6) / 0.4);
+  return { drag: 1 - k, off: Math.sin(k * Math.PI), contact: false };
+}
+
+function poseScratch(world: World, run: FurnitureRun, actor: Actor, targets: Pose): boolean {
   const band = ageBand(actor.displayAgeDays);
-  const angle = ageRear(band) * Math.min(1, run.phase === 'rear' ? run.t / Math.max(run.dur, 0.01) : 1);
-  run.rig.rear = run.phase === 'drop' ? angle * (1 - run.t / Math.max(run.dur, 0.01)) : angle;
-  const pull = contact ? Math.sin((run.t * run.strokeHz) % 1 * Math.PI) * legOf(actor) * 0.18 : 0;
-  const hip = -legOf(actor) * 0.2;
-  if (run.scratch === 'horizontal') {
+  const leg = legOf(actor);
+  const k = Math.min(1, run.t / Math.max(run.dur, 0.01));
+  const full = ageRear(band);
+  if (run.phase === 'rear') {
+    run.rig.rear = full * smooth(k);
+  } else if (run.phase === 'drop') {
+    run.rig.rear = run.from.rear * (1 - smooth(k));
+  } else if (run.phase === 'scratch') {
+    run.rig.rear = full;
+  } else {
+    run.rig.rear = 0;
+  }
+  const scratching = run.phase === 'scratch';
+  const cycle = run.t * run.strokeHz;
+  const stroke = scratching ? strokeCurve(cycle % 1) : { drag: 0, off: 0, contact: false };
+  // Paws take turns. The resting paw stays hooked in, partway down the stroke.
+  const nearWorks = Math.floor(cycle) % 2 === 0;
+  const contact = stroke.contact;
+  // Stage pixels to the pet's local units, for surfaces measured on the prop.
+  const scale = Math.max(scaleOf(actor, world.scene.floor), 0.01);
+  if (run.scratch === 'horizontal' && run.phase !== 'stretch') {
     targets.bow = 1;
     run.rig.rear = 0;
-    run.rig.reach = {
-      near: { x: legOf(actor) * 0.9 - pull, y: 2 },
-      far: { x: legOf(actor) * 0.7 - pull, y: 2 },
+    const padTop = -Math.abs(catTreeLayout.pad.y) / scale;
+    const reachOut = leg * 0.95;
+    const travel = leg * 0.4;
+    const paw = (works: boolean, lead: number): FurnitureReach => {
+      if (!scratching) {
+        return { x: reachOut * lead, y: padTop, ground: true };
+      }
+      const drag = works ? stroke.drag : 0.5;
+      const off = works ? stroke.off : 0;
+      return { x: reachOut * lead - drag * travel, y: padTop - off * leg * 0.18, ground: true };
     };
+    run.rig.reach = { near: paw(nearWorks, 1), far: paw(!nearWorks, 0.85) };
   } else if (run.phase === 'rear' || run.phase === 'scratch' || run.phase === 'drop') {
-    const lift = -legOf(actor) * (0.15 + 0.55 * Math.min(1, run.rig.rear / ageRear(band)));
-    run.rig.reach = {
-      near: { x: torsoOf(actor) * 0.42, y: hip + lift - (contact ? pull : 0) },
-      far: { x: torsoOf(actor) * 0.42, y: hip + lift + legOf(actor) * 0.12 },
+    const up = Math.min(1, run.rig.rear / full);
+    // Offsets from the shoulder. Reach rises with the rear, a stroke drags the paw back down toward it.
+    const top = -leg * (0.25 + 0.6 * up);
+    const travel = leg * 0.45 * up;
+    const toPost = torsoOf(actor) * 0.18 * up;
+    const paw = (works: boolean): FurnitureReach => {
+      const drag = works ? stroke.drag : 0.45;
+      const off = works ? stroke.off : 0;
+      return { x: toPost - off * leg * 0.15, y: top + drag * travel };
     };
+    run.rig.reach = { near: paw(nearWorks), far: paw(!nearWorks) };
+  } else if (run.phase === 'stretch') {
+    run.rig.reach = { near: { x: leg * 1.05, y: 0, ground: true }, far: { x: leg * 0.85, y: 0, ground: true } };
   } else {
     run.rig.reach = null;
   }
-  run.rig.claws = contact ? 1 : 0;
+  run.rig.hind = null;
+  run.rig.claws = contact ? 1 : scratching ? 0.5 : 0;
   targets.squint = run.phase === 'scratch' ? 0.65 : 0;
   targets.earBack = run.phase === 'scratch' ? 0.45 : 0;
   targets.tailLift = run.scratch === 'horizontal' ? 0.8 : run.phase === 'scratch' ? -0.35 : 0.2;
-  targets.spineArch = contact ? 0.25 : 0;
-  targets.wiggle = contact ? 0.35 : 0;
+  // Follows the stroke instead of switching on contact, so the back flexes with each pull.
+  targets.spineArch = scratching ? 0.12 + 0.18 * stroke.drag : 0;
+  targets.wiggle = scratching ? 0.2 : 0;
   if (run.phase === 'stretch') {
     targets.bow = 0;
     targets.stretch = 1;
     targets.tailLift = 0.9;
-    run.rig.reach = { near: { x: legOf(actor), y: 0 }, far: { x: legOf(actor) * 0.8, y: 0 } };
   }
+  return contact;
 }
 
 function tickSpecks(run: FurnitureRun, dt: number): void {
@@ -559,10 +652,15 @@ export function stepFurniture(world: World, actor: Actor, dt: number, targets: P
   }
 
   if (run.phase === 'approach') {
-    const y = prop?.y ?? run.anchorY;
-    const arrived = Math.hypot(run.anchorX - actor.x, y - actor.y) < 10 && actor.speed < 18;
+    const spot = clampToFloor(world, run.anchorX, prop?.y ?? run.anchorY);
+    const dist = Math.hypot(spot.x - actor.x, spot.y - actor.y);
+    // A tree's footprint used to stop the cat on the rim, short of the 10px arrival, so the use never began.
+    const arrived = (dist < 36 && actor.speed < 40) || (run.t > 3 && actor.speed < 24 && dist < 140);
     if (arrived) {
-      actor.x = run.anchorX;
+      if (dist < 36) {
+        actor.x = spot.x;
+        actor.y = spot.y;
+      }
       if (run.kind === 'scratch') {
         enter(run, run.scratch === 'horizontal' ? 'scratch' : 'rear', run.scratch === 'horizontal' ? 0.2 : 0.4);
       } else {
@@ -573,14 +671,14 @@ export function stepFurniture(world: World, actor: Actor, dt: number, targets: P
         enter(run, 'crouch', 0.35 + world.rng() * 0.25);
       }
     }
-    return { done: false, move: { x: run.anchorX, y }, vmax: 90, faceCamera: false, sideLock: side };
+    return { done: false, move: spot, vmax: 90, faceCamera: false, sideLock: side };
   }
 
   if (run.phase === 'rear') {
-    poseScratch(run, actor, targets, false);
+    poseScratch(world, run, actor, targets);
     if (run.t >= run.dur) {
       enter(run, 'scratch', run.strokes / run.strokeHz);
-      run.stroke = 0;
+      run.stroke = -1;
     }
     return { ...idle, sideLock: side };
   }
@@ -588,12 +686,14 @@ export function stepFurniture(world: World, actor: Actor, dt: number, targets: P
   if (run.phase === 'scratch') {
     const cycle = run.t * run.strokeHz;
     const index = Math.floor(cycle);
-    const contact = cycle % 1 < 0.6;
+    // stroke starts at -1, so the first stroke gets its sound and specks too.
     if (index !== run.stroke) {
       run.stroke = index;
       playScratchStroke();
       const postX = run.scratch === 'horizontal' ? run.face * 16 : prop?.kind === 'catTree' ? catTreeLayout.posts[1].x : 0;
-      const postY = run.scratch === 'horizontal' ? -5 : -((prop?.h ?? 74) * 0.55);
+      const postH = prop?.kind === 'catTree' ? -catTreeLayout.posts[1].yTop : prop?.h ?? 74;
+      // Specks start about where the paws drag, not at a fixed fraction of the pole.
+      const postY = run.scratch === 'horizontal' ? -5 : -Math.min(postH * 0.9, legOf(actor) * 1.6 * scaleOf(actor, world.scene.floor));
       for (let i = 0; i < 3; i += 1) {
         run.rig.specks.push({
           x: (prop?.x ?? actor.x) + postX + (i - 1) * 3,
@@ -603,7 +703,7 @@ export function stepFurniture(world: World, actor: Actor, dt: number, targets: P
         });
       }
     }
-    poseScratch(run, actor, targets, contact);
+    poseScratch(world, run, actor, targets);
     if (run.t >= run.dur) {
       enter(run, 'drop', 0.3);
     }
@@ -611,7 +711,7 @@ export function stepFurniture(world: World, actor: Actor, dt: number, targets: P
   }
 
   if (run.phase === 'drop') {
-    poseScratch(run, actor, targets, false);
+    poseScratch(world, run, actor, targets);
     if (run.t >= run.dur) {
       run.rig.rear = 0;
       run.rig.reach = null;
@@ -629,7 +729,7 @@ export function stepFurniture(world: World, actor: Actor, dt: number, targets: P
   }
 
   if (run.phase === 'stretch') {
-    poseScratch(run, actor, targets, false);
+    poseScratch(world, run, actor, targets);
     if (run.t >= run.dur) {
       return { ...idle, done: true };
     }
@@ -666,7 +766,10 @@ export function stepFurniture(world: World, actor: Actor, dt: number, targets: P
     const z = edge.z0 + (edge.z1 - edge.z0) * k + Math.sin(k * Math.PI) * arc;
     const stageX = (prop?.x ?? 0) + x;
     run.pin = { x: stageX, z: run.short && k > 0.7 ? edge.z1 * 0.92 : z };
-    run.rig.rear = 0.15;
+    // Nose up on the way up, level out over the top, nose down a little for the landing.
+    run.rig.rear = edge.z1 >= edge.z0 ? 0.3 * Math.cos(k * Math.PI) : -0.15 * Math.sin(k * Math.PI);
+    run.rig.reach = null;
+    run.rig.hind = null;
     targets.tuck = 1;
     targets.stretch = 0.4;
     if (k >= 1) {
@@ -684,6 +787,9 @@ export function stepFurniture(world: World, actor: Actor, dt: number, targets: P
 
   if (run.phase === 'land') {
     targets.land = 1 - run.t / Math.max(run.dur, 0.01);
+    run.rig.rear = run.from.rear * (1 - smooth(run.t / Math.max(run.dur, 0.01)));
+    run.rig.reach = null;
+    run.rig.hind = null;
     const edge = run.path[run.edge];
     if (edge) {
       run.pin = { x: (prop?.x ?? 0) + edge.x1, z: edge.z1 };
@@ -712,16 +818,37 @@ export function stepFurniture(world: World, actor: Actor, dt: number, targets: P
       return { ...idle, done: true };
     }
     const k = Math.min(1, run.t / Math.max(run.dur, 0.01));
-    const wobble = Math.sin(run.t * 8) * legOf(actor) * 0.15;
-    run.rig.rear = Math.PI / 2 * 0.85;
+    const leg = legOf(actor);
+    const rise = edge.z1 - edge.z0;
+    // Climbing is a series of bounds, not a glide: front paws reach and hook, the hind legs push,
+    // and the body surges. `bounds` scales with the height so a tall post takes more pulls.
+    const bounds = Math.max(2, Math.round(rise / Math.max(leg * scaleOf(actor, world.scene.floor) * 1.1, 1)));
+    const w = 2 * Math.PI * bounds;
+    // Monotonic with surges: speed swings between 0.15x and 1.85x of the average.
+    const progress = k - (0.85 * Math.sin(w * k)) / w;
+    const beat = Math.sin(w * k);
+    // Ease into the upright pose over the first bound, instead of snapping from the crouch.
+    const settle = smooth(k * bounds);
+    run.rig.rear = (Math.PI / 2) * 0.82 * settle;
+    // Paws alternate: one reaches high while the other pulls down near the chest.
     run.rig.reach = {
-      near: { x: 6, y: -legOf(actor) * 0.55 - wobble },
-      far: { x: 6, y: -legOf(actor) * 0.2 + wobble },
+      near: { x: leg * 0.12, y: -leg * (0.55 + 0.3 * beat) },
+      far: { x: leg * 0.12, y: -leg * (0.55 - 0.3 * beat) },
     };
-    run.pin = { x: (prop?.x ?? 0) + (edge.postX ?? edge.x0), z: edge.z0 + (edge.z1 - edge.z0) * k };
-    targets.tailLift = -0.6;
+    // The hind feet push off the post in counter-phase with the front reach.
+    run.rig.hind = {
+      near: { x: leg * 0.3, y: leg * (0.35 + 0.15 * beat) },
+      far: { x: leg * 0.3, y: leg * (0.35 - 0.15 * beat) },
+    };
+    run.rig.claws = 1;
+    const post = prop?.kind === 'catTree' ? catTreeLayout.posts.find((p) => p.x === edge.postX) : null;
+    // Hold the cat against the near face of the post, not centered inside it.
+    const hug = (post?.w ?? 16) / 2 + leg * 0.2 * scaleOf(actor, world.scene.floor);
+    run.pin = { x: (prop?.x ?? 0) + (edge.postX ?? edge.x0) - run.face * hug, z: edge.z0 + rise * progress };
+    targets.tailLift = -0.6 + 0.15 * beat;
+    targets.earBack = 0.2;
     if (k >= 1) {
-      enter(run, 'pull', 0.38);
+      enter(run, 'pull', 0.45);
     }
     return { ...idle, sideLock: side };
   }
@@ -729,11 +856,28 @@ export function stepFurniture(world: World, actor: Actor, dt: number, targets: P
   if (run.phase === 'pull') {
     const edge = run.path[run.edge];
     const k = Math.min(1, run.t / Math.max(run.dur, 0.01));
+    const e = smooth(k);
+    const leg = legOf(actor);
     if (edge) {
-      run.pin = { x: (prop?.x ?? 0) + edge.x1, z: edge.z1 };
-      run.surface = edge.to;
+      // Haul over the lip: the body slides from the post onto the platform with a small hop,
+      // instead of teleporting to the platform center on the first frame.
+      const toX = (prop?.x ?? 0) + edge.x1;
+      const fromX = run.from.x ?? toX;
+      const fromZ = run.from.z ?? edge.z1;
+      run.pin = {
+        x: fromX + (toX - fromX) * e,
+        z: fromZ + (edge.z1 - fromZ) * Math.min(1, e * 1.6) + Math.sin(k * Math.PI) * leg * 0.15 * scaleOf(actor, world.scene.floor),
+      };
+      if (k > 0.5) {
+        run.surface = edge.to;
+      }
     }
-    run.rig.rear = (1 - k) * 0.4;
+    // Ease the body down from wherever the climb or short jump left it.
+    run.rig.rear = run.from.rear * (1 - e);
+    // Front paws plant on the platform top first, then the legs fall back into a normal stance.
+    run.rig.reach = k < 0.65 ? { near: { x: leg * 0.6, y: 0, ground: true }, far: { x: leg * 0.45, y: 0, ground: true } } : null;
+    run.rig.hind = k < 0.4 ? { near: { x: leg * 0.2, y: leg * 0.2 * (1 - k / 0.4) }, far: { x: leg * 0.1, y: leg * 0.3 * (1 - k / 0.4) } } : null;
+    run.rig.claws = k < 0.4 ? 1 : 0;
     targets.land = Math.sin(k * Math.PI) * 0.4;
     if (k >= 1) {
       run.edge += 1;

@@ -2,6 +2,7 @@ import { BlendMode, Skia, TileMode } from '@shopify/react-native-skia';
 import type { SkCanvas } from '@shopify/react-native-skia';
 
 import { applyVariant, depthScale, resolveBreedById } from '../../actor';
+import { furnitureClaims } from '../../actor/furnitureUse';
 import type { TimeOfDay, World } from '../../actor';
 import { stageBleed } from '../../actor/scenes';
 import { drawBird, drawBirdGround } from './birds';
@@ -252,8 +253,20 @@ export function drawWorld(
     // A pet stepping onto a bed from behind would be covered by it until it crosses the bed's sort line,
     // so a pet over a bed is always drawn in front of it.
     let sortY = actor.y + (atBowl ? 1 : 0);
+    const use = actor.furniture;
+    const onFurniture =
+      use != null &&
+      (use.phase === 'climb' ||
+        use.phase === 'pull' ||
+        use.phase === 'perch' ||
+        use.phase === 'land' ||
+        (use.phase === 'air' && use.surface !== 'floor'));
     for (const prop of scene.props) {
       if (prop.kind === 'bed' && Math.abs(actor.x - prop.x) < (prop.w ?? 0) / 2 && actor.y > prop.y - 60) {
+        sortY = Math.max(sortY, prop.y + 1);
+      }
+      // The tree is one draw, so a cat on it has to sort in front or the platforms cover the climb.
+      if (onFurniture && prop.id && furnitureClaims(actor, prop.id)) {
         sortY = Math.max(sortY, prop.y + 1);
       }
     }

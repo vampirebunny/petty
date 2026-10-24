@@ -1,9 +1,10 @@
 import { breedById } from '../breeds';
+import { applyFurniture, shopFurnitureSpot } from '../furniture';
 import { geomOf } from '../geometry';
 import { scenes } from '../scenes';
 import type { Prop, Scene } from '../scenes';
 import type { Actor } from '../types';
-import { createWorld, spawnActor } from '../sim';
+import { createWorld, spawnActor, update } from '../sim';
 import {
   FURNITURE_COOLDOWN_SEC,
   FURNITURE_IDLE_CHANCE,
@@ -49,8 +50,8 @@ function torsoOf(ageDays: number, weight = 0): number {
   return geomOf(breed, ageDays, weight, 1).bodyLen;
 }
 
-it('keeps the idle chance at five percent', () => {
-  expect(FURNITURE_IDLE_CHANCE).toBe(0.05);
+it('always uses a scratch pole or tree when one is eligible', () => {
+  expect(FURNITURE_IDLE_CHANCE).toBe(1);
   expect(ageBand(1)).toBe('kitten');
   expect(ageBand(15)).toBe('adult');
   expect(ageBand(30)).toBe('senior');
@@ -99,6 +100,51 @@ it('keeps the scratching paw on the post for a light and a heavy cat', () => {
     const overreach = pawHeightOnPost(0, geom.bodyLen * 4, geom.L * 2, Math.PI / 2, -74, -8);
     expect(overreach).toBe(-74);
   }
+});
+
+it('uses a living-room pole or tree on its own', () => {
+  const actor = cat(15, 0.8);
+  actor.x = 300;
+  actor.y = 440;
+  const poleSpot = shopFurnitureSpot('scratcher', 'livingroom');
+  const treeSpot = shopFurnitureSpot('catTree', 'livingroom');
+  const scene = applyFurniture(
+    scenes.livingroom,
+    [
+      { id: 'scratcher', kind: 'scratcher', h: 74 },
+      { id: 'catTree', kind: 'catTree' },
+    ],
+    [
+      { pieceId: 'scratcher', sceneId: 'livingroom', x: poleSpot.x, y: poleSpot.y },
+      { pieceId: 'catTree', sceneId: 'livingroom', x: treeSpot.x, y: treeSpot.y },
+    ],
+  );
+  const world = createWorld([actor], 3, scene);
+  let phase = actor.furniture?.phase;
+  for (let i = 0; i < 800; i += 1) {
+    update(world, 0.05);
+    phase = actor.furniture?.phase;
+    if (phase && phase !== 'approach') {
+      break;
+    }
+  }
+  expect(phase === 'rear' || phase === 'scratch' || phase === 'crouch' || phase === 'climb' || phase === 'air').toBe(true);
+});
+
+it('scratches a pole tucked into the catio corner', () => {
+  const actor = cat(15, 0.9);
+  actor.x = 320;
+  actor.y = 500;
+  const placed: Prop = { ...pole, x: 38, y: 530 };
+  const world = createWorld([actor], 1, { ...scenes.catio, props: [...scenes.catio.props, placed] });
+  expect(beginFurniture(world, actor)).toBe(true);
+  for (let i = 0; i < 240; i += 1) {
+    update(world, 0.05);
+    if (actor.furniture && actor.furniture.phase !== 'approach') {
+      break;
+    }
+  }
+  expect(actor.furniture?.phase).toBe('rear');
 });
 
 it('blocks the same scratch until the cooldown passes', () => {
