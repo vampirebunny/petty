@@ -10,14 +10,33 @@ const volumes = [1, 0.9, 0.85, 0.8, 0.8];
 let players: AudioPlayer[] = [];
 let next = 0;
 let muted = false;
+let silenced = 0;
+const tokens: number[] = [];
 
-function arm(player: AudioPlayer): void {
+function stop(player: AudioPlayer): void {
+  try {
+    player.pause();
+  } catch {
+    // already stopped
+  }
+}
+
+function arm(player: AudioPlayer, index: number): void {
+  player.loop = false;
   player.shouldCorrectPitch = false;
-  void player.seekTo(0).catch(() => undefined);
   player.addListener('playbackStatusUpdate', (status) => {
-    if (status.didJustFinish) {
-      void player.seekTo(0).catch(() => undefined);
+    if (!status.didJustFinish) {
+      return;
     }
+    const ended = tokens[index] ?? 0;
+    // ExoPlayer leaves playWhenReady set after a clip ends. Seeking to 0 from that
+    // state starts the bloop again, so a collected coin keeps chiming. Pause instead.
+    queueMicrotask(() => {
+      if ((tokens[index] ?? 0) !== ended) {
+        return;
+      }
+      stop(player);
+    });
   });
 }
 
@@ -28,11 +47,8 @@ export function preloadBloops(): void {
   }
   try {
     void setAudioModeAsync({ playsInSilentMode: false, interruptionMode: 'mixWithOthers' });
-    players = Array.from({ length: poolSize }, () => {
-      const player = createAudioPlayer(clip);
-      arm(player);
-      return player;
-    });
+    players = Array.from({ length: poolSize }, () => createAudioPlayer(clip));
+    players.forEach(arm);
   } catch {
     players = [];
   }
@@ -44,9 +60,14 @@ export function playBloop(coinIndex: number): void {
     return;
   }
   try {
-    const player = players[next];
-    next = (next + 1) % players.length;
-    player.pause();
+    const index = next;
+    const player = players[index];
+    next = (index + 1) % players.length;
+    const mine = (tokens[index] ?? 0) + 1;
+    tokens[index] = mine;
+    const epoch = silenced;
+    stop(player);
+    player.loop = false;
     player.volume = volumes[coinIndex] ?? volumes[volumes.length - 1];
     player.shouldCorrectPitch = false;
     player.setPlaybackRate(playbackRate(1 + (Math.random() * 2 - 1) * 0.03));
@@ -54,6 +75,9 @@ export function playBloop(coinIndex: number): void {
       .seekTo(0)
       .catch(() => undefined)
       .then(() => {
+        if (tokens[index] !== mine || epoch !== silenced || muted || !soundEnabled()) {
+          return;
+        }
         try {
           player.play();
         } catch {
@@ -67,12 +91,9 @@ export function playBloop(coinIndex: number): void {
 
 export function silenceBloops(): void {
   muted = true;
+  silenced += 1;
   for (const player of players) {
-    try {
-      player.pause();
-    } catch {
-      // already stopped
-    }
+    stop(player);
   }
 }
 
@@ -91,4 +112,6 @@ export function releaseBloops(): void {
   players = [];
   next = 0;
   muted = false;
+  silenced += 1;
+  tokens.length = 0;
 }
