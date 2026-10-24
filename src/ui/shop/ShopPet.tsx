@@ -4,7 +4,7 @@ import { Canvas, Picture, Skia } from '@shopify/react-native-skia';
 import type { SkPicture } from '@shopify/react-native-skia';
 
 import { breedById, createWorld, frameDt, geomOf, spawnActor, takeSounds, todAt, update } from '../../actor';
-import { PET_SIZE, stageHeight, stageWidth } from '../../actor/geometry';
+import { PET_SIZE, reachOf, rearOf, stageHeight, stageWidth } from '../../actor/geometry';
 import type { Equipped } from '../../sim/types';
 import type { PetState } from '../../sim/types';
 import { drawPetOnly } from '../skia/world';
@@ -22,22 +22,33 @@ const noon = todAt(14);
 const frameMs = 1000 / 30;
 const hopMs = 700;
 
-function standingHeight(pet: PetState): number {
+// Body height on the 196px stage, and how much of the card width the pet may use.
+const bodyTarget = 164 / 196;
+const sideMargin = 0.92;
+
+function petExtent(pet: PetState): { height: number; halfWidth: number } {
   const breed = breedById(pet.breedId);
+  const travel = (shopPetScene.floor.xMax - shopPetScene.floor.xMin) / 2;
   if (!breed) {
-    return 120;
+    return { height: 120, halfWidth: 90 + travel };
   }
   const geom = geomOf(breed, pet.ageDays, pet.weight, pet.vitality);
+  const size = PET_SIZE * geom.sc;
   const body = geom.headR * 2.1 + geom.bodyH * 0.55 + Math.abs(geom.hipY);
-  return body * PET_SIZE * geom.sc * 0.95;
+  return {
+    height: body * size * 0.95,
+    // Nose or tail, whichever sticks out farther, plus the walk along the counter.
+    halfWidth: Math.max(reachOf(geom), rearOf(geom)) * size + travel,
+  };
 }
 
-// The stage camera keeps the feet on the rug and the body about 164px tall at the spec's 196px stage.
+// Feet stay on the rug. Tall pets keep the spec height. Long pets zoom out so the whole body stays on stage.
 function cameraFor(width: number, height: number, pet: PetState): { x: number; y: number; zoom: number } {
   const fit = Math.min(width / stageWidth, height / stageHeight);
-  const target = height * (164 / 196);
-  const worldHeight = standingHeight(pet);
-  const zoom = fit > 0 && worldHeight > 0 ? target / (worldHeight * fit) : 3.2;
+  const extent = petExtent(pet);
+  const zoomH = fit > 0 && extent.height > 0 ? (height * bodyTarget) / (extent.height * fit) : 3.2;
+  const zoomW = fit > 0 && extent.halfWidth > 0 ? (width * sideMargin) / (extent.halfWidth * 2 * fit) : zoomH;
+  const zoom = Math.min(zoomH, zoomW);
   const scale = Math.max(0.001, fit * zoom);
   // The stage clips its rounded bottom, so the paws sit above that edge.
   const feetInset = 18;
