@@ -1,5 +1,6 @@
 import type { SkCanvas } from '@shopify/react-native-skia';
 
+import { catTreeLayout, poleMint, polePink, poleSisal } from '../../actor/furnitureUse';
 import type { Prop } from '../../actor/scenes';
 import { stageWidth } from '../../actor/geometry';
 import type { Env } from './env';
@@ -138,6 +139,15 @@ function sisal(c: SkCanvas, x: number, top: number, bottom: number, w: number): 
   }
 }
 
+function scratchDust(c: SkCanvas, prop: Prop, env: Env): void {
+  for (const speck of env.scratches ?? []) {
+    if (speck.id !== prop.id || speck.a <= 0) {
+      continue;
+    }
+    circle(c, speck.x - prop.x, speck.y - prop.y, 1.7, poleSisal, 0.85 * speck.a);
+  }
+}
+
 function carpetPad(c: SkCanvas, x: number, y: number, w: number, color: string): void {
   rrect(c, x, y, w, 11, 5, darken(color, 0.15));
   rrect(c, x, y - 1, w, 8, 4, color);
@@ -145,28 +155,24 @@ function carpetPad(c: SkCanvas, x: number, y: number, w: number, color: string):
 }
 
 function drawCatTree(c: SkCanvas, prop: Prop, env: Env): void {
-  const col = prop.color ?? '#c9b3a0';
-  castShadow(c, env, 0, 2, 52, 7, 200);
-  carpetPad(c, -48, -12, 96, col);
-  sisal(c, -28, -112, -12, 12);
-  sisal(c, 26, -172, -60, 12);
-  // Cubby on the base.
-  rrect(c, -4, -64, 50, 52, 9, darken(col, 0.06));
-  rrect(c, -4, -64, 50, 8, 6, lighten(col, 0.14));
-  ellipse(c, 21, -34, 14, 15, '#3a2f2a');
-  ellipse(c, 21, -30, 12, 10, '#2a221e');
-  pawPrint(c, 37, -54, 3, lighten(col, 0.35), 0.9);
-  // Platforms.
-  carpetPad(c, -58, -122, 60, col);
-  carpetPad(c, -6, -182, 64, col);
-  // A bolster perch on top.
-  ellipse(c, 26, -185, 30, 7, darken(col, 0.2));
-  ellipse(c, 26, -187, 26, 5, lighten(col, 0.18));
-  // A pom toy dangling from the lower platform, swaying.
+  const mint = poleMint;
+  castShadow(c, env, 0, 4, 90, 8, 200);
+  carpetPad(c, catTreeLayout.pad.x0, catTreeLayout.pad.y, catTreeLayout.pad.x1 - catTreeLayout.pad.x0, mint);
+  for (const post of catTreeLayout.posts) {
+    sisal(c, post.x, post.yTop, post.yBottom, post.w);
+  }
+  for (const platform of catTreeLayout.platforms) {
+    carpetPad(c, platform.x0, platform.y, platform.x1 - platform.x0, mint);
+  }
+  const top = catTreeLayout.platforms[2];
+  ellipse(c, (top.x0 + top.x1) / 2, top.y - 4, 22, 6, darken(mint, 0.12));
+  ellipse(c, (top.x0 + top.x1) / 2, top.y - 6, 16, 4, '#fff6fb');
   const sway = env.reduced ? 0 : Math.sin(env.t * 1.9) * 6 + (petNear(env, prop, 0.6, 40).near > 0.5 ? Math.sin(env.t * 9) * 6 : 0);
-  line(c, -52, -112, -52 + sway, -82, '#8a8a8a', 1);
-  circle(c, -52 + sway, -78, 5.5, '#e2577a');
-  circle(c, -54 + sway, -80, 2, '#f6a3bd', 0.8);
+  const hang = catTreeLayout.platforms[1];
+  line(c, hang.x0 + 16, hang.y, hang.x0 + 16 + sway, hang.y + 28, '#8a8a8a', 1);
+  circle(c, hang.x0 + 16 + sway, hang.y + 32, 5.5, polePink);
+  circle(c, hang.x0 + 14 + sway, hang.y + 30, 2, '#fff6fb', 0.8);
+  scratchDust(c, prop, env);
 }
 
 function drawShelf(c: SkCanvas, prop: Prop): void {
@@ -257,19 +263,21 @@ function drawPlanter(c: SkCanvas, prop: Prop, env: Env): void {
 }
 
 function drawScratcher(c: SkCanvas, prop: Prop, env: Env): void {
-  const h = prop.h ?? 70;
-  const col = prop.color ?? '#c9b3a0';
-  castShadow(c, env, 0, 2, 22, 5, h);
-  carpetPad(c, -22, -10, 44, col);
-  sisal(c, 0, -h, -10, 13);
-  ellipse(c, 0, -h, 11, 4, darken(col, 0.1));
-  ellipse(c, 0, -h - 1, 10, 3, lighten(col, 0.15));
+  const h = prop.h ?? 74;
+  castShadow(c, env, 0, 2, 28, 6, h);
+  carpetPad(c, -34, -8, 68, poleMint);
+  sisal(c, 0, -h, -8, 16);
+  ellipse(c, 0, -h, 12, 4, darken(poleSisal, 0.08));
+  ellipse(c, 0, -h - 1, 10, 3, '#fff6fb');
+  const sway = env.reduced ? 0 : Math.sin(env.t * 1.6) * 3;
+  circle(c, 10 + sway, -h + 2, 5, polePink);
   const wear = petNear(env, prop, 1, 30).near;
   if (wear > 0.4) {
     for (let i = 0; i < 3; i += 1) {
       line(c, -4 + i * 3, -h * 0.6, -2 + i * 3, -h * 0.35, '#f2e6c8', 0.8, 0.8);
     }
   }
+  scratchDust(c, prop, env);
 }
 
 registerProp('garden', drawGarden);

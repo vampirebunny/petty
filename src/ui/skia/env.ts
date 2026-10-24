@@ -47,6 +47,8 @@ export type Env = {
   scene?: Scene;
   /** Stage position of the prop being drawn (props draw in local coordinates). */
   anchor?: { x: number; y: number };
+  /** Sisal dust from a scratch, in stage coordinates, tied to the piece id. */
+  scratches?: { id: string; x: number; y: number; a: number }[];
   /** Extra stage units on each side when the view is wider than the stage. */
   bleed?: number;
 };

@@ -98,6 +98,7 @@ function drawLeg(
   tilt = 0,
   widthScale = 1,
   pawScale = 1,
+  claws = 0,
 ): Paw {
   const bone = geom.L / 2;
   const knee = solveKnee(hip, target, bone, side);
@@ -122,6 +123,11 @@ function drawLeg(
   // A boot foot replaces the paw oval, which would poke out once the boot tilts with the shin.
   if (!boot) {
     fillOval(c, paw.x + 3, paw.y - 3, geom.pawRx * pawScale, geom.pawRy * pawScale, color);
+  }
+  if (claws > 0.4 && !boot) {
+    for (let i = -1; i <= 1; i += 1) {
+      strokeLine(c, paw.x + i * 2.2, paw.y - 1, paw.x + i * 2.2 + 0.6, paw.y + 4, '#6b5436', 0.9);
+    }
   }
   if (sock) {
     // Socks or tan lower legs: the lower half of the leg and the paw in the marking color.
@@ -236,7 +242,7 @@ export function drawActor(
   });
   const scale = frame.scale * (1 + 0.35 * pose.closeUp);
   const cat = breed.species === 'cat';
-  let theta = frame.theta - 0.35 * pose.rearUp + Math.sin(t * 9 + 1) * 0.03 * pose.rubSway;
+  let theta = frame.theta - 0.35 * pose.rearUp + Math.sin(t * 9 + 1) * 0.03 * pose.rubSway - (actor.furniture?.rig.rear ?? 0);
   let dy = frame.dy + geom.dLie * pose.side;
   if (posed) {
     theta += posed.pitch;
@@ -328,6 +334,11 @@ export function drawActor(
   }
 
   const footAt = (hip: Pt, fore: boolean, leg: 0 | 1 | 2 | 3, nearFore: boolean, kicker = false): Pt => {
+    const reach = actor.furniture?.rig.reach;
+    if (reach && fore) {
+      const paw = nearFore ? reach.near : reach.far;
+      return { x: hip.x + paw.x, y: hip.y + paw.y };
+    }
     const offset = leg === 1 || leg === 2 ? Math.PI : 0;
     const gait = blendedFoot(actor.gait, leg, actor.phase, geom.L, actor.share);
     const stand = { x: hip.x + (fore ? 3 : -1) + gait.x * pose.walk, y: gait.y * pose.walk };
@@ -504,6 +515,7 @@ export function drawActor(
         footTilt(spec.fore),
         near ? 1 : 1 - facingConfig.legNarrow,
         1 + facingConfig.pawDepth * norm,
+        spec.fore ? (actor.furniture?.rig.claws ?? 0) : 0,
       );
     // The back-view leg pass draws after the roll transform is restored.
     if (!rolled) {

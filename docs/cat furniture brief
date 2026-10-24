@@ -5,6 +5,18 @@ When the cat is idle and has a scratching pole or cat tree placed in the room, i
 
 Use the existing idle selector, procedural rig, prop placement/drag system and scene layering. Don’t rebuild them.
 
+Decisions (implemented)
+
+- Palette: sisal stays beige. The pad is mint and the pom is pink.
+- The scratch pole keeps height 74 and gains a base pad and a top pom. Paw targets clamp to the post.
+- The cat tree is a base pad, two posts, and three platforms staggered left and right. The top platform is about 200px above the floor contact, near the old tree height.
+- Stroke pull is 18% of the front leg. Jump reach is (110/58) × torso × age factor × agility, with kitten 0.75 and senior 0.85. Perch holds are 8–25s. Cooldown is 3 minutes.
+- Energy under 0.25 (the sim's 0–1 bar): a new use can only scratch. A cat already on a perch naps there until energy is back to 0.25 or the player interrupts. From 0.25 to 0.40, nap is one perch pose inside the normal hold, then the cat comes down.
+- Dragging a piece the cat is on does not move it. The drag starts the hop off or the path down.
+- Reduced motion does not start a furniture use. There is no dev menu.
+- Scratch audio is a no-op hook until a clip exists.
+- Condo, shelves, window perch, hammock, and scratch mat are not built. The affordance config is what they would plug into.
+
 1. Idle trigger
 Each time the idle selector picks a behavior, roll FURNITURE_IDLE_CHANCE = 0.05. This must be a config value, not hardcoded.
 On a hit, gather every affordance on placed furniture that is eligible right now (species, age, energy, cooldown, reachable). Pick one by weight.

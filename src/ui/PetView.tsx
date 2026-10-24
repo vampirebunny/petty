@@ -75,6 +75,7 @@ import type { PointAdd } from './cuddle/pointAdds';
 import type { Cue, PetState } from '../sim/types';
 import type { FurniturePiece, FurniturePlacement } from '../actor/furniture';
 import { applyFurniture, furnitureAt, movePiece, syncFurniture } from '../actor/furniture';
+import { askFurnitureOff, furnitureClaims } from '../actor/furnitureUse';
 import { skyAt, solarHour } from '../actor/sky';
 import { drawWorld } from './skia/world';
 
@@ -573,7 +574,18 @@ export function PetView({
       greetingIds: () => greetingIds(breedById(petRef.current.breedId)?.species === 'cat' ? 'cat' : 'dog'),
       label: () => worldRef.current.greetLabel ?? '',
       furnitureAt: (x, y) => (travelRef.current ? null : furnitureAt(worldRef.current.scene, x, y)),
-      moveFurniture: (pieceId, x, y) => (travelRef.current ? null : movePiece(worldRef.current.scene, pieceId, x, y)),
+      moveFurniture: (pieceId, x, y) => {
+        if (travelRef.current) {
+          return null;
+        }
+        const world = worldRef.current;
+        const using = world.actors.find((actor) => furnitureClaims(actor, pieceId));
+        if (using?.furniture) {
+          askFurnitureOff(using);
+          return null;
+        }
+        return movePiece(world.scene, pieceId, x, y);
+      },
       invite: (kind) => {
         const actor = worldRef.current.actors[0];
         if (!actor) {

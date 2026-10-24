@@ -22,6 +22,7 @@ import { inactivePointer } from '../input/pointer';
 import { toyAllows } from '../items/playRules';
 import type { PlayBehavior } from '../items/playRules';
 import { bodyFrame, depthScale, geomOf, headFaceOf, PET_SIZE, reachOf, speedMax, stageWidth, travelGateX, xRangeOf } from './geometry';
+import { askFurnitureOff, furnitureBusy, stepFurniture, tryFurnitureIdle } from './furnitureUse';
 import { applyGesture, gestureOwns, gestureWantsCamera } from './gestures';
 import { GREET, greetClip, motionMods, planGreeting, scriptFor } from './greetings';
 import { BIRD_SPECIES, spawnBirds, stepBirds } from './birds';
@@ -78,6 +79,43 @@ const idleWeight: Record<IdleMode, number> = { still: 3, pant: 2, purr: 2, nap: 
 const faceDeadzone = 8;
 
 const defaultStats = { stamina: 0.5, agility: 0.5, boldness: 0.5, obedience: 0.5 };
+
+type FurnitureAfter = {
+  task?: { task: UserTask; roll: number; drop?: Vec; flick?: { vx: number; vy: number; vz: number } };
+  greet?: GreetPlan;
+};
+const furnitureAfter = new Map<string, FurnitureAfter>();
+
+function finishFurniture(world: World, actor: Actor): void {
+  actor.furniture = null;
+  actor.z = 0;
+  actor.vz = 0;
+  const after = furnitureAfter.get(actor.id);
+  furnitureAfter.delete(actor.id);
+  if (after?.greet) {
+    beginGreeting(world, actor, after.greet);
+    return;
+  }
+  if (after?.task) {
+    startUserTask(world, actor, after.task.task, after.task.roll, after.task.drop, after.task.flick);
+    return;
+  }
+  if (!actor.direction && actor.task.type === 'idle') {
+    nextIdle(world, actor);
+  }
+}
+
+function holdFurniture(actor: Actor, after: FurnitureAfter): boolean {
+  if (!actor.furniture || !furnitureBusy(actor)) {
+    if (actor.furniture) {
+      actor.furniture = null;
+    }
+    return false;
+  }
+  askFurnitureOff(actor);
+  furnitureAfter.set(actor.id, after);
+  return true;
+}
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
@@ -262,6 +300,7 @@ export function spawnActor(source: ActorSource, at?: Vec): Actor {
     pose: defaultPose(),
     task: taskOf(source.asleep ? 'sleep' : 'idle', source.asleep ? 'sleeping' : ''),
     idle: idleOf(),
+    furniture: null,
     phase: 0,
     panPh: 0,
     chewPh: 0,
@@ -328,6 +367,13 @@ export function setDirection(actor: Actor, direction: Direction | null): void {
     actor.idle.birdId = undefined;
     actor.idle.arrived = true;
   }
+  if (actor.furniture) {
+    if (furnitureBusy(actor)) {
+      askFurnitureOff(actor);
+    } else {
+      actor.furniture = null;
+    }
+  }
   if (!direction) {
     return;
   }
@@ -372,6 +418,7 @@ export function createWorld(actors: Actor[], seed = 1, scene: Scene = scenes.liv
     restLatched: false,
     glance: null,
     liftedId: null,
+    furnitureUsed: {},
     squishId: null,
     squishAt: 0,
     pendingMeals: 0,
@@ -1051,6 +1098,9 @@ function nextIdle(world: World, actor: Actor): void {
   if (tryBirdStalk(world, actor)) {
     return;
   }
+  if (tryFurnitureIdle(world, actor)) {
+    return;
+  }
   const options = (breed?.species === 'cat' ? ['still', 'purr', 'nap', 'walk'] : ['still', 'pant', 'nap', 'walk']).filter(
     (mode) =>
       mode !== actor.idle.mode &&
@@ -1227,6 +1277,9 @@ export function startUserTask(
 ): boolean {
   if (!actor.guest) {
     abortParkHello(world);
+  }
+  if (task !== 'idle' && task !== 'wake' && holdFurniture(actor, { task: { task, roll, drop, flick } })) {
+    return true;
   }
   if (actor.collapseLeft > 0 && task !== 'wake') {
     return false;
@@ -2049,6 +2102,9 @@ export function beginGreeting(world: World, actor: Actor, plan: GreetPlan): void
   if (!actor.guest) {
     abortParkHello(world);
   }
+  if (holdFurniture(actor, { greet: plan })) {
+    return;
+  }
   const sleeping = actor.asleep || actor.task.type === 'sleep';
   if (sleeping) {
     actor.asleep = false;
@@ -2176,7 +2232,7 @@ function updateActor(world: World, actor: Actor, dt: number): void {
   const mods = modsOf(actor, profile);
   actor.land = Math.max(0, actor.land - dt / landSeconds);
   // Greeting hops and the small play pops still integrate here. A phase jump owns its own arc.
-  if (!actor.jump && (actor.z > 0 || actor.vz !== 0)) {
+  if (!actor.jump && !actor.furniture && (actor.z > 0 || actor.vz !== 0)) {
     actor.vz -= gravity * dt;
     actor.z += actor.vz * dt;
     if (actor.z <= 0) {
@@ -2248,6 +2304,16 @@ function updateActor(world: World, actor: Actor, dt: number): void {
     move = steered.move;
     vmax = steered.vmax;
     wagRate = steered.wagRate;
+  } else if (actor.furniture) {
+    const stepped = stepFurniture(world, actor, dt, targets);
+    if (stepped.done) {
+      finishFurniture(world, actor);
+    } else {
+      move = stepped.move;
+      vmax = stepped.vmax;
+      faceCamera = stepped.faceCamera;
+      sideLock = stepped.sideLock;
+    }
   } else if (actor.direction && actor.task.type !== 'sleep' && actor.task.type !== 'eat') {
     const directed = steerDirection(actor, limit, targets, world.reducedMotion);
     move = directed.move;
@@ -3009,6 +3075,12 @@ function updateActor(world: World, actor: Actor, dt: number): void {
   const nextX = actor.x + actor.vx * dt;
   actor.x = traveling ? nextX : clamp(nextX, xClampLo, xClampHi);
   actor.y = clamp(actor.y + actor.vy * dt, floor.yMin, floor.yMax);
+  if (actor.furniture?.pin) {
+    actor.x = clamp(actor.furniture.pin.x, xClampLo, xClampHi);
+    actor.z = Math.max(0, actor.furniture.pin.z);
+    actor.vx = 0;
+    actor.vy = 0;
+  }
   actor.speed = Math.hypot(actor.vx, actor.vy);
   if (actor.speed > bellSpeed) {
     ringBell(world, actor);

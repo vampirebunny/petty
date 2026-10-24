@@ -37,10 +37,10 @@ export function footprint(prop: Prop): number {
     pond: 78,
     bush: 34,
     fence: 150,
-    catTree: 48,
+    catTree: 96,
     dogHouse: 46,
     planter: 30,
-    scratcher: 22,
+    scratcher: 36,
     pumpkin: 14,
     catioPost: 16,
   };

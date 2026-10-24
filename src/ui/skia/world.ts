@@ -140,9 +140,17 @@ export function drawWorld(
     }
   }
   const feeding: Env['feeding'] = [];
+  const scratches: NonNullable<Env['scratches']> = [];
   for (const actor of world.actors) {
     if (actor.task.type === 'eat' && actor.task.stage === 'eating' && actor.task.poi) {
       feeding.push({ x: actor.task.poi.x, y: actor.task.poi.y, kind: actor.task.kind === 'drink' ? 'drink' : 'eat' });
+    }
+    const use = actor.furniture;
+    if (!use) {
+      continue;
+    }
+    for (const speck of use.rig.specks) {
+      scratches.push({ id: use.pieceId, x: speck.x, y: speck.y, a: 1 - speck.age / Math.max(speck.life, 0.01) });
     }
   }
   const sky = atmosphere?.sky === null ? undefined : atmosphere?.sky ?? skyAt(atmosphere?.date ?? new Date());
@@ -163,6 +171,7 @@ export function drawWorld(
     sky,
     wind: reduced ? baseWind : baseWind * (0.75 + 0.25 * noise(world.t * 0.1, 3)) + Math.sign(baseWind || 1) * gust,
     contacts: contactsOf(world),
+    scratches,
     scene,
     bleed,
   };

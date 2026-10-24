@@ -502,6 +502,8 @@ export type Actor = {
   pose: Pose;
   task: Task;
   idle: Idle;
+  // Scratch pole or cat tree use. Null while the cat is on a normal idle.
+  furniture: import('./furnitureUse').FurnitureRun | null;
   phase: number;
   panPh: number;
   chewPh: number;
@@ -656,6 +658,8 @@ export type World = {
   restLatched: boolean;
   glance: { face: 1 | -1; left: number } | null;
   liftedId: string | null;
+  // World time when a furniture affordance may be picked again, keyed by actor and affordance.
+  furnitureUsed?: Record<string, number>;
   squishId: string | null;
   squishAt: number;
   pendingMeals: number;

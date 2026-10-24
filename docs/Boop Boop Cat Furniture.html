@@ -1,0 +1,612 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Boop Boop Cat Furniture</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@400;600;700;800&display=swap">
+<style>
+/* Layout: game stage on the left with trigger buttons under it, a tuning panel on the right, numbers-to-match table below. Cotton candy, glossy puffy controls. */
+:root{
+  --bg:#FFF3F9; --surface:#FFFFFF; --ink:#3B2A47; --muted:#86739A; --line:#F3DCEA;
+  --chip:#FBE9F3; --chip-on:#3B2A47; --chip-on-ink:#FFFFFF; --hit:#D8357F; --ring:#FFD2E8;
+  --pink:#FF7EB9; --pink-hi:#FFB8DA; --pink-edge:#D9558F;
+  --lilac:#A98BFF; --lilac-hi:#D6C9FF; --lilac-edge:#7A5CDB;
+  --mint:#3FC7A4; --mint-hi:#A6F0DC; --mint-edge:#2A9A7E;
+  --peach:#FFA05E; --peach-hi:#FFD2AC; --peach-edge:#D8742F;
+  --display:"Baloo 2","Trebuchet MS",system-ui,sans-serif;
+  --body:"Nunito",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#1D1524; --surface:#281D31; --ink:#F7EAF6; --muted:#BBA6C9; --line:#3A2C45;
+    --chip:#33263D; --chip-on:#FFB8DA; --chip-on-ink:#2A1C30; --hit:#FF8CC2; --ring:#4A3456;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#1D1524; --surface:#281D31; --ink:#F7EAF6; --muted:#BBA6C9; --line:#3A2C45;
+  --chip:#33263D; --chip-on:#FFB8DA; --chip-on-ink:#2A1C30; --hit:#FF8CC2; --ring:#4A3456;
+  color-scheme:dark;
+}
+html,body{background:var(--bg);color:var(--ink)}
+body{font-family:var(--body);font-size:15px;line-height:1.5}
+.wrap{max-width:1160px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:22px 48px;display:flex;flex-direction:column;gap:22px}
+.top{display:flex;gap:16px;align-items:center}
+.paw{flex:none;width:54px;height:54px;border-radius:18px;display:grid;place-items:center;background:linear-gradient(180deg,var(--pink-hi),var(--pink));box-shadow:inset 0 2px 0 rgba(255,255,255,.6),0 4px 0 var(--pink-edge)}
+.eyebrow{margin:0;font:800 12px/1.2 var(--body);letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+h1{margin:2px 0 2px;font:800 clamp(28px,4vw,38px)/1.05 var(--display);text-wrap:balance}
+.lede{margin:0;color:var(--muted);max-width:66ch}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:18px;align-items:start}
+@media (max-width:880px){.layout{grid-template-columns:1fr}}
+.stagecol{display:flex;flex-direction:column;gap:12px;min-width:0}
+.stage{border-radius:26px;overflow:hidden;box-shadow:0 0 0 4px var(--ring),0 14px 30px -18px rgba(120,40,90,.45);background:#FBD0E6}
+canvas{display:block;width:100%;height:auto;aspect-ratio:3/2;max-width:100%}
+.status{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-weight:700}
+.live{display:inline-flex;align-items:center;gap:8px;min-width:0}
+.live i{width:9px;height:9px;border-radius:50%;background:var(--mint);box-shadow:0 0 0 3px color-mix(in srgb,var(--mint) 25%,transparent)}
+#phase{overflow-wrap:anywhere}
+.pill{font:800 12px/1 var(--body);letter-spacing:.04em;padding:6px 10px;border-radius:999px;background:var(--chip);color:var(--muted)}
+.actions{display:flex;flex-wrap:wrap;gap:10px}
+.btn{position:relative;font:700 15px/1 var(--display);color:#fff;border:0;border-radius:18px;padding:12px 16px 12px;cursor:pointer;
+  background:linear-gradient(180deg,var(--hi) 0%,var(--base) 62%);
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.65),inset 0 -3px 0 rgba(0,0,0,.1),0 4px 0 var(--edge),0 9px 14px -7px var(--edge);
+  text-shadow:0 1px 0 rgba(0,0,0,.2);transition:transform .08s,box-shadow .08s}
+.btn::after{content:"";position:absolute;left:12%;right:12%;top:3px;height:42%;border-radius:14px;background:linear-gradient(180deg,rgba(255,255,255,.55),rgba(255,255,255,0));pointer-events:none}
+.btn:active{transform:translateY(3px);box-shadow:inset 0 2px 0 rgba(255,255,255,.6),inset 0 -2px 0 rgba(0,0,0,.1),0 1px 0 var(--edge),0 3px 6px -4px var(--edge)}
+.btn:focus-visible,.seg button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
+.b-pink{--hi:var(--pink-hi);--base:var(--pink);--edge:var(--pink-edge)}
+.b-lilac{--hi:var(--lilac-hi);--base:var(--lilac);--edge:var(--lilac-edge)}
+.b-mint{--hi:var(--mint-hi);--base:var(--mint);--edge:var(--mint-edge)}
+.b-peach{--hi:var(--peach-hi);--base:var(--peach);--edge:var(--peach-edge)}
+.panel{background:var(--surface);border-radius:22px;padding:18px;display:flex;flex-direction:column;gap:18px;box-shadow:0 0 0 1px var(--line)}
+.group{display:flex;flex-direction:column;gap:8px}
+.group h3{margin:0;font:800 11px/1.2 var(--body);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.row{display:flex;flex-direction:column;gap:6px}
+.row>span{font-weight:700;font-size:13px}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{font:700 13px/1 var(--body);padding:8px 12px;border-radius:999px;border:0;background:var(--chip);color:var(--ink);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--chip-on);color:var(--chip-on-ink)}
+.switch{display:flex;align-items:center;justify-content:space-between;gap:10px;font-weight:700;font-size:14px;cursor:pointer}
+.switch input{appearance:none;-webkit-appearance:none;flex:none;width:42px;height:24px;border-radius:999px;background:var(--chip);position:relative;cursor:pointer;transition:background .15s;margin:0}
+.switch input::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:var(--surface);box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .15s}
+.switch input:checked{background:var(--pink)}
+.switch input:checked::after{transform:translateX(18px)}
+input[type=range]{width:100%;accent-color:var(--pink)}
+.scale{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);font-weight:700}
+select{font:700 14px var(--body);color:var(--ink);background:var(--chip);border:0;border-radius:12px;padding:9px 10px}
+#log{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;font:12px/1.35 var(--mono);font-variant-numeric:tabular-nums;color:var(--muted);min-height:96px}
+#log li.hit{color:var(--hit);font-weight:700}
+#log b{font-weight:400;opacity:.7;margin-right:6px}
+.notes{display:flex;flex-direction:column;gap:12px}
+.notes h2{margin:0;font:800 24px/1.1 var(--display)}
+.notes p{margin:0;color:var(--muted);max-width:70ch}
+.tablewrap{overflow-x:auto;border-radius:18px;box-shadow:0 0 0 1px var(--line);background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:640px;font-size:14px}
+th,td{text-align:left;vertical-align:top;padding:11px 14px;border-bottom:1px solid var(--line)}
+tr:last-child td{border-bottom:0}
+th{font:800 11px/1.2 var(--body);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+td:first-child{font-weight:800;white-space:nowrap}
+td .num{font-variant-numeric:tabular-nums}
+.deltas{display:flex;flex-direction:column;gap:6px;margin:0;padding:0;list-style:none}
+.deltas li{padding:10px 14px;border-radius:14px;background:var(--chip);font-size:14px}
+.deltas strong{font-weight:800}
+@media (prefers-reduced-motion: reduce){.btn,.switch input,.switch input::after{transition:none}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="paw" aria-hidden="true">
+      <svg width="30" height="30" viewBox="0 0 32 32"><g fill="#fff"><ellipse cx="16" cy="21" rx="7.5" ry="6.2"/><circle cx="7.5" cy="13" r="3.2"/><circle cx="12.6" cy="8" r="3.2"/><circle cx="19.4" cy="8" r="3.2"/><circle cx="24.5" cy="13" r="3.2"/></g></svg>
+    </div>
+    <div>
+      <p class="eyebrow">Boop Boop · motion reference for Cursor</p>
+      <h1>Cat furniture</h1>
+      <p class="lede">A procedural cat using the scratching pole and the cat tree. Trigger each behavior below, switch on slow motion to study the poses, and turn on the rig overlay to see paw targets and the jump graph.</p>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="stagecol">
+      <div class="stage"><canvas id="scene" width="900" height="600" role="img" aria-label="Side view of a room with a cat, a scratching pole and a cat tree"></canvas></div>
+      <div class="status">
+        <span class="live"><i aria-hidden="true"></i><span id="phase">Idle</span></span>
+        <span class="pill" id="surf">On the floor</span>
+      </div>
+      <div class="actions">
+        <button class="btn b-pink" data-act="pole">Scratch pole</button>
+        <button class="btn b-lilac" data-act="tree">Visit cat tree</button>
+        <button class="btn b-lilac" data-act="climb">Climb the post</button>
+        <button class="btn b-mint" data-act="pad">Scratch base pad</button>
+        <button class="btn b-peach" data-act="ball">Toss ball (interrupt)</button>
+      </div>
+    </section>
+
+    <aside class="panel" aria-label="Demo settings">
+      <div class="group">
+        <h3>Pet</h3>
+        <div class="row"><span>Age</span>
+          <div class="seg" id="age"><button data-v="kitten" aria-pressed="false">Kitten</button><button data-v="adult" aria-pressed="true">Adult</button><button data-v="senior" aria-pressed="false">Senior</button></div></div>
+        <div class="row"><span>Coat</span>
+          <div class="seg" id="coat"><button data-v="ginger" aria-pressed="true">Ginger</button><button data-v="grey" aria-pressed="false">Grey</button><button data-v="tux" aria-pressed="false">Tuxedo</button><button data-v="cream" aria-pressed="false">Cream</button></div></div>
+        <div class="row"><span>Weight index</span>
+          <input type="range" id="weight" min="-1" max="1" step="0.1" value="0" aria-label="Weight index">
+          <div class="scale"><span>Under</span><span>Healthy</span><span>Over</span></div></div>
+        <div class="row"><span>Energy</span>
+          <div class="seg" id="energy"><button data-v="normal" aria-pressed="true">Normal</button><button data-v="low" aria-pressed="false">Low (under 25)</button></div></div>
+      </div>
+
+      <div class="group">
+        <h3>Idle roll</h3>
+        <label class="switch">Auto idle <input type="checkbox" id="idle" checked></label>
+        <div class="row"><span>Furniture chance per idle decision</span>
+          <div class="seg" id="chance"><button data-v="0.05" aria-pressed="true">5%</button><button data-v="0.25" aria-pressed="false">25%</button><button data-v="1" aria-pressed="false">100% (debug)</button></div></div>
+        <ul id="log" aria-live="polite"></ul>
+      </div>
+
+      <div class="group">
+        <h3>Perch behavior</h3>
+        <select id="perch" aria-label="Perch behavior">
+          <option value="">Random (weighted)</option>
+          <option value="loaf">Loaf and look around</option>
+          <option value="sit">Sit and look around</option>
+          <option value="groom">Groom a paw</option>
+          <option value="tail">Tail dangle</option>
+          <option value="paw">Paw dangle</option>
+          <option value="survey">Survey (top platform)</option>
+          <option value="nap">Nap</option>
+        </select>
+      </div>
+
+      <div class="group">
+        <h3>View</h3>
+        <label class="switch">Slow motion (¼ speed) <input type="checkbox" id="slow"></label>
+        <label class="switch">Rig overlay <input type="checkbox" id="rig"></label>
+        <label class="switch">Scratch sound <input type="checkbox" id="sound"></label>
+      </div>
+    </aside>
+  </main>
+
+  <section class="notes">
+    <h2>Numbers to match</h2>
+    <p>Every length scales with the cat's own body, so the same code works for every breed, age and weight. Scene units: the adult torso is 58 px and the room is 900 × 600.</p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Behavior</th><th>Key poses</th><th>Timing and sizes</th></tr></thead>
+        <tbody>
+          <tr><td>Vertical scratch</td><td>Torso pivots on the hips to 70° (kitten 60°, senior 55°). Front paws on the pole, one 7 px lower than the other. Tail low on the floor, tip curled up. Side view head, eyes half closed, ears back.</td><td class="num">Rear up 400 ms. Strokes alternate half a cycle apart: drag down for 60% of the cycle, lift and reset for 40%. 2.5 Hz adult, 4 Hz kitten, 2 Hz senior. Claws show only while dragging. 3 fiber specks per stroke. Drop 300 ms, then a front stretch half the time.</td></tr>
+          <tr><td>Horizontal scratch</td><td>Downward dog: torso tipped 19° nose down, hips high, tail up. Paws drag backward toward the body.</td><td class="num">Pull 30% of front leg length, 3–6 strokes.</td></tr>
+          <tr><td>Jump up</td><td>Crouch with hips low, eyes on the target. Launch: body stretches 10%, hind legs straight, front legs forward. In the air the body angle follows the arc. Front paws land first.</td><td class="num">Crouch 300–600 ms with a 6 Hz butt wiggle. Launch 120 ms. Air 380 ms, apex about 16% above the target. Hind paws land 80 ms after the front. Squash 5%.</td></tr>
+          <tr><td>Jump down</td><td>Peer over the edge with the chest low and head tipped down. Small hop with front paws reaching down.</td><td class="num">Peer 220 ms plus a 300 ms look. Air 340 ms. Squash 8%.</td></tr>
+          <tr><td>Post climb</td><td>Body vertical, half a body width out from the post. Inchworm: near paw reaches, far paw reaches, then both hind feet push. Knees stick out away from the post.</td><td class="num">Step 75% of front leg length per 490 ms cycle. Hook over 220 ms, three 90 ms hind scrambles, pull up 380 ms.</td></tr>
+          <tr><td>Perch</td><td>Loaf, sit, groom, tail dangle, paw dangle, survey (top only), nap (low energy). Head turns pass through the front view.</td><td class="num">Demo holds 5–9 s. Head turn 350 ms (survey 700 ms).</td></tr>
+          <tr><td>Interrupt</td><td>Toss the ball during any behavior: the cat drops from a rear-up, hops off a post mid-climb, or walks down the tree by jumping, then runs.</td><td class="num">Checks happen between phases. A jump in the air always finishes.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <h2>Changed from the brief</h2>
+    <ul class="deltas">
+      <li><strong>Stroke pull is 18% of front leg length,</strong> up from 15%. At phone size 15% barely reads.</li>
+      <li><strong>Jump range is 110 px × age factor,</strong> with kitten 0.75 and senior 0.85 (the brief said 0.6 and 0.5). The lower values left the senior unable to reach even the lowest platform. The kitten still can't make the first jump, so it climbs the post.</li>
+      <li><strong>Perch holds are 5–9 s and the furniture cooldown is 20 s</strong> so the demo moves along. Keep 8–25 s and 3 minutes in the app.</li>
+      <li><strong>Platforms are staggered left and right</strong> so every jump has a clear arc. Future trees and shelves need the same zig-zag or the jump graph has no edges.</li>
+    </ul>
+  </section>
+</div>
+
+<script>
+(()=>{
+const cv=document.getElementById('scene'),ctx=cv.getContext('2d');
+const W=900,H=600;let DPR=1;
+function fit(){DPR=Math.min(2,window.devicePixelRatio||1);cv.width=W*DPR;cv.height=H*DPR;}
+fit();addEventListener('resize',fit);
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),lerp=(a,b,t)=>a+(b-a)*t;
+const ease={io:t=>t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2,out:t=>1-Math.pow(1-t,3),in:t=>t*t*t};
+const rnd=(a,b)=>a+Math.random()*(b-a),pick=a=>a[Math.floor(Math.random()*a.length)];
+const TAU=Math.PI*2;
+function rot(x,y,a){return[x*Math.cos(a)+y*Math.sin(a),-x*Math.sin(a)+y*Math.cos(a)];}
+function weighted(arr){const tot=arr.reduce((s,a)=>s+a.w,0);let r=Math.random()*tot;for(const a of arr){if((r-=a.w)<=0)return a;}return arr[arr.length-1];}
+
+/* ---------- world ---------- */
+const FLOOR=520;
+const PAD={x0:540,x1:748,y:506};
+const POLE={x:200,w:30,yb:512,yt:292};
+const POSTS=[{id:'postL',x:572,w:22,yb:506,yt:345},{id:'postR',x:702,w:22,yb:506,yt:258}];
+const SURF=[{id:'floor',x0:40,x1:860,y:FLOOR,floor:true},{id:'p1',x0:640,x1:748,y:420},{id:'p2',x0:522,x1:620,y:345},{id:'p3',x0:628,x1:738,y:258,top:true}];
+const SID=Object.fromEntries(SURF.map(s=>[s.id,s]));
+const NAMES={floor:'the floor',p1:'the low platform',p2:'the middle platform',p3:'the top perch'};
+const name=s=>NAMES[s.id];
+function groundY(x){const r=6;if(x>PAD.x0+r&&x<PAD.x1-r)return PAD.y;if(x<PAD.x0-r||x>PAD.x1+r)return FLOOR;const t=x<=PAD.x0+r?(x-(PAD.x0-r))/(2*r):1-(x-(PAD.x1-r))/(2*r);return lerp(FLOOR,PAD.y,clamp(t,0,1));}
+function surfY(s,x){return s.floor?groundY(x):s.y;}
+
+/* ---------- cat ---------- */
+const AGES={
+  kitten:{S:.72,head:1.28,jump:.75,drop:110,reach:.7,rate:4,strokes:[5,9],rearA:1.05,low:false,walk:1.05},
+  adult:{S:1,head:1,jump:1,drop:200,reach:1,rate:2.5,strokes:[4,8],rearA:1.22,low:false,walk:1},
+  senior:{S:.98,head:1,jump:.85,drop:100,reach:.85,rate:2,strokes:[2,4],rearA:.96,low:true,walk:.8}
+};
+const COATS={
+  ginger:{fur:'#F4A259',dark:'#D27F3E',light:'#FFE6C9',iris:'#78C27E',stripes:true},
+  grey:{fur:'#A9AEC1',dark:'#7B8199',light:'#EEF0F7',iris:'#F2B63C',stripes:true},
+  tux:{fur:'#3F3851',dark:'#2B2638',light:'#F8F2F8',iris:'#9BD86B',stripes:false,paw:'#F8F2F8',chest:true},
+  cream:{fur:'#F5DEC2',dark:'#DDBB95',light:'#FFF7EC',iris:'#5FA8E8',stripes:false}
+};
+const cat={age:'adult',coat:'ginger',weight:0,energy:'normal',pose:null,surface:SID.floor,mode:'stand',phase:'Idle',anchor:380};
+function D(){const A=AGES[cat.age],S=A.S,w=1+cat.weight*.22;return{S,L:58*S,T:30*S*w,fu:17*S,fl:17*S,hu:19*S,hl:19*S,R:18*S*A.head,hipH:34.2*S};}
+
+const LEGS=['hn','hf','fn','ff'];
+function P(o={}){const p={x:0,y:0,a:0,f:1,st:1,arch:0,sq:0,feet:{hn:[0,0],hf:[0,0],fn:[0,0],ff:[0,0]},bend:{hn:0,hf:0,fn:0,ff:0},claws:{fn:0,ff:0},head:{yaw:.45,lid:0,tilt:0,ear:0,dy:0},tail:{th:1.1,curl:.6,sw:.25}};
+  for(const k in o){if(o[k]&&typeof o[k]==='object'&&!Array.isArray(o[k]))Object.assign(p[k],o[k]);else p[k]=o[k];}return p;}
+function lp(A,B,t){const o=P();for(const k of['x','y','a','st','arch','sq'])o[k]=lerp(A[k],B[k],t);o.f=t<.5?A.f:B.f;
+  for(const l of LEGS){o.feet[l]=[lerp(A.feet[l][0],B.feet[l][0],t),lerp(A.feet[l][1],B.feet[l][1],t)];o.bend[l]=t<.5?A.bend[l]:B.bend[l];}
+  o.claws.fn=t<.5?A.claws.fn:B.claws.fn;o.claws.ff=t<.5?A.claws.ff:B.claws.ff;
+  for(const k in o.head)o.head[k]=lerp(A.head[k],B.head[k],t);for(const k in o.tail)o.tail[k]=lerp(A.tail[k],B.tail[k],t);return o;}
+const clone=p=>lp(p,p,0);
+function shoulderOf(p){const d=D();return[p.x+p.f*Math.cos(p.a)*d.L*p.st,p.y-Math.sin(p.a)*d.L*p.st];}
+function centerOf(p=cat.pose){const d=D();return p.x+p.f*Math.cos(p.a)*d.L*p.st/2;}
+function headWorld(p){const d=D(),sh=shoulderOf(p),o=rot(10*d.S,-14*d.S,p.a*.55);return[sh[0]+p.f*o[0],sh[1]+o[1]+p.head.dy*d.S];}
+
+/* ---------- poses ---------- */
+function standPose(cx,gy,f,st=1){const d=D(),hx=cx-f*d.L*st/2,sx=cx+f*d.L*st/2,hy=gy-d.hipH;
+  return P({x:hx,y:hy,f,st,feet:{hn:[hx+f*3*d.S,gy],hf:[hx-f*4*d.S,gy],fn:[sx+f*2*d.S,gy],ff:[sx-f*4*d.S,gy]}});}
+function sitPose(cx,gy,f){const d=D(),a=.62,st=.72,hx=cx-f*d.L*.25,hy=gy-d.T*.42,sx=hx+f*Math.cos(a)*d.L*st;
+  return P({x:hx,y:hy,a,f,st,feet:{fn:[sx+f*3*d.S,gy],ff:[sx-f*2*d.S,gy],hn:[hx+f*14*d.S,gy],hf:[hx+f*10*d.S,gy]},bend:{hn:1,hf:1},tail:{th:-.12,curl:1.6,sw:.1}});}
+function loafPose(cx,gy,f){const d=D(),st=.95,hx=cx-f*d.L*st/2,hy=gy-d.T*.5,sx=hx+f*d.L*st;
+  return P({x:hx,y:hy,a:.02,f,st,feet:{fn:[sx+f*5*d.S,gy-1],ff:[sx+f*1*d.S,gy-1],hn:[hx+f*9*d.S,gy-1],hf:[hx+f*5*d.S,gy-1]},bend:{hn:1,hf:1},head:{yaw:.5,dy:3},tail:{th:-.05,curl:.45,sw:.15}});}
+function stretchPose(cx,gy,f,claws=0){const d=D(),a=-.33,hx=cx-f*d.L/2,hy=gy-d.hipH-3*d.S,sx=hx+f*Math.cos(a)*d.L,leg=d.fu+d.fl;
+  return P({x:hx,y:hy,a,f,feet:{hn:[hx+f*3*d.S,gy],hf:[hx-f*3*d.S,gy],fn:[sx+f*leg*.8,gy],ff:[sx+f*leg*.65,gy]},claws:{fn:claws,ff:claws},head:{yaw:.85,lid:.65,tilt:.15,ear:.3},tail:{th:1.35,curl:.3,sw:.2}});}
+function rearPose(hipX,gy,f,ang,surfX,reach){const d=D(),hy=gy-d.hipH*.95,sh=[hipX+f*Math.cos(ang)*d.L,hy-Math.sin(ang)*d.L],leg=d.fu+d.fl;
+  const top=sh[1]+d.T*.1-leg*(.6+.25*reach);
+  return P({x:hipX,y:hy,a:ang,f,feet:{hn:[hipX+f*6*d.S,gy],hf:[hipX-f*2*d.S,gy],fn:[surfX-f*1.5*d.S,top],ff:[surfX-f*1.5*d.S,top+7*d.S]},head:{yaw:1,lid:.5,ear:.7,tilt:-.1},tail:{th:-.55,curl:.75,sw:.12}});}
+function crouchPose(cx,gy,f){const d=D(),p=standPose(cx,gy,f);p.y+=7*d.S;p.a=.1;p.feet.hn[0]+=f*5*d.S;p.feet.hf[0]+=f*5*d.S;
+  p.head={yaw:1,lid:0,tilt:-.35,ear:0,dy:0};p.tail={th:.25,curl:.45,sw:.15};p.sq=.03;return p;}
+function launchPose(cx,gy,f,la){const d=D(),s=standPose(cx,gy,f),p=clone(s);p.x+=f*8*d.S;p.y-=8*d.S;p.a=la;p.st=1.1;
+  const sh=shoulderOf(p),leg=d.fu+d.fl;p.feet.fn=[sh[0]+f*.55*leg,sh[1]+.25*leg];p.feet.ff=[sh[0]+f*.42*leg,sh[1]+.32*leg];
+  p.head={yaw:1,lid:0,tilt:-la*.4,ear:.1,dy:0};p.tail={th:.15,curl:.2,sw:0};return p;}
+function peerPose(cx,gy,f){const d=D(),p=standPose(cx,gy,f);p.a=-.22;p.feet.fn[0]+=f*3*d.S;p.head={yaw:1,lid:0,tilt:.5,ear:0,dy:0};p.tail={th:.6,curl:.3,sw:.2};return p;}
+function airPose(c,f,a,k,up){const d=D(),st=1+.1*Math.sin(k*Math.PI);
+  const hx=c[0]-f*Math.cos(a)*d.L*st/2,hy=c[1]+Math.sin(a)*d.L*st/2,sx=c[0]+f*Math.cos(a)*d.L*st/2,sy=c[1]-Math.sin(a)*d.L*st/2;
+  const fl=d.fu+d.fl,hl=d.hu+d.hl,m=ease.io(clamp((k-.3)/.6,0,1));
+  const fo=[lerp(.85,.35,m),lerp(.25,.9,m)],ho=[lerp(-.9,.05,m),lerp(.35,.8,m)];
+  return P({x:hx,y:hy,a,f,st,feet:{fn:[sx+f*fo[0]*fl,sy+fo[1]*fl],ff:[sx+f*(fo[0]-.15)*fl,sy+(fo[1]+.05)*fl],hn:[hx+f*ho[0]*hl,hy+ho[1]*hl],hf:[hx+f*(ho[0]-.12)*hl,hy+(ho[1]-.05)*hl]},
+    head:{yaw:1,tilt:up?-a*.4:.3,lid:0,ear:.2,dy:0},tail:{th:a*.7-.05,curl:.15,sw:0}});}
+function hangPose(edgeX,y,f){const d=D(),a=1.35,hx=edgeX-f*d.T*.45,hy=y+6*d.S+Math.sin(a)*d.L,leg=d.hu+d.hl;
+  return P({x:hx,y:hy,a,f,feet:{fn:[edgeX+f*7*d.S,y],ff:[edgeX+f*3*d.S,y],hn:[hx+f*4*d.S,hy+leg*.9],hf:[hx-f*2*d.S,hy+leg*.85]},head:{yaw:1,tilt:-.2},tail:{th:-1.4,curl:.3,sw:.4}});}
+const WALK={hn:0,fn:Math.PI/2,hf:Math.PI,ff:Math.PI*1.5},RUN={hn:0,hf:.5,fn:Math.PI,ff:Math.PI+.5};
+function walkPose(cx,f,ph,stride,run){const d=D(),s=cat.surface,p=standPose(cx,surfY(s,cx),f),offs=run?RUN:WALK,lift=(run?10:6)*d.S;
+  for(const l of LEGS){const u=((ph+offs[l])%TAU)/TAU;let o,h=0;if(u<.5)o=lerp(.5,-.5,u/.5);else{const k=(u-.5)/.5;o=lerp(-.5,.5,ease.io(k));h=Math.sin(k*Math.PI);}
+    const fx=p.feet[l][0]+f*o*stride;p.feet[l]=[fx,surfY(s,fx)-h*lift];}
+  p.y-=(run?3.5:1.3)*d.S*Math.abs(Math.sin(ph));if(run){p.st=1+.07*Math.sin(ph*2);p.a=.05*Math.sin(ph*2);}
+  p.head.yaw=1;p.tail.th=run?.35:.85;p.tail.curl=run?.15:.45;p.tail.sw=run?.1:.2;return p;}
+
+/* ---------- engine ---------- */
+let simT=0,speed=1,last=performance.now();const tws=[];
+function tween(ms,fn){return new Promise(res=>tws.push({t0:simT,ms:Math.max(1,ms),fn,res}));}
+function stepTweens(){for(const tw of tws.slice()){const e=clamp((simT-tw.t0)/tw.ms,0,1);const stop=tw.fn(e);if(e>=1||stop===true){tws.splice(tws.indexOf(tw),1);tw.res();}}}
+const sleep=ms=>tween(ms,()=>{});
+async function to(target,ms,ez=ease.io){const from=clone(cat.pose);await tween(ms,e=>{cat.pose=lp(from,target,ez(e));});}
+const CANCEL={cancel:true};let job=null,queued=null;
+function request(name,fn){queued={name,fn};if(job)job.stop=true;else startNext();}
+function startNext(){const q=queued;queued=null;if(!q)return;const j={stop:false,name:q.name};job=j;
+  Promise.resolve().then(()=>q.fn(j)).catch(e=>{if(e!==CANCEL)console.error(e);}).finally(()=>{job=null;if(queued)startNext();else{cat.phase='Idle';nextIdle=simT+rnd(700,1400);}});}
+function cp(j){if(j.stop)throw CANCEL;}
+async function hold(j,ms,fn){await tween(ms,e=>{if(j.stop)return true;fn&&fn(e*ms);});cp(j);}
+
+/* ---------- movement ---------- */
+async function turn(){const p=cat.pose,cx=centerOf(p),gy=surfY(cat.surface,cx);
+  const a=standPose(cx,gy,p.f,.4);a.head.yaw=0;a.tail.th=1.3;await to(a,140,ease.in);
+  const b=standPose(cx,gy,-p.f,.4);b.head.yaw=0;b.tail.th=1.3;cat.pose=b;await to(standPose(cx,gy,-p.f),160,ease.out);}
+async function walkTo(j,tx,run=false){const d=D(),s=cat.surface;tx=clamp(tx,s.x0+d.L*.5,s.x1-d.L*.5);
+  const cx=centerOf();if(Math.abs(tx-cx)<1.5)return;const f=tx>cx?1:-1;if(f!==cat.pose.f)await turn();
+  const spd=(run?200:88)*d.S*AGES[cat.age].walk,stride=(run?30:20)*d.S,x0=centerOf(),ms=Math.abs(tx-x0)/spd*1000;cat.mode='walk';let stopped=false;
+  await tween(ms,e=>{if(j&&j.stop){stopped=true;return true;}const x=lerp(x0,tx,e);cat.pose=walkPose(x,f,Math.abs(x-x0)/stride*Math.PI,stride,run);});
+  const ex=cat.pose.x+f*d.L/2;await to(standPose(ex,surfY(s,ex),f),stopped?120:170);cat.mode='stand';if(stopped)throw CANCEL;}
+async function arc(ce,f,T,h,up){const p0=clone(cat.pose),s0=shoulderOf(p0),cs=[(p0.x+s0[0])/2,(p0.y+s0[1])/2];cat.mode='air';
+  await tween(T,k=>{const cx=lerp(cs[0],ce[0],k),cy=lerp(cs[1],ce[1],k)-h*4*k*(1-k);
+    const vx=Math.abs(ce[0]-cs[0])+12,vy=(ce[1]-cs[1])-h*4*(1-2*k),a=clamp(Math.atan2(-vy,vx),-.95,.95);
+    let p=airPose([cx,cy],f,a,k,up);if(k<.15)p=lp(p0,p,ease.out(k/.15));cat.pose=p;});}
+async function land(x1,gy1,f,up){const d=D(),st=standPose(x1,gy1,f),sh=[x1+f*d.L/2,gy1-d.hipH],a=up?-.14:-.3,fr=clone(st);
+  fr.a=a;fr.x=sh[0]-f*Math.cos(a)*d.L;fr.y=sh[1]+Math.sin(a)*d.L;const leg=d.hu+d.hl;
+  fr.feet.hn=[fr.x-f*leg*.25,fr.y+leg*.55];fr.feet.hf=[fr.x-f*leg*.4,fr.y+leg*.5];fr.head.yaw=1;fr.tail.th=.4;fr.tail.curl=.2;
+  await to(fr,80,ease.out);const from=clone(cat.pose),amt=up?.05:.08;
+  await tween(170,e=>{const p=lp(from,st,ease.out(e));p.sq=Math.sin(e*Math.PI)*amt;cat.pose=p;});cat.mode='stand';}
+async function scramble(times=3){const base=clone(cat.pose),d=D(),f=base.f;
+  for(let i=0;i<times;i++){await tween(90,k=>{const p=clone(base),s=Math.sin(k*Math.PI);
+    p.feet.hn=[base.feet.hn[0]+f*4*d.S*s,base.feet.hn[1]-7*d.S*s*(i%2?1:.4)];p.feet.hf=[base.feet.hf[0],base.feet.hf[1]-7*d.S*s*(i%2?.4:1)];p.y=base.y-1.5*d.S*s;cat.pose=p;});}}
+async function pullUp(cx,gy,f){const tgt=standPose(cx,gy,f),from=clone(cat.pose);await tween(380,e=>{const p=lp(from,tgt,ease.out(e));p.sq=Math.sin(e*Math.PI)*.04;cat.pose=p;});cat.mode='stand';}
+async function hopOff(){const d=D(),p=cat.pose,f=p.f,s=cat.surface;cat.phase='Interrupted · hop off the post';
+  const tx=clamp(p.x-f*36*d.S,s.x0+d.L/2,s.x1-d.L/2),gy=surfY(s,tx);await arc([tx,gy-d.hipH],f,360,10*d.S,false);await land(tx,gy,f,false);}
+async function stumble(){const d=D(),f=cat.pose.f,b=clone(cat.pose);
+  await tween(280,e=>{const s=Math.sin(e*Math.PI),p=clone(b),dx=-f*6*d.S*e;p.x+=dx;p.y-=8*d.S*s;for(const l of LEGS)p.feet[l]=[b.feet[l][0]+dx,b.feet[l][1]-(l[0]==='f'?10:4)*d.S*s];p.a=.18*s;cat.pose=p;});
+  const cx=centerOf();await to(standPose(cx,surfY(cat.surface,cx),f),160);}
+async function recover(){const d=D(),p=cat.pose,m=cat.mode;
+  if(m==='climb'){await hopOff();return;}
+  if(['rear','hdog','crouch','walk','peer','air'].includes(m)){const cx=clamp(p.x+p.f*d.L/2,cat.surface.x0+d.L/2,cat.surface.x1-d.L/2);await to(standPose(cx,surfY(cat.surface,cx),p.f),260);}
+  else if(['sit','loaf','nap'].includes(m)){await to(standPose(cat.anchor,surfY(cat.surface,cat.anchor),p.f),320);}
+  cat.mode='stand';}
+
+/* ---------- jump graph ---------- */
+function jg(a,b){const d=D(),am=a.floor?450:(a.x0+a.x1)/2,bm=b.floor?450:(b.x0+b.x1)/2,dir=Math.sign(bm-am)||1,up=b.y<a.y;let x0,x1;
+  if(up){const e=dir>0?b.x0:b.x1;x1=clamp(e+dir*30,b.x0+15,b.x1-15);x0=clamp(e-dir*45,a.x0+15,a.x1-15);}
+  else{const ea=dir>0?a.x1:a.x0;x0=ea-dir*(d.L/2-2);x1=clamp(ea+dir*40,b.x0+15,b.x1-15);}
+  return{x0,x1,y0:surfY(a,x0),y1:surfY(b,x1),dir};}
+function edges(){const A=AGES[cat.age],maxJ=110*A.jump,out=[],low=cat.energy==='low';
+  for(const a of SURF)for(const b of SURF){if(a===b)continue;const g=jg(a,b),dy=g.y0-g.y1;
+    if(dy>0){if(dy<=maxJ&&!low)out.push({from:a,to:b,type:'jump',cost:1,...g});}
+    else if(-dy<=A.drop)out.push({from:a,to:b,type:'jump',cost:1+(-dy)/120,...g});}
+  if(!low)for(const post of POSTS)for(const b of SURF){if(b.floor||post.x<b.x0||post.x>b.x1||b.y<post.yt-1)continue;
+    const below=SURF.filter(s=>s!==b&&(s.floor||(post.x>=s.x0&&post.x<=s.x1))&&surfY(s,post.x)>b.y+1).sort((m,n)=>surfY(m,post.x)-surfY(n,post.x))[0];
+    if(below)out.push({from:below,to:b,type:'climb',post,cost:3});}
+  return out;}
+function route(from,to){if(from===to)return[];const E=edges(),dist=new Map([[from,0]]),prev=new Map(),Q=[...SURF];
+  while(Q.length){Q.sort((a,b)=>(dist.get(a)??1e9)-(dist.get(b)??1e9));const u=Q.shift();if(!dist.has(u)||u===to)break;
+    for(const e of E.filter(e=>e.from===u)){const nd=dist.get(u)+e.cost;if(nd<(dist.get(e.to)??1e9)){dist.set(e.to,nd);prev.set(e.to,e);}}}
+  if(!prev.has(to))return null;const path=[];let c=to;while(c!==from){const e=prev.get(c);path.unshift(e);c=e.from;}return path;}
+async function travelTo(j,dest){const path=route(cat.surface,dest);if(!path){cat.phase=`No route to ${name(dest)} for this cat`;await sleep(900);return false;}
+  for(const e of path){cp(j);if(e.type==='jump')await jump(j,e);else await climb(j,e);}return true;}
+async function ensureFloor(j){await recover();if(!cat.surface.floor){cat.phase='Heading down';const ok=await travelTo(j,SID.floor);if(!ok)throw CANCEL;}}
+
+async function jump(j,e){const d=D(),f=e.dir,up=e.y1<e.y0,dest=name(e.to);
+  cat.phase=`${up?'Jump up':'Jump down'} to ${dest} · line up`;await walkTo(j,e.x0);if(cat.pose.f!==f)await turn();
+  const cx0=centerOf(),gy0=surfY(cat.surface,cx0);
+  if(up){cat.mode='crouch';cat.phase=`Jump up to ${dest} · crouch and wiggle`;const cr=crouchPose(cx0,gy0,f);await to(cr,150);const dur=rnd(300,600);
+    await tween(dur,k=>{const t=k*dur/1000,p=clone(cr);p.x=cr.x+Math.sin(t*TAU*6)*2*d.S*f;p.tail.th=cr.tail.th+Math.sin(t*TAU*9)*.12;p.tail.curl=cr.tail.curl+Math.sin(t*TAU*9)*.25;cat.pose=p;});
+    cat.phase=`Jump up to ${dest} · launch`;const la=clamp(Math.atan2(e.y0-e.y1,Math.abs(e.x1-cx0)+20),.35,1.05);await to(launchPose(cx0,gy0,f,la),120,ease.out);}
+  else{cat.mode='peer';cat.phase=`Jump down to ${dest} · peer over the edge`;await to(peerPose(cx0,gy0,f),220);await sleep(300);}
+  cat.phase=`${up?'Jump up':'Jump down'} to ${dest} · in the air`;const dy=Math.abs(e.y0-e.y1);
+  if(up&&cat.age==='kitten'&&Math.random()<.15){const edgeX=f>0?e.to.x0:e.to.x1,hp=hangPose(edgeX,e.to.y,f),hs=shoulderOf(hp);
+    await arc([(hp.x+hs[0])/2,(hp.y+hs[1])/2],f,360,.4*dy,true);cat.phase='Kitten landed short · catch the edge';await to(hp,120,ease.out);cat.mode='climb';
+    await scramble(4);cat.phase='Kitten landed short · pull up';await pullUp(clamp(e.x1,e.to.x0+d.L/2,e.to.x1-d.L/2),e.to.y,f);}
+  else{await arc([e.x1,e.y1-d.hipH],f,up?380:340,up?.55*dy:10*d.S,up);cat.phase=`Landing on ${dest}`;await land(e.x1,e.y1,f,up);}
+  cat.surface=e.to;cat.mode='stand';}
+
+async function climb(j,e){const d=D(),post=e.post,from=e.from,dest=e.to,leg=d.fu+d.fl;
+  const room=f=>{const s=post.x-f*post.w/2,c=s-f*6*d.S-f*d.L/2;return c>=from.x0+d.L/2&&c<=from.x1-d.L/2;};
+  let f=centerOf()<post.x?1:-1;if(!room(f)&&room(-f))f=-f;
+  const surf=post.x-f*post.w/2,bodyX=surf-f*d.T*.45,standCx=surf-f*6*d.S-f*d.L/2;
+  cat.phase=`Climb the post to ${name(dest)} · walk over`;await walkTo(j,standCx);if(cat.pose.f!==f)await turn();cp(j);
+  const gy=surfY(from,centerOf());cat.mode='crouch';cat.phase='Climb the post · crouch';const cr=crouchPose(centerOf(),gy,f);cr.head.tilt=-.6;await to(cr,200);await sleep(160);
+  const A=Math.PI/2*.97;
+  const mk=(hy,st,fnY,ffY,hnY,hfY)=>P({x:bodyX,y:hy,a:A,f,st,feet:{fn:[surf+f*.5,fnY],ff:[surf+f*.5,ffY],hn:[surf+f*.5,hnY],hf:[surf+f*.5,hfY]},head:{yaw:1,tilt:-.55,ear:.3},tail:{th:-1.3,curl:.35,sw:.35}});
+  let hipY=gy-d.hipH*.75,fnY=hipY-d.L-leg*.4,ffY=hipY-d.L-leg*.1,hnY=hipY+d.hl*.5,hfY=hipY+d.hl*.75;
+  cat.mode='climb';cat.phase='Climb the post · hop on';await to(mk(hipY,1,fnY,ffY,hnY,hfY),280,ease.out);
+  const stp=leg*.75;let n=0;
+  while(hipY-d.L>dest.y+14*d.S&&n<30){if(j.stop){await hopOff();throw CANCEL;}n++;cat.phase=`Climb the post · step ${n}`;
+    const s0={h:hipY,fn:fnY,ff:ffY,hn:hnY,hf:hfY},k1=stp*.5/d.L;
+    await tween(150,k=>{const q=ease.io(k);cat.pose=mk(s0.h,1+k1*q,s0.fn-stp*q,s0.ff,s0.hn,s0.hf);});fnY-=stp;
+    await tween(150,k=>{const q=ease.io(k);cat.pose=mk(s0.h,1+k1+k1*q,fnY,s0.ff-stp*q,s0.hn,s0.hf);});ffY-=stp;
+    await tween(190,k=>{const q=ease.io(k),p=mk(s0.h-stp*q,1+2*k1*(1-q),fnY,ffY,s0.hn-stp*q,s0.hf-stp*q),b=f*4*d.S*Math.sin(k*Math.PI);p.feet.hn[0]-=b;p.feet.hf[0]-=b;cat.pose=p;});
+    hipY-=stp;hnY-=stp;hfY-=stp;}
+  cat.phase='Climb the post · hook over the edge';const hk=clone(cat.pose);hk.feet.fn=[bodyX+f*18*d.S,dest.y];hk.feet.ff=[bodyX+f*12*d.S,dest.y];hk.a=1.15;hk.head.tilt=0;await to(hk,220);
+  cat.phase='Climb the post · scramble';await scramble(3);
+  cat.phase='Climb the post · pull up';await pullUp(clamp(bodyX+f*d.L*.45,dest.x0+d.L/2,dest.x1-d.L/2),dest.y,f);
+  cat.surface=dest;cat.mode='stand';}
+
+/* ---------- behaviors ---------- */
+async function scratchPole(j){await ensureFloor(j);const d=D(),A=AGES[cat.age],f=centerOf()<POLE.x?1:-1,sx=POLE.x-f*POLE.w/2,ang=A.rearA;
+  const hipX=sx-f*7*d.S-f*Math.cos(ang)*d.L,standCx=hipX+f*d.L/2;
+  cat.phase='Scratch pole · walk over';await walkTo(j,standCx);if(cat.pose.f!==f)await turn();cp(j);
+  cat.phase='Scratch pole · rear up';cat.mode='rear';const base=rearPose(hipX,FLOOR,f,ang,sx,A.reach);await to(base,400,ease.out);cp(j);
+  const n=Math.round(rnd(A.strokes[0],A.strokes[1])),per=1000/A.rate,pull=.18*(d.fu+d.fl),total=n*per+per/2,seen={fn:-1,ff:-1};
+  await tween(total,e=>{if(j.stop)return true;const t=e*total,p=clone(base);
+    for(const[l,off]of[['fn',0],['ff',per/2]]){const lt=t-off;if(lt<0||lt>=n*per){p.claws[l]=0;continue;}
+      const idx=Math.floor(lt/per),u=(lt%per)/per;let dy,dx=0;
+      if(u<.6){dy=pull*(u/.6);p.claws[l]=1;if(idx!==seen[l]){seen[l]=idx;specks(p.feet[l][0],p.feet[l][1]+dy,f);sfx();if(l==='fn')cat.phase=`Scratch pole · stroke ${idx+1} of ${n}`;}}
+      else{const w=(u-.6)/.4;dy=pull*(1-ease.io(w));dx=-f*3.5*d.S*Math.sin(w*Math.PI);p.claws[l]=0;}
+      p.feet[l]=[p.feet[l][0]+dx,p.feet[l][1]+dy];}
+    const ph=t/per*TAU;p.a=base.a+.03*Math.sin(ph*2);p.arch=2.2*d.S*(.5+.5*Math.sin(ph*2));p.x=base.x+Math.sin(ph*1.3)*1.4*d.S*f;cat.pose=p;});
+  cat.phase='Scratch pole · drop to all fours';await to(standPose(standCx,FLOOR,f),300);cat.mode='stand';
+  if(cat.age==='kitten'&&Math.random()<.2){cat.phase='Scratch pole · kitten stumble';await stumble();}
+  cp(j);
+  if(Math.random()<.5){cat.phase='Scratch pole · front stretch';cat.mode='hdog';const cx=centerOf();await to(stretchPose(cx,FLOOR,f),350);await hold(j,800);await to(standPose(cx,FLOOR,f),350);cat.mode='stand';}}
+
+async function scratchPad(j){await ensureFloor(j);const d=D(),f=centerOf()<(PAD.x0+PAD.x1)/2?1:-1,tx=f>0?PAD.x0+d.L*.5+8:PAD.x1-d.L*.5-8;
+  cat.phase='Scratch base pad · walk over';await walkTo(j,tx);if(cat.pose.f!==f)await turn();cp(j);
+  const cx=centerOf(),base=stretchPose(cx,PAD.y,f,0);cat.mode='hdog';cat.phase='Scratch base pad · stretch out';await to(base,380);cp(j);
+  const A=AGES[cat.age],n=Math.round(rnd(3,6)),per=1000/A.rate,pull=.3*(d.fu+d.fl),total=n*per+per/2,seen={fn:-1,ff:-1};
+  await tween(total,e=>{if(j.stop)return true;const t=e*total,p=clone(base);
+    for(const[l,off]of[['fn',0],['ff',per/2]]){const lt=t-off;if(lt<0||lt>=n*per){p.claws[l]=0;continue;}
+      const idx=Math.floor(lt/per),u=(lt%per)/per;let dx,dy=0;
+      if(u<.6){dx=-f*pull*(u/.6);p.claws[l]=1;if(idx!==seen[l]){seen[l]=idx;specks(p.feet[l][0],p.feet[l][1]-2,f,'#9C86D8');sfx();if(l==='fn')cat.phase=`Scratch base pad · stroke ${idx+1} of ${n}`;}}
+      else{const w=(u-.6)/.4;dx=-f*pull*(1-ease.io(w));dy=-3*d.S*Math.sin(w*Math.PI);p.claws[l]=0;}
+      p.feet[l]=[p.feet[l][0]+dx,p.feet[l][1]+dy];}
+    p.x=base.x+Math.sin(t/per*TAU*1.3)*1.4*d.S*f;cat.pose=p;});
+  cat.phase='Scratch base pad · stand up';await to(standPose(cx,PAD.y,f),300);cat.mode='stand';}
+
+let forcedPerch=null;
+function yawSchedule(total,turnMs=350){const ks=[[0,.45]];let t=rnd(500,1100),lastY=.45;
+  while(t<total){let y;do{y=pick([.95,.45,.15,-.55,.7]);}while(y===lastY);ks.push([t,y]);lastY=y;t+=turnMs+rnd(600,1400);}
+  return tm=>{let i=ks.length-1;while(i>0&&ks[i][0]>tm)i--;if(i===0)return ks[0][1];return lerp(ks[i-1][1],ks[i][1],ease.io(clamp((tm-ks[i][0])/turnMs,0,1)));};}
+async function perch(j){const s=cat.surface;if(s.floor)return;const d=D(),outerRight=s.id!=='p2',gy=s.y;
+  const opts=cat.energy==='low'?[{id:'nap',w:1}]:[{id:'loaf',w:2},{id:'sit',w:2},{id:'groom',w:1.4},{id:'tail',w:1.6},{id:'paw',w:.7}].concat(s.top?[{id:'survey',w:2.6}]:[]);
+  const id=forcedPerch||weighted(opts).id,dur=rnd(5000,9000);
+  const label={loaf:'loaf and look around',sit:'sit and look around',groom:'groom a paw',tail:'tail dangle',paw:'paw dangle',survey:'survey the kingdom',nap:'nap'}[id];
+  cat.phase=`Perch on ${name(s)} · ${label}`;
+  const face=async f=>{if(cat.pose.f!==f)await turn();};
+  if(id==='tail'){const f=outerRight?-1:1,hipX=outerRight?s.x1-2:s.x0+2,cx=hipX+f*d.L*.95/2;await walkTo(j,cx);await face(f);
+    const lp0=loafPose(cx,gy,f);lp0.tail={th:-1.45,curl:-.25,sw:.35};cat.anchor=cx;cat.mode='loaf';await to(lp0,450);
+    const ys=yawSchedule(dur);await hold(j,dur,t=>{cat.pose.head.yaw=ys(t);});}
+  else if(id==='paw'){const f=outerRight?1:-1,edge=outerRight?s.x1:s.x0,cx=edge-f*3*d.S-f*d.L*.95/2;await walkTo(j,cx);await face(f);
+    const lp0=loafPose(cx,gy,f);lp0.feet.fn=[edge+f*4*d.S,gy+15*d.S];lp0.bend.fn=0;lp0.head.tilt=.25;lp0.head.yaw=.8;cat.anchor=cx;cat.mode='loaf';await to(lp0,450);
+    const bx=lp0.feet.fn[0];await hold(j,dur,t=>{cat.pose.feet.fn[0]=bx+f*2.5*d.S*Math.sin(t/650);cat.pose.head.yaw=.8+.12*Math.sin(t/1400);});}
+  else{const cx=rnd(s.x0+d.L/2+4,s.x1-d.L/2-4);await walkTo(j,cx);if(Math.random()<.4)await turn();const f=cat.pose.f,c=centerOf();cat.anchor=c;
+    if(id==='loaf'){cat.mode='loaf';await to(loafPose(c,gy,f),450);const ys=yawSchedule(dur);await hold(j,dur,t=>{cat.pose.head.yaw=ys(t);});}
+    else if(id==='sit'||id==='survey'){cat.mode='sit';const sp=sitPose(c,gy,f);if(id==='survey'){sp.head.tilt=-.08;sp.tail.sw=.06;}await to(sp,420);
+      const ys=yawSchedule(dur,id==='survey'?700:350);await hold(j,dur,t=>{cat.pose.head.yaw=ys(t);});}
+    else if(id==='groom'){cat.mode='sit';const sp=sitPose(c,gy,f);await to(sp,420);const g=clone(sp),hw=headWorld(g);
+      g.feet.fn=[hw[0]+f*d.R*.55,hw[1]+d.R*.75];g.head.yaw=.9;g.head.tilt=.35;g.head.lid=.6;await to(g,300);const fy=g.feet.fn[1];
+      await hold(j,2400,t=>{cat.pose.head.tilt=.35+.09*Math.sin(t/1000*TAU*3.2);cat.pose.feet.fn[1]=fy+1.5*d.S*Math.sin(t/1000*TAU*3.2+1);});
+      await to(sp,300);const ys=yawSchedule(dur-2700);await hold(j,Math.max(800,dur-2700),t=>{cat.pose.head.yaw=ys(t);});}
+    else if(id==='nap'){cat.mode='nap';const np=loafPose(c,gy,f);np.head.lid=1;np.head.dy=5;np.head.tilt=.25;np.head.yaw=.5;np.tail.curl=1.1;np.tail.sw=.05;await to(np,900);
+      await hold(j,dur);cat.phase=`Perch on ${name(s)} · wake up`;await to(loafPose(c,gy,f),350);}}
+  cat.phase=`Perch on ${name(s)} · stand up`;await to(standPose(cat.anchor,gy,cat.pose.f),380);cat.mode='stand';}
+
+async function visitTree(j,opts={}){await ensureFloor(j);const A=AGES[cat.age];
+  if(cat.energy==='low'&&!opts.forceClimb){cat.phase='Low energy · no climbing, scratch instead';await sleep(700);return scratchPad(j);}
+  if(opts.forceClimb){cat.phase='Cat tree · climb the post on purpose';await climb(j,{from:SID.floor,to:SID.p1,type:'climb',post:POSTS[1]});}
+  else{const target=A.low?SID.p1:SID[weighted([{s:'p1',w:1},{s:'p2',w:1.2},{s:'p3',w:2}]).s];cat.phase=`Cat tree · heading to ${name(target)}`;await travelTo(j,target);}
+  cp(j);await perch(j);cp(j);cat.phase='Cat tree · heading down';await travelTo(j,SID.floor);}
+
+async function idleStand(j){await ensureFloor(j);cat.phase='Idle · stand and look around';const dur=rnd(2000,4000),ys=yawSchedule(dur);await hold(j,dur,t=>{cat.pose.head.yaw=ys(t);});}
+async function idleSit(j){await ensureFloor(j);const cx=centerOf(),gy=surfY(cat.surface,cx);cat.phase='Idle · sit';cat.anchor=cx;cat.mode='sit';
+  await to(sitPose(cx,gy,cat.pose.f),420);const dur=rnd(2500,4500),ys=yawSchedule(dur);await hold(j,dur,t=>{cat.pose.head.yaw=ys(t);});await to(standPose(cx,gy,cat.pose.f),380);cat.mode='stand';}
+async function idleWander(j){await ensureFloor(j);cat.phase='Idle · wander';const cx=centerOf();let tx;do{tx=rnd(90,840);}while(Math.abs(tx-cx)<120);await walkTo(j,tx);}
+
+/* ---------- ball ---------- */
+let ball=null;
+function tossBall(){const x1=rnd(90,470),x0=clamp(x1+(Math.random()<.5?-1:1)*rnd(120,200),40,860);ball={x0,x1,t0:simT,dur:1500,r:9,hop:80};log('Ball tossed → interrupt',true);request('Chase ball',chase);}
+function ballPos(){const k=clamp((simT-ball.t0)/ball.dur,0,1),x=lerp(ball.x0,ball.x1,ease.out(k)),h=Math.abs(Math.cos(k*Math.PI*2.5))*ball.hop*Math.pow(1-k,2);return{x,y:FLOOR-ball.r+3-h,rot:(x-ball.x0)/ball.r};}
+async function chase(j){cat.phase='Ball! · getting off the furniture';await ensureFloor(j);const d=D(),bx=ball.x1,f=centerOf()<bx?1:-1,stop=bx-f*(d.L/2+d.fu+ball.r);
+  cat.phase='Chasing the ball';await walkTo(j,stop,true);if(cat.pose.f!==f)await turn();cp(j);
+  cat.phase='Pat the ball';const st=clone(cat.pose),pat=clone(st);pat.feet.fn=[bx-f*ball.r*.6,FLOOR-ball.r*1.2];pat.a=.08;pat.head.tilt=.3;pat.head.yaw=.9;await to(pat,150,ease.out);
+  ball={...ball,x0:bx,x1:bx+f*rnd(25,45),t0:simT,dur:700,hop:0};await to(st,180);
+  const cx=centerOf();cat.anchor=cx;cat.mode='sit';await to(sitPose(cx,surfY(cat.surface,cx),f),400);await hold(j,1600);await to(standPose(cx,surfY(cat.surface,cx),f),350);cat.mode='stand';}
+
+/* ---------- idle roll ---------- */
+let idleOn=!reduce,chance=.05,nextIdle=1200;const COOLDOWN=20000,cool={pole:-1e9,pad:-1e9,tree:-1e9};
+const FURN=[{id:'pole',label:'Scratch pole',w:3,fn:scratchPole},{id:'pad',label:'Scratch base pad',w:1,fn:scratchPad},{id:'tree',label:'Visit cat tree',w:3,fn:j=>visitTree(j)}];
+const IDLE=[{w:3,label:'stand and look',fn:idleStand},{w:2,label:'sit',fn:idleSit},{w:3,label:'wander',fn:idleWander}];
+const pct=v=>(v*100).toFixed(v<.1?1:0)+'%';
+function idleTick(){if(job||queued||!idleOn||simT<nextIdle)return;const r=Math.random(),elig=FURN.filter(a=>simT>=cool[a.id]&&!(a.id==='tree'&&cat.energy==='low'));
+  if(r<chance&&elig.length){const a=weighted(elig);cool[a.id]=simT+COOLDOWN;log(`${pct(r)} < ${pct(chance)} → ${a.label}`,true);request(a.label,a.fn);}
+  else{const b=weighted(IDLE);log(`${pct(r)} → ${b.label}${r<chance?' (furniture on cooldown)':''}`);request(b.label,b.fn);}}
+const logEl=document.getElementById('log'),logs=[];
+function log(msg,hit=false){logs.unshift({t:(simT/1000).toFixed(1),msg,hit});logs.length=Math.min(logs.length,6);
+  logEl.innerHTML=logs.map(l=>`<li class="${l.hit?'hit':''}"><b>${l.t}s</b>${l.msg}</li>`).join('');}
+
+/* ---------- particles + sound ---------- */
+const parts=[];
+function specks(x,y,f,col='#B88A55'){for(let i=0;i<3;i++)parts.push({x:x+rnd(-2,2),y:y+rnd(-2,2),vx:-f*rnd(5,25),vy:rnd(-20,5),life:0,max:rnd(380,520),s:rnd(1.5,2.6),r:rnd(0,3),col});}
+function updateParts(dt){for(const p of parts){p.vy+=260*dt/1000;p.x+=p.vx*dt/1000;p.y+=p.vy*dt/1000;p.life+=dt;p.r+=dt/200;}for(let i=parts.length-1;i>=0;i--)if(parts[i].life>parts[i].max)parts.splice(i,1);}
+let actx=null,soundOn=false,noiseBuf=null;
+function sfx(){if(!soundOn||!actx||speed<1)return;const t=actx.currentTime,src=actx.createBufferSource();src.buffer=noiseBuf;
+  const bp=actx.createBiquadFilter();bp.type='bandpass';bp.frequency.value=rnd(1800,2800);bp.Q.value=1.1;const g=actx.createGain();
+  g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.22,t+.015);g.gain.exponentialRampToValueAtTime(.001,t+.14);src.connect(bp).connect(g).connect(actx.destination);src.start(t);src.stop(t+.16);}
+
+/* ---------- drawing ---------- */
+function rr(x,y,w,h,r){ctx.beginPath();if(ctx.roundRect)ctx.roundRect(x,y,w,h,r);else{ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}}
+function drawRoom(){let g=ctx.createLinearGradient(0,0,0,470);g.addColorStop(0,'#FFE3F1');g.addColorStop(1,'#FBCFE5');ctx.fillStyle=g;ctx.fillRect(0,0,W,470);
+  ctx.fillStyle='rgba(255,255,255,.26)';for(let x=0;x<W;x+=44)ctx.fillRect(x,0,18,470);
+  rr(318,66,226,196,20);ctx.fillStyle='#FFFFFF';ctx.fill();
+  ctx.save();rr(330,78,202,172,12);ctx.clip();g=ctx.createLinearGradient(0,78,0,250);g.addColorStop(0,'#A9DEFF');g.addColorStop(1,'#E6F6FF');ctx.fillStyle=g;ctx.fillRect(330,78,202,172);
+  ctx.fillStyle='#FFF3B8';ctx.beginPath();ctx.arc(490,112,18,0,TAU);ctx.fill();
+  const cx=330+((simT/90)%300)-60;ctx.fillStyle='#FFFFFF';for(const[dx,dy,r]of[[0,0,14],[16,-6,17],[34,0,13],[17,6,13]]){ctx.beginPath();ctx.arc(cx+dx,150+dy,r,0,TAU);ctx.fill();}
+  ctx.fillStyle='#BFE8C4';ctx.beginPath();ctx.ellipse(431,262,170,40,0,0,TAU);ctx.fill();ctx.restore();
+  ctx.fillStyle='#FFFFFF';ctx.fillRect(428,78,6,172);ctx.fillRect(330,161,202,6);rr(304,256,254,14,7);ctx.fill();
+  ctx.fillStyle='#FFF4FA';ctx.fillRect(0,458,W,14);ctx.fillStyle='rgba(214,120,170,.25)';ctx.fillRect(0,471,W,3);
+  g=ctx.createLinearGradient(0,474,0,600);g.addColorStop(0,'#F6DAC0');g.addColorStop(1,'#EBC3A0');ctx.fillStyle=g;ctx.fillRect(0,474,W,126);
+  ctx.strokeStyle='rgba(170,110,70,.16)';ctx.lineWidth=2;for(const[y,o]of[[500,0],[540,90],[580,40]]){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();for(let x=o;x<W;x+=180){ctx.beginPath();ctx.moveTo(x,y-(y===500?26:40));ctx.lineTo(x,y);ctx.stroke();}}
+  ctx.fillStyle='#C9F0E4';ctx.beginPath();ctx.ellipse(200,528,92,13,0,0,TAU);ctx.fill();ctx.fillStyle='rgba(255,255,255,.45)';ctx.beginPath();ctx.ellipse(200,526,70,7,0,0,TAU);ctx.fill();}
+function sisal(x,yt,yb,w){ctx.fillStyle='#EBCB97';ctx.fillRect(x-w/2,yt,w,yb-yt);ctx.strokeStyle='rgba(176,128,72,.55)';ctx.lineWidth=1.4;
+  for(let y=yt+3;y<yb;y+=4.5){ctx.beginPath();ctx.moveTo(x-w/2,y);ctx.lineTo(x+w/2,y+1.5);ctx.stroke();}
+  const g=ctx.createLinearGradient(x-w/2,0,x+w/2,0);g.addColorStop(0,'rgba(255,255,255,.35)');g.addColorStop(.35,'rgba(255,255,255,0)');g.addColorStop(1,'rgba(120,70,30,.22)');ctx.fillStyle=g;ctx.fillRect(x-w/2,yt,w,yb-yt);}
+function pom(x,y,len,r,col,phase){const a=.28*Math.sin(simT/700+phase),ex=x+Math.sin(a)*len,ey=y+Math.cos(a)*len;ctx.strokeStyle='#C58BB0';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(ex,ey);ctx.stroke();
+  ctx.fillStyle=col;ctx.beginPath();ctx.arc(ex,ey,r,0,TAU);ctx.fill();ctx.fillStyle='rgba(255,255,255,.5)';ctx.beginPath();ctx.arc(ex-r*.35,ey-r*.35,r*.35,0,TAU);ctx.fill();}
+function drawPole(){rr(166,508,68,14,7);ctx.fillStyle='#86D6C1';ctx.fill();ctx.fillStyle='#B4EBDC';rr(170,509,60,5,3);ctx.fill();
+  sisal(POLE.x,POLE.yt,POLE.yb,POLE.w);rr(POLE.x-20,POLE.yt-10,40,13,6);ctx.fillStyle='#86D6C1';ctx.fill();pom(POLE.x+15,POLE.yt-2,34,7,'#FF9CC9',0);}
+function drawTree(){for(const p of POSTS)sisal(p.x,p.yt,p.yb,p.w);
+  rr(PAD.x0,PAD.y,PAD.x1-PAD.x0,520-PAD.y+4,8);ctx.fillStyle='#C5B0F4';ctx.fill();rr(PAD.x0+3,PAD.y+1,PAD.x1-PAD.x0-6,5,3);ctx.fillStyle='#DCCFFC';ctx.fill();
+  for(const s of SURF){if(s.floor)continue;const w=s.x1-s.x0;
+    if(s.top){ctx.fillStyle='#F6A6CE';rr(s.x0-2,s.y-11,15,24,7);ctx.fill();rr(s.x1-13,s.y-11,15,24,7);ctx.fill();}
+    ctx.fillStyle='rgba(150,60,110,.18)';rr(s.x0+4,s.y+12,w-8,8,4);ctx.fill();
+    rr(s.x0,s.y,w,16,8);ctx.fillStyle='#F6A6CE';ctx.fill();rr(s.x0+3,s.y+1,w-6,6,4);ctx.fillStyle='#FFC6E2';ctx.fill();}
+  pom(SID.p2.x0+16,SID.p2.y+16,34,8,'#86D6C1',1.7);}
+function drawShadow(p){const d=D(),sh=shoulderOf(p),cx=(p.x+sh[0])/2,fy=Math.max(...LEGS.map(l=>p.feet[l][1]));let sy=FLOOR+40;
+  for(const s of SURF){const y=surfY(s,cx);if(cx>=s.x0&&cx<=s.x1&&y>=fy-3&&y<sy)sy=y;}if(sy>FLOOR+1)sy=groundY(cx);
+  const h=clamp((sy-fy)/160,0,.7);ctx.fillStyle=`rgba(140,70,110,${(.16*(1-h)).toFixed(3)})`;ctx.beginPath();ctx.ellipse(cx,sy+1,d.L*.6*(1-h*.5),5*d.S,0,0,TAU);ctx.fill();}
+function ik(r,t,a,b,bend){const dx=t[0]-r[0],dy=t[1]-r[1],dd=Math.hypot(dx,dy)||.001,D2=clamp(dd,Math.abs(a-b)+.5,a+b-.3),ang=Math.atan2(dy,dx);
+  const A=Math.acos(clamp((a*a+D2*D2-b*b)/(2*a*D2),-1,1)),c1=[r[0]+Math.cos(ang+A)*a,r[1]+Math.sin(ang+A)*a],c2=[r[0]+Math.cos(ang-A)*a,r[1]+Math.sin(ang-A)*a];
+  const jn=bend>.5?(c1[1]<c2[1]?c1:c2):(c1[0]<c2[0]?c1:c2);return[jn[0],jn[1],r[0]+Math.cos(ang)*D2,r[1]+Math.sin(ang)*D2];}
+let blinkAt=1500;
+function blinkLid(){if(simT>blinkAt+140)blinkAt=simT+rnd(2200,5200);const k=(simT-blinkAt)/140;return k>=0&&k<=1?Math.sin(k*Math.PI):0;}
+function bodyPath(Lb,T,arch){const r1=T*.56,r2=T*.5;ctx.beginPath();ctx.moveTo(0,-r1);ctx.quadraticCurveTo(Lb*.5,-T*.5-arch,Lb,-r2);ctx.arc(Lb,0,r2,-Math.PI/2,Math.PI/2);ctx.quadraticCurveTo(Lb*.5,T*.52,0,r1);ctx.arc(0,0,r1,Math.PI/2,Math.PI*1.5);ctx.closePath();}
+function drawTail(p,T,d,c){const b=rot(-T*.5,-T*.08,p.a),len=d.L*1.05,N=18,sway=Math.sin(simT/650)*p.tail.sw*.35;let x=b[0],y=b[1];const pts=[[x,y]];
+  for(let i=1;i<=N;i++){const t=i/N,ang=p.tail.th+sway+p.tail.curl*t*t*1.7+Math.sin(simT/380+t*3.2)*p.tail.sw*.5*t;x+=-Math.cos(ang)*len/N;y+=-Math.sin(ang)*len/N;pts.push([x,y]);}
+  ctx.lineCap='round';for(let i=1;i<pts.length;i++){const t=i/N;ctx.strokeStyle=(c.stripes&&i%4===0&&i<N-1)?c.dark:c.fur;ctx.lineWidth=lerp(T*.27,T*.17,t);ctx.beginPath();ctx.moveTo(pts[i-1][0],pts[i-1][1]);ctx.lineTo(pts[i][0],pts[i][1]);ctx.stroke();}}
+function drawHead(h,c,R,S){const a=clamp(Math.abs(h.yaw),0,1);ctx.save();if(h.yaw<0)ctx.scale(-1,1);
+  const ear=(x,dir,col)=>{ctx.save();ctx.translate(x,-R*.55);ctx.rotate(dir*.28-h.ear*.5);ctx.beginPath();ctx.moveTo(-R*.3,R*.15);ctx.quadraticCurveTo(-R*.2,-R*.6,0,-R*.72);ctx.quadraticCurveTo(R*.2,-R*.6,R*.3,R*.15);ctx.closePath();ctx.fillStyle=col;ctx.fill();
+    ctx.beginPath();ctx.moveTo(-R*.16,R*.05);ctx.quadraticCurveTo(-R*.1,-R*.4,0,-R*.5);ctx.quadraticCurveTo(R*.1,-R*.4,R*.16,R*.05);ctx.closePath();ctx.fillStyle='#FFB3CC';ctx.fill();ctx.restore();};
+  ear(lerp(-.52,-.32,a)*R,-1,c.dark);
+  ctx.fillStyle=c.fur;ctx.beginPath();ctx.ellipse(0,0,R*1.08,R*.93,0,0,TAU);ctx.fill();
+  ctx.beginPath();ctx.ellipse(lerp(-.72,-.6,a)*R,R*.38,R*.34,R*.27,0,0,TAU);ctx.fill();ctx.beginPath();ctx.ellipse(lerp(.72,.36,a)*R,R*.42,R*.34,R*.27,0,0,TAU);ctx.fill();
+  ear(lerp(.52,.12,a)*R,1,c.fur);
+  if(a>.15){ctx.fillStyle=c.fur;ctx.beginPath();ctx.ellipse(lerp(.3,.9,a)*R,R*.28,R*.34,R*.27,0,0,TAU);ctx.fill();}
+  const mx=lerp(0,.8,a)*R;ctx.fillStyle=c.light;ctx.beginPath();ctx.ellipse(mx,R*.36,lerp(.42,.3,a)*R,R*.24,0,0,TAU);ctx.fill();
+  ctx.fillStyle='rgba(255,128,168,.38)';ctx.beginPath();ctx.ellipse(lerp(.62,.4,a)*R,R*.3,R*.17,R*.1,0,0,TAU);ctx.fill();
+  if(a<.6){ctx.beginPath();ctx.ellipse(lerp(-.62,-.3,a)*R,R*.3,R*.17*(1-a),R*.1,0,0,TAU);ctx.fill();}
+  const nx=mx+lerp(0,.14,a)*R,ny=R*.2;ctx.fillStyle='#F08AA6';ctx.beginPath();ctx.moveTo(nx-R*.11,ny-R*.05);ctx.quadraticCurveTo(nx,ny-R*.1,nx+R*.11,ny-R*.05);ctx.quadraticCurveTo(nx+R*.03,ny+R*.09,nx,ny+R*.1);ctx.quadraticCurveTo(nx-R*.03,ny+R*.09,nx-R*.11,ny-R*.05);ctx.fill();
+  ctx.strokeStyle='#5B4660';ctx.lineWidth=Math.max(1,1.1*S);ctx.lineCap='round';ctx.beginPath();ctx.moveTo(nx,ny+R*.1);ctx.quadraticCurveTo(nx-R*.02,ny+R*.22,nx-R*.13,ny+R*.2);ctx.moveTo(nx,ny+R*.1);ctx.quadraticCurveTo(nx+R*.02,ny+R*.22,nx+R*.13,ny+R*.2);ctx.stroke();
+  const lid=h.lid<.5?Math.max(h.lid,blinkLid()):h.lid;
+  const eye=(x,y,sx)=>{const rx=R*.22*sx,ry=R*.28;ctx.save();ctx.translate(x,y);
+    if(lid>=.92){ctx.strokeStyle='#4A3550';ctx.lineWidth=Math.max(1.2,1.6*S);ctx.beginPath();ctx.moveTo(-rx,ry*.1);ctx.quadraticCurveTo(0,ry*.55,rx,ry*.1);ctx.stroke();ctx.restore();return;}
+    ctx.beginPath();ctx.ellipse(0,0,rx,ry,0,0,TAU);ctx.fillStyle='#2E2236';ctx.fill();ctx.save();ctx.clip();
+    ctx.fillStyle=c.iris;ctx.beginPath();ctx.ellipse(0,ry*.38,rx*.95,ry*.55,0,0,TAU);ctx.fill();
+    ctx.fillStyle='#1E1526';ctx.beginPath();ctx.ellipse(0,ry*.05,rx*.55,ry*.64,0,0,TAU);ctx.fill();
+    ctx.fillStyle='#FFFFFF';ctx.beginPath();ctx.arc(-rx*.32,-ry*.4,ry*.3,0,TAU);ctx.fill();ctx.beginPath();ctx.arc(rx*.32,ry*.35,ry*.13,0,TAU);ctx.fill();
+    if(lid>.02){const ly=-ry+ry*2*lid;ctx.fillStyle=c.fur;ctx.fillRect(-rx-2,-ry-2,rx*2+4,ly+ry+2);ctx.strokeStyle='#4A3550';ctx.lineWidth=Math.max(1,1.3*S);ctx.beginPath();ctx.moveTo(-rx,ly);ctx.quadraticCurveTo(0,ly+ry*.22,rx,ly);ctx.stroke();}
+    ctx.restore();ctx.restore();};
+  if(a<.88)eye(lerp(-.4,.08,a)*R,-R*.06,1-a*.75);eye(lerp(.4,.47,a)*R,-R*.06,1);
+  ctx.restore();}
+function drawCat(p){const d=D(),c=COATS[cat.coat],br=1+.02*Math.sin(simT/(cat.mode==='nap'?3000:2000)*TAU),T=d.T*br,S=d.S,Lb=d.L*p.st;
+  ctx.save();ctx.translate(p.x,p.y);ctx.scale(p.f,1);
+  const loc=w=>[(w[0]-p.x)*p.f,w[1]-p.y],sh=[Math.cos(p.a)*Lb,-Math.sin(p.a)*Lb],hr=rot(-T*.05,T*.15,p.a),f0=rot(T*.05,T*.15,p.a),fr=[sh[0]+f0[0],sh[1]+f0[1]];
+  const leg=(nm,root,a,b,w1,w2,col,pawCol)=>{const t=loc(p.feet[nm]),[jx,jy,ex,ey]=ik(root,t,a,b,p.bend[nm]);ctx.strokeStyle=col;ctx.lineCap='round';ctx.lineJoin='round';
+    ctx.lineWidth=w1;ctx.beginPath();ctx.moveTo(root[0],root[1]);ctx.lineTo(jx,jy);ctx.stroke();ctx.lineWidth=w2;ctx.beginPath();ctx.moveTo(jx,jy);ctx.lineTo(ex,ey);ctx.stroke();
+    ctx.fillStyle=pawCol;ctx.beginPath();ctx.ellipse(ex,ey-w2*.1,w2*.62,w2*.5,0,0,TAU);ctx.fill();
+    if(p.claws[nm]){const ang=Math.atan2(ey-jy,ex-jx);ctx.strokeStyle='#5B4660';ctx.lineWidth=Math.max(1,S*1.1);
+      for(let i=-1;i<=1;i++){const ca=ang+i*.45,bx=ex+Math.cos(ca)*w2*.45,by=ey+Math.sin(ca)*w2*.45;ctx.beginPath();ctx.moveTo(bx,by);ctx.quadraticCurveTo(bx+Math.cos(ang)*3*S,by+Math.sin(ang)*3*S,bx+Math.cos(ang+.6)*4*S,by+Math.sin(ang+.6)*4*S);ctx.stroke();}}};
+  leg('hf',hr,d.hu,d.hl,T*.36,T*.25,c.dark,c.dark);leg('ff',fr,d.fu,d.fl,T*.27,T*.25,c.dark,c.dark);
+  drawTail(p,T,d,c);
+  ctx.save();ctx.rotate(-p.a);if(p.sq)ctx.scale(1+p.sq*.5,1-p.sq);bodyPath(Lb,T,p.arch);ctx.fillStyle=c.fur;ctx.fill();ctx.save();ctx.clip();
+  ctx.fillStyle=c.light;ctx.beginPath();ctx.ellipse(Lb*.55,T*.46,Lb*.5+T*.2,T*.26,0,0,TAU);ctx.fill();
+  if(c.chest){ctx.beginPath();ctx.ellipse(Lb+T*.12,T*.12,T*.38,T*.42,0,0,TAU);ctx.fill();}
+  if(c.stripes){ctx.strokeStyle=c.dark;ctx.lineWidth=T*.1;ctx.lineCap='round';for(let i=0;i<3;i++){const x=Lb*(.16+.26*i);ctx.beginPath();ctx.moveTo(x-T*.06,-T*.7);ctx.quadraticCurveTo(x+T*.1,-T*.45,x+T*.02,-T*.16);ctx.stroke();}}
+  ctx.restore();ctx.restore();
+  leg('hn',hr,d.hu,d.hl,T*.38,T*.26,c.fur,c.paw||c.fur);leg('fn',fr,d.fu,d.fl,T*.28,T*.26,c.fur,c.paw||c.fur);
+  const ho=rot(10*S,-14*S,p.a*.55);ctx.save();ctx.translate(sh[0]+ho[0],sh[1]+ho[1]+p.head.dy*S);if(p.sq)ctx.scale(1+p.sq*.3,1-p.sq*.5);ctx.rotate(p.head.tilt);drawHead(p.head,c,d.R,S);ctx.restore();
+  ctx.restore();}
+function drawBall(){const b=ballPos();ctx.fillStyle='rgba(140,70,110,.14)';ctx.beginPath();ctx.ellipse(b.x,FLOOR+2,ball.r*1.1,3,0,0,TAU);ctx.fill();
+  ctx.save();ctx.translate(b.x,b.y);ctx.rotate(b.rot);ctx.fillStyle='#FF7EB9';ctx.beginPath();ctx.arc(0,0,ball.r,0,TAU);ctx.fill();
+  ctx.strokeStyle='#B79CFF';ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,ball.r*.62,-1.1,1.1);ctx.stroke();ctx.restore();
+  ctx.fillStyle='rgba(255,255,255,.55)';ctx.beginPath();ctx.arc(b.x-3,b.y-3.5,2.6,0,TAU);ctx.fill();}
+function drawParts(){for(const p of parts){ctx.globalAlpha=1-p.life/p.max;ctx.fillStyle=p.col;ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.r);ctx.fillRect(-p.s,-p.s*.4,p.s*2,p.s*.8);ctx.restore();}ctx.globalAlpha=1;}
+let showRig=false;
+function drawRig(){ctx.save();ctx.lineWidth=1.6;ctx.setLineDash([5,4]);
+  for(const s of SURF){if(s.floor)continue;ctx.strokeStyle='#2A9A7E';ctx.beginPath();ctx.moveTo(s.x0,s.y);ctx.lineTo(s.x1,s.y);ctx.stroke();}
+  for(const e of edges()){if(e.type==='climb'){ctx.strokeStyle='#7A5CDB';ctx.beginPath();ctx.moveTo(e.post.x+12,surfY(e.from,e.post.x));ctx.lineTo(e.post.x+12,e.to.y);ctx.stroke();continue;}
+    ctx.strokeStyle=e.y1<e.y0?'#2A9A7E':'#D9558F';ctx.beginPath();ctx.moveTo(e.x0,e.y0);ctx.quadraticCurveTo((e.x0+e.x1)/2,Math.min(e.y0,e.y1)-28,e.x1,e.y1);ctx.stroke();}
+  ctx.setLineDash([]);const p=cat.pose,sh=shoulderOf(p);ctx.fillStyle='#3A7BFF';for(const q of[[p.x,p.y],sh]){ctx.beginPath();ctx.arc(q[0],q[1],3.5,0,TAU);ctx.fill();}
+  ctx.fillStyle='#E0408A';for(const l of LEGS){ctx.beginPath();ctx.arc(p.feet[l][0],p.feet[l][1],3,0,TAU);ctx.fill();}
+  ctx.font='700 13px Nunito, system-ui, sans-serif';const items=[['#2A9A7E','jump up'],['#D9558F','jump down'],['#7A5CDB','post climb'],['#E0408A','paw targets'],['#3A7BFF','hip and shoulder']];
+  let x=18;rr(10,10,560,28,14);ctx.fillStyle='rgba(255,255,255,.85)';ctx.fill();for(const[col,t]of items){ctx.fillStyle=col;ctx.beginPath();ctx.arc(x+6,24,5,0,TAU);ctx.fill();ctx.fillStyle='#3B2A47';ctx.fillText(t,x+15,29);x+=ctx.measureText(t).width+34;}
+  ctx.restore();}
+function render(){ctx.setTransform(DPR,0,0,DPR,0,0);ctx.clearRect(0,0,W,H);drawRoom();drawPole();drawTree();
+  if(ball){if(simT-ball.t0>ball.dur+7000&&!job)ball=null;else drawBall();}
+  drawShadow(cat.pose);drawCat(cat.pose);drawParts();if(showRig)drawRig();}
+
+/* ---------- UI ---------- */
+const phaseEl=document.getElementById('phase'),surfEl=document.getElementById('surf');let lastPhase='',lastSurf='';
+function updateUI(){if(cat.phase!==lastPhase){phaseEl.textContent=cat.phase;lastPhase=cat.phase;}const s='On '+name(cat.surface);if(s!==lastSurf){surfEl.textContent=s;lastSurf=s;}}
+function frame(now){const dt=Math.min(50,now-last)*speed;last=now;simT+=dt;stepTweens();updateParts(dt);idleTick();render();updateUI();requestAnimationFrame(frame);}
+const $=s=>document.querySelector(s);
+const ACTS={pole:['Scratch pole',scratchPole],pad:['Scratch base pad',scratchPad],tree:['Visit cat tree',j=>visitTree(j)],climb:['Climb the post',j=>visitTree(j,{forceClimb:true})]};
+document.querySelectorAll('[data-act]').forEach(b=>b.addEventListener('click',()=>{const a=b.dataset.act;if(a==='ball')return tossBall();const[n,fn]=ACTS[a];log(`Button → ${n}`,true);request(n,fn);}));
+function seg(id,cb){const el=$(id);el.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;el.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));cb(b.dataset.v);});}
+function resetPose(){request('Reset',async()=>{const cx=clamp(centerOf(),100,800);cat.surface=SID.floor;cat.mode='stand';cat.pose=standPose(cx,groundY(cx),cat.pose.f);});}
+seg('#age',v=>{cat.age=v;log(`Age → ${v}`);resetPose();});seg('#coat',v=>{cat.coat=v;});
+seg('#energy',v=>{cat.energy=v;log(`Energy → ${v}`);});seg('#chance',v=>{chance=+v;log(`Furniture chance → ${pct(chance)}`);});
+$('#weight').addEventListener('input',e=>{cat.weight=+e.target.value;});
+const idleBox=$('#idle');idleBox.checked=idleOn;idleBox.addEventListener('change',e=>{idleOn=e.target.checked;if(idleOn)nextIdle=simT+500;});
+$('#slow').addEventListener('change',e=>{speed=e.target.checked?.25:1;});$('#rig').addEventListener('change',e=>{showRig=e.target.checked;});
+$('#perch').addEventListener('change',e=>{forcedPerch=e.target.value||null;});
+$('#sound').addEventListener('change',e=>{soundOn=e.target.checked;if(soundOn&&!actx){try{actx=new(window.AudioContext||window.webkitAudioContext)();const len=Math.floor(actx.sampleRate*.2);noiseBuf=actx.createBuffer(1,len,actx.sampleRate);const ch=noiseBuf.getChannelData(0);for(let i=0;i<len;i++)ch[i]=Math.random()*2-1;}catch(err){soundOn=false;e.target.checked=false;}}if(actx&&actx.state==='suspended')actx.resume();});
+
+cat.pose=standPose(380,FLOOR,1);
+if(!reduce)request('Scratch pole',async j=>{await sleep(500);await scratchPole(j);});
+log('Demo started · scratching pole first');
+requestAnimationFrame(t=>{last=t;requestAnimationFrame(frame);});
+})();
+</script>
+
+</body></html>
