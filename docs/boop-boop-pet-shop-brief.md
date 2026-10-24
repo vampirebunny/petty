@@ -177,6 +177,8 @@ If anything fails, nothing is charged or granted. Then queue a `player_state` pu
 
 ## 10. Phase 2: move the shop catalog to Supabase
 
+Prices, names, and where an item sits on the shelf live in Supabase. New colorways and treats that reuse a shape, pattern, reaction, and effect this app already knows can be added with a `def` on `shop_items` and no app release. See [remote item defs](remote-item-defs.md). The notes below are the original phase 2 brief.
+
 Do this after phase 1 (sections 1–9) works on the local placeholder file. The goal is to have the Supabase plumbing in place before the real catalog work, and to let me tune placeholder prices and the rotation split live while testing.
 
 **What moves and what stays:**

@@ -280,6 +280,7 @@ export function spawnActor(source: ActorSource, at?: Vec): Actor {
     pendingHydration: 0,
     vitality: source.vitality,
     equipped: { ...source.equipped },
+    wearDefs: source.wearDefs,
     look: source.look ? { ...source.look } : null,
     variant: variantFor(source.seed, source.breedId),
     asleep: source.asleep,
@@ -419,6 +420,7 @@ export function syncActor(actor: Actor, source: ActorSource): void {
   actor.weight = source.weight + pending;
   actor.vitality = source.vitality;
   actor.equipped = { ...source.equipped };
+  actor.wearDefs = source.wearDefs;
   actor.look = source.look ? { ...source.look } : null;
   actor.breedId = source.breedId;
   actor.variant = variantFor(source.seed, source.breedId);

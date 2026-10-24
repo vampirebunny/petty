@@ -125,6 +125,11 @@ CREATE TABLE IF NOT EXISTS shop_catalog_cache (
   pending_version INTEGER,
   pending_on TEXT
 );
+CREATE TABLE IF NOT EXISTS item_defs (
+  id TEXT PRIMARY KEY NOT NULL,
+  def_json TEXT NOT NULL,
+  first_seen_version INTEGER NOT NULL
+);
 `;
 
 const DROP_LEGACY = `
@@ -145,6 +150,7 @@ DROP TABLE IF EXISTS push_queue;
 DROP TABLE IF EXISTS shop_day;
 DROP TABLE IF EXISTS shop_pick_history;
 DROP TABLE IF EXISTS shop_catalog_cache;
+DROP TABLE IF EXISTS item_defs;
 DROP TABLE IF EXISTS meta;
 `;
 

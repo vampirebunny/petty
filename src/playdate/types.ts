@@ -1,4 +1,5 @@
-import type { Archetype, Equipped, Look, Stats, Trait } from '../sim/types';
+import type { Archetype, Equipped, Look, OutfitSlot, Stats, Trait } from '../sim/types';
+import type { WearItem } from '../actor/wardrobe';
 
 export type Species = 'dog' | 'cat';
 
@@ -45,6 +46,8 @@ export type PetSnapshot = {
   breedId: string;
   look: Look;
   equipped: Equipped;
+  // Worn clothes this binary does not ship, so another device can still draw them.
+  wearDefs?: Partial<Record<OutfitSlot, WearItem>>;
   ageDays: number;
   weight: number;
   vitality: number;

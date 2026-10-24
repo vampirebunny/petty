@@ -30,7 +30,7 @@ function migrateSnapshot(snapshot: PetSnapshot, scaleAge: boolean): PetSnapshot 
   return {
     ...snapshot,
     ageDays: scaleAge ? scaleLegacyAgeDays(snapshot.ageDays) : snapshot.ageDays,
-    equipped: migrateEquipped(snapshot.equipped),
+    equipped: migrateEquipped(snapshot.equipped, snapshot.wearDefs),
   };
 }
 

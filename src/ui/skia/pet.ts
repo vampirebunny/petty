@@ -250,11 +250,11 @@ export function drawActor(
   if (barkOpen > 0.05) {
     eyeClosed = 0;
   }
-  const boot = wearItem('boots', actor.equipped.boots);
-  const jacket = wearItem('jacket', actor.equipped.jacket);
-  const neckwear = wearItem('neckwear', actor.equipped.neckwear);
-  const glasses = wearItem('glasses', actor.equipped.glasses);
-  const hat = wearItem('hat', actor.equipped.hat);
+  const boot = actor.wearDefs?.boots ?? wearItem('boots', actor.equipped.boots);
+  const jacket = actor.wearDefs?.jacket ?? wearItem('jacket', actor.equipped.jacket);
+  const neckwear = actor.wearDefs?.neckwear ?? wearItem('neckwear', actor.equipped.neckwear);
+  const glasses = actor.wearDefs?.glasses ?? wearItem('glasses', actor.equipped.glasses);
+  const hat = actor.wearDefs?.hat ?? wearItem('hat', actor.equipped.hat);
   const jacketAnchor = jacket ? cosmeticAnchor('jacket', jacket.id, rig.view) : null;
   const bootAnchor = boot ? cosmeticAnchor('boots', boot.id, rig.view) : null;
   const coats = coatWeights(actor.octantFrom, actor.octant, actor.octantBlend);

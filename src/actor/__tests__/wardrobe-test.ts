@@ -33,7 +33,9 @@ describe('wardrobe closet', () => {
       colorway: { c: '#e8c53a' },
     });
     expect(wearItem('neckwear', 'bell')?.shape).toBe('collar');
+    expect(wearItem('neckwear', 'bell')?.colorway.accent).toBe('bell');
     expect(wearItem('neckwear', 'gold')?.shape).toBe('collar');
+    expect(wearItem('neckwear', 'gold')?.colorway.accent).toBe('studs');
     expect(wearItem('jacket', 'rain')).toMatchObject({ id: 'rain', shape: 'raincoat', colorway: { c: '#f2c230' } });
     expect(wearItem('jacket', 'puffer')?.colorway).toEqual({ c: '#f28c28', d: '#ffe0c2' });
     const hoodie = wearItem('jacket', 'hoodie');

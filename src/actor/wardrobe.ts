@@ -2,7 +2,9 @@ import type { OutfitSlot } from '../sim/types';
 
 export type PatternId = 'stripes' | 'gingham' | 'plaid' | 'daisies' | 'stars' | 'rainbow';
 
-export type Colorway = { c: string; d?: string; pattern?: PatternId };
+export type CollarAccent = 'tag' | 'bell' | 'studs';
+
+export type Colorway = { c: string; d?: string; pattern?: PatternId; accent?: CollarAccent };
 
 export type NeckwearShape = 'collar' | 'bandana' | 'scarf' | 'bow' | 'bowtie';
 export type JacketShape = 'puffer' | 'sweater' | 'hoodie' | 'raincoat' | 'vest';
@@ -16,6 +18,8 @@ export type WearItem = {
   colorway: Colorway;
   // Parts that take the pattern. Omitted means every patterned part of the shape.
   patternParts?: readonly string[];
+  // Replaces the lens color from glassesStyles. Alpha and glare stay on the shape.
+  lensTint?: string;
 };
 
 function wear(
@@ -27,10 +31,14 @@ function wear(
   d?: string,
   pattern?: PatternId,
   patternParts?: readonly string[],
+  accent?: CollarAccent,
 ): WearItem {
   const colorway: Colorway = d ? { c, d } : { c };
   if (pattern) {
     colorway.pattern = pattern;
+  }
+  if (accent) {
+    colorway.accent = accent;
   }
   return patternParts ? { id, slot, label, shape, colorway, patternParts } : { id, slot, label, shape, colorway };
 }
@@ -74,9 +82,9 @@ export const wardrobe: Record<OutfitSlot, { label: string; items: WearItem[] }> 
       wear('neckwear', 'collar', 'Red Collar', 'collar', '#d64545', '#f0c94a'),
       wear('neckwear', 'bandana', 'Blue Bandana', 'bandana', '#3b6fc4'),
       wear('neckwear', 'scarf', 'Sunny Scarf', 'scarf', '#e8c53a'),
-      wear('neckwear', 'bell', 'Bell Collar', 'collar', '#6b3a2a', '#f0c94a'),
+      wear('neckwear', 'bell', 'Bell Collar', 'collar', '#6b3a2a', '#f0c94a', undefined, undefined, 'bell'),
       wear('neckwear', 'bow', 'Pink Bow', 'bow', '#e85a8c'),
-      wear('neckwear', 'gold', 'Gold Stud Collar', 'collar', '#e0b43c', '#fff3c4'),
+      wear('neckwear', 'gold', 'Gold Stud Collar', 'collar', '#e0b43c', '#fff3c4', undefined, undefined, 'studs'),
       wear('neckwear', 'bandana-cherry', 'Cherry Bandana', 'bandana', '#E0526A'),
       wear('neckwear', 'scarf-stripe', 'Candy Stripe Scarf', 'scarf', '#FF8CC4', '#FFFFFF', 'stripes', ['band', 'tail']),
       wear('neckwear', 'bandana-gingham', 'Picnic Bandana', 'bandana', '#E0526A', '#FFFFFF', 'gingham', ['cloth']),
@@ -112,16 +120,66 @@ export const wardrobe: Record<OutfitSlot, { label: string; items: WearItem[] }> 
 
 export const outfitSlots = Object.keys(wardrobe) as OutfitSlot[];
 
+let remoteWearLookup: ((slot: OutfitSlot, id: string) => WearItem | null) | null = null;
+
+export function bindRemoteWear(lookup: (slot: OutfitSlot, id: string) => WearItem | null): void {
+  remoteWearLookup = lookup;
+}
+
 export function wearItem(slot: OutfitSlot, id: string | undefined): WearItem | null {
   if (!id || id === 'none') {
     return null;
   }
   const lookup = slot === 'glasses' && id === 'round' ? 'square' : id;
   const item = wardrobe[slot].items.find((entry) => entry.id === lookup);
-  return item?.colorway.c ? item : null;
+  if (item?.colorway.c) {
+    return item;
+  }
+  return remoteWearLookup?.(slot, lookup) ?? null;
 }
 
 export function jacketHasSleeves(item: { shape: string } | string): boolean {
   const shape = typeof item === 'string' ? wearItem('jacket', item)?.shape : item.shape;
   return shape === 'sweater' || shape === 'raincoat' || shape === 'hoodie';
 }
+
+export const DEF_SCHEMA_MAX = 1;
+
+export const KNOWN_PATTERNS: readonly PatternId[] = ['stripes', 'gingham', 'plaid', 'daisies', 'stars', 'rainbow'];
+
+export const KNOWN_SHAPES: Record<OutfitSlot, readonly string[]> = {
+  hat: ['beanie', 'party', 'top', 'cap', 'bucket', 'beret', 'crown'],
+  glasses: ['classic', 'square', 'red-rim', 'heart', 'star'],
+  neckwear: ['collar', 'bandana', 'scarf', 'bow', 'bowtie'],
+  jacket: ['puffer', 'sweater', 'hoodie', 'raincoat', 'vest'],
+  boots: ['red', 'rain', 'sneaker'],
+};
+
+// Parts drawItemPattern can clip into. An empty list means this shape has no pattern.
+export const PATTERN_PARTS: Record<string, readonly string[]> = {
+  beanie: ['crown'],
+  party: [],
+  top: ['band'],
+  cap: ['crown'],
+  bucket: ['crown'],
+  beret: ['crown'],
+  crown: [],
+  classic: [],
+  square: [],
+  'red-rim': [],
+  heart: [],
+  star: [],
+  collar: [],
+  bandana: ['cloth'],
+  scarf: ['band', 'tail'],
+  bow: [],
+  bowtie: ['wing'],
+  puffer: ['body'],
+  sweater: ['body'],
+  hoodie: ['body'],
+  raincoat: ['body'],
+  vest: ['body'],
+  red: [],
+  rain: [],
+  sneaker: [],
+};

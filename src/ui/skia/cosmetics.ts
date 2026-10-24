@@ -915,12 +915,13 @@ export function drawNeckwear(
   const turned = flat > 0.45 ? 0 : view;
   const hangDir = dropDir(perp, turned, pitch);
   if (item.shape === 'collar') {
-    const lower = drawCollarBand(c, chin, perp, along, item, r, fur, item.id === 'gold', turned, pitch);
+    const accent = item.colorway.accent ?? 'tag';
+    const lower = drawCollarBand(c, chin, perp, along, item, r, fur, accent === 'studs', turned, pitch);
     const hang = {
       x: lower.x + hangDir.x * r * 0.28 * hangK + sway * r * hangK,
       y: lower.y + hangDir.y * r * 0.28 * hangK,
     };
-    if (item.id === 'bell') {
+    if (accent === 'bell') {
       const bell = item.colorway.d ?? '#f0c94a';
       const bellR = r * sizes.bell * (0.55 + 0.45 * hangK);
       paintShape(c, circlePath(hang.x, hang.y, bellR), bell, fur);
@@ -1169,7 +1170,7 @@ function drawLensAt(c: SkCanvas, L: GlassesLayout, at: Pt, scale: Pt, alpha: num
   c.scale(scale.x, scale.y);
   const path = lensPath(L.st.shape, L.w, L.h);
   const tinted = L.st.shape === 'heart' || L.st.shape === 'star';
-  const lens = tinted ? (item.colorway.d ?? L.st.lens) : L.st.lens;
+  const lens = item.lensTint ?? (tinted ? (item.colorway.d ?? L.st.lens) : L.st.lens);
   const lensAlpha = tinted ? 0.45 : L.st.lensAlpha;
   c.drawPath(path, paintOf(lens, lensAlpha * alpha));
   // Glare streaks on the lens, so the eye still sparkles through dark lenses.

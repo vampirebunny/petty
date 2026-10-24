@@ -1,4 +1,5 @@
 import type { Equipped, OutfitSlot } from '../sim/types';
+import type { WearItem } from './wardrobe';
 
 import { outfitSlots, wearItem } from './wardrobe';
 
@@ -22,13 +23,19 @@ function readId(raw: Record<string, unknown>, key: string): string | undefined {
 }
 
 // Old saves used collar, bandana, and coat. Bandana wins when both neck pieces were worn.
-export function migrateEquipped(raw: object | null | undefined): Equipped {
+export function migrateEquipped(
+  raw: object | null | undefined,
+  wearDefs?: Partial<Record<OutfitSlot, WearItem>>,
+): Equipped {
   const src = (raw ?? {}) as Record<string, unknown>;
   const next: Equipped = {};
   for (const slot of outfitSlots) {
-    const item = wearItem(slot, readId(src, slot));
+    const id = readId(src, slot);
+    const item = wearItem(slot, id);
     if (item) {
       next[slot] = item.id;
+    } else if (id && wearDefs?.[slot]?.id === id) {
+      next[slot] = id;
     }
   }
   if (!next.neckwear) {

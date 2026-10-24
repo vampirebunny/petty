@@ -3,6 +3,7 @@ import { StyleSheet } from 'react-native';
 import { Canvas, Picture, Skia } from '@shopify/react-native-skia';
 
 import { createWorld, sceneById, spawnActor, todAt } from '../actor';
+import type { ActorSource } from '../actor/types';
 import type { Equipped, Look } from '../sim/types';
 import { drawPetOnly, drawWorld } from './skia/world';
 
@@ -17,6 +18,7 @@ export type OutfitSubject = {
 
 type Props = OutfitSubject & {
   equipped: Equipped;
+  wearDefs?: ActorSource['wearDefs'];
   width: number;
   height: number;
   t: number;
@@ -53,6 +55,7 @@ export function OutfitPreview({
   look,
   seed = 1,
   equipped,
+  wearDefs,
   width,
   height,
   t,
@@ -63,7 +66,7 @@ export function OutfitPreview({
 }: Props) {
   const picture = useMemo(() => {
     const actor = spawnActor(
-      { id: 'outfit', breedId, ageDays, weight, vitality, equipped, look, asleep: false, seed },
+      { id: 'outfit', breedId, ageDays, weight, vitality, equipped, wearDefs, look, asleep: false, seed },
       { x: 320, y: 460 },
     );
     actor.blinkT = 2;
@@ -90,7 +93,7 @@ export function OutfitPreview({
       drawWorld(canvas, world, width, height, tod, true, undefined, camera, undefined, { sky: null });
     }
     return recorder.finishRecordingAsPicture();
-  }, [ageDays, bare, breedId, cameraY, equipped, height, look, pose, seed, t, vitality, weight, width, zoom]);
+  }, [ageDays, bare, breedId, cameraY, equipped, height, look, pose, seed, t, vitality, wearDefs, weight, width, zoom]);
 
   return (
     <Canvas style={[styles.canvas, { width, height }]} pointerEvents="none">

@@ -1,6 +1,7 @@
 import type { Item } from '../items/types';
 import type { PointerTarget } from '../input/pointer';
-import type { BreedRanges, Equipped, Look } from '../sim/types';
+import type { BreedRanges, Equipped, Look, OutfitSlot } from '../sim/types';
+import type { WearItem } from './wardrobe';
 import type { Bird } from './birds';
 import type { Scene } from './scenes';
 import type { CuddleParams } from './data/cuddle';
@@ -522,6 +523,8 @@ export type Actor = {
   pendingHydration: number;
   vitality: number;
   equipped: Equipped;
+  // Remote clothes this actor must draw even when the viewer's catalog does not know the id.
+  wearDefs?: Partial<Record<OutfitSlot, WearItem>>;
   // World time of the last bell jingle, so a run does not ring every frame.
   bellAt?: number;
   look: Look | null;
@@ -716,6 +719,7 @@ export type ParkOffer = {
   affection: number;
   look: Look | null;
   equipped: Equipped;
+  wearDefs?: Partial<Record<OutfitSlot, WearItem>>;
 };
 
 export type ParkGuestPhase = 'enter' | 'wander' | 'hello' | 'leave';
@@ -758,6 +762,7 @@ export type ActorSource = {
   weight: number;
   vitality: number;
   equipped: Equipped;
+  wearDefs?: Partial<Record<OutfitSlot, WearItem>>;
   look?: Look | null;
   asleep: boolean;
   cuddleAffinity?: number;

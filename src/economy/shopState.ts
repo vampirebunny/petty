@@ -1,4 +1,5 @@
 import { catalog, catalogItem } from './catalog';
+import { rememberActiveDefs, remoteItemDefs } from './remoteDefs';
 import { localDay } from './clock';
 import { currentOwner } from '../db/currentOwner';
 import { getDb } from '../db/database';
@@ -8,6 +9,7 @@ import {
   materializeShop,
   priceCart,
   shownDeal,
+  withScratchPole,
   type LimitedStock,
   type CartInput,
   type DayPick,
@@ -29,7 +31,7 @@ type CacheRow = {
 export type ShopDay = { date: string; picks: DayPick[]; dealId: string | null };
 
 function defs() {
-  return itemDefsFromCatalog(catalog);
+  return [...itemDefsFromCatalog(catalog), ...remoteItemDefs()];
 }
 
 function parseRemote(json: string | null): ShopCatalog | null {
@@ -41,7 +43,9 @@ function parseRemote(json: string | null): ShopCatalog | null {
     if (!remote || !Array.isArray(remote.items)) {
       return null;
     }
-    return materializeShop(remote, defs());
+    rememberActiveDefs(remote);
+    const catalog = materializeShop(remote, defs());
+    return catalog ? withScratchPole(catalog) : null;
   } catch {
     return null;
   }

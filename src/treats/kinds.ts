@@ -1,4 +1,4 @@
-import { catalog, treatReaction, type TreatReaction } from '../economy/catalog';
+import { catalog, catalogItem, treatReaction, type TreatReaction } from '../economy/catalog';
 import type { Effects } from '../sim/effects';
 import { speciesOf } from '../sim/tracks';
 
@@ -33,11 +33,29 @@ function fromCatalog(): Record<string, TreatKind> {
 export const TREAT_KINDS: Record<string, TreatKind> = fromCatalog();
 
 export function treatById(id: string): TreatKind | null {
-  return TREAT_KINDS[id] ?? null;
+  const known = TREAT_KINDS[id];
+  if (known) {
+    return known;
+  }
+  const item = catalogItem(id);
+  if (!item || item.kind !== 'treat') {
+    return null;
+  }
+  if (!item.effects?.casual && item.effects?.fill == null) {
+    return null;
+  }
+  return {
+    id: item.id,
+    name: item.name,
+    species: item.species ?? ['dog', 'cat'],
+    rarity: item.effects?.fill === 'mood' ? 'special' : 'common',
+    effects: item.effects?.casual ?? {},
+    reaction: item.reaction ?? 'wag_burst',
+  };
 }
 
 export function reactionForTreat(id: string, breedId: string): TreatReaction {
-  const item = catalog.find((entry) => entry.id === id);
+  const item = catalogItem(id);
   if (!item) {
     return 'wag_burst';
   }
@@ -61,6 +79,19 @@ export function treatsInInventory(
     const allowed = item.species ?? ['dog', 'cat'];
     if (count > 0 && allowed.includes(species)) {
       choices.push({ id: item.id, name: item.name, count });
+    }
+  }
+  for (const stack of inventory) {
+    if (choices.some((choice) => choice.id === stack.itemId) || stack.qty <= 0) {
+      continue;
+    }
+    const item = catalogItem(stack.itemId);
+    if (!item || item.kind !== 'treat') {
+      continue;
+    }
+    const allowed = item.species ?? ['dog', 'cat'];
+    if (allowed.includes(species)) {
+      choices.push({ id: item.id, name: item.name, count: stack.qty });
     }
   }
   return choices;

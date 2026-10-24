@@ -178,6 +178,7 @@ export function parkOfferFromSnapshot(snapshot: PetSnapshot): ParkOffer {
     affection: snapshot.attributes.affection,
     look: snapshot.look,
     equipped: snapshot.equipped,
+    ...(snapshot.wearDefs ? { wearDefs: snapshot.wearDefs } : {}),
   };
 }
 

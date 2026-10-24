@@ -7,10 +7,12 @@ import { readLegacyCloset, writePetNow } from '../db/sqlitePetStorage';
 import { getDb, transaction } from '../db/database';
 import { currentOwner, ownerIsReady } from '../db/currentOwner';
 import { catalog, catalogItem, starterOutfits, storeItems, type CatalogItem, type TreatEffects } from './catalog';
+import { shopFurniture, type ShopFurnitureId } from '../actor/furniture';
 import { grantOwnedFurniture, touchPlayerHome } from '../db/playerHome';
 import { listedPrice, loadShopCatalog, quoteCart } from './shopState';
 import type { CartInput, PricedLine, SpeciesId } from './shop';
 import { queueCoupled, queuePlayer } from '../sync/queue';
+import { appVersion } from './remoteDefs';
 import { economyConfig, type PlayFindKind } from './economyConfig';
 import { localDay } from './clock';
 import { planTimePayout } from './accrual';
@@ -242,14 +244,15 @@ function insertTransaction(
   const owner = ownerId();
   const catalogVersion = loadShopCatalog()?.version ?? null;
   db().runSync(
-    `INSERT INTO transactions (id, owner_id, idempotency_key, source, source_ref, device_time, config_version, catalog_version)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO transactions (id, owner_id, idempotency_key, source, source_ref, device_time, app_version, config_version, catalog_version)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     id,
     owner,
     key,
     source,
     sourceRef,
     new Date().toISOString(),
+    appVersion(),
     economyConfig.version,
     catalogVersion,
   );
@@ -360,7 +363,8 @@ export function canUse(pet: PetState, itemId: string, opts: UseOpts = {}, now = 
   }
   if (item.kind === 'treat') {
     const effects = opts.context === 'training' ? item.effects?.training : item.effects?.casual;
-    if (!effects) {
+    const fillOnly = opts.context !== 'training' && item.effects?.fill != null;
+    if (!effects && !fillOnly) {
       return { ok: false, reason: 'not_available' };
     }
     if (opts.context !== 'training' && item.effects?.fill === 'energy' && pet.needs.energy >= 95) {
@@ -369,7 +373,7 @@ export function canUse(pet: PetState, itemId: string, opts: UseOpts = {}, now = 
     if (opts.context !== 'training' && item.effects?.fill === 'mood' && pet.needs.happiness >= 95) {
       return { ok: false, reason: 'mood_full' };
     }
-    if (opts.context !== 'training' && item.effects?.fill == null && pet.needs.hunger <= 0) {
+    if (effects && opts.context !== 'training' && item.effects?.fill == null && pet.needs.hunger <= 0) {
       return { ok: false, reason: 'full' };
     }
     return { ok: true };
@@ -384,6 +388,9 @@ export function canUse(pet: PetState, itemId: string, opts: UseOpts = {}, now = 
     return { ok: true };
   }
   if (item.kind === 'second_wind') {
+    if (!item.effects?.endRest) {
+      return { ok: false, reason: 'not_available' };
+    }
     const trickId = opts.trickId;
     const track = trickId ? pet.training[trickId] : undefined;
     if (!trickId || !track || !isResting(track, now)) {
@@ -413,12 +420,19 @@ function commitUse(pet: PetState, item: CatalogItem, opts: UseOpts, key: string,
     { asset: item.id, delta: -1 },
   ]);
   if (item.kind === 'treat') {
-    const effects = (opts.context === 'training' ? item.effects?.training : item.effects?.casual) as TreatEffects;
-    const applied = applyTreatEffects(pet, effects, opts.context !== 'training' && item.effects?.fill == null);
-    if (!applied.ok || !applied.pet) {
-      throw new Error(applied.ok ? 'unknown' : applied.reason);
+    const effects = opts.context === 'training' ? item.effects?.training : item.effects?.casual;
+    let next = pet;
+    if (effects) {
+      const applied = applyTreatEffects(pet, effects, opts.context !== 'training' && item.effects?.fill == null);
+      if (!applied.ok || !applied.pet) {
+        throw new Error(applied.ok ? 'unknown' : applied.reason);
+      }
+      next = applied.pet;
+    } else if (item.effects?.fill == null || opts.context === 'training') {
+      throw new Error('not_available');
+    } else {
+      next = { ...pet, needs: { ...pet.needs } };
     }
-    const next = applied.pet;
     if (item.effects?.fill === 'energy') {
       next.needs.energy = 100;
     }
@@ -430,17 +444,23 @@ function commitUse(pet: PetState, item: CatalogItem, opts: UseOpts, key: string,
   if (item.kind === 'food') {
     return { ...pet, foodInBowl: true, bowlItemId: item.id };
   }
-  const trickId = opts.trickId as string;
-  const day = localDay(now);
-  setDaily(day, pet.id, 'second_wind', dailyCount(day, pet.id, 'second_wind') + 1);
-  const track = pet.training[trickId];
-  return {
-    ...pet,
-    training: {
-      ...pet.training,
-      [trickId]: { ...track, restUntil: null, focusUsed: 0, hadNoTreat: false },
-    },
-  };
+  if (item.kind === 'second_wind') {
+    if (!item.effects?.endRest) {
+      throw new Error('not_available');
+    }
+    const trickId = opts.trickId as string;
+    const day = localDay(now);
+    setDaily(day, pet.id, 'second_wind', dailyCount(day, pet.id, 'second_wind') + 1);
+    const track = pet.training[trickId];
+    return {
+      ...pet,
+      training: {
+        ...pet.training,
+        [trickId]: { ...track, restUntil: null, focusUsed: 0, hadNoTreat: false },
+      },
+    };
+  }
+  throw new Error('not_available');
 }
 
 export function purchaseCart(
@@ -482,8 +502,8 @@ export function purchaseCart(
         db().runSync('INSERT OR IGNORE INTO owned_toys (owner_id, toy_id) VALUES (?, ?)', owner, toyId);
       }
       for (const kind of priced.furniture) {
-        if (kind === 'dogHouse' || kind === 'catTree') {
-          grantOwnedFurniture(owner, species, kind, sceneId);
+        if (Object.prototype.hasOwnProperty.call(shopFurniture, kind)) {
+          grantOwnedFurniture(owner, species, kind as ShopFurnitureId, sceneId);
         }
       }
       return {

@@ -1,5 +1,6 @@
 import { mulberry, seedOf } from '../actor/mulberry';
 import type { ItemKind } from './catalog';
+import { explainRemoteRow, remoteItemDef, versionAllows, type RemoteDefRow } from './remoteDefs';
 import { calendarDaysBetween } from './clock';
 import type { OutfitSlot } from '../sim/types';
 
@@ -63,6 +64,7 @@ export type ItemDef = {
   kind: ItemKind;
   slot?: OutfitSlot;
   wearId?: string;
+  species?: SpeciesId[];
 };
 
 export type DayPick = { slot: PickSlot; itemId: string; shop: ShopFlag };
@@ -176,7 +178,7 @@ export function chooseDay(
         categories.includes(item.category) &&
         item.tier !== 'limited' &&
         item.shop !== 'featured' &&
-        (item.shop === 'rotation' || item.shop === 'always') &&
+        (item.shop === 'rotation' || (item.shop === 'always' && item.tier !== 'exclusive')) &&
         fitsSpecies(item.species, species) &&
         (item.stackable || !owned.has(item.id)) &&
         !taken.has(item.id),
@@ -240,7 +242,7 @@ export function tabItems(catalog: ShopCatalog, category: ShopCategory, species: 
     .filter(
       (item) =>
         item.category === category &&
-        (item.shop === 'always' || item.shop === 'coming_soon') &&
+        ((item.shop === 'always' && item.tier !== 'exclusive') || item.shop === 'coming_soon') &&
         fitsSpecies(item.species, species),
     )
     .sort((a, b) => {
@@ -339,6 +341,10 @@ function listing(catalog: ShopCatalog, id: string): ShopListing | null {
   return catalog.items.find((item) => item.id === id) ?? null;
 }
 
+function payable(price: number): boolean {
+  return Number.isInteger(price) && price >= 0;
+}
+
 export function priceCart(
   catalog: ShopCatalog,
   lines: CartInput[],
@@ -390,7 +396,7 @@ export function priceCart(
   for (const line of merged.values()) {
     if (line.kind === 'bundle') {
       const bundle = catalog.bundles.find((entry) => entry.id === line.id);
-      if (!bundle) {
+      if (!bundle || bundle.contents.length === 0 || !payable(bundle.price)) {
         return { ok: false, reason: 'not_available' };
       }
       for (const part of bundle.contents) {
@@ -428,6 +434,7 @@ export function priceCart(
       item.shop === 'featured' ||
       item.tier === 'limited' ||
       item.price == null ||
+      !payable(item.price) ||
       !fitsSpecies(item.species, species)
     ) {
       return { ok: false, reason: 'not_available' };
@@ -500,6 +507,8 @@ export type RemoteShopItem = {
   description: string | null;
   sort: number;
   active: boolean;
+  def?: unknown;
+  minAppVersion?: string | null;
 };
 
 export type RemoteShop = {
@@ -518,7 +527,22 @@ export function materializeShop(remote: RemoteShop, defs: ItemDef[]): ShopCatalo
     if (!row.active || row.shop === 'hidden') {
       continue;
     }
-    const def = byId.get(row.id);
+    const bundled = byId.get(row.id);
+    const remoteRow: RemoteDefRow = {
+      id: row.id,
+      name: row.name,
+      species: row.species,
+      def: row.def,
+      minAppVersion: row.minAppVersion,
+    };
+    if (!versionAllows(row.minAppVersion)) {
+      continue;
+    }
+    const extra = remoteItemDef(remoteRow);
+    if (!bundled && explainRemoteRow(remoteRow) === 'omit') {
+      continue;
+    }
+    const def = bundled ?? extra;
     if (!def && row.shop !== 'coming_soon') {
       continue;
     }
@@ -544,7 +568,7 @@ export function materializeShop(remote: RemoteShop, defs: ItemDef[]): ShopCatalo
       category: row.category || categoryOf(def.kind),
       shop: row.shop,
       tier: row.tier ?? 'standard',
-      species: row.species ?? undefined,
+      species: (row.species && row.species.length > 0 ? row.species : def.species),
       price: row.shop === 'coming_soon' ? null : row.price,
       description: row.description ?? undefined,
       sort: row.sort,
@@ -599,6 +623,26 @@ export function shopFromConfig(
     },
     defs,
   );
+}
+
+const scratchPole: ShopListing = {
+  id: 'scratcher',
+  name: 'Scratch Pole',
+  category: 'home',
+  shop: 'always',
+  tier: 'standard',
+  species: ['cat'],
+  price: 2500,
+  sort: 2,
+  stackable: false,
+};
+
+// A downloaded catalog from before this item existed still shows it on the Furniture shelf.
+export function withScratchPole(catalog: ShopCatalog): ShopCatalog {
+  if (catalog.items.some((item) => item.id === scratchPole.id)) {
+    return catalog;
+  }
+  return { ...catalog, items: [...catalog.items, scratchPole] };
 }
 
 export function itemDefsFromCatalog(

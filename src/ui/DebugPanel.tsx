@@ -6,6 +6,7 @@ import { runOnJS } from 'react-native-reanimated';
 import { phaseOf } from '../actor';
 import { catalog } from '../economy/catalog';
 import { applyCatalogNow } from '../economy/shopState';
+import { DefPreview } from '../dev/DefPreview';
 import { attributeScore, stageOf, traits } from '../sim';
 import { visualLifespanDays } from '../sim/config';
 import type { Mood, PetState, Trait } from '../sim/types';
@@ -250,7 +251,8 @@ export function DebugPanel({
           <Text style={styles.buttonLabel}>Retire</Text>
         </Pressable>
       </View>
-      {typeof __DEV__ !== 'undefined' && __DEV__ && onGrant ? (
+        {typeof __DEV__ !== 'undefined' && __DEV__ ? <DefPreview /> : null}
+        {typeof __DEV__ !== 'undefined' && __DEV__ && onGrant ? (
         <View style={styles.actions}>
           {catalog.map((item) => (
             <Pressable key={item.id} style={styles.button} onPress={() => onGrant(item.id)}>

@@ -389,6 +389,7 @@ function spawnVisitor(world: World, spawn: Spawn, at?: Vec, wandering = false): 
       weight: offer.weight,
       vitality: offer.vitality,
       equipped: offer.equipped,
+      wearDefs: offer.wearDefs,
       look: offer.look,
       asleep: false,
       seed: offer.seed,

@@ -6,6 +6,10 @@ Applied on hosted project `unfatkwtzfkqnnbgzuqs`:
 - `20261022120000_pets_and_player_state.sql` — `pets`, `player_state`, and `push_active_pet`, `retire_pet`, `push_player_state`
 - `20261023120000_shop_catalog.sql` — `shop_items`, `shop_bundles`, `shop_config`, anon read, and the placeholder seed
 
+In the repo, waiting for the owner to push:
+
+- `20261024120000_shop_item_defs.sql` — `shop_items.def`, `min_app_version`, `def_locked`, price and exclusive checks, non-empty bundles
+
 New files in this folder are applied only by the project owner. Do not run `supabase db push`, the Supabase CLI against the hosted project, or the SQL in the dashboard from an agent or an automated script. After the CLI is linked, the owner applies new migrations with:
 
 ```bash

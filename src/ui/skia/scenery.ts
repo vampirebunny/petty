@@ -10,6 +10,7 @@ import type { Env } from './env';
 import { glow } from './ink';
 import { extras, drawPropBody } from './props';
 import { overcastWash } from './sky';
+import { treatArtFor, type TreatArtTemplate } from '../../economy/treatArt';
 import { drawPrecip } from './weatherFx';
 // Registers the catio prop kinds.
 import './catioProps';
@@ -195,6 +196,105 @@ export function drawToyShape(c: SkCanvas, kind: string, x: number, y: number, ra
 }
 
 // A biscuit is the treat we can draw today. Other ids get a simple variant until they have their own art.
+function drawBone(c: SkCanvas, x: number, y: number, radius: number, fill: string): void {
+  c.save();
+  c.translate(x, y);
+  c.rotate(-18, 0, 0);
+  c.drawLine(-radius * 0.7, 0, radius * 0.7, 0, paintOf(fill, 1, radius * 0.42));
+  fillCircle(c, -radius * 0.85, -radius * 0.16, radius * 0.34, fill);
+  fillCircle(c, -radius * 0.85, radius * 0.16, radius * 0.34, fill);
+  fillCircle(c, radius * 0.85, -radius * 0.16, radius * 0.34, fill);
+  fillCircle(c, radius * 0.85, radius * 0.16, radius * 0.34, fill);
+  c.restore();
+}
+
+function drawLegacyBiscuitFish(c: SkCanvas, x: number, y: number, radius: number): void {
+  fillOval(c, x, y, radius * 1.15, radius * 0.62, '#e7b15a');
+  fillOval(c, x + radius * 0.85, y, radius * 0.38, radius * 0.28, '#e7b15a');
+  fillCircle(c, x + radius * 1.05, y - radius * 0.08, radius * 0.08, '#8a5a32');
+  fillCircle(c, x - radius * 0.2, y - radius * 0.05, radius * 0.1, '#c9842f');
+}
+
+function drawLegacySpecial(c: SkCanvas, x: number, y: number, radius: number, t: number): void {
+  fillCircle(c, x, y + radius * 0.08, radius, '#c9842f');
+  fillCircle(c, x, y, radius * 0.92, '#e7b15a');
+  fillCircle(c, x - radius * 0.22, y - radius * 0.28, radius * 0.55, '#f3d48a', 0.9);
+  fillCircle(c, x - radius * 0.28, y + radius * 0.08, radius * 0.16, '#8a5a32');
+  fillCircle(c, x + radius * 0.22, y - radius * 0.22, radius * 0.13, '#8a5a32');
+  fillCircle(c, x + radius * 0.08, y + radius * 0.28, radius * 0.12, '#8a5a32');
+  const twinkle = 0.85 + Math.sin(t * 6) * 0.15;
+  fillCircle(c, x, y - radius * 0.05, radius * 0.28 * twinkle, '#ff7ba5');
+  fillCircle(c, x, y - radius * 0.05, radius * 0.12, '#fff6fb');
+}
+
+function drawCookie(c: SkCanvas, x: number, y: number, radius: number, fill: string, chip: string): void {
+  fillCircle(c, x, y + radius * 0.08, radius, chip);
+  fillCircle(c, x, y, radius * 0.92, fill);
+  fillCircle(c, x - radius * 0.22, y - radius * 0.28, radius * 0.55, '#f3d48a', 0.9);
+  fillCircle(c, x - radius * 0.28, y + radius * 0.08, radius * 0.16, chip);
+  fillCircle(c, x + radius * 0.22, y - radius * 0.22, radius * 0.13, chip);
+  fillCircle(c, x + radius * 0.08, y + radius * 0.28, radius * 0.12, chip);
+}
+
+export function drawTreatTemplate(
+  c: SkCanvas,
+  template: TreatArtTemplate,
+  x: number,
+  y: number,
+  radius: number,
+  colors: { c: string; d?: string },
+  t = 0,
+): void {
+  const fill = colors.c;
+  const accent = colors.d ?? fill;
+  if (template === 'bone') {
+    drawBone(c, x, y, radius, fill);
+    return;
+  }
+  if (template === 'fish') {
+    fillOval(c, x, y, radius * 1.15, radius * 0.62, fill);
+    fillOval(c, x + radius * 0.85, y, radius * 0.38, radius * 0.28, fill);
+    fillCircle(c, x + radius * 1.05, y - radius * 0.08, radius * 0.08, accent);
+    fillCircle(c, x - radius * 0.2, y - radius * 0.05, radius * 0.1, accent);
+    return;
+  }
+  if (template === 'chew_stick') {
+    c.save();
+    c.translate(x, y);
+    c.rotate(-24, 0, 0);
+    c.drawLine(-radius * 1.1, 0, radius * 1.1, 0, paintOf(fill, 1, radius * 0.38));
+    c.drawLine(-radius * 0.7, -radius * 0.22, radius * 0.4, -radius * 0.22, paintOf(accent, 1, radius * 0.08));
+    c.drawLine(-radius * 0.2, radius * 0.18, radius * 0.9, radius * 0.18, paintOf(accent, 1, radius * 0.08));
+    c.restore();
+    return;
+  }
+  if (template === 'can') {
+    fillOval(c, x, y - radius * 0.55, radius * 0.7, radius * 0.28, accent);
+    c.drawLine(x, y - radius * 0.55, x, y + radius * 0.45, paintOf(fill, 1, radius * 1.35));
+    fillOval(c, x, y + radius * 0.45, radius * 0.7, radius * 0.28, fill);
+    fillOval(c, x, y - radius * 0.55, radius * 0.45, radius * 0.16, '#fff6fb');
+    return;
+  }
+  if (template === 'steak') {
+    fillOval(c, x, y, radius * 1.15, radius * 0.7, fill);
+    fillCircle(c, x - radius * 0.55, y - radius * 0.15, radius * 0.38, accent);
+    fillCircle(c, x + radius * 0.45, y + radius * 0.1, radius * 0.28, '#f3d48a');
+    return;
+  }
+  if (template === 'bowl') {
+    fillOval(c, x, y + radius * 0.15, radius * 1.05, radius * 0.55, fill);
+    fillOval(c, x, y - radius * 0.05, radius * 0.85, radius * 0.38, accent);
+    fillOval(c, x, y + radius * 0.35, radius * 1.05, radius * 0.22, fill);
+    return;
+  }
+  drawCookie(c, x, y, radius, fill, accent);
+  if (template === 'cookie_center') {
+    const twinkle = 0.85 + Math.sin(t * 6) * 0.15;
+    fillCircle(c, x, y - radius * 0.05, radius * 0.28 * twinkle, accent);
+    fillCircle(c, x, y - radius * 0.05, radius * 0.12, '#fff6fb');
+  }
+}
+
 export function drawTreatShape(
   c: SkCanvas,
   id: string,
@@ -205,35 +305,23 @@ export function drawTreatShape(
   species: 'dog' | 'cat' | null = null,
 ): void {
   if (id === 'biscuit' && species === 'cat') {
-    fillOval(c, x, y, radius * 1.15, radius * 0.62, '#e7b15a');
-    fillOval(c, x + radius * 0.85, y, radius * 0.38, radius * 0.28, '#e7b15a');
-    fillCircle(c, x + radius * 1.05, y - radius * 0.08, radius * 0.08, '#8a5a32');
-    fillCircle(c, x - radius * 0.2, y - radius * 0.05, radius * 0.1, '#c9842f');
+    drawLegacyBiscuitFish(c, x, y, radius);
     return;
   }
   if (id === 'biscuit') {
-    c.save();
-    c.translate(x, y);
-    c.rotate(-18, 0, 0);
-    c.drawLine(-radius * 0.7, 0, radius * 0.7, 0, paintOf('#e7b15a', 1, radius * 0.42));
-    fillCircle(c, -radius * 0.85, -radius * 0.16, radius * 0.34, '#e7b15a');
-    fillCircle(c, -radius * 0.85, radius * 0.16, radius * 0.34, '#e7b15a');
-    fillCircle(c, radius * 0.85, -radius * 0.16, radius * 0.34, '#e7b15a');
-    fillCircle(c, radius * 0.85, radius * 0.16, radius * 0.34, '#e7b15a');
-    c.restore();
+    drawBone(c, x, y, radius, '#e7b15a');
     return;
   }
-  fillCircle(c, x, y + radius * 0.08, radius, '#c9842f');
-  fillCircle(c, x, y, radius * 0.92, '#e7b15a');
-  fillCircle(c, x - radius * 0.22, y - radius * 0.28, radius * 0.55, '#f3d48a', 0.9);
-  fillCircle(c, x - radius * 0.28, y + radius * 0.08, radius * 0.16, '#8a5a32');
-  fillCircle(c, x + radius * 0.22, y - radius * 0.22, radius * 0.13, '#8a5a32');
-  fillCircle(c, x + radius * 0.08, y + radius * 0.28, radius * 0.12, '#8a5a32');
   if (id === 'special') {
-    const twinkle = 0.85 + Math.sin(t * 6) * 0.15;
-    fillCircle(c, x, y - radius * 0.05, radius * 0.28 * twinkle, '#ff7ba5');
-    fillCircle(c, x, y - radius * 0.05, radius * 0.12, '#fff6fb');
+    drawLegacySpecial(c, x, y, radius, t);
+    return;
   }
+  const art = treatArtFor(id);
+  if (art) {
+    drawTreatTemplate(c, art.template, x, y, radius, art, t);
+    return;
+  }
+  drawCookie(c, x, y, radius, '#e7b15a', '#c9842f');
 }
 
 export function drawHeldPlay(c: SkCanvas, world: World): void {

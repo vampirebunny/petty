@@ -51,6 +51,8 @@ function asItem(row: Record<string, unknown>): RemoteShopItem | null {
     description: typeof row.description === 'string' ? row.description : null,
     sort: typeof row.sort === 'number' ? row.sort : 0,
     active: row.active !== false,
+    def: row.def,
+    minAppVersion: typeof row.min_app_version === 'string' ? row.min_app_version : null,
   };
 }
 

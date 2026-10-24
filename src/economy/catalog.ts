@@ -173,6 +173,7 @@ export const catalog: CatalogItem[] = [
   },
   { id: 'dogHouse', name: 'Dog House', kind: 'furniture', price: null, available: true, species: ['dog'] },
   { id: 'catTree', name: 'Cat Tree', kind: 'furniture', price: null, available: true, species: ['cat'] },
+  { id: 'scratcher', name: 'Scratch Pole', kind: 'furniture', price: null, available: true, species: ['cat'] },
   {
     id: 'second_wind',
     name: 'Second Wind',
@@ -194,8 +195,14 @@ export const catalog: CatalogItem[] = [
 
 const byId = new Map(catalog.map((item) => [item.id, item]));
 
+let remoteCatalogLookup: ((id: string) => CatalogItem | null) | null = null;
+
+export function bindRemoteCatalog(lookup: (id: string) => CatalogItem | null): void {
+  remoteCatalogLookup = lookup;
+}
+
 export function catalogItem(id: string): CatalogItem | null {
-  return byId.get(id) ?? null;
+  return byId.get(id) ?? remoteCatalogLookup?.(id) ?? null;
 }
 
 export function starterOutfits(): CatalogItem[] {

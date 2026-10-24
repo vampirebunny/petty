@@ -1,12 +1,32 @@
 import { breedById } from '../actor/breeds';
+import { outfitSlots, wardrobe, wearItem } from '../actor/wardrobe';
 import type { ActorSource } from '../actor/types';
 import { styleBasis } from '../sim/attributes';
 import { currentStyle } from '../sim/offers';
 import type { Equipped, PetState } from '../sim/types';
 import type { PetSnapshot } from './types';
 
+function remoteWearDefs(outfit: Equipped): PetSnapshot['wearDefs'] {
+  const defs: NonNullable<PetSnapshot['wearDefs']> = {};
+  let any = false;
+  for (const slot of outfitSlots) {
+    const id = outfit[slot];
+    if (!id || wardrobe[slot].items.some((item) => item.id === id)) {
+      continue;
+    }
+    const wear = wearItem(slot, id);
+    if (!wear) {
+      continue;
+    }
+    defs[slot] = wear;
+    any = true;
+  }
+  return any ? defs : undefined;
+}
+
 export function snapshotPet(pet: PetState, outfit: Equipped, createdAt: string, snapshotId: string): PetSnapshot {
   const species = breedById(pet.breedId)?.species ?? 'dog';
+  const wearDefs = remoteWearDefs(outfit);
   return {
     snapshotId,
     petId: pet.id,
@@ -16,6 +36,7 @@ export function snapshotPet(pet: PetState, outfit: Equipped, createdAt: string, 
     breedId: pet.breedId,
     look: { ...pet.look },
     equipped: { ...outfit },
+    ...(wearDefs ? { wearDefs } : {}),
     ageDays: pet.ageDays,
     weight: pet.weight,
     vitality: pet.vitality,
@@ -38,6 +59,7 @@ export function actorSourceOf(snapshot: PetSnapshot): ActorSource {
     weight: snapshot.weight,
     vitality: snapshot.vitality,
     equipped: { ...snapshot.equipped },
+    ...(snapshot.wearDefs ? { wearDefs: snapshot.wearDefs } : {}),
     look: { ...snapshot.look },
     asleep: false,
     seed: snapshot.seed,

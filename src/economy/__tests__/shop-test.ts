@@ -1,4 +1,4 @@
-import { catalogForDay, chooseDay, dealFor, discounted, featuredLimited, limitedBuyLabel, materializeShop, priceCart, type ShopCatalog, type ShopListing } from '../shop';
+import { catalogForDay, chooseDay, dealFor, discounted, featuredLimited, limitedBuyLabel, materializeShop, priceCart, tabItems, type ShopCatalog, type ShopListing } from '../shop';
 import { shopPetScene } from '../../ui/shop/shopFloor';
 
 function item(partial: Pick<ShopListing, 'id'> & Partial<ShopListing>): ShopListing {
@@ -195,4 +195,32 @@ it('keeps a limited edition in the featured spot until a day after it sells out'
 it('keeps the shop pet on one ground line', () => {
   expect(shopPetScene.floor.yMax - shopPetScene.floor.yMin).toBeLessThan(1);
   expect(shopPetScene.floor.xMax).toBeGreaterThan(shopPetScene.floor.xMin);
+});
+
+it('rejects a negative price, a fractional price, and an empty bundle', () => {
+  const negative = shop([item({ id: 'hat:party', price: -5 })]);
+  expect(priceCart(negative, [{ id: 'hat:party', kind: 'item', qty: 1 }], null, new Set(), 'dog', 100).ok).toBe(false);
+  const fraction = shop([item({ id: 'hat:party', price: 10.5 })]);
+  expect(priceCart(fraction, [{ id: 'hat:party', kind: 'item', qty: 1 }], null, new Set(), 'dog', 100).ok).toBe(false);
+  const empty = shop([], {
+    bundles: [{ id: 'bag', name: 'Bag', price: 10, contents: [], sort: 0 }],
+  });
+  expect(priceCart(empty, [{ id: 'bag', kind: 'bundle', qty: 1 }], null, new Set(), 'dog', 100).ok).toBe(false);
+});
+
+it('keeps exclusives off the always shelf and out of the always pick pool', () => {
+  const catalog = shop([
+    item({ id: 'glasses:star', tier: 'exclusive', shop: 'always' }),
+    item({ id: 'glasses:heart', shop: 'always' }),
+    item({ id: 'hat:top-velvet', tier: 'exclusive', shop: 'coming_soon', price: null }),
+  ]);
+  expect(tabItems(catalog, 'clothes', 'dog').map((entry) => entry.id)).toEqual(['glasses:heart', 'hat:top-velvet']);
+  const picks = chooseDay(
+    shop([item({ id: 'glasses:star', tier: 'exclusive', shop: 'always', category: 'clothes' })]),
+    'dog',
+    new Set(),
+    today,
+    [],
+  );
+  expect(picks.picks).toEqual([]);
 });
