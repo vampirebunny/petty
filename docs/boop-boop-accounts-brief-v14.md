@@ -12,6 +12,8 @@
 
 **Phase D shipped** on `accounts-phase-b`. A guest sign-in that already belongs to an account restores that account, and a killed restore shows Finish signing in. `supabase/migrations/20261024230000_pull_has_handle.sql` makes `pull_account_state` report a saved handle. Apply that yourself; it does not delete users.
 
+**Phase E shipped** on `accounts-phase-b`. Welcome is the first screen when there is no local pet, and a Keychain session is pulled before adoption.
+
 The two simplifications still hold:
 1. **The ledger has its own table** (`ledger_entries`) and its own append-only sync. `player_state` never carries a ledger, balance, or inventory.
 2. **No legacy path.** There are no real players yet. Wipe the test data (A0); every account starts with a ledger.
