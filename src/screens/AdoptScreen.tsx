@@ -161,11 +161,7 @@ export function AdoptScreen({ onAdopt }: Props) {
   );
 
   if (draft == null) {
-    return (
-      <View style={styles.root}>
-        <Text style={styles.title}>Boop Boop</Text>
-      </View>
-    );
+    return <View style={styles.root} />;
   }
 
   const species: Species = draft.species;
@@ -243,11 +239,7 @@ export function AdoptScreen({ onAdopt }: Props) {
     );
   }
 
-  return (
-    <View style={styles.root}>
-      <Text style={styles.title}>Boop Boop</Text>
-    </View>
-  );
+  return <View style={styles.root} />;
 }
 
 const styles = StyleSheet.create({
@@ -270,10 +262,6 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 40,
     gap: 20,
-  },
-  title: {
-    fontSize: 32,
-    color: '#243044',
   },
   body: {
     fontSize: 15,
