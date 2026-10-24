@@ -24,6 +24,18 @@ const tracks: number[] = [
   require('../../assets/background music/penguinmusic-better-day-186374.mp3'),
   require('../../assets/background music/soulprodmusic-movement-200697.mp3'),
   require('../../assets/background music/syouki_takahashi-midnight-forest-184304.mp3'),
+  require('../../assets/background music/andriig-happy-happy-guitar-music-618748.mp3'),
+  require('../../assets/background music/atlasaudio-background-happy-562628.mp3'),
+  require('../../assets/background music/gr0za-happy-happy-music-569345.mp3'),
+  require('../../assets/background music/jonasblakewood-background-music-618629.mp3'),
+  require('../../assets/background music/kiravale-happy-music-593649.mp3'),
+  require('../../assets/background music/nastelbom-happy-happy-music-481659.mp3'),
+  require('../../assets/background music/nastelbom-happy-happy-piano-513420.mp3'),
+  require('../../assets/background music/paulyudin-happy-happy-music-477929.mp3'),
+  require('../../assets/background music/paulyudin-happy-happy-music-513014.mp3'),
+  require('../../assets/background music/sigmamusicart-happy-happy-kids-music-537737.mp3'),
+  require('../../assets/background music/tatamusic-happy-happy-music-595647.mp3'),
+  require('../../assets/background music/the_mountain-happy-happy-music-496549.mp3'),
 ];
 
 const volume = 0.075;
@@ -74,6 +86,14 @@ function playNext(): void {
   } catch {
     // stay silent
   }
+}
+
+// Skips to a different track. Does nothing while music is off.
+export function switchMusic(): void {
+  if (!wanted) {
+    return;
+  }
+  playNext();
 }
 
 export function setMusicEnabled(on: boolean): void {

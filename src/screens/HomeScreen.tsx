@@ -12,7 +12,7 @@ import {
   stagePoint,
 } from '../actor';
 import { preloadBloops, releaseBloops, silenceBloops, unmuteBloops } from '../audio/bloop';
-import { releaseMusic, setMusicEnabled, suspendMusic } from '../audio/music';
+import { releaseMusic, setMusicEnabled, suspendMusic, switchMusic } from '../audio/music';
 import { setSoundEnabled } from '../audio/voice';
 import type { CuddleOut } from '../actor';
 import { stageHeight, stageWidth } from '../actor/geometry';
@@ -1083,7 +1083,10 @@ export default function HomeScreen({ petApi }: Props) {
         reducedMotion={reducedMotion}
         onSave={playdates.persist}
         onRewarded={finishPlaydate}
-        onClose={() => setPlaydateOpen(false)}
+        onClose={() => {
+          switchMusic();
+          setPlaydateOpen(false);
+        }}
         owned={owned}
       />
     );
@@ -1239,6 +1242,7 @@ export default function HomeScreen({ petApi }: Props) {
         tips.dismiss();
         setPlayOpen(false);
         setWardrobeOpen(false);
+        switchMusic();
         setPlaydateOpen(true);
       },
     },
