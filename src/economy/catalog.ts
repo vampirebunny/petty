@@ -212,3 +212,35 @@ export function starterOutfits(): CatalogItem[] {
 export function storeItems(): CatalogItem[] {
   return catalog.filter((item) => item.available && item.price != null);
 }
+
+export type FoodChoice = { id: string; name: string; count: number | null };
+
+// Everyday kibble is not a ledger item. Null count means it is always available.
+export const KIBBLE_ID = 'kibble';
+
+export function foodsInInventory(
+  inventory: readonly { itemId: string; qty: number }[],
+  species: 'dog' | 'cat',
+): FoodChoice[] {
+  const qty = new Map(inventory.map((stack) => [stack.itemId, stack.qty]));
+  const choices: FoodChoice[] = [{ id: KIBBLE_ID, name: 'Kibble', count: null }];
+  const push = (id: string, name: string, count: number, allowed: Array<'dog' | 'cat'>) => {
+    if (count > 0 && allowed.includes(species) && !choices.some((choice) => choice.id === id)) {
+      choices.push({ id, name, count });
+    }
+  };
+  for (const item of catalog) {
+    if (item.kind !== 'food') {
+      continue;
+    }
+    push(item.id, item.name, qty.get(item.id) ?? 0, item.species ?? ['dog', 'cat']);
+  }
+  for (const stack of inventory) {
+    const item = catalogItem(stack.itemId);
+    if (!item || item.kind !== 'food') {
+      continue;
+    }
+    push(item.id, item.name, stack.qty, item.species ?? ['dog', 'cat']);
+  }
+  return choices;
+}

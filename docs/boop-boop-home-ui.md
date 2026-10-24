@@ -14,13 +14,15 @@ Style & sound (lilac): Wardrobe, Traits, Sounds, Music. Traits opens the persona
 
 Learned tricks sit under those sections in the blue candy style. Badges are lilac coins and appear only after Sit, Speak, or Paw is awarded. The grey coins stay hidden. Mastered tricks also stay as trick buttons.
 
-Play opens a card under the preview. It lists toys the pet owns. Today that is the ball. Tapping it throws the ball and closes the card.
+Play opens a Toy Box card under the preview. It lists toys the pet owns. Tapping one throws or holds that toy and closes the card.
+
+Feed and Treat open a Pantry card in that same place. Feed lists Kibble, which is always free, plus any special food this pet can eat. Treat lists the treats in inventory. Each owned stack shows a count. Tapping a tile serves it and closes the card. Tapping outside the card closes it without serving. A full food bowl does not open the Pantry: it says the bowl is already full.
 
 A low Tummy, Hydration, or Energy (under 30) puts a need badge and sparkles on Feed, Water, or Sleep.
 
 ## Props
 
-A tap on the water bowl, food bowl, or bed runs the same action as the button. The bowl fills, or the bed looks turned down, immediately. Feed and Sleep start now. Play, a cuddle, a treat, a trick, and a park hello step aside, and a hello cannot pull the pet off that walk. Water does the same, except it waits while a meal or a nap is already underway and runs when that ends. A room change and a collapse nap still finish first. After those, Sleep and Feed go ahead of a care tap that was already waiting. A second tap on a walk that is already happening does nothing. The bed invite still calls him when energy is high. He is not asleep until he lies down, so a second Sleep tap does not cancel the walk, and Wake appears only after he curls up.
+A tap on the water bowl, food bowl, or bed runs the same action as the button. Water fills the bowl immediately. Feed opens the Pantry, and the bowl fills when a food is chosen. Sleep turns the bed down immediately. Once a meal or a nap is chosen, Play, a cuddle, a treat, a trick, and a park hello step aside, and a hello cannot pull the pet off that walk. Water does the same, except it waits while a meal or a nap is already underway and runs when that ends. A room change and a collapse nap still finish first. After those, Sleep and Feed go ahead of a care tap that was already waiting. A second tap on a walk that is already happening does nothing. The bed invite still calls him when energy is high. He is not asleep until he lies down, so a second Sleep tap does not cancel the walk, and Wake appears only after he curls up.
 
 Holding a prop for 400ms lifts it so it can be moved. A tap never moves a prop. Floor flicks and cuddle strokes are unchanged.
 
@@ -38,6 +40,6 @@ After a prop tip has been seen, that prop shimmers while its need stays under 30
 
 Phones stay portrait. A tablet or an unfolded foldable may rotate once its shorter side is at least 520dp. The landscape split starts at 600dp. Surface Duo rotates on one screen (about 540×720). Opened wide, hinge vertical, the window is about 1114×720 and uses the landscape split. Opened with the hinge horizontal, the window is about 720×1114 and stays stacked. Portrait, including an upright iPad, keeps the scene stacked above the controls.
 
-In landscape, the header (logo, name, Boop counter) stays full width. On an opened Surface Duo the Boop total sits further in from the right edge, clear of the clock and status icons. The scene fills the left side. The controls sit in a column on the right, at most 400pt. When that column is narrower, the rings, Where card, training, and action panel scale down together so they stay on screen. The toy card and treat picker open in that column, under the header. The seam is not locked to a fold hinge.
+In landscape, the header (logo, name, Boop counter) stays full width. On an opened Surface Duo the Boop total sits further in from the right edge, clear of the clock and status icons. The scene fills the left side. The controls sit in a column on the right, at most 400pt. When that column is narrower, the rings, Where card, training, and action panel scale down together so they stay on screen. The Toy Box and Pantry cards open in that column, under the header. The seam is not locked to a fold hinge.
 
 Wardrobe, the Pet Shop, and the playdate outfit step put the preview on the left and the choices on the right. Pantry, the rest of playdate, places, and adopt stay one centered column of that same width so they do not stretch across the window.

@@ -220,7 +220,7 @@ Buying and using are separate steps: a purchase turns Boops into inventory, and 
 
 **Premium food rules**
 
-- A pantry item. Serving it puts it in the bowl instead of kibble for one meal. Once it's eaten the bowl is empty, and the next Feed is free kibble; the bowl never refills itself.
+- A pantry item. Feed opens a Pantry card that lists free kibble and any special food the pet owns. Serving a special food puts it in the bowl instead of kibble for one meal. Once it's eaten the bowl is empty, and the next meal is free kibble unless another special food is chosen. The bowl never refills itself.
 - Its effects are multipliers on a normal kibble meal, so balance stays anchored to kibble: hunger ×1, weight ×1 (no faster weight gain), energy ×1.2, XP ×1.5, plus a `moodBonus` and its own eating animation.
 - Same gate as kibble: it can't be served when the pet is full.
 - Catalog entry: `effects: { mealMultipliers: { hunger: 1, weight: 1, energy: 1.2, xp: 1.5 }, moodBonus }`.

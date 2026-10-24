@@ -15,7 +15,7 @@ import { catalogItem } from '../../economy/catalog';
 //          own lighting and shadows apply on top, so the art adds no shadow of its own.
 
 export type ArtDetail = 'icon' | 'scene';
-export type TreatArt = 'bone' | 'fish' | 'energy' | 'mood' | 'meal' | 'special' | 'cookie';
+export type TreatArt = 'bone' | 'fish' | 'energy' | 'mood' | 'meal' | 'kibble' | 'special' | 'cookie';
 
 export const BOX_PER_RADIUS = 3;
 // Scene outlines never get thinner than this on screen, however small the item is.
@@ -542,6 +542,28 @@ function mood(c: SkCanvas): void {
   c.drawPath(path('M30 39 C33 35 37 34 41 35'), strokeP('#FFFFFF', icon ? 2.6 : 4, 0.75));
 }
 
+function kibble(c: SkCanvas): void {
+  shadow(c, 32, 86);
+  const bit = fillP('#C4A574');
+  const edge = strokeP('#8A5A32', ow(1.6, 3));
+  for (const [x, y, r] of [
+    [36, 46, 6],
+    [50, 42, 6.5],
+    [64, 46, 6],
+    [43, 52, 5],
+    [58, 51, 5.5],
+  ] as const) {
+    c.drawCircle(x, y, r, bit);
+    c.drawCircle(x, y, r, edge);
+  }
+  const bowl = path('M18 56 L82 56 C80 72 70 80 50 80 C30 80 20 72 18 56 Z');
+  c.drawPath(bowl, base('kibble', 56, 80, ['#7DCAA8', '#2F7D5B'], '#3E9A72'));
+  c.drawPath(bowl, strokeP('#1F5A40', ow(2.5, 7)));
+  const rim = path('M16 56 L84 56');
+  c.drawPath(rim, strokeP('#1F5A40', 2 + 2 * ow(1.5, 3)));
+  c.drawPath(rim, strokeP('#D7F5E8', 2));
+}
+
 function meal(c: SkCanvas): void {
   shadow(c, 32, 86);
   if (icon) {
@@ -639,6 +661,7 @@ const TREATS: Record<TreatArt, (c: SkCanvas, t: number) => void> = {
   energy,
   mood,
   meal,
+  kibble,
   special: secondWind,
   cookie,
 };
@@ -646,6 +669,9 @@ const TREATS: Record<TreatArt, (c: SkCanvas, t: number) => void> = {
 // ---------- public API ----------
 
 export function treatArt(id: string, species: 'dog' | 'cat' | null): TreatArt {
+  if (id === 'kibble') {
+    return 'kibble';
+  }
   if (id === 'biscuit') {
     return species === 'cat' ? 'fish' : 'bone';
   }

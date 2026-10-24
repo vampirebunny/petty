@@ -45,7 +45,7 @@ import { grantDevItem } from '../dev/grant';
 import { usePlayerHome } from '../state/usePlayerHome';
 import { useEconomy } from '../economy/useEconomy';
 import { basicTreatId } from '../economy/state';
-import { catalogItem } from '../economy/catalog';
+import { KIBBLE_ID, catalogItem, foodsInInventory } from '../economy/catalog';
 import { newRequestId, outfitsOwned } from '../economy/service';
 import { refreshShopCatalog } from '../economy/shopSync';
 import { playRuleFor } from '../items/playRules';
@@ -266,6 +266,8 @@ export default function HomeScreen({ petApi }: Props) {
   const [heldPlay, setHeldPlay] = useState(false);
   const [treatOpen, setTreatOpen] = useState(false);
   const [treatNote, setTreatNote] = useState<string | null>(null);
+  const [feedOpen, setFeedOpen] = useState(false);
+  const [feedNote, setFeedNote] = useState<string | null>(null);
   const [cuddleOn, setCuddleOn] = useState(false);
   const tips = useCandyTips();
   const [helpOpen, setHelpOpen] = useState(false);
@@ -1019,18 +1021,18 @@ export default function HomeScreen({ petApi }: Props) {
         tips.dismiss();
         return;
       }
-      setPlayOpen(false);
-      if (!state.foodInBowl) {
-        feed();
-      }
-      const result = stageHandle.current?.invite('food') ?? 'queued';
-      if (result === 'already') {
-        flash('The food bowl is already full.');
+      if (state.foodInBowl) {
+        const result = stageHandle.current?.invite('food') ?? 'queued';
+        if (result === 'already') {
+          flash('The food bowl is already full.');
+        }
         tips.dismiss();
         return;
       }
-      countPropTap('food');
-      tips.performed('tip.food');
+      setPlayOpen(false);
+      setTreatOpen(false);
+      setFeedNote(null);
+      setFeedOpen(true);
     };
     askWaterRef.current = () => {
       if (waterBlocked) {
@@ -1058,7 +1060,7 @@ export default function HomeScreen({ petApi }: Props) {
       countPropTap('bed');
       tips.performed('tip.sleep');
     };
-  }, [feed, flash, home.pieces, home.placements, refillWater, rest, scene, state, tips]);
+  }, [flash, home.pieces, home.placements, refillWater, rest, scene, state, tips]);
 
   const tipKind: TipKind | null =
     tips.current === 'tip.water' ? 'water' : tips.current === 'tip.food' ? 'food' : tips.current === 'tip.sleep' ? 'bed' : null;
@@ -1193,6 +1195,7 @@ export default function HomeScreen({ petApi }: Props) {
       onPress: () => {
         tips.dismiss();
         setPlayOpen(false);
+        setFeedOpen(false);
         setTreatNote(null);
         setTreatOpen(true);
       },
@@ -1233,6 +1236,7 @@ export default function HomeScreen({ petApi }: Props) {
       onPress: () => {
         tips.dismiss();
         setTreatOpen(false);
+        setFeedOpen(false);
         setPlayOpen(true);
       },
     },
@@ -1661,11 +1665,63 @@ export default function HomeScreen({ petApi }: Props) {
           }}
         />
       ) : null}
+      {feedOpen ? (
+        <TreatPicker
+          choices={foodsInInventory(economyApi.inventory, species)}
+          note={feedNote}
+          species={species}
+          top={sheetTop}
+          onClose={() => {
+            setFeedOpen(false);
+            setFeedNote(null);
+          }}
+          onPick={(foodId) => {
+            const served = () => {
+              const spot = placedInScene(home.pieces, home.placements, scene.id, 'food');
+              if (spot) {
+                setMovePieceId(spot.pieceId);
+              }
+              const taps = tips.notePropTap();
+              if (taps >= 2) {
+                tips.offer('tip.move');
+              }
+              tips.performed('tip.food');
+              setFeedOpen(false);
+              setFeedNote(null);
+            };
+            if (foodId === KIBBLE_ID) {
+              if (!state.foodInBowl) {
+                feed();
+              }
+              const result = stageHandle.current?.invite('food') ?? 'queued';
+              if (result === 'already') {
+                setFeedNote('The food bowl is already full.');
+                return;
+              }
+              served();
+              return;
+            }
+            const used = economyApi.useItem(state, foodId, {}, newRequestId());
+            if (!used.ok || !used.pet) {
+              setFeedNote(
+                !used.ok && used.reason === 'full'
+                  ? `${state.name} is too full for that.`
+                  : !used.ok && used.reason === 'bowl_full'
+                    ? 'The food bowl is already full.'
+                    : 'No food available.',
+              );
+              return;
+            }
+            commitPet({ ...used.pet, asleep: false }, 'eat');
+            served();
+          }}
+        />
+      ) : null}
       {treatOpen ? (
         <TreatPicker
           choices={treatsInInventory(economyApi.inventory, species)}
           note={treatNote}
-          reducedMotion={reducedMotion}
+          species={species}
           top={sheetTop}
           onClose={() => {
             setTreatOpen(false);
@@ -1850,7 +1906,7 @@ export default function HomeScreen({ petApi }: Props) {
         {split ? <View style={styles.headerRule}>{homeHeader}</View> : null}
         <View style={split ? styles.splitBody : styles.layout}>
       <View
-        style={split ? styles.stagePane : [styles.sticky, shownDialog || treatOpen ? styles.stickyFront : null]}
+        style={split ? styles.stagePane : [styles.sticky, shownDialog || treatOpen || feedOpen ? styles.stickyFront : null]}
         onLayout={(event) => {
           const { width, height, y } = event.nativeEvent.layout;
           if (split) {
@@ -2005,6 +2061,7 @@ export default function HomeScreen({ petApi }: Props) {
           !playOpen &&
           !heldPlay &&
           !treatOpen &&
+          !feedOpen &&
           !cuddleOn &&
           !helpOpen &&
           !silentHintOpen &&
