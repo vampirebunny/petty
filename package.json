@@ -48,6 +48,7 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "test": "jest",
+    "test:harness": "BOOP_HARNESS=1 jest src/sync/__tests__/harness-sync-test.ts --runInBand",
     "lint": "expo lint"
   },
   "jest": {

@@ -7,6 +7,7 @@ import { playerDoc } from '../db/playerHome';
 import type { PetState } from '../sim/types';
 import { authTransition } from '../state/sessionGate';
 import { enterStandby } from './activeDevice';
+import { activeClient, enterClient, leaveClient, type ClientBinding } from './clientScope';
 
 export const petDocSchema = 2;
 export const playerDocSchema = 2;
@@ -112,6 +113,11 @@ export function queueRetire(pet: PetState): void {
 }
 
 export function kick(immediate = false): void {
+  // A harness client must stay entered across the flush, so don't defer to a timer.
+  if (activeClient()) {
+    void flush();
+    return;
+  }
   if (timer) {
     clearTimeout(timer);
   }
@@ -161,7 +167,16 @@ async function send(kind: string, payload: PetPayload | PlayerPayload): Promise<
   return 'ok';
 }
 
+function resumeBound(bound: ClientBinding | null): boolean {
+  if (bound && activeClient() == null) {
+    enterClient(bound);
+    return true;
+  }
+  return false;
+}
+
 async function flush(): Promise<void> {
+  const bound = activeClient();
   if (running || authTransition() !== 'idle' || readStandby()) {
     return;
   }
@@ -175,8 +190,10 @@ async function flush(): Promise<void> {
   }
   running = true;
   let again = false;
+  let paused = false;
   try {
     const result = await send(row.kind, JSON.parse(row.payload) as PetPayload | PlayerPayload);
+    paused = resumeBound(bound);
     if (result === 'ok' || result === 'drop') {
       if (result === 'drop') {
         console.warn('owner mismatch on push; dropping the queued row');
@@ -200,20 +217,25 @@ async function flush(): Promise<void> {
   } catch {
     delayMs = Math.min(delayMs * 2, 60_000);
     again = true;
+    paused = paused || resumeBound(bound);
   } finally {
     running = false;
-  }
-  if (again) {
-    const more = getDb().getFirstSync<{ seq: number }>('SELECT seq FROM push_queue LIMIT 1');
-    if (more) {
-      kick();
-    } else {
-      void flushOutbox();
+    if (again) {
+      const more = getDb().getFirstSync<{ seq: number }>('SELECT seq FROM push_queue LIMIT 1');
+      if (more) {
+        kick();
+      } else {
+        void flushOutbox();
+      }
+    }
+    if (paused) {
+      leaveClient();
     }
   }
 }
 
 async function flushOutbox(): Promise<void> {
+  const bound = activeClient();
   if (authTransition() !== 'idle' || readStandby()) {
     return;
   }
@@ -234,24 +256,31 @@ async function flushOutbox(): Promise<void> {
     p_entries: entries,
     p_replay: false,
   });
-  if (error) {
-    return;
-  }
-  if (data === 'not_active') {
-    void enterStandby(true);
-    return;
-  }
-  const results = Array.isArray(data) ? data : [];
-  for (const row of rows) {
-    const match = results.find((item) => {
-      if (!item || typeof item !== 'object') {
-        return false;
+  const paused = resumeBound(bound);
+  try {
+    if (error) {
+      return;
+    }
+    if (data === 'not_active') {
+      void enterStandby(true);
+      return;
+    }
+    const results = Array.isArray(data) ? data : [];
+    for (const row of rows) {
+      const match = results.find((item) => {
+        if (!item || typeof item !== 'object') {
+          return false;
+        }
+        const key = (item as { idempotency_key?: string }).idempotency_key;
+        return key === row.idempotency_key;
+      }) as { status?: string } | undefined;
+      if (match?.status === 'ok' || match?.status === 'duplicate' || match?.status === 'invalid') {
+        getDb().runSync('DELETE FROM ledger_outbox WHERE idempotency_key = ?', row.idempotency_key);
       }
-      const key = (item as { idempotency_key?: string }).idempotency_key;
-      return key === row.idempotency_key;
-    }) as { status?: string } | undefined;
-    if (match?.status === 'ok' || match?.status === 'duplicate' || match?.status === 'invalid') {
-      getDb().runSync('DELETE FROM ledger_outbox WHERE idempotency_key = ?', row.idempotency_key);
+    }
+  } finally {
+    if (paused) {
+      leaveClient();
     }
   }
 }

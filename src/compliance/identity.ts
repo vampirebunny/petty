@@ -1,5 +1,6 @@
 import * as SecureStore from 'expo-secure-store';
 
+import { activeClient } from '../sync/clientScope';
 import { getSupabase } from './supabase';
 
 const installIdKey = 'boop.installId';
@@ -59,7 +60,7 @@ function isUuid(value: string): boolean {
 }
 
 export function getCachedInstallId(): string | null {
-  return cachedInstallId;
+  return activeClient()?.installId ?? cachedInstallId;
 }
 
 export function getCachedUserId(): string | null {

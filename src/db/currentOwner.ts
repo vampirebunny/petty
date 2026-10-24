@@ -1,3 +1,5 @@
+import { activeClient } from '../sync/clientScope';
+
 let ownerId: string | null = null;
 let ready = false;
 
@@ -6,6 +8,10 @@ export function setCurrentOwner(id: string): void {
 }
 
 export function currentOwner(): string {
+  const bound = activeClient()?.ownerId;
+  if (bound) {
+    return bound;
+  }
   if (!ownerId) {
     throw new Error('owner not ready');
   }
@@ -17,5 +23,8 @@ export function markOwnerReady(): void {
 }
 
 export function ownerIsReady(): boolean {
+  if (activeClient()?.ownerId) {
+    return true;
+  }
   return ready && ownerId != null;
 }

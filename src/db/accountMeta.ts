@@ -1,3 +1,4 @@
+import { deviceNow } from '../sync/clientScope';
 import { getDb } from './database';
 
 const standbyListeners = new Set<() => void>();
@@ -81,7 +82,7 @@ export function setServerOffsetMs(offsetMs: number): void {
   writeMeta('serverTimeOffsetMs', String(offsetMs));
 }
 
-export function serverNow(now = Date.now()): number {
+export function serverNow(now = deviceNow()): number {
   return now + readServerOffsetMs();
 }
 

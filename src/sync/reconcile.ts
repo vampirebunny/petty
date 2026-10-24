@@ -9,6 +9,7 @@ import { getDb } from '../db/database';
 import type { PetState } from '../sim/types';
 import { authTransition, notifyInstallState, setAuthTransition } from '../state/sessionGate';
 import { enterStandby, type ClaimResult } from './activeDevice';
+import { deviceNow } from './clientScope';
 
 type PullState = {
   pet?: PetState | null;
@@ -72,12 +73,12 @@ export async function reconcileFromServer(claim?: ClaimResult | null): Promise<b
         'INSERT INTO pet (id, json, updated_at) VALUES (?, ?, ?)',
         pulled.pet.id,
         JSON.stringify(pulled.pet),
-        Date.now(),
+        deviceNow(),
       );
     }
     const serverNowMs = Date.parse(pulled.server_now ?? claim?.server_now ?? '');
     if (Number.isFinite(serverNowMs)) {
-      setServerOffsetMs(serverNowMs - Date.now());
+      setServerOffsetMs(serverNowMs - deviceNow());
     }
     if (typeof pulled.server_revision === 'number') {
       setSyncedRevision(pulled.server_revision);

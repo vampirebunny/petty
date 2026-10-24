@@ -1,8 +1,12 @@
+import { activeClient } from '../sync/clientScope';
+
 export function localDay(now: number): string {
-  const date = new Date(now);
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${date.getFullYear()}-${month}-${day}`;
+  const offset = activeClient()?.utcOffsetMinutes;
+  const date = offset == null ? new Date(now) : new Date(now + offset * 60_000);
+  const month = String((offset == null ? date.getMonth() : date.getUTCMonth()) + 1).padStart(2, '0');
+  const day = String(offset == null ? date.getDate() : date.getUTCDate()).padStart(2, '0');
+  const year = offset == null ? date.getFullYear() : date.getUTCFullYear();
+  return `${year}-${month}-${day}`;
 }
 
 export function nextLocalMidnight(day: string): number {

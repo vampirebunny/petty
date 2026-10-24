@@ -20,6 +20,8 @@
 
 **Phase H shipped** on `accounts-phase-b`. Settings can sign in, and deleting an account or guest progress wipes this device and returns to Welcome.
 
+**Phase I shipped** on `accounts-phase-b`. The two-device harness enters a database, owner, install id, clock, and Supabase client per device. `npm run test:harness` runs it against local Supabase (`npx supabase start`). The default test run does not need Docker.
+
 The two simplifications still hold:
 1. **The ledger has its own table** (`ledger_entries`) and its own append-only sync. `player_state` never carries a ledger, balance, or inventory.
 2. **No legacy path.** There are no real players yet. Wipe the test data (A0); every account starts with a ledger.

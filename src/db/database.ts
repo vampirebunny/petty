@@ -1,5 +1,7 @@
 import * as SQLite from 'expo-sqlite';
 
+import { activeClient } from '../sync/clientScope';
+
 export const storageVersion = 3;
 
 export const schemaSql = `
@@ -187,6 +189,10 @@ let db: SQLite.SQLiteDatabase | null = null;
 let pendingAsyncWipe = false;
 
 export function getDb(): SQLite.SQLiteDatabase {
+  const bound = activeClient()?.db;
+  if (bound) {
+    return bound as SQLite.SQLiteDatabase;
+  }
   if (!db) {
     db = SQLite.openDatabaseSync('boop.db');
     db.execSync('CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL)');

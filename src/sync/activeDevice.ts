@@ -10,6 +10,7 @@ import {
   setStandby,
 } from '../db/accountMeta';
 import { getDb } from '../db/database';
+import { deviceNow } from './clientScope';
 import { deviceLabel } from './deviceLabel';
 
 export type ClaimResult = {
@@ -84,7 +85,7 @@ export async function claimDevice(options?: { claimId?: string; timeoutMs?: numb
     }
     const serverNowMs = Date.parse(claim.server_now);
     if (Number.isFinite(serverNowMs)) {
-      setServerOffsetMs(serverNowMs - Date.now());
+      setServerOffsetMs(serverNowMs - deviceNow());
     }
     return claim;
   };

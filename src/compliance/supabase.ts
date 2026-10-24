@@ -1,10 +1,15 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
+import { activeClient } from '../sync/clientScope';
 import { secureStoreAuthStorage } from './secureStoreAuthStorage';
 
 let client: SupabaseClient | null = null;
 
 export function getSupabase(): SupabaseClient | null {
+  const bound = activeClient();
+  if (bound) {
+    return bound.supabase;
+  }
   const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
   const key = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !key) {
