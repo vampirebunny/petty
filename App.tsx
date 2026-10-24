@@ -197,7 +197,7 @@ export default function App() {
   return (
     <GestureHandlerRootView style={styles.root}>
       {screen}
-      <StandbyOverlay />
+      <StandbyOverlay pet={petState} />
       <StatusBar style="auto" />
     </GestureHandlerRootView>
   );

@@ -28,9 +28,9 @@ import {
 import type { Cue, Look, Mood, OutfitSlot, PetAttributes, PetEvent, PetState, Trait } from '../sim';
 import { createUuid, getCachedInstallId } from '../compliance/identity';
 import { bootstrapLocal, wipeLocalData } from '../db/bootstrap';
-import { readAccountLinked, readStandby, serverNow, setOtherDeviceLabel, setStandby } from '../db/accountMeta';
+import { readAccountLinked, readStandby, readSyncedRevision, serverNow, setOtherDeviceLabel, setStandby } from '../db/accountMeta';
 import { grantSpeciesHome, moveOwnedPiece } from '../db/playerHome';
-import { claimDevice, hasUnsentPlay, peekActiveDevice, touchLastSeen } from '../sync/activeDevice';
+import { claimDevice, enterStandby, hasUnsentPlay, peekActiveDevice, touchLastSeen, type ClaimResult } from '../sync/activeDevice';
 import { devicePhrase } from '../sync/deviceLabel';
 import { reconcileFromServer } from '../sync/reconcile';
 import {
@@ -38,8 +38,10 @@ import {
   consumeInstalledSettle,
   finishInstalledPet,
   onInstallState,
+  openPathSuppressed,
   saveGeneration,
   setAuthTransition,
+  setPlayHereRequest,
   setSettleRequest,
 } from './sessionGate';
 import { speciesOf } from '../sim/tracks';
@@ -135,6 +137,51 @@ type PetApi = {
   dismissBurst: () => void;
   cancelBursts: () => void;
 };
+
+function caughtUpCopy(discarded: boolean, petName: string): string {
+  if (!discarded) {
+    return 'All caught up from your other device!';
+  }
+  return `You played on your other device more recently, so ${petName} is just how you left them there. Anything you bought here is safe.`;
+}
+
+function petNameFromDb(fallback: string): string {
+  const row = getDb().getFirstSync<{ json: string }>('SELECT json FROM pet LIMIT 1');
+  if (!row) {
+    return fallback;
+  }
+  try {
+    const parsed = JSON.parse(row.json) as { name?: string };
+    return parsed.name || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+async function linkedChangeIsCurrent(title: string, petName: string): Promise<boolean> {
+  const net = await Network.getNetworkStateAsync();
+  if (!net.isConnected) {
+    Alert.alert(title, "You'll need internet to do this.");
+    return false;
+  }
+  const claim = await claimDevice({ timeoutMs: 3000 });
+  if (!claim) {
+    Alert.alert(title, "You'll need internet to do this.");
+    return false;
+  }
+  const install = getCachedInstallId();
+  const other = Boolean(claim.active_device_id_before && claim.active_device_id_before !== install);
+  const newer = claim.server_revision > readSyncedRevision();
+  if (!other && !newer) {
+    return true;
+  }
+  const discarded = hasUnsentPlay();
+  const ok = await reconcileFromServer(claim);
+  if (other && ok) {
+    Alert.alert('Caught up', caughtUpCopy(discarded, petNameFromDb(petName)));
+  }
+  return false;
+}
 
 export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
   const [ready, setReady] = useState(false);
@@ -387,31 +434,86 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
     return () => clearInterval(timer);
   }, [publish, pushBurst]);
 
-  const claimThenSettle = useCallback(
-    (current: PetState) => {
-      void (async () => {
-        setAuthTransition('reconciling');
-        const claim = await claimDevice();
-        if (!claim) {
-          setAuthTransition('idle');
-          settleReturn(current, serverNow());
-          return;
+  const finishClaim = useCallback(
+    async (current: PetState, claim: ClaimResult, fromStandby: boolean) => {
+      const install = getCachedInstallId();
+      const other = Boolean(claim.active_device_id_before && claim.active_device_id_before !== install);
+      const newer = claim.server_revision > readSyncedRevision();
+      const discarded = hasUnsentPlay();
+      try {
+        if (other || newer) {
+          const ok = await reconcileFromServer(claim);
+          if (!ok) {
+            if (!readStandby()) {
+              settleReturn(stateRef.current ?? current, serverNow());
+            }
+            return;
+          }
         }
-        const install = getCachedInstallId();
-        const other = Boolean(claim.active_device_id_before && claim.active_device_id_before !== install);
+        if (fromStandby) {
+          setStandby(false);
+        }
+        const pet = stateRef.current ?? current;
+        settleReturn(pet, serverNow());
+        const settled = stateRef.current ?? pet;
+        void syncReminder(settled, remindersRef.current, Date.now(), {
+          enabled: careRef.current,
+          basicTreats: treatCountRef.current,
+        });
         if (other) {
-          await reconcileFromServer(claim);
+          Alert.alert('Caught up', caughtUpCopy(discarded, petNameFromDb(settled.name)));
         }
-        setAuthTransition('idle');
-        settleReturn(stateRef.current ?? current, serverNow());
-      })();
+      } finally {
+        if (authTransition() === 'reconciling') {
+          setAuthTransition('idle');
+        }
+      }
     },
     [settleReturn],
   );
 
+  const claimBusy = useRef(false);
+  const takeSlot = useCallback(
+    (current: PetState, fromStandby: boolean) => {
+      if (claimBusy.current || authTransition() !== 'idle') {
+        return;
+      }
+      claimBusy.current = true;
+      setAuthTransition('reconciling');
+      const claimId = globalThis.crypto.randomUUID();
+      void (async () => {
+        try {
+          const claim = await claimDevice({ claimId, timeoutMs: 3000 });
+          if (!claim) {
+            setAuthTransition('idle');
+            if (fromStandby) {
+              Alert.alert('Play here', "You'll need internet to play here.");
+            } else {
+              settleReturn(current, serverNow());
+            }
+            const retried = await claimDevice({ claimId, timeoutMs: 3000 });
+            if (!retried || authTransition() !== 'idle') {
+              return;
+            }
+            if (fromStandby ? !readStandby() : readStandby()) {
+              return;
+            }
+            setAuthTransition('reconciling');
+            await finishClaim(stateRef.current ?? current, retried, fromStandby);
+            return;
+          }
+          await finishClaim(current, claim, fromStandby);
+        } finally {
+          claimBusy.current = false;
+        }
+      })();
+    },
+    [finishClaim, settleReturn],
+  );
+
   const considerOpen = useCallback(
     (current: PetState) => {
-      if (authTransition() !== 'idle' || readStandby()) {
+      if (openPathSuppressed() || authTransition() !== 'idle' || readStandby()) {
         return;
       }
       if (!readAccountLinked()) {
@@ -433,15 +535,15 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
             ? `You're playing on ${phrase}. Play on this device since then will be replaced. Anything you bought here is safe. If you tap Not now, that play stays on this device until you tap Play here, which replaces it the same way.`
             : `You're playing on ${phrase}. Continue here?`;
           Alert.alert('Continue here?', message, [
-            { text: 'Not now', onPress: () => setStandby(true) },
-            { text: 'Continue', onPress: () => claimThenSettle(current) },
+            { text: 'Not now', onPress: () => void enterStandby(false) },
+            { text: 'Continue here', onPress: () => takeSlot(current, false) },
           ]);
           return;
         }
-        claimThenSettle(current);
+        takeSlot(current, false);
       })();
     },
-    [claimThenSettle, settleReturn],
+    [settleReturn, takeSlot],
   );
 
   useEffect(() => {
@@ -489,6 +591,24 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
     });
     return () => setSettleRequest(null);
   }, [settleReturn]);
+
+  useEffect(() => {
+    setPlayHereRequest(() => {
+      const current = stateRef.current;
+      if (!current) {
+        return;
+      }
+      void (async () => {
+        const net = await Network.getNetworkStateAsync();
+        if (!net.isConnected) {
+          Alert.alert('Play here', "You'll need internet to play here.");
+          return;
+        }
+        takeSlot(current, true);
+      })();
+    });
+    return () => setPlayHereRequest(null);
+  }, [takeSlot]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (status) => {
@@ -641,19 +761,8 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
       return;
     }
     void (async () => {
-      if (readAccountLinked()) {
-        const net = await Network.getNetworkStateAsync();
-        if (!net.isConnected) {
-          Alert.alert('Goodbye', "You'll need internet to do this.");
-          return;
-        }
-        const claim = await claimDevice();
-        const install = getCachedInstallId();
-        if (claim && claim.active_device_id_before && claim.active_device_id_before !== install) {
-          await reconcileFromServer(claim);
-          Alert.alert('Caught up', 'All caught up from your other device!');
-          return;
-        }
+      if (readAccountLinked() && !(await linkedChangeIsCurrent('Goodbye', current.name))) {
+        return;
       }
       retireNow(current);
     })();
@@ -662,19 +771,8 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
   const adopt = useCallback(
     (breedId: string, attributes: PetAttributes, look: Look, name: string, ownerId: string) => {
       void (async () => {
-        if (readAccountLinked()) {
-          const net = await Network.getNetworkStateAsync();
-          if (!net.isConnected) {
-            Alert.alert('Adoption', "You'll need internet to do this.");
-            return;
-          }
-          const claim = await claimDevice();
-          const install = getCachedInstallId();
-          if (claim && claim.active_device_id_before && claim.active_device_id_before !== install) {
-            await reconcileFromServer(claim);
-            Alert.alert('Caught up', 'All caught up from your other device!');
-            return;
-          }
+        if (readAccountLinked() && !(await linkedChangeIsCurrent('Adoption', name))) {
+          return;
         }
         const now = Date.now();
         const id = createUuid();

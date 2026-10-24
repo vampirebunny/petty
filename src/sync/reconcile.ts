@@ -8,7 +8,7 @@ import {
 import { getDb } from '../db/database';
 import type { PetState } from '../sim/types';
 import { authTransition, notifyInstallState, setAuthTransition } from '../state/sessionGate';
-import type { ClaimResult } from './activeDevice';
+import { enterStandby, type ClaimResult } from './activeDevice';
 
 type PullState = {
   pet?: PetState | null;
@@ -56,8 +56,7 @@ export async function reconcileFromServer(claim?: ClaimResult | null): Promise<b
         p_replay: true,
       });
       if (data === 'not_active') {
-        const { setStandby } = await import('../db/accountMeta');
-        setStandby(true);
+        await enterStandby(true);
         return false;
       }
     }

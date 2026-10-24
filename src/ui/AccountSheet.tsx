@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, AppState, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { X } from 'lucide-react-native';
 
@@ -9,6 +9,7 @@ import { linkGuest } from '../compliance/linkAccount';
 import { pingAuthHealth } from '../compliance/authHealth';
 import { beginRestore } from '../compliance/restoreAccount';
 import { getSupabase } from '../compliance/supabase';
+import { setSuppressOpenPath } from '../state/sessionGate';
 import { CandyShell, candyInk, tints } from './candy';
 import { iconStroke } from './theme';
 
@@ -84,6 +85,7 @@ export function AccountSheet({ reason, petName, onClose, onCredential }: Props) 
     }
     setBusy(true);
     setNote(null);
+    setSuppressOpenPath(true);
     void (async () => {
       try {
         const online = await pingAuthHealth();
@@ -135,6 +137,17 @@ export function AccountSheet({ reason, petName, onClose, onCredential }: Props) 
         );
       } finally {
         setBusy(false);
+        if (AppState.currentState === 'active') {
+          setSuppressOpenPath(false);
+        } else {
+          const subscription = AppState.addEventListener('change', (state) => {
+            if (state !== 'active') {
+              return;
+            }
+            subscription.remove();
+            setTimeout(() => setSuppressOpenPath(false), 0);
+          });
+        }
       }
     })();
   };

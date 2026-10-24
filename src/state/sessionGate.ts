@@ -72,3 +72,23 @@ export function finishInstalledPet(): void {
   installFinished = null;
   done?.();
 }
+
+let suppressOpenPath = false;
+
+export function setSuppressOpenPath(suppressed: boolean): void {
+  suppressOpenPath = suppressed;
+}
+
+export function openPathSuppressed(): boolean {
+  return suppressOpenPath;
+}
+
+let playHereRequest: (() => void) | null = null;
+
+export function setPlayHereRequest(listener: (() => void) | null): void {
+  playHereRequest = listener;
+}
+
+export function requestPlayHere(): void {
+  playHereRequest?.();
+}

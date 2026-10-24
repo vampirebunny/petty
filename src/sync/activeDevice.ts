@@ -1,11 +1,13 @@
 import { getCachedInstallId } from '../compliance/identity';
 import { getSupabase } from '../compliance/supabase';
+import { cancelReminders } from '../reminders/notifications';
 import {
   readLocalRevision,
   readSyncedRevision,
   setHandleSaved,
   setOtherDeviceLabel,
   setServerOffsetMs,
+  setStandby,
 } from '../db/accountMeta';
 import { getDb } from '../db/database';
 import { deviceLabel } from './deviceLabel';
@@ -59,30 +61,58 @@ export async function peekActiveDevice(): Promise<PeekResult | null> {
   return row;
 }
 
-export async function claimDevice(): Promise<ClaimResult | null> {
+export async function claimDevice(options?: { claimId?: string; timeoutMs?: number }): Promise<ClaimResult | null> {
   const supabase = getSupabase();
   const deviceId = getCachedInstallId();
   if (!supabase || !deviceId) {
     return null;
   }
-  const claimId = globalThis.crypto.randomUUID();
-  const { data, error } = await supabase.rpc('claim_device', {
-    p_device_id: deviceId,
-    p_claim_id: claimId,
-    p_device_label: deviceLabel(),
+  const claimId = options?.claimId ?? globalThis.crypto.randomUUID();
+  let stale = false;
+  const run = async (): Promise<ClaimResult | null> => {
+    const { data, error } = await supabase.rpc('claim_device', {
+      p_device_id: deviceId,
+      p_claim_id: claimId,
+      p_device_label: deviceLabel(),
+    });
+    if (stale || error || !data || typeof data !== 'object') {
+      return null;
+    }
+    const claim = data as ClaimResult;
+    if (claim.has_handle) {
+      setHandleSaved(true);
+    }
+    const serverNowMs = Date.parse(claim.server_now);
+    if (Number.isFinite(serverNowMs)) {
+      setServerOffsetMs(serverNowMs - Date.now());
+    }
+    return claim;
+  };
+  if (!options?.timeoutMs) {
+    return run();
+  }
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timed = new Promise<null>((resolve) => {
+    timer = setTimeout(() => {
+      stale = true;
+      resolve(null);
+    }, options.timeoutMs);
   });
-  if (error || !data || typeof data !== 'object') {
-    return null;
+  const result = await Promise.race([run(), timed]);
+  if (timer) {
+    clearTimeout(timer);
   }
-  const claim = data as ClaimResult;
-  if (claim.has_handle) {
-    setHandleSaved(true);
+  return result;
+}
+
+/** Standby until Play here. A label peek does not claim. */
+export async function enterStandby(peekLabel: boolean): Promise<void> {
+  setStandby(true);
+  await cancelReminders();
+  if (peekLabel) {
+    await peekActiveDevice();
+    setStandby(true);
   }
-  const serverNowMs = Date.parse(claim.server_now);
-  if (Number.isFinite(serverNowMs)) {
-    setServerOffsetMs(serverNowMs - Date.now());
-  }
-  return claim;
 }
 
 export async function touchLastSeen(): Promise<void> {

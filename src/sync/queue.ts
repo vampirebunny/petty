@@ -1,11 +1,12 @@
 import { getCachedInstallId } from '../compliance/identity';
 import { getSupabase } from '../compliance/supabase';
-import { readStandby, setStandby, setSyncedRevision } from '../db/accountMeta';
+import { readStandby, setSyncedRevision } from '../db/accountMeta';
 import { currentOwner } from '../db/currentOwner';
 import { getDb } from '../db/database';
 import { playerDoc } from '../db/playerHome';
 import type { PetState } from '../sim/types';
 import { authTransition } from '../state/sessionGate';
+import { enterStandby } from './activeDevice';
 
 export const petDocSchema = 2;
 export const playerDocSchema = 2;
@@ -188,7 +189,7 @@ async function flush(): Promise<void> {
       delayMs = 400;
       again = true;
     } else if (result === 'not_active') {
-      setStandby(true);
+      void enterStandby(true);
     } else if (result === 'stale') {
       const { reconcileFromServer } = await import('./reconcile');
       void reconcileFromServer();
@@ -237,7 +238,7 @@ async function flushOutbox(): Promise<void> {
     return;
   }
   if (data === 'not_active') {
-    setStandby(true);
+    void enterStandby(true);
     return;
   }
   const results = Array.isArray(data) ? data : [];
