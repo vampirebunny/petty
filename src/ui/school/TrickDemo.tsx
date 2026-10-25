@@ -3,10 +3,11 @@ import { AppState, StyleSheet, View } from 'react-native';
 import { Canvas, Picture, Skia } from '@shopify/react-native-skia';
 import type { SkPicture } from '@shopify/react-native-skia';
 
-import { breedById, createWorld, defaultLook, frameDt, spawnActor, startUserTask, todAt, update } from '../../actor';
+import { breedById, createWorld, defaultLook, frameDt, placeTrickProp, spawnActor, startTrick, todAt, update } from '../../actor';
 import type { World } from '../../actor';
 import { previewBackdrop, previewHome, previewScene } from '../../actor/previewScene';
 import { drawPetOnly } from '../skia/world';
+import { trickListing } from '../../sim/tricks';
 
 const noon = todAt(12);
 const frameMs = 1000 / 30;
@@ -14,11 +15,12 @@ const demoBreed = { dog: 'retriever', cat: 'domesticShorthair' } as const;
 
 type Props = {
   species: 'dog' | 'cat';
+  trickId: string;
   width: number;
 };
 
-// Adult stand-in, default coat, no clothes. Placeholder tricks hold Sit.
-export function TrickDemo({ species, width }: Props) {
+// Adult stand-in, default coat, no clothes. Plays the trick's success script.
+export function TrickDemo({ species, trickId, width }: Props) {
   const height = Math.round(width * 0.72);
   const [picture, setPicture] = useState<SkPicture | null>(null);
   const worldRef = useRef<World | null>(null);
@@ -48,11 +50,20 @@ export function TrickDemo({ species, width }: Props) {
     world.reducedMotion = true;
     world.noNap = true;
     const actor = world.actors[0];
+    const listing = trickListing(trickId);
+    if (actor && listing?.propType) {
+      placeTrickProp(
+        world,
+        { instanceId: 'preview', type: listing.propType, sourceTrickId: trickId },
+        previewHome.x + 90,
+        previewHome.y,
+      );
+    }
     if (actor) {
-      startUserTask(world, actor, 'sit');
+      startTrick(world, actor, trickId, 'success', listing?.propType ? ['preview'] : []);
     }
     worldRef.current = world;
-  }, [species]);
+  }, [species, trickId]);
 
   useEffect(() => {
     let raf = 0;
@@ -79,8 +90,8 @@ export function TrickDemo({ species, width }: Props) {
       const world = worldRef.current;
       const actor = world?.actors[0];
       if (world && actor) {
-        if (actor.task.type !== 'sit') {
-          startUserTask(world, actor, 'sit');
+        if (actor.task.type !== 'trick') {
+          startTrick(world, actor, trickId, 'success', world.trickProps.map((prop) => prop.instanceId));
         }
         update(world, frameDt(now - last, active));
       }
@@ -108,7 +119,7 @@ export function TrickDemo({ species, width }: Props) {
       cancelAnimationFrame(raf);
       subscription.remove();
     };
-  }, [height, width]);
+  }, [height, trickId, width]);
 
   return (
     <View style={[styles.frame, { width, height, backgroundColor: previewBackdrop }]}>

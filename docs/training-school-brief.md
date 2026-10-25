@@ -14,14 +14,17 @@ A bought trick joins the pet's **In Training** section. That section appears on 
 These override anything below that still reads the other way.
 
 - Sit, Speak, and Paw are free starters and are never sold. Paw stays locked until Sit and Speak are mastered. For cats, that starter is still labeled High five.
-- The shop list below is a placeholder. `difficulty` is stored on each row and does not change learning speed. Tiers, intelligence, and treat credit stay as they are.
+- The shop list is the real catalog below. Come and Crawl are not shipped. Jump Up is the podium trick for both dogs and cats. There is no Place trick and no stool. `difficulty` is stored and does not change learning speed. Tiers, intelligence, and treat credit stay as they are. Attribute keys only choose how the existing mastery lump is split.
 - A trick's progress lives on the pet's `training` data, which already saves, syncs, and is frozen when the pet is retired. The catalog is a local module with the same fields, ready to download later the way the shop catalog does.
 - Saying no, leaving, or backgrounding still pays the existing partial credit. At the school, "nothing changes" means the treat count.
 - Graduation still pays the current attribute lump, intelligence, XP, and 100 Boops, for every trick that reaches 100%.
 - A school "Yes" applies the biscuit reward and skips the inventory debit. There is no ledger pair. This works at 0 treats.
 - The first-purchase tooltip is once per player, stored in the local `meta` table under `schoolTrickTip`.
-- A learned trick still cuts in, except while the pet is on furniture, where one action waits.
-- The preview pet is an adult golden retriever or an adult domestic shorthair, default coat, no clothes. Every placeholder trick plays Sit until it has a real pose.
+- A learned trick still cuts in, except while the pet is on furniture, where one action waits. While a trick script is playing, another trick tap waits until it finishes.
+- The preview pet is an adult golden retriever or an adult domestic shorthair, default coat, no clothes. The preview plays that trick's success script. A furniture trick spawns its prop inside the preview.
+- Trick props are not furniture. Buying a furniture trick charges the bundle price and puts one prop in the Prop box. A second purchase of the same type grants a second prop. Placements are for the current scene only and return to the box on a scene change. They are not saved in the room layout.
+- While a trick is in training, practice uses one prop. A learned trick uses every prop of that type already on the scene, nearest first. If none are out, the pet lifts the prop that purchase granted, and letting go places it and starts the trick.
+- The Learned tricks section has a Prop button. It opens a Prop sheet like the Toy Box. Choosing a prop only places it.
 
 ---
 
@@ -98,7 +101,7 @@ The field list below is the shape of a catalog row and of the pet's training ent
 | `collection` | text | `evergreen` for now |
 | `edition` | text nullable | reserved for future limited/exclusive; null for now |
 | `sort_order` | int | |
-| `is_active` | bool | placeholder rows stay active and play Sit |
+| `is_active` | bool | shipped tricks are active and play their script |
 
 ### `pet_tricks` (per pet)
 | column | type | notes |
@@ -128,7 +131,7 @@ The field list below is the shape of a catalog row and of the pet's training ent
 - A new room in the existing swappable scene system: a training room, with lighting that follows the time of day like other indoor rooms.
 - Pet-centric props only, for example training cones, a small hurdle, a training mat and a treat jar on a shelf.
 - Dogs and cats can share the room, or have species variants if the scene system makes that easy.
-- The pet wanders and idles in the scene as usual.
+- The pet wanders the open rug. Podiums, tunnels, hurdles, hoops, and cones are not painted into the room. They appear only when the player places them.
 - The tall scene sits on top, and the two sections below it scroll vertically:
 
 **a) Practice section (shown first)**
@@ -145,7 +148,7 @@ The field list below is the shape of a catalog row and of the pet's training ent
   - **Locked**: dimmed, with a lock and "Unlocks at older age".
   - **Owned**: an "In Training" or "Learned ✓" chip.
 - Tapping a card opens the **Preview modal**:
-  - A looping demo of an adult golden retriever or adult domestic shorthair, default coat, no clothes, playing Sit until the trick has its own pose. Not the player's pet.
+  - A looping demo of an adult golden retriever or adult domestic shorthair, default coat, no clothes, playing that trick's success script. Not the player's pet. A furniture trick shows its prop in the preview and says which prop the purchase includes.
   - The trick's name and its one-line description.
   - The attributes it raises, shown with the existing attribute icons.
   - A **"Learn for X Boops"** button.
@@ -162,37 +165,51 @@ The field list below is the shape of a catalog row and of the pet's training ent
 
 ### Home
 - **In Training section:** every not-yet-mastered trick on the pet, starter and bought, with the existing buttons and rest countdowns.
-- **Learned Tricks section:** every mastered trick on the pet. Tapping a trick performs it.
+- **Learned Tricks section:** every mastered trick on the pet. Tapping a trick performs it. A Prop button on this section opens the Prop sheet.
 - Treats at Home use inventory as before.
 
 ---
 
-## 4. Placeholder catalog (prices, ages and attributes all placeholder)
+## 4. Catalog
 
-Players start with 1,000 Boops and accrue about 60 per hour.
+Players start with 1,000 Boops and accrue about 60 per hour. Prices below are the amount charged. A furniture row's price is the bundle price, and the purchase grants the one prop named in the last column. Come and Crawl are not in the app.
 
 **Dogs**
-| Trick | Price | Min age | Difficulty | Raises |
+| Trick | Price | Min age | Raises | Prop |
 |---|---|---|---|---|
-| Spin | 150 | puppy | 0.9 | agility |
-| High Five | 200 | older puppy | 1.0 | obedience, affection |
-| Bow | 250 | older puppy | 1.0 | obedience |
-| Roll Over | 300 | adolescent | 1.2 | agility, obedience |
-| Sit Pretty | 350 | adolescent | 1.3 | stamina, obedience |
-| Play Dead | 500 | adult | 1.5 | intelligence, obedience |
+| Down | 150 | puppy | obedience | |
+| Spin | 150 | puppy | agility | |
+| High Five | 200 | older puppy | obedience, affection | |
+| Bow | 250 | older puppy | obedience | |
+| Jump Up | 400 | older puppy | obedience | podium |
+| Roll Over | 300 | adolescent | agility, obedience | |
+| Catch | 300 | adolescent | agility | |
+| Stand Tall | 350 | adolescent | stamina, agility | |
+| Through the Tunnel | 450 | adolescent | boldness | pink tunnel |
+| Jump the Hurdle | 500 | adolescent | agility, boldness | hurdle |
+| Jump Through Hoop | 550 | adolescent | agility, boldness | hoop |
+| Play Dead | 500 | adult | intelligence, obedience | |
+| Sing | 450 | adult | boldness, affection | |
+| Weave | 650 | adult | agility, intelligence | cone set |
 
 **Cats**
-| Trick | Price | Min age | Difficulty | Raises |
+| Trick | Price | Min age | Raises | Prop |
 |---|---|---|---|---|
-| Spin | 150 | kitten | 0.9 | agility |
-| High Five | 200 | older kitten | 1.0 | affection |
-| Sit Pretty | 300 | adolescent | 1.2 | obedience |
-| Jump Up (onto a stool) | 350 | adolescent | 1.2 | agility, boldness |
-| Roll Over | 400 | adolescent | 1.4 | agility |
-| Fetch (ball) | 500 | adult | 1.5 | intelligence, boldness |
+| Spin | 150 | puppy | agility | |
+| High Five | 200 | older puppy | affection | |
+| Lie Down | 200 | older puppy | obedience | |
+| Jump Up | 400 | older puppy | obedience | podium |
+| Through the Tunnel | 400 | older puppy | boldness | blue tunnel |
+| Roll Over | 400 | adolescent | agility | |
+| Stand Tall | 350 | adolescent | stamina | |
+| Jump the Hurdle | 500 | adolescent | agility, boldness | hurdle |
+| Jump Through Hoop | 550 | adolescent | agility, boldness | hoop |
+| Fetch | 500 | adult | intelligence, boldness | |
+| Sing | 450 | adult | boldness, affection | |
+| Weave | 650 | adult | agility, intelligence | cone set |
 
 - Life stages use the code enum for both species: `puppy`, `olderPuppy`, `adolescent`, `adult`, `senior`. Kitten is `puppy`. Older kitten is `olderPuppy`.
-- This list is a placeholder. Both animation keys are `sit` until a real trick list exists. The rows stay active so the shop, the preview, and practice can be exercised.
+- Either species can use a prop the other species' purchase granted. A pink tunnel and a blue tunnel are the same trick type.
 
 ---
 

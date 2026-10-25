@@ -1,9 +1,10 @@
 import { stageOf } from './attributes';
+import { propInstanceId, type TrickPropType } from './trickProps';
 import type { PetState, Stage, TrainingTrack, Trait } from './types';
 
 export type TrickSpecies = 'dog' | 'cat';
 
-// Placeholder shop rows. `difficulty` is stored and not applied. Learning uses tier 1.
+// `difficulty` is stored and not applied. Learning uses tier 1.
 export type TrickListing = {
   id: string;
   species: TrickSpecies;
@@ -16,6 +17,8 @@ export type TrickListing = {
   petAnimationKey: string;
   demoAnimationKey: string;
   sortOrder: number;
+  propType: TrickPropType | null;
+  propName: string | null;
 };
 
 const stageOrder: Stage[] = ['puppy', 'olderPuppy', 'adolescent', 'adult', 'senior'];
@@ -30,6 +33,8 @@ function row(
   difficulty: number,
   attributesRaised: Trait[],
   sortOrder: number,
+  propType: TrickPropType | null = null,
+  propName: string | null = null,
 ): TrickListing {
   return {
     id,
@@ -40,25 +45,41 @@ function row(
     minAgeStage,
     difficulty,
     attributesRaised,
-    petAnimationKey: 'sit',
-    demoAnimationKey: 'sit',
+    petAnimationKey: id,
+    demoAnimationKey: id,
     sortOrder,
+    propType,
+    propName,
   };
 }
 
 export const trickCatalog: TrickListing[] = [
-  row('dog', 'dog_spin', 'Spin', 'A quick circle on the mat.', 150, 'puppy', 0.9, ['agility'], 1),
-  row('dog', 'dog_high_five', 'High Five', 'A paw up high.', 200, 'olderPuppy', 1, ['obedience', 'affection'], 2),
-  row('dog', 'dog_bow', 'Bow', 'A play bow.', 250, 'olderPuppy', 1, ['obedience'], 3),
-  row('dog', 'dog_roll_over', 'Roll Over', 'All the way over.', 300, 'adolescent', 1.2, ['agility', 'obedience'], 4),
-  row('dog', 'dog_sit_pretty', 'Sit Pretty', 'Up on the hind legs.', 350, 'adolescent', 1.3, ['stamina', 'obedience'], 5),
-  row('dog', 'dog_play_dead', 'Play Dead', 'Down and still.', 500, 'adult', 1.5, ['intelligence', 'obedience'], 6),
-  row('cat', 'cat_spin', 'Spin', 'A quick circle on the mat.', 150, 'puppy', 0.9, ['agility'], 1),
-  row('cat', 'cat_high_five', 'High Five', 'A paw up high.', 200, 'olderPuppy', 1, ['affection'], 2),
-  row('cat', 'cat_sit_pretty', 'Sit Pretty', 'Up on the hind legs.', 300, 'adolescent', 1.2, ['obedience'], 3),
-  row('cat', 'cat_jump_up', 'Jump Up', 'Onto the stool.', 350, 'adolescent', 1.2, ['agility', 'boldness'], 4),
-  row('cat', 'cat_roll_over', 'Roll Over', 'All the way over.', 400, 'adolescent', 1.4, ['agility'], 5),
-  row('cat', 'cat_fetch', 'Fetch', 'Bring the ball back.', 500, 'adult', 1.5, ['intelligence', 'boldness'], 6),
+  row('dog', 'dog_down', 'Down', 'Lies all the way down, paws out front.', 150, 'puppy', 0.9, ['obedience'], 110),
+  row('dog', 'dog_spin', 'Spin', 'A happy twirl in a full circle.', 150, 'puppy', 0.9, ['agility'], 120),
+  row('dog', 'dog_high_five', 'High Five', 'Paw up high to celebrate together.', 200, 'olderPuppy', 1, ['obedience', 'affection'], 200),
+  row('dog', 'dog_bow', 'Bow', 'Front paws down, tail up: a very fancy bow.', 250, 'olderPuppy', 1, ['obedience'], 210),
+  row('dog', 'dog_jump_up', 'Jump Up', 'Hops up onto the podium and waits like a star.', 400, 'olderPuppy', 1, ['obedience'], 220, 'podium', 'Podium'),
+  row('dog', 'dog_roll_over', 'Roll Over', 'Flops down and rolls all the way around.', 300, 'adolescent', 1.2, ['agility', 'obedience'], 300),
+  row('dog', 'dog_catch', 'Catch', 'Snaps a tossed ball right out of the air.', 300, 'adolescent', 1.2, ['agility'], 310),
+  row('dog', 'dog_stand_tall', 'Stand Tall', 'Up on the back legs, front paws tucked.', 350, 'adolescent', 1.3, ['stamina', 'agility'], 325),
+  row('dog', 'dog_tunnel', 'Through the Tunnel', 'Dashes in one end and pops out the other.', 450, 'adolescent', 1.2, ['boldness'], 330, 'tunnel', 'Tunnel'),
+  row('dog', 'dog_hurdle', 'Jump the Hurdle', 'Takes a running start and sails over the bar.', 500, 'adolescent', 1.2, ['agility', 'boldness'], 340, 'hurdle', 'Hurdle'),
+  row('dog', 'dog_hoop', 'Jump Through Hoop', 'Sails right through the middle of the hoop.', 550, 'adolescent', 1.4, ['agility', 'boldness'], 345, 'hoop', 'Hoop'),
+  row('dog', 'dog_play_dead', 'Play Dead', 'A dramatic flop, then a sneaky tail wag.', 500, 'adult', 1.5, ['intelligence', 'obedience'], 400),
+  row('dog', 'dog_sing', 'Sing', 'A little run of woofs that ends in a howl.', 450, 'adult', 1.4, ['boldness', 'affection'], 405),
+  row('dog', 'dog_weave', 'Weave', 'Zig-zags in and out of the cones.', 650, 'adult', 1.5, ['agility', 'intelligence'], 410, 'cones', 'Cone set'),
+  row('cat', 'cat_spin', 'Spin', 'A graceful little twirl on tiptoes.', 150, 'puppy', 0.9, ['agility'], 110),
+  row('cat', 'cat_high_five', 'High Five', 'Paw up to meet your hand.', 200, 'olderPuppy', 1, ['affection'], 200),
+  row('cat', 'cat_lie_down', 'Lie Down', 'Settles into a comfy loaf on command.', 200, 'olderPuppy', 1, ['obedience'], 210),
+  row('cat', 'cat_jump_up', 'Jump Up', 'Leaps up onto the podium and poses.', 400, 'olderPuppy', 1, ['obedience'], 230, 'podium', 'Podium'),
+  row('cat', 'cat_tunnel', 'Through the Tunnel', 'Zooms through the tunnel and out the end.', 400, 'olderPuppy', 1.1, ['boldness'], 220, 'tunnel', 'Tunnel'),
+  row('cat', 'cat_roll_over', 'Roll Over', 'A slow roll from one side to the other.', 400, 'adolescent', 1.4, ['agility'], 300),
+  row('cat', 'cat_stand_tall', 'Stand Tall', 'Rises up on the back legs.', 350, 'adolescent', 1.3, ['stamina'], 315),
+  row('cat', 'cat_hurdle', 'Jump the Hurdle', 'Bounds over the bar.', 500, 'adolescent', 1.2, ['agility', 'boldness'], 330, 'hurdle', 'Hurdle'),
+  row('cat', 'cat_hoop', 'Jump Through Hoop', 'Leaps clean through the hoop.', 550, 'adolescent', 1.4, ['agility', 'boldness'], 320, 'hoop', 'Hoop'),
+  row('cat', 'cat_fetch', 'Fetch', 'Chases the ball and brings it back.', 500, 'adult', 1.5, ['intelligence', 'boldness'], 400),
+  row('cat', 'cat_sing', 'Sing', 'A little meow melody.', 450, 'adult', 1.4, ['boldness', 'affection'], 405),
+  row('cat', 'cat_weave', 'Weave', 'Winds in and out of the cones.', 650, 'adult', 1.5, ['agility', 'intelligence'], 410, 'cones', 'Cone set'),
 ];
 
 const byId = new Map(trickCatalog.map((trick) => [trick.id, trick]));
@@ -75,8 +96,10 @@ export function ageAllowsTrick(ageDays: number, minAgeStage: Stage): boolean {
   return stageOrder.indexOf(stageOf(ageDays)) >= stageOrder.indexOf(minAgeStage);
 }
 
+export type GrantedTrickProp = { instanceId: string; type: TrickPropType; sourceTrickId: string };
+
 export type TrickQuote =
-  | { ok: true; pet: PetState; price: number }
+  | { ok: true; pet: PetState; price: number; prop: GrantedTrickProp | null }
   | { ok: false; reason: 'unknown' | 'species' | 'age' | 'owned' | 'insufficient_boops' };
 
 export function prepareTrickPurchase(pet: PetState, species: TrickSpecies, trickId: string, boops: number): TrickQuote {
@@ -108,13 +131,27 @@ export function prepareTrickPurchase(pet: PetState, species: TrickSpecies, trick
     lastPracticedAt: null,
     source: 'purchase',
   };
+  const prop = listing.propType
+    ? { instanceId: propInstanceId(trickId, pet.id), type: listing.propType, sourceTrickId: trickId }
+    : null;
   return {
     ok: true,
     price: listing.priceBoops,
+    prop,
     pet: { ...pet, training: { ...pet.training, [trickId]: track } },
   };
 }
 
 export function trickMilestoneKey(petId: string, trickId: string): string {
   return `milestone:trick:${trickId}:${petId}`;
+}
+
+export function failBand(progress: number): 'early' | 'mid' | 'almost' {
+  if (progress < 34) {
+    return 'early';
+  }
+  if (progress < 67) {
+    return 'mid';
+  }
+  return 'almost';
 }

@@ -52,9 +52,14 @@ import { refreshShopCatalog } from '../economy/shopSync';
 import { playRuleFor } from '../items/playRules';
 import { canGiveTreat, treatsInInventory } from '../treats';
 import { trackName } from '../sim/tracks';
+import { failBand, trickListing } from '../sim/tricks';
+import type { TrickPropType } from '../sim/trickProps';
+import { currentOwner } from '../db/currentOwner';
+import { trickPropsOf } from '../db/playerHome';
 import { ghostDelayMs, ghostEligible, startCuddleSession } from '../cuddle/guidance';
 import { HomeActionPanel } from '../ui/HomeActionPanel';
 import { ToyCard } from '../ui/ToyCard';
+import { PropCard } from '../ui/PropCard';
 import { needThreshold } from '../ui/candyTokens';
 import { CandyTooltip } from '../ui/tips/CandyTooltip';
 import { useCandyTips } from '../ui/tips/useCandyTips';
@@ -278,6 +283,8 @@ export default function HomeScreen({ petApi }: Props) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [personalityOpen, setPersonalityOpen] = useState(false);
   const [playOpen, setPlayOpen] = useState(false);
+  const [propOpen, setPropOpen] = useState(false);
+  const [propChoices, setPropChoices] = useState<{ id: string; label: string; type: string; sourceTrickId: string }[]>([]);
   const [heldPlay, setHeldPlay] = useState(false);
   const [treatOpen, setTreatOpen] = useState(false);
   const [treatNote, setTreatNote] = useState<string | null>(null);
@@ -584,6 +591,28 @@ export default function HomeScreen({ petApi }: Props) {
     moveFurnitureRef.current = moveFurniture;
   }, [moveFurniture]);
   const holdPiece = useRef<string | null>(null);
+  const holdProp = useRef(false);
+  const trickDialog = useRef<'good' | 'miss' | null>(null);
+  const trickTrack = useRef<string | null>(null);
+  const placeIntent = useRef<{ trackId: string; learned: boolean } | null>(null);
+  const queuedPlay = useRef<{
+    trackId: string;
+    outcome: 'success' | 'early' | 'mid' | 'almost';
+    dialog: 'good' | 'miss' | null;
+    propIds: string[];
+  } | null>(null);
+  const playCatalogRef = useRef<(trackId: string, learned: boolean, rolled?: boolean) => void>(() => {});
+  useEffect(() => {
+    if (dialog != null || !queuedPlay.current) {
+      return;
+    }
+    const next = queuedPlay.current;
+    queuedPlay.current = null;
+    if (stageHandle.current?.startTrick(next.trackId, next.outcome, next.propIds)) {
+      trickDialog.current = next.dialog;
+      trickTrack.current = next.trackId;
+    }
+  }, [dialog]);
   const flickPiece = useRef<string | null>(null);
   const pieceAt = useCallback(
     (x: number, y: number) => {
@@ -612,6 +641,16 @@ export default function HomeScreen({ petApi }: Props) {
   );
   const onHoldStart = useCallback(
     (x: number, y: number) => {
+      const point = stagePoint(x, y, viewWidth, viewHeight, contentWidth, stageWidth, logicalH);
+      const propId = stageHandle.current?.trickPropAt(point.x, point.y) ?? null;
+      if (propId) {
+        holdPiece.current = propId;
+        holdProp.current = true;
+        stageHandle.current?.moveTrickProp(propId, point.x, point.y);
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        return;
+      }
+      holdProp.current = false;
       const pieceId = pieceAt(x, y);
       holdPiece.current = pieceId;
       if (!pieceId) {
@@ -620,7 +659,7 @@ export default function HomeScreen({ petApi }: Props) {
       stageHandle.current?.setLifted(pieceId);
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     },
-    [pieceAt],
+    [contentWidth, logicalH, pieceAt, viewHeight, viewWidth],
   );
   const onHoldMove = useCallback(
     (x: number, y: number) => {
@@ -629,6 +668,10 @@ export default function HomeScreen({ petApi }: Props) {
         return;
       }
       const point = stagePoint(x, y, viewWidth, viewHeight, contentWidth, stageWidth, logicalH);
+      if (holdProp.current) {
+        stageHandle.current?.moveTrickProp(pieceId, point.x, point.y);
+        return;
+      }
       stageHandle.current?.moveFurniture(pieceId, point.x, point.y);
     },
     [contentWidth, logicalH, viewHeight, viewWidth],
@@ -636,12 +679,24 @@ export default function HomeScreen({ petApi }: Props) {
   const onHoldEnd = useCallback(
     (x: number, y: number) => {
       const pieceId = holdPiece.current;
+      const prop = holdProp.current;
       holdPiece.current = null;
+      holdProp.current = false;
       stageHandle.current?.setLifted(null);
+      const point = stagePoint(x, y, viewWidth, viewHeight, contentWidth, stageWidth, logicalH);
+      if (prop && pieceId) {
+        stageHandle.current?.moveTrickProp(pieceId, point.x, point.y);
+        const intent = placeIntent.current;
+        placeIntent.current = null;
+        if (intent) {
+          playCatalogRef.current(intent.trackId, intent.learned);
+        }
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        return;
+      }
       if (!pieceId) {
         return;
       }
-      const point = stagePoint(x, y, viewWidth, viewHeight, contentWidth, stageWidth, logicalH);
       const placed = stageHandle.current?.moveFurniture(pieceId, point.x, point.y);
       if (placed) {
         moveFurnitureRef.current(pieceId, placed.sceneId, placed.x, placed.y);
@@ -1360,11 +1415,62 @@ export default function HomeScreen({ petApi }: Props) {
     }
   };
   const dialogLive = dialog != null && !(dialog.kind === 'good' && !state.care.pendingReward);
+  const propTypeOf = (value: string): TrickPropType | null =>
+    value === 'podium' || value === 'tunnel' || value === 'hurdle' || value === 'cones' || value === 'hoop' ? value : null;
+  const playCatalog = (trackId: string, learned: boolean) => {
+    const listing = trickListing(trackId);
+    const track = state.training[trackId];
+    if (!listing || !track) {
+      return;
+    }
+    const mastered = learned || track.mastered;
+    if (listing.propType && (stageHandle.current?.trickPropIds(listing.propType, true).length ?? 0) === 0) {
+      const owned = trickPropsOf(currentOwner()).find((prop) => prop.sourceTrickId === trackId);
+      const type = owned ? propTypeOf(owned.type) : null;
+      if (owned && type) {
+        placeIntent.current = { trackId, learned };
+        stageHandle.current?.liftTrickProp({ instanceId: owned.instanceId, type, sourceTrickId: owned.sourceTrickId });
+        return;
+      }
+    }
+    let outcome: 'success' | 'early' | 'mid' | 'almost' = 'success';
+    let pending: 'good' | 'miss' | null = null;
+    if (!mastered) {
+      if (isResting(track, clock)) {
+        setDialog({ kind: 'break', trackId });
+        return;
+      }
+      const progress = track.progress;
+      const result = attemptTrick(trackId);
+      if (!result) {
+        return;
+      }
+      if (!result.mastered && result.ok) {
+        pending = 'good';
+      } else if (!result.mastered && result.confused) {
+        outcome = failBand(progress);
+        pending = 'miss';
+      }
+    }
+    const ids = listing.propType ? (stageHandle.current?.trickPropIds(listing.propType, mastered) ?? []) : [];
+    const started = stageHandle.current?.startTrick(trackId, outcome, ids) ?? false;
+    if (!started) {
+      queuedPlay.current = { trackId, outcome, dialog: pending, propIds: ids };
+      return;
+    }
+    trickDialog.current = pending;
+    trickTrack.current = trackId;
+  };
+  playCatalogRef.current = playCatalog;
   const practice = (trackId: string) => {
     if (trickTip?.id === trackId) {
       setTrickTip(null);
     }
     if (dialogLive) {
+      return;
+    }
+    if (trickListing(trackId)) {
+      playCatalog(trackId, false);
       return;
     }
     const track = state.training[trackId];
@@ -1407,7 +1513,7 @@ export default function HomeScreen({ petApi }: Props) {
           speak();
           return;
         }
-        attemptTrick(track.id);
+        playCatalog(track.id, true);
       },
     }));
   const badgeIds = ['sit', 'speak', 'paw'] as const;
@@ -1713,6 +1819,21 @@ export default function HomeScreen({ petApi }: Props) {
   const sheets = (
     <>
       {trainingDialog}
+      {propOpen ? (
+        <PropCard
+          top={sheetTop}
+          props={propChoices}
+          onClose={() => setPropOpen(false)}
+          onPick={(id) => {
+            const owned = propChoices.find((prop) => prop.id === id);
+            const type = owned ? propTypeOf(owned.type) : null;
+            if (owned && type) {
+              stageHandle.current?.liftTrickProp({ instanceId: owned.id, type, sourceTrickId: owned.sourceTrickId });
+            }
+            setPropOpen(false);
+          }}
+        />
+      ) : null}
       {playOpen ? (
         <ToyCard
           top={sheetTop}
@@ -1939,6 +2060,21 @@ export default function HomeScreen({ petApi }: Props) {
           style={styleActions}
           tricks={tricks}
           badges={badgeCoins}
+          onProps={
+            tricks.length > 0
+              ? () => {
+                  setPropChoices(
+                    trickPropsOf(currentOwner()).map((prop) => ({
+                      id: prop.instanceId,
+                      label: trickListing(prop.sourceTrickId)?.propName ?? prop.type,
+                      type: prop.type,
+                      sourceTrickId: prop.sourceTrickId,
+                    })),
+                  );
+                  setPropOpen(true);
+                }
+              : undefined
+          }
         />
         {note ? <Text style={styles.hint}>{note}</Text> : null}
         {personalityOpen ? (
@@ -2083,6 +2219,22 @@ export default function HomeScreen({ petApi }: Props) {
               onDrank={reportDrank}
               onAte={reportAte}
               onFellAsleep={beginRest}
+              onTrickEnd={() => {
+                const trackId = trickTrack.current;
+                const kind = trickDialog.current;
+                trickDialog.current = null;
+                trickTrack.current = null;
+                if (kind && trackId) {
+                  setDialog({ kind, trackId });
+                  return;
+                }
+                const next = queuedPlay.current;
+                queuedPlay.current = null;
+                if (next && (stageHandle.current?.startTrick(next.trackId, next.outcome, next.propIds) ?? false)) {
+                  trickDialog.current = next.dialog;
+                  trickTrack.current = next.trackId;
+                }
+              }}
               onPlayFind={noteFind}
               onHeld={(on) => {
                 setHeldPlay(on);

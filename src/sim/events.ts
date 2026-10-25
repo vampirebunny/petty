@@ -121,6 +121,10 @@ export function applyEvent(state: PetState, event: PetEvent): EventResult {
     if (!track?.unlocked || (isResting(track, event.now) && !rolled.state.care.pendingReward)) {
       return { state: withDerived(rolled.state), cue: { kind: 'none' } };
     }
+    const catalogTrick = event.trackId !== 'sit' && event.trackId !== 'paw' && event.trackId !== 'speak';
+    if (catalogTrick) {
+      return { state: withDerived(rolled.state), cue: { kind: 'none' } };
+    }
     const pose = event.trackId === 'paw' ? 'paw' : event.trackId === 'speak' ? 'speak' : 'sit';
     if (track.mastered && !rolled.state.care.pendingReward) {
       return { state: withDerived(rolled.state), cue: { kind: pose } };

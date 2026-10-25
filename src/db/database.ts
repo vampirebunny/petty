@@ -89,6 +89,13 @@ CREATE TABLE IF NOT EXISTS owned_toys (
   toy_id TEXT NOT NULL,
   PRIMARY KEY (owner_id, toy_id)
 );
+CREATE TABLE IF NOT EXISTS owned_trick_props (
+  owner_id TEXT NOT NULL,
+  instance_id TEXT NOT NULL,
+  prop_type TEXT NOT NULL,
+  source_trick_id TEXT NOT NULL,
+  PRIMARY KEY (owner_id, instance_id)
+);
 CREATE TABLE IF NOT EXISTS owned_furniture (
   owner_id TEXT NOT NULL,
   piece_id TEXT NOT NULL,

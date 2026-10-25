@@ -35,6 +35,7 @@ type PanelProps = {
   style: CandyAction[];
   tricks: { id: string; label: string; onPress: () => void; fresh: boolean }[];
   badges: { id: string; label: string; fresh: boolean }[];
+  onProps?: () => void;
 };
 
 function candyIcon(id: string, species: ActionSpecies, size: number, color: string) {
@@ -48,7 +49,7 @@ const headerIcon = {
   style: Sparkles,
 } as const;
 
-export function HomeActionPanel({ species, reducedMotion, care, bond, style: styleActions, tricks, badges }: PanelProps) {
+export function HomeActionPanel({ species, reducedMotion, care, bond, style: styleActions, tricks, badges, onProps }: PanelProps) {
   return (
     <View style={styles.panel}>
       <PanelWash />
@@ -68,7 +69,19 @@ export function HomeActionPanel({ species, reducedMotion, care, bond, style: sty
         ))}
       </Section>
       {tricks.length > 0 ? (
-        <Section flavor="bond" title="Learned tricks" columns={3} icon={PawPrint}>
+        <Section
+          flavor="bond"
+          title="Learned tricks"
+          columns={3}
+          icon={PawPrint}
+          extra={
+            onProps ? (
+              <Pressable accessibilityRole="button" accessibilityLabel="Prop" onPress={onProps} style={styles.propButton}>
+                <Text style={[styles.headerText, { color: candyFlavors.bond.header }]}>Prop</Text>
+              </Pressable>
+            ) : null
+          }
+        >
           {tricks.map((trick) => (
             <Pop key={trick.id} fresh={trick.fresh && !reducedMotion}>
               <Tile
@@ -133,6 +146,7 @@ function Section({
   columns,
   pill = false,
   icon,
+  extra,
   children,
 }: {
   flavor: 'care' | 'bond' | 'style';
@@ -140,6 +154,7 @@ function Section({
   columns: number;
   pill?: boolean;
   icon?: LucideIcon;
+  extra?: ReactNode;
   children: ReactNode;
 }) {
   const Icon = icon ?? headerIcon[flavor];
@@ -150,6 +165,7 @@ function Section({
       <View style={styles.header}>
         <Icon size={16} color={color} fill={color} strokeWidth={2} />
         <Text style={[styles.headerText, { color }]}>{title}</Text>
+        {extra}
       </View>
       <View style={[styles.rows, pill && styles.pillRows]}>
         {rows.map((row, index) => (
@@ -338,6 +354,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+  },
+  propButton: {
+    marginLeft: 'auto',
   },
   headerText: {
     fontSize: candyLayout.header,

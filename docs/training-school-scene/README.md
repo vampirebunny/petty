@@ -16,18 +16,17 @@ All files are **390 × 600**, sharing one coordinate space, so they stack exactl
 | 6 | Front props | `ts-props-dog-front.svg` / `ts-props-cat-front.svg` | Always in front of the pet. |
 
 ## Pet placement (scene coordinates)
-- Walkable floor band: **y 430–500**, x about 130–270. That keeps the feet between the back props and the front props.
+- Walkable floor is the open rug: **y 430–540**, x about 48–342. The pet can walk up to a prop the player placed.
 - Training mat (where tricks are performed): center **≈ (195, 488)**, about 300 × 116.
-- Podium / jump stool top surface: **≈ (312, 392)**, about 80 wide. Jump Up can use this later. The pet does not path onto it yet.
-- Back props sit around y 340–420 and front props around y 510–595.
+- Podiums, tunnels, hurdles, hoops, and cone sets are not part of this painting. The player places them from the Prop box, and they leave when the pet changes rooms.
 
 ## Named groups (ids) you may want to address
 - `ts-room.svg`: `wall`, `window`, `curtains`, `garland`, `trick-chart`, `shelf`, `hook-rosette`, `floor`, `sunpatch`, `mat`
   - Hide `sunpatch` (the window light on the floor) at night.
-- Dog props: `weave-poles`, `cone-back`, `podium`, `cone-corner`, `tunnel`, `hurdle`
-- Cat props: `cat-steps`, `toy-basket`, `podium`, `tunnel`, `hoop`
+- Dog props: none. The dog prop files stay empty so the stack still has a layer.
+- Cat props: `cat-steps`, `toy-basket`. The podium, tunnel, and hoop are placed by the player, not painted here.
 
 ## Species
 Same room for both; only the prop files change.
-- **Dog:** weave poles, cones, podium, pink tunnel, agility hurdle.
-- **Cat:** cushioned steps, toy basket with yarn and feather wand, jump stool, blue crinkle tunnel, jump hoop.
+- **Dog:** the room only. Training equipment is placed from the Prop box.
+- **Cat:** cushioned steps and a toy basket with yarn and a feather wand. Training equipment is placed from the Prop box.

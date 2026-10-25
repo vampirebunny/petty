@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="390" height="600" viewBox="0 0 390 600">
-  <!-- Behind the pet. Cushioned steps, toy basket (yarn + feather wand), jump stool. -->
+  <!-- Behind the pet. Cushioned steps and a toy basket. The podium is placed by the player. -->
   <g id="cat-steps">
     <ellipse cx="66" cy="418" rx="56" ry="6" fill="#3B2357" opacity="0.1"/>
     <rect x="18" y="384" width="96" height="30" rx="9" fill="#E8D9FF"/>
@@ -20,13 +20,5 @@
     <rect x="128" y="384" width="50" height="28" rx="8" fill="#F2C9A0"/>
     <path d="M136 384V412M146 384V412M156 384V412M166 384V412M128 396H178" stroke="#E5B486" stroke-width="2"/>
     <rect x="124" y="380" width="58" height="8" rx="4" fill="#E5B486"/>
-  </g>
-  <g id="podium">
-    <ellipse cx="312" cy="422" rx="48" ry="8" fill="#3B2357" opacity="0.1"/>
-    <rect x="272" y="392" width="80" height="26" fill="#FFD98A"/>
-    <ellipse cx="312" cy="418" rx="40" ry="9" fill="#FFD98A"/>
-    <rect x="272" y="400" width="80" height="6" fill="#FFFFFF" opacity="0.7"/>
-    <ellipse cx="312" cy="392" rx="40" ry="9" fill="#FFE9B8"/>
-    <path d="M312 405l1.8 3.7 4 .6-2.9 2.8.7 4-3.6-1.9-3.6 1.9.7-4-2.9-2.8 4-.6z" fill="#F5B92E"/>
   </g>
 </svg>

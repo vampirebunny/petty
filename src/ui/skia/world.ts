@@ -21,6 +21,7 @@ import type { OverlayBurst } from '../../playdate/overlay';
 import { drawDogHouse } from './props';
 import { catBack, catFront, dogBack, dogFront, nightOverlay, room, skyDay, skyNight } from './schoolSvgs';
 import { drawAmbient, drawBackdrop, drawHeldPlay, drawProp, drawToyShape, drawTreatShape } from './scenery';
+import { drawTrickProp } from './trickPropArt';
 import type { Contact, Env } from './scenery';
 
 function drawTinted(canvas: SkCanvas, tint: Rgba, draw: () => void): void {
@@ -96,6 +97,13 @@ function drawSchool(canvas: SkCanvas, world: World, width: number, height: numbe
   drawSchoolSvg(canvas, cat ? 'cat-back' : 'dog-back', cat ? catBack : dogBack);
   drawSchoolSvg(canvas, 'night', nightOverlay, dark);
   const floor = world.scene.floor;
+  const trickProps = world.trickProps ?? [];
+  const lead = world.actors.find((actor) => !actor.guest) ?? world.actors[0];
+  for (const prop of trickProps) {
+    if (!(lead && lead.y > prop.y + 8)) {
+      drawTrickProp(canvas, prop, 'back');
+    }
+  }
   for (const actor of world.actors) {
     const breed = resolveBreedById(actor.breedId, actor.look);
     if (!breed) {
@@ -113,6 +121,13 @@ function drawSchool(canvas: SkCanvas, world: World, width: number, height: numbe
     const actor = world.actors[0];
     const breed = actor ? resolveBreedById(actor.breedId, actor.look) : null;
     drawTreatShape(canvas, treatId, toy.x, toy.y - toy.z - radius, radius, world.t, breed?.species ?? null);
+  }
+  for (const prop of trickProps) {
+    const petInFront = lead != null && lead.y > prop.y + 8;
+    if (petInFront) {
+      drawTrickProp(canvas, prop, 'back');
+    }
+    drawTrickProp(canvas, prop, 'front');
   }
   drawSchoolSvg(canvas, cat ? 'cat-front' : 'dog-front', cat ? catFront : dogFront);
   canvas.restore();
@@ -312,6 +327,20 @@ export function drawWorld(
     items.push({ y: piece.y, late: false, draw: () => withTint(roomTint, () => piece.draw(canvas)) });
   }
   const span = { x: -bleed - 400, y: -600, w: stageWidth + bleed * 2 + 800, h: stageHeight + 1200 };
+  for (const prop of world.trickProps ?? []) {
+    const petInFront = world.actors.some((actor) => actor.y > prop.y + 8);
+    const liftedProp = world.liftedPropId === prop.instanceId;
+    items.push({
+      y: petInFront ? prop.y - 4 : prop.y - 1,
+      late: liftedProp,
+      draw: () => drawTrickProp(canvas, prop, 'back'),
+    });
+    items.push({
+      y: petInFront ? prop.y - 3 : prop.y + 1,
+      late: liftedProp,
+      draw: () => drawTrickProp(canvas, prop, 'front'),
+    });
+  }
   for (const actor of world.actors) {
     const resolved = resolveBreedById(actor.breedId, actor.look);
     if (!resolved) {
@@ -506,6 +535,12 @@ export function drawPetOnly(
   canvas.scale(scale, scale);
   canvas.translate(-camera.x, -camera.y);
   const bodyTint = scene.time === 'indoor' ? { r: 0, g: 0, b: 0, a: 0 } : actorTint(scene, tod);
+  const lead = world.actors[0];
+  for (const prop of world.trickProps ?? []) {
+    if (!(lead && lead.y > prop.y + 8)) {
+      drawTrickProp(canvas, prop, 'back');
+    }
+  }
   for (const actor of world.actors) {
     const resolved = resolveBreedById(actor.breedId, actor.look);
     if (!resolved) {
@@ -513,6 +548,13 @@ export function drawPetOnly(
     }
     const breed = applyVariant(resolved, actor.variant);
     drawTinted(canvas, bodyTint, () => drawActor(canvas, actor, breed, floor, world.t, null, world.silhouette === true, world.reducedMotion));
+  }
+  for (const prop of world.trickProps ?? []) {
+    const petInFront = lead != null && lead.y > prop.y + 8;
+    if (petInFront) {
+      drawTrickProp(canvas, prop, 'back');
+    }
+    drawTrickProp(canvas, prop, 'front');
   }
   canvas.restore();
 }

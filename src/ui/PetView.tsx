@@ -31,6 +31,11 @@ import {
   releaseHeldFinger,
   stopHeld,
   startUserTask,
+  startTrick,
+  trickPropAt,
+  placeTrickProp,
+  moveTrickProp,
+  takeTrickFinish,
   inviteCare,
   takePendingRest,
   beginGreeting,
@@ -79,6 +84,8 @@ import { applyFurniture, furnitureAt, movePiece, syncFurniture } from '../actor/
 import { askFurnitureOff, furnitureClaims } from '../actor/furnitureUse';
 import { skyAt, solarHour } from '../actor/sky';
 import { drawWorld } from './skia/world';
+import { propsForTrick, type TrickPropType } from '../sim/trickProps';
+import type { TrickOutcome } from '../actor/data/trickScripts';
 
 // What the home screen can ask of the pet while Cuddle is on. Points are stage coordinates.
 export type StageHandle = {
@@ -89,6 +96,11 @@ export type StageHandle = {
   greetingIds: () => string[];
   label: () => string;
   furnitureAt: (x: number, y: number) => string | null;
+  trickPropAt: (x: number, y: number) => string | null;
+  moveTrickProp: (instanceId: string, x: number, y: number) => void;
+  liftTrickProp: (owned: { instanceId: string; type: TrickPropType; sourceTrickId: string }) => void;
+  trickPropIds: (type: TrickPropType | null, mastered: boolean) => string[];
+  startTrick: (trickId: string, outcome: TrickOutcome, propIds: string[]) => boolean;
   moveFurniture: (pieceId: string, x: number, y: number) => { sceneId: string; x: number; y: number } | null;
   invite: (kind: 'food' | 'water' | 'bed') => 'went' | 'queued' | 'already';
   setLifted: (pieceId: string | null) => void;
@@ -151,6 +163,7 @@ type Props = {
   onPointAdds?: (adds: PointAdd[]) => void;
   onGreeting?: (id: string) => void;
   onFellAsleep?: () => void;
+  onTrickEnd?: () => void;
   furniture?: FurniturePiece[];
   placements?: FurniturePlacement[];
   toys?: string[];
@@ -220,6 +233,7 @@ export function PetView({
   onPointAdds,
   onGreeting,
   onFellAsleep,
+  onTrickEnd,
   stageRef,
   furniture = [],
   placements = [],
@@ -589,6 +603,31 @@ export function PetView({
       greetingIds: () => greetingIds(breedById(petRef.current.breedId)?.species === 'cat' ? 'cat' : 'dog'),
       label: () => worldRef.current.greetLabel ?? '',
       furnitureAt: (x, y) => (travelRef.current ? null : furnitureAt(worldRef.current.scene, x, y)),
+      trickPropAt: (x, y) => (travelRef.current ? null : trickPropAt(worldRef.current, x, y)),
+      moveTrickProp: (instanceId, x, y) => {
+        moveTrickProp(worldRef.current, instanceId, x, y);
+      },
+      liftTrickProp: (owned) => {
+        const actor = worldRef.current.actors[0];
+        if (!actor) {
+          return;
+        }
+        placeTrickProp(worldRef.current, owned, actor.x + (actor.face >= 0 ? 70 : -70), actor.y);
+      },
+      trickPropIds: (type, mastered) => {
+        const actor = worldRef.current.actors[0];
+        if (!actor || !type) {
+          return [];
+        }
+        return propsForTrick(worldRef.current.trickProps ?? [], type, actor.x, actor.y, mastered).map((prop) => prop.instanceId);
+      },
+      startTrick: (trickId, outcome, propIds) => {
+        const actor = worldRef.current.actors[0];
+        if (!actor) {
+          return false;
+        }
+        return startTrick(worldRef.current, actor, trickId, outcome, propIds);
+      },
       moveFurniture: (pieceId, x, y) => {
         if (travelRef.current) {
           return null;
@@ -803,9 +842,11 @@ export function PetView({
     onPointAddsRef.current = onPointAdds;
   }, [onPointAdds]);
   const onFellAsleepRef = useRef(onFellAsleep);
+  const onTrickEndRef = useRef(onTrickEnd);
   useEffect(() => {
     onFellAsleepRef.current = onFellAsleep;
-  }, [onFellAsleep]);
+    onTrickEndRef.current = onTrickEnd;
+  }, [onFellAsleep, onTrickEnd]);
   const hungerRef = useRef(pet.needs.hunger);
   hungerRef.current = pet.needs.hunger;
   const energyRef = useRef(pet.needs.energy);
@@ -849,6 +890,9 @@ export function PetView({
       update(world, dt);
       if (takePendingRest(world)) {
         onFellAsleepRef.current?.();
+      }
+      if (takeTrickFinish(world)) {
+        onTrickEndRef.current?.();
       }
       const greeted = world.actors[0] ? takePendingGreeting(world.actors[0]) : null;
       if (greeted) {

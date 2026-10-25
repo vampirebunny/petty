@@ -952,6 +952,15 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
         return null;
       }
       const track = result.state.training[trackId];
+      const catalogTrick = trackId !== 'sit' && trackId !== 'paw' && trackId !== 'speak';
+      if (catalogTrick) {
+        const pending = result.state.care.pendingReward != null;
+        return {
+          ok: pending,
+          mastered: track?.mastered === true && !pending,
+          confused: track != null && !track.mastered && !pending,
+        };
+      }
       return {
         ok: result.cue.kind !== 'confused' && result.cue.kind !== 'none',
         mastered: track?.mastered === true && result.state.care.pendingReward == null,

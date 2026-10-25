@@ -34,7 +34,8 @@ export type TaskType =
   | 'travel'
   | 'greet'
   | 'treat'
-  | 'held';
+  | 'held'
+  | 'trick';
 
 // Silhouette vocabulary. Each breed picks one value per slot, and the renderer draws the matching shape.
 export type EarType =
@@ -225,6 +226,10 @@ export type Pose = {
   headFront: number;
   // Symmetric face toward the camera. Greetings raise it for a bark or meow.
   faceFront: number;
+  // High Five. The near front paw holds above the shoulder.
+  pawHigh: number;
+  // Stand Tall. The torso rises about the hind hip.
+  stand: number;
 };
 
 export type IdleMode = 'still' | 'pant' | 'purr' | 'nap' | 'walk' | 'zoom' | 'stalk';
@@ -244,6 +249,8 @@ export type Task = {
   // True while a greeting is the only writer of actor.face.
   ownsFacing?: boolean;
   greet?: GreetRun;
+  trick?: import('./trickPlay').TrickPlayback;
+  trickRates?: Partial<Record<keyof Pose, number>>;
   // Mood points to show once this treat is eaten.
   mood?: number;
 };
@@ -658,6 +665,10 @@ export type World = {
   restLatched: boolean;
   glance: { face: 1 | -1; left: number } | null;
   liftedId: string | null;
+  // Training props placed for this scene only. A scene change clears them.
+  trickProps: import('../sim/trickProps').PlacedTrickProp[];
+  liftedPropId: string | null;
+  trickFinished: boolean;
   // World time when a furniture affordance may be picked again, keyed by actor and affordance.
   furnitureUsed?: Record<string, number>;
   squishId: string | null;

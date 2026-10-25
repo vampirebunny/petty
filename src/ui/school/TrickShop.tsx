@@ -117,8 +117,9 @@ function Preview({
       <Pressable accessibilityRole="button" accessibilityLabel="Close" onPress={onClose} style={styles.close}>
         <X size={18} color={ink} />
       </Pressable>
-      <TrickDemo species={species} width={240} />
+      <TrickDemo species={species} trickId={trick.id} width={240} />
       <Text style={[styles.previewName, { color: ink }]}>{trick.name}</Text>
+      {trick.propName ? <Text style={[styles.blurb, { color: ink }]}>Includes a {trick.propName}</Text> : null}
       <Text style={[styles.blurb, { color: ink }]}>{trick.description}</Text>
       <View style={styles.traits}>
         {trick.attributesRaised.map((trait) => (

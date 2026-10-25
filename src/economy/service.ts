@@ -247,6 +247,14 @@ function applyLedgerLine(owner: string, line: LedgerLine): void {
     if (line.delta > 0) {
       db().runSync('INSERT OR IGNORE INTO owned_toys (owner_id, toy_id) VALUES (?, ?)', owner, line.toyId);
     }
+  } else if (line.asset === 'trick_prop' && line.furnitureId && line.scene && line.toyId && line.delta > 0) {
+    db().runSync(
+      'INSERT OR IGNORE INTO owned_trick_props (owner_id, instance_id, prop_type, source_trick_id) VALUES (?, ?, ?, ?)',
+      owner,
+      line.furnitureId,
+      line.scene,
+      line.toyId,
+    );
   } else if (line.asset === 'furniture' && line.furnitureId) {
     if (line.delta > 0) {
       const defined = furnitureDefinition(line.furnitureId);
@@ -627,9 +635,17 @@ export function buyTrick(
       if (!quoted.ok) {
         return quoted;
       }
-      insertTransaction('purchase', requestId, trickId, [
-        { asset: 'boops', delta: -quoted.price, unitPrice: quoted.price, deal: false },
-      ]);
+      const lines: LedgerLine[] = [{ asset: 'boops', delta: -quoted.price, unitPrice: quoted.price, deal: false }];
+      if (quoted.prop) {
+        lines.push({
+          asset: 'trick_prop',
+          delta: 1,
+          furnitureId: quoted.prop.instanceId,
+          scene: quoted.prop.type,
+          toyId: quoted.prop.sourceTrickId,
+        });
+      }
+      insertTransaction('purchase', requestId, trickId, lines);
       writePetNow(quoted.pet);
       return { ok: true as const, pet: quoted.pet };
     });

@@ -49,6 +49,14 @@ export function touchPlayerHome(): void {
   emit();
 }
 
+export function trickPropsOf(ownerId: string): { instanceId: string; type: string; sourceTrickId: string }[] {
+  const rows = getDb().getAllSync<{ instance_id: string; prop_type: string; source_trick_id: string }>(
+    'SELECT instance_id, prop_type, source_trick_id FROM owned_trick_props WHERE owner_id = ?',
+    ownerId,
+  );
+  return rows.map((row) => ({ instanceId: row.instance_id, type: row.prop_type, sourceTrickId: row.source_trick_id }));
+}
+
 export function toysOf(ownerId: string): string[] {
   const rows = getDb().getAllSync<{ toy_id: string }>('SELECT toy_id FROM owned_toys WHERE owner_id = ?', ownerId);
   return rows.map((row) => row.toy_id);

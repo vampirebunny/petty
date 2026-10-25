@@ -167,6 +167,8 @@ export type JumpState = {
   earLag: number;
   dust: JumpDust[];
   visual: JumpVisual;
+  z0: number;
+  landZ: number;
 };
 
 export type JumpRequest = {
@@ -183,6 +185,8 @@ export type JumpRequest = {
   reduced?: boolean;
   // Omit to use the species default. false skips the cat butt wiggle.
   wiggle?: boolean;
+  // Height of the surface the pet lands on. The arc starts from the current z.
+  landZ?: number;
   onLand?: (actor: Actor) => void;
   // Landing thud. Nothing plays until a caller passes this.
   onThud?: (actor: Actor) => void;
@@ -301,7 +305,12 @@ export function resolveJump(actor: Actor, request: JumpRequest = {}): ResolvedJu
     bodies = Math.max(bodies, (request.obstacleHeight + margin) / worldH);
   }
   bodies = Math.min(Math.max(bodies, 0.05), Math.max(capBodies, 0.05));
-  const heightPx = bodies * worldH;
+  const z0 = Math.max(0, actor.z);
+  const landZ = request.landZ ?? 0;
+  let heightPx = bodies * worldH;
+  if (landZ > z0) {
+    heightPx = Math.max(heightPx, landZ - z0 + 0.3 * worldH);
+  }
   const distancePx = (request.distance ?? params.distance) * age.distance * agile * worldL;
   const fast = request.fast === true;
   const reduced = request.reduced === true;
@@ -529,8 +538,12 @@ function beginAir(actor: Actor, jump: JumpState, height: number, bounce: boolean
   jump.phase = bounce ? 'bounce' : 'airborne';
   jump.t = 0;
   jump.apex = height;
+  const z0 = bounce ? 0 : jump.z0;
+  const landZ = bounce ? 0 : jump.landZ;
   jump.v0 = Math.sqrt(2 * jump.gravity * Math.max(height, 1));
-  jump.airTime = (2 * jump.v0) / jump.gravity;
+  const tUp = jump.v0 / jump.gravity;
+  const tDown = Math.sqrt((2 * Math.max(z0 + height - landZ, 1)) / jump.gravity);
+  jump.airTime = tUp + tDown;
   if (!bounce && jump.landX != null) {
     jump.vx = (jump.landX - actor.x) / jump.airTime;
   } else if (!bounce) {
@@ -539,7 +552,7 @@ function beginAir(actor: Actor, jump: JumpState, height: number, bounce: boolean
     jump.vx = jump.running ? jump.face * Math.min(Math.abs(jump.distancePx) / Math.max(jump.airTime, 0.05), 160) * 0.35 : 0;
   }
   jump.x0 = actor.x;
-  actor.z = 0.01;
+  actor.z = Math.max(jump.z0, 0.01);
   actor.vz = jump.v0;
 }
 
@@ -614,6 +627,8 @@ export function jump(actor: Actor, request: JumpRequest = {}): boolean {
     earLag: 0,
     dust: [],
     visual: blankVisual(),
+    z0: Math.max(0, actor.z),
+    landZ: request.landZ ?? 0,
   };
   actor.jump = state;
   state.visual = sampleVisual(state);
@@ -642,7 +657,7 @@ function advance(actor: Actor, jump: JumpState): void {
   }
   if (jump.phase === 'airborne' && jump.t >= jump.airTime) {
     actor.x = jump.x0 + jump.vx * jump.airTime;
-    actor.z = 0;
+    actor.z = jump.landZ;
     actor.vz = 0;
     if (!jump.running) {
       actor.vx = 0;
@@ -657,7 +672,7 @@ function advance(actor: Actor, jump: JumpState): void {
   if (jump.phase === 'landing' && jump.t >= jump.landing) {
     if (jump.quiet) {
       actor.jump = null;
-      actor.z = 0;
+      actor.z = jump.landZ;
       actor.vz = 0;
       return;
     }
@@ -665,20 +680,20 @@ function advance(actor: Actor, jump: JumpState): void {
     return;
   }
   if (jump.phase === 'recovery' && jump.t >= jump.recovery) {
-    if (jump.puppy > 0.2 && !jump.didBounce) {
+    if (jump.landZ <= 0 && jump.puppy > 0.2 && !jump.didBounce) {
       jump.didBounce = true;
       jump.quiet = true;
       beginAir(actor, jump, jump.heightPx * jumpConfig.bounceFraction * jump.puppy, true);
       return;
     }
     actor.jump = null;
-    actor.z = 0;
+    actor.z = jump.landZ;
     actor.vz = 0;
     return;
   }
   if (jump.phase === 'bounce' && jump.t >= jump.airTime) {
     actor.x = jump.x0 + jump.vx * jump.airTime;
-    actor.z = 0;
+    actor.z = jump.landZ;
     actor.vz = 0;
     jump.landing = 0.12;
     jump.quiet = true;
@@ -704,7 +719,7 @@ export function stepJump(actor: Actor, dt: number): void {
   if (live.phase === 'airborne' || live.phase === 'bounce') {
     const u = Math.min(live.t, live.airTime);
     live.visual = sampleVisual(live);
-    actor.z = Math.max(0, live.v0 * u - 0.5 * live.gravity * u * u);
+    actor.z = Math.max(0, live.z0 + live.v0 * u - 0.5 * live.gravity * u * u);
     actor.vz = live.v0 - live.gravity * u;
     actor.vx = live.vx;
     actor.vy = 0;

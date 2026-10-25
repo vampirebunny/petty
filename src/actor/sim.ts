@@ -66,6 +66,9 @@ import { breedById, voiceRate } from './breeds';
 import { growthFor } from './growth';
 import { canBehave, reactionFor, type UserTask } from './behavior';
 import { defaultPose, easePose } from './pose';
+import { applyTrickPose, beginPlayback, seniorStand } from './trickPlay';
+import type { TrickOutcome } from './data/trickScripts';
+import type { OwnedTrickProp, PlacedTrickProp } from '../sim/trickProps';
 import { newCuddle, stepCuddle } from './cuddle';
 import { obstaclesIn, steerAim } from './furniture';
 import { nearestPoi, poiOf, sceneForSpecies, scenes, stageHeight } from './scenes';
@@ -426,6 +429,9 @@ export function createWorld(actors: Actor[], seed = 1, scene: Scene = scenes.liv
     restLatched: false,
     glance: null,
     liftedId: null,
+    trickProps: [],
+    liftedPropId: null,
+    trickFinished: false,
     furnitureUsed: {},
     squishId: null,
     squishAt: 0,
@@ -533,6 +539,8 @@ export function setWorldScene(world: World, scene: Scene): void {
   clearParkGuests(world);
   world.birds = [];
   world.birdCast = null;
+  world.trickProps = [];
+  world.liftedPropId = null;
   world.scene = scene;
   const home = homeOf(scene);
   const bed = poiOf(scene, 'bed');
@@ -598,6 +606,8 @@ export function startSceneEnter(world: World, actor: Actor, scene: Scene): void 
   clearParkGuests(world);
   world.birds = [];
   world.birdCast = null;
+  world.trickProps = [];
+  world.liftedPropId = null;
   scene = sceneForSpecies(scene, sceneSpeciesOf(world.actors.filter((item) => !item.guest)));
   world.scene = scene;
   clearItems(world);
@@ -1109,12 +1119,14 @@ function nextIdle(world: World, actor: Actor): void {
   if (tryBirdStalk(world, actor)) {
     return;
   }
+  const onProp = actor.z > 4;
   const options = (breed?.species === 'cat' ? ['still', 'purr', 'nap', 'walk'] : ['still', 'pant', 'nap', 'walk']).filter(
     (mode) =>
       mode !== actor.idle.mode &&
       !(world.reducedMotion && mode === 'walk') &&
       !(world.noNap && mode === 'nap') &&
-      !(actor.guest && mode === 'nap'),
+      !(actor.guest && mode === 'nap') &&
+      !(onProp && mode === 'walk'),
   ) as IdleMode[];
   const choices = options.length > 0 ? options : (['still'] as IdleMode[]);
   // Zoomies: a short lap at full speed now and then. Youth and energy make them far more frequent.
@@ -1124,7 +1136,7 @@ function nextIdle(world: World, actor: Actor): void {
       ? 0
       : profile.zoomies * 4 * actor.energy * (0.5 + 0.5 * actor.mood);
   const weightOf = (mode: IdleMode): number => (mode === 'zoom' ? zoomWeight : idleWeight[mode]);
-  if (zoomWeight > 0) {
+  if (zoomWeight > 0 && actor.z < 4) {
     choices.push('zoom');
   }
   const total = choices.reduce((sum, mode) => sum + weightOf(mode), 0);
@@ -2195,6 +2207,67 @@ export function takePendingGreeting(actor: Actor): string | null {
   return id;
 }
 
+export function takeTrickFinish(world: World): boolean {
+  const done = world.trickFinished;
+  world.trickFinished = false;
+  return done;
+}
+
+export function trickBusy(actor: Actor): boolean {
+  return actor.task.type === 'trick' && actor.task.trick != null && !actor.task.trick.done;
+}
+
+export function startTrick(world: World, actor: Actor, trickId: string, outcome: TrickOutcome, propIds: string[] = []): boolean {
+  if (trickBusy(actor)) {
+    return false;
+  }
+  const mods = motionMods(actor.displayAgeDays, actor.vitality, actor.energy);
+  const face: 1 | -1 = actor.face >= 0 ? 1 : -1;
+  actor.task = taskOf('trick');
+  actor.task.ownsFacing = true;
+  actor.task.trick = beginPlayback(trickId, outcome, face, mods.pace, seniorStand(actor.displayAgeDays), propIds);
+  return true;
+}
+
+export function trickPropAt(world: World, x: number, y: number): string | null {
+  let best: string | null = null;
+  let bestD = 54;
+  for (const prop of world.trickProps) {
+    const distance = Math.hypot(prop.x - x, prop.y - y);
+    if (distance < bestD) {
+      best = prop.instanceId;
+      bestD = distance;
+    }
+  }
+  return best;
+}
+
+export function placeTrickProp(world: World, owned: OwnedTrickProp, x: number, y: number): PlacedTrickProp {
+  const floor = world.scene.floor;
+  const placed: PlacedTrickProp = {
+    ...owned,
+    type: owned.type,
+    x: clamp(x, floor.xMin, floor.xMax),
+    y: clamp(y, floor.yMin, floor.yMax),
+    knocked: false,
+  };
+  world.trickProps = world.trickProps.filter((prop) => prop.instanceId !== owned.instanceId);
+  world.trickProps.push(placed);
+  world.liftedPropId = owned.instanceId;
+  return placed;
+}
+
+export function moveTrickProp(world: World, instanceId: string, x: number, y: number): PlacedTrickProp | null {
+  const prop = world.trickProps.find((item) => item.instanceId === instanceId);
+  if (!prop) {
+    return null;
+  }
+  const floor = world.scene.floor;
+  prop.x = clamp(x, floor.xMin, floor.xMax);
+  prop.y = clamp(y, floor.yMin, floor.yMax);
+  return prop;
+}
+
 export function debugFlipFace(actor: Actor): void {
   snapFacing(actor, actor.face >= 0 ? -1 : 1);
 }
@@ -2314,7 +2387,18 @@ function updateActor(world: World, actor: Actor, dt: number): void {
     actor.weight = clamp(actor.weight - weightBurnPerSec * dt, -1, 1);
   }
 
-  if (actor.task.type === 'greet' && actor.task.greet) {
+  if (actor.task.type === 'trick' && actor.task.trick) {
+    const steered = applyTrickPose(actor, actor.task.trick, world, dt, targets, limit);
+    move = steered.move;
+    vmax = steered.vmax;
+    wagRate = steered.wagRate;
+    if (actor.task.trick.done) {
+      world.items = world.items.filter((item) => item.id !== 'trick-ball');
+      actor.z = 0;
+      goIdle(world, actor);
+      world.trickFinished = true;
+    }
+  } else if (actor.task.type === 'greet' && actor.task.greet) {
     const steered = runGreet(world, actor, dt, targets, limit);
     move = steered.move;
     vmax = steered.vmax;
@@ -3043,7 +3127,7 @@ function updateActor(world: World, actor: Actor, dt: number): void {
   // Velocity picks the octant, after a short low-pass. A long turn keeps a curved walk unless the goal is already close.
   // A fast stop still skids on the old octant first.
   const eating = actor.task.type === 'eat' && actor.task.stage === 'eating';
-  const greetingStill = actor.task.type === 'greet' && move == null;
+  const greetingStill = (actor.task.type === 'greet' || actor.task.type === 'trick') && move == null;
   const scriptedSkid = actor.direction?.pose === 'skid' || !!actor.task.greet?.skid;
   const skidding = Math.abs(desired.x) > 20 && desired.x * actor.face < 0 && actor.vx * actor.face > 55;
   const sampleX = Math.hypot(desired.x, desired.y) >= facingConfig.restSpeed ? desired.x : actor.vx;
@@ -3231,7 +3315,15 @@ function updateActor(world: World, actor: Actor, dt: number): void {
   }
   const gestureRates = applyGesture(actor, dt, targets);
   const greetRates = actor.task.greet?.poseRates;
-  actor.pose = easePose(actor.pose, targets, dt, profile.slowStand, gestureRates ? { ...greetRates, ...gestureRates } : greetRates);
+  const trickRates = actor.task.trickRates;
+  const scriptRates = { ...greetRates, ...trickRates };
+  actor.pose = easePose(
+    actor.pose,
+    targets,
+    dt,
+    profile.slowStand,
+    gestureRates ? { ...scriptRates, ...gestureRates } : scriptRates,
+  );
   actor.phase += dt * cycle;
   // Match jaw/tongue cadence to breath while panting so a slower idle pant reads as one motion.
   actor.panPh += dt * Math.PI * 2 * (actor.pose.pant > 0.05 ? actor.pose.breathRate : 5);

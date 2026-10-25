@@ -111,6 +111,19 @@ export function copyOwnerRows(from: string, to: string): void {
       row.json,
     );
   }
+  const trickProps = database.getAllSync<{ instance_id: string; prop_type: string; source_trick_id: string }>(
+    'SELECT instance_id, prop_type, source_trick_id FROM owned_trick_props WHERE owner_id = ?',
+    from,
+  );
+  for (const row of trickProps) {
+    database.runSync(
+      'INSERT OR IGNORE INTO owned_trick_props (owner_id, instance_id, prop_type, source_trick_id) VALUES (?, ?, ?, ?)',
+      to,
+      row.instance_id,
+      row.prop_type,
+      row.source_trick_id,
+    );
+  }
   const layouts = database.getAllSync<{ species: string; placements: string }>(
     'SELECT species, placements FROM home_layouts WHERE owner_id = ?',
     from,

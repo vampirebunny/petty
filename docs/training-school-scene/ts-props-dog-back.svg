@@ -1,33 +1,3 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="390" height="600" viewBox="0 0 390 600">
-  <!-- Behind the pet. Weave poles, small cone, trick podium, corner cone. -->
-  <g id="weave-poles">
-    <ellipse cx="66" cy="418" rx="54" ry="6" fill="#3B2357" opacity="0.1"/>
-    <rect x="20" y="410" width="92" height="7" rx="3.5" fill="#D9C6F5"/>
-    <rect x="28" y="346" width="8" height="66" rx="4" fill="#FFB3DA"/>
-    <rect x="50" y="346" width="8" height="66" rx="4" fill="#A9DBFF"/>
-    <rect x="72" y="346" width="8" height="66" rx="4" fill="#FFB3DA"/>
-    <rect x="94" y="346" width="8" height="66" rx="4" fill="#A9DBFF"/>
-    <g fill="#FFFFFF"><rect x="28" y="362" width="8" height="6"/><rect x="50" y="362" width="8" height="6"/><rect x="72" y="362" width="8" height="6"/><rect x="94" y="362" width="8" height="6"/><rect x="28" y="384" width="8" height="6"/><rect x="50" y="384" width="8" height="6"/><rect x="72" y="384" width="8" height="6"/><rect x="94" y="384" width="8" height="6"/>
-    <circle cx="32" cy="346" r="5"/><circle cx="54" cy="346" r="5"/><circle cx="76" cy="346" r="5"/><circle cx="98" cy="346" r="5"/></g>
-  </g>
-  <g id="cone-back">
-    <ellipse cx="150" cy="416" rx="26" ry="5" fill="#3B2357" opacity="0.1"/>
-    <path d="M134 410L150 370L166 410Z" fill="#FF9EB5"/>
-    <path d="M141 392H159L162 400H138Z" fill="#FFFFFF"/>
-    <rect x="128" y="408" width="44" height="7" rx="3.5" fill="#F27FA0"/>
-  </g>
-  <g id="podium">
-    <ellipse cx="312" cy="422" rx="48" ry="8" fill="#3B2357" opacity="0.1"/>
-    <rect x="272" y="392" width="80" height="26" fill="#FFD98A"/>
-    <ellipse cx="312" cy="418" rx="40" ry="9" fill="#FFD98A"/>
-    <rect x="272" y="400" width="80" height="6" fill="#FFFFFF" opacity="0.7"/>
-    <ellipse cx="312" cy="392" rx="40" ry="9" fill="#FFE9B8"/>
-    <path d="M312 405l1.8 3.7 4 .6-2.9 2.8.7 4-3.6-1.9-3.6 1.9.7-4-2.9-2.8 4-.6z" fill="#F5B92E"/>
-  </g>
-  <g id="cone-corner">
-    <ellipse cx="372" cy="420" rx="22" ry="5" fill="#3B2357" opacity="0.1"/>
-    <path d="M358 414L372 380L386 414Z" fill="#FF9EB5"/>
-    <path d="M364 398H380L383 405H361Z" fill="#FFFFFF"/>
-    <rect x="352" y="412" width="40" height="7" rx="3.5" fill="#F27FA0"/>
-  </g>
+  <!-- Training props are placed by the player, not painted into the room. -->
 </svg>

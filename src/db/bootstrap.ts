@@ -15,6 +15,7 @@ const dataDeletes = [
   'DELETE FROM pet',
   'DELETE FROM retired_pets',
   'DELETE FROM owned_toys',
+  'DELETE FROM owned_trick_props',
   'DELETE FROM owned_furniture',
   'DELETE FROM home_layouts',
   'DELETE FROM push_queue',

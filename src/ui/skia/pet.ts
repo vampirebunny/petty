@@ -253,7 +253,8 @@ export function drawActor(
   });
   const scale = frame.scale * (1 + 0.35 * pose.closeUp);
   const cat = breed.species === 'cat';
-  let theta = frame.theta - 0.35 * pose.rearUp + Math.sin(t * 9 + 1) * 0.03 * pose.rubSway - (actor.furniture?.rig.rear ?? 0);
+  const standTilt = 1.12 * pose.stand - Math.sin(t * 5.2) * (0.035 + 0.1 * pose.shake) * pose.stand;
+  let theta = frame.theta - 0.35 * pose.rearUp + Math.sin(t * 9 + 1) * 0.03 * pose.rubSway - (actor.furniture?.rig.rear ?? 0) - standTilt;
   let dy = frame.dy + geom.dLie * pose.side;
   if (posed) {
     theta += posed.pitch;
@@ -262,7 +263,7 @@ export function drawActor(
   // Furniture rear (scratching a post, climbing) pivots on the hind hips, not the torso pivot. Rotating
   // about Px/Py lifted the hips off the floor, so the hind legs over-reached and the paws floated.
   // `rearShift` moves the whole body so the hind hip lands back where it sat before the rear.
-  const furnitureRear = actor.furniture?.rig.rear ?? 0;
+  const furnitureRear = (actor.furniture?.rig.rear ?? 0) + standTilt;
   const rearShift = { x: 0, y: 0 };
   if (Math.abs(furnitureRear) > 0.001) {
     const level = torsoPoint(geom, theta + furnitureRear, dy, geom.hindX, geom.hipY);
@@ -323,7 +324,7 @@ export function drawActor(
   c.scale((actor.debugTheta == null ? rig.dir : 1) * scale, scale);
   // Cuddle: the torso leans with the finger, and a shake-off wobbles the whole body about its feet.
   c.translate(pose.torsoShift, 0);
-  if (pose.shake > 0.01) {
+  if (pose.shake > 0.01 && pose.stand <= 0.3) {
     c.rotate(deg(Math.sin(t * 42) * 0.07 * pose.shake), 0, 0);
     c.translate(Math.sin(t * 37) * 2.2 * pose.shake, 0);
   }
@@ -405,6 +406,12 @@ export function drawActor(
     if (!fore && pose.wiggle > 0.001) {
       x += Math.sin(actor.wagPh * 0.9) * 3.5 * pose.wiggle;
     }
+    if (nearFore && pose.pawHigh > 0.001) {
+      const px = hip.x + 0.38 * geom.L;
+      const py = hip.y - 0.5 * geom.L;
+      x += (px - x) * pose.pawHigh;
+      y += (py - y) * pose.pawHigh;
+    }
     if (nearFore && pose.paw > 0.001) {
       // The raised paw waves on the world clock, so it keeps moving while the pet sits still.
       const pawX = hip.x + 0.62 * geom.L;
@@ -426,6 +433,12 @@ export function drawActor(
     if (kicker && pose.kick > 0.001) {
       // A few quick small lifts of the near hind leg.
       y -= Math.abs(Math.sin(t * 16)) * geom.L * 0.35 * pose.kick;
+    }
+    if (fore && pose.stand > 0.001) {
+      const px = hip.x + 0.24 * geom.L;
+      const py = hip.y + 0.42 * geom.L;
+      x += (px - x) * pose.stand;
+      y += (py - y) * pose.stand;
     }
     if (fore && pose.rearUp > 0.001) {
       x += (hip.x + 0.2 * geom.L - x) * pose.rearUp;
@@ -840,7 +853,7 @@ export function drawActor(
     y: headY + shift.y + pose.headPush * geom.headR * 0.15,
   };
   const pitch =
-    (frame.pitch + pose.headRot - 0.9 * pose.headUp + Math.sin(t * 9) * 0.12 * pose.rubSway + (posed?.head ?? 0) - 0.45 * furnitureRear) *
+    (frame.pitch + pose.headRot - 0.9 * pose.headUp + Math.sin(t * 9) * 0.12 * pose.rubSway + (posed?.head ?? 0) - 0.45 * furnitureRear + 1.12 * 0.78 * pose.stand) *
     (1 - 0.7 * Math.max(rig.headFront, rig.rear));
   // Side view joins the neck at the front of the chest. Front and back replace that
   // body with a centered oval, so the same shoulder sits out to the side. A thick

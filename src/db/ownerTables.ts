@@ -5,6 +5,7 @@ export const ownerIdTables = [
   'inventory',
   'owner_state',
   'owned_toys',
+  'owned_trick_props',
   'owned_furniture',
   'home_layouts',
   'shop_day',

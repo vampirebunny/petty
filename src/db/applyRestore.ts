@@ -51,6 +51,7 @@ const clears = [
   'DELETE FROM pet',
   'DELETE FROM retired_pets',
   'DELETE FROM owned_toys',
+  'DELETE FROM owned_trick_props',
   'DELETE FROM owned_furniture',
   'DELETE FROM home_layouts',
   'DELETE FROM push_queue',
@@ -78,6 +79,16 @@ function applyLine(owner: string, line: LedgerLine): void {
   }
   if (line.asset === 'toy' && line.toyId && line.delta > 0) {
     database.runSync('INSERT OR IGNORE INTO owned_toys (owner_id, toy_id) VALUES (?, ?)', owner, line.toyId);
+    return;
+  }
+  if (line.asset === 'trick_prop' && line.furnitureId && line.scene && line.toyId && line.delta > 0) {
+    database.runSync(
+      'INSERT OR IGNORE INTO owned_trick_props (owner_id, instance_id, prop_type, source_trick_id) VALUES (?, ?, ?, ?)',
+      owner,
+      line.furnitureId,
+      line.scene,
+      line.toyId,
+    );
     return;
   }
   if (line.asset === 'furniture' && line.furnitureId && line.delta > 0) {

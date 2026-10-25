@@ -515,9 +515,9 @@ const sceneDefs = {
     floor: {
       horizon: Math.round(366 * schoolScale),
       yMin: Math.round(430 * schoolScale),
-      yMax: Math.round(500 * schoolScale),
-      xMin: Math.round(130 * schoolScale),
-      xMax: Math.round(270 * schoolScale),
+      yMax: Math.round(540 * schoolScale),
+      xMin: Math.round(48 * schoolScale),
+      xMax: Math.round(342 * schoolScale),
       color: ['#F6D7B8', '#E7B98A'],
       pattern: 'none',
     },
