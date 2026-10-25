@@ -848,7 +848,7 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
       return syncReminder(current, enabled, Date.now(), {
         enabled: careRef.current,
         basicTreats: treatCountRef.current,
-      }).then((allowed) => {
+      }, true).then((allowed) => {
         if (enabled && !allowed) {
           remindersRef.current = false;
           setRemindersOnState(false);

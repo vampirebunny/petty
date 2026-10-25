@@ -67,7 +67,15 @@ function pageHtml({ title, bodyHtml }) {
 await rm(dist, { recursive: true, force: true });
 await mkdir(dist, { recursive: true });
 await copyFile(path.join(root, "styles.css"), path.join(dist, "styles.css"));
+await copyFile(path.join(root, "..", "assets", "icon.png"), path.join(dist, "icon.png"));
 await copyFile(path.join(root, "home.html"), path.join(dist, "index.html"));
+await mkdir(path.join(dist, "get"), { recursive: true });
+await copyFile(path.join(root, "get.html"), path.join(dist, "get", "index.html"));
+await mkdir(path.join(dist, ".well-known"), { recursive: true });
+await copyFile(
+  path.join(root, "well-known", "apple-app-site-association"),
+  path.join(dist, ".well-known", "apple-app-site-association"),
+);
 
 for (const page of pages) {
   const markdown = await readFile(path.join(docsDir, page.file), "utf8");

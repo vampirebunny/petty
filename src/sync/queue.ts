@@ -164,6 +164,9 @@ async function send(kind: string, payload: PetPayload | PlayerPayload): Promise<
   if (data === 'stale' || data === 'not_active') {
     return data;
   }
+  if (data === 'name') {
+    return 'drop';
+  }
   return 'ok';
 }
 
@@ -196,7 +199,7 @@ async function flush(): Promise<void> {
     paused = resumeBound(bound);
     if (result === 'ok' || result === 'drop') {
       if (result === 'drop') {
-        console.warn('owner mismatch on push; dropping the queued row');
+        console.warn('dropping the queued push');
       }
       getDb().runSync('DELETE FROM push_queue WHERE seq = ?', row.seq);
       const sent = JSON.parse(row.payload) as { localRevision?: number };

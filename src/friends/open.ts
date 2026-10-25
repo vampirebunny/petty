@@ -1,0 +1,14 @@
+const listeners = new Set<() => void>();
+
+export function requestFriendModal(): void {
+  for (const listener of listeners) {
+    listener();
+  }
+}
+
+export function onFriendModalRequest(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}

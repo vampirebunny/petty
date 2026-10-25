@@ -37,6 +37,7 @@ export async function syncReminder(
   enabled: boolean,
   now = Date.now(),
   care: { enabled: boolean; basicTreats: number } = { enabled: false, basicTreats: 0 },
+  ask = false,
 ): Promise<boolean> {
   if (Platform.OS === 'web') {
     return enabled;
@@ -50,6 +51,9 @@ export async function syncReminder(
     const current = await Notifications.getPermissionsAsync();
     let status = current.status;
     if (status !== 'granted') {
+      if (!ask || status === 'denied') {
+        return status === 'denied' ? false : enabled;
+      }
       const requested = await Notifications.requestPermissionsAsync();
       status = requested.status;
     }

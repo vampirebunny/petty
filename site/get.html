@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Get Boop Boop</title>
+  <meta name="description" content="Adopt a pet in Boop Boop so your pets can have playdates.">
+  <link rel="stylesheet" href="/styles.css">
+  <style>
+    .get { min-height: 100vh; display: flex; align-items: center; justify-content: center; text-align: center; padding: 32px 20px; }
+    .get-card { max-width: 420px; }
+    .get-card h1 { margin: 16px 0 8px; }
+  </style>
+</head>
+<body>
+  <main class="get">
+    <div class="get-card">
+      <img src="/icon.png" width="96" height="96" alt="Boop Boop">
+      <h1>Boop Boop</h1>
+      <p>A virtual pet game. Adopt a pet so yours can have playdates.</p>
+      <div class="stores" id="download">
+        <a class="store store-dark" id="ios-badge" href="#download">
+          <span class="store-kicker">Download on the</span>
+          <span class="store-name">App Store</span>
+        </a>
+        <a class="store store-dark" id="android-badge" href="#download">
+          <span class="store-kicker">Get it on</span>
+          <span class="store-name">Google Play</span>
+        </a>
+      </div>
+    </div>
+  </main>
+  <script>
+    // Fill these when the store listings exist. Empty values keep both badges on the page.
+    var stores = { ios: '', android: '' };
+    var iosBadge = document.getElementById('ios-badge');
+    var androidBadge = document.getElementById('android-badge');
+    if (stores.ios) iosBadge.href = stores.ios;
+    if (stores.android) androidBadge.href = stores.android;
+    var agent = navigator.userAgent || '';
+    var ios = /iPad|iPhone|iPod/.test(agent);
+    var android = /Android/.test(agent);
+    if (ios && stores.ios) location.replace(stores.ios);
+    else if (android && stores.android) location.replace(stores.android);
+  </script>
+</body>
+</html>

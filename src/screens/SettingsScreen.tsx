@@ -9,6 +9,7 @@ import { getSupabase } from '../compliance/supabase';
 import { setAuthTransition } from '../state/sessionGate';
 import { usePro } from '../state/usePro';
 import { AccountSheet } from '../ui/AccountSheet';
+import { FriendsManage } from '../ui/FriendsManage';
 import { CandyShell, GRAY, candyInk, tints } from '../ui/candy';
 import { fontFamily } from '../ui/font';
 import { HandleScreen } from '../ui/HandleScreen';
@@ -18,6 +19,10 @@ import { useOpenedDuoTopInset } from '../ui/useDeviceOrientation';
 type Props = {
   petName: string;
   onClose: () => void;
+  pendingFriends: number;
+  careRemindersOn: boolean;
+  onCareReminders: (enabled: boolean) => void;
+  onFriendsChanged: () => void;
 };
 
 type SignedIn = {
@@ -40,12 +45,14 @@ function providerPhrase(identities: { provider: string }[]): string {
   return '';
 }
 
-export function SettingsScreen({ petName, onClose }: Props) {
+export function SettingsScreen({ petName, onClose, pendingFriends, careRemindersOn, onCareReminders, onFriendsChanged }: Props) {
   const duoTop = useOpenedDuoTopInset();
   const [tick, setTick] = useState(0);
   const linked = readAccountLinked();
   const [signedIn, setSignedIn] = useState<SignedIn | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [sheetReason, setSheetReason] = useState<'settings' | 'friends'>('settings');
+  const [friendsOpen, setFriendsOpen] = useState(false);
   const [handleOpen, setHandleOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [typed, setTyped] = useState('');
@@ -136,6 +143,18 @@ export function SettingsScreen({ petName, onClose }: Props) {
     ? `Signed in as @${shown.handle}${shown.providers ? ` · ${shown.providers}` : ''}`
     : `Signed in with ${shown?.providers || 'your account'} · Pick your handle`;
 
+  if (friendsOpen && linked) {
+    return (
+      <FriendsManage
+        handle={shown?.handle ?? null}
+        careRemindersOn={careRemindersOn}
+        onCareReminders={onCareReminders}
+        onClose={() => setFriendsOpen(false)}
+        onChanged={onFriendsChanged}
+      />
+    );
+  }
+
   return (
     <View style={[styles.screen, { paddingTop: 64 + duoTop }]}>
       <View style={styles.header}>
@@ -169,7 +188,10 @@ export function SettingsScreen({ petName, onClose }: Props) {
             </Pressable>
           )
         ) : (
-          <Pressable accessibilityRole="button" onPress={() => setSheetOpen(true)} style={styles.rowHit}>
+          <Pressable accessibilityRole="button" onPress={() => {
+            setSheetReason('settings');
+            setSheetOpen(true);
+          }} style={styles.rowHit}>
             {({ pressed }) => (
               <CandyShell tint={tints.pink} radius={22} uid="settings-sign-in" pressed={pressed} style={styles.row}>
                 <Text style={[styles.rowText, { color: candyInk(tints.pink) }]}>Sign in or create account</Text>
@@ -177,6 +199,26 @@ export function SettingsScreen({ petName, onClose }: Props) {
             )}
           </Pressable>
         )}
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => {
+            if (!linked) {
+              setSheetReason('friends');
+              setSheetOpen(true);
+              return;
+            }
+            setFriendsOpen(true);
+          }}
+          style={styles.rowHit}
+        >
+          {({ pressed }) => (
+            <CandyShell tint={tints.mint} radius={22} uid="settings-friends" pressed={pressed} style={styles.row}>
+              <Text style={[styles.rowText, { color: candyInk(tints.mint) }]}>
+                {pendingFriends > 0 ? `Friends (${pendingFriends})` : 'Friends'}
+              </Text>
+            </CandyShell>
+          )}
+        </Pressable>
         {Platform.OS === 'web' ? null : (
           <Pressable
             accessibilityRole="button"
@@ -296,7 +338,7 @@ export function SettingsScreen({ petName, onClose }: Props) {
         </View>
       </Modal>
       {sheetOpen ? (
-        <AccountSheet reason="settings" petName={petName} onClose={() => setSheetOpen(false)} />
+        <AccountSheet reason={sheetReason} petName={petName} onClose={() => setSheetOpen(false)} />
       ) : null}
       {appleOpen ? (
         <AccountSheet

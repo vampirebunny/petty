@@ -1,6 +1,7 @@
 import { createUuid, getCachedInstallId, getOrCreateInstallId } from '../compliance/identity';
 import { getSupabase } from '../compliance/supabase';
 import { cancelReminders } from '../reminders/notifications';
+import { unregisterFriendPushToken } from '../friends/push';
 import {
   readLocalRevision,
   readSyncedRevision,
@@ -110,6 +111,7 @@ export async function claimDevice(options?: { claimId?: string; timeoutMs?: numb
 export async function enterStandby(peekLabel: boolean): Promise<void> {
   setStandby(true);
   await cancelReminders();
+  await unregisterFriendPushToken();
   if (peekLabel) {
     await peekActiveDevice();
     setStandby(true);

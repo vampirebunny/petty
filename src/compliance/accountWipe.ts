@@ -5,6 +5,9 @@ import { setStandby } from '../db/accountMeta';
 import { wipeLocalData } from '../db/bootstrap';
 import { setCurrentOwner } from '../db/currentOwner';
 import { cancelReminders } from '../reminders/notifications';
+import { clearFriendCache } from '../friends/api';
+import { clearFriendPromptStorage } from '../friends/prompt';
+import { unregisterFriendPushToken } from '../friends/push';
 import { requestAgeGateRefresh } from '../state/ageGateRefresh';
 import { authTransition, holdWelcome, prepareInstalledPet, setAuthTransition } from '../state/sessionGate';
 import { rotateInstallId, setCachedUserId } from './identity';
@@ -50,6 +53,9 @@ export async function fullAccountWipe(): Promise<boolean> {
   await SecureStore.deleteItemAsync(guestSessionKey).catch(() => undefined);
   await SecureStore.deleteItemAsync(pendingKey).catch(() => undefined);
   await cancelReminders().catch(() => undefined);
+  await unregisterFriendPushToken().catch(() => undefined);
+  await clearFriendCache().catch(() => undefined);
+  await clearFriendPromptStorage().catch(() => undefined);
   try {
     await getSupabase()?.auth.signOut({ scope: 'local' });
   } catch {

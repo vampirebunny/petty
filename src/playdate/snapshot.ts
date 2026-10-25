@@ -3,7 +3,7 @@ import { outfitSlots, wardrobe, wearItem } from '../actor/wardrobe';
 import type { ActorSource } from '../actor/types';
 import { styleBasis } from '../sim/attributes';
 import { currentStyle } from '../sim/offers';
-import type { Equipped, PetState } from '../sim/types';
+import type { Archetype, Equipped, Look, PetState, Stats } from '../sim/types';
 import type { PetSnapshot } from './types';
 
 function remoteWearDefs(outfit: Equipped): PetSnapshot['wearDefs'] {
@@ -48,6 +48,52 @@ export function snapshotPet(pet: PetState, outfit: Equipped, createdAt: string, 
     favoriteActivities: [],
     partyTricks: [],
     createdAt,
+  };
+}
+
+export function snapshotFromFriend(
+  userId: string,
+  card: {
+    petId?: string;
+    name: string;
+    breedId: string;
+    look: Look;
+    equipped: Equipped;
+    ageDays: number;
+    weight: number;
+    vitality: number;
+    seed: number;
+    originArchetype: Archetype;
+    attributes: Stats;
+    potential: Stats;
+  },
+): PetSnapshot | null {
+  if (!breedById(card.breedId) || !card.look?.coat || !card.name) {
+    return null;
+  }
+  const wearDefs = remoteWearDefs(card.equipped);
+  const species = breedById(card.breedId)?.species === 'cat' ? 'cat' : 'dog';
+  return {
+    snapshotId: `friend:${userId}`,
+    petId: card.petId,
+    source: 'friend',
+    name: card.name,
+    species,
+    breedId: card.breedId,
+    look: card.look,
+    equipped: card.equipped,
+    ...(wearDefs ? { wearDefs } : {}),
+    ageDays: card.ageDays,
+    weight: card.weight,
+    vitality: card.vitality,
+    seed: card.seed || 1,
+    originArchetype: card.originArchetype,
+    currentStyle: currentStyle(card.originArchetype, card.attributes, card.potential),
+    attributes: card.attributes,
+    potential: card.potential,
+    favoriteActivities: [],
+    partyTricks: [],
+    createdAt: '',
   };
 }
 

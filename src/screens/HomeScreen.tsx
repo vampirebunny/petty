@@ -72,6 +72,16 @@ import { useCandyTips } from '../ui/tips/useCandyTips';
 import { PlaydateScreen } from './PlaydateScreen';
 import { ClothingLab } from './ClothingLab';
 import { SettingsScreen } from './SettingsScreen';
+import { FriendRequestModal } from '../ui/FriendRequestModal';
+import { BlockConfirm, ReportSheet, ReportThanks } from '../ui/FriendDialogs';
+import { FriendNotifyPrompt } from '../ui/FriendNotifyPrompt';
+import { loadFriends, blockPlayer, reportPlayer } from '../friends/api';
+import { onFriendModalRequest } from '../friends/open';
+import { friendPromptShouldShow, newestRequestAt, readFriendSeenAt, writeFriendSeenAt } from '../friends/prompt';
+import { listenForFriendPushes, registerFriendPushToken } from '../friends/push';
+import type { FriendRow } from '../friends/types';
+import { handlePromptIsStrict, onHandlePrompt } from '../compliance/handlePrompt';
+import { openPathSuppressed } from '../state/sessionGate';
 import { FacingLab } from './FacingLab';
 import { WardrobeScreen } from './WardrobeScreen';
 import { parkOfferFromSnapshot, parkStrangerOffer } from '../playdate/npcs';
@@ -84,7 +94,7 @@ import type { NeedHold } from '../ui/needHold';
 import { TrainingRings } from '../ui/TrainingRings';
 import { SchoolControls } from '../ui/school/SchoolControls';
 import type { SchoolControlsHandle } from '../ui/school/SchoolControls';
-import { readSchoolTrickTip, setSchoolTrickTip } from '../db/accountMeta';
+import { onAccountFlags, readAccountLinked, readSchoolTrickTip, setSchoolTrickTip } from '../db/accountMeta';
 import { FunModal } from '../ui/FunModal';
 import { HandlePrompt } from '../ui/HandleScreen';
 import { Day3Prompt } from '../ui/Day3Prompt';
@@ -201,6 +211,8 @@ export default function HomeScreen({ petApi }: Props) {
     reset,
     retire,
     finishPlaydate,
+    remindersOn,
+    setRemindersOn,
     attemptTrick,
     resolveTraining,
     moveFurniture,
@@ -305,6 +317,14 @@ export default function HomeScreen({ petApi }: Props) {
   const [facingOpen, setFacingOpen] = useState(false);
   const [clothingOpen, setClothingOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [incomingFriends, setIncomingFriends] = useState<FriendRow[]>([]);
+  const [friendTick, setFriendTick] = useState(0);
+  const [requestsOpen, setRequestsOpen] = useState(false);
+  const [forceRequests, setForceRequests] = useState(false);
+  const [friendPrompt, setFriendPrompt] = useState(false);
+  const [friendReport, setFriendReport] = useState<{ userId: string; handle: string } | null>(null);
+  const [friendThanks, setFriendThanks] = useState<{ userId: string; handle: string } | null>(null);
+  const [friendBlock, setFriendBlock] = useState<{ userId: string; handle: string } | null>(null);
   const accountHandle = useAccountHandle();
   const [personalityOpen, setPersonalityOpen] = useState(false);
   const [playOpen, setPlayOpen] = useState(false);
@@ -379,6 +399,7 @@ export default function HomeScreen({ petApi }: Props) {
       });
     };
     pullShop();
+    listenForFriendPushes();
     const appState = AppState.addEventListener('change', (next) => {
       const background = next !== 'active';
       suspendMusic(background);
@@ -389,6 +410,9 @@ export default function HomeScreen({ petApi }: Props) {
       } else {
         unmuteBloops();
         pullShop();
+        if (!openPathSuppressed()) {
+          setFriendTick((value) => value + 1);
+        }
       }
     });
     return () => {
@@ -401,6 +425,54 @@ export default function HomeScreen({ petApi }: Props) {
       }
     };
   }, []);
+
+  useEffect(() => {
+    const unsubModal = onFriendModalRequest(() => {
+      setForceRequests(true);
+      setSettingsOpen(false);
+      setPlaydateOpen(false);
+    });
+    const unsubHandle = onHandlePrompt(() => setFriendTick((value) => value + 1));
+    const unsubAccount = onAccountFlags(() => setFriendTick((value) => value + 1));
+    return () => {
+      unsubModal();
+      unsubHandle();
+      unsubAccount();
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      if (!readAccountLinked()) {
+        if (!cancelled) {
+          setIncomingFriends([]);
+          setRequestsOpen(false);
+        }
+        return;
+      }
+      await registerFriendPushToken();
+      const bundle = await loadFriends();
+      if (cancelled) {
+        return;
+      }
+      setIncomingFriends(bundle.incoming);
+      if (handlePromptIsStrict()) {
+        return;
+      }
+      const newest = newestRequestAt(bundle.incoming.map((row) => row.createdAt));
+      const seen = await readFriendSeenAt();
+      if (cancelled) {
+        return;
+      }
+      if (forceRequests || (newest != null && (seen == null || newest > seen))) {
+        setRequestsOpen(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [friendTick, forceRequests]);
 
   useEffect(() => {
     let mounted = true;
@@ -1177,7 +1249,6 @@ export default function HomeScreen({ petApi }: Props) {
         state.training.sit?.mastered ? 'sit' : '',
         state.training.paw?.mastered ? 'paw' : '',
         state.training.speak?.mastered ? 'speak' : '',
-        ...(['sit', 'speak', 'paw'] as const).filter((id) => state.milestones.includes(id)).map((id) => `badge:${id}`),
       ]
         .filter(Boolean)
         .join('|')
@@ -1280,6 +1351,8 @@ export default function HomeScreen({ petApi }: Props) {
           setPlaydateOpen(false);
         }}
         owned={owned}
+        linked={readAccountLinked()}
+        accountHandle={accountHandle}
       />
     );
   }
@@ -1287,7 +1360,14 @@ export default function HomeScreen({ petApi }: Props) {
   if (settingsOpen) {
     return (
       <PhoneColumn>
-        <SettingsScreen petName={state.name} onClose={() => setSettingsOpen(false)} />
+        <SettingsScreen
+          petName={state.name}
+          pendingFriends={incomingFriends.length}
+          careRemindersOn={remindersOn}
+          onCareReminders={setRemindersOn}
+          onFriendsChanged={() => setFriendTick((value) => value + 1)}
+          onClose={() => setSettingsOpen(false)}
+        />
       </PhoneColumn>
     );
   }
@@ -1652,23 +1732,10 @@ export default function HomeScreen({ petApi }: Props) {
         playCatalog(track.id, true);
       },
     }));
-  const badgeIds = ['sit', 'speak', 'paw'] as const;
   const tricks = learned.map((trick) => ({
     ...trick,
     fresh: popped != null && !popped.includes(trick.id),
   }));
-  const badgeCoins = badgeIds.flatMap((id) => {
-    if (!state.milestones.includes(id)) {
-      return [];
-    }
-    return [
-      {
-        id,
-        label: id === 'paw' ? (speciesLabel('paw', species) ?? 'Paw') : badgeLabels[id],
-        fresh: popped != null && !popped.includes(`badge:${id}`),
-      },
-    ];
-  });
 
   const styleActions = [
     {
@@ -1960,6 +2027,7 @@ export default function HomeScreen({ petApi }: Props) {
         {({ pressed }) => (
           <CandyShell tint={tints.pink} radius={22} uid="home-settings" pressed={pressed} style={styles.settings}>
             <Settings color={candyInk(tints.pink)} size={22} strokeWidth={iconStroke} />
+            {incomingFriends.length > 0 ? <View style={styles.friendBadge} /> : null}
           </CandyShell>
         )}
       </Pressable>
@@ -2340,7 +2408,6 @@ export default function HomeScreen({ petApi }: Props) {
           bond={bondActions}
           style={styleActions}
           tricks={tricks}
-          badges={badgeCoins}
           onProps={
             tricks.length > 0
               ? () => {
@@ -2686,6 +2753,64 @@ export default function HomeScreen({ petApi }: Props) {
         />
       ) : null}
       <HandlePrompt petName={state.name} idle={homeIdle} />
+      {requestsOpen && incomingFriends.length > 0 ? (
+        <FriendRequestModal
+          rows={incomingFriends}
+          onClose={() => {
+            const newest = newestRequestAt(incomingFriends.map((row) => row.createdAt));
+            if (newest) {
+              void writeFriendSeenAt(newest);
+            }
+            setRequestsOpen(false);
+            setForceRequests(false);
+          }}
+          onChanged={() => setFriendTick((value) => value + 1)}
+          onAccepted={() => {
+            void friendPromptShouldShow('accept').then((show) => {
+              if (show) {
+                setFriendPrompt(true);
+              }
+            });
+          }}
+          onReport={(userId, handle) => setFriendReport({ userId, handle })}
+          onBlock={(userId, handle) => setFriendBlock({ userId, handle })}
+        />
+      ) : null}
+      {friendReport ? (
+        <ReportSheet
+          onClose={() => setFriendReport(null)}
+          onPick={(reason, target) => {
+            const person = friendReport;
+            setFriendReport(null);
+            void reportPlayer(person.userId, target, reason).then((result) => {
+              if (result.ok) {
+                setFriendThanks(person);
+              }
+            });
+          }}
+        />
+      ) : null}
+      {friendThanks ? (
+        <ReportThanks
+          onClose={() => setFriendThanks(null)}
+          onBlock={() => {
+            setFriendBlock(friendThanks);
+            setFriendThanks(null);
+          }}
+        />
+      ) : null}
+      {friendBlock ? (
+        <BlockConfirm
+          handle={friendBlock.handle}
+          onCancel={() => setFriendBlock(null)}
+          onBlock={() => {
+            const person = friendBlock;
+            setFriendBlock(null);
+            void blockPlayer(person.userId).then(() => setFriendTick((value) => value + 1));
+          }}
+        />
+      ) : null}
+      {friendPrompt ? <FriendNotifyPrompt onClose={() => setFriendPrompt(false)} /> : null}
       <Day3Prompt petName={state.name} idle={homeIdle} />
       <ReauthPrompt petName={state.name} idle={homeIdle} />
     </View>
@@ -2807,6 +2932,15 @@ const styles = StyleSheet.create({
     height: 44,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  friendBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#EE5C40',
   },
   // Equal insets keep the name on the screen center. The Boop pill is wider than
   // the logo, so both sides use that wider clearance and a long name still clears it.

@@ -76,6 +76,10 @@ Deno.serve(async (req) => {
   if (retired.error) {
     return json({ error: retired.error.message }, 500);
   }
+  const friends = await admin.rpc('delete_friend_data', { p_user_id: caller.id });
+  if (friends.error) {
+    return json({ error: friends.error.message }, 500);
+  }
   const deleted = await admin.auth.admin.deleteUser(caller.id);
   if (deleted.error) {
     return json({ error: deleted.error.message }, 500);

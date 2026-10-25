@@ -12,6 +12,7 @@
       "usesAppleSignIn": true,
       "appleTeamId": "89T43H6V58",
       "bundleIdentifier": "app.mylisto.boop",
+      "associatedDomains": ["applinks:boopboop.mylisto.app"],
       "entitlements": {
         "com.apple.developer.declared-age-range": true
       },
@@ -29,6 +30,20 @@
     },
     "android": {
       "package": "app.mylisto.boop",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "boopboop.mylisto.app",
+              "pathPrefix": "/get"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#FAAB45",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -90,6 +105,12 @@
         }
       ],
       "expo-sqlite",
+      [
+        "expo-notifications",
+        {
+          "color": "#FAAB45"
+        }
+      ],
       "./plugins/withPhonePortrait.js"
     ],
     "extra": {
