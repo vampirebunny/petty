@@ -536,6 +536,82 @@ registerProp('bush', (c, prop, env) => {
 });
 registerProp('fence', drawFence);
 
+// Goal posts at the far end of the training field. Snow settles on the crossbar, rain leaves a sheen,
+// and the little pennants on top flap with the wind.
+function drawGoalPost(c: SkCanvas, prop: Prop, env: Env): void {
+  const w = prop.w ?? 96;
+  const h = prop.h ?? 100;
+  const col = prop.color ?? '#f5c542';
+  const shade = darken(col, 0.22);
+  const bar = -h * 0.38;
+  const snow = snowOn(env);
+  const wet = weatherOf(env).wetness;
+  castShadow(c, env, 0, 2, w / 2 + 6, 4, h, 0.5);
+  line(c, 0, 0, 0, bar, shade, 6);
+  line(c, -1, 0, -1, bar, col, 3.6);
+  line(c, -w / 2, bar, w / 2, bar, col, 5);
+  line(c, -w / 2, bar + 1.6, w / 2, bar + 1.6, shade, 1.4, 0.8);
+  for (const side of [-1, 1]) {
+    const x = (side * w) / 2;
+    line(c, x, bar, x, -h, col, 5);
+    line(c, x - 1, bar, x - 1, -h, lighten(col, 0.35), 1.2, 0.7);
+    circle(c, x, -h, 3.2, col);
+    const flap = env.reduced ? 0 : Math.sin(env.t * 3 + side) * 2.2 + (env.wind ?? 0.2) * 5;
+    poly(c, [x, -h - 2, x + 15 + flap, -h + 3, x, -h + 9], side < 0 ? '#ff9eb5' : '#a9dbff');
+    line(c, x, -h + 10, x, -h - 3, darken(col, 0.3), 1.4);
+    if (snow > 0.05) {
+      ellipse(c, x, -h - 2.5 * snow, 4, 1.6 + 1.6 * snow, '#f7f9ff', snow);
+    }
+  }
+  if (wet > 0.2) {
+    line(c, -w / 2 + 3, bar - 1.4, w / 2 - 3, bar - 1.4, '#ffffff', 1, 0.35 * wet);
+  }
+  if (snow > 0.05) {
+    rrect(c, -w / 2 - 2, bar - 3 - 2.5 * snow, w + 4, 3 + 2.5 * snow, 2, '#f7f9ff', snow);
+  }
+}
+
+// Chalk lines painted on the grass in stage coordinates. They fade as snow covers the field and
+// darken a little when the turf is wet. Draw on the `back` layer, at x 0, y 0.
+function drawFieldLines(c: SkCanvas, _prop: Prop, env: Env): void {
+  const weather = weatherOf(env);
+  const show = clamp01(1 - weather.snowCover * 1.15);
+  if (show < 0.02) {
+    return;
+  }
+  const a = 0.6 * show * (1 - weather.wetness * 0.25);
+  const chalk = '#ffffff';
+  const left = (y: number) => 60 - (y - 200) * 0.208;
+  const right = (y: number) => 580 + (y - 200) * 0.208;
+  const ys = [232, 280, 350, 470, 600, 700];
+  for (let i = 0; i < ys.length - 1; i += 2) {
+    const y0 = ys[i];
+    const y1 = ys[i + 1];
+    poly(c, [left(y0), y0, right(y0), y0, right(y1), y1, left(y1), y1], '#ffffff', 0.07 * show);
+  }
+  line(c, left(200), 200, left(700), 700, chalk, 2.8, a);
+  line(c, right(200), 200, right(700), 700, chalk, 2.8, a);
+  line(c, left(200), 200, right(200), 200, chalk, 1.4, a);
+  ys.slice(0, 5).forEach((y, i) => {
+    const lw = 1.6 + i * 0.6;
+    if (y === 470) {
+      line(c, left(y), y, 262, y, chalk, lw, a);
+      line(c, 398, y, right(y), y, chalk, lw, a);
+    } else {
+      line(c, left(y), y, right(y), y, chalk, lw, a);
+    }
+  });
+  c.drawOval(ov(330, 468, 66, 22), stroke(chalk, 3, a));
+  c.save();
+  c.translate(330, 468);
+  c.scale(1.7, 0.62);
+  pawPrint(c, 0, 0, 15, chalk, a * 1.1);
+  c.restore();
+}
+
+registerProp('goalPost', drawGoalPost);
+registerProp('fieldLines', drawFieldLines);
+
 export function drawPropBody(c: SkCanvas, prop: Prop, env: Env): void {
   const renderer = renderers[prop.kind as string];
   if (renderer) {

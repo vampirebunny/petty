@@ -3275,16 +3275,18 @@ function updateActor(world: World, actor: Actor, dt: number): void {
     Math.max(onTheMove ? rates[actor.gait.current] : 0, playing ? rates.play : 0);
   const runRate = busyRate(activityEnergyPerHour);
   const energyPerHour = napping ? decayPerHour.asleep.energy - decayPerHour.awake.energy : actor.asleep ? 0 : -runRate;
-  if (energyPerHour !== 0) {
+  const schoolVisit = world.scene.id === 'school';
+  if (!schoolVisit && energyPerHour !== 0) {
     actor.pendingEnergy += (energyPerHour / 3600) * dt;
   }
   // Moving or playing empties the tummy faster than sitting still, and spends hydration.
+  // A training-school visit freezes tummy, hydration, energy, and mood until the pet leaves.
   const hungerPerHour = busyRate(activityHungerPerHour);
-  if (hungerPerHour > 0 && !actor.asleep) {
+  if (!schoolVisit && hungerPerHour > 0 && !actor.asleep) {
     actor.pendingHunger += (hungerPerHour / 3600) * dt;
   }
   const hydrationPerHour = busyRate(activityHydrationPerHour);
-  if (hydrationPerHour > 0 && !actor.asleep) {
+  if (!schoolVisit && hydrationPerHour > 0 && !actor.asleep) {
     actor.pendingHydration -= (hydrationPerHour / 3600) * dt;
   }
   // Fetch burns weight even when the pet is too heavy to sprint. A heavier pet works a bit harder.

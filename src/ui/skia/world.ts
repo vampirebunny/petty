@@ -4,7 +4,7 @@ import type { SkCanvas } from '@shopify/react-native-skia';
 import { applyVariant, depthScale, resolveBreedById } from '../../actor';
 import { furnitureClaims } from '../../actor/furnitureUse';
 import type { TimeOfDay, World } from '../../actor';
-import { schoolStageHeight, stageBleed } from '../../actor/scenes';
+import { stageBleed } from '../../actor/scenes';
 import { drawBird, drawBirdGround } from './birds';
 import { stageHeight, stageWidth } from '../../actor/geometry';
 import { actorTint, indoorOverlayAlpha, lighting, petLightAmount, sceneryTint, stepNightFade } from '../../actor/lighting';
@@ -19,7 +19,6 @@ import { drawOverlay } from './marks';
 import { drawActor } from './pet';
 import type { OverlayBurst } from '../../playdate/overlay';
 import { drawDogHouse } from './props';
-import { catBack, catFront, dogBack, dogFront, nightOverlay, room, skyDay, skyNight } from './schoolSvgs';
 import { drawAmbient, drawBackdrop, drawHeldPlay, drawProp, drawToyShape, drawTreatShape } from './scenery';
 import { drawTrickProp } from './trickPropArt';
 import type { Contact, Env } from './scenery';
@@ -52,85 +51,6 @@ function shownNight(target: number, reduced: boolean): number {
   cozyAt = now;
   cozyShown = stepNightFade(cozyShown, target, dt, reduced);
   return cozyShown;
-}
-
-const schoolSvgCache = new Map<string, ReturnType<typeof Skia.SVG.MakeFromString>>();
-
-function schoolSvg(key: string, xml: string) {
-  const hit = schoolSvgCache.get(key);
-  if (hit !== undefined) {
-    return hit;
-  }
-  const made = Skia.SVG.MakeFromString(xml);
-  schoolSvgCache.set(key, made);
-  return made;
-}
-
-function drawSchoolSvg(canvas: SkCanvas, key: string, xml: string, alpha = 1): void {
-  const svg = schoolSvg(key, xml);
-  if (!svg || alpha <= 0.01) {
-    return;
-  }
-  if (alpha < 0.99) {
-    const paint = Skia.Paint();
-    paint.setAlphaf(alpha);
-    canvas.saveLayer(paint);
-    canvas.drawSvg(svg, stageWidth, schoolStageHeight);
-    canvas.restore();
-    return;
-  }
-  canvas.drawSvg(svg, stageWidth, schoolStageHeight);
-}
-
-function drawSchool(canvas: SkCanvas, world: World, width: number, height: number, tod: TimeOfDay, reduced: boolean): void {
-  const scale = Math.min(width / stageWidth, height / schoolStageHeight);
-  canvas.save();
-  canvas.translate((width - stageWidth * scale) / 2, (height - schoolStageHeight * scale) / 2);
-  canvas.scale(scale, scale);
-  const dark = shownNight(tod.dark, reduced);
-  drawSchoolSvg(canvas, 'sky-day', skyDay);
-  drawSchoolSvg(canvas, 'sky-night', skyNight, dark);
-  const nightRoom = dark > 0.2;
-  const roomXml = nightRoom ? room.replace(/<path id="sunpatch"[^>]*\/>/, '') : room;
-  drawSchoolSvg(canvas, nightRoom ? 'room-night' : 'room-day', roomXml);
-  const cat = world.actors.some((actor) => !actor.guest && resolveBreedById(actor.breedId, actor.look)?.species === 'cat');
-  drawSchoolSvg(canvas, cat ? 'cat-back' : 'dog-back', cat ? catBack : dogBack);
-  drawSchoolSvg(canvas, 'night', nightOverlay, dark);
-  const floor = world.scene.floor;
-  const trickProps = world.trickProps ?? [];
-  const lead = world.actors.find((actor) => !actor.guest) ?? world.actors[0];
-  for (const prop of trickProps) {
-    if (!(lead && lead.y > prop.y + 8)) {
-      drawTrickProp(canvas, prop, 'back');
-    }
-  }
-  for (const actor of world.actors) {
-    const breed = resolveBreedById(actor.breedId, actor.look);
-    if (!breed) {
-      continue;
-    }
-    const carrying = world.items.find((item) => item.state === 'carried' && item.holderId === actor.id)?.kind ?? null;
-    drawActor(canvas, actor, breed, floor, world.t, carrying, world.silhouette === true, world.reducedMotion);
-  }
-  for (const toy of world.items) {
-    if (!toy.kind.startsWith('treat:')) {
-      continue;
-    }
-    const treatId = toy.kind.slice('treat:'.length);
-    const radius = 8 * depthScale(toy.y, floor.yMin, floor.yMax);
-    const actor = world.actors[0];
-    const breed = actor ? resolveBreedById(actor.breedId, actor.look) : null;
-    drawTreatShape(canvas, treatId, toy.x, toy.y - toy.z - radius, radius, world.t, breed?.species ?? null);
-  }
-  for (const prop of trickProps) {
-    const petInFront = lead != null && lead.y > prop.y + 8;
-    if (petInFront) {
-      drawTrickProp(canvas, prop, 'back');
-    }
-    drawTrickProp(canvas, prop, 'front');
-  }
-  drawSchoolSvg(canvas, cat ? 'cat-front' : 'dog-front', cat ? catFront : dogFront);
-  canvas.restore();
 }
 
 function drawPetLight(canvas: SkCanvas, x: number, y: number, amount: number): void {
@@ -202,11 +122,6 @@ export function drawWorld(
   const scene = world.scene;
   const floor = scene.floor;
   canvas.save();
-  if (scene.id === 'school') {
-    drawSchool(canvas, world, width, height, tod, reduced);
-    canvas.restore();
-    return;
-  }
   // Extra stage units of sky and floor on each side when the view is wider than the stage.
   let bleed = 0;
   if (camera) {

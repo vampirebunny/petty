@@ -128,10 +128,11 @@ The field list below is the shape of a catalog row and of the pet's training ent
 - Add a **Training School** icon button to the existing grid. Show the name only, in the same style as the other locations.
 
 ### Training School scene
-- A new room in the existing swappable scene system: a training room, with lighting that follows the time of day like other indoor rooms.
-- Pet-centric props only, for example training cones, a small hurdle, a training mat and a treat jar on a shelf.
-- Dogs and cats can share the room, or have species variants if the scene system makes that easy.
-- The pet wanders the open rug. Podiums, tunnels, hurdles, hoops, and cones are not painted into the room. They appear only when the player places them.
+- An outdoor field on the same 640 × 680 stage as the park. It uses the park's live sky, weather, seasonal grass, and blowing leaves. Birds perch on the goal and the bench and forage on the grass.
+- The painted field has a fence, chalk lines, a goal, trees, bushes, and a bench. Dogs and cats share it.
+- The pet wanders the grass. Podiums, tunnels, hurdles, hoops, and cones are not painted into the field. They appear only when the player places them.
+- On a phone the field is about a third of the screen, shorter than the other rooms. A wide landscape layout keeps the full scene pane.
+- Tummy, Hydration, Energy, and Mood are hidden at the school. Those four values freeze for the visit and start falling again when the pet leaves.
 - The tall scene sits on top, and the two sections below it scroll vertically:
 
 **a) Practice section (shown first)**

@@ -31,6 +31,23 @@ it('ages across a full absence and thins weight on the away curve', () => {
   expect(longGap.needs).not.toEqual(weekend.needs);
 });
 
+it('freezes tummy, energy, and mood for a training school visit', () => {
+  const before = pet();
+  before.sceneId = 'school';
+  const open = tickForeground(before, before.lastUpdatedAt + hourMs);
+  const away = resume(before, before.lastUpdatedAt + 2 * hourMs);
+  const home = resume(before, before.lastUpdatedAt + 3 * hourMs);
+
+  expect(open.needs).toEqual(before.needs);
+  expect(open.hydration).toBe(before.hydration);
+  expect(open.ageDays).toBeCloseTo(before.ageDays + 1 / 24, 5);
+  expect(away.needs).toEqual(before.needs);
+  expect(away.hydration).toBe(before.hydration);
+  expect(away.sceneId).toBe('school');
+  expect(home.sceneId).toBe('livingroom');
+  expect(home.needs).not.toEqual(before.needs);
+});
+
 it('keeps the scene for a short absence and opens the living room after 3 hours', () => {
   const before = pet();
   before.sceneId = 'park';

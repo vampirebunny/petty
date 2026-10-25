@@ -27,8 +27,13 @@ function settle(state: PetState, now: number, needElapsed: number, weightElapsed
   });
 }
 
+function atTrainingSchool(state: PetState): boolean {
+  return state.sceneId === 'school';
+}
+
 export function tickForeground(state: PetState, now: number): PetState {
-  const needElapsed = Math.min(Math.max(0, now - state.lastUpdatedAt), maxElapsedMs);
+  const elapsed = Math.min(Math.max(0, now - state.lastUpdatedAt), maxElapsedMs);
+  const needElapsed = atTrainingSchool(state) ? 0 : elapsed;
   const weightElapsed = Math.max(0, now - state.weightAppliedAt);
   return settle(state, now, needElapsed, weightElapsed, false);
 }
@@ -36,6 +41,16 @@ export function tickForeground(state: PetState, now: number): PetState {
 export function resume(state: PetState, now: number): PetState {
   const elapsedH = awayElapsedHours(state.lastUpdatedAt, now);
   const elapsedMs = awayElapsedMs(state.lastUpdatedAt, now);
+  if (atTrainingSchool(state) && now >= state.lastUpdatedAt && elapsedH < AWAY_DECAY.returnHomeAfterH) {
+    return withDerived({
+      ...state,
+      ageDays: ageDaysAt(state.bornAt, now),
+      weight: applyAwayWeight(state.weight, elapsedH),
+      boosts: activeBoosts(state.boosts, now),
+      lastUpdatedAt: now,
+      weightAppliedAt: now,
+    });
+  }
   const away = applyAwayDecay(
     {
       tummy: 100 - state.needs.hunger,

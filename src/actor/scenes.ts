@@ -7,13 +7,6 @@ import { mulberry, seedOf } from './mulberry';
 export const stageWidth = 640;
 export const stageHeight = 680;
 
-// The training-school art is 390×600. The sim stretches that frame to the usual stage width
-// so the pet stays the size it is in other rooms. The art's right edge is x = stageWidth.
-export const schoolArtWidth = 390;
-export const schoolArtHeight = 600;
-export const schoolStageHeight = (schoolArtHeight * stageWidth) / schoolArtWidth;
-const schoolScale = stageWidth / schoolArtWidth;
-
 /** Extra stage units on each side when the view is wider than the stage. Matches drawWorld. */
 export function stageBleed(width: number, height: number, visibleHeight = stageHeight): number {
   if (width <= 0 || height <= 0) {
@@ -52,6 +45,8 @@ export const propKinds = [
   'hammock',
   'planter',
   'scratcher',
+  'goalPost',
+  'fieldLines',
 ] as const;
 
 export const shapeTypes = ['rect', 'ellipse', 'circle', 'poly', 'line', 'sky'] as const;
@@ -509,21 +504,33 @@ const sceneDefs = {
     group: 'home',
     blurb: 'Tricks and treats',
     iconId: 'school',
-    time: 'indoor',
-    sky: ['#F3E8FF', '#E7F6FF'],
-    layers: [],
-    floor: {
-      horizon: Math.round(366 * schoolScale),
-      yMin: Math.round(430 * schoolScale),
-      yMax: Math.round(540 * schoolScale),
-      xMin: Math.round(48 * schoolScale),
-      xMax: Math.round(342 * schoolScale),
-      color: ['#F6D7B8', '#E7B98A'],
-      pattern: 'none',
-    },
-    surface: { bounce: 0.4, friction: 2.2 },
-    props: [],
-    pois: [{ id: 'home', type: 'home', x: Math.round(195 * schoolScale), y: Math.round(488 * schoolScale) }],
+    // Built like the park: the live sky, seasonal grass, and props that react to weather and season.
+    time: 'outdoor',
+    sky: ['#a9d8f0', '#e2f3f8'],
+    layers: [
+      { t: 'ellipse', x: 110, y: 184, rx: 220, ry: 46, fill: '#8ed9d0' },
+      { t: 'ellipse', x: 500, y: 182, rx: 230, ry: 50, fill: '#6ec4be' },
+    ],
+    floor: { horizon: 176, yMin: 214, yMax: 654, color: ['#6ec4bc', '#3f9694'], pattern: 'grass', lineColor: 'rgba(20,80,80,0.4)' },
+    surface: { bounce: 0.42, friction: 3.4 },
+    props: [
+      { kind: 'fence', x: 320, y: 182, w: 640, layer: 'back' },
+      { kind: 'fieldLines', x: 0, y: 0, layer: 'back' },
+      { kind: 'tree', x: 52, y: 200, scale: 1.05 },
+      { kind: 'bush', x: 160, y: 198 },
+      { kind: 'goalPost', x: 320, y: 200, w: 96, h: 100 },
+      { kind: 'bush', x: 470, y: 198, scale: 0.9 },
+      { kind: 'bench', x: 548, y: 206, w: 90 },
+      { kind: 'tree', x: 612, y: 224, scale: 1.2 },
+    ],
+    pois: [{ id: 'home', type: 'home', x: 330, y: 470 }],
+    birds: [
+      { x: 170, y: 520, on: 'ground', count: 3, roam: 55, roamY: 22, species: ['sparrow', 'robin', 'cardinal', 'pigeon'] },
+      { x: 470, y: 590, on: 'ground', count: 2, roam: 50, roamY: 20, species: ['sparrow', 'robin', 'cardinal', 'pigeon'] },
+      { x: 272, y: 101, on: 'perch', sortY: 200, species: ['sparrow', 'robin', 'cardinal'] },
+      { x: 548, y: 154, on: 'perch', sortY: 206, species: ['sparrow', 'robin', 'cardinal', 'pigeon'] },
+    ],
+    ambient: { particles: { kind: 'leaves', count: 10 } },
   },
 } as const;
 

@@ -16,7 +16,6 @@ import { releaseMusic, setMusicEnabled, suspendMusic, switchMusic } from '../aud
 import { setSoundEnabled } from '../audio/voice';
 import type { CuddleOut } from '../actor';
 import { stageHeight, stageWidth } from '../actor/geometry';
-import { schoolArtHeight, schoolArtWidth, schoolStageHeight } from '../actor/scenes';
 import { flickSpeedThreshold } from '../input/flick';
 import { CuddleGesture } from '../input/cuddleGesture';
 import type { GestureEvent } from '../input/cuddleGesture';
@@ -95,7 +94,7 @@ import { PhoneColumn } from '../ui/PhoneColumn';
 import { useStageSize } from '../ui/useStageSize';
 import { useOpenedDuoBoopEdge, useOpenedDuoTopInset } from '../ui/useDeviceOrientation';
 import { FitScale } from '../ui/FitScale';
-import { isLandscapeSplit, phoneColumnWidth } from '../ui/wideLayout';
+import { isLandscapeSplit, phoneColumnWidth, schoolStackedHeightShare } from '../ui/wideLayout';
 import type { CuddleHandle, StageHandle } from '../ui/PetView';
 import { CuddleFeedback } from '../ui/cuddle/CuddleFeedback';
 import type { FeedbackHandle } from '../ui/cuddle/CuddleFeedback';
@@ -248,10 +247,11 @@ export default function HomeScreen({ petApi }: Props) {
       }
     : undefined;
   const atSchool = state?.sceneId === 'school';
-  const logicalH = atSchool ? schoolStageHeight : stageHeight;
+  const logicalH = stageHeight;
   const { viewWidth, viewHeight, contentWidth } = useStageSize(
     stageFrame,
-    atSchool ? { w: schoolArtWidth, h: schoolArtHeight } : undefined,
+    undefined,
+    !split && atSchool ? schoolStackedHeightShare : undefined,
   );
   const [trickTip, setTrickTip] = useState<{ id: string; name: string } | null>(null);
   const lastStrokeAt = useRef(0);
@@ -1961,7 +1961,9 @@ export default function HomeScreen({ petApi }: Props) {
 
   const controls = (
     <ScrollView style={styles.controls} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <NeedRings needs={presentNeeds(state.needs, sumHolds(treatHolds))} hydration={state.hydration} />
+        {atSchool ? null : (
+          <NeedRings needs={presentNeeds(state.needs, sumHolds(treatHolds))} hydration={state.hydration} />
+        )}
         {welcomeBack ? (
           <Pressable onPress={dismissWelcome} accessibilityRole="button">
             <Text style={styles.hint}>{state.name} missed you!</Text>
@@ -2183,11 +2185,12 @@ export default function HomeScreen({ petApi }: Props) {
             style={
               split
                 ? { width: '100%', height: '100%', maxWidth: '100%', maxHeight: '100%' }
-                : { width: viewWidth, height: viewHeight, alignSelf: 'center' }
+                : { width: viewWidth, height: viewHeight, alignSelf: 'center', overflow: 'hidden' }
             }
           >
             <PetView
               frame={stageFrame}
+              heightShare={!split && atSchool ? schoolStackedHeightShare : undefined}
               cuddleActive={cuddleOn}
               cuddleRef={cuddleHandle}
               stageRef={stageHandle}

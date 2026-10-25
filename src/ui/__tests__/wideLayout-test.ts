@@ -8,6 +8,7 @@ import {
   isSurfaceDuoModel,
   phoneColumnWidth,
   stageSizeFor,
+  schoolStackedHeightShare,
   stackedHeightShare,
 } from '../wideLayout';
 
@@ -74,6 +75,15 @@ describe('stageSizeFor', () => {
     expect(sized.viewHeight).toBeCloseTo(cap, 5);
     expect(sized.viewWidth).toBe(width);
     expect(sized.contentWidth).toBeCloseTo((cap * stageWidth) / stageHeight, 5);
+  });
+
+  it('shrinks the training school on a phone, where the width already sets the other rooms', () => {
+    const width = 390;
+    const height = 844;
+    const home = stageSizeFor(width, height, stackedHeightShare);
+    const school = stageSizeFor(width, height, schoolStackedHeightShare);
+    expect(home.viewHeight).toBeCloseTo((width * stageHeight) / stageWidth, 5);
+    expect(school.viewHeight).toBeLessThan(home.viewHeight * 0.8);
   });
 
   it('fills a landscape pane by its shorter side', () => {

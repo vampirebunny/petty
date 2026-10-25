@@ -171,6 +171,8 @@ type Props = {
   onHeld?: (on: boolean) => void;
   // Measured scene pane. Omitted on a stacked layout, which sizes from the window.
   frame?: StageFrame;
+  // Stacked layouts only. A wide pane keeps its own height.
+  heightShare?: number;
   // Home park only. Other screens leave this off.
   parkVisitors?: boolean;
   parkOffers?: ParkOffer[];
@@ -241,11 +243,12 @@ export function PetView({
   playToy = null,
   onHeld,
   frame,
+  heightShare,
   parkVisitors = false,
   parkOffers = [],
   parkStranger,
 }: Props) {
-  const { viewWidth, viewHeight } = useStageSize(frame);
+  const { viewWidth, viewHeight } = useStageSize(frame, undefined, heightShare);
   const widthRef = useRef(viewWidth);
   const heightRef = useRef(viewHeight);
   widthRef.current = viewWidth;

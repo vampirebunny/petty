@@ -10,6 +10,10 @@ export const rotateShortSide = 520;
 export const phoneColumnWidth = 400;
 // Share of the window height a stacked stage may take, so the controls below stay reachable.
 export const stackedHeightShare = 0.62;
+// Training School on a stacked phone. Half the window is already how tall the other
+// rooms are, because the phone's width sets that height. This share is low enough
+// to win against that width fit. Wide landscape keeps the full pane.
+export const schoolStackedHeightShare = 0.34;
 
 const minStageWidth = 280;
 
