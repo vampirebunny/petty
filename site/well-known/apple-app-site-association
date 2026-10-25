@@ -4,7 +4,7 @@
     "details": [
       {
         "appID": "89T43H6V58.app.mylisto.boop",
-        "paths": ["/get", "/get/*"]
+        "paths": ["/get", "/get/*", "/add/*"]
       }
     ]
   }

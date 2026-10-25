@@ -39,6 +39,11 @@
               "scheme": "https",
               "host": "boopboop.mylisto.app",
               "pathPrefix": "/get"
+            },
+            {
+              "scheme": "https",
+              "host": "boopboop.mylisto.app",
+              "pathPrefix": "/add/"
             }
           ],
           "category": ["BROWSABLE", "DEFAULT"]
@@ -52,7 +57,8 @@
       },
       "predictiveBackGestureEnabled": false,
       "permissions": [
-        "android.permission.MODIFY_AUDIO_SETTINGS"
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "com.android.vending.BILLING"
       ]
     },
     "web": {
@@ -109,6 +115,14 @@
         "expo-notifications",
         {
           "color": "#FAAB45"
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Boop Boop uses the camera to scan friends' codes.",
+          "recordAudioAndroid": false,
+          "barcodeScannerEnabled": true
         }
       ],
       "./plugins/withPhonePortrait.js"

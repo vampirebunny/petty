@@ -21,13 +21,11 @@ import type { ResultsNote } from '../ui/PlaydateResults';
 import { PlaydateStage } from '../ui/PlaydateStage';
 import { SnapshotStill } from '../ui/SnapshotStill';
 import { CandyButton } from '../ui/closet/CandyButton';
-import { FriendNotifyPrompt } from '../ui/FriendNotifyPrompt';
 import { PlaydateFriends } from '../ui/PlaydateFriends';
 import { fontFamily } from '../ui/font';
 import { PhoneColumn } from '../ui/PhoneColumn';
 import { WardrobePicker } from '../ui/WardrobePicker';
 import { minTouch } from '../ui/theme';
-import { friendPromptShouldShow } from '../friends/prompt';
 
 function resultNotes(record: PlaydateRecord, petName: string): ResultsNote[] {
   const notes: ResultsNote[] = record.outcome.rareEvents.map((event) => ({
@@ -74,7 +72,6 @@ export function PlaydateScreen({ pet, save, now, remaining, reducedMotion, onSav
   // What the paid playdate added, worked out from the pet before the rewards landed.
   const [gains, setGains] = useState<AttributeGain[] | null>(null);
   const [skipReady, setSkipReady] = useState(false);
-  const [notifyPrompt, setNotifyPrompt] = useState(false);
   const finished = useRef(false);
   const skipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -245,18 +242,7 @@ export function PlaydateScreen({ pet, save, now, remaining, reducedMotion, onSav
       <ScrollView style={styles.scroller} contentContainerStyle={styles.scroll}>
         {step === 'partner' ? (
           <View style={styles.stack}>
-            <PlaydateFriends
-              linked={linked}
-              petName={pet.name}
-              handle={accountHandle}
-              onPrompt={(moment) => {
-                void friendPromptShouldShow(moment).then((show) => {
-                  if (show) {
-                    setNotifyPrompt(true);
-                  }
-                });
-              }}
-            />
+            <PlaydateFriends linked={linked} petName={pet.name} handle={accountHandle} />
             {partners.map((npc) => {
               const bond = relationshipFor(save, pet.id, npc.snapshotId)?.bond ?? 0;
               return (
@@ -385,8 +371,7 @@ export function PlaydateScreen({ pet, save, now, remaining, reducedMotion, onSav
         ) : null}
       </ScrollView>
       )}
-      {notifyPrompt ? <FriendNotifyPrompt onClose={() => setNotifyPrompt(false)} /> : null}
-    </View>
+      </View>
   );
   // Partner, place, activity, playback, and results stay a phone column. The outfit step
   // uses the whole window so the preview and the closet can sit side by side.

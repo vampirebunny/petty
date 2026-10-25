@@ -2,14 +2,13 @@ import { useEffect, useState } from 'react';
 import { Share, StyleSheet, Text, View } from 'react-native';
 import { Pressable } from 'react-native-gesture-handler';
 
-import { blockPlayer, loadFriends, reportPlayer } from '../friends/api';
-import { canUseFriends, friendErrorCopy, inviteShareMessage } from '../friends/rules';
+import { findFriendsSnapshot, onFindFriends, openFindFriends } from '../friends/findOpen';
+import { loadFriends } from '../friends/api';
+import { canUseFriends, inviteShareMessage } from '../friends/rules';
 import type { FriendRow } from '../friends/types';
 import { setSuppressOpenPath } from '../state/sessionGate';
 import { AccountSheet } from './AccountSheet';
 import { CandyShell, candyInk, tints } from './candy';
-import { FindFriends } from './FindFriends';
-import { BlockConfirm, ReportSheet, ReportThanks } from './FriendDialogs';
 import { FriendFace } from './FriendFace';
 import { fontFamily } from './font';
 import { theme } from './theme';
@@ -18,44 +17,37 @@ type Props = {
   linked: boolean;
   petName: string;
   handle: string | null;
-  onPrompt: (moment: 'send' | 'accept') => void;
 };
 
-export function PlaydateFriends({ linked, petName, handle, onPrompt }: Props) {
+export function PlaydateFriends({ linked, petName, handle }: Props) {
   const allowed = canUseFriends(linked);
   const [friends, setFriends] = useState<FriendRow[]>([]);
   const [offline, setOffline] = useState(false);
-  const [findOpen, setFindOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
-  const [reportUser, setReportUser] = useState<{ userId: string; handle: string } | null>(null);
-  const [thanks, setThanks] = useState<{ userId: string; handle: string } | null>(null);
-  const [block, setBlock] = useState<{ userId: string; handle: string } | null>(null);
-  const [note, setNote] = useState<string | null>(null);
-
-  const refresh = () => {
-    if (!allowed) {
-      return;
-    }
-    void loadFriends().then((bundle) => {
-      setFriends(bundle.friends);
-      setOffline(bundle.offline);
-    });
-  };
 
   useEffect(() => {
     if (!allowed) {
       return;
     }
     let cancelled = false;
-    void loadFriends().then((bundle) => {
-      if (cancelled) {
-        return;
+    const load = () => {
+      void loadFriends().then((bundle) => {
+        if (cancelled) {
+          return;
+        }
+        setFriends(bundle.friends);
+        setOffline(bundle.offline);
+      });
+    };
+    load();
+    const unsub = onFindFriends(() => {
+      if (!findFriendsSnapshot().open) {
+        load();
       }
-      setFriends(bundle.friends);
-      setOffline(bundle.offline);
     });
     return () => {
       cancelled = true;
+      unsub();
     };
   }, [allowed]);
 
@@ -85,7 +77,7 @@ export function PlaydateFriends({ linked, petName, handle, onPrompt }: Props) {
           ))
         : null}
       {allowed ? (
-        <Pressable accessibilityRole="button" accessibilityLabel="Find friends" onPress={() => setFindOpen(true)} style={styles.hit}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Find friends" onPress={() => openFindFriends()} style={styles.hit}>
           {({ pressed }) => (
             <CandyShell tint={tints.lilac} radius={22} uid="playdate-find" pressed={pressed} style={styles.button}>
               <Text style={[styles.buttonText, { color: candyInk(tints.lilac) }]}>Find friends</Text>
@@ -111,53 +103,7 @@ export function PlaydateFriends({ linked, petName, handle, onPrompt }: Props) {
           )}
         </Pressable>
       ) : null}
-      {note ? <Text style={styles.meta}>{note}</Text> : null}
-      {findOpen ? (
-        <FindFriends
-          onClose={() => setFindOpen(false)}
-          onChanged={refresh}
-          onSent={() => onPrompt('send')}
-          onAccepted={() => onPrompt('accept')}
-          onReport={(userId, reportedHandle) => setReportUser({ userId, handle: reportedHandle })}
-        />
-      ) : null}
       {accountOpen ? <AccountSheet reason="friends" petName={petName} onClose={() => setAccountOpen(false)} /> : null}
-      {reportUser ? (
-        <ReportSheet
-          onClose={() => setReportUser(null)}
-          onPick={(reason, target) => {
-            const person = reportUser;
-            setReportUser(null);
-            void reportPlayer(person.userId, target, reason).then((result) => {
-              if (!result.ok) {
-                setNote(friendErrorCopy(result.error, 'report'));
-                return;
-              }
-              setThanks(person);
-            });
-          }}
-        />
-      ) : null}
-      {thanks ? (
-        <ReportThanks
-          onClose={() => setThanks(null)}
-          onBlock={() => {
-            setBlock(thanks);
-            setThanks(null);
-          }}
-        />
-      ) : null}
-      {block ? (
-        <BlockConfirm
-          handle={block.handle}
-          onCancel={() => setBlock(null)}
-          onBlock={() => {
-            const person = block;
-            setBlock(null);
-            void blockPlayer(person.userId).then(() => refresh());
-          }}
-        />
-      ) : null}
     </View>
   );
 }

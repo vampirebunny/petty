@@ -71,6 +71,8 @@ await copyFile(path.join(root, "..", "assets", "icon.png"), path.join(dist, "ico
 await copyFile(path.join(root, "home.html"), path.join(dist, "index.html"));
 await mkdir(path.join(dist, "get"), { recursive: true });
 await copyFile(path.join(root, "get.html"), path.join(dist, "get", "index.html"));
+await mkdir(path.join(dist, "add"), { recursive: true });
+await copyFile(path.join(root, "add.html"), path.join(dist, "add", "index.html"));
 await mkdir(path.join(dist, ".well-known"), { recursive: true });
 await copyFile(
   path.join(root, "well-known", "apple-app-site-association"),

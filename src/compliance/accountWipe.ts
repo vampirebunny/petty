@@ -6,6 +6,7 @@ import { wipeLocalData } from '../db/bootstrap';
 import { setCurrentOwner } from '../db/currentOwner';
 import { cancelReminders } from '../reminders/notifications';
 import { clearFriendCache } from '../friends/api';
+import { clearPendingAdd } from '../friends/pendingAdd';
 import { clearFriendPromptStorage } from '../friends/prompt';
 import { unregisterFriendPushToken } from '../friends/push';
 import { requestAgeGateRefresh } from '../state/ageGateRefresh';
@@ -56,6 +57,7 @@ export async function fullAccountWipe(): Promise<boolean> {
   await unregisterFriendPushToken().catch(() => undefined);
   await clearFriendCache().catch(() => undefined);
   await clearFriendPromptStorage().catch(() => undefined);
+  await clearPendingAdd().catch(() => undefined);
   try {
     await getSupabase()?.auth.signOut({ scope: 'local' });
   } catch {

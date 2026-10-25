@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Linking, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { Pressable } from 'react-native-gesture-handler';
 import * as Notifications from 'expo-notifications';
@@ -15,12 +15,13 @@ import {
   unblockPlayer,
   writeFriendNotifications,
 } from '../friends/api';
+import { findFriendsSnapshot, onFindFriends, openFindFriends, openFriendScanner } from '../friends/findOpen';
 import { friendPromptShouldShow } from '../friends/prompt';
 import { friendErrorCopy, inviteShareMessage } from '../friends/rules';
 import type { FriendRow } from '../friends/types';
 import { setSuppressOpenPath } from '../state/sessionGate';
 import { CandyShell, candyInk, tints } from './candy';
-import { FindFriends } from './FindFriends';
+import { MyCode } from './MyCode';
 import { BlockConfirm, ReportSheet, ReportThanks } from './FriendDialogs';
 import { FriendFace } from './FriendFace';
 import { FriendNotifyPrompt } from './FriendNotifyPrompt';
@@ -33,19 +34,20 @@ type Props = {
   onCareReminders: (enabled: boolean) => void;
   onClose: () => void;
   onChanged: () => void;
+  onPickHandle: () => void;
 };
 
 type Person = { userId: string; handle: string };
 
-export function FriendsManage({ handle, careRemindersOn, onCareReminders, onClose, onChanged }: Props) {
+export function FriendsManage({ handle, careRemindersOn, onCareReminders, onClose, onChanged, onPickHandle }: Props) {
   const [friends, setFriends] = useState<FriendRow[]>([]);
   const [incoming, setIncoming] = useState<FriendRow[]>([]);
   const [sent, setSent] = useState<FriendRow[]>([]);
   const [blocked, setBlocked] = useState<FriendRow[]>([]);
   const [offline, setOffline] = useState(false);
   const [note, setNote] = useState<string | null>(null);
-  const [findOpen, setFindOpen] = useState(false);
   const [blockedOpen, setBlockedOpen] = useState(false);
+  const [codeOpen, setCodeOpen] = useState(false);
   const [menu, setMenu] = useState<Person | null>(null);
   const [reportUser, setReportUser] = useState<Person | null>(null);
   const [thanks, setThanks] = useState<Person | null>(null);
@@ -100,6 +102,19 @@ export function FriendsManage({ handle, careRemindersOn, onCareReminders, onClos
     };
   }, []);
 
+  const refreshRef = useRef(refresh);
+  useEffect(() => {
+    refreshRef.current = refresh;
+  });
+  useEffect(() => {
+    return onFindFriends(() => {
+      const snap = findFriendsSnapshot();
+      if (!snap.open && !snap.scanning) {
+        refreshRef.current();
+      }
+    });
+  }, []);
+
   const share = () => {
     setSuppressOpenPath(true);
     void Share.share({ message: inviteShareMessage(handle) }).finally(() => setSuppressOpenPath(false));
@@ -135,10 +150,27 @@ export function FriendsManage({ handle, careRemindersOn, onCareReminders, onClos
       <ScrollView contentContainerStyle={styles.body}>
         {offline ? <Text style={styles.note}>Offline</Text> : null}
         {note ? <Text style={styles.note}>{note}</Text> : null}
-        <Pressable accessibilityRole="button" onPress={() => setFindOpen(true)} style={styles.hit}>
+        <Pressable accessibilityRole="button" onPress={() => openFindFriends()} style={styles.hit}>
           {({ pressed }) => (
             <CandyShell tint={tints.lilac} radius={22} uid="settings-find" pressed={pressed} style={styles.button}>
               <Text style={[styles.buttonText, { color: candyInk(tints.lilac) }]}>Find friends</Text>
+            </CandyShell>
+          )}
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => {
+            if (!handle) {
+              onPickHandle();
+              return;
+            }
+            setCodeOpen(true);
+          }}
+          style={styles.hit}
+        >
+          {({ pressed }) => (
+            <CandyShell tint={tints.mint} radius={22} uid="settings-code" pressed={pressed} style={styles.button}>
+              <Text style={[styles.buttonText, { color: candyInk(tints.mint) }]}>My code</Text>
             </CandyShell>
           )}
         </Pressable>
@@ -248,14 +280,10 @@ export function FriendsManage({ handle, careRemindersOn, onCareReminders, onClos
           </ScrollView>
         </View>
       ) : null}
-      {findOpen ? (
-        <FindFriends
-          onClose={() => setFindOpen(false)}
-          onChanged={refresh}
-          onSent={() => void friendPromptShouldShow('send').then((show) => setPromptOpen(show))}
-          onAccepted={() => void friendPromptShouldShow('accept').then((show) => setPromptOpen(show))}
-          onReport={(userId, reportedHandle) => setReportUser({ userId, handle: reportedHandle })}
-        />
+      {codeOpen && handle ? (
+        <View style={styles.blocked}>
+          <MyCode handle={handle} onClose={() => setCodeOpen(false)} onScan={() => openFriendScanner('code')} />
+        </View>
       ) : null}
       {menu ? (
         <View style={styles.menuLayer}>

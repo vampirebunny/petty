@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Add a friend on Boop Boop</title>
+  <meta name="description" content="Add a friend on Boop Boop.">
+  <link rel="stylesheet" href="/styles.css">
+  <style>
+    .get { min-height: 100vh; display: flex; align-items: center; justify-content: center; text-align: center; padding: 32px 20px; }
+    .get-card { max-width: 420px; }
+    .get-card h1 { margin: 16px 0 8px; }
+  </style>
+</head>
+<body>
+  <main class="get">
+    <div class="get-card">
+      <img src="/icon.png" width="96" height="96" alt="Boop Boop">
+      <h1 id="title">Add a friend on Boop Boop</h1>
+      <p id="line">After you install, open Find friends and search their handle.</p>
+      <div class="stores" id="download">
+        <a class="store store-dark" id="ios-badge" href="#download">
+          <span class="store-kicker">Download on the</span>
+          <span class="store-name">App Store</span>
+        </a>
+        <a class="store store-dark" id="android-badge" href="#download">
+          <span class="store-kicker">Get it on</span>
+          <span class="store-name">Google Play</span>
+        </a>
+      </div>
+    </div>
+  </main>
+  <script>
+    var parts = location.pathname.split('/').filter(Boolean);
+    var raw = parts[0] === 'add' && parts[1] ? parts[1] : '';
+    var handle = '';
+    try { handle = decodeURIComponent(raw); } catch (error) { handle = ''; }
+    if (/^[a-zA-Z0-9]{3,20}$/.test(handle)) {
+      document.getElementById('title').textContent = 'Add @' + handle + ' on Boop Boop';
+      document.getElementById('line').textContent = 'After you install, open Find friends and search @' + handle + '.';
+      document.title = 'Add @' + handle + ' on Boop Boop';
+    }
+    var stores = { ios: '', android: '' };
+    var iosBadge = document.getElementById('ios-badge');
+    var androidBadge = document.getElementById('android-badge');
+    if (stores.ios) iosBadge.href = stores.ios;
+    if (stores.android) androidBadge.href = stores.android;
+  </script>
+</body>
+</html>

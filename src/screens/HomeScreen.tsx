@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { AccessibilityInfo, AppState, Image, Platform, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { AccessibilityInfo, AppState, Image, Linking, Platform, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Gesture, GestureDetector, Pressable, ScrollView } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
@@ -72,11 +72,16 @@ import { useCandyTips } from '../ui/tips/useCandyTips';
 import { PlaydateScreen } from './PlaydateScreen';
 import { ClothingLab } from './ClothingLab';
 import { SettingsScreen } from './SettingsScreen';
+import { AccountSheet } from '../ui/AccountSheet';
+import { FindFriendsHost } from '../ui/FindFriendsHost';
 import { FriendRequestModal } from '../ui/FriendRequestModal';
 import { BlockConfirm, ReportSheet, ReportThanks } from '../ui/FriendDialogs';
 import { FriendNotifyPrompt } from '../ui/FriendNotifyPrompt';
 import { loadFriends, blockPlayer, reportPlayer } from '../friends/api';
+import { parseFriendLink } from '../friends/friendLink';
+import { closeFindFriends, openFindFriends } from '../friends/findOpen';
 import { onFriendModalRequest } from '../friends/open';
+import { clearPendingAdd, readPendingAdd, savePendingAdd } from '../friends/pendingAdd';
 import { friendPromptShouldShow, newestRequestAt, readFriendSeenAt, writeFriendSeenAt } from '../friends/prompt';
 import { listenForFriendPushes, registerFriendPushToken } from '../friends/push';
 import type { FriendRow } from '../friends/types';
@@ -325,6 +330,7 @@ export default function HomeScreen({ petApi }: Props) {
   const [friendReport, setFriendReport] = useState<{ userId: string; handle: string } | null>(null);
   const [friendThanks, setFriendThanks] = useState<{ userId: string; handle: string } | null>(null);
   const [friendBlock, setFriendBlock] = useState<{ userId: string; handle: string } | null>(null);
+  const [addGate, setAddGate] = useState(false);
   const accountHandle = useAccountHandle();
   const [personalityOpen, setPersonalityOpen] = useState(false);
   const [playOpen, setPlayOpen] = useState(false);
@@ -428,6 +434,7 @@ export default function HomeScreen({ petApi }: Props) {
 
   useEffect(() => {
     const unsubModal = onFriendModalRequest(() => {
+      closeFindFriends();
       setForceRequests(true);
       setSettingsOpen(false);
       setPlaydateOpen(false);
@@ -473,6 +480,44 @@ export default function HomeScreen({ petApi }: Props) {
       cancelled = true;
     };
   }, [friendTick, forceRequests]);
+
+  useEffect(() => {
+    const take = (url: string | null) => {
+      if (!url) {
+        return;
+      }
+      const handle = parseFriendLink(url);
+      if (!handle) {
+        return;
+      }
+      void savePendingAdd(handle).then(() => setFriendTick((value) => value + 1));
+    };
+    void Linking.getInitialURL().then(take);
+    const sub = Linking.addEventListener('url', (event) => take(event.url));
+    return () => sub.remove();
+  }, []);
+
+  useEffect(() => {
+    if (!state || handlePromptIsStrict()) {
+      return;
+    }
+    let cancelled = false;
+    void readPendingAdd().then((handle) => {
+      if (cancelled || !handle) {
+        return;
+      }
+      if (readAccountLinked()) {
+        setAddGate(false);
+        void clearPendingAdd();
+        openFindFriends(handle);
+        return;
+      }
+      setAddGate(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [friendTick, state]);
 
   useEffect(() => {
     let mounted = true;
@@ -1332,12 +1377,32 @@ export default function HomeScreen({ petApi }: Props) {
   const tipPiece = tipSpot ? home.pieces.find((piece) => piece.id === tipSpot.pieceId) : null;
   const propTip = tipSpot ? stageToView(markerPoint(tipPiece?.kind, tipSpot)) : null;
 
+  const hosted = (screen: ReactNode) => (
+    <FindFriendsHost accountHandle={accountHandle} onChanged={() => setFriendTick((value) => value + 1)}>
+      {screen}
+      {addGate ? (
+        <AccountSheet
+          reason="friends"
+          petName={state?.name ?? 'your pet'}
+          onClose={() => {
+            setAddGate(false);
+            if (!readAccountLinked()) {
+              void clearPendingAdd();
+            } else {
+              setFriendTick((value) => value + 1);
+            }
+          }}
+        />
+      ) : null}
+    </FindFriendsHost>
+  );
+
   if (!state || !mood) {
     return null;
   }
 
   if (playdateOpen) {
-    return (
+    return hosted(
       <PlaydateScreen
         pet={state}
         save={playdates.save}
@@ -1358,7 +1423,7 @@ export default function HomeScreen({ petApi }: Props) {
   }
 
   if (settingsOpen) {
-    return (
+    return hosted(
       <PhoneColumn>
         <SettingsScreen
           petName={state.name}
@@ -1373,7 +1438,7 @@ export default function HomeScreen({ petApi }: Props) {
   }
 
   if (facingOpen) {
-    return (
+    return hosted(
       <PhoneColumn>
         <FacingLab reducedMotion={reducedMotion} onClose={() => setFacingOpen(false)} />
       </PhoneColumn>
@@ -1381,7 +1446,7 @@ export default function HomeScreen({ petApi }: Props) {
   }
 
   if (clothingOpen) {
-    return (
+    return hosted(
       <PhoneColumn>
         <ClothingLab reducedMotion={reducedMotion} onClose={() => setClothingOpen(false)} />
       </PhoneColumn>
@@ -1389,7 +1454,7 @@ export default function HomeScreen({ petApi }: Props) {
   }
 
   if (shopOpen) {
-    return (
+    return hosted(
       <PetShopScreen
         pet={state}
         balance={economyApi.balance}
@@ -1408,7 +1473,7 @@ export default function HomeScreen({ petApi }: Props) {
   }
 
   if (pantryOpen) {
-    return (
+    return hosted(
       <PhoneColumn>
       <PantryScreen
         inventory={economyApi.inventory}
@@ -1426,7 +1491,7 @@ export default function HomeScreen({ petApi }: Props) {
   }
 
   if (wardrobeOpen) {
-    return (
+    return hosted(
       <WardrobeScreen
         pet={state}
         owned={owned}
@@ -2484,7 +2549,7 @@ export default function HomeScreen({ petApi }: Props) {
     !burst &&
     tips.current == null;
 
-  return (
+  return hosted(
     <View style={styles.screen}>
       <View
         style={[styles.root, { paddingTop: 64 + duoTop }]}

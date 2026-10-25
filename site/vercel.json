@@ -1,4 +1,7 @@
 {
+  "rewrites": [
+    { "source": "/add/:handle", "destination": "/add/index.html" }
+  ],
   "headers": [
     {
       "source": "/.well-known/apple-app-site-association",

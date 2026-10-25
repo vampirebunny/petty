@@ -14,6 +14,16 @@ export function canUseFriends(linked: boolean): boolean {
   return linked;
 }
 
+/** True when the typed handle is the signed-in player's, ignoring case and a leading @. */
+export function isOwnHandle(typed: string, mine: string | null): boolean {
+  if (!mine) {
+    return false;
+  }
+  const clean = typed.trim().replace(/^@/, '');
+  const own = mine.trim().replace(/^@/, '');
+  return clean.length > 0 && clean.toLowerCase() === own.toLowerCase();
+}
+
 export function relationAction(state: RelationState): RelationAction {
   switch (state) {
     case 'none':

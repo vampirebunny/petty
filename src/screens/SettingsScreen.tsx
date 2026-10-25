@@ -151,6 +151,10 @@ export function SettingsScreen({ petName, onClose, pendingFriends, careReminders
         onCareReminders={onCareReminders}
         onClose={() => setFriendsOpen(false)}
         onChanged={onFriendsChanged}
+        onPickHandle={() => {
+          setFriendsOpen(false);
+          setHandleOpen(true);
+        }}
       />
     );
   }
