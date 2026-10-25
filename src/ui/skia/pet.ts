@@ -766,7 +766,7 @@ export function drawActor(
     for (const spec of ahead) {
       drawnPaws.push(paintLeg(spec, pose.belly > 0.001));
     }
-    // The raincoat follows the legs, with a loop cut at each hip, so the leg shows through the opening.
+    // The raincoat follows the legs. A loop at the front hips lets the forelegs pass through.
     if (jacket?.shape === 'raincoat') {
       c.save();
       c.translate(0, dy);

@@ -713,10 +713,18 @@ function baffleColor(item: WearItem, index: number, fallback: string): string {
   return list[index % list.length] ?? fallback;
 }
 
-function rainLoopHoles(xs: number[], y: number, geom: Geom): SkPath[] {
-  const rx = Math.max(geom.legWidth * 0.62, 4);
-  const ry = Math.max(geom.legWidth * 0.95, 6);
+// A loop around each front leg. The arch sits just above the hip and the oval runs
+// down through the hem, so the leg leaves the coat instead of showing as a window on the body.
+function rainForeLoops(xs: number[], geom: Geom): SkPath[] {
+  const rx = Math.max(geom.legWidth * 1.05, 6);
+  const ry = Math.max(geom.legWidth * 1.15, 7);
+  const y = geom.hipY + ry * 0.15;
   return xs.map((x) => ovalPath(x, y, rx, ry));
+}
+
+// The front hem hangs just below the fore hips. Higher than that, the leg loops close on the belly.
+function foreHem(p: Pt, geom: Geom, pose: JacketPose): Pt {
+  return poolHem({ x: p.x, y: Math.max(p.y, geom.hipY + geom.legWidth * 0.6) }, geom, pose);
 }
 
 function punchHoles(path: SkPath, holes: SkPath[]): SkPath {
@@ -774,8 +782,8 @@ function sideSilhouette(geom: Geom, item: WearItem, breath: number, pose: Jacket
     const o2 = 0.125 * f.b;
     const rear = { x: -f.a - 0.25 * f.b, y: f.cy - 0.1 * f.b };
     const t0 = f.top(-0.82, o2);
-    const hemA = poolHem({ x: 0.97 * f.a, y: f.cy + 0.35 * f.b }, geom, pose);
-    const hemB = poolHem({ x: 0.3 * f.a, y: f.cy + 0.5 * f.b }, geom, pose);
+    const hemA = foreHem({ x: 0.97 * f.a, y: f.cy + 0.35 * f.b }, geom, pose);
+    const hemB = foreHem({ x: 0.3 * f.a, y: f.cy + 0.5 * f.b }, geom, pose);
     const hemC = poolHem({ x: -0.3 * f.a, y: f.cy + 0.58 * f.b }, geom, pose);
     const hemD = poolHem({ x: rear.x - 0.17 * f.b, y: f.cy + 0.66 * f.b }, geom, pose);
     const hemE = poolHem({ x: rear.x - 0.25 * f.b, y: f.cy + 0.4 * f.b }, geom, pose);
@@ -787,11 +795,8 @@ function sideSilhouette(geom: Geom, item: WearItem, breath: number, pose: Jacket
     path.quadTo(hemD.x, hemD.y, hemE.x, hemE.y);
     path.quadTo(rear.x - 0.25 * f.b, rear.y + 0.08 * f.b, rear.x, rear.y);
     path.close();
-    // Openings at the fore and hind legs. The coat is drawn after the legs, so each leg shows through its loop.
-    return punchHoles(
-      path.detach(),
-      rainLoopHoles([geom.hindX, geom.foreX], f.cy + f.b * 0.46, geom),
-    );
+    // One loop at the fore hip. The coat is drawn after the legs, so both front legs pass through it.
+    return punchHoles(path.detach(), rainForeLoops([geom.foreX], geom));
   }
   const ur = item.shape === 'hoodie' ? -0.82 : -0.7;
   const p0 = f.top(ur);
@@ -831,7 +836,7 @@ function panelPath(geom: Geom, item: WearItem, pass: 'front' | 'back', pose: Jac
   }
   if (shape === 'raincoat') {
     ry *= 0.6;
-    const hem = cy + ry;
+    const hem = pass === 'front' ? Math.max(cy + ry, geom.hipY + geom.legWidth * 0.6) : cy + ry;
     const left = poolHem({ x: cx - rx * 1.1, y: hem }, geom, pose);
     const right = poolHem({ x: cx + rx * 1.1, y: hem }, geom, pose);
     const flared = Skia.PathBuilder.Make();
@@ -840,8 +845,12 @@ function panelPath(geom: Geom, item: WearItem, pass: 'front' | 'back', pose: Jac
     flared.lineTo(right.x, right.y);
     flared.lineTo(left.x, left.y);
     flared.close();
-    const span = geom.bodyH * 0.34;
-    return punchHoles(flared.detach(), rainLoopHoles([-span, span], hem - geom.legWidth * 0.2, geom));
+    if (pass === 'back') {
+      return flared.detach();
+    }
+    // Same lateral spacing the front-view legs use (`bodyH * 0.3`).
+    const reach = geom.bodyH * 0.3;
+    return punchHoles(flared.detach(), rainForeLoops([-reach, reach], geom));
   }
   let path = ovalPath(cx, cy, rx, ry);
   if (shape === 'sweater' || shape === 'hoodie') {
@@ -953,8 +962,8 @@ function drawJacketDetails(c: SkCanvas, geom: Geom, item: WearItem, path: SkPath
     const hem = Skia.PathBuilder.Make();
     if (pass === 'side') {
       const rear = { x: -f.a - 0.25 * f.b, y: f.cy - 0.1 * f.b };
-      const hemA = poolHem({ x: 0.97 * f.a, y: f.cy + 0.35 * f.b }, geom, pose);
-      const hemB = poolHem({ x: 0.3 * f.a, y: f.cy + 0.5 * f.b }, geom, pose);
+      const hemA = foreHem({ x: 0.97 * f.a, y: f.cy + 0.35 * f.b }, geom, pose);
+      const hemB = foreHem({ x: 0.3 * f.a, y: f.cy + 0.5 * f.b }, geom, pose);
       const hemC = poolHem({ x: -0.3 * f.a, y: f.cy + 0.58 * f.b }, geom, pose);
       const hemD = poolHem({ x: rear.x - 0.17 * f.b, y: f.cy + 0.66 * f.b }, geom, pose);
       const hemE = poolHem({ x: rear.x - 0.25 * f.b, y: f.cy + 0.4 * f.b }, geom, pose);
@@ -964,7 +973,7 @@ function drawJacketDetails(c: SkCanvas, geom: Geom, item: WearItem, path: SkPath
     } else {
       const oval = panelOval(geom, pass === 'back' ? 'back' : 'front');
       const ry = oval.ry * 0.6;
-      const y = oval.cy + ry;
+      const y = pass === 'back' ? oval.cy + ry : Math.max(oval.cy + ry, geom.hipY + geom.legWidth * 0.6);
       hem.moveTo(oval.cx - oval.rx * 1.1, y);
       hem.lineTo(oval.cx + oval.rx * 1.1, y);
     }
