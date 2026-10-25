@@ -1,12 +1,12 @@
 # Boop Boop Terms of Service
 
-**Last Updated:** Oct 19, 2026
+**Last Updated:** October 25, 2026
 
 ## 1. Acceptance of Terms
 
 These Terms of Service and End User License Agreement ("Terms") are a legal agreement between you and Innovative Brands LLC ("we," "us," or "our") for the Boop Boop mobile application and related services ("the App" or "the Service").
 
-**By downloading, installing, or using Boop Boop, you agree to these Terms, our Privacy Policy, and our Community Guidelines. If you do not agree, do not use the App. Section 19 requires most disputes to be resolved through individual arbitration and waives class actions and jury trials.**
+**By downloading, installing, or using Boop Boop, you agree to these Terms, our Privacy Policy, and our Community Guidelines. If you do not agree, do not use the App. Section 18 requires most disputes to be resolved through individual arbitration and waives class actions and jury trials.**
 
 ## 2. The Service
 
@@ -34,37 +34,27 @@ Subject to these Terms, we grant you a limited, personal, non-exclusive, non-tra
 
 ## 6. Virtual Items and Purchases
 
-**License, Not Ownership:** the App may offer virtual items, such as food, treats, boosts, toys, and cosmetics ("Virtual Items"). Virtual Items, whether purchased or earned, are licensed to you for use within the App under these Terms. You do not own them.
+**License, Not Ownership:** the App may offer virtual currency (such as Boops) and other virtual items, such as food, treats, boosts, toys, cosmetics, furniture, and tricks (together, "Virtual Items"). Virtual Items, whether purchased or earned, are licensed to you for use within the App under these Terms. You do not own them.
 
-**No Real-World Value:** Virtual Items have no monetary value. They cannot be exchanged for money, transferred, sold, or redeemed outside the App.
+**No Real-World Value:** Virtual Items have no monetary value. They cannot be exchanged for money, sold, or redeemed outside the App, and cannot be transferred except through features we provide in the App.
 
 **Consumables:** consumable Virtual Items are used up when consumed.
 
-**Payments and Refunds:** purchases are processed by Apple or Google under their terms. All purchases are final and non-refundable, except as required by law or by the applicable app store's policies. Refund requests are handled by Apple or Google. If a purchase is refunded or reversed, we may remove the related Virtual Item.
+**Payments and Refunds:** purchases are processed by Apple or Google under their terms. All purchases are final and non-refundable, except as required by law or by the applicable app store's policies. Refund requests are handled by Apple or Google. If a purchase is refunded or reversed, we may remove the related Virtual Items.
 
 **Changes:** we may modify, rebalance, limit, or discontinue Virtual Items at any time. Except as required by law, we have no liability to you for doing so, including if the Service ends.
 
 **Loss:** Virtual Items may be lost, for example if your game data is lost or your access is terminated. We are not required to restore or replace them.
 
-**Odds:** where required by app store rules or law, we will disclose the odds of receiving items with random contents.
-
 ## 7. Friends Features
 
 Friends features require users to accept each other's friend requests. You are responsible for your interactions with other users and for following our Community Guidelines, which are part of these Terms. We are not responsible for the conduct of any user.
 
-## 8. Child Safety
+## 8. Your Content
 
-Boop Boop prohibits Child Sexual Abuse and Exploitation (CSAE) in any form, including grooming, soliciting, or exploiting minors, and creating or sharing Child Sexual Abuse Material (CSAM). Violations may result in immediate termination.
+"Your Content" means content you create in the App, such as handles, pet names, and how you customize and train your pet. You grant us a worldwide, non-exclusive, royalty-free, sublicensable, and transferable license to use, store, reproduce, display, and modify Your Content in connection with operating, improving, and promoting the Service. You represent that Your Content does not violate these Terms or anyone's rights. We may remove or change Your Content at any time and for any reason.
 
-You can report concerns using the in-App report option or by contacting help@mylisto.app. When we obtain actual knowledge of apparent CSAM, we will remove it and report it to the National Center for Missing and Exploited Children (NCMEC) or the relevant authorities, as required by law.
-
-Google Play and other platform partners may contact our child safety point of contact at help@mylisto.app.
-
-## 9. Your Content
-
-"Your Content" means content you create in the App, such as display names, pet names, and how you customize and train your pet. You grant us a worldwide, non-exclusive, royalty-free, sublicensable, and transferable license to use, store, reproduce, display, and modify Your Content in connection with operating, improving, and promoting the Service. You represent that Your Content does not violate these Terms or anyone's rights. We may remove or change Your Content at any time and for any reason.
-
-## 10. Prohibited Uses
+## 9. Prohibited Uses
 
 You may not:
 
@@ -78,21 +68,19 @@ You may not:
 - Copy, modify, reverse engineer, decompile, or circumvent protections of the App, except where the law expressly permits it
 - Harass, threaten, or harm other users, or try to contact or locate them outside the App
 
-## 11. Intellectual Property
+## 10. Intellectual Property
 
 The App, including its software, characters, designs, art, animations, sounds, music, and text, is owned by Innovative Brands LLC or its licensors and is protected by intellectual property laws. You may share screenshots and short recordings of your own gameplay for personal, non-commercial purposes. Any other use requires our written permission.
 
-If you believe content in the App infringes your copyright, you may contact help@mylisto.app with a description of the claimed infringement.
-
-## 12. Changes and Availability
+## 11. Changes and Availability
 
 The App is a game that changes over time. We may change how pets, attributes, training, items, and other features work, and we may modify, suspend, or discontinue any part of the Service at any time, with or without notice. We do not guarantee that the Service will be available at any particular time.
 
-## 13. Third-Party Services
+## 12. Third-Party Services
 
 The App relies on third-party services, such as Apple and Google sign-in and payments. Your use of those services is governed by their terms and policies, and we are not responsible for them.
 
-## 14. App Store Terms
+## 13. App Store Terms
 
 Your use of the App is also subject to the terms of the store you obtained it from. If you obtained the App from the Apple App Store:
 
@@ -104,11 +92,11 @@ Your use of the App is also subject to the terms of the store you obtained it fr
 - You represent that you are not located in a country subject to a U.S. Government embargo, and that you are not on any U.S. Government list of prohibited or restricted parties.
 - Apple and its subsidiaries are third-party beneficiaries of these Terms and may enforce them against you.
 
-## 15. Disclaimers
+## 14. Disclaimers
 
 THE APP IS PROVIDED "AS IS" AND "AS AVAILABLE," WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND NON-INFRINGEMENT. WE DO NOT WARRANT THAT THE APP WILL BE UNINTERRUPTED, SECURE, OR ERROR-FREE, THAT DEFECTS WILL BE CORRECTED, OR THAT GAME DATA OR VIRTUAL ITEMS WILL BE PRESERVED. BOOP BOOP IS A GAME, AND NOTHING IN IT IS ADVICE ABOUT REAL ANIMALS.
 
-## 16. Limitation of Liability
+## 15. Limitation of Liability
 
 TO THE MAXIMUM EXTENT PERMITTED BY LAW, INNOVATIVE BRANDS LLC AND ITS MEMBERS, OFFICERS, EMPLOYEES, AND AGENTS WILL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, EXEMPLARY, OR PUNITIVE DAMAGES, OR FOR ANY LOSS OF DATA, GAME PROGRESS, VIRTUAL ITEMS, PROFITS, OR GOODWILL, ARISING FROM OR RELATED TO THE APP OR THESE TERMS, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
 
@@ -116,19 +104,19 @@ OUR TOTAL LIABILITY FOR ALL CLAIMS RELATED TO THE APP OR THESE TERMS WILL NOT EX
 
 SOME JURISDICTIONS DO NOT ALLOW CERTAIN EXCLUSIONS OR LIMITATIONS, SO SOME OF THE ABOVE MAY NOT APPLY TO YOU.
 
-## 17. Indemnification
+## 16. Indemnification
 
 To the extent permitted by law, you agree to defend, indemnify, and hold harmless Innovative Brands LLC and its members, officers, employees, and agents from any claims, liabilities, damages, losses, and expenses, including reasonable legal fees, arising from your use of the App, Your Content, or your violation of these Terms or any law.
 
-## 18. Termination
+## 17. Termination
 
 You may stop using the App at any time, and you may delete your account as described in our Privacy Policy.
 
 We may suspend or terminate your access to the App or any account, or remove any Virtual Items or content, at any time and for any reason, with or without notice. If we terminate your access for a violation of these Terms, you are not entitled to any refund.
 
-On termination, your license to the App and to any Virtual Items ends. Sections that by their nature should survive termination will survive, including Sections 6, 9, and 11 through 20.
+On termination, your license to the App and to any Virtual Items ends. Sections that by their nature should survive termination will survive, including Sections 6, 8, and 10 through 19.
 
-## 19. Dispute Resolution
+## 18. Dispute Resolution
 
 **Governing Law:** these Terms are governed by the laws of the State of New York and applicable U.S. federal law, without regard to conflict of law principles.
 
@@ -148,11 +136,11 @@ On termination, your license to the App and to any Virtual Items ends. Sections 
 
 **Local Law:** if you live in a country whose mandatory consumer laws do not allow these dispute terms, they apply only to the extent those laws permit.
 
-## 20. General Provisions
+## 19. General Provisions
 
 **Entire Agreement:** these Terms, the Privacy Policy, and the Community Guidelines are the entire agreement between you and Innovative Brands LLC regarding the App.
 
-**Changes to These Terms:** we may update these Terms at any time. We will post the updated Terms with a new "Last Updated" date and provide notice of material changes, such as in the App. Changes take effect when posted, and continued use of the App after that means you accept them. Changes to Section 19 will not apply to disputes already pending.
+**Changes to These Terms:** we may update these Terms at any time. We will post the updated Terms with a new "Last Updated" date and may provide notice of material changes, such as in the App. Changes take effect when posted, and continued use of the App after that means you accept them. Changes to Section 18 will not apply to disputes already pending.
 
 **Electronic Communications:** you agree that we may provide notices to you electronically, such as in the App or by email.
 

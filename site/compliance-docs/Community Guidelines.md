@@ -1,6 +1,6 @@
-## Community Guidelines
+# Community Guidelines
 
-**Last Updated:** October 19, 2026
+**Last Updated:** October 25, 2026
 
 Boop Boop is meant to be a friendly place for people 13 and up to raise pets and show them off to friends.
 
@@ -14,12 +14,12 @@ You are responsible for your own interactions with other users, and we are not r
 
 ### 2. Keep Names Appropriate
 
-Display names and pet names must not include:
+Handles and pet names must not include:
 
 - Hate speech, slurs, or discrimination based on race, ethnicity, nationality, religion, gender, sexual orientation, disability, or any other characteristic
 - Sexual, violent, or drug-related references
 - Threats or insults aimed at a person
-- Personal information, such as your real full name, phone number, address, school, or social media handles
+- Personal information, such as your real full name, phone number, address, school, or social media accounts
 - Impersonation of another person, a brand, or Boop Boop staff
 - Spam, links, or advertising
 
@@ -39,25 +39,20 @@ Display names and pet names must not include:
 
 ### 5. Blocking and Reporting
 
-- **Block:** you can block someone from their profile. Blocking is designed to remove them from your friends and prevent new friend requests from them.
-- **Report:** you can report a user from their profile. We may use reports to enforce these guidelines.
+- You can block or report other users in the App.
 - **Emergencies:** Boop Boop is not an emergency service. If someone is in danger, contact local emergency services. For other serious concerns, you can email help@mylisto.app.
 
 ### 6. Enforcement
 
 We may, at our sole discretion and without notice, take any action we consider appropriate, including:
 
-- Renaming a display name or pet name
+- Renaming a handle or pet name
 - Issuing a warning
 - Restricting friends features
 - Suspending or terminating an account
 
 We may also choose to take no action. Not acting on a violation does not waive our right to act on it or on similar conduct later.
 
-### 7. Appeals
-
-If you think we made a mistake, you may email help@mylisto.app with your username and an explanation. We may review appeals at our discretion. We are not obligated to respond to an appeal or to change any decision.
-
-### 8. Updates
+### 7. Updates
 
 We may update these guidelines at any time. Updated guidelines take effect when posted.

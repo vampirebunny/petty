@@ -1,6 +1,6 @@
 # Boop Boop Privacy Policy
 
-**Last Updated:** Oct 19, 2026
+**Last Updated:** October 25, 2026
 
 ## 1. Introduction
 
@@ -12,10 +12,10 @@ You can use parts of Boop Boop without creating an account. By using the App, yo
 
 ### Information You Provide
 
-- **Account Information:** if you create an account, such as your email address, display name, and a sign-in identifier from Apple or Google. If you use Apple's "Hide My Email," we receive a relay address.
+- **Account Information:** if you create an account, such as your handle, a sign-in identifier from Apple or Google, and your email address if your sign-in provider shares it. If you use Apple's "Hide My Email," we receive a relay address.
 - **Age Confirmation:** your confirmation that you are at least 13 years old, and any age signals Apple or Google provide to us. We do not collect your date of birth.
 - **Pet and Game Data:** such as your pet's name, species, breed, appearance, attributes, progress, and items.
-- **Friends Data:** such as your username or friend code, your friends list, and friend requests.
+- **Friends Data:** such as your handle, your friends list, friend requests, and users you have blocked.
 - **Purchase Records:** such as the item purchased, date, price, and transaction identifier. Payments are processed by Apple or Google; we do not receive your full payment card details.
 - **Communications:** messages you send us, and reports you submit about other users.
 
@@ -46,13 +46,11 @@ We may use information to:
 - Protect the security and integrity of the Service and prevent fraud and cheating
 - Comply with legal obligations and enforce our agreements
 
-We may use aggregated or de-identified information for any lawful purpose. We will not attempt to re-identify de-identified information, except as permitted by law.
-
 ## 4. How We Share Information
 
-### With Your Friends
+### With Other Users
 
-When you and another user become friends, they may see your display name and information about your pet, such as its name, appearance, items, and tricks.
+Other users who enter your handle may see your handle and your current pet's name and appearance. Your friends may also see other information about your pet, such as its items and tricks.
 
 ### Service Providers
 
@@ -62,15 +60,13 @@ We share information with service providers that process it on our behalf, such 
 
 We may share information with your consent or at your direction. We may also disclose information if required by law, or to protect our rights, our users' safety, or to prevent fraud. If Innovative Brands LLC is involved in a merger, acquisition, or sale of assets, information may be transferred as part of that transaction.
 
-**We do not sell your personal information, and we do not share it for cross-context behavioral advertising.**
+## 5. Playing Without an Account
 
-## 5. Data Stored on Your Device
-
-If you play without an account, your pet and progress are stored on your device. If you delete the App or lose your device, that data may not be recoverable. Creating an account may allow your progress to be restored on another device.
+If you play without an account, your pet and progress are stored on your device, and deleting the App or losing your device may make them unrecoverable. We also keep a limited record tied to an app-generated identifier, such as your age confirmation, your acceptance of our Terms and this Policy, and any purchase records. Creating an account may allow your progress to be restored on another device.
 
 ## 6. Data Security
 
-We use reasonable measures designed to protect your information. No method of transmission or storage is completely secure, and we cannot guarantee the security of your information. We will notify affected users and authorities of a data breach as required by law.
+We use reasonable measures designed to protect your information. No method of transmission or storage is completely secure, and we cannot guarantee the security of your information.
 
 ## 7. Data Retention
 
@@ -78,11 +74,10 @@ We keep information for as long as needed for the purposes described in this Pol
 
 ## 8. Your Choices
 
-- **Account and pet details:** you can view and edit them in the App.
 - **Deletion:** you can delete your account in the App, or request deletion at boopboop.mylisto.app/delete-account.
 - **Notifications:** you can turn them off in your device settings.
 - **Friends:** you can remove or block other users in the App.
-- **Requests:** you can request access to or a copy of your information at help@mylisto.app. We will respond within the time required by applicable law.
+- **Requests:** you can request access to, correction of, or a copy of your information at help@mylisto.app. We will respond within the time required by applicable law.
 
 ## 9. Region-Specific Information
 
@@ -90,20 +85,20 @@ We keep information for as long as needed for the purposes described in this Pol
 
 If you are in the EEA or UK, you have the right to access, correct, delete, restrict, or object to the processing of your personal data, and to receive it in a portable format. Where we rely on consent, you may withdraw it at any time. You also have the right to lodge a complaint with your local data protection authority. To exercise these rights, contact help@mylisto.app.
 
-| Processing Activity | Legal Basis |
-| --- | --- |
-| Providing the App and your progress | Contract |
-| Accounts and restoring progress | Contract |
-| Friends features | Contract |
-| Purchases and age-related restrictions | Contract; legal obligation |
-| Notifications | Consent |
-| Analytics and diagnostics | Legitimate interests (improving and securing the Service) |
-| Security and fraud prevention | Legitimate interests |
-| Legal compliance | Legal obligation |
+| Processing Activity                    | Legal Basis                                               |
+|----------------------------------------|-----------------------------------------------------------|
+| Providing the App and your progress    | Contract                                                  |
+| Accounts and restoring progress        | Contract                                                  |
+| Friends features                       | Contract                                                  |
+| Purchases and age-related restrictions | Contract; legal obligation                                |
+| Notifications                          | Consent                                                   |
+| Analytics and diagnostics              | Legitimate interests (improving and securing the Service) |
+| Security and fraud prevention          | Legitimate interests                                      |
+| Legal compliance                       | Legal obligation                                          |
 
 ### United States
 
-Depending on where you live, and if applicable law applies to us, you may have rights to know, access, correct, or delete your personal information, or to opt out of certain processing. To exercise these rights, contact help@mylisto.app. We will not discriminate against you for exercising them. We have no actual knowledge of selling or sharing the personal information of consumers under 16.
+Depending on where you live, and if applicable law applies to us, you may have rights to know, access, correct, or delete your personal information, or to opt out of certain processing. To exercise these rights, contact help@mylisto.app.
 
 ### Brazil
 
@@ -121,7 +116,7 @@ Some browsers and devices send "Do Not Track" signals. The App does not respond 
 
 **Minimum Age:** Boop Boop is intended for users 13 and older. It is not directed to children under 13, and we do not knowingly collect personal information from children under 13. If we learn that we have collected personal information from a child under 13, we will delete it.
 
-**Teens:** we may limit certain features, including purchases, based on age signals available to us. Parents and guardians can also use Apple and Google parental controls to manage purchases and app use.
+**Teens:** we may limit certain features, including purchases, based on age signals available to us.
 
 **Age Information:** we rely on users' confirmation that they are at least 13 and on age signals that Apple or Google provide where available. Providing false information violates our Terms of Service.
 
