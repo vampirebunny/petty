@@ -14,9 +14,17 @@ import {
 import type { Breed, Species } from '../actor/types';
 import { attributesFor, generateOffers } from '../sim';
 import type { Look, PetAttributes } from '../sim';
+import type { AuthCredential } from '../compliance/appleCredential';
+import { pingAuthHealth } from '../compliance/authHealth';
+import { beginRestore } from '../compliance/restoreAccount';
+import { getSupabase } from '../compliance/supabase';
+import { onAccountFlags, readAccountLinked } from '../db/accountMeta';
 import { refreshShopCatalog } from '../economy/shopSync';
 import { loadDraft, saveDraft } from '../storage/session';
 import type { AdoptionDraft } from '../storage/session';
+import { AccountSheet } from '../ui/AccountSheet';
+import { CandyShell, candyInk, tints } from '../ui/candy';
+import { fontFamily } from '../ui/font';
 import { PetPreview } from '../ui/PetPreview';
 import { BreedCard } from './adopt/BreedCard';
 import { LookPicker } from './adopt/LookPicker';
@@ -26,6 +34,7 @@ import { OnboardingHeader } from './adopt/OnboardingHeader';
 
 type Props = {
   onAdopt: (breedId: string, attributes: PetAttributes, look: Look, name: string) => void;
+  onBusyChange?: (busy: boolean) => void;
 };
 
 // Keep as much of the previous look as the next breed allows; fill the rest from its defaults.
@@ -74,9 +83,87 @@ function SpeciesToggle({
   );
 }
 
-export function AdoptScreen({ onAdopt }: Props) {
+function useExistingAccount(onBusyChange?: (busy: boolean) => void) {
+  const [linked, setLinked] = useState(readAccountLinked);
+  const [sheet, setSheet] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [signingIn, setSigningIn] = useState(false);
+  const ink = candyInk(tints.sky);
+
+  useEffect(() => onAccountFlags(() => setLinked(readAccountLinked())), []);
+
+  const haveAccount = () => {
+    if (busy) {
+      return;
+    }
+    setBusy(true);
+    setNote(null);
+    void (async () => {
+      const online = await pingAuthHealth();
+      setBusy(false);
+      if (!online) {
+        setNote("You'll need internet to sign in.");
+        return;
+      }
+      setSheet(true);
+    })();
+  };
+
+  const signIn = (credential: AuthCredential) => {
+    setSheet(false);
+    setBusy(true);
+    setSigningIn(true);
+    setNote(null);
+    onBusyChange?.(true);
+    void (async () => {
+      try {
+        const prior = await getSupabase()?.auth.getSession();
+        const session = prior?.data.session;
+        const restored = await beginRestore({
+          credential,
+          guestAccessToken: session?.access_token ?? null,
+          guestRefreshToken: session?.refresh_token ?? null,
+          guestUserId: session?.user.id ?? null,
+          sessionReady: false,
+        });
+        if (!restored.ok) {
+          setSigningIn(false);
+          if (!('cancelled' in restored)) {
+            setNote(restored.message);
+          }
+        }
+      } finally {
+        setBusy(false);
+        onBusyChange?.(false);
+      }
+    })();
+  };
+
+  const button = linked || signingIn ? null : (
+    <>
+      <Pressable accessibilityRole="button" disabled={busy} onPress={haveAccount} style={styles.accountHit}>
+        {({ pressed }) => (
+          <CandyShell tint={tints.sky} radius={22} uid="adopt-account" pressed={pressed} style={styles.account}>
+            <Text style={[styles.accountText, { color: ink }]}>I already have an account</Text>
+          </CandyShell>
+        )}
+      </Pressable>
+      {note ? <Text style={styles.accountNote}>{note}</Text> : null}
+    </>
+  );
+
+  const signInSheet = sheet ? (
+    <AccountSheet reason="restore" petName="your pet" onClose={() => setSheet(false)} onCredential={signIn} />
+  ) : null;
+
+  return { button, signInSheet };
+}
+
+export function AdoptScreen({ onAdopt, onBusyChange }: Props) {
   const [draft, setDraft] = useState<AdoptionDraft | null>(null);
   const draftRef = useRef<AdoptionDraft | null>(null);
+  const account = useExistingAccount(onBusyChange);
 
   useEffect(() => {
     void refreshShopCatalog();
@@ -207,6 +294,7 @@ export function AdoptScreen({ onAdopt }: Props) {
       <View style={styles.root}>
         <View style={styles.sticky}>
           <OnboardingHeader title="Adopt" step={1} />
+          {account.button}
           <SpeciesToggle species={species} onChange={setSpecies} />
           <PetPreview species={species} breedId={breed.id} look={draft.look} />
         </View>
@@ -235,6 +323,7 @@ export function AdoptScreen({ onAdopt }: Props) {
             <Text style={styles.choiceLabel}>Continue</Text>
           </Pressable>
         </ScrollView>
+        {account.signInSheet}
       </View>
     );
   }
@@ -256,6 +345,24 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#D0D8E3',
     zIndex: 1,
+  },
+  accountHit: {
+    alignSelf: 'stretch',
+  },
+  account: {
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  accountText: {
+    fontFamily: fontFamily.fredokaSemibold,
+    fontSize: 16,
+  },
+  accountNote: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#7A1E44',
+    textAlign: 'center',
   },
   scroll: {
     paddingHorizontal: 20,

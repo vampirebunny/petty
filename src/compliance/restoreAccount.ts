@@ -3,10 +3,12 @@ import { Alert } from 'react-native';
 
 import { saveAgeRecord, saveTermsAcceptance, type StoredAgeRecord } from '../age/storage';
 import { isPlayableStatus, type AgeSource, type AgeStatus } from '../age/ageStatus';
+import { syncLocalConsentToSession } from './syncConsentRecords';
 import { requestAgeGateRefresh } from '../state/ageGateRefresh';
 import {
   readRestoreInProgress,
   setAccountLinked,
+  setAppleTokenMissing,
   setHandleSaved,
   setRestoreInProgress,
   type RestoreProgress,
@@ -17,7 +19,7 @@ import { getDb } from '../db/database';
 import type { PlayerDoc } from '../db/playerHome';
 import type { LedgerLine } from '../db/ledgerWrite';
 import type { PetState } from '../sim/types';
-import { prepareInstalledPet, setAuthTransition, authTransition } from '../state/sessionGate';
+import { prepareInstalledPet, setAuthTransition, authTransition, welcomeIsHeld } from '../state/sessionGate';
 import { claimDevice } from '../sync/activeDevice';
 import { pingAuthHealth } from './authHealth';
 import { requireHandleNow } from './handlePrompt';
@@ -156,30 +158,36 @@ function asLines(value: unknown): LedgerLine[] {
   });
 }
 
-async function signIntoAccount(credential: AuthCredential): Promise<{ ok: true; refreshToken?: string } | { ok: false }> {
+async function signIntoAccount(
+  credential: AuthCredential,
+): Promise<{ ok: true; userId: string; refreshToken?: string } | { ok: false; message: string }> {
   const supabase = getSupabase();
   if (!supabase) {
-    return { ok: false };
+    return { ok: false, message: failedMessage };
   }
   if (credential.provider === 'apple' && credential.pkceCode) {
     const exchanged = await supabase.auth.exchangeCodeForSession(credential.pkceCode);
-    if (exchanged.error) {
-      return { ok: false };
+    if (exchanged.error || !exchanged.data.user) {
+      return { ok: false, message: exchanged.error?.message || failedMessage };
     }
-    return { ok: true, refreshToken: exchanged.data.session?.provider_refresh_token ?? undefined };
+    return {
+      ok: true,
+      userId: exchanged.data.user.id,
+      refreshToken: exchanged.data.session?.provider_refresh_token ?? undefined,
+    };
   }
   if (!credential.idToken) {
-    return { ok: false };
+    return { ok: false, message: failedMessage };
   }
   const signed = await supabase.auth.signInWithIdToken({
     provider: credential.provider,
     token: credential.idToken,
     nonce: credential.rawNonce ?? undefined,
   });
-  if (signed.error) {
-    return { ok: false };
+  if (signed.error || !signed.data.user) {
+    return { ok: false, message: signed.error?.message || failedMessage };
   }
-  return { ok: true };
+  return { ok: true, userId: signed.data.user.id };
 }
 
 async function copyConsent(): Promise<void> {
@@ -219,13 +227,14 @@ async function copyConsent(): Promise<void> {
   }
   if (age) {
     await saveAgeRecord(age);
-  } else {
-    await SecureStore.deleteItemAsync('boop.ageRecord').catch(() => undefined);
   }
   if (terms) {
     await saveTermsAcceptance(terms);
-  } else {
-    await SecureStore.deleteItemAsync('boop.termsAccepted').catch(() => undefined);
+  }
+  // An account with no pet often has no consent row yet. Keep the attestation from this
+  // device and copy it onto the account so adoption can continue.
+  if (!age || !terms) {
+    await syncLocalConsentToSession({ age: !age, terms: !terms }).catch(() => undefined);
   }
   requestAgeGateRefresh();
 }
@@ -275,6 +284,7 @@ export async function beginRestore(
   }
   setAuthTransition('restoring');
   let signedIn = start.sessionReady;
+  let signedUserId: string | null = null;
   let committed = false;
   try {
     if (!start.sessionReady && start.credential) {
@@ -284,9 +294,10 @@ export async function beginRestore(
       const signed = await signIntoAccount(start.credential);
       if (!signed.ok) {
         await clearGuestKeys();
-        return { ok: false, message: failedMessage };
+        return { ok: false, message: signed.message };
       }
       signedIn = true;
+      signedUserId = signed.userId;
       const refresh = signed.refreshToken ?? start.providerRefreshToken;
       await rememberApple(start.credential, refresh);
     } else if (start.sessionReady) {
@@ -298,13 +309,13 @@ export async function beginRestore(
       }
     }
 
-    const { data: userData } = await supabase.auth.getUser();
-    const userId = userData.user?.id;
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+    const userId = userData.user?.id ?? signedUserId;
     if (!userId) {
       if (signedIn) {
         await rollbackToGuest();
       }
-      return { ok: false, message: failedMessage };
+      return { ok: false, message: userError?.message || failedMessage };
     }
     setCachedUserId(userId);
 
@@ -316,7 +327,7 @@ export async function beginRestore(
     const { data, error } = await supabase.rpc('pull_account_state');
     if (error || !data || typeof data !== 'object') {
       await rollbackToGuest();
-      return { ok: false, message: failedMessage };
+      return { ok: false, message: error?.message || failedMessage };
     }
     const pulled = data as {
       pet?: PetState | null;
@@ -370,7 +381,7 @@ export async function beginRestore(
       }
     }
     await prepareInstalledPet();
-  } catch {
+  } catch (error) {
     if (!committed) {
       if (signedIn) {
         await rollbackToGuest();
@@ -378,7 +389,8 @@ export async function beginRestore(
         await clearGuestKeys();
       }
     }
-    return { ok: false, message: failedMessage };
+    const message = error instanceof Error ? error.message.trim() : '';
+    return { ok: false, message: message || failedMessage };
   } finally {
     if (authTransition() === 'restoring') {
       setAuthTransition('idle');
@@ -397,7 +409,6 @@ async function rememberApple(credential: AuthCredential, refreshToken?: string):
     : refreshToken
       ? { refresh_token: refreshToken }
       : null;
-  const { setAppleTokenMissing } = await import('../db/accountMeta');
   setAppleTokenMissing(body ? !(await storeAppleToken(body)) : true);
 }
 
@@ -431,10 +442,41 @@ export async function clearLeftoverGuestSession(): Promise<void> {
   await SecureStore.deleteItemAsync(guestSessionKey).catch(() => undefined);
 }
 
-export type InstallResult = 'home' | 'adopt' | 'welcome' | 'offline';
+export type InstallResult = 'home' | 'adopt' | 'welcome' | 'offline' | 'restore';
 
-// A Keychain session with an empty database. No confirm and no guest delete.
+type PendingInstall =
+  | { kind: 'restore'; linkAccount: boolean; hasPet: boolean }
+  | { kind: 'linked-adopt'; hasHandle: boolean };
+
+// Decided during the splash check. Applied only after Get started, so a reinstall shows Welcome first.
+let pendingInstall: PendingInstall | null = null;
+
+export function hasPendingInstall(): boolean {
+  return pendingInstall != null;
+}
+
+export function clearPendingInstall(): void {
+  pendingInstall = null;
+}
+
+function userIsGone(error: { message?: string; code?: string } | null): boolean {
+  if (!error) {
+    return false;
+  }
+  const code = error.code ?? '';
+  if (code === 'user_not_found' || code === 'user_banned') {
+    return true;
+  }
+  const message = error.message ?? '';
+  return /user.*(not found|does not exist)/i.test(message) || /sub claim/i.test(message);
+}
+
+// A Keychain session with an empty database. No confirm, no guest delete, and no local write.
 export async function installServerPet(): Promise<InstallResult> {
+  pendingInstall = null;
+  if (welcomeIsHeld()) {
+    return 'welcome';
+  }
   if (getDb().getFirstSync('SELECT id FROM pet LIMIT 1')) {
     return 'home';
   }
@@ -443,13 +485,22 @@ export async function installServerPet(): Promise<InstallResult> {
     return 'welcome';
   }
   const { data } = await supabase.auth.getSession();
-  const user = data.session?.user;
-  if (!user) {
+  const sessionUser = data.session?.user;
+  if (!sessionUser) {
     return 'welcome';
   }
   if (!(await pingAuthHealth())) {
     return 'offline';
   }
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError || !userData.user) {
+    if (userIsGone(userError)) {
+      await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined);
+      return 'welcome';
+    }
+    return 'offline';
+  }
+  const user = userData.user;
   const pulled = await supabase.rpc('pull_account_state');
   if (pulled.error || !pulled.data || typeof pulled.data !== 'object') {
     return 'offline';
@@ -466,10 +517,25 @@ export async function installServerPet(): Promise<InstallResult> {
     if (!linked) {
       return 'welcome';
     }
+    pendingInstall = { kind: 'linked-adopt', hasHandle: Boolean(body.has_handle) };
+    return 'adopt';
+  }
+  pendingInstall = { kind: 'restore', linkAccount: linked, hasPet };
+  return 'restore';
+}
+
+// Writes the account found by installServerPet. Welcome calls this from Get started.
+export async function commitPendingInstall(): Promise<InstallResult> {
+  const pending = pendingInstall;
+  pendingInstall = null;
+  if (!pending) {
+    return 'welcome';
+  }
+  if (pending.kind === 'linked-adopt') {
     setAccountLinked(true);
-    setHandleSaved(Boolean(body.has_handle));
+    setHandleSaved(pending.hasHandle);
     await copyConsent();
-    if (!body.has_handle) {
+    if (!pending.hasHandle) {
       requireHandleNow();
     }
     return 'adopt';
@@ -481,12 +547,13 @@ export async function installServerPet(): Promise<InstallResult> {
     guestUserId: null,
     sessionReady: true,
     skipConfirm: true,
-    linkAccount: linked,
+    linkAccount: pending.linkAccount,
   });
   if (!restored.ok) {
+    pendingInstall = pending;
     return 'offline';
   }
-  return hasPet ? 'home' : 'adopt';
+  return pending.hasPet ? 'home' : 'adopt';
 }
 
 export async function accountSessionIsCurrent(): Promise<boolean> {

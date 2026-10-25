@@ -20,16 +20,24 @@ Deno.serve(async (req) => {
   }
   const body = await readJson(req);
   const authorizationCode = typeof body.authorizationCode === 'string' ? body.authorizationCode : '';
+  const providedRefresh = typeof body.refresh_token === 'string' ? body.refresh_token : '';
   const skipApple = body.p_skip_apple_revoke === true;
   const guestToken = typeof body.guest_access_token === 'string' ? body.guest_access_token : '';
   const admin = adminClient();
 
   let refreshToken: string | null = null;
   if (authorizationCode) {
-    refreshToken = await exchangeAuthorizationCode(authorizationCode);
+    try {
+      refreshToken = await exchangeAuthorizationCode(authorizationCode);
+    } catch (error) {
+      console.error('apple authorization code exchange threw; continuing deletion', error);
+      refreshToken = null;
+    }
     if (!refreshToken) {
       console.error('apple authorization code could not be exchanged; continuing deletion');
     }
+  } else if (providedRefresh) {
+    refreshToken = providedRefresh;
   } else {
     const stored = await admin.rpc('read_apple_refresh_token', { p_user_id: caller.id });
     if (stored.error) {

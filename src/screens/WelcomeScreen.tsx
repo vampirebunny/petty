@@ -8,11 +8,6 @@ import type { World } from '../actor';
 import { stageWidth } from '../actor/geometry';
 import { previewStageHeight } from '../actor/scenes';
 import { previewBackdrop, previewHome, previewScene } from '../actor/previewScene';
-import type { AuthCredential } from '../compliance/appleCredential';
-import { pingAuthHealth } from '../compliance/authHealth';
-import { beginRestore } from '../compliance/restoreAccount';
-import { getSupabase } from '../compliance/supabase';
-import { AccountSheet } from '../ui/AccountSheet';
 import { CandyShell, candyInk, tints } from '../ui/candy';
 import { fontFamily } from '../ui/font';
 import { useContentWidth } from '../ui/PhoneColumn';
@@ -20,8 +15,6 @@ import { drawWorld } from '../ui/skia/world';
 
 type Props = {
   onGetStarted: () => void;
-  onSignedIn: () => void;
-  onBusyChange?: (busy: boolean) => void;
 };
 
 const noon = todAt(12);
@@ -125,57 +118,7 @@ function WelcomePets() {
   );
 }
 
-export function WelcomeScreen({ onGetStarted, onSignedIn, onBusyChange }: Props) {
-  const [sheet, setSheet] = useState(false);
-  const [note, setNote] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  const haveAccount = () => {
-    if (busy) {
-      return;
-    }
-    setBusy(true);
-    setNote(null);
-    void (async () => {
-      const online = await pingAuthHealth();
-      setBusy(false);
-      if (!online) {
-        setNote("You'll need internet to sign in.");
-        return;
-      }
-      setSheet(true);
-    })();
-  };
-
-  const signIn = (credential: AuthCredential) => {
-    setSheet(false);
-    setBusy(true);
-    setNote(null);
-    onBusyChange?.(true);
-    void (async () => {
-      try {
-        const prior = await getSupabase()?.auth.getSession();
-        const session = prior?.data.session;
-        const restored = await beginRestore({
-          credential,
-          guestAccessToken: session?.access_token ?? null,
-          guestRefreshToken: session?.refresh_token ?? null,
-          guestUserId: session?.user.id ?? null,
-          sessionReady: false,
-        });
-        if (!restored.ok && !('cancelled' in restored)) {
-          setNote(restored.message);
-        }
-        if (restored.ok) {
-          onSignedIn();
-        }
-      } finally {
-        setBusy(false);
-        onBusyChange?.(false);
-      }
-    })();
-  };
-
+export function WelcomeScreen({ onGetStarted }: Props) {
   return (
     <View style={styles.root}>
       <ScrollView bounces={false} contentContainerStyle={styles.screen} keyboardShouldPersistTaps="handled">
@@ -187,42 +130,16 @@ export function WelcomeScreen({ onGetStarted, onSignedIn, onBusyChange }: Props)
       />
       <WelcomePets />
       <Text style={styles.headline}>{"Let's adopt your pet!"}</Text>
-      {note ? <Text style={styles.note}>{note}</Text> : null}
       <View style={styles.actions}>
-        <Pressable
-          accessibilityRole="button"
-          disabled={busy}
-          onPress={onGetStarted}
-          style={styles.hit}
-        >
+        <Pressable accessibilityRole="button" onPress={onGetStarted} style={styles.hit}>
           {({ pressed }) => (
             <CandyShell tint={pink} radius={28} uid="welcome-start" pressed={pressed} style={styles.primary}>
               <Text style={[styles.primaryText, { color: pinkInk }]}>Get started</Text>
             </CandyShell>
           )}
         </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          disabled={busy}
-          onPress={haveAccount}
-          style={styles.hit}
-        >
-          {({ pressed }) => (
-            <CandyShell tint={tints.sky} radius={24} uid="welcome-account" pressed={pressed} style={styles.secondary}>
-              <Text style={[styles.secondaryText, { color: candyInk(tints.sky) }]}>I already have an account</Text>
-            </CandyShell>
-          )}
-        </Pressable>
       </View>
       </ScrollView>
-      {sheet ? (
-        <AccountSheet
-          reason="restore"
-          petName="your pet"
-          onClose={() => setSheet(false)}
-          onCredential={signIn}
-        />
-      ) : null}
     </View>
   );
 }
@@ -256,13 +173,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: 24,
   },
-  note: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#7A1E44',
-    textAlign: 'center',
-    paddingHorizontal: 28,
-  },
   actions: {
     alignSelf: 'stretch',
     marginTop: 'auto',
@@ -280,14 +190,5 @@ const styles = StyleSheet.create({
   primaryText: {
     fontFamily: fontFamily.fredokaBold,
     fontSize: 22,
-  },
-  secondary: {
-    minHeight: 52,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  secondaryText: {
-    fontFamily: fontFamily.fredokaSemibold,
-    fontSize: 16,
   },
 });

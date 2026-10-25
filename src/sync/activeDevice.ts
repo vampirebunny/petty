@@ -1,4 +1,4 @@
-import { getCachedInstallId } from '../compliance/identity';
+import { createUuid, getCachedInstallId, getOrCreateInstallId } from '../compliance/identity';
 import { getSupabase } from '../compliance/supabase';
 import { cancelReminders } from '../reminders/notifications';
 import {
@@ -64,11 +64,11 @@ export async function peekActiveDevice(): Promise<PeekResult | null> {
 
 export async function claimDevice(options?: { claimId?: string; timeoutMs?: number }): Promise<ClaimResult | null> {
   const supabase = getSupabase();
-  const deviceId = getCachedInstallId();
+  const deviceId = await getOrCreateInstallId();
   if (!supabase || !deviceId) {
     return null;
   }
-  const claimId = options?.claimId ?? globalThis.crypto.randomUUID();
+  const claimId = options?.claimId ?? createUuid();
   let stale = false;
   const run = async (): Promise<ClaimResult | null> => {
     const { data, error } = await supabase.rpc('claim_device', {

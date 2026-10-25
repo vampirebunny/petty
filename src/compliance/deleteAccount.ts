@@ -1,4 +1,3 @@
-import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 
 import { readAccountLinked } from '../db/accountMeta';
@@ -54,11 +53,20 @@ export async function runAccountDeletion(options: Options = {}): Promise<DeleteR
   if (!supabase) {
     return failed("Couldn't delete just now.");
   }
+  const { data: sessionData } = await supabase.auth.getSession();
+  const session = sessionData.session;
+  if (!session) {
+    return failed("Couldn't delete just now.");
+  }
   const token = await SecureStore.getItemAsync(pendingKey).catch(() => null);
+  // The signed-in session is enough to delete. A second Apple sheet was asking
+  // for a refresh token we never stored, then treating that sign-in as a new signup.
+  const providerRefresh = session.provider_refresh_token ?? undefined;
   const invoke = (skipApple: boolean, authorizationCode?: string) =>
     supabase.functions.invoke('delete_account', {
       body: {
         ...(authorizationCode ? { authorizationCode } : {}),
+        ...(providerRefresh ? { refresh_token: providerRefresh } : {}),
         p_skip_apple_revoke: skipApple,
         ...(token ? { guest_access_token: token } : {}),
       },
@@ -67,7 +75,7 @@ export async function runAccountDeletion(options: Options = {}): Promise<DeleteR
   let skipApple = options.skipApple === true;
   let response = await invoke(skipApple, options.authorizationCode);
   let payload = payloadOf(response.data);
-  if (!response.error && payload?.needs_apple_reauth && Platform.OS === 'android' && !skipApple) {
+  if (!response.error && payload?.needs_apple_reauth && !skipApple && !options.authorizationCode) {
     skipApple = true;
     response = await invoke(true);
     payload = payloadOf(response.data);

@@ -2,11 +2,25 @@ import { Platform } from 'react-native';
 
 import type { AuthCredential } from './appleCredential';
 
+type GoogleSigninModule = typeof import('@react-native-google-signin/google-signin');
+
 let configured = false;
+
+async function loadGoogleSignin(): Promise<GoogleSigninModule> {
+  try {
+    // Loaded on tap. A top-level import calls getEnforcing('RNGoogleSignin') during
+    // startup and crashes Expo Go, which does not ship this native module.
+    return await import('@react-native-google-signin/google-signin');
+  } catch {
+    throw new Error(
+      'Google sign-in is not in this build. Expo Go does not include it. Use a development build.',
+    );
+  }
+}
 
 /** Native Google sign-in. This library version has no nonce argument. */
 export async function signInWithGoogle(): Promise<AuthCredential | null> {
-  const { GoogleSignin, statusCodes } = await import('@react-native-google-signin/google-signin');
+  const { GoogleSignin, statusCodes } = await loadGoogleSignin();
   if (!configured) {
     const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
     const iosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;

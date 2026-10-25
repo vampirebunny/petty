@@ -93,6 +93,10 @@ export function SettingsScreen({ petName, onClose }: Props) {
     }
     setWorking(false);
     if ('needsApple' in result && result.needsApple) {
+      if (options?.authorizationCode) {
+        askDeleteAnyway();
+        return;
+      }
       setAppleOpen(true);
       return;
     }
@@ -270,6 +274,10 @@ export function SettingsScreen({ petName, onClose }: Props) {
           petName={petName}
           onCredential={(credential) => {
             appleSent.current = true;
+            if (!credential.authorizationCode) {
+              askDeleteAnyway();
+              return;
+            }
             void submitDelete({ authorizationCode: credential.authorizationCode });
           }}
           onClose={() => {

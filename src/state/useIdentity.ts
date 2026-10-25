@@ -5,7 +5,7 @@ import { readAccountLinked } from '../db/accountMeta';
 import { rebindOwner } from '../db/bindOwner';
 import { bootstrapLocal } from '../db/bootstrap';
 import { setCurrentOwner } from '../db/currentOwner';
-import { authTransition, setAuthTransition } from './sessionGate';
+import { authTransition, setAuthTransition, welcomeIsHeld } from './sessionGate';
 import {
   getCachedInstallId,
   getCachedUserId,
@@ -39,7 +39,7 @@ export function useIdentity(): Identity {
     let unsubscribe: (() => void) | undefined;
 
     setBeforeSessionPublish(async (nextUserId) => {
-      if (authTransition() !== 'idle') {
+      if (welcomeIsHeld() || authTransition() !== 'idle') {
         return;
       }
       const install = await getOrCreateInstallId();
@@ -68,6 +68,16 @@ export function useIdentity(): Identity {
           return;
         }
         void (async () => {
+          if (welcomeIsHeld()) {
+            setCachedUserId(null);
+            if (!cancelled) {
+              setUserId(null);
+            }
+            if (next) {
+              await getSupabase()?.auth.signOut({ scope: 'local' });
+            }
+            return;
+          }
           if (authTransition() !== 'idle') {
             setCachedUserId(next);
             if (!cancelled) {

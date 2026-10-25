@@ -95,11 +95,8 @@ export function FinishSignIn({ petName, onSettled }: Props) {
               setBusy(false);
               if (!restored.ok && !('cancelled' in restored)) {
                 setNote(restored.message);
-                return;
               }
-              if (restored.ok) {
-                onSettled?.();
-              }
+              onSettled?.();
             })();
           }}
         />

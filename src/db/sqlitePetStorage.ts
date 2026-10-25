@@ -28,14 +28,23 @@ function writePet(pet: PetState): void {
   database.runSync('INSERT INTO pet (id, json, updated_at) VALUES (?, ?, ?)', pet.id, JSON.stringify(pet), Date.now());
 }
 
-async function importLegacy(): Promise<PetState | null> {
+// Startup loads the pet twice when a session is restored: bootstrap awaits bind, which notifies
+// install state, and the screen load continues after that. Both pass the marker check before
+// either insert, so the second write hits the meta primary key.
+let legacyImport: Promise<PetState | null> | null = null;
+
+async function importLegacyOnce(): Promise<PetState | null> {
   const database = getDb();
   const marked = database.getFirstSync<{ value: string }>("SELECT value FROM meta WHERE key = 'pet_imported'");
   if (marked) {
     return null;
   }
   const legacy = await asyncPetStorage.load();
-  database.runSync("INSERT INTO meta (key, value) VALUES ('pet_imported', '1')");
+  const inserted = database.runSync("INSERT OR IGNORE INTO meta (key, value) VALUES ('pet_imported', '1')");
+  if (inserted.changes === 0) {
+    const row = database.getFirstSync<{ json: string }>('SELECT json FROM pet LIMIT 1');
+    return row ? revive(row.json) : null;
+  }
   if (!legacy) {
     return null;
   }
@@ -48,6 +57,15 @@ async function importLegacy(): Promise<PetState | null> {
     }
   }
   return pet;
+}
+
+function importLegacy(): Promise<PetState | null> {
+  if (!legacyImport) {
+    legacyImport = importLegacyOnce().finally(() => {
+      legacyImport = null;
+    });
+  }
+  return legacyImport;
 }
 
 export const sqlitePetStorage = {

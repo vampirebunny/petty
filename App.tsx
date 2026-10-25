@@ -23,7 +23,14 @@ import { useIdentity } from './src/state/useIdentity';
 import { usePet } from './src/state/usePet';
 import { onAccountFlags, readRestoreInProgress } from './src/db/accountMeta';
 import { onLocalWiped } from './src/compliance/accountWipe';
-import { clearLeftoverGuestSession, installServerPet, supersedePendingGuest } from './src/compliance/restoreAccount';
+import { releaseWelcomeHold } from './src/state/sessionGate';
+import {
+  clearLeftoverGuestSession,
+  commitPendingInstall,
+  hasPendingInstall,
+  installServerPet,
+  supersedePendingGuest,
+} from './src/compliance/restoreAccount';
 import { StandbyOverlay } from './src/ui/StandbyOverlay';
 import { FinishSignIn } from './src/ui/FinishSignIn';
 import { CandyShell, candyInk, tints } from './src/ui/candy';
@@ -50,7 +57,7 @@ export default function App() {
   const restoreInProgress = identity.ready && readRestoreInProgress() != null;
   const [entry, setEntry] = useState<'checking' | 'offline' | 'welcome' | 'started'>('checking');
   const [entryAttempt, setEntryAttempt] = useState(0);
-  const [welcomeBusy, setWelcomeBusy] = useState(false);
+  const [signInBusy, setSignInBusy] = useState(false);
   useEffect(() => {
     if (identity.ready && !restoreInProgress) {
       void supersedePendingGuest();
@@ -69,10 +76,10 @@ export default function App() {
       }
       if (result === 'offline') {
         setEntry('offline');
-      } else if (result === 'welcome') {
-        setEntry('welcome');
-      } else {
+      } else if (result === 'home') {
         setEntry('started');
+      } else {
+        setEntry('welcome');
       }
     })();
     return () => {
@@ -134,7 +141,7 @@ export default function App() {
   };
   if (booted && ownerId) {
     const gated = gateScreen();
-    if (restoreInProgress && !welcomeBusy) {
+    if (restoreInProgress && !signInBusy) {
       screen = (
         <PhoneColumn>
           <FinishSignIn
@@ -181,9 +188,18 @@ export default function App() {
       screen = (
         <PhoneColumn>
           <WelcomeScreen
-            onGetStarted={() => setEntry('started')}
-            onSignedIn={() => setEntry('started')}
-            onBusyChange={setWelcomeBusy}
+            onGetStarted={() => {
+              releaseWelcomeHold();
+              if (!hasPendingInstall()) {
+                setEntry('started');
+                return;
+              }
+              setEntry('checking');
+              void (async () => {
+                const committed = await commitPendingInstall();
+                setEntry(committed === 'offline' ? 'offline' : 'started');
+              })();
+            }}
           />
         </PhoneColumn>
       );
@@ -193,6 +209,7 @@ export default function App() {
       screen = (
         <PhoneColumn>
           <AdoptScreen
+            onBusyChange={setSignInBusy}
             onAdopt={(...args) => {
               setMeeting(true);
               adopt(...args, ownerId);

@@ -6,7 +6,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { Alert } from 'react-native';
 
 import { createUuid, ensureAnonymousUserId, getCachedInstallId, setCachedUserId } from '../../compliance/identity';
-import { installServerPet } from '../../compliance/restoreAccount';
+import { commitPendingInstall, installServerPet } from '../../compliance/restoreAccount';
 import { recoverLinkedSession, signBackIn } from '../../compliance/reauth';
 import { readAccountLinked, readServerOffsetMs, readStandby, serverNow, setAccountLinked, setSyncedRevision } from '../../db/accountMeta';
 import { getDb } from '../../db/database';
@@ -517,8 +517,11 @@ const live = process.env.BOOP_HARNESS === '1';
     phone.db = reinstall.db;
     phone.databasePath = reinstall.databasePath;
     const linkedResult = await withClient(phone, () => installServerPet());
-    expect(linkedResult).toBe('home');
+    expect(linkedResult).toBe('restore');
     await withClient(phone, async () => {
+      expect(getDb().getFirstSync('SELECT id FROM pet LIMIT 1')).toBeNull();
+      const committed = await commitPendingInstall();
+      expect(committed).toBe('home');
       const row = getDb().getFirstSync<{ json: string }>('SELECT json FROM pet');
       expect(JSON.parse(row?.json ?? '{}').name).toBe('Kept');
     });
@@ -536,7 +539,15 @@ const live = process.env.BOOP_HARNESS === '1';
     guest.db = fresh.db;
     guest.databasePath = fresh.databasePath;
     const anonResult = await withClient(guest, () => installServerPet());
-    expect(anonResult).toBe('home');
+    expect(anonResult).toBe('restore');
+    await withClient(guest, async () => {
+      expect(getDb().getFirstSync('SELECT id FROM pet LIMIT 1')).toBeNull();
+      const committed = await commitPendingInstall();
+      expect(committed).toBe('home');
+      expect(readAccountLinked()).toBe(false);
+      const row = getDb().getFirstSync<{ json: string }>('SELECT json FROM pet');
+      expect(JSON.parse(row?.json ?? '{}').name).toBe('Anon');
+    });
 
     const nobody = await createUser(true);
     const empty = makeClient('iPhone', 'UTC');

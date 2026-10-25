@@ -12,7 +12,7 @@
 
 **Phase D shipped** on `accounts-phase-b`. A guest sign-in that already belongs to an account restores that account, and a killed restore shows Finish signing in. `supabase/migrations/20261024230000_pull_has_handle.sql` makes `pull_account_state` report a saved handle. Apply that yourself; it does not delete users.
 
-**Phase E shipped** on `accounts-phase-b`. Welcome is the first screen when there is no local pet, and a Keychain session is pulled before adoption.
+**Phase E shipped** on `accounts-phase-b`. Welcome is the first screen when there is no local pet, including a reinstall whose Keychain session is still there. That session is pulled before adoption, and **Get started** is what installs the pet.
 
 **Phase F shipped** on `accounts-phase-b`. A linked device asks **Continue here** before taking the slot, and standby keeps the sleeping pet until **Play here**.
 
@@ -436,7 +436,7 @@ Nothing destructive happens before `applyRestore` commits. The guest is deleted 
    - **iOS Apple: call `apple_store_token` with the credential's `authorizationCode` right now**, before the pull, so the refresh token is stored on the account (not the guest) and inside the code's 5-minute life. Same retries as §5; on failure set `meta.appleTokenMissing = true` and continue.
    - **[v14] Android Apple:** after `exchangeCodeForSession`, send the session's `provider_refresh_token` to `apple_store_token` (§11), before the pull. If the session has none, set `meta.appleTokenMissing = true`.
 5. `claim_device` (fresh `p_claim_id`, with this device's label), then `pull_account_state`. **[v14+] Restore claims immediately and does not ask Continue here.** Signing this account in here is the choice. The other device goes to standby on its next push. Opening an already signed-in app is the path that peeks and asks (A4).
-6. **`applyRestore`, one local transaction:** active pet, retired pets, layouts, `owner_state`, daily counters, shop state, and the full ledger from the server; rebuild derived state (including the closet) from the ledger; `meta.localRevision` = max(pet, player revisions) + 1; `meta.syncedRevision` = max(pet, player revisions); owner = this `user_id`; `meta.accountLinked = true` (this flow signed into an account); `meta.handleSaved` = whether `profiles` has a handle. Clear the guest's local data, queue, outbox, NPC playdates, wardrobe cache, and guest-owned AsyncStorage keys. Clear `meta.restoreInProgress` and `boop.guestSession` in the same step. **Then `installState()`**, so the in-memory pet is the account's before anything else runs, and reminders are rescheduled for it. **[v14] Then set `meta.serverTimeOffsetMs` from the step-5 `server_now`.** **[v14+] The anonymous reinstall path (§8) installs the same server pet and does not set `meta.accountLinked`.**
+6. **`applyRestore`, one local transaction:** active pet, retired pets, layouts, `owner_state`, daily counters, shop state, and the full ledger from the server; rebuild derived state (including the closet) from the ledger; `meta.localRevision` = max(pet, player revisions) + 1; `meta.syncedRevision` = max(pet, player revisions); owner = this `user_id`; `meta.accountLinked = true` (this flow signed into an account); `meta.handleSaved` = whether `profiles` has a handle. Clear the guest's local data, queue, outbox, NPC playdates, wardrobe cache, and guest-owned AsyncStorage keys. Clear `meta.restoreInProgress` and `boop.guestSession` in the same step. **Then `installState()`**, so the in-memory pet is the account's before anything else runs, and reminders are rescheduled for it. **[v14] Then set `meta.serverTimeOffsetMs` from the step-5 `server_now`.** **[v14+] The anonymous reinstall path (§8) installs the same server pet when the player taps Get started, and does not set `meta.accountLinked`.**
 7. **Consent:** write the account's age, `terms_accepted`, and privacy acceptance events through to SecureStore (`boop.ageRecord`, `boop.termsAccepted`, with their versions).
    - A playable age event **and** a terms acceptance whose `termsVersion` **and** `privacyVersion` both equal the current constants (read them, don't hard-code): set the gate phase to `ready`.
    - Age event missing: show the age screen.
@@ -463,14 +463,16 @@ Nothing destructive happens before `applyRestore` commits. The guest is deleted 
 `App.tsx` picks the screen and today checks `gate.phase` first. New order:
 1. `meta.restoreInProgress` set → the "Finish signing in?" sheet (§7).
 2. **Leftovers from a reinstall:** if `boop.guestSession` exists but `meta.restoreInProgress` doesn't, delete `boop.guestSession`. (`boop.pendingSupersede` is kept; it's still owed a retry.)
-3. **[v14+] A session exists but there's no local pet** (an iOS reinstall keeps the Keychain and drops SQLite). Tell guest from account by the session user's `is_anonymous`, not `meta.accountLinked` (that flag was in SQLite). Show a short loading state, then `pull_account_state`. Don't offer **Get started** yet, and never adopt before this check.
+3. **[v14+] A session exists but there's no local pet** (an iOS reinstall keeps the Keychain and drops SQLite). Tell guest from account by the session user's `is_anonymous`, not `meta.accountLinked` (that flag was in SQLite). Show the splash, then `pull_account_state`. Remember the result in memory only. Don't write the pet, don't set `meta.accountLinked`, and never adopt before this check.
    - **Offline:** "Connect to the internet to bring back your pet." with **Try again**.
-   - **Linked account** (`is_anonymous` false) **with a server pet** (or retired pets): restore into this device with §7 steps 5–8 and 10 (no guest, so no confirmation, no guest deletion). Set `meta.accountLinked`. Then Home, with the gate only if §7 step 7 says so.
-   - **Linked account with no pet:** set `meta.accountLinked`; the gate per §7 step 7, then adoption (A7), then the handle if missing.
-   - **Anonymous user with a server pet:** install the pet, ledger, and player state the way `applyRestore` does, owner = that anonymous id. **Do not set `meta.accountLinked`.** Home.
-   - **Anonymous user with no server pet:** **Welcome**, and **Get started** reuses this anonymous user; don't create another one.
+   - **A server pet, retired pets, or a linked account with neither:** **Welcome**, the same screen as a new install.
+   - **Anonymous user with no server pet:** **Welcome**. **Get started** reuses that anonymous user; don't create another one.
 4. **No session, no local pet, no restore in progress → Welcome. Don't mount the age gate yet.**
-5. Welcome → **Get started** → mount the age gate → age → terms → adoption → Home.
+5. Welcome → **Get started**:
+   - **Nothing remembered** (no session, or an anonymous user with no pet): mount the age gate → age → terms → adoption → Home.
+   - **A server pet:** restore with §7 steps 5–8 and 10 (no guest, so no confirmation, no guest deletion). A linked account sets `meta.accountLinked`. An anonymous pet does not. Then Home. Skip Adopt and Meet. The age gate shows only when the saved age record or the copied consent still requires it.
+   - **A linked account with no pet:** set `meta.accountLinked`, copy consent, and require the handle when it is missing. Then the age gate if it still applies, then adoption (A7).
+   - **The restore can't reach the server:** the offline screen. **Try again** runs the check again.
 6. Welcome → **I already have an account** → `AccountSheet` (`restore`) → §7 → Home (the gate only if §7 step 7 says so).
 7. Local pet exists and `meta.standby` set → standby overlay (A6).
 8. Local pet exists → Home. (A linked device without `meta.handleSaved` gets the handle screen at the next idle, online moment, per §6.)
@@ -482,10 +484,10 @@ Nothing destructive happens before `applyRestore` commits. The guest is deleted 
 - Primary: **Get started** (big, glossy, cotton candy). Secondary, directly under, lighter but clearly a button: **I already have an account**.
 
 ### Behavior
-- **Get started** works offline (when step 3 doesn't apply).
+- **Get started** works offline when step 3 left nothing to install. When a pet is waiting, **Get started** installs it and needs the network.
 - **I already have an account** offline: "You'll need internet to sign in." Get started stays available.
 - Cancel or sign-in failure returns to Welcome, never into adoption.
-- Shown only when there's no local pet and step 3 doesn't apply.
+- Shown whenever there is no local pet, including a reinstall that still has a Keychain session. Step 3 decides what **Get started** does. It does not skip this screen.
 
 ---
 
@@ -611,6 +613,7 @@ Deletes a guest the caller replaced on this device (§7 step 9).
 A scheduled job (pg_cron) deletes anonymous users created more than 30 days ago that have **no pet, no `player_state` row, and no ledger entries**, by retiring limited units and then the admin delete. It does not run the guest-token branch. **It never deletes a guest with data**, however long it's been offline: that guest's next launch would hit a dead session (A5b). **[v14+] It does delete a guest id still in `pending_guest_deletes`, even if that guest has a pet,** so a `supersede_guest` that recorded the id and then crashed still finishes. Other orphans left by a restore are removed by `supersede_guest` retries, not by age alone.
 
 ### Full local wipe (extend `wipeLocalData`)
+**Delete account** and **Delete my progress** both run this after the server deletion succeeds. A guest that never reached the server runs it immediately. The device keeps no pet, progress, consent, or session, and the next screen is Welcome.
 - **[v14+] First,** if `boop.pendingSupersede` exists, call `supersede_guest` (or pass the token to `delete_account`, which deletes that guest before the caller). Clear the token only after that call succeeds. If the call fails, stop the wipe and retry later. A recorded id in `pending_guest_deletes` is enough for the cleanup job to finish the guest even if this device never comes back.
 - pet, retired pets, all owner-keyed SQLite tables, **`daily_counters` (no owner column, so clear it explicitly)**, ledger, ledger outbox, push queue, prompt state, `meta.accountLinked`, `meta.handleSaved`, `meta.standby`, `meta.restoreInProgress`, `meta.appleTokenMissing`;
 - **all** AsyncStorage `petty.*` keys, including `petty.draft`, `petty.sound`, `petty.music`, `petty.reminders`, `petty.wardrobe.*`, `petty.playdates.*`;
@@ -666,7 +669,7 @@ Still open:
 **Phase A** (§2) plus:
 - Welcome shows with the Boop Boop icon, the puppy and kitten idling together, **Get started**, and **I already have an account**; the age gate isn't mounted behind it; a device with a pet skips it.
 - **I already have an account** on a fresh install signs in with `signInWithIdToken` (no anonymous user), restores pet, ledger, and state, writes the consent keys, and skips age/terms only when the age event exists and both terms and privacy are the current versions; an older terms or privacy version shows the terms screen; offline shows the internet message; cancel returns to Welcome.
-- **[v14+]** An iOS reinstall tells guest from account by `is_anonymous`. A linked session restores that account's pet without offering **Get started**. An anonymous session with a server pet restores it and does not set `meta.accountLinked`. An anonymous session with no pet: **Get started** reuses that anonymous user. Offline shows "Connect to the internet to bring back your pet."
+- **[v14+]** An iOS reinstall tells guest from account by `is_anonymous`, shows Welcome, and does not write the pet until **Get started**. **Get started** then restores a linked or anonymous server pet (anonymous does not set `meta.accountLinked`) and skips Adopt and Meet. A linked account with no pet continues into adoption. An anonymous session with no pet reuses that user. Offline shows "Connect to the internet to bring back your pet."
 - Native Apple sign-in succeeds with the hashed/raw nonce pair.
 - Guest → Sign in with Apple (iOS), Google (iOS + Android), Apple on Android: same `user_id`; pet, ledger, layouts, consent unchanged; handle saved through the RPC check; `meta.handleSaved` set; on Apple, the token is stored on the account before the handle screen.
 - A link that fails with "identity already exists" goes to restore without a second Apple sheet, and the Apple token ends up stored on the account, not the deleted guest. A link that fails on the network stays a guest.

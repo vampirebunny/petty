@@ -84,6 +84,21 @@ export function finishInstalledPet(): void {
   done?.();
 }
 
+let welcomeHeld = false;
+
+/** A delete just wiped this device. Welcome must not restore or adopt that account. */
+export function holdWelcome(): void {
+  welcomeHeld = true;
+}
+
+export function welcomeIsHeld(): boolean {
+  return welcomeHeld;
+}
+
+export function releaseWelcomeHold(): void {
+  welcomeHeld = false;
+}
+
 let suppressOpenPath = false;
 
 export function setSuppressOpenPath(suppressed: boolean): void {

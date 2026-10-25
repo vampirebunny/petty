@@ -6,9 +6,9 @@ import { wipeLocalData } from '../db/bootstrap';
 import { setCurrentOwner } from '../db/currentOwner';
 import { cancelReminders } from '../reminders/notifications';
 import { requestAgeGateRefresh } from '../state/ageGateRefresh';
-import { authTransition, prepareInstalledPet, setAuthTransition } from '../state/sessionGate';
+import { authTransition, holdWelcome, prepareInstalledPet, setAuthTransition } from '../state/sessionGate';
 import { rotateInstallId, setCachedUserId } from './identity';
-import { supersedePendingGuest } from './restoreAccount';
+import { clearPendingInstall, supersedePendingGuest } from './restoreAccount';
 import { getSupabase } from './supabase';
 
 const pendingKey = 'boop.pendingSupersede';
@@ -41,6 +41,8 @@ export async function fullAccountWipe(): Promise<boolean> {
       return false;
     }
   }
+  holdWelcome();
+  clearPendingInstall();
   setStandby(false);
   await wipeLocalData();
   setCachedUserId(null);
@@ -49,7 +51,7 @@ export async function fullAccountWipe(): Promise<boolean> {
   await SecureStore.deleteItemAsync(pendingKey).catch(() => undefined);
   await cancelReminders().catch(() => undefined);
   try {
-    await getSupabase()?.auth.signOut();
+    await getSupabase()?.auth.signOut({ scope: 'local' });
   } catch {
     // Local keys are already gone. Welcome still starts clean.
   }

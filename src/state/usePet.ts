@@ -506,7 +506,7 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
       }
       claimBusy.current = true;
       setAuthTransition('reconciling');
-      const claimId = globalThis.crypto.randomUUID();
+      const claimId = createUuid();
       void (async () => {
         try {
           const claim = await claimDevice({ claimId, timeoutMs: 3000 });

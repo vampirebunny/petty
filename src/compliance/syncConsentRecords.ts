@@ -3,8 +3,10 @@ import { Platform } from 'react-native';
 
 import { isPlayableStatus, type AgeRecord } from '../age/ageStatus';
 import {
+  loadAgeRecord,
   loadPendingConsentRecords,
   loadPendingDeletion,
+  loadTermsAcceptance,
   savePendingConsentRecords,
   type PendingConsentRecord,
 } from '../age/storage';
@@ -83,6 +85,55 @@ export async function enqueueAgeStatusChanged(record: AgeRecord, occurredAt: str
   if (event) {
     await enqueueConsentEvents([event]);
   }
+}
+
+/** Upload this device's attestation onto the signed-in account when that account has no copy yet. */
+export async function syncLocalConsentToSession(parts: { age: boolean; terms: boolean }): Promise<void> {
+  if (!parts.age && !parts.terms) {
+    return;
+  }
+  const stored = await loadAgeRecord();
+  if (!stored?.confirmed || !isPlayableStatus(stored.status)) {
+    return;
+  }
+  const terms = await loadTermsAcceptance();
+  const termsCurrent = terms?.termsVersion === TERMS_VERSION && terms.privacyVersion === PRIVACY_VERSION;
+  const events: PendingConsentRecord[] = [];
+  if (parts.age) {
+    const ageEvent = eventFor(stored, 'age_determined', new Date(stored.updatedAt).toISOString());
+    if (ageEvent) {
+      events.push(ageEvent);
+    }
+  }
+  if (parts.terms && termsCurrent && terms) {
+    const termsEvent = eventFor(stored, 'terms_accepted', new Date(terms.acceptedAt).toISOString());
+    if (termsEvent) {
+      events.push(termsEvent);
+    }
+  }
+  if (events.length === 0) {
+    return;
+  }
+  const supabase = getSupabase();
+  const userId = (await supabase?.auth.getSession())?.data.session?.user.id;
+  if (!supabase || !userId) {
+    return;
+  }
+  await supabase.from('consent_records').upsert(
+    events.map((record) => ({
+      user_id: userId,
+      event_type: record.eventType,
+      age_status: record.ageStatus,
+      age_source: record.ageSource,
+      terms_version: record.termsVersion,
+      privacy_version: record.privacyVersion,
+      occurred_at: record.occurredAt,
+      platform: record.platform,
+      app_version: record.appVersion,
+      client_event_id: record.clientEventId,
+    })),
+    { onConflict: 'client_event_id', ignoreDuplicates: true },
+  );
 }
 
 export async function flushConsentRecords(): Promise<void> {

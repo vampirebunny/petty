@@ -208,7 +208,7 @@ export function getDb(): SQLite.SQLiteDatabase {
     if (version < storageVersion) {
       db.execSync(DROP_LEGACY);
       db.execSync(schemaSql);
-      db.runSync("INSERT INTO meta (key, value) VALUES ('storageVersion', ?)", String(storageVersion));
+      db.runSync("INSERT OR REPLACE INTO meta (key, value) VALUES ('storageVersion', ?)", String(storageVersion));
       pendingAsyncWipe = true;
     } else {
       db.execSync(schemaSql);
