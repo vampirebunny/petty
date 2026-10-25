@@ -117,6 +117,8 @@ export {
   trickPropAt,
   placeTrickProp,
   moveTrickProp,
+  releaseStoredPiece,
+  stowTrickProp,
   takeTrickFinish,
   patGreeting,
   takePendingGreeting,

@@ -1,9 +1,11 @@
 import {
+  bowlAlreadyInRoom,
   furnitureDefinition,
   grantPieces,
   isRetiredPiece,
   placePiece,
   shopFurnitureSpot,
+  stowPiece,
   starterFurniture,
   type FurniturePiece,
   type FurniturePlacement,
@@ -192,8 +194,13 @@ export function moveOwnedPiece(
   x: number,
   y: number,
 ): void {
-  const owned = furnitureOf(ownerId).map((piece) => piece.id);
-  const next = placePiece(layoutOf(ownerId, species), pieceId, sceneId, x, y, owned);
+  const pieces = furnitureOf(ownerId);
+  const layout = layoutOf(ownerId, species);
+  if (bowlAlreadyInRoom(pieces, layout, sceneId, pieceId)) {
+    return;
+  }
+  const owned = pieces.map((piece) => piece.id);
+  const next = placePiece(layout, pieceId, sceneId, x, y, owned);
   if (!next) {
     return;
   }
@@ -213,6 +220,20 @@ export function moveOwnedPiece(
       JSON.stringify(next),
     );
   }
+  emit();
+}
+
+export function stowOwnedPiece(ownerId: string, species: SpeciesId, pieceId: string): void {
+  if (!hasLayout(ownerId, species)) {
+    return;
+  }
+  const next = stowPiece(layoutOf(ownerId, species), pieceId);
+  getDb().runSync(
+    'UPDATE home_layouts SET placements = ? WHERE owner_id = ? AND species = ?',
+    JSON.stringify(next),
+    ownerId,
+    species,
+  );
   emit();
 }
 

@@ -35,6 +35,7 @@ export function createCatioScene(stageWidth: number, stageHeight: number): Scene
     name: 'Catio',
     species: 'cat',
     group: 'home',
+    playerOwned: true,
     blurb: 'Fresh air, safe and sound',
     iconId: 'catio',
     time: 'outdoor',

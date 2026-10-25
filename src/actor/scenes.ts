@@ -117,6 +117,8 @@ export type Scene = {
   // When set, only that species is offered the scene at home. Playdates include it when any pet matches.
   species?: 'cat' | 'dog';
   group?: 'home' | 'town';
+  // The player can store furniture here and put it back. Park and school are not the player's.
+  playerOwned?: boolean;
   blurb?: string;
   iconId?: string;
   // Rain and snow stay off the floor. The catio is roofed.
@@ -277,6 +279,9 @@ export function compileScene(def: unknown): Scene {
   if (def.roofY != null && typeof def.roofY !== 'number') {
     throw new Error('"roofY" must be a number.');
   }
+  if (def.playerOwned != null && typeof def.playerOwned !== 'boolean') {
+    throw new Error('"playerOwned" must be true or false.');
+  }
   const actorTint = readActorTint(def.lighting, time);
   const props = Array.isArray(def.props) ? def.props : [];
   const compiledProps = props.map((prop, index) => {
@@ -324,6 +329,7 @@ export function compileScene(def: unknown): Scene {
     time,
     species,
     group,
+    playerOwned: typeof def.playerOwned === 'boolean' ? def.playerOwned : undefined,
     blurb: typeof def.blurb === 'string' ? def.blurb : undefined,
     iconId: typeof def.iconId === 'string' ? def.iconId : undefined,
     shelter,
@@ -369,6 +375,7 @@ const sceneDefs = {
     id: 'livingroom',
     name: 'Living room',
     group: 'home',
+    playerOwned: true,
     blurb: 'Food & water',
     iconId: 'livingroom',
     time: 'indoor',
@@ -442,6 +449,7 @@ const sceneDefs = {
     id: 'bedroom',
     name: 'Bedroom',
     group: 'home',
+    playerOwned: true,
     blurb: 'Cozy nap spot',
     iconId: 'bedroom',
     time: 'indoor',

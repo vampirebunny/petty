@@ -34,6 +34,13 @@ it('names a bad time and skips an unknown schema version', () => {
   expect(() => compileScene({ ...room, props: [{ kind: 'laser', x: 1, y: 2 }] })).toThrow('unknown kind "laser"');
   expect(loadScene({ ...room, v: 2 })).toBeNull();
   expect(compileScene(room).time).toBe('fixed');
+  expect(() => compileScene({ ...room, playerOwned: 'yes' })).toThrow('"playerOwned" must be true or false.');
+  expect(compileScene({ ...room, playerOwned: true }).playerOwned).toBe(true);
+  expect(scenes.livingroom.playerOwned).toBe(true);
+  expect(scenes.bedroom.playerOwned).toBe(true);
+  expect(scenes.catio.playerOwned).toBe(true);
+  expect(scenes.park.playerOwned).toBeUndefined();
+  expect(scenes.school.playerOwned).toBeUndefined();
 });
 
 it('rejects a bad actor tint and defaults the rest from the scene time', () => {

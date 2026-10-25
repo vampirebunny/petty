@@ -83,7 +83,7 @@ ON CONFLICT (id) DO UPDATE SET
   is_prop = EXCLUDED.is_prop, place_target = EXCLUDED.place_target,
   is_essential = EXCLUDED.is_essential, anchors = EXCLUDED.anchors;
 
--- Existing essentials become props too (hold → Move / Put away, with warning).
+-- Existing essentials become props too (hold → Put in storage / Move, with a warning that uses the pet's name).
 -- Adjust the ids to the real ones.
 UPDATE catalog_items SET furniture_type = 'food_bowl',  is_prop = true, is_essential = true WHERE id = 'food_bowl_default';
 UPDATE catalog_items SET furniture_type = 'water_bowl', is_prop = true, is_essential = true WHERE id = 'water_bowl_default';

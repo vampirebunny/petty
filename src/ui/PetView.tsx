@@ -35,6 +35,8 @@ import {
   trickPropAt,
   placeTrickProp,
   moveTrickProp,
+  releaseStoredPiece,
+  stowTrickProp,
   takeTrickFinish,
   inviteCare,
   takePendingRest,
@@ -80,7 +82,7 @@ import { attributeScore, drinkHydrationGain, feedEnergyGain, feedHungerDrop } fr
 import type { PointAdd } from './cuddle/pointAdds';
 import type { Cue, PetState } from '../sim/types';
 import type { FurniturePiece, FurniturePlacement } from '../actor/furniture';
-import { applyFurniture, furnitureAt, movePiece, syncFurniture } from '../actor/furniture';
+import { applyFurniture, furnitureAt, movePiece, showPiece, syncFurniture } from '../actor/furniture';
 import { askFurnitureOff, furnitureClaims } from '../actor/furnitureUse';
 import { skyAt, solarHour } from '../actor/sky';
 import { drawWorld } from './skia/world';
@@ -102,6 +104,12 @@ export type StageHandle = {
   trickPropIds: (type: TrickPropType | null, mastered: boolean) => string[];
   startTrick: (trickId: string, outcome: TrickOutcome, propIds: string[]) => boolean;
   moveFurniture: (pieceId: string, x: number, y: number) => { sceneId: string; x: number; y: number } | null;
+  showStoredFurniture: (piece: FurniturePiece) => { sceneId: string; x: number; y: number } | null;
+  stowFurniture: (pieceId: string) => boolean;
+  stowTrickProp: (instanceId: string) => void;
+  placedTrickIds: () => string[];
+  liftedProp: () => string | null;
+  setLiftedProp: (instanceId: string | null) => void;
   invite: (kind: 'food' | 'water' | 'bed') => 'went' | 'queued' | 'already';
   setLifted: (pieceId: string | null) => void;
   squish: (pieceId: string) => void;
@@ -513,7 +521,10 @@ export function PetView({
       beginTravel(scene);
       return;
     }
-    syncFurniture(world.scene, scene);
+    const removed = syncFurniture(world.scene, scene);
+    for (const id of removed) {
+      releaseStoredPiece(world, id);
+    }
   }, [beginTravel, redraw, scene, snapSceneToken]);
 
   useEffect(() => {
@@ -642,6 +653,47 @@ export function PetView({
           return null;
         }
         return movePiece(world.scene, pieceId, x, y);
+      },
+      showStoredFurniture: (piece) => {
+        if (travelRef.current) {
+          return null;
+        }
+        const world = worldRef.current;
+        const actor = world.actors[0];
+        if (!actor) {
+          return null;
+        }
+        const point = showPiece(world.scene, piece, actor.x + (actor.face >= 0 ? 70 : -70), actor.y);
+        if (!point) {
+          return null;
+        }
+        world.liftedId = piece.id;
+        world.liftedPropId = null;
+        redrawRef.current();
+        return { sceneId: world.scene.id, x: point.x, y: point.y };
+      },
+      stowFurniture: (pieceId) => {
+        const world = worldRef.current;
+        const woke = releaseStoredPiece(world, pieceId);
+        world.scene.props = world.scene.props.filter((prop) => prop.id !== pieceId);
+        world.scene.pois = world.scene.pois.filter((poi) => poi.propId !== pieceId);
+        if (world.liftedId === pieceId) {
+          world.liftedId = null;
+        }
+        redrawRef.current();
+        return woke;
+      },
+      stowTrickProp: (instanceId) => {
+        stowTrickProp(worldRef.current, instanceId);
+        redrawRef.current();
+      },
+      placedTrickIds: () => worldRef.current.trickProps.map((prop) => prop.instanceId),
+      liftedProp: () => worldRef.current.liftedPropId,
+      setLiftedProp: (instanceId) => {
+        worldRef.current.liftedPropId = instanceId;
+        if (instanceId) {
+          worldRef.current.liftedId = null;
+        }
       },
       invite: (kind) => {
         const actor = worldRef.current.actors[0];

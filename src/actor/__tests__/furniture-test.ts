@@ -1,5 +1,18 @@
-import { applyFurniture, furnitureAt, normalizeFurniture, placePiece, starterFurniture, steerAim } from '../furniture';
-import { sceneForSpecies, scenes } from '../scenes';
+import {
+  applyFurniture,
+  bowlAlreadyInRoom,
+  bowlRoomMessage,
+  furnitureAt,
+  movePiece,
+  normalizeFurniture,
+  placePiece,
+  shopFurnitureSpot,
+  starterFurniture,
+  steerAim,
+  stowPiece,
+  syncFurniture,
+} from '../furniture';
+import { actionReason, sceneForSpecies, scenes } from '../scenes';
 import { createWorld, spawnActor, startUserTask, update } from '../sim';
 
 const floor = { xMin: 0, xMax: 640, yMin: 200, yMax: 650 };
@@ -163,6 +176,49 @@ it('draws a cat tree only after it is owned and placed', () => {
   const placed = [...home.placed, { pieceId: 'catio-tree', sceneId: 'catio', x: 500, y: 400 }];
   const scene = applyFurniture(scenes.catio, pieces, placed);
   expect(scene.props.find((prop) => prop.id === 'catio-tree')).toMatchObject({ kind: 'catTree', x: 500, y: 400 });
+});
+
+it('stores furniture and puts it back only in a room the player owns', () => {
+  const owned = ['dogHouse', 'livingroom-food'];
+  const house = placePiece([], 'dogHouse', 'bedroom', 200, 400, owned);
+  expect(house?.[0]).toMatchObject({ pieceId: 'dogHouse', sceneId: 'bedroom' });
+  const bowl = placePiece([], 'livingroom-food', 'bedroom', 180, 420, owned);
+  expect(bowl?.[0].sceneId).toBe('bedroom');
+  expect(placePiece([], 'dogHouse', 'park', 200, 400, owned)).toBeNull();
+  expect(placePiece([], 'livingroom-food', 'school', 180, 420, owned)).toBeNull();
+  const piece = { id: 'livingroom-food', kind: 'bowl' as const, contents: 'kibble' };
+  const bedroom = applyFurniture(scenes.bedroom, [piece], bowl ?? []);
+  expect(actionReason(bedroom, 'feed')).toBe('');
+  expect(movePiece(bedroom, 'livingroom-food', 220, 450)?.sceneId).toBe('bedroom');
+  const park = applyFurniture(scenes.park, [piece], [{ pieceId: 'livingroom-food', sceneId: 'park', x: 200, y: 400 }]);
+  expect(movePiece(park, 'livingroom-food', 220, 420)).toBeNull();
+  expect(stowPiece(bowl ?? [], 'livingroom-food')).toEqual([]);
+  const home = starterFurniture('dog');
+  const live = applyFurniture(scenes.livingroom, home.pieces, home.placed);
+  const next = applyFurniture(scenes.livingroom, home.pieces, stowPiece(home.placed, 'livingroom-food'));
+  expect(syncFurniture(live, next)).toContain('livingroom-food');
+  expect(live.props.some((prop) => prop.id === 'livingroom-food')).toBe(false);
+  expect(live.pois.some((poi) => poi.propId === 'livingroom-food')).toBe(false);
+  expect(shopFurnitureSpot('dogHouse', 'park').sceneId).toBe('livingroom');
+  expect(shopFurnitureSpot('scratcher', 'bedroom').sceneId).toBe('bedroom');
+});
+
+it('keeps a room to one food bowl and one water bowl', () => {
+  const food = { id: 'livingroom-food', kind: 'bowl' as const, contents: 'kibble' };
+  const water = { id: 'livingroom-water', kind: 'bowl' as const, contents: 'water' };
+  const extra = { id: 'catio-water', kind: 'bowl' as const, contents: 'water' };
+  const placed = [
+    { pieceId: 'livingroom-food', sceneId: 'bedroom', x: 180, y: 420 },
+    { pieceId: 'livingroom-water', sceneId: 'livingroom', x: 500, y: 560 },
+  ];
+  const spare = { id: 'spare-food', kind: 'bowl' as const, contents: 'kibble' };
+  const pieces = [food, water, extra, spare];
+  expect(bowlAlreadyInRoom(pieces, placed, 'bedroom', 'catio-water')).toBeNull();
+  expect(bowlAlreadyInRoom(pieces, placed, 'bedroom', 'spare-food')).toBe('food');
+  expect(bowlAlreadyInRoom(pieces, placed, 'livingroom', 'catio-water')).toBe('water');
+  expect(bowlAlreadyInRoom(pieces, placed, 'bedroom', 'livingroom-food')).toBeNull();
+  expect(bowlRoomMessage('food')).toBe("There's already a food bowl in this room.");
+  expect(bowlRoomMessage('water')).toBe("There's already a water bowl in this room.");
 });
 
 it('leaves the scratch pole out of the catio until it is owned', () => {

@@ -2257,6 +2257,50 @@ export function placeTrickProp(world: World, owned: OwnedTrickProp, x: number, y
   return placed;
 }
 
+// The pet was walking to or using this piece. Idle them and drop that care invite.
+// True when they were actually asleep on it, so the pet record can wake.
+export function releaseStoredPiece(world: World, pieceId: string): boolean {
+  let woke = false;
+  for (const actor of world.actors) {
+    const onFurniture = actor.furniture?.pieceId === pieceId;
+    const onTask = actor.task.poi?.propId === pieceId && (actor.task.type === 'eat' || actor.task.type === 'sleep' || actor.task.type === 'idle');
+    if (!onFurniture && !onTask) {
+      continue;
+    }
+    const care = actor.task.type === 'sleep' ? 'bed' : actor.task.type === 'eat' ? (actor.task.kind === 'drink' ? 'water' : 'food') : null;
+    if (actor.asleep) {
+      woke = true;
+    }
+    actor.furniture = null;
+    actor.asleep = false;
+    actor.direction = null;
+    actor.task = taskOf('idle');
+    beginIdle(world, actor, 'still');
+    if (care) {
+      if (world.serving === care) {
+        world.serving = null;
+      }
+      world.invites = world.invites.filter((item) => item !== care);
+    }
+  }
+  return woke;
+}
+
+export function stowTrickProp(world: World, instanceId: string): void {
+  world.trickProps = world.trickProps.filter((prop) => prop.instanceId !== instanceId);
+  if (world.liftedPropId === instanceId) {
+    world.liftedPropId = null;
+  }
+  for (const actor of world.actors) {
+    const play = actor.task.trick;
+    if (actor.task.type === 'trick' && play && !play.done && play.propIds.includes(instanceId)) {
+      actor.direction = null;
+      actor.task = taskOf('idle');
+      beginIdle(world, actor, 'still');
+    }
+  }
+}
+
 export function moveTrickProp(world: World, instanceId: string, x: number, y: number): PlacedTrickProp | null {
   const prop = world.trickProps.find((item) => item.instanceId === instanceId);
   if (!prop) {

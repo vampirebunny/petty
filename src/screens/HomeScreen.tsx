@@ -16,6 +16,8 @@ import { releaseMusic, setMusicEnabled, suspendMusic, switchMusic } from '../aud
 import { setSoundEnabled } from '../audio/voice';
 import type { CuddleOut } from '../actor';
 import { stageHeight, stageWidth } from '../actor/geometry';
+import { bowlAlreadyInRoom, bowlRoomMessage, pieceLabel, stowWarning } from '../actor/furniture';
+import type { FurniturePiece } from '../actor/furniture';
 import { flickSpeedThreshold } from '../input/flick';
 import { CuddleGesture } from '../input/cuddleGesture';
 import type { GestureEvent } from '../input/cuddleGesture';
@@ -59,6 +61,10 @@ import { ghostDelayMs, ghostEligible, startCuddleSession } from '../cuddle/guida
 import { HomeActionPanel } from '../ui/HomeActionPanel';
 import { ToyCard } from '../ui/ToyCard';
 import { PropCard } from '../ui/PropCard';
+import { HoldPieceSheet } from '../ui/HoldPieceSheet';
+import { NoticeSheet } from '../ui/NoticeSheet';
+import { StorageCard } from '../ui/StorageCard';
+import type { StorageChoice } from '../ui/StorageCard';
 import { needThreshold } from '../ui/candyTokens';
 import { CandyTooltip } from '../ui/tips/CandyTooltip';
 import { useCandyTips } from '../ui/tips/useCandyTips';
@@ -197,6 +203,7 @@ export default function HomeScreen({ petApi }: Props) {
     attemptTrick,
     resolveTraining,
     moveFurniture,
+    stowFurniture,
     offerTreat,
     welcomeBack,
     dismissWelcome,
@@ -293,6 +300,12 @@ export default function HomeScreen({ petApi }: Props) {
   const [personalityOpen, setPersonalityOpen] = useState(false);
   const [playOpen, setPlayOpen] = useState(false);
   const [propOpen, setPropOpen] = useState(false);
+  const [storageOpen, setStorageOpen] = useState(false);
+  const [storageItems, setStorageItems] = useState<StorageChoice[]>([]);
+  const [storageEmpty, setStorageEmpty] = useState('Nothing in storage.');
+  const [bowlNotice, setBowlNotice] = useState<string | null>(null);
+  const [holdTarget, setHoldTarget] = useState<{ id: string; prop: boolean; warning: string | null } | null>(null);
+  const [holdConfirm, setHoldConfirm] = useState(false);
   const [propChoices, setPropChoices] = useState<{ id: string; label: string; type: string; sourceTrickId: string }[]>([]);
   const [heldPlay, setHeldPlay] = useState(false);
   const [treatOpen, setTreatOpen] = useState(false);
@@ -601,6 +614,15 @@ export default function HomeScreen({ petApi }: Props) {
   }, [moveFurniture]);
   const holdPiece = useRef<string | null>(null);
   const holdProp = useRef(false);
+  const armedMove = useRef<{ id: string; prop: boolean } | null>(null);
+  const draggingArmed = useRef(false);
+  const holdTargetRef = useRef<{ id: string; prop: boolean; warning: string | null } | null>(null);
+  const homePiecesRef = useRef<FurniturePiece[]>(home.pieces);
+  const petNameRef = useRef(state?.name ?? 'Your pet');
+  useEffect(() => {
+    homePiecesRef.current = home.pieces;
+    petNameRef.current = state?.name ?? 'Your pet';
+  }, [home.pieces, state?.name]);
   const trickDialog = useRef<'good' | 'miss' | null>(null);
   const trickTrack = useRef<string | null>(null);
   const placeIntent = useRef<{ trackId: string; learned: boolean } | null>(null);
@@ -630,9 +652,56 @@ export default function HomeScreen({ petApi }: Props) {
     },
     [contentWidth, logicalH, viewHeight, viewWidth],
   );
+  const closeHold = useCallback(() => {
+    holdTargetRef.current = null;
+    setHoldConfirm(false);
+    setHoldTarget(null);
+  }, []);
+  const dropMoved = useCallback(
+    (id: string, prop: boolean, x: number, y: number) => {
+      const point = stagePoint(x, y, viewWidth, viewHeight, contentWidth, stageWidth, logicalH);
+      stageHandle.current?.setLifted(null);
+      stageHandle.current?.setLiftedProp(null);
+      armedMove.current = null;
+      draggingArmed.current = false;
+      holdPiece.current = null;
+      holdProp.current = false;
+      if (prop) {
+        stageHandle.current?.moveTrickProp(id, point.x, point.y);
+        const intent = placeIntent.current;
+        placeIntent.current = null;
+        if (intent) {
+          playCatalogRef.current(intent.trackId, intent.learned);
+        }
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        return;
+      }
+      const placed = stageHandle.current?.moveFurniture(id, point.x, point.y);
+      if (placed) {
+        moveFurnitureRef.current(id, placed.sceneId, placed.x, placed.y);
+      }
+      tipsRef.current.performed('tip.move');
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    },
+    [contentWidth, logicalH, viewHeight, viewWidth],
+  );
   const onStageTap = useCallback(
     (x: number, y: number) => {
       tipsRef.current.dismiss();
+      if (holdTargetRef.current) {
+        closeHold();
+        return;
+      }
+      if (armedMove.current) {
+        const armed = armedMove.current;
+        armedMove.current = null;
+        if (armed.prop) {
+          stageHandle.current?.setLiftedProp(null);
+        } else {
+          stageHandle.current?.setLifted(null);
+        }
+        return;
+      }
       if (stageHandle.current?.heldOn()) {
         const point = stagePoint(x, y, viewWidth, viewHeight, contentWidth, stageWidth, logicalH);
         if (point.x < 96 && point.y > logicalH - 76) {
@@ -646,26 +715,44 @@ export default function HomeScreen({ petApi }: Props) {
         dropRef.current(x, y);
       }
     },
-    [contentWidth, pieceAt, logicalH, viewHeight, viewWidth],
+    [closeHold, contentWidth, pieceAt, logicalH, viewHeight, viewWidth],
   );
   const onHoldStart = useCallback(
     (x: number, y: number) => {
       const point = stagePoint(x, y, viewWidth, viewHeight, contentWidth, stageWidth, logicalH);
       const propId = stageHandle.current?.trickPropAt(point.x, point.y) ?? null;
-      if (propId) {
+      const armed = armedMove.current;
+      const practiceDrag = propId != null && placeIntent.current != null && stageHandle.current?.liftedProp() === propId;
+      if (propId && ((armed?.prop && armed.id === propId) || practiceDrag)) {
         holdPiece.current = propId;
         holdProp.current = true;
         stageHandle.current?.moveTrickProp(propId, point.x, point.y);
         void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         return;
       }
-      holdProp.current = false;
-      const pieceId = pieceAt(x, y);
-      holdPiece.current = pieceId;
-      if (!pieceId) {
+      const pieceId = propId ? null : pieceAt(x, y);
+      if (pieceId && armed && !armed.prop && armed.id === pieceId) {
+        holdPiece.current = pieceId;
+        holdProp.current = false;
+        stageHandle.current?.moveFurniture(pieceId, point.x, point.y);
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         return;
       }
-      stageHandle.current?.setLifted(pieceId);
+      holdPiece.current = null;
+      holdProp.current = false;
+      const id = propId ?? pieceId;
+      if (!id) {
+        return;
+      }
+      const piece = propId ? null : homePiecesRef.current.find((item) => item.id === id);
+      const next = {
+        id,
+        prop: propId != null,
+        warning: piece ? stowWarning(piece, petNameRef.current) : null,
+      };
+      holdTargetRef.current = next;
+      setHoldConfirm(false);
+      setHoldTarget(next);
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     },
     [contentWidth, logicalH, pieceAt, viewHeight, viewWidth],
@@ -689,37 +776,29 @@ export default function HomeScreen({ petApi }: Props) {
     (x: number, y: number) => {
       const pieceId = holdPiece.current;
       const prop = holdProp.current;
-      holdPiece.current = null;
-      holdProp.current = false;
-      stageHandle.current?.setLifted(null);
-      const point = stagePoint(x, y, viewWidth, viewHeight, contentWidth, stageWidth, logicalH);
-      if (prop && pieceId) {
-        stageHandle.current?.moveTrickProp(pieceId, point.x, point.y);
-        const intent = placeIntent.current;
-        placeIntent.current = null;
-        if (intent) {
-          playCatalogRef.current(intent.trackId, intent.learned);
-        }
-        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        return;
-      }
       if (!pieceId) {
         return;
       }
-      const placed = stageHandle.current?.moveFurniture(pieceId, point.x, point.y);
-      if (placed) {
-        moveFurnitureRef.current(pieceId, placed.sceneId, placed.x, placed.y);
-      }
-      tipsRef.current.performed('tip.move');
-      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      dropMoved(pieceId, prop, x, y);
     },
-    [contentWidth, logicalH, viewHeight, viewWidth],
+    [dropMoved],
   );
   const onFlickStart = useCallback(
     (x: number, y: number) => {
       if (stageHandle.current?.heldOn()) {
         const point = stagePoint(x, y, viewWidth, viewHeight, contentWidth, stageWidth, logicalH);
         stageHandle.current.steerHeld(point.x, point.y, true);
+        return;
+      }
+      const armed = armedMove.current;
+      if (armed) {
+        draggingArmed.current = true;
+        const point = stagePoint(x, y, viewWidth, viewHeight, contentWidth, stageWidth, logicalH);
+        if (armed.prop) {
+          stageHandle.current?.moveTrickProp(armed.id, point.x, point.y);
+        } else {
+          stageHandle.current?.moveFurniture(armed.id, point.x, point.y);
+        }
         return;
       }
       flickPiece.current = pieceAt(x, y);
@@ -733,6 +812,16 @@ export default function HomeScreen({ petApi }: Props) {
         stageHandle.current.steerHeld(point.x, point.y, true);
         return;
       }
+      if (draggingArmed.current && armedMove.current) {
+        const point = stagePoint(x, y, viewWidth, viewHeight, contentWidth, stageWidth, logicalH);
+        const armed = armedMove.current;
+        if (armed.prop) {
+          stageHandle.current?.moveTrickProp(armed.id, point.x, point.y);
+        } else {
+          stageHandle.current?.moveFurniture(armed.id, point.x, point.y);
+        }
+        return;
+      }
       if (flickPiece.current) {
         return;
       }
@@ -743,12 +832,19 @@ export default function HomeScreen({ petApi }: Props) {
     },
     [contentWidth, logicalH, viewHeight, viewWidth],
   );
-  const onFlickFinish = useCallback(() => {
-    stageHandle.current?.setPlayTouch(false);
-    if (stageHandle.current?.heldOn()) {
-      stageHandle.current.releaseHeldFinger();
-    }
-  }, []);
+  const onFlickFinish = useCallback(
+    (x: number, y: number) => {
+      stageHandle.current?.setPlayTouch(false);
+      if (stageHandle.current?.heldOn()) {
+        stageHandle.current.releaseHeldFinger();
+      }
+      if (draggingArmed.current && armedMove.current) {
+        const armed = armedMove.current;
+        dropMoved(armed.id, armed.prop, x, y);
+      }
+    },
+    [dropMoved],
+  );
   const onFlickEnd = useCallback(
     (x: number, y: number, vx: number, vy: number) => {
       if (stageHandle.current?.heldOn()) {
@@ -761,6 +857,11 @@ export default function HomeScreen({ petApi }: Props) {
         return;
       }
       stageHandle.current?.setPlayTouch(false);
+      if (draggingArmed.current && armedMove.current) {
+        const armed = armedMove.current;
+        dropMoved(armed.id, armed.prop, x, y);
+        return;
+      }
       const pieceId = flickPiece.current;
       flickPiece.current = null;
       if (pieceId) {
@@ -770,7 +871,7 @@ export default function HomeScreen({ petApi }: Props) {
         flickRef.current(x, y, vx, vy);
       }
     },
-    [contentWidth, logicalH, viewHeight, viewWidth],
+    [contentWidth, dropMoved, logicalH, viewHeight, viewWidth],
   );
   const gesture = useMemo(() => {
     if (cuddleOn) {
@@ -822,8 +923,8 @@ export default function HomeScreen({ petApi }: Props) {
       .onEnd((event) => {
         runOnJS(onFlickEnd)(event.x, event.y, event.velocityX, event.velocityY);
       })
-      .onFinalize(() => {
-        runOnJS(onFlickFinish)();
+      .onFinalize((event) => {
+        runOnJS(onFlickFinish)(event.x, event.y);
       });
     return Gesture.Exclusive(tap, hold, flick);
   }, [
@@ -1570,6 +1671,31 @@ export default function HomeScreen({ petApi }: Props) {
       },
     },
     {
+      id: 'storage',
+      label: 'Storage',
+      onPress: () => {
+        tips.dismiss();
+        const placed = new Set(stageHandle.current?.placedTrickIds() ?? []);
+        const props: StorageChoice[] = trickPropsOf(currentOwner())
+          .filter((prop) => !placed.has(prop.instanceId))
+          .map((prop) => ({
+            id: prop.instanceId,
+            label: trickListing(prop.sourceTrickId)?.propName ?? prop.type,
+            kind: 'prop',
+            type: prop.type,
+            sourceTrickId: prop.sourceTrickId,
+          }));
+        const furniture: StorageChoice[] = scene.playerOwned
+          ? home.pieces
+              .filter((piece) => !home.placements.some((place) => place.pieceId === piece.id))
+              .map((piece) => ({ id: piece.id, label: pieceLabel(piece), kind: 'furniture' as const }))
+          : [];
+        setStorageItems(scene.playerOwned ? [...furniture, ...props] : props);
+        setStorageEmpty(scene.playerOwned ? 'Nothing in storage.' : 'Furniture stays in your rooms.');
+        setStorageOpen(true);
+      },
+    },
+    {
       id: 'personality',
       label: 'Traits',
       onPress: () => {
@@ -1609,7 +1735,7 @@ export default function HomeScreen({ petApi }: Props) {
           : tips.current === 'tip.sleep' && propTip
             ? { flavor: 'care' as const, icon: Moon, text: `Press Sleep so ${petName} can nap`, bold: 'Sleep', target: propTip }
             : tips.current === 'tip.move' && propTip
-              ? { flavor: 'style' as const, icon: Sparkles, text: 'Hold to move things around', bold: 'Hold', target: propTip }
+              ? { flavor: 'style' as const, icon: Sparkles, text: 'Hold to move or store', bold: 'Hold', target: propTip }
               : null;
 
   const sheetTop = split ? 0 : previewBottom;
@@ -1862,6 +1988,79 @@ export default function HomeScreen({ petApi }: Props) {
               stageHandle.current?.liftTrickProp({ instanceId: owned.id, type, sourceTrickId: owned.sourceTrickId });
             }
             setPropOpen(false);
+          }}
+        />
+      ) : null}
+      {holdTarget ? (
+        <HoldPieceSheet
+          top={sheetTop}
+          warning={holdTarget.warning}
+          confirming={holdConfirm}
+          onClose={closeHold}
+          onKeep={closeHold}
+          onMove={() => {
+            const target = holdTarget;
+            armedMove.current = { id: target.id, prop: target.prop };
+            if (target.prop) {
+              stageHandle.current?.setLiftedProp(target.id);
+            } else {
+              stageHandle.current?.setLifted(target.id);
+            }
+            closeHold();
+          }}
+          onStore={() => {
+            const target = holdTarget;
+            if (target.warning && !holdConfirm) {
+              setHoldConfirm(true);
+              return;
+            }
+            if (target.prop) {
+              placeIntent.current = null;
+              stageHandle.current?.stowTrickProp(target.id);
+            } else {
+              const woke = stageHandle.current?.stowFurniture(target.id) ?? false;
+              stowFurniture(target.id);
+              if (woke) {
+                rest();
+              }
+            }
+            armedMove.current = null;
+            closeHold();
+          }}
+        />
+      ) : null}
+      {bowlNotice ? <NoticeSheet top={sheetTop} message={bowlNotice} onClose={() => setBowlNotice(null)} /> : null}
+      {storageOpen ? (
+        <StorageCard
+          top={sheetTop}
+          items={storageItems}
+          empty={storageEmpty}
+          onClose={() => setStorageOpen(false)}
+          onPick={(item) => {
+            if (item.kind === 'prop') {
+              const type = item.type ? propTypeOf(item.type) : null;
+              if (type && item.sourceTrickId) {
+                stageHandle.current?.liftTrickProp({
+                  instanceId: item.id,
+                  type,
+                  sourceTrickId: item.sourceTrickId,
+                });
+                armedMove.current = { id: item.id, prop: true };
+              }
+            } else {
+              const piece = home.pieces.find((owned) => owned.id === item.id);
+              const blocked = piece ? bowlAlreadyInRoom(home.pieces, home.placements, scene.id, piece.id) : null;
+              if (blocked) {
+                setBowlNotice(bowlRoomMessage(blocked));
+                return;
+              }
+              const placed = piece ? stageHandle.current?.showStoredFurniture(piece) : null;
+              if (piece && placed) {
+                moveFurniture(piece.id, placed.sceneId, placed.x, placed.y);
+                armedMove.current = { id: piece.id, prop: false };
+              }
+            }
+            setStorageOpen(false);
           }}
         />
       ) : null}

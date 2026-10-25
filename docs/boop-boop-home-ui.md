@@ -10,7 +10,7 @@ Care (pink): Feed, Water, Treat, Sleep. Sleep says Wake only once the pet is act
 
 Bond (blue): Cuddle, Play, Playdate. Playdate's label stays Playdate. The cooldown stays on the "Next playdate in …" line.
 
-Style & sound (lilac): Wardrobe, Traits, Sounds, Music. Traits opens the personality scores under the buttons. Wardrobe opens the wardrobe. Sounds and Music are switches.
+Style & sound (lilac): Wardrobe, Storage, Traits, Sounds, Music. Traits opens the personality scores under the buttons. Wardrobe opens the wardrobe. Storage lists owned furniture and trick props that are not out. Sounds and Music are switches.
 
 Learned tricks sit under those sections in the blue candy style. Badges are lilac coins and appear only after Sit, Speak, or Paw is awarded. The grey coins stay hidden. Mastered tricks also stay as trick buttons.
 
@@ -24,7 +24,11 @@ A low Tummy, Hydration, or Energy (under 30) puts a need badge and sparkles on F
 
 A tap on the water bowl, food bowl, or bed runs the same action as the button. Water fills the bowl immediately. Feed opens the Pantry, and the bowl fills when a food is chosen. Sleep turns the bed down immediately. Once a meal or a nap is chosen, Play, a cuddle, a treat, a trick, and a park hello step aside, and a hello cannot pull the pet off that walk. Water does the same, except it waits while a meal or a nap is already underway and runs when that ends. A room change and a collapse nap still finish first. After those, Sleep and Feed go ahead of a care tap that was already waiting. A second tap on a walk that is already happening does nothing. The bed invite still calls him when energy is high. He is not asleep until he lies down, so a second Sleep tap does not cancel the walk, and Wake appears only after he curls up.
 
-Holding a prop for 400ms lifts it so it can be moved. A tap never moves a prop. Floor flicks and cuddle strokes are unchanged.
+Holding a prop for 400ms opens a choice, Put in storage or Move. It does not drag yet. Move lifts the piece, and the next drag places it. A tap elsewhere cancels that lift and does not throw. Put in storage takes the piece off the floor and leaves it owned. Bowls and the bed ask first. The warning uses the pet's name: a food bowl says they won't be able to eat here, a water bowl says they won't be able to drink here, and a bed says they won't have a bed to nap on here. Other furniture and trick props store with no warning. If the pet is walking to or using that piece, that action stops. Sleep still works in a room with no bed.
+
+Saved furniture can come back only in a scene that belongs to the player. Living room, bedroom, and catio do. Park and Training School do not. A later scene sets the same flag. The player chooses the spot, including a food or water bowl in the bedroom. A room holds one food bowl and one water bowl. Trying to put a second one out says "There's already a food bowl in this room." or "There's already a water bowl in this room." In the park or at school, Storage leaves furniture out and says furniture stays in your rooms. Trick props can still be put out there. They return to the box on a scene change, and a hold can store one before then.
+
+A tap never moves a prop. Floor flicks and cuddle strokes are unchanged. Cuddle does not open the choice.
 
 ## Tips
 
@@ -32,7 +36,7 @@ One candy tooltip shows at a time. Doing the action marks it seen. Dismissing it
 
 - `tip.water`, `tip.food`, `tip.sleep`: the first time that stat crosses under 30, pointing at the bowl or bed.
 - `tip.cuddle`: the first time Cuddle is entered. Copy is "Stroke his back or head". The ghost finger and the long-press help sheet stay.
-- `tip.move`: after two prop taps, or when a new placeable arrives once a prop tap has already happened. "Hold to move things around". The first time it appears it is marked seen, so a later tap or a new placeable does not bring it back.
+- `tip.move`: after two prop taps, or when a new placeable arrives once a prop tap has already happened. "Hold to move or store". The first time it appears it is marked seen, so a later tap or a new placeable does not bring it back.
 
 After a prop tip has been seen, that prop shimmers while its need stays under 30. Reduce Motion turns off the bob, the pulse, and the shimmer.
 

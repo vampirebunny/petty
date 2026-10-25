@@ -70,12 +70,100 @@ export function furnitureDefinition(id: string): FurniturePiece | null {
   return null;
 }
 
+// First purchase lands in the scene the player is in when that scene is theirs, otherwise the living room.
 export function shopFurnitureSpot(kind: ShopFurnitureId, sceneId: string): { sceneId: string; x: number; y: number } {
   const spec = shopFurniture[kind];
-  const allowed = spec.scenes as readonly string[];
-  const scene = allowed.includes(sceneId) ? sceneId : spec.scenes[0];
-  const spot = spec.spot[scene as keyof typeof spec.spot];
-  return { sceneId: scene, x: spot.x, y: spot.y };
+  const requested = sceneById(sceneId);
+  const targetId = requested.playerOwned ? requested.id : 'livingroom';
+  const spots = spec.spot as Record<string, { x: number; y: number }>;
+  const recorded = spots[targetId];
+  if (recorded) {
+    return { sceneId: targetId, x: recorded.x, y: recorded.y };
+  }
+  const floor = sceneById(targetId).floor;
+  return {
+    sceneId: targetId,
+    x: (floor.xMin + floor.xMax) / 2,
+    y: (floor.yMin + floor.yMax) / 2,
+  };
+}
+
+export type BowlUse = 'food' | 'water';
+
+export function bowlUse(piece: FurniturePiece): BowlUse | null {
+  if (piece.kind !== 'bowl') {
+    return null;
+  }
+  return piece.contents === 'water' ? 'water' : 'food';
+}
+
+// A room keeps one food bowl and one water bowl. The piece already in that room does not count.
+export function bowlAlreadyInRoom(
+  pieces: readonly FurniturePiece[],
+  placed: readonly FurniturePlacement[],
+  sceneId: string,
+  pieceId: string,
+): BowlUse | null {
+  const piece = pieces.find((item) => item.id === pieceId);
+  const use = piece ? bowlUse(piece) : null;
+  if (!use) {
+    return null;
+  }
+  const taken = placed.some((place) => {
+    if (place.sceneId !== sceneId || place.pieceId === pieceId) {
+      return false;
+    }
+    const other = pieces.find((item) => item.id === place.pieceId);
+    return other != null && bowlUse(other) === use;
+  });
+  return taken ? use : null;
+}
+
+export function bowlRoomMessage(use: BowlUse): string {
+  return `There's already a ${use} bowl in this room.`;
+}
+
+export function pieceLabel(piece: FurniturePiece): string {
+  if (piece.kind === 'bowl') {
+    return piece.contents === 'water' ? 'Water bowl' : 'Food bowl';
+  }
+  if (piece.kind === 'bed') {
+    return 'Bed';
+  }
+  if (piece.kind === 'catTree') {
+    return 'Cat tree';
+  }
+  if (piece.kind === 'dogHouse') {
+    return 'Dog house';
+  }
+  if (piece.kind === 'scratcher') {
+    return 'Scratcher';
+  }
+  if (piece.kind === 'planter') {
+    return 'Planter';
+  }
+  if (piece.kind === 'catioPost') {
+    return 'Post';
+  }
+  return piece.id;
+}
+
+// Bowls and the bed ask before they leave. Other pieces do not. The name is the pet's.
+export function stowWarning(piece: FurniturePiece, name: string): string | null {
+  if (piece.kind === 'bowl' && piece.contents === 'water') {
+    return `${name} won't be able to drink here.`;
+  }
+  if (piece.kind === 'bowl') {
+    return `${name} won't be able to eat here.`;
+  }
+  if (piece.kind === 'bed') {
+    return `${name} won't have a bed to nap on here.`;
+  }
+  return null;
+}
+
+export function stowPiece(placed: FurniturePlacement[], pieceId: string): FurniturePlacement[] {
+  return placed.filter((place) => place.pieceId !== pieceId);
 }
 
 // Half-depth of the floor ellipse. Matches the band a hurdle uses.
@@ -369,6 +457,9 @@ export function placePiece(
   if (!owned.includes(pieceId)) {
     return null;
   }
+  if (!sceneById(sceneId).playerOwned) {
+    return null;
+  }
   const floor = sceneById(sceneId).floor;
   const nextX = Math.min(floor.xMax, Math.max(floor.xMin, x));
   const nextY = Math.min(floor.yMax, Math.max(floor.yMin, y));
@@ -379,25 +470,36 @@ export function placePiece(
 }
 
 // Copy placed positions onto the live scene without replacing it, so the pet is not sent home.
-export function syncFurniture(live: Scene, next: Scene): void {
+// Furniture the layout no longer has is removed. Scenery stays. Returns the ids that left.
+export function syncFurniture(live: Scene, next: Scene): string[] {
   const incoming = new Map(next.props.filter((prop) => prop.id).map((prop) => [prop.id as string, prop]));
+  const removed: string[] = [];
+  const kept: Prop[] = [];
   for (const prop of live.props) {
-    if (!prop.id) {
+    if (!prop.id || !isFurnitureKind(prop.kind)) {
+      kept.push(prop);
+      if (prop.id) {
+        incoming.delete(prop.id);
+      }
       continue;
     }
     const updated = incoming.get(prop.id);
     if (!updated) {
+      removed.push(prop.id);
       continue;
     }
     prop.x = updated.x;
     prop.y = updated.y;
+    kept.push(prop);
     incoming.delete(prop.id);
   }
   for (const prop of incoming.values()) {
     if (isFurnitureKind(prop.kind)) {
-      live.props.push({ ...prop });
+      kept.push({ ...prop });
     }
   }
+  live.props = kept;
+  live.pois = live.pois.filter((poi) => !poi.propId || live.props.some((prop) => prop.id === poi.propId));
   for (const poi of next.pois) {
     const found = live.pois.find((item) => item.id === poi.id);
     if (found) {
@@ -408,6 +510,33 @@ export function syncFurniture(live: Scene, next: Scene): void {
       live.pois.push({ ...poi });
     }
   }
+  return removed;
+}
+
+// Puts an owned piece on the live scene so it can be dragged before the layout round-trip.
+export function showPiece(scene: Scene, piece: FurniturePiece, x: number, y: number): { x: number; y: number } | null {
+  if (!scene.playerOwned) {
+    return null;
+  }
+  const point = clampToFloor({ x, y }, scene.floor);
+  const existing = scene.props.find((prop) => prop.id === piece.id);
+  if (existing) {
+    existing.x = point.x;
+    existing.y = point.y;
+  } else {
+    scene.props.push(propFromPiece(piece, point.x, point.y));
+  }
+  const poi = poiForPiece(piece, point.x, point.y);
+  if (poi) {
+    const found = scene.pois.find((item) => item.propId === piece.id);
+    if (found) {
+      found.x = poi.x;
+      found.y = poi.y;
+    } else {
+      scene.pois.push(poi);
+    }
+  }
+  return point;
 }
 
 function clampToFloor(point: Vec, floor: Floor): Vec {
@@ -423,11 +552,8 @@ export function movePiece(scene: Scene, pieceId: string, x: number, y: number): 
   if (!prop || !isFurnitureKind(prop.kind)) {
     return null;
   }
-  if (prop.kind in shopFurniture) {
-    const allowed = shopFurniture[prop.kind as ShopFurnitureId].scenes as readonly string[];
-    if (!allowed.includes(scene.id)) {
-      return null;
-    }
+  if (!scene.playerOwned) {
+    return null;
   }
   const next = clampToFloor({ x, y }, scene.floor);
   const dx = next.x - prop.x;

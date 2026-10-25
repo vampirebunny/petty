@@ -18,6 +18,7 @@ import {
   Cookie,
   House,
   Shovel,
+  Archive,
   Backpack,
   Footprints,
   Hand,
@@ -54,6 +55,7 @@ export const actionIcons: Record<string, LucideIcon> = {
   clean: Shovel,
   treat: Cookie,
   inventory: Backpack,
+  storage: Archive,
   walk: Footprints,
 };
 

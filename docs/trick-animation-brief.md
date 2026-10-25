@@ -8,7 +8,7 @@ These override the lab and `training_catalog.sql` where they differ.
 - In-place tricks keep the facing the pet already has. The head may still turn toward the camera on beats that set `faceCam`.
 - A furniture trick runs from the pet's side of the prop. Above or below the prop, the pet runs to the closer of the left or right side first. A tie keeps the side it is already facing. Approaching from the right reverses the path. The prop art stays left-right.
 - Trick props are not furniture. A purchase grants one prop into the Prop box. Placements last for the current scene only.
-- While a trick is in training, the pet uses one prop. After it is learned, the trick uses every prop of that type on the scene, nearest first. The Learned tricks section has a Prop button that only places props.
+- While a trick is in training, the pet uses one prop. After it is learned, the trick uses every prop of that type on the scene, nearest first. The Learned tricks section has a Prop button that only places props. Holding a placed prop can put it back in the box. Props still clear on a scene change.
 - If a learned trick is tapped and none of its props are out, the pet lifts the one prop that purchase granted. Letting go places it and starts the trick.
 
 

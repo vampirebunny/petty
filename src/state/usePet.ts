@@ -32,7 +32,7 @@ import { noteForegroundDay } from '../compliance/accountPrompts';
 import { createUuid, getCachedInstallId } from '../compliance/identity';
 import { bootstrapLocal, wipeLocalData } from '../db/bootstrap';
 import { readAccountLinked, readStandby, readSyncedRevision, serverNow, setOtherDeviceLabel, setStandby } from '../db/accountMeta';
-import { grantSpeciesHome, moveOwnedPiece } from '../db/playerHome';
+import { grantSpeciesHome, moveOwnedPiece, stowOwnedPiece } from '../db/playerHome';
 import { claimDevice, enterStandby, hasUnsentPlay, peekActiveDevice, touchLastSeen, type ClaimResult } from '../sync/activeDevice';
 import { devicePhrase } from '../sync/deviceLabel';
 import { reconcileFromServer } from '../sync/reconcile';
@@ -131,6 +131,7 @@ type PetApi = {
   ) => { before: PetState; after: PetState; waiting: boolean } | null;
   seeCoach: (id: string) => void;
   moveFurniture: (pieceId: string, sceneId: string, x: number, y: number) => void;
+  stowFurniture: (pieceId: string) => void;
   rememberGreeting: (id: string) => void;
   offerTreat: (treatId: string, applied?: PetState) => { ok: true; mood: number } | { ok: false; reason: 'unknown' | 'full' | 'species' };
   welcomeBack: boolean;
@@ -1033,6 +1034,15 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
     moveOwnedPiece(ownerId, speciesOf(current.breedId), pieceId, sceneId, x, y);
     queuePlayer();
   }, []);
+  const stowFurniture = useCallback((pieceId: string) => {
+    const current = stateRef.current;
+    const ownerId = current?.ownerId;
+    if (!current || !ownerId) {
+      return;
+    }
+    stowOwnedPiece(ownerId, speciesOf(current.breedId), pieceId);
+    queuePlayer();
+  }, []);
   const dismissWelcome = useCallback(() => setWelcomeBack(false), []);
   const feed = useCallback(() => dispatch({ type: 'feed' }), [dispatch]);
   const refillWater = useCallback(() => dispatch({ type: 'refillWater' }), [dispatch]);
@@ -1195,6 +1205,7 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
     resolveTraining,
     seeCoach,
     moveFurniture,
+    stowFurniture,
     offerTreat,
     welcomeBack,
     dismissWelcome,

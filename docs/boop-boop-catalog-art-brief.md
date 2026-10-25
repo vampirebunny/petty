@@ -207,11 +207,11 @@ New toy ids are plain, like the existing `ball` and `yarn`. A toy with no play r
 
 Today the cat tree is hardcoded in the catio scene and copied into starter furniture, and there's no furniture kind for the dog house. Build the general version:
 
-1. **Furniture kinds registry:** `{ id, label, species, scenes (where it can go), footprint, defaultSpot per scene, napSpot?, perchSpot? }`. Drawing is per kind.
+1. **Furniture kinds registry:** `{ id, label, species, footprint, defaultSpot per scene, napSpot?, perchSpot? }`. Where a piece can go is the scene's player-owned flag, not a per-kind room list. Drawing is per kind.
 2. **Ownership:** player-owned, through the existing owned-furniture rows. A purchase or the dev grant adds a row.
-3. **Placement:** a newly owned piece appears at its `defaultSpot` in its scene, or the nearest free spot. It's draggable like the existing props, and its position saves in `furniturePlaced` as today.
-4. **Cat tree:** keep the existing kind name, **`catTree`**. Remove the hardcoded prop from the catio scene and from starter furniture. It becomes a normal owned kind, placeable in the **catio and the rooms**, not the park. Update the furniture test that expects `catio-tree`: it should now pass only when the cat tree is owned and placed. Test installs lose it; that's fine.
-5. **Dog house** (`dogHouse`, dog): art per the Icons board at room scale. Placeable in the **living room and the bedroom** only.
+3. **Placement:** a newly owned piece appears at its `defaultSpot` when the current scene belongs to the player, otherwise in the living room. Holding it offers Put in storage or Move. Move is a drag. Put in storage clears that placement and leaves it owned. Saved furniture can come back in any scene marked as the player's (living room, bedroom, catio, and later scenes with that flag), not the park or Training School. A room holds one food bowl and one water bowl.
+4. **Cat tree:** keep the existing kind name, **`catTree`**. Remove the hardcoded prop from the catio scene and from starter furniture. It becomes a normal owned kind, placeable in any scene that belongs to the player. Update the furniture test that expects `catio-tree`: it should now pass only when the cat tree is owned and placed. Test installs lose it; that's fine.
+5. **Dog house** (`dogHouse`, dog): art per the Icons board at room scale. Placeable in any scene that belongs to the player.
    - **Naps:** `beginIdle` targets the nearest bed today. When a dog house is placed in the current scene, **the dog house wins** over the bed for dogs.
    - **Doorway:** split the drawing into a **back layer** (roof back, interior shadow) and a **front layer** (front wall with the door opening cut out, roof front).
    - **Normally**, both layers sort together with the house's baseline, the way the bed sorts against pets today, so a dog standing in front of the house draws in front of it.

@@ -23,6 +23,7 @@ const actionIds = [
   'clean',
   'treat',
   'inventory',
+  'storage',
   'walk',
 ];
 
