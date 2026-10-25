@@ -2,7 +2,7 @@
 
 export const needThreshold = 30;
 
-export type CandyFlavorName = 'care' | 'bond' | 'style' | 'sugar' | 'muted';
+export type CandyFlavorName = 'care' | 'bond' | 'style' | 'trick' | 'sugar' | 'muted';
 
 export type CandyFlavor = {
   stops: [string, string, string, string];
@@ -44,6 +44,16 @@ export const candyFlavors: Record<CandyFlavorName, CandyFlavor> = {
     header: '#6A3FC7',
     bubble: '#ECE2FF',
     edge: '#9A70EE',
+    gloss: true,
+  },
+  trick: {
+    stops: ['#F4FFF8', '#C9F6DE', '#86E4B8', '#45C992'],
+    ledge: '#2EAE7A',
+    icon: '#1B9466',
+    label: '#14543C',
+    header: '#17875C',
+    bubble: '#E4F8EE',
+    edge: '#45C992',
     gloss: true,
   },
   sugar: {

@@ -4,7 +4,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Pressable } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { Heart, PawPrint, Sparkles, Star } from 'lucide-react-native';
+import { Heart, Medal, PawPrint, Sparkles } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
@@ -34,7 +34,6 @@ type PanelProps = {
   bond: CandyAction[];
   style: CandyAction[];
   tricks: { id: string; label: string; onPress: () => void; fresh: boolean }[];
-  badges: { id: string; label: string; fresh: boolean }[];
   onProps?: () => void;
 };
 
@@ -47,9 +46,10 @@ const headerIcon = {
   care: Heart,
   bond: PawPrint,
   style: Sparkles,
+  trick: Medal,
 } as const;
 
-export function HomeActionPanel({ species, reducedMotion, care, bond, style: styleActions, tricks, badges, onProps }: PanelProps) {
+export function HomeActionPanel({ species, reducedMotion, care, bond, style: styleActions, tricks, onProps }: PanelProps) {
   return (
     <View style={styles.panel}>
       <PanelWash />
@@ -63,21 +63,16 @@ export function HomeActionPanel({ species, reducedMotion, care, bond, style: sty
           <Tile key={action.id} action={action} flavor="bond" species={species} reducedMotion={reducedMotion} />
         ))}
       </Section>
-      <Section flavor="style" title="Style & sound" columns={2} pill>
-        {styleActions.map((action) => (
-          <Pill key={action.id} action={action} species={species} />
-        ))}
-      </Section>
       {tricks.length > 0 ? (
         <Section
-          flavor="bond"
+          flavor="trick"
           title="Learned tricks"
-          columns={3}
-          icon={PawPrint}
+          columns={4}
+          fixed
           extra={
             onProps ? (
               <Pressable accessibilityRole="button" accessibilityLabel="Prop" onPress={onProps} style={styles.propButton}>
-                <Text style={[styles.headerText, { color: candyFlavors.bond.header }]}>Prop</Text>
+                <Text style={[styles.headerText, { color: candyFlavors.trick.header }]}>Prop</Text>
               </Pressable>
             ) : null
           }
@@ -86,7 +81,7 @@ export function HomeActionPanel({ species, reducedMotion, care, bond, style: sty
             <Pop key={trick.id} fresh={trick.fresh && !reducedMotion}>
               <Tile
                 action={{ id: trick.id, label: trick.label, onPress: trick.onPress }}
-                flavor="bond"
+                flavor="trick"
                 species={species}
                 reducedMotion={reducedMotion}
               />
@@ -94,15 +89,11 @@ export function HomeActionPanel({ species, reducedMotion, care, bond, style: sty
           ))}
         </Section>
       ) : null}
-      {badges.length > 0 ? (
-        <Section flavor="style" title="Badges" columns={3} icon={Star}>
-          {badges.map((badge) => (
-            <Pop key={badge.id} fresh={badge.fresh && !reducedMotion}>
-              <Coin badge={badge} species={species} />
-            </Pop>
-          ))}
-        </Section>
-      ) : null}
+      <Section flavor="style" title="Style & sound" columns={2} pill>
+        {styleActions.map((action) => (
+          <Pill key={action.id} action={action} species={species} />
+        ))}
+      </Section>
     </View>
   );
 }
@@ -145,14 +136,16 @@ function Section({
   title,
   columns,
   pill = false,
+  fixed = false,
   icon,
   extra,
   children,
 }: {
-  flavor: 'care' | 'bond' | 'style';
+  flavor: 'care' | 'bond' | 'style' | 'trick';
   title: string;
   columns: number;
   pill?: boolean;
+  fixed?: boolean;
   icon?: LucideIcon;
   extra?: ReactNode;
   children: ReactNode;
@@ -175,6 +168,9 @@ function Section({
                 {child}
               </View>
             ))}
+            {fixed
+              ? Array.from({ length: columns - row.length }, (_, pad) => <View key={`pad-${pad}`} style={styles.cell} />)
+              : null}
           </View>
         ))}
       </View>
@@ -281,30 +277,6 @@ function CandySwitch({ on }: { on: boolean }) {
         </Svg>
       ) : null}
       <View style={[styles.knob, on ? styles.knobOn : styles.knobOff]} />
-    </View>
-  );
-}
-
-function Coin({
-  badge,
-  species,
-}: {
-  badge: { id: string; label: string };
-  species: ActionSpecies;
-}) {
-  const tone = candyFlavors.style;
-  return (
-    <View style={styles.coinWrap} accessible accessibilityLabel={`${badge.label} badge`}>
-      <CandyPlate flavor="style" height={candyLayout.coin} radius={candyLayout.coin / 2} style={styles.coinPlate}>
-        <View style={styles.coinFace}>
-          <PearlBubble flavor="style" size={candyLayout.coinBubble}>
-            {candyIcon(badge.id, species, 22, tone.icon)}
-          </PearlBubble>
-        </View>
-      </CandyPlate>
-      <Text style={[styles.coinLabel, { color: tone.label }]} numberOfLines={2}>
-        {badge.label}
-      </Text>
     </View>
   );
 }
@@ -420,23 +392,5 @@ const styles = StyleSheet.create({
   },
   knobOff: {
     left: 3,
-  },
-  coinWrap: {
-    alignItems: 'center',
-    gap: 4,
-  },
-  coinPlate: {
-    width: candyLayout.coin,
-    alignSelf: 'center',
-  },
-  coinFace: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  coinLabel: {
-    fontSize: 13,
-    fontFamily: fontFamily.fredokaSemibold,
-    textAlign: 'center',
   },
 });
