@@ -10,7 +10,8 @@ import { catalog, catalogItem, starterOutfits, storeItems, type CatalogItem, typ
 import { furnitureDefinition, grantPieces, shopFurniture, shopFurnitureSpot, type ShopFurnitureId } from '../actor/furniture';
 import { writeLedgerEntry, type LedgerLine } from '../db/ledgerWrite';
 import { moveOwnedPiece, touchPlayerHome } from '../db/playerHome';
-import { speciesOf } from '../sim/tracks';
+import { masteredTrickIds, speciesOf } from '../sim/tracks';
+import { prepareTrickPurchase, trickMilestoneKey } from '../sim/tricks';
 import { listedPrice, quoteCart } from './shopState';
 import type { CartInput, PricedLine, SpeciesId } from './shop';
 import { serverNow } from '../db/accountMeta';
@@ -610,6 +611,38 @@ export function limitedSerial(itemId: string): number | null {
   return row?.serial ?? null;
 }
 
+export function buyTrick(
+  pet: PetState,
+  trickId: string,
+  requestId: string,
+  now = Date.now(),
+): Check & { pet?: PetState } {
+  try {
+    const result = transaction(() => {
+      ensureOwnerRows(now);
+      if (hasKey(requestId)) {
+        return { ok: true as const, pet };
+      }
+      const quoted = prepareTrickPurchase(pet, speciesOf(pet.breedId), trickId, balance());
+      if (!quoted.ok) {
+        return quoted;
+      }
+      insertTransaction('purchase', requestId, trickId, [
+        { asset: 'boops', delta: -quoted.price, unitPrice: quoted.price, deal: false },
+      ]);
+      writePetNow(quoted.pet);
+      return { ok: true as const, pet: quoted.pet };
+    });
+    emit();
+    if (result.ok && result.pet) {
+      queueCoupled(result.pet);
+    }
+    return result;
+  } catch (error) {
+    return { ok: false, reason: error instanceof Error ? error.message : 'unknown' };
+  }
+}
+
 export function purchase(itemId: string, qty: number, requestId: string): Check {
   try {
     const result = transaction(() => {
@@ -817,12 +850,12 @@ function payLevelsAndStages(pet: PetState): { pet: PetState; boops: number; labe
   for (const stage of stages) {
     boops += grantBoops('milestone', `stage:${pet.id}:${stage}`, pet.id, economyConfig.milestones.lifeStage);
   }
-  const tricks = ['sit', 'speak', 'paw'].filter((id) => pet.milestones.includes(id));
+  const tricks = masteredTrickIds(pet);
   let trickLabel: string | null = null;
   for (const trickId of tricks) {
     const paid = grantBoops(
       'milestone',
-      `milestone:trick:${trickId}:${pet.id}`,
+      trickMilestoneKey(pet.id, trickId),
       pet.id,
       economyConfig.milestones.trickMastered,
     );

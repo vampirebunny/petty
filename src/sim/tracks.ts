@@ -1,6 +1,7 @@
 import { breedById } from '../actor/breeds';
 import type { TrickTier } from './careConfig';
 import { attributeScore } from './attributes';
+import { trickListing } from './tricks';
 import type { PetState, TrainingTrack, Trait } from './types';
 
 export type SpeciesId = 'dog' | 'cat';
@@ -62,14 +63,32 @@ export const trackDefs: TrackDef[] = [
 const byId = new Map(trackDefs.map((def) => [def.id, def]));
 
 export function trackDef(id: string): TrackDef | null {
-  return byId.get(id) ?? null;
+  const known = byId.get(id);
+  if (known) {
+    return known;
+  }
+  const listing = trickListing(id);
+  if (!listing) {
+    return null;
+  }
+  return {
+    id: listing.id,
+    name: listing.name,
+    species: [listing.species],
+    hideWhenMastered: true,
+    prerequisites: {},
+    unlock: {},
+    tier: 1,
+    linked: listing.attributesRaised,
+    button: 'panel',
+  };
 }
 
 export function trackName(id: string, species: SpeciesId): string {
   if (id === 'paw' && species === 'cat') {
     return 'High five';
   }
-  return byId.get(id)?.name ?? id;
+  return trackDef(id)?.name ?? id;
 }
 
 export function speciesOf(breedId: string): SpeciesId {
@@ -80,7 +99,11 @@ export function tracksFor(species: SpeciesId): TrackDef[] {
   return trackDefs.filter((def) => def.species.includes(species));
 }
 
-export function emptyTrack(def: TrackDef, unlocked: boolean): TrainingTrack {
+export function masteredTrickIds(pet: PetState): string[] {
+  return pet.milestones.filter((id) => trackDef(id) != null);
+}
+
+export function emptyTrack(def: TrackDef, unlocked: boolean, source: TrainingTrack['source'] = 'starter'): TrainingTrack {
   return {
     id: def.id,
     progress: 0,
@@ -91,6 +114,7 @@ export function emptyTrack(def: TrackDef, unlocked: boolean): TrainingTrack {
     hadNoTreat: false,
     pendingPenalty: false,
     lastPracticedAt: null,
+    source,
   };
 }
 

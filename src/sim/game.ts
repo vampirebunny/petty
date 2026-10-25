@@ -1,6 +1,7 @@
 import { breedAttributes } from '../actor/breedAttributes';
 import { maturityOf, naturalGrowth, zeroStats } from './attributes';
-import { emptyTrack, refreshUnlocks, speciesOf, tracksFor } from './tracks';
+import { trickListing } from './tricks';
+import { emptyTrack, refreshUnlocks, speciesOf, trackDef, tracksFor } from './tracks';
 import { refreshTraining, resolveReward } from './training';
 import { traits } from './config';
 import type { PetCareState, PetState, TrainingTrack } from './types';
@@ -72,8 +73,11 @@ function normalizeTrack(raw: Partial<TrainingTrack>, defId: string): TrainingTra
     hadNoTreat: legacy ? false : raw.hadNoTreat === true,
     pendingPenalty: false,
     lastPracticedAt: typeof raw.lastPracticedAt === 'number' ? raw.lastPracticedAt : null,
+    source: raw.source === 'purchase' || raw.source === 'starter' ? raw.source : starterIds.has(defId) ? 'starter' : 'purchase',
   };
 }
+
+const starterIds = new Set(['sit', 'speak', 'paw']);
 
 // Foreground and return both come through here. Expired trick rewards resolve.
 // Away needs are applied before this runs, so a long absence does not raise happiness.
@@ -98,9 +102,20 @@ export function ensureGame(state: PetState): PetState {
   const care = base.care?.hygiene != null ? base.care : blankCare(base.lastUpdatedAt, bathToleranceFor(base.attributes.potential.boldness, base.breedId, species));
   const training = base.training && Object.keys(base.training).length > 0 ? { ...base.training } : blankTraining(species);
   delete training.house_training;
+  for (const id of Object.keys(training)) {
+    if (!trackDef(id) && !trickListing(id)) {
+      delete training[id];
+      continue;
+    }
+    const raw = training[id];
+    if (raw) {
+      training[id] = normalizeTrack(raw, id);
+    }
+  }
   for (const def of tracksFor(species)) {
-    const raw = training[def.id];
-    training[def.id] = raw ? normalizeTrack(raw, def.id) : emptyTrack(def, unlockedAtAdoption.has(def.id));
+    if (!training[def.id]) {
+      training[def.id] = emptyTrack(def, unlockedAtAdoption.has(def.id));
+    }
   }
   const milestones = (Array.isArray(base.milestones) ? base.milestones : []).filter(
     (id) => id !== 'house_trained' && id !== 'house_training',

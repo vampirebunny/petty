@@ -211,8 +211,34 @@ export function ShopIcon({ size }: { size: number }) {
   );
 }
 
+export function SchoolIcon({ size }: { size: number }) {
+  const grad = useSvgId('sc');
+  return (
+    <IconSvg size={size}>
+      <Defs>
+        <Shade id={grad} y1={16} y2={108} top="#FFE7F4" bottom="#F08AB8" />
+      </Defs>
+      <Ellipse cx={60} cy={116} rx={44} ry={6} fill="#F08AB8" opacity={0.25} />
+      <G transform="translate(0, 6)">
+        <Path d="M22 48 H98 V100 H22 Z" fill="#C45B8A" />
+        <Path d="M16 50 L60 18 L104 50 Z" fill="#C45B8A" />
+      </G>
+      <Path d="M22 48 H98 V100 H22 Z" fill={`url(#${grad})`} />
+      <Path d="M16 50 L60 18 L104 50 Z" fill={`url(#${grad})`} />
+      <Rect x={46} y={68} width={28} height={32} rx={8} fill="#7A3E62" />
+      <Circle cx={68} cy={84} r={2} fill="#FFFFFF" />
+      <Rect x={30} y={58} width={14} height={14} rx={4} fill="#FFFFFF" opacity={0.85} />
+      <Rect x={76} y={58} width={14} height={14} rx={4} fill="#FFFFFF" opacity={0.85} />
+      <Path d="M78 96 L86 72 L94 96 Z" fill="#F2A3C4" />
+      <Rect x={74} y={94} width={24} height={6} rx={3} fill="#E07AA8" />
+      <Circle cx={60} cy={34} r={5} fill="#FFE29A" />
+    </IconSvg>
+  );
+}
+
 export const locationIcons = {
   shop: ShopIcon,
+  school: SchoolIcon,
   park: TreeIcon,
   livingroom: SofaIcon,
   bedroom: BedIcon,

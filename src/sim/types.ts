@@ -100,6 +100,7 @@ export type TrainingTrack = {
   hadNoTreat: boolean;
   pendingPenalty: boolean;
   lastPracticedAt: number | null;
+  source: 'starter' | 'purchase';
 };
 
 export type PetState = {

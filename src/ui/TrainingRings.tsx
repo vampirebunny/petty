@@ -1,8 +1,8 @@
 import { useEffect, useId, useState } from 'react';
 import type { ReactNode } from 'react';
-import { ChevronsDown, Hand, Lock, Moon, Volume2 } from 'lucide-react-native';
+import { ChevronsDown, Hand, Lock, Moon, Sparkles, Volume2 } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
@@ -11,6 +11,7 @@ import { trackDef, trackName } from '../sim/tracks';
 import type { PetState } from '../sim/types';
 import { iconFor } from './actionIcons';
 import { CandyShell, GRAY, WHITE, candyInk, tints } from './candy';
+import { CandyTooltip } from './tips/CandyTooltip';
 import type { Tint, TintName } from './candy';
 import { iconStroke } from './theme';
 
@@ -22,6 +23,8 @@ type Props = {
   reducedMotion?: boolean;
   now: number;
   disabled?: boolean;
+  freeTreats?: boolean;
+  tip?: { id: string; text: string; bold: string } | null;
 };
 
 type Card = {
@@ -70,19 +73,29 @@ const cards: Record<string, Card> = {
 const order = ['sit', 'speak', 'paw'];
 
 export function trainingIds(pet: PetState, species: 'dog' | 'cat'): string[] {
-  return order.filter((id) => {
+  const visible = (id: string) => {
     const track = pet.training[id];
     const def = trackDef(id);
-    return track && def && def.species.includes(species) && !track.mastered;
-  });
+    return Boolean(track && def && def.species.includes(species) && !track.mastered);
+  };
+  const bought = Object.keys(pet.training).filter((id) => !order.includes(id) && visible(id));
+  return [...order.filter(visible), ...bought];
 }
 
 function cardFor(id: string, species: 'dog' | 'cat'): Card {
+  if (id === 'paw') {
+    return { ...cards.paw, label: trackName(id, species), Icon: iconFor(id, species) ?? Hand };
+  }
   const card = cards[id];
-  if (id !== 'paw') {
+  if (card) {
     return card;
   }
-  return { ...card, label: trackName(id, species), Icon: iconFor(id, species) ?? Hand };
+  return {
+    label: trackName(id, species),
+    Icon: Sparkles,
+    tint: 'lilac',
+    tiers: cards.sit.tiers,
+  };
 }
 
 function Spotlight({
@@ -202,15 +215,36 @@ function TrainingCard({
   );
 }
 
-export function TrainingRings({ pet, species, onPractice, highlightId, reducedMotion = false, now, disabled = false }: Props) {
+export function TrainingRings({
+  pet,
+  species,
+  onPractice,
+  highlightId,
+  reducedMotion = false,
+  now,
+  disabled = false,
+  freeTreats = false,
+  tip = null,
+}: Props) {
   const ids = trainingIds(pet, species);
+  const [bounds, setBounds] = useState({ width: 0, height: 160 });
+  const [tipAt, setTipAt] = useState<{ x: number; y: number } | null>(null);
   if (ids.length === 0) {
     return null;
   }
   return (
-    <View style={styles.wrap}>
-      <Text style={styles.title}>In Training</Text>
-      <View style={styles.row}>
+    <View
+      style={styles.wrap}
+      onLayout={(event) => {
+        const width = event.nativeEvent.layout.width;
+        setBounds((current) => (current.width === width ? current : { width, height: 220 }));
+      }}
+    >
+      <View style={styles.titleRow}>
+        <Text style={styles.title}>In Training</Text>
+        {freeTreats ? <Text style={styles.ribbon}>Free treats here!</Text> : null}
+      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
         {ids.map((id) => {
           const track = pet.training[id];
           const def = trackDef(id);
@@ -223,29 +257,62 @@ export function TrainingRings({ pet, species, onPractice, highlightId, reducedMo
             track.restUntil != null && now >= track.restUntil && now - track.restUntil < 1600;
           const fresh = (id === highlightId && !locked) || justReady;
           return (
-            <Spotlight key={id} active={fresh} reducedMotion={reducedMotion}>
-              <TrainingCard
-                card={cardFor(id, species)}
-                value={track.progress}
-                locked={locked}
-                resting={resting}
-                restLabel={`Rest ${formatRest(restRemainingMs(track, now))}`}
-                fresh={fresh}
-                onPress={locked || disabled ? undefined : () => onPractice(id)}
-              />
-            </Spotlight>
+            <View
+              key={id}
+              onLayout={(event) => {
+                if (tip?.id !== id) {
+                  return;
+                }
+                const { x, y } = event.nativeEvent.layout;
+                setTipAt((current) => (current && current.x === x && current.y === y ? current : { x: x + 54, y }));
+              }}
+            >
+              <Spotlight active={fresh} reducedMotion={reducedMotion}>
+                <TrainingCard
+                  card={cardFor(id, species)}
+                  value={track.progress}
+                  locked={locked}
+                  resting={resting}
+                  restLabel={`Rest ${formatRest(restRemainingMs(track, now))}`}
+                  fresh={fresh}
+                  onPress={locked || disabled ? undefined : () => onPractice(id)}
+                />
+              </Spotlight>
+            </View>
           );
         })}
-      </View>
+      </ScrollView>
+      {tip && tipAt && bounds.width > 0 ? (
+        <CandyTooltip
+          flavor="care"
+          icon={Sparkles}
+          text={tip.text}
+          boldWord={tip.bold}
+          target={tipAt}
+          bounds={bounds}
+          reducedMotion={reducedMotion}
+        />
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   wrap: { gap: 8, marginBottom: 16 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   title: { color: '#243044', fontSize: 15, fontWeight: '800' },
-  row: { flexDirection: 'row', justifyContent: 'center', gap: 12 },
-  spot: { flex: 1, maxWidth: 112 },
+  ribbon: {
+    color: '#7A1E44',
+    backgroundColor: '#FFE0EE',
+    overflow: 'hidden',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  row: { flexDirection: 'row', gap: 12, paddingVertical: 4 },
+  spot: { width: 108 },
   spotOn: {
     borderRadius: 28,
     shadowColor: '#FF7BA5',

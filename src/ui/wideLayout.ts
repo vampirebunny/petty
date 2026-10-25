@@ -69,10 +69,16 @@ export function controlScale(columnWidth: number, design = phoneColumnWidth): nu
 }
 
 // Fit the 640×680 stage in a box. Extra width is sky and floor; height follows the stage.
-export function stageSizeFor(width: number, height: number, maxHeightShare = stackedHeightShare) {
+export function stageSizeFor(
+  width: number,
+  height: number,
+  maxHeightShare = stackedHeightShare,
+  frameW = stageWidth,
+  frameH = stageHeight,
+) {
   const byWidth = Math.max(minStageWidth, width);
-  const byHeight = Math.max(minStageWidth, (height * maxHeightShare * stageWidth) / stageHeight);
+  const byHeight = Math.max(minStageWidth, (height * maxHeightShare * frameW) / frameH);
   const contentWidth = Math.min(byWidth, byHeight);
-  const viewHeight = contentWidth * (stageHeight / stageWidth);
+  const viewHeight = contentWidth * (frameH / frameW);
   return { viewWidth: Math.max(contentWidth, width), viewHeight, contentWidth };
 }

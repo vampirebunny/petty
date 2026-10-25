@@ -7,6 +7,13 @@ import { mulberry, seedOf } from './mulberry';
 export const stageWidth = 640;
 export const stageHeight = 680;
 
+// The training-school art is 390×600. The sim stretches that frame to the usual stage width
+// so the pet stays the size it is in other rooms. The art's right edge is x = stageWidth.
+export const schoolArtWidth = 390;
+export const schoolArtHeight = 600;
+export const schoolStageHeight = (schoolArtHeight * stageWidth) / schoolArtWidth;
+const schoolScale = stageWidth / schoolArtWidth;
+
 /** Extra stage units on each side when the view is wider than the stage. Matches drawWorld. */
 export function stageBleed(width: number, height: number, visibleHeight = stageHeight): number {
   if (width <= 0 || height <= 0) {
@@ -495,6 +502,29 @@ const sceneDefs = {
     ],
     pois: [{ id: 'home', type: 'home', x: 300, y: 420 }],
   },
+  school: {
+    v: 1,
+    id: 'school',
+    name: 'Training School',
+    group: 'home',
+    blurb: 'Tricks and treats',
+    iconId: 'school',
+    time: 'indoor',
+    sky: ['#F3E8FF', '#E7F6FF'],
+    layers: [],
+    floor: {
+      horizon: Math.round(366 * schoolScale),
+      yMin: Math.round(430 * schoolScale),
+      yMax: Math.round(500 * schoolScale),
+      xMin: Math.round(130 * schoolScale),
+      xMax: Math.round(270 * schoolScale),
+      color: ['#F6D7B8', '#E7B98A'],
+      pattern: 'none',
+    },
+    surface: { bounce: 0.4, friction: 2.2 },
+    props: [],
+    pois: [{ id: 'home', type: 'home', x: Math.round(195 * schoolScale), y: Math.round(488 * schoolScale) }],
+  },
 } as const;
 
 export const scenes = {
@@ -503,9 +533,10 @@ export const scenes = {
   bedroom: compileScene(sceneDefs.bedroom),
   sidewalk: compileScene(sceneDefs.sidewalk),
   catio: createCatioScene(stageWidth, stageHeight),
+  school: compileScene(sceneDefs.school),
 };
 
-export const sceneList = [scenes.livingroom, scenes.bedroom, scenes.park, scenes.catio];
+export const sceneList = [scenes.livingroom, scenes.bedroom, scenes.park, scenes.catio, scenes.school];
 
 // Home offers a species-limited scene only to that species. A playdate passes every pet in the pair,
 // so the catio shows up when at least one of them is a cat.

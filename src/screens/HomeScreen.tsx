@@ -16,6 +16,7 @@ import { releaseMusic, setMusicEnabled, suspendMusic, switchMusic } from '../aud
 import { setSoundEnabled } from '../audio/voice';
 import type { CuddleOut } from '../actor';
 import { stageHeight, stageWidth } from '../actor/geometry';
+import { schoolArtHeight, schoolArtWidth, schoolStageHeight } from '../actor/scenes';
 import { flickSpeedThreshold } from '../input/flick';
 import { CuddleGesture } from '../input/cuddleGesture';
 import type { GestureEvent } from '../input/cuddleGesture';
@@ -70,6 +71,8 @@ import { NeedRings } from '../ui/NeedRings';
 import { needHold, presentNeeds, sumHolds } from '../ui/needHold';
 import type { NeedHold } from '../ui/needHold';
 import { TrainingRings } from '../ui/TrainingRings';
+import { TrickShop } from '../ui/school/TrickShop';
+import { readSchoolTrickTip, setSchoolTrickTip } from '../db/accountMeta';
 import { FunModal } from '../ui/FunModal';
 import { HandlePrompt } from '../ui/HandleScreen';
 import { Day3Prompt } from '../ui/Day3Prompt';
@@ -239,7 +242,13 @@ export default function HomeScreen({ petApi }: Props) {
         maxHeightShare: 1,
       }
     : undefined;
-  const { viewWidth, viewHeight, contentWidth } = useStageSize(stageFrame);
+  const atSchool = state?.sceneId === 'school';
+  const logicalH = atSchool ? schoolStageHeight : stageHeight;
+  const { viewWidth, viewHeight, contentWidth } = useStageSize(
+    stageFrame,
+    atSchool ? { w: schoolArtWidth, h: schoolArtHeight } : undefined,
+  );
+  const [trickTip, setTrickTip] = useState<{ id: string; name: string } | null>(null);
   const lastStrokeAt = useRef(0);
   const [playdateOpen, setPlaydateOpen] = useState(false);
   const playdates = usePlaydates(state?.ownerId);
@@ -444,35 +453,35 @@ export default function HomeScreen({ petApi }: Props) {
 
   const softDropHere = useCallback(
     (x: number, y: number) => {
-      const point = stagePoint(x, y, viewWidth, viewHeight, contentWidth);
+      const point = stagePoint(x, y, viewWidth, viewHeight, contentWidth, stageWidth, logicalH);
       if (point.x < 0 || point.x > stageWidth) {
         return;
       }
       throwAt(point.x, point.y);
     },
-    [contentWidth, throwAt, viewHeight, viewWidth],
+    [contentWidth, throwAt, logicalH, viewHeight, viewWidth],
   );
   const flickHere = useCallback(
     (x: number, y: number, vx: number, vy: number) => {
-      const point = stagePoint(x, y, viewWidth, viewHeight, contentWidth);
+      const point = stagePoint(x, y, viewWidth, viewHeight, contentWidth, stageWidth, logicalH);
       if (point.x < 0 || point.x > stageWidth) {
         return;
       }
       const scaleX = stageWidth / Math.max(contentWidth, 1);
-      const scaleY = stageHeight / Math.max(viewHeight, 1);
+      const scaleY = logicalH / Math.max(viewHeight, 1);
       flickAt(point.x, point.y, vx * scaleX, vy * scaleY);
     },
-    [contentWidth, flickAt, viewHeight, viewWidth],
+    [contentWidth, flickAt, logicalH, viewHeight, viewWidth],
   );
   const stageToView = useCallback(
     (point: { x: number; y: number }) => {
       const pad = (viewWidth - contentWidth) / 2;
       return {
         x: pad + (point.x / stageWidth) * contentWidth,
-        y: (point.y / stageHeight) * viewHeight,
+        y: (point.y / logicalH) * viewHeight,
       };
     },
-    [contentWidth, viewHeight, viewWidth],
+    [contentWidth, logicalH, viewHeight, viewWidth],
   );
 
   const acceptingTouch = useCallback(() => {
@@ -487,7 +496,7 @@ export default function HomeScreen({ petApi }: Props) {
         return;
       }
       for (const event of events) {
-        const stage = stagePoint(event.x, event.y, viewWidth, viewHeight, contentWidth);
+        const stage = stagePoint(event.x, event.y, viewWidth, viewHeight, contentWidth, stageWidth, logicalH);
         if (event.type === 'move') {
           touchedRef.current = true;
           handle.touch({ kind: 'move', zone: event.zone, x: stage.x });
@@ -512,7 +521,7 @@ export default function HomeScreen({ petApi }: Props) {
         }
       }
     },
-    [acceptingTouch, contentWidth, viewHeight, viewWidth],
+    [acceptingTouch, contentWidth, logicalH, viewHeight, viewWidth],
   );
 
   const cuddleMove = useCallback(
@@ -526,10 +535,10 @@ export default function HomeScreen({ petApi }: Props) {
         tracker.current.begin();
         handle.setGesturing(true);
       }
-      const stage = stagePoint(x, y, viewWidth, viewHeight, contentWidth);
+      const stage = stagePoint(x, y, viewWidth, viewHeight, contentWidth, stageWidth, logicalH);
       sendCuddleEvents(tracker.current.move(x, y, Date.now(), handle.zoneAt(stage.x, stage.y)));
     },
-    [contentWidth, sendCuddleEvents, viewHeight, viewWidth],
+    [contentWidth, sendCuddleEvents, logicalH, viewHeight, viewWidth],
   );
   const cuddleTap = useCallback(
     (x: number, y: number) => {
@@ -537,14 +546,14 @@ export default function HomeScreen({ petApi }: Props) {
       if (!handle || !acceptingTouch()) {
         return;
       }
-      const stage = stagePoint(x, y, viewWidth, viewHeight, contentWidth);
+      const stage = stagePoint(x, y, viewWidth, viewHeight, contentWidth, stageWidth, logicalH);
       if (handle.zoneAt(stage.x, stage.y) === 'nose') {
         touchedRef.current = true;
         tipsRef.current.performed('tip.cuddle');
         handle.touch({ kind: 'boop', zone: 'nose', x: stage.x });
       }
     },
-    [acceptingTouch, contentWidth, viewHeight, viewWidth],
+    [acceptingTouch, contentWidth, logicalH, viewHeight, viewWidth],
   );
   const cuddleEnd = useCallback(() => {
     touchActive.current = false;
@@ -578,17 +587,17 @@ export default function HomeScreen({ petApi }: Props) {
   const flickPiece = useRef<string | null>(null);
   const pieceAt = useCallback(
     (x: number, y: number) => {
-      const point = stagePoint(x, y, viewWidth, viewHeight, contentWidth);
+      const point = stagePoint(x, y, viewWidth, viewHeight, contentWidth, stageWidth, logicalH);
       return stageHandle.current?.furnitureAt(point.x, point.y) ?? null;
     },
-    [contentWidth, viewHeight, viewWidth],
+    [contentWidth, logicalH, viewHeight, viewWidth],
   );
   const onStageTap = useCallback(
     (x: number, y: number) => {
       tipsRef.current.dismiss();
       if (stageHandle.current?.heldOn()) {
-        const point = stagePoint(x, y, viewWidth, viewHeight, contentWidth);
-        if (point.x < 96 && point.y > stageHeight - 76) {
+        const point = stagePoint(x, y, viewWidth, viewHeight, contentWidth, stageWidth, logicalH);
+        if (point.x < 96 && point.y > logicalH - 76) {
           stageHandle.current.stopHeld();
           return;
         }
@@ -599,7 +608,7 @@ export default function HomeScreen({ petApi }: Props) {
         dropRef.current(x, y);
       }
     },
-    [contentWidth, pieceAt, viewHeight, viewWidth],
+    [contentWidth, pieceAt, logicalH, viewHeight, viewWidth],
   );
   const onHoldStart = useCallback(
     (x: number, y: number) => {
@@ -619,10 +628,10 @@ export default function HomeScreen({ petApi }: Props) {
       if (!pieceId) {
         return;
       }
-      const point = stagePoint(x, y, viewWidth, viewHeight, contentWidth);
+      const point = stagePoint(x, y, viewWidth, viewHeight, contentWidth, stageWidth, logicalH);
       stageHandle.current?.moveFurniture(pieceId, point.x, point.y);
     },
-    [contentWidth, viewHeight, viewWidth],
+    [contentWidth, logicalH, viewHeight, viewWidth],
   );
   const onHoldEnd = useCallback(
     (x: number, y: number) => {
@@ -632,7 +641,7 @@ export default function HomeScreen({ petApi }: Props) {
       if (!pieceId) {
         return;
       }
-      const point = stagePoint(x, y, viewWidth, viewHeight, contentWidth);
+      const point = stagePoint(x, y, viewWidth, viewHeight, contentWidth, stageWidth, logicalH);
       const placed = stageHandle.current?.moveFurniture(pieceId, point.x, point.y);
       if (placed) {
         moveFurnitureRef.current(pieceId, placed.sceneId, placed.x, placed.y);
@@ -640,23 +649,23 @@ export default function HomeScreen({ petApi }: Props) {
       tipsRef.current.performed('tip.move');
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     },
-    [contentWidth, viewHeight, viewWidth],
+    [contentWidth, logicalH, viewHeight, viewWidth],
   );
   const onFlickStart = useCallback(
     (x: number, y: number) => {
       if (stageHandle.current?.heldOn()) {
-        const point = stagePoint(x, y, viewWidth, viewHeight, contentWidth);
+        const point = stagePoint(x, y, viewWidth, viewHeight, contentWidth, stageWidth, logicalH);
         stageHandle.current.steerHeld(point.x, point.y, true);
         return;
       }
       flickPiece.current = pieceAt(x, y);
     },
-    [contentWidth, pieceAt, viewHeight, viewWidth],
+    [contentWidth, pieceAt, logicalH, viewHeight, viewWidth],
   );
   const onFlickMove = useCallback(
     (x: number, y: number, vx: number, vy: number) => {
       if (stageHandle.current?.heldOn()) {
-        const point = stagePoint(x, y, viewWidth, viewHeight, contentWidth);
+        const point = stagePoint(x, y, viewWidth, viewHeight, contentWidth, stageWidth, logicalH);
         stageHandle.current.steerHeld(point.x, point.y, true);
         return;
       }
@@ -668,7 +677,7 @@ export default function HomeScreen({ petApi }: Props) {
       void y;
       strokeRef.current();
     },
-    [contentWidth, viewHeight, viewWidth],
+    [contentWidth, logicalH, viewHeight, viewWidth],
   );
   const onFlickFinish = useCallback(() => {
     stageHandle.current?.setPlayTouch(false);
@@ -679,8 +688,8 @@ export default function HomeScreen({ petApi }: Props) {
   const onFlickEnd = useCallback(
     (x: number, y: number, vx: number, vy: number) => {
       if (stageHandle.current?.heldOn()) {
-        const point = stagePoint(x, y, viewWidth, viewHeight, contentWidth);
-        if (point.x < 96 && point.y > stageHeight - 76) {
+        const point = stagePoint(x, y, viewWidth, viewHeight, contentWidth, stageWidth, logicalH);
+        if (point.x < 96 && point.y > logicalH - 76) {
           stageHandle.current.stopHeld();
           return;
         }
@@ -697,7 +706,7 @@ export default function HomeScreen({ petApi }: Props) {
         flickRef.current(x, y, vx, vy);
       }
     },
-    [contentWidth, viewHeight, viewWidth],
+    [contentWidth, logicalH, viewHeight, viewWidth],
   );
   const gesture = useMemo(() => {
     if (cuddleOn) {
@@ -1352,6 +1361,9 @@ export default function HomeScreen({ petApi }: Props) {
   };
   const dialogLive = dialog != null && !(dialog.kind === 'good' && !state.care.pendingReward);
   const practice = (trackId: string) => {
+    if (trickTip?.id === trackId) {
+      setTrickTip(null);
+    }
     if (dialogLive) {
       return;
     }
@@ -1373,24 +1385,31 @@ export default function HomeScreen({ petApi }: Props) {
       setDialog({ kind: 'miss', trackId });
     }
   };
-  const learned = [
-    ...(state.training.sit?.mastered ? [{ id: 'sit', label: 'Sit', onPress: sit }] : []),
-    ...(state.training.paw?.mastered
-      ? [{ id: 'paw', label: speciesLabel('paw', species) ?? 'Give paw', onPress: givePaw }]
-      : []),
-    ...(state.training.speak?.mastered
-      ? [
-          {
-            id: 'speak',
-            label: 'Speak',
-            onPress: () => {
-              offerSilentHint();
-              speak();
-            },
-          },
-        ]
-      : []),
-  ];
+  const learned = Object.values(state.training)
+    .filter((track) => track.mastered)
+    .map((track) => ({
+      id: track.id,
+      label: track.id === 'paw' ? (speciesLabel('paw', species) ?? 'Give paw') : trackName(track.id, species),
+      onPress: () => {
+        if (trickTip?.id === track.id) {
+          setTrickTip(null);
+        }
+        if (track.id === 'sit') {
+          sit();
+          return;
+        }
+        if (track.id === 'paw') {
+          givePaw();
+          return;
+        }
+        if (track.id === 'speak') {
+          offerSilentHint();
+          speak();
+          return;
+        }
+        attemptTrick(track.id);
+      },
+    }));
   const badgeIds = ['sit', 'speak', 'paw'] as const;
   const tricks = learned.map((trick) => ({
     ...trick,
@@ -1481,7 +1500,11 @@ export default function HomeScreen({ petApi }: Props) {
     trainingDialog = (
       <FunModal
         title={`Good job, ${state.name}!`}
-        body={`${state.name} nailed ${label}! Give a treat?\nTreats help ${state.name} learn faster!`}
+        body={
+          atSchool
+            ? `Give a treat? Treats are on the house at Training School!`
+            : `${state.name} nailed ${label}! Give a treat?\nTreats help ${state.name} learn faster!`
+        }
         icon={Bone}
         tint="butter"
         sparkle
@@ -1490,6 +1513,14 @@ export default function HomeScreen({ petApi }: Props) {
         primary={{
           label: 'Yes, give treat',
           onPress: () => {
+            if (atSchool) {
+              const paid = resolveTraining('treat');
+              if (paid) {
+                rememberTreat(paid.before.needs, paid.after.needs);
+                afterPayout(trackId, paid.before, paid.after, true);
+              }
+              return;
+            }
             const used = economyApi.useItem(state, basicTreatId, { context: 'training' }, newRequestId());
             if (!used.ok || !used.pet) {
               const paid = resolveTraining('none');
@@ -1863,11 +1894,40 @@ export default function HomeScreen({ petApi }: Props) {
           pet={state}
           species={species}
           onPractice={practice}
-          highlightId={unlocking}
+          highlightId={trickTip?.id ?? unlocking}
           reducedMotion={reducedMotion}
           now={clock}
           disabled={dialogLive}
+          freeTreats={atSchool}
+          tip={
+            trickTip
+              ? {
+                  id: trickTip.id,
+                  bold: trickTip.name,
+                  text: `${trickTip.name} was added to your In Training section! Practice it here — or anywhere from Home.`,
+                }
+              : null
+          }
         />
+        {atSchool ? (
+          <TrickShop
+            pet={state}
+            species={species}
+            balance={economyApi.balance}
+            reducedMotion={reducedMotion}
+            onBuy={(trick) => {
+              const bought = economyApi.buyTrick(state, trick.id, newRequestId());
+              if (!bought.ok || !bought.pet) {
+                return;
+              }
+              commitPet(bought.pet);
+              if (!readSchoolTrickTip()) {
+                setSchoolTrickTip();
+                setTrickTip({ id: trick.id, name: trick.name });
+              }
+            }}
+          />
+        ) : null}
         {playdates.remaining > 0 ? (
           <Text style={styles.hint}>Next playdate in {formatCooldown(playdates.remaining)}</Text>
         ) : null}

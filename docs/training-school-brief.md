@@ -9,12 +9,26 @@ Add **Training School**, a new location the pet can be taken to, like the Pet Sh
 
 A bought trick joins the pet's **In Training** section. That section appears on Home as well, so training can continue anywhere. The training flow itself is unchanged: multiple attempts, a treat offer on success, "try again?" on failure, and the 10-minute rest.
 
+## Decisions
+
+These override anything below that still reads the other way.
+
+- Sit, Speak, and Paw are free starters and are never sold. Paw stays locked until Sit and Speak are mastered. For cats, that starter is still labeled High five.
+- The shop list below is a placeholder. `difficulty` is stored on each row and does not change learning speed. Tiers, intelligence, and treat credit stay as they are.
+- A trick's progress lives on the pet's `training` data, which already saves, syncs, and is frozen when the pet is retired. The catalog is a local module with the same fields, ready to download later the way the shop catalog does.
+- Saying no, leaving, or backgrounding still pays the existing partial credit. At the school, "nothing changes" means the treat count.
+- Graduation still pays the current attribute lump, intelligence, XP, and 100 Boops, for every trick that reaches 100%.
+- A school "Yes" applies the biscuit reward and skips the inventory debit. There is no ledger pair. This works at 0 treats.
+- The first-purchase tooltip is once per player, stored in the local `meta` table under `schoolTrickTip`.
+- A learned trick still cuts in, except while the pet is on furniture, where one action waits.
+- The preview pet is an adult golden retriever or an adult domestic shorthair, default coat, no clothes. Every placeholder trick plays Sit until it has a real pose.
+
 ---
 
 ## 1. Rules
 
 ### Tricks
-- **Starter tricks are free and every pet has them from the start: Sit, Speak, Paw.** They begin in In Training at 0% and are never sold.
+- **Starter tricks are free and every pet has them from the start: Sit, Speak, Paw.** They are never sold. Paw stays locked until Sit and Speak are mastered, as it does today. Cats still see that starter as High five.
 - **Every other trick is bought at the Training School** with Boops. Once bought, the player can practice it anywhere.
 - **Tricks belong to the pet, not the player.**
   - Treats, toys and clothes still belong to the player.
@@ -34,15 +48,15 @@ A bought trick joins the pet's **In Training** section. That section appears on 
 - **The rest is per trick, as it is today.** Players may switch to another trick while one is resting. Do not change this.
 - **Progress persists.** Tapping a trick's button again resumes from where it left off.
 - Each trick raises its own attributes, using the existing system.
-- **New:** each trick has a `difficulty` multiplier that scales its learning rate. Harder tricks take longer, and the pet's intelligence still applies as it does now.
-- At **100%** the trick graduates:
+- Each catalog row stores a `difficulty` number for later. It does not scale learning. The existing tier, intelligence, and treat credit still do.
+- At **100%** the trick graduates the way it does today:
   - It moves out of In Training and into **Learned Tricks**.
   - Its training button disappears.
-  - Its attribute gains stop.
+  - The mastery bundle still pays once: the linked-attribute lump, intelligence, XP, and 100 Boops. Further reps give no progress.
 
 ### Learned Tricks
 - Tapping a learned trick makes the pet perform it on demand.
-- If the pet is busy, handle it the same way props already work: queue the trick, and the pet performs it when free.
+- If the pet is busy, the trick cuts in the way a learned trick does today. A pet on furniture finishes climbing, then performs the one waiting trick.
 - Performing a learned trick costs nothing and gives no progress.
 
 ### Free treats at Training School
@@ -52,18 +66,20 @@ A bought trick joins the pet's **In Training** section. That section appears on 
   - The full treat effect applies (more progress, bark or meow, the same rep effect as a treat at home).
   - The **net change to the player's treat inventory is zero**.
   - This must work even when the player owns 0 treats. Never show the "out of treats" message at the school.
-- If the player says **No**: nothing changes.
+- If the player says **No**, leaves, or backgrounds the app, the treat count stays put and the rep still pays the existing partial credit.
 - **Implementation:**
-  - Skip the inventory debit when the context is the school.
-  - Record a ledger entry pair (debit 1, credit 1) or a single zero-net "school treat" event, whichever fits the existing Boops/items ledger more cleanly.
-  - The player-facing result must be that the inventory count does not move.
+  - Skip the inventory debit when the context is the school. Do not write a ledger line for the treat.
+  - Apply the biscuit reward anyway, including when the player owns 0 treats.
+  - The player-facing result is that the inventory count does not move.
 - Outside the school, treats use inventory exactly as they do today.
 
 ---
 
-## 2. Data (Supabase catalog + player data)
+## 2. Data
 
-Tricks go in the catalog alongside the Pet Shop items. They are downloaded during onboarding in the same payload, so practicing works offline.
+The catalog is a local module (`src/sim/tricks.ts`) so practice and buying work offline. A later download can replace that module with the same fields. Progress is not a remote row written at purchase time. It stays on the pet, in `training`, with `source: 'starter' | 'purchase'`.
+
+The field list below is the shape of a catalog row and of the pet's training entry. Starters are not shop rows.
 
 ### `catalog_tricks`
 | column | type | notes |
@@ -75,14 +91,14 @@ Tricks go in the catalog alongside the Pet Shop items. They are downloaded durin
 | `is_starter` | bool | true for sit/speak/paw; never shown in the shop |
 | `price_boops` | int | 0 for starters |
 | `min_age_stage` | enum | uses the existing life-stage enum (puppy/kitten → senior) |
-| `difficulty` | numeric | learning-rate multiplier, 1.0 = baseline |
+| `difficulty` | numeric | stored for later; not applied |
 | `attributes_raised` | jsonb | e.g. `{ "agility": 2, "obedience": 1 }`, using the existing attribute keys |
 | `pet_animation_key` | text | the animation the player's pet performs |
 | `demo_animation_key` | text | the generic preview animation |
 | `collection` | text | `evergreen` for now |
 | `edition` | text nullable | reserved for future limited/exclusive; null for now |
 | `sort_order` | int | |
-| `is_active` | bool | keep false until both animations exist |
+| `is_active` | bool | placeholder rows stay active and play Sit |
 
 ### `pet_tricks` (per pet)
 | column | type | notes |
@@ -95,12 +111,11 @@ Tricks go in the catalog alongside the Pet Shop items. They are downloaded durin
 | `source` | enum `starter` \| `purchase` | |
 | `acquired_at`, `learned_at` | timestamps | |
 
-- When a pet is created, seed its three starter tricks at 0%.
-- If the current local build stores starter-trick progress somewhere else, move it to `pet_tricks`. There are no real players, so test data can be wiped rather than migrated, as with the ledger.
+- When a pet is created, seed Sit, Speak, and Paw. Paw starts locked.
 - **Purchase:**
-  - Debit Boops through the existing ledger, then insert into `pet_tricks` with status `in_training` and progress 0.
+  - Debit Boops through the existing ledger, then add the trick on that pet at 0%, unlocked, not mastered, `source: 'purchase'`.
   - Validate four things: the species matches, the pet meets `min_age_stage`, the pet doesn't already own the trick, and the balance is sufficient.
-  - Use the same online/offline purchase path the Pet Shop uses for evergreen items.
+  - Use the same local ledger path the Pet Shop uses for evergreen items. The new pet state is what gets saved.
 
 ---
 
@@ -130,7 +145,7 @@ Tricks go in the catalog alongside the Pet Shop items. They are downloaded durin
   - **Locked**: dimmed, with a lock and "Unlocks at older age".
   - **Owned**: an "In Training" or "Learned ✓" chip.
 - Tapping a card opens the **Preview modal**:
-  - A looping **generic** demo animation: a standard placeholder dog or cat doing the trick, not the player's pet.
+  - A looping demo of an adult golden retriever or adult domestic shorthair, default coat, no clothes, playing Sit until the trick has its own pose. Not the player's pet.
   - The trick's name and its one-line description.
   - The attributes it raises, shown with the existing attribute icons.
   - A **"Learn for X Boops"** button.
@@ -140,14 +155,14 @@ Tricks go in the catalog alongside the Pet Shop items. They are downloaded durin
 - Modals must match the game's fun aesthetic, not system dialogs.
 
 ### After the first purchase (tooltip)
-- Shown **once per player**, the first time they buy any trick. Persist the flag.
+- Shown **once per player**, the first time they buy any trick. Persist `schoolTrickTip` in the local `meta` table, which survives adopting a new pet.
 - When the preview closes, highlight the new button in the Practice section and anchor a tooltip to it.
 - Example copy: *"Roll Over was added to your In Training section! Practice it here — or anywhere from Home."*
 - Use the existing tooltip style, restyled to match the cuddle tooltip redesign.
 
 ### Home
-- **In Training section:** every `in_training` trick, starter and bought, with the existing buttons and rest countdowns, now driven by `pet_tricks`.
-- **Learned Tricks section:** the existing section, also driven by `pet_tricks`. Tapping a trick performs it.
+- **In Training section:** every not-yet-mastered trick on the pet, starter and bought, with the existing buttons and rest countdowns.
+- **Learned Tricks section:** every mastered trick on the pet. Tapping a trick performs it.
 - Treats at Home use inventory as before.
 
 ---
@@ -176,14 +191,13 @@ Players start with 1,000 Boops and accrue about 60 per hour.
 | Roll Over | 400 | adolescent | 1.4 | agility |
 | Fetch (ball) | 500 | adult | 1.5 | intelligence, boldness |
 
-- Match the life-stage names to the enum already in the code.
-- Each trick needs two animations: the procedural pet animation and the generic demo animation.
-- Keep `is_active = false` on any trick that is missing either animation. A temporary placeholder animation is fine for testing.
+- Life stages use the code enum for both species: `puppy`, `olderPuppy`, `adolescent`, `adult`, `senior`. Kitten is `puppy`. Older kitten is `olderPuppy`.
+- This list is a placeholder. Both animation keys are `sit` until a real trick list exists. The rows stay active so the shop, the preview, and practice can be exercised.
 
 ---
 
 ## 5. Out of scope (do not build)
-- Performing tricks during playdates. Learned tricks should simply be readable from `pet_tricks` so playdates can use them later.
+- Performing tricks during playdates. Learned tricks stay on the pet so playdates can read them later.
 - Limited or exclusive tricks.
 - IAP or boosts that speed up trick training.
 - Final trick art and icons.

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 import {
   buyAndUse,
+  buyTrick,
   canAfford,
   claimDailyLogin,
   purchase,
@@ -29,6 +30,7 @@ export function useEconomy(ready: boolean) {
     purchaseCart,
     useItem,
     buyAndUse,
+    buyTrick,
     canAfford,
     claimDailyLogin,
   };

@@ -144,3 +144,11 @@ export function setRestoreInProgress(progress: RestoreProgress | null): void {
   }
   notifyAccountFlags();
 }
+
+export function readSchoolTrickTip(): boolean {
+  return readMeta('schoolTrickTip') === '1';
+}
+
+export function setSchoolTrickTip(): void {
+  writeMeta('schoolTrickTip', '1');
+}

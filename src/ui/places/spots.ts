@@ -1,7 +1,7 @@
 import { scenesFor } from '../../actor';
 
 // Where to? order. A new spot appends here. Rooms stay hidden unless this species is offered the scene.
-const order = ['shop', 'park', 'livingroom', 'bedroom', 'catio'] as const;
+const order = ['shop', 'school', 'park', 'livingroom', 'bedroom', 'catio'] as const;
 
 export type SpotId = (typeof order)[number];
 
