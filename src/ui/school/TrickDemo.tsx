@@ -17,11 +17,12 @@ type Props = {
   species: 'dog' | 'cat';
   trickId: string;
   width: number;
+  height?: number;
 };
 
 // Adult stand-in, default coat, no clothes. Plays the trick's success script.
-export function TrickDemo({ species, trickId, width }: Props) {
-  const height = Math.round(width * 0.72);
+export function TrickDemo({ species, trickId, width, height: heightProp }: Props) {
+  const height = heightProp ?? Math.round(width * 0.72);
   const [picture, setPicture] = useState<SkPicture | null>(null);
   const worldRef = useRef<World | null>(null);
 

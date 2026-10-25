@@ -9,7 +9,7 @@ import { testPet } from '../__fixtures__/pets';
 import { resume, setVitality } from '../clock';
 import { dayMs, daysToSenior } from '../config';
 import { applyEvent } from '../events';
-import { isResting, payRep, resolveReward, rollTrick, sessionLength, successChance } from '../training';
+import { chooseReward, isResting, payRep, resolveReward, rollTrick, sessionLength, successChance } from '../training';
 import { ensureGame } from '../game';
 import { lockHint, refreshUnlocks, trackDef, trackName } from '../tracks';
 import type { PetState, TrainingTrack } from '../types';
@@ -119,6 +119,22 @@ it('pays a treat at full credit and a skipped treat at a quarter', () => {
   expect(skipped.training.sit?.focusUsed).toBe(careConfig.focusCostNoTreat);
   expect(skipped.training.sit?.hadNoTreat).toBe(true);
   expect(treated.care.pendingReward).toBeNull();
+});
+
+it('keeps the training bar still until a chosen treat is resolved', () => {
+  const before = trainedPet();
+  const opened = {
+    ...before,
+    care: { ...before.care, pendingReward: { trackId: 'sit', openedAt: before.lastUpdatedAt } },
+  };
+  const held = chooseReward(opened, 'treat');
+  expect(held.training.sit?.progress).toBe(opened.training.sit?.progress);
+  expect(held.care.pendingReward?.choice).toBe('treat');
+  const paid = resolveReward(held, held.lastUpdatedAt, 'none');
+  const treated = resolveReward(opened, opened.lastUpdatedAt, 'treat');
+  expect(paid.training.sit?.progress).toBeCloseTo(treated.training.sit?.progress ?? 0, 5);
+  expect(paid.training.sit?.focusUsed).toBe(careConfig.focusCostTreat);
+  expect(paid.care.pendingReward).toBeNull();
 });
 
 it('unlocks Paw after Sit and Speak are mastered, and calls it High five for cats', () => {

@@ -19,7 +19,7 @@ export { ageDaysAt, applyEnergyDelta, applyHappinessDelta, applyHungerDelta, app
 export { careConfig } from './careConfig';
 export type { TreatTier, TrickTier } from './careConfig';
 export { advanceCare, bathToleranceFor, ensureGame } from './game';
-export { formatRest, intelligenceFactor, isResting, payRep, resolveReward, restRemainingMs, rollTrick, sessionLength, successChance } from './training';
+export { chooseReward, formatRest, intelligenceFactor, isResting, payRep, resolveReward, restRemainingMs, rollTrick, sessionLength, successChance } from './training';
 export { lockHint, speciesOf, trackDef, trackDefs, trackName, tracksFor } from './tracks';
 export { applyCareTime, applyMeal, clampWeight, decayWeight, vitalityTarget } from './care';
 export {

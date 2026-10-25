@@ -148,12 +148,24 @@ export function openReward(state: PetState, trackId: string, now: number): PetSt
   };
 }
 
+// The player already picked. Progress stays put until the bite finishes, or something else cuts it short.
+export function chooseReward(state: PetState, choice: RewardChoice): PetState {
+  const pending = state.care.pendingReward;
+  if (!pending || pending.choice) {
+    return state;
+  }
+  return {
+    ...state,
+    care: { ...state.care, pendingReward: { ...pending, choice } },
+  };
+}
+
 export function resolveReward(state: PetState, now: number, choice: RewardChoice): PetState {
   const pending = state.care.pendingReward;
   if (!pending) {
     return state;
   }
-  const paid = payRep(state, pending.trackId, choice, now);
+  const paid = payRep(state, pending.trackId, pending.choice ?? choice, now);
   return {
     ...paid,
     care: { ...paid.care, pendingReward: null },

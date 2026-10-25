@@ -78,6 +78,8 @@ export type Equipped = Partial<Record<OutfitSlot, string>>;
 export type PendingReward = {
   trackId: string;
   openedAt: number;
+  // Set once the player picks a treat, while the pet is still eating it.
+  choice?: 'treat' | 'none';
 };
 
 export type PetCareState = {

@@ -75,7 +75,8 @@ import { NeedRings } from '../ui/NeedRings';
 import { needHold, presentNeeds, sumHolds } from '../ui/needHold';
 import type { NeedHold } from '../ui/needHold';
 import { TrainingRings } from '../ui/TrainingRings';
-import { TrickShop } from '../ui/school/TrickShop';
+import { SchoolControls } from '../ui/school/SchoolControls';
+import type { SchoolControlsHandle } from '../ui/school/SchoolControls';
 import { readSchoolTrickTip, setSchoolTrickTip } from '../db/accountMeta';
 import { FunModal } from '../ui/FunModal';
 import { HandlePrompt } from '../ui/HandleScreen';
@@ -253,7 +254,15 @@ export default function HomeScreen({ petApi }: Props) {
     undefined,
     !split && atSchool ? schoolStackedHeightShare : undefined,
   );
-  const [trickTip, setTrickTip] = useState<{ id: string; name: string } | null>(null);
+  const [trickTip, setTrickTip] = useState<{ id: string; name: string; first: boolean } | null>(null);
+  const schoolRef = useRef<SchoolControlsHandle>(null);
+  const ownedPropTypes = useMemo(() => {
+    void home;
+    if (!state?.ownerId) {
+      return [] as string[];
+    }
+    return trickPropsOf(state.ownerId).map((prop) => prop.type);
+  }, [home, state?.ownerId]);
   const lastStrokeAt = useRef(0);
   const [playdateOpen, setPlaydateOpen] = useState(false);
   const playdates = usePlaydates(state?.ownerId);
@@ -1414,10 +1423,24 @@ export default function HomeScreen({ petApi }: Props) {
       setDialog(null);
     }
   };
+  const finishTreatBite = () => {
+    const pending = state.care.pendingReward;
+    if (pending?.choice !== 'treat') {
+      return;
+    }
+    const paid = resolveTraining('treat');
+    if (paid && !paid.waiting) {
+      afterPayout(pending.trackId, paid.before, paid.after, true);
+    }
+  };
   const dialogLive = dialog != null && !(dialog.kind === 'good' && !state.care.pendingReward);
+  const biteWaiting = state.care.pendingReward?.choice === 'treat';
   const propTypeOf = (value: string): TrickPropType | null =>
     value === 'podium' || value === 'tunnel' || value === 'hurdle' || value === 'cones' || value === 'hoop' ? value : null;
   const playCatalog = (trackId: string, learned: boolean) => {
+    if (state.care.pendingReward?.choice === 'treat') {
+      return;
+    }
     const listing = trickListing(trackId);
     const track = state.training[trackId];
     if (!listing || !track) {
@@ -1466,7 +1489,7 @@ export default function HomeScreen({ petApi }: Props) {
     if (trickTip?.id === trackId) {
       setTrickTip(null);
     }
-    if (dialogLive) {
+    if (dialogLive || biteWaiting) {
       return;
     }
     if (trickListing(trackId)) {
@@ -1497,6 +1520,9 @@ export default function HomeScreen({ petApi }: Props) {
       id: track.id,
       label: track.id === 'paw' ? (speciesLabel('paw', species) ?? 'Give paw') : trackName(track.id, species),
       onPress: () => {
+        if (biteWaiting) {
+          return;
+        }
         if (trickTip?.id === track.id) {
           setTrickTip(null);
         }
@@ -1619,12 +1645,20 @@ export default function HomeScreen({ petApi }: Props) {
         primary={{
           label: 'Yes, give treat',
           onPress: () => {
-            if (atSchool) {
-              const paid = resolveTraining('treat');
-              if (paid) {
-                rememberTreat(paid.before.needs, paid.after.needs);
-                afterPayout(trackId, paid.before, paid.after, true);
+            const startBite = (applied?: typeof state) => {
+              const paid = resolveTraining('treat', applied, true);
+              if (!paid) {
+                return;
               }
+              rememberTreat(paid.before.needs, paid.after.needs);
+              if (paid.waiting) {
+                setDialog(null);
+                return;
+              }
+              afterPayout(trackId, paid.before, paid.after, true);
+            };
+            if (atSchool) {
+              startBite();
               return;
             }
             const used = economyApi.useItem(state, basicTreatId, { context: 'training' }, newRequestId());
@@ -1636,15 +1670,12 @@ export default function HomeScreen({ petApi }: Props) {
               setDialog({ kind: 'out', trackId });
               return;
             }
-            const paid = resolveTraining('treat', used.pet);
-            if (paid) {
-              rememberTreat(paid.before.needs, paid.after.needs);
-              afterPayout(trackId, paid.before, paid.after, true);
-            }
+            startBite(used.pet);
           },
         }}
         secondary={{
           label: 'No',
+          closeFirst: true,
           onPress: () => {
             const paid = resolveTraining('none');
             if (paid) {
@@ -1959,7 +1990,72 @@ export default function HomeScreen({ petApi }: Props) {
     </>
   );
 
-  const controls = (
+  const controls = atSchool ? (
+    <>
+      <SchoolControls
+        ref={schoolRef}
+        pet={state}
+        species={species}
+        balance={economyApi.balance}
+        ownerId={state.ownerId || currentOwner()}
+        ownedPropTypes={ownedPropTypes}
+        now={clock}
+        reducedMotion={reducedMotion}
+        disabled={dialogLive || biteWaiting}
+        highlightId={trickTip?.id ?? null}
+        tip={
+          trickTip?.first
+            ? { id: trickTip.id, name: trickTip.name, propName: trickListing(trickTip.id)?.propName ?? null }
+            : null
+        }
+        onTrain={practice}
+        onPerform={(id) => learned.find((trick) => trick.id === id)?.onPress()}
+        onProps={
+          learned.length > 0
+            ? () => {
+                setPropChoices(
+                  trickPropsOf(currentOwner()).map((prop) => ({
+                    id: prop.instanceId,
+                    label: trickListing(prop.sourceTrickId)?.propName ?? prop.type,
+                    type: prop.type,
+                    sourceTrickId: prop.sourceTrickId,
+                  })),
+                );
+                setPropOpen(true);
+              }
+            : undefined
+        }
+        onDismissTip={() => setTrickTip(null)}
+        onShop={() => setShopOpen(true)}
+        onLeave={() => {
+          if (state.care.pendingReward) {
+            const trackId = state.care.pendingReward.trackId;
+            const paid = resolveTraining('none');
+            if (paid) {
+              noteGain(trackId, paid.before, paid.after);
+            }
+            setDialog(null);
+          }
+          setPlacesOpen(true);
+        }}
+        onBuy={(trick) => {
+          const bought = economyApi.buyTrick(state, trick.id, newRequestId());
+          if (!bought.ok || !bought.pet) {
+            return;
+          }
+          const first = !readSchoolTrickTip();
+          commitPet(bought.pet);
+          if (first) {
+            setSchoolTrickTip();
+          }
+          setTrickTip({ id: trick.id, name: trick.name, first });
+          schoolRef.current?.showTraining();
+        }}
+      />
+      <CuddleHelpSheet visible={helpOpen} onClose={() => setHelpOpen(false)} />
+      <SilentModeHint visible={silentHintOpen} onClose={dismissSilentHint} />
+    </>
+  ) : (
     <ScrollView style={styles.controls} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         {atSchool ? null : (
           <NeedRings needs={presentNeeds(state.needs, sumHolds(treatHolds))} hydration={state.hydration} />
@@ -2020,7 +2116,7 @@ export default function HomeScreen({ petApi }: Props) {
           highlightId={trickTip?.id ?? unlocking}
           reducedMotion={reducedMotion}
           now={clock}
-          disabled={dialogLive}
+          disabled={dialogLive || biteWaiting}
           freeTreats={atSchool}
           tip={
             trickTip
@@ -2032,25 +2128,6 @@ export default function HomeScreen({ petApi }: Props) {
               : null
           }
         />
-        {atSchool ? (
-          <TrickShop
-            pet={state}
-            species={species}
-            balance={economyApi.balance}
-            reducedMotion={reducedMotion}
-            onBuy={(trick) => {
-              const bought = economyApi.buyTrick(state, trick.id, newRequestId());
-              if (!bought.ok || !bought.pet) {
-                return;
-              }
-              commitPet(bought.pet);
-              if (!readSchoolTrickTip()) {
-                setSchoolTrickTip();
-                setTrickTip({ id: trick.id, name: trick.name });
-              }
-            }}
-          />
-        ) : null}
         {playdates.remaining > 0 ? (
           <Text style={styles.hint}>Next playdate in {formatCooldown(playdates.remaining)}</Text>
         ) : null}
@@ -2209,8 +2286,14 @@ export default function HomeScreen({ petApi }: Props) {
               treatId={cue.treatId}
               moodGain={cue.moodGain}
               onTreatMood={showMoodBurst}
-              onTreatEaten={() => releaseTreatHold('oldest')}
-              onTreatSkipped={() => releaseTreatHold('newest')}
+              onTreatEaten={() => {
+                releaseTreatHold('oldest');
+                finishTreatBite();
+              }}
+              onTreatSkipped={() => {
+                releaseTreatHold('newest');
+                finishTreatBite();
+              }}
               drop={cue.drop}
               flick={cue.flick}
               hour={hour}

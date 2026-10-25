@@ -2,6 +2,7 @@ import * as AppleAuthentication from 'expo-apple-authentication';
 import * as WebBrowser from 'expo-web-browser';
 import { Platform } from 'react-native';
 
+import { createUuid } from './identity';
 import { getSupabase } from './supabase';
 
 export const appleAuthRedirect = 'boopboop://auth-callback';
@@ -18,13 +19,6 @@ export type AuthCredential = {
 };
 
 async function sha256Hex(value: string): Promise<string> {
-  const subtle = globalThis.crypto?.subtle;
-  if (subtle) {
-    const digest = await subtle.digest('SHA-256', new TextEncoder().encode(value));
-    return Array.from(new Uint8Array(digest))
-      .map((byte) => byte.toString(16).padStart(2, '0'))
-      .join('');
-  }
   return sha256HexFallback(value);
 }
 
@@ -112,7 +106,7 @@ function rotr(value: number, bits: number): number {
 }
 
 function randomNonce(): string {
-  return `${crypto.randomUUID()}${crypto.randomUUID()}`.replace(/-/g, '');
+  return `${createUuid()}${createUuid()}`.replace(/-/g, '');
 }
 
 async function signInWithAppleIos(): Promise<AuthCredential | null> {

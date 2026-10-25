@@ -19,6 +19,7 @@ import {
   debugJump,
   deriveMood,
   openTickMs,
+  chooseReward,
   resolveReward,
   resume,
   setAgeDays,
@@ -123,7 +124,11 @@ type PetApi = {
   reset: () => void;
   retire: () => void;
   attemptTrick: (trackId: string) => { ok: boolean; mastered: boolean; confused: boolean } | null;
-  resolveTraining: (choice: 'treat' | 'none', applied?: PetState) => { before: PetState; after: PetState } | null;
+  resolveTraining: (
+    choice: 'treat' | 'none',
+    applied?: PetState,
+    waitForBite?: boolean,
+  ) => { before: PetState; after: PetState; waiting: boolean } | null;
   seeCoach: (id: string) => void;
   moveFurniture: (pieceId: string, sceneId: string, x: number, y: number) => void;
   rememberGreeting: (id: string) => void;
@@ -970,29 +975,38 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
     [commitProgress],
   );
   const resolveTraining = useCallback(
-    (choice: 'treat' | 'none', applied?: PetState) => {
+    (choice: 'treat' | 'none', applied?: PetState, waitForBite = false) => {
       const current = stateRef.current;
       const base = applied ?? current;
       if (!current || !base?.care.pendingReward) {
         return null;
       }
       const beforeHappiness = current.needs.happiness;
+      const alreadyWaiting = base.care.pendingReward.choice === 'treat';
       let next = base;
-      if (choice === 'treat' && !applied) {
+      if (choice === 'treat' && !applied && !alreadyWaiting) {
         const paid = applyRewardTreat(base, 'biscuit', Date.now());
         if (!paid.ok) {
           return null;
         }
         next = paid.state;
       }
-      const resolved = applyEvent(next, { type: 'rewardTreat', choice, now: Date.now() });
+      if (choice === 'treat' && waitForBite && !alreadyWaiting) {
+        const held = chooseReward(next, 'treat');
+        const moodGain = Math.round(held.needs.happiness - beforeHappiness);
+        publish(held, { kind: 'treat', treatId: 'biscuit', moodGain });
+        return { before: current, after: held, waiting: true };
+      }
+      const picked = next.care.pendingReward?.choice ?? choice;
+      const resolved = applyEvent(next, { type: 'rewardTreat', choice: picked, now: Date.now() });
       const settled = settleProgress(resolved.state, Date.now());
       if (settled.boops > 0 && settled.label) {
         pushBurst({ label: settled.label, amount: settled.boops, coinCount: 5 });
       }
       const moodGain = Math.round(settled.pet.needs.happiness - beforeHappiness);
-      publish(settled.pet, choice === 'treat' ? { kind: 'treat', treatId: 'biscuit', moodGain } : undefined);
-      return { before: current, after: settled.pet };
+      const showTreat = choice === 'treat' && !alreadyWaiting;
+      publish(settled.pet, showTreat ? { kind: 'treat', treatId: 'biscuit', moodGain } : undefined);
+      return { before: current, after: settled.pet, waiting: false };
     },
     [publish, pushBurst],
   );

@@ -1,6 +1,6 @@
-import { useEffect, useId } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import type { LucideIcon } from 'lucide-react-native';
 
@@ -12,6 +12,8 @@ import { iconStroke } from './theme';
 type ButtonSpec = {
   label: string;
   onPress: () => void;
+  // Run the action after the sheet has faded out, so the screen behind it updates once it is gone.
+  closeFirst?: boolean;
 };
 
 type Props = {
@@ -42,14 +44,34 @@ export function FunModal({
   const flavor = tints[tint];
   const ink = candyInk(flavor);
   const scale = useSharedValue(reducedMotion ? 1 : 0.86);
+  const presence = useSharedValue(1);
+  const afterClose = useRef<(() => void) | null>(null);
+  const [leaving, setLeaving] = useState(false);
   useEffect(() => {
     playPointPop();
     scale.value = reducedMotion ? 1 : withSpring(1, { damping: 12, stiffness: 180 });
   }, [reducedMotion, scale]);
+  useEffect(() => {
+    if (!leaving) {
+      return;
+    }
+    presence.value = withTiming(0, { duration: 180 });
+    const timer = setTimeout(() => afterClose.current?.(), 180);
+    return () => clearTimeout(timer);
+  }, [leaving, presence]);
   const cardStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
-  const press = (action: () => void) => {
+  const layerStyle = useAnimatedStyle(() => ({ opacity: presence.value }));
+  const press = (action: () => void, closeFirst = false) => {
+    if (leaving) {
+      return;
+    }
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    action();
+    if (!closeFirst || reducedMotion) {
+      action();
+      return;
+    }
+    afterClose.current = action;
+    setLeaving(true);
   };
   const card = (
     <Animated.View style={[styles.card, cardStyle]}>
@@ -62,7 +84,7 @@ export function FunModal({
         <Text style={[styles.body, { color: ink }]}>{body}</Text>
         <Pressable
           accessibilityRole="button"
-          onPress={() => press(primary.onPress)}
+          onPress={() => press(primary.onPress, primary.closeFirst)}
           style={({ pressed }) => [styles.hit, pressed && styles.squish]}
         >
           <View style={[styles.primary, { backgroundColor: flavor.icon }]}>
@@ -72,7 +94,7 @@ export function FunModal({
         {secondary ? (
           <Pressable
             accessibilityRole="button"
-            onPress={() => press(secondary.onPress)}
+            onPress={() => press(secondary.onPress, secondary.closeFirst)}
             style={({ pressed }) => [styles.hit, pressed && styles.squish]}
           >
             <View style={[styles.secondary, { borderColor: flavor.lip }]}>
@@ -84,7 +106,7 @@ export function FunModal({
     </Animated.View>
   );
   return (
-    <View style={[styles.layer, top != null && styles.below, top != null && { top }]} pointerEvents="box-none">
+    <Animated.View style={[styles.layer, top != null && styles.below, top != null && { top }, layerStyle]} pointerEvents="box-none">
       <View style={styles.dim} />
       {top != null ? (
         <ScrollView
@@ -99,7 +121,7 @@ export function FunModal({
       ) : (
         card
       )}
-    </View>
+    </Animated.View>
   );
 }
 

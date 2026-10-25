@@ -10,12 +10,21 @@
     "ios": {
       "supportsTablet": true,
       "usesAppleSignIn": true,
+      "appleTeamId": "89T43H6V58",
       "bundleIdentifier": "app.mylisto.boop",
       "entitlements": {
         "com.apple.developer.declared-age-range": true
       },
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": [
+              "boopboop",
+              "com.googleusercontent.apps.258906929083-hubgfqmc81rnc09ut0kv3ov183rbp62q"
+            ]
+          }
+        ]
       }
     },
     "android": {
