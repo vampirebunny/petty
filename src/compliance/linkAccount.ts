@@ -2,6 +2,7 @@ import { setAccountLinked, setAppleTokenMissing, setHandleSaved } from '../db/ac
 import { authTransition, setAuthTransition } from '../state/sessionGate';
 import { claimDevice } from '../sync/activeDevice';
 import type { AuthCredential } from './appleCredential';
+import { ensureAnonymousUserId } from './identity';
 import { getSupabase } from './supabase';
 import { finishHandlePrompt, requireHandleNow } from './handlePrompt';
 
@@ -19,7 +20,16 @@ const failedMessage = "We couldn't sign you in. Try again.";
 
 export function isAlreadyLinkedError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error ?? '');
-  return /already linked/i.test(message);
+  const code = error && typeof error === 'object' && 'code' in error ? String(error.code) : '';
+  return /already linked|already been registered/i.test(message) || code === 'identity_already_exists' || code === 'email_exists';
+}
+
+function fail(error?: unknown): LinkResult {
+  if (isAlreadyLinkedError(error)) {
+    return { ok: false, reason: 'already_linked', sessionReady: false };
+  }
+  const message = error instanceof Error ? error.message.trim() : '';
+  return { ok: false, reason: 'failed', message: message || failedMessage };
 }
 
 async function pause(ms: number): Promise<void> {
@@ -47,11 +57,17 @@ export async function storeAppleToken(body: {
 
 export async function linkGuest(credential: AuthCredential): Promise<LinkResult> {
   if (authTransition() !== 'idle') {
-    return { ok: false, reason: 'failed', message: failedMessage };
+    return fail(new Error("Couldn't start sign-in while the app was busy."));
   }
   const supabase = getSupabase();
   if (!supabase) {
-    return { ok: false, reason: 'failed', message: failedMessage };
+    return fail();
+  }
+  // Stay idle so a new anonymous session rebinds this pet before linking.
+  // linkIdentity needs that session; without it the ID-token grant signs into a different user.
+  const guestId = await ensureAnonymousUserId();
+  if (!guestId) {
+    return fail(new Error("Couldn't start a guest session for this pet."));
   }
   setAuthTransition('linking');
   try {
@@ -61,10 +77,7 @@ export async function linkGuest(credential: AuthCredential): Promise<LinkResult>
       const priorSession = prior.session;
       const exchanged = await supabase.auth.exchangeCodeForSession(credential.pkceCode);
       if (exchanged.error) {
-        if (isAlreadyLinkedError(exchanged.error)) {
-          return { ok: false, reason: 'already_linked', sessionReady: false };
-        }
-        return { ok: false, reason: 'failed', message: failedMessage };
+        return fail(exchanged.error);
       }
       const nextId = exchanged.data.user?.id;
       if (priorSession && nextId && nextId !== priorSession.user.id) {
@@ -77,19 +90,30 @@ export async function linkGuest(credential: AuthCredential): Promise<LinkResult>
       }
       refreshToken = exchanged.data.session?.provider_refresh_token ?? refreshToken;
     } else if (credential.idToken) {
+      const { data: prior } = await supabase.auth.getSession();
+      const priorId = prior.session?.user.id ?? null;
       const linked = await supabase.auth.linkIdentity({
         provider: credential.provider,
         token: credential.idToken,
         nonce: credential.rawNonce ?? undefined,
       });
       if (linked.error) {
-        if (isAlreadyLinkedError(linked.error)) {
-          return { ok: false, reason: 'already_linked', sessionReady: false };
-        }
-        return { ok: false, reason: 'failed', message: failedMessage };
+        return fail(linked.error);
+      }
+      const nextId = linked.data.user?.id ?? linked.data.session?.user.id ?? null;
+      if (priorId && nextId && nextId !== priorId) {
+        return {
+          ok: false,
+          reason: 'already_linked',
+          sessionReady: true,
+          providerRefreshToken: linked.data.session?.provider_refresh_token ?? undefined,
+        };
+      }
+      if (!priorId || !nextId || nextId !== priorId) {
+        return fail(new Error("This sign-in didn't stay on this pet."));
       }
     } else {
-      return { ok: false, reason: 'failed', message: failedMessage };
+      return fail(new Error('Sign-in did not return a token.'));
     }
 
     setAccountLinked(true);
@@ -112,10 +136,7 @@ export async function linkGuest(credential: AuthCredential): Promise<LinkResult>
     requireHandleNow();
     return { ok: true, needsHandle: true };
   } catch (error) {
-    if (isAlreadyLinkedError(error)) {
-      return { ok: false, reason: 'already_linked', sessionReady: false };
-    }
-    return { ok: false, reason: 'failed', message: failedMessage };
+    return fail(error);
   } finally {
     if (authTransition() === 'linking') {
       setAuthTransition('idle');

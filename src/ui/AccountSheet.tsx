@@ -5,6 +5,7 @@ import { X } from 'lucide-react-native';
 
 import { beginAppleLink, type AuthCredential } from '../compliance/appleCredential';
 import { signInWithGoogle } from '../compliance/googleCredential';
+import { ensureAnonymousUserId } from '../compliance/identity';
 import { linkGuest } from '../compliance/linkAccount';
 import { pingAuthHealth } from '../compliance/authHealth';
 import { beginRestore } from '../compliance/restoreAccount';
@@ -93,6 +94,13 @@ export function AccountSheet({ reason, petName, onClose, onCredential }: Props) 
           setNote("You'll need internet to sign in");
           return;
         }
+        if (linkReasons.has(reason)) {
+          const guestId = await ensureAnonymousUserId();
+          if (!guestId) {
+            setNote("Couldn't start a guest session for this pet.");
+            return;
+          }
+        }
         const credential = provider === 'apple' ? await beginAppleLink() : await signInWithGoogle();
         if (!credential) {
           return;
@@ -129,11 +137,11 @@ export function AccountSheet({ reason, petName, onClose, onCredential }: Props) 
         onCredential?.(credential);
         onClose();
       } catch (error) {
-        const message = error instanceof Error ? error.message : '';
+        const message = error instanceof Error ? error.message.trim() : '';
         setNote(
-          /already linked/i.test(message)
+          /already linked|already been registered/i.test(message)
             ? 'That sign-in already belongs to an account. Bringing it back is not ready yet.'
-            : "We couldn't sign you in. Try again.",
+            : message || "We couldn't sign you in. Try again.",
         );
       } finally {
         setBusy(false);

@@ -12,6 +12,7 @@ import { CandyShell, GRAY, candyInk, tints } from '../ui/candy';
 import { fontFamily } from '../ui/font';
 import { HandleScreen } from '../ui/HandleScreen';
 import { iconStroke, theme } from '../ui/theme';
+import { useOpenedDuoTopInset } from '../ui/useDeviceOrientation';
 
 type Props = {
   petName: string;
@@ -39,6 +40,7 @@ function providerPhrase(identities: { provider: string }[]): string {
 }
 
 export function SettingsScreen({ petName, onClose }: Props) {
+  const duoTop = useOpenedDuoTopInset();
   const [tick, setTick] = useState(0);
   const linked = readAccountLinked();
   const [signedIn, setSignedIn] = useState<SignedIn | null>(null);
@@ -127,7 +129,7 @@ export function SettingsScreen({ petName, onClose }: Props) {
     : `Signed in with ${shown?.providers || 'your account'} · Pick your handle`;
 
   return (
-    <View style={styles.screen}>
+    <View style={[styles.screen, { paddingTop: 64 + duoTop }]}>
       <View style={styles.header}>
         <Pressable
           accessibilityRole="button"
@@ -180,7 +182,7 @@ export function SettingsScreen({ petName, onClose }: Props) {
           {({ pressed }) => (
             <CandyShell tint={tints.coral} radius={22} uid="settings-delete" pressed={pressed} style={styles.row}>
               <Text style={[styles.rowText, { color: candyInk(tints.coral) }]}>
-                {linked ? 'Delete account' : 'Delete my progress'}
+                {linked ? 'Delete account' : 'Delete my account'}
               </Text>
             </CandyShell>
           )}
