@@ -21,6 +21,7 @@ import HomeScreen from './src/screens/HomeScreen';
 import { useAgeGate } from './src/state/useAgeGate';
 import { useIdentity } from './src/state/useIdentity';
 import { usePet } from './src/state/usePet';
+import { usePro } from './src/state/usePro';
 import { onAccountFlags, readRestoreInProgress } from './src/db/accountMeta';
 import { onLocalWiped } from './src/compliance/accountWipe';
 import { releaseWelcomeHold } from './src/state/sessionGate';
@@ -43,6 +44,7 @@ export default function App() {
   const pet = usePet();
   const { setRemindersOn, adopt, ready: petReady, state: petState } = pet;
   const identity = useIdentity();
+  usePro(identity);
   const gate = useAgeGate({ onUnavailable: () => setRemindersOn(false) });
   const [fontsLoaded, fontError] = useFonts({
     [fontFamily.regular]: Nunito_400Regular,

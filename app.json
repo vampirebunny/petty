@@ -80,6 +80,7 @@
         }
       ],
       "./plugins/withAndroidR8Optimize.js",
+      "./plugins/withAndroidPurchaseLaunchMode.js",
       "expo-font",
       "expo-apple-authentication",
       [
