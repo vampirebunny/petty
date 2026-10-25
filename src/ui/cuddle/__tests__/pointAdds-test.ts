@@ -1,4 +1,10 @@
-import { pointAddGapMs, queuePointAdds } from '../pointAdds';
+import { pointAddGapMs, pointAmount, queuePointAdds } from '../pointAdds';
+
+it('keeps a half point on the rest pop', () => {
+  expect(pointAmount(5)).toBe('5');
+  expect(pointAmount(10)).toBe('10');
+  expect(pointAmount(12.5)).toBe('12.5');
+});
 
 it('starts an idle queue immediately and spaces later adds', () => {
   const meal = queuePointAdds(1000, 0, 2);

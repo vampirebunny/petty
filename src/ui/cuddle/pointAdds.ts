@@ -7,6 +7,12 @@ export type PointAdd = {
   amount: number;
 };
 
+// Whole points stay whole. A 2.5× bed pays 12.5, which must not round up to 13.
+export function pointAmount(amount: number): string {
+  const tenths = Math.round(amount * 10) / 10;
+  return Number.isInteger(tenths) ? String(tenths) : tenths.toFixed(1);
+}
+
 // Long enough for the previous pop's sound to start, short enough to feel immediate.
 export const pointAddGapMs = 280;
 

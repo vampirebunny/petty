@@ -1,5 +1,6 @@
 import { newCuddle } from '../cuddle';
-import { createWorld, inviteCare, setDirection, spawnActor, startHeld, syncActor, syncWorldFood, takePendingRest, update } from '../sim';
+import { applyFurniture, furnitureDefinition } from '../furniture';
+import { createWorld, inviteCare, setDirection, spawnActor, startHeld, syncActor, syncWorldFood, takeEnergyPops, takePendingRest, update } from '../sim';
 import { scenes } from '../scenes';
 import type { ActorSource } from '../types';
 
@@ -95,6 +96,134 @@ it('keeps the walk when the pet record wakes during the trip', () => {
   expect(actor.task.type).toBe('sleep');
   expect(actor.task.stage).toBe('go');
   expect(actor.asleep).toBe(false);
+});
+
+it('pays standard bed rest after the pet record marks them asleep on the cushion', () => {
+  const { world, actor } = pup();
+  actor.asleep = false;
+  actor.task = {
+    type: 'sleep',
+    stage: 'sleeping',
+    t: 0,
+    bats: 0,
+    cool: 0,
+    poi: { x: 110, y: 542, propId: 'livingroom-bed' },
+  };
+  syncActor(actor, {
+    id: 'pup',
+    breedId: 'retriever',
+    ageDays: 400,
+    weight: 24,
+    vitality: 1,
+    equipped: {},
+    asleep: true,
+  });
+  expect(actor.task.poi?.propId).toBe('livingroom-bed');
+  actor.sleepSec = 5;
+  update(world, 0.05);
+  expect(takeEnergyPops(actor)).toEqual([5]);
+});
+
+it('pays standard bed rest from the cushion when the sleep task lost its bed id', () => {
+  const { world, actor } = pup();
+  actor.asleep = true;
+  actor.task = { type: 'sleep', stage: 'sleeping', t: 0, bats: 0, cool: 0, poi: { x: 110, y: 542 } };
+  actor.sleepSec = 5;
+  update(world, 0.05);
+  expect(actor.task.poi?.propId).toBe('livingroom-bed');
+  expect(takeEnergyPops(actor)).toEqual([5]);
+});
+
+const shopBeds = [
+  ['bed_standard', 5],
+  ['bed_cloud_puff', 10],
+  ['bed_bone_sofa', 12.5],
+  ['bed_kitty_cave', 10],
+  ['bed_moon_cradle', 12.5],
+] as const;
+
+function worldWithBed(sku: string, breedId: string) {
+  const piece = furnitureDefinition(sku);
+  if (!piece) {
+    throw new Error(sku);
+  }
+  const scene = applyFurniture(scenes.livingroom, [piece], [
+    { pieceId: piece.id, sceneId: 'livingroom', x: 320, y: 450 },
+  ]);
+  const actor = spawnActor({
+    id: 'pup',
+    breedId,
+    ageDays: 400,
+    weight: 24,
+    vitality: 1,
+    equipped: {},
+    asleep: false,
+  });
+  actor.x = 200;
+  actor.y = 440;
+  const world = createWorld([actor], 1, scene);
+  return { world, actor };
+}
+
+it.each(shopBeds)('pays %s rest (%s) on the cushion, even if the bed id was dropped', (sku, gain) => {
+  const breedId = sku === 'bed_kitty_cave' || sku === 'bed_moon_cradle' ? 'domesticShorthair' : 'retriever';
+  const { world, actor } = worldWithBed(sku, breedId);
+  expect(inviteCare(world, actor, 'bed')).toBe('went');
+  for (let step = 0; step < 800 && actor.task.stage !== 'sleeping'; step += 1) {
+    update(world, 0.05);
+  }
+  expect(actor.task.stage).toBe('sleeping');
+  expect(actor.task.poi?.propId).toBe(sku);
+  syncActor(actor, {
+    id: 'pup',
+    breedId,
+    ageDays: 400,
+    weight: 24,
+    vitality: 1,
+    equipped: {},
+    asleep: true,
+  });
+  expect(actor.task.poi?.propId).toBe(sku);
+  actor.energy = 0.4;
+  actor.sleepSec = 5;
+  update(world, 0.05);
+  expect(takeEnergyPops(actor)).toEqual([gain]);
+
+  actor.energy = 0.4;
+  actor.task.poi = { x: actor.x, y: actor.y };
+  actor.sleepSec = 5;
+  update(world, 0.05);
+  expect(takeEnergyPops(actor)).toEqual([gain]);
+});
+
+it('pays the base rest rate for a guest on a deluxe bed', () => {
+  const { world, actor } = worldWithBed('bed_moon_cradle', 'domesticShorthair');
+  actor.guest = true;
+  actor.x = 320;
+  actor.y = 450;
+  actor.asleep = true;
+  actor.task = {
+    type: 'sleep',
+    stage: 'sleeping',
+    t: 0,
+    bats: 0,
+    cool: 0,
+    poi: { x: actor.x, y: actor.y, propId: 'bed_moon_cradle' },
+  };
+  actor.sleepSec = 5;
+  update(world, 0.05);
+  expect(takeEnergyPops(actor)).toEqual([5]);
+});
+
+it('pays the floor rate when the pet is asleep off the bed', () => {
+  const { world, actor } = pup();
+  actor.x = 400;
+  actor.y = 400;
+  actor.asleep = true;
+  actor.task = { type: 'sleep', stage: 'sleeping', t: 0, bats: 0, cool: 0 };
+  actor.sleepSec = 5;
+  update(world, 0.05);
+  expect(takeEnergyPops(actor)).toEqual([3]);
 });
 
 it('walks to a bowl prop when the scene has no food point', () => {

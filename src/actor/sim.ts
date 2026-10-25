@@ -72,7 +72,7 @@ import type { OwnedTrickProp, PlacedTrickProp } from '../sim/trickProps';
 import { newCuddle, stepCuddle } from './cuddle';
 import { obstaclesIn, steerAim } from './furniture';
 import { nearestPoi, poiOf, sceneForSpecies, scenes, stageHeight } from './scenes';
-import type { Poi, Scene } from './scenes';
+import type { Poi, Prop, Scene } from './scenes';
 import { variantFor } from './variation';
 import type { Actor, ActorSource, Anchors, CareInvite, Direction, HeldToy, Idle, IdleMode, JumpKind, PlayState, Pose, SoundEvent, Task, TaskType, Vec, World } from './types';
 
@@ -500,7 +500,13 @@ export function syncActor(actor: Actor, source: ActorSource): void {
     actor.sleepSec = 0;
     actor.asleep = source.asleep;
     if (!walkingToCare) {
+      // The pet record flips asleep once they are down. Replacing the task must keep the bed
+      // they just reached, or rest pays the floor rate while they are still lying on it.
+      const bedPoi = source.asleep && actor.task.type === 'sleep' ? actor.task.poi : undefined;
       actor.task = taskOf(source.asleep ? 'sleep' : 'idle', source.asleep ? 'sleeping' : '');
+      if (bedPoi) {
+        actor.task.poi = bedPoi;
+      }
       actor.pantT = 0;
     }
   }
@@ -2325,6 +2331,38 @@ export function debugGreeting(world: World, actor: Actor, id: string, ageDays: n
 
 export { planGreeting };
 
+// The task's bed id is the usual link. A standard bed still draws the pet on the cushion from
+// position alone, so a missing id has to fall back to that same cushion or rest pays the floor rate.
+function bedForRest(world: World, actor: Actor): Prop | undefined {
+  const propId = actor.task.poi?.propId;
+  if (propId) {
+    const linked = world.scene.props.find((prop) => prop.id === propId && prop.kind === 'bed');
+    if (linked) {
+      return linked;
+    }
+  }
+  let best: Prop | undefined;
+  let bestDistance = Infinity;
+  for (const prop of world.scene.props) {
+    if (prop.kind !== 'bed') {
+      continue;
+    }
+    const half = Math.max(36, (prop.w ?? 112) / 2);
+    if (Math.abs(actor.x - prop.x) > half) {
+      continue;
+    }
+    if (actor.y < prop.y - 48 || actor.y > prop.y + 28) {
+      continue;
+    }
+    const distance = Math.hypot(actor.x - prop.x, actor.y - prop.y);
+    if (distance < bestDistance) {
+      best = prop;
+      bestDistance = distance;
+    }
+  }
+  return best;
+}
+
 function updateActor(world: World, actor: Actor, dt: number): void {
   const breed = breedById(actor.breedId);
   if (!breed) {
@@ -2340,8 +2378,15 @@ function updateActor(world: World, actor: Actor, dt: number): void {
   }
   if (actor.asleep && actor.collapseLeft <= 0 && actor.task.type === 'sleep' && actor.task.stage === 'sleeping') {
     actor.sleepSec += dt;
-    const propId = actor.task.poi?.propId;
-    const bed = propId ? world.scene.props.find((prop) => prop.id === propId && prop.kind === 'bed') : undefined;
+    const bed = bedForRest(world, actor);
+    if (bed?.id && actor.task.poi?.propId !== bed.id) {
+      actor.task.poi = {
+        x: actor.task.poi?.x ?? actor.x,
+        y: actor.task.poi?.y ?? actor.y,
+        face: actor.task.poi?.face,
+        propId: bed.id,
+      };
+    }
     const gain = liveRestGrant(bed != null, bed?.restMultiplier ?? 1, actor.guest === true);
     while (actor.sleepSec + 1e-6 >= collapseSleepSec) {
       actor.sleepSec -= collapseSleepSec;

@@ -6,7 +6,7 @@ import { Bone, Droplet, Heart, Zap } from 'lucide-react-native';
 
 import { playPointPop } from '../../audio/badge';
 import { theme } from '../theme';
-import { queuePointAdds } from './pointAdds';
+import { pointAmount, queuePointAdds } from './pointAdds';
 import type { PointAdd } from './pointAdds';
 
 export type { PointAdd };
@@ -176,7 +176,7 @@ export function CuddleFeedback({ feedbackRef, reducedMotion }: Props) {
               y: gain.y,
               dur: energyPopMs,
               drift: (Math.random() - 0.5) * 10,
-              label: `+${Math.round(gain.amount)}`,
+              label: `+${pointAmount(gain.amount)}`,
             });
           };
           if (wait <= 0) {
