@@ -73,7 +73,7 @@ const furnitureIconEnv: Env = {
 };
 
 // Shop tiles show the same drawing as the room, fitted into the tile.
-function furnitureProp(itemId: string) {
+function furnitureProp(itemId: string, plant?: 'catgrass' | 'flowers' | 'catnip') {
   if (itemId === 'bowl_food') {
     return { id: itemId, kind: 'bowl', x: 0, y: 0, contents: 'kibble', color: '#2f7d5b' };
   }
@@ -86,19 +86,48 @@ function furnitureProp(itemId: string) {
   if (itemId === 'scratcher') {
     return { id: itemId, kind: itemId, x: 0, y: 0, h: 74 };
   }
+  if (itemId === 'planter') {
+    return { id: itemId, kind: 'planter', x: 0, y: 0, w: 60, plant: plant ?? 'catgrass' };
+  }
+  if (itemId === 'catioPost') {
+    return { id: itemId, kind: 'catioPost', x: 0, y: 0, h: 78 };
+  }
+  if (itemId === 'litterbox') {
+    return { id: itemId, kind: 'litterbox', x: 0, y: 0 };
+  }
   return { id: itemId, kind: itemId, x: 0, y: 0 };
 }
 
-function drawFurnitureIcon(canvas: SkCanvas, itemId: string, size: number): void {
-  const prop = furnitureProp(itemId);
-  const bounds =
-    itemId === 'scratcher'
-      ? { x0: -40, y0: -86, x1: 44, y1: 12 }
-      : itemId.startsWith('bowl_')
-        ? { x0: -36, y0: -28, x1: 36, y1: 16 }
-        : itemId === 'bed_standard'
-          ? { x0: -70, y0: -36, x1: 70, y1: 16 }
-      : { x0: -104, y0: -214, x1: 104, y1: 14 };
+function furnitureBounds(itemId: string) {
+  if (itemId === 'scratcher') {
+    return { x0: -40, y0: -86, x1: 44, y1: 12 };
+  }
+  if (itemId.startsWith('bowl_')) {
+    return { x0: -36, y0: -28, x1: 36, y1: 16 };
+  }
+  if (itemId === 'bed_standard') {
+    return { x0: -70, y0: -36, x1: 70, y1: 16 };
+  }
+  if (itemId === 'planter') {
+    return { x0: -36, y0: -56, x1: 36, y1: 8 };
+  }
+  if (itemId === 'catioPost') {
+    return { x0: -12, y0: -82, x1: 12, y1: 6 };
+  }
+  if (itemId === 'litterbox') {
+    return { x0: -48, y0: -32, x1: 52, y1: 10 };
+  }
+  return { x0: -104, y0: -214, x1: 104, y1: 14 };
+}
+
+function drawFurnitureIcon(
+  canvas: SkCanvas,
+  itemId: string,
+  size: number,
+  plant?: 'catgrass' | 'flowers' | 'catnip',
+): void {
+  const prop = furnitureProp(itemId, plant);
+  const bounds = furnitureBounds(itemId);
   const pad = size * 0.1;
   const scale = Math.min((size - pad * 2) / (bounds.x1 - bounds.x0), (size - pad * 2) / (bounds.y1 - bounds.y0));
   canvas.save();
@@ -106,6 +135,28 @@ function drawFurnitureIcon(canvas: SkCanvas, itemId: string, size: number): void
   canvas.scale(scale, scale);
   drawProp(canvas, prop, furnitureIconEnv);
   canvas.restore();
+}
+
+export function FurnitureIcon({
+  itemId,
+  size,
+  plant,
+}: {
+  itemId: string;
+  size: number;
+  plant?: 'catgrass' | 'flowers' | 'catnip';
+}) {
+  const picture = useMemo(() => {
+    const recorder = Skia.PictureRecorder();
+    const canvas = recorder.beginRecording(Skia.XYWHRect(0, 0, size, size));
+    drawFurnitureIcon(canvas, itemId, size, plant);
+    return recorder.finishRecordingAsPicture();
+  }, [itemId, plant, size]);
+  return (
+    <Canvas style={{ width: size, height: size }}>
+      <Picture picture={picture} />
+    </Canvas>
+  );
 }
 
 export function ItemArt({ itemId, catalog, size, soon, species = null }: Props) {

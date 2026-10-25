@@ -18,6 +18,26 @@ export function readAccountLinked(): boolean {
 
 export function setAccountLinked(linked: boolean): void {
   writeMeta('accountLinked', linked ? '1' : '0');
+  if (!linked) {
+    getDb().runSync("DELETE FROM meta WHERE key = 'accountHandle'");
+  }
+  notifyAccountFlags();
+}
+
+export function readAccountHandle(): string | null {
+  const handle = readMeta('accountHandle');
+  return handle && handle.length > 0 ? handle : null;
+}
+
+export function setAccountHandle(handle: string | null): void {
+  if (handle === readAccountHandle()) {
+    return;
+  }
+  if (handle) {
+    writeMeta('accountHandle', handle);
+  } else {
+    getDb().runSync("DELETE FROM meta WHERE key = 'accountHandle'");
+  }
   notifyAccountFlags();
 }
 

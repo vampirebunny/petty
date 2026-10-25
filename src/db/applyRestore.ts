@@ -4,6 +4,7 @@ import { furnitureDefinition } from '../actor/furniture';
 import type { PetState } from '../sim/types';
 import { createUuid } from '../compliance/identity';
 import {
+  setAccountHandle,
   setAccountLinked,
   setHandleSaved,
   setLocalRevision,
@@ -206,6 +207,7 @@ export async function applyRestore(input: Input): Promise<void> {
       }
     }
     const linkAccount = input.linkAccount !== false;
+    setAccountHandle(null);
     setAccountLinked(linkAccount);
     setHandleSaved(linkAccount && input.hasHandle);
     setSyncedRevision(input.serverRevision);

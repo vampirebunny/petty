@@ -10,6 +10,7 @@ import {
   readAccountLinked,
   readHandleSaved,
   readStandby,
+  setAccountHandle,
   setHandleSaved,
 } from '../db/accountMeta';
 import { CandyShell, candyInk, tints } from './candy';
@@ -92,6 +93,7 @@ export function HandleScreen({ petName, allowLater, onSaved, onLater }: ScreenPr
         return;
       }
       if (data === 'saved') {
+        setAccountHandle(cleaned);
         onSaved();
         return;
       }

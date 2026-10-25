@@ -16,7 +16,7 @@ import { releaseMusic, setMusicEnabled, suspendMusic, switchMusic } from '../aud
 import { setSoundEnabled } from '../audio/voice';
 import type { CuddleOut } from '../actor';
 import { stageHeight, stageWidth } from '../actor/geometry';
-import { bowlAlreadyInRoom, bowlRoomMessage, otherBedInRoom, pieceLabel, roomRestBadge, stowWarning } from '../actor/furniture';
+import { bowlAlreadyInRoom, bowlRoomMessage, otherBedInRoom, pieceLabel, roomRestBadge, shopSku, stowWarning } from '../actor/furniture';
 import type { FurniturePiece } from '../actor/furniture';
 import { flickSpeedThreshold } from '../input/flick';
 import { CuddleGesture } from '../input/cuddleGesture';
@@ -42,6 +42,7 @@ import { BoopCounter } from '../ui/BoopCounter';
 import type { BoopCounterHandle } from '../ui/BoopCounter';
 import { fontFamily } from '../ui/font';
 import { iconStroke } from '../ui/theme';
+import { useAccountHandle } from '../state/useAccountHandle';
 import { usePet } from '../state/usePet';
 import { grantDevItem } from '../dev/grant';
 import { usePlayerHome } from '../state/usePlayerHome';
@@ -304,6 +305,7 @@ export default function HomeScreen({ petApi }: Props) {
   const [facingOpen, setFacingOpen] = useState(false);
   const [clothingOpen, setClothingOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const accountHandle = useAccountHandle();
   const [personalityOpen, setPersonalityOpen] = useState(false);
   const [playOpen, setPlayOpen] = useState(false);
   const [propOpen, setPropOpen] = useState(false);
@@ -1695,7 +1697,13 @@ export default function HomeScreen({ petApi }: Props) {
         const furniture: StorageChoice[] = scene.playerOwned
           ? home.pieces
               .filter((piece) => !home.placements.some((place) => place.pieceId === piece.id))
-              .map((piece) => ({ id: piece.id, label: pieceLabel(piece), kind: 'furniture' as const }))
+              .map((piece) => ({
+                id: piece.id,
+                label: pieceLabel(piece),
+                kind: 'furniture' as const,
+                sku: shopSku(piece) ?? piece.kind,
+                plant: piece.plant,
+              }))
           : [];
         setStorageItems(scene.playerOwned ? [...furniture, ...props] : props);
         setStorageEmpty(scene.playerOwned ? 'Nothing in storage.' : 'Furniture stays in your rooms.');
@@ -1936,7 +1944,7 @@ export default function HomeScreen({ petApi }: Props) {
   };
 
   const homeHeader = (
-    <View style={styles.header}>
+    <View style={[styles.header, accountHandle ? styles.headerWithHandle : null]}>
       <Image
         source={require('../../assets/icon.png')}
         style={styles.logo}
@@ -1956,18 +1964,27 @@ export default function HomeScreen({ petApi }: Props) {
         )}
       </Pressable>
       <View
+        accessible
+        accessibilityRole="header"
+        accessibilityLabel={accountHandle ? `${state.name}, @${accountHandle}` : state.name}
         pointerEvents="none"
         style={[
           styles.nameSlot,
+          accountHandle ? styles.nameSlotWithHandle : null,
           {
             paddingLeft: Math.max(148 + (boopEdge - 16), 128),
             paddingRight: 148 + (boopEdge - 16),
           },
         ]}
       >
-        <Text accessibilityRole="header" style={styles.name} numberOfLines={1}>
+        <Text style={styles.name} numberOfLines={1}>
           {state.name}
         </Text>
+        {accountHandle ? (
+          <Text style={styles.accountHandle} numberOfLines={1}>
+            @{accountHandle}
+          </Text>
+        ) : null}
       </View>
       <BoopCounter
         ref={counterRef}
@@ -2767,6 +2784,10 @@ const styles = StyleSheet.create({
     height: 52,
     justifyContent: 'center',
   },
+  // The name stays on the same line as the logo and Boop pill. The handle hangs under it.
+  headerWithHandle: {
+    height: 68,
+  },
   logo: {
     position: 'absolute',
     left: 20,
@@ -2798,12 +2819,23 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 148,
   },
+  nameSlotWithHandle: {
+    justifyContent: 'flex-start',
+    paddingTop: 9,
+  },
   name: {
     textAlign: 'center',
     fontFamily: fontFamily.fredokaBold,
     fontSize: 28,
     lineHeight: 34,
     color: '#243044',
+  },
+  accountHandle: {
+    textAlign: 'center',
+    fontFamily: fontFamily.fredokaSemibold,
+    fontSize: 14,
+    lineHeight: 18,
+    color: '#5C6B80',
   },
   score: {
     fontSize: 14,
