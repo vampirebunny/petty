@@ -4,6 +4,7 @@ import type { FurniturePiece, FurniturePlacement } from '../actor/furniture';
 import {
   furnitureOf,
   layoutOf,
+  repairBedPlacements,
   subscribePlayerHome,
   toysOf,
   type SpeciesId,
@@ -22,6 +23,7 @@ export function usePlayerHome(ownerId: string | undefined, species: SpeciesId) {
       return;
     }
     const load = () => {
+      repairBedPlacements(ownerId, species);
       setPieces(furnitureOf(ownerId));
       setPlacements(layoutOf(ownerId, species));
       setToys(toysOf(ownerId));

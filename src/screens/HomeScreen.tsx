@@ -16,7 +16,7 @@ import { releaseMusic, setMusicEnabled, suspendMusic, switchMusic } from '../aud
 import { setSoundEnabled } from '../audio/voice';
 import type { CuddleOut } from '../actor';
 import { stageHeight, stageWidth } from '../actor/geometry';
-import { bowlAlreadyInRoom, bowlRoomMessage, pieceLabel, stowWarning } from '../actor/furniture';
+import { bowlAlreadyInRoom, bowlRoomMessage, otherBedInRoom, pieceLabel, roomRestBadge, stowWarning } from '../actor/furniture';
 import type { FurniturePiece } from '../actor/furniture';
 import { flickSpeedThreshold } from '../input/flick';
 import { CuddleGesture } from '../input/cuddleGesture';
@@ -56,7 +56,7 @@ import { trackName } from '../sim/tracks';
 import { failBand, trickListing } from '../sim/tricks';
 import type { TrickPropType } from '../sim/trickProps';
 import { currentOwner } from '../db/currentOwner';
-import { trickPropsOf } from '../db/playerHome';
+import { consumeBedStorageTip, trickPropsOf } from '../db/playerHome';
 import { ghostDelayMs, ghostEligible, startCuddleSession } from '../cuddle/guidance';
 import { HomeActionPanel } from '../ui/HomeActionPanel';
 import { ToyCard } from '../ui/ToyCard';
@@ -222,6 +222,13 @@ export default function HomeScreen({ petApi }: Props) {
   const [clock, setClock] = useState(() => Date.now());
   const [pantryOpen, setPantryOpen] = useState(false);
   const [shopOpen, setShopOpen] = useState(false);
+  const [bedTip, setBedTip] = useState(false);
+  const [bedSwap, setBedSwap] = useState<{ piece: FurniturePiece; occupantId: string; name: string; x: number; y: number } | null>(null);
+  useEffect(() => {
+    if (!shopOpen && consumeBedStorageTip()) {
+      setBedTip(true);
+    }
+  }, [shopOpen]);
   const [, setShopStamp] = useState(0);
   const counterRef = useRef<BoopCounterHandle>(null);
   const stageViewRef = useRef<View>(null);
@@ -1991,44 +1998,6 @@ export default function HomeScreen({ petApi }: Props) {
           }}
         />
       ) : null}
-      {holdTarget ? (
-        <HoldPieceSheet
-          top={sheetTop}
-          warning={holdTarget.warning}
-          confirming={holdConfirm}
-          onClose={closeHold}
-          onKeep={closeHold}
-          onMove={() => {
-            const target = holdTarget;
-            armedMove.current = { id: target.id, prop: target.prop };
-            if (target.prop) {
-              stageHandle.current?.setLiftedProp(target.id);
-            } else {
-              stageHandle.current?.setLifted(target.id);
-            }
-            closeHold();
-          }}
-          onStore={() => {
-            const target = holdTarget;
-            if (target.warning && !holdConfirm) {
-              setHoldConfirm(true);
-              return;
-            }
-            if (target.prop) {
-              placeIntent.current = null;
-              stageHandle.current?.stowTrickProp(target.id);
-            } else {
-              const woke = stageHandle.current?.stowFurniture(target.id) ?? false;
-              stowFurniture(target.id);
-              if (woke) {
-                rest();
-              }
-            }
-            armedMove.current = null;
-            closeHold();
-          }}
-        />
-      ) : null}
       {bowlNotice ? <NoticeSheet top={sheetTop} message={bowlNotice} onClose={() => setBowlNotice(null)} /> : null}
       {storageOpen ? (
         <StorageCard
@@ -2052,6 +2021,19 @@ export default function HomeScreen({ petApi }: Props) {
               const blocked = piece ? bowlAlreadyInRoom(home.pieces, home.placements, scene.id, piece.id) : null;
               if (blocked) {
                 setBowlNotice(bowlRoomMessage(blocked));
+                return;
+              }
+              const occupant = piece?.kind === 'bed' ? otherBedInRoom(home.pieces, home.placements, scene.id, piece.id) : null;
+              if (piece && occupant) {
+                const current = home.pieces.find((owned) => owned.id === occupant.pieceId);
+                setBedSwap({
+                  piece,
+                  occupantId: occupant.pieceId,
+                  name: current ? pieceLabel(current) : 'bed',
+                  x: occupant.x,
+                  y: occupant.y,
+                });
+                setStorageOpen(false);
                 return;
               }
               const placed = piece ? stageHandle.current?.showStoredFurniture(piece) : null;
@@ -2257,7 +2239,11 @@ export default function HomeScreen({ petApi }: Props) {
   ) : (
     <ScrollView style={styles.controls} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         {atSchool ? null : (
-          <NeedRings needs={presentNeeds(state.needs, sumHolds(treatHolds))} hydration={state.hydration} />
+          <NeedRings
+            needs={presentNeeds(state.needs, sumHolds(treatHolds))}
+            hydration={state.hydration}
+            energyMark={roomRestBadge(home.pieces, home.placements, scene.id, state.asleep)}
+          />
         )}
         {welcomeBack ? (
           <Pressable onPress={dismissWelcome} accessibilityRole="button">
@@ -2570,6 +2556,43 @@ export default function HomeScreen({ petApi }: Props) {
             ) : null}
           </View>
         </GestureDetector>
+        {holdTarget ? (
+          <HoldPieceSheet
+            warning={holdTarget.warning}
+            confirming={holdConfirm}
+            onClose={closeHold}
+            onKeep={closeHold}
+            onMove={() => {
+              const target = holdTarget;
+              armedMove.current = { id: target.id, prop: target.prop };
+              if (target.prop) {
+                stageHandle.current?.setLiftedProp(target.id);
+              } else {
+                stageHandle.current?.setLifted(target.id);
+              }
+              closeHold();
+            }}
+            onStore={() => {
+              const target = holdTarget;
+              if (target.warning && !holdConfirm) {
+                setHoldConfirm(true);
+                return;
+              }
+              if (target.prop) {
+                placeIntent.current = null;
+                stageHandle.current?.stowTrickProp(target.id);
+              } else {
+                const woke = stageHandle.current?.stowFurniture(target.id) ?? false;
+                stowFurniture(target.id);
+                if (woke) {
+                  rest();
+                }
+              }
+              armedMove.current = null;
+              closeHold();
+            }}
+          />
+        ) : null}
       </View>
       {split ? (
         <FitScale designWidth={phoneColumnWidth} style={styles.controlColumn}>
@@ -2584,6 +2607,41 @@ export default function HomeScreen({ petApi }: Props) {
       </View>
       {pops ? <AttributePops pops={pops} reducedMotion={reducedMotion} onDone={clearPops} /> : null}
       </View>
+      {bedTip ? (
+        <FunModal
+          title="New bed"
+          body="Your new bed is in Storage. Place it in a room to use it."
+          icon={Moon}
+          tint="lilac"
+          reducedMotion={reducedMotion}
+          primary={{ label: 'OK', onPress: () => setBedTip(false) }}
+        />
+      ) : null}
+      {bedSwap ? (
+        <FunModal
+          title="Swap beds?"
+          body={`The ${bedSwap.name} will go to Storage.`}
+          icon={Moon}
+          tint="lilac"
+          reducedMotion={reducedMotion}
+          primary={{
+            label: 'Swap',
+            onPress: () => {
+              const swap = bedSwap;
+              setBedSwap(null);
+              stageHandle.current?.stowFurniture(swap.occupantId);
+              stowFurniture(swap.occupantId);
+              const shown = stageHandle.current?.showStoredFurniture(swap.piece) ?? null;
+              if (shown) {
+                stageHandle.current?.moveFurniture(swap.piece.id, swap.x, swap.y);
+                moveFurniture(swap.piece.id, scene.id, swap.x, swap.y);
+                armedMove.current = { id: swap.piece.id, prop: false };
+              }
+            },
+          }}
+          secondary={{ label: 'Cancel', onPress: () => setBedSwap(null) }}
+        />
+      ) : null}
       {placesOpen ? (
         <View style={styles.placesCover} accessibilityViewIsModal>
           <PhoneColumn>

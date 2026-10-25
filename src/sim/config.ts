@@ -41,7 +41,17 @@ export const playMoveSpeed = 40;
 export const collapseSleepSec = 5;
 export const collapseWakeEnergy = 10;
 // User sleep pays this much energy on each 5 second mark, until energy is full.
+// A bed multiplies it. Sleeping with no bed in reach pays the slower floor rate.
 export const sleepEnergyGain = 5;
+export const floorRestGain = 3;
+
+export function liveRestGrant(onBed: boolean, multiplier: number, guest: boolean): number {
+  if (!onBed) {
+    return floorRestGain;
+  }
+  const rate = guest || !(multiplier > 0) ? 1 : multiplier;
+  return sleepEnergyGain * rate;
+}
 
 export const wakeAtEnergy = 100;
 

@@ -127,7 +127,7 @@ it('keeps litter boxes out of every room', () => {
   expect(scenesFor(['dog', 'cat']).some((scene) => scene.id === 'catio')).toBe(true);
   expect(scenes.catio.species).toBe('cat');
   expect(scenes.catio.shelter).toBe('roofed');
-  expect(poiOf(scenes.catio, 'water')).not.toBeNull();
+  expect(poiOf(scenes.catio, 'water')).toBeNull();
   expect(sceneForSpecies(scenes.catio, 'cat')).toBe(scenes.catio);
   expect(sceneForSpecies(scenes.catio, 'dog').id).toBe('livingroom');
   const catOnPorch = createWorld([kit], 1, scenes.catio);

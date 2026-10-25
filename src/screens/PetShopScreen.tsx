@@ -43,6 +43,7 @@ import {
   type ShopListing,
   type SpeciesId,
 } from '../economy/shop';
+import { stockedSkus } from '../actor/furniture';
 import { furnitureOf } from '../db/playerHome';
 import { ensureShopDay, loadLimitedStock, loadShopCatalog } from '../economy/shopState';
 import { refreshShopCatalog } from '../economy/shopSync';
@@ -90,6 +91,9 @@ function placeLine(place: string): string {
   }
   if (place === 'Home') {
     return 'Goes in your home';
+  }
+  if (place === 'Storage') {
+    return 'Goes to Storage';
   }
   return 'Goes to your Pantry';
 }
@@ -193,8 +197,12 @@ export function PetShopScreen({
   const owned = useMemo(() => {
     const ids = ownedIds(inventory, toys);
     if (pet.ownerId) {
-      for (const piece of furnitureOf(pet.ownerId)) {
+      const pieces = furnitureOf(pet.ownerId);
+      for (const piece of pieces) {
         ids.add(piece.id);
+      }
+      for (const sku of stockedSkus(pieces)) {
+        ids.add(sku);
       }
     }
     return ids;
@@ -708,6 +716,13 @@ function ShopCard({
         {item.tier === 'exclusive' ? (
           <View style={styles.exclusivePill}>
             <Text style={styles.exclusiveText}>Exclusive</Text>
+          </View>
+        ) : null}
+        {item.restMultiplier != null && item.restMultiplier > 1 ? (
+          <View style={[styles.restPill, item.restMultiplier > 2 ? styles.restDeluxe : null]}>
+            <Text style={[styles.restText, item.restMultiplier > 2 ? styles.restTextDeluxe : null]}>
+              {item.restMultiplier === 2 ? '2× faster rest' : '2.5× faster rest'}
+            </Text>
           </View>
         ) : null}
         {item.description && !butter ? <Text style={styles.desc}>{item.description}</Text> : null}
@@ -1233,6 +1248,10 @@ const styles = StyleSheet.create({
   dealFace: { paddingHorizontal: 10, paddingVertical: 5 },
   dealText: { fontFamily: fontFamily.black, fontSize: 11, letterSpacing: 0.4, color: shop.onGold },
   exclusivePill: { alignSelf: 'center', backgroundColor: '#EFE6FF', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 },
+  restPill: { alignSelf: 'center', backgroundColor: '#D7F6EA', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 },
+  restDeluxe: { backgroundColor: '#FFE1A8' },
+  restText: { fontFamily: fontFamily.black, fontSize: 11, color: '#1F7A56' },
+  restTextDeluxe: { color: '#8A4B08' },
   exclusiveText: { fontFamily: fontFamily.black, fontSize: 11, color: '#4B3A8A' },
   limitedPill: { alignSelf: 'flex-start', backgroundColor: '#FFF1B8', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 },
   limitedText: { fontFamily: fontFamily.black, fontSize: 11, color: '#6B4600' },

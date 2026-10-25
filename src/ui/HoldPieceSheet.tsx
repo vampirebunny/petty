@@ -3,7 +3,6 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { fontFamily } from './font';
 
 type Props = {
-  top: number;
   warning: string | null;
   confirming: boolean;
   onStore: () => void;
@@ -12,9 +11,9 @@ type Props = {
   onClose: () => void;
 };
 
-export function HoldPieceSheet({ top, warning, confirming, onStore, onMove, onKeep, onClose }: Props) {
+export function HoldPieceSheet({ warning, confirming, onStore, onMove, onKeep, onClose }: Props) {
   return (
-    <View style={[styles.layer, { top }]} pointerEvents="box-none">
+    <View style={styles.layer} pointerEvents="box-none">
       <Pressable style={styles.dim} accessibilityLabel="Close" onPress={onClose} />
       <View style={styles.card}>
         {confirming && warning ? <Text style={styles.warning}>{warning}</Text> : <Text style={styles.title}>This piece</Text>}
@@ -45,16 +44,22 @@ export function HoldPieceSheet({ top, warning, confirming, onStore, onMove, onKe
 const styles = StyleSheet.create({
   layer: {
     position: 'absolute',
-    left: 0,
+    top: 0,
     right: 0,
     bottom: 0,
-    zIndex: 30,
-    paddingHorizontal: 20,
+    left: 0,
+    zIndex: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 28,
   },
   dim: {
     ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(36, 48, 68, 0.45)',
   },
   card: {
+    width: '100%',
+    maxWidth: 360,
     backgroundColor: '#FFF6FB',
     borderRadius: 24,
     padding: 16,

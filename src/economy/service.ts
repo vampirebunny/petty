@@ -7,9 +7,9 @@ import { readLegacyCloset, writePetNow } from '../db/sqlitePetStorage';
 import { getDb, transaction } from '../db/database';
 import { currentOwner, ownerIsReady } from '../db/currentOwner';
 import { catalog, catalogItem, starterOutfits, storeItems, type CatalogItem, type TreatEffects } from './catalog';
-import { furnitureDefinition, grantPieces, shopFurniture, shopFurnitureSpot, type ShopFurnitureId } from '../actor/furniture';
+import { buySpot, furnitureDefinition, grantPieces, nextFurnitureId } from '../actor/furniture';
 import { writeLedgerEntry, type LedgerLine } from '../db/ledgerWrite';
-import { moveOwnedPiece, touchPlayerHome } from '../db/playerHome';
+import { furnitureOf, markBedStorageTip, moveOwnedPiece, touchPlayerHome } from '../db/playerHome';
 import { masteredTrickIds, speciesOf } from '../sim/tracks';
 import { prepareTrickPurchase, trickMilestoneKey } from '../sim/tricks';
 import { listedPrice, quoteCart } from './shopState';
@@ -500,16 +500,24 @@ export function purchaseCart(
       for (const toyId of priced.toys) {
         ledger.push({ asset: 'toy', delta: 1, toyId });
       }
+      const owner = ownerId();
+      const ownedPieces = furnitureOf(owner);
+      const granted: { sku: string; pieceId: string }[] = [];
       for (const kind of priced.furniture) {
-        ledger.push({ asset: 'furniture', delta: 1, furnitureId: kind, scene: sceneId });
+        const pieceId = nextFurnitureId(kind, [...ownedPieces, ...granted.map((row) => ({ id: row.pieceId, kind: 'bed' as const }))]);
+        granted.push({ sku: kind, pieceId });
+        ledger.push({ asset: 'furniture', delta: 1, furnitureId: pieceId, scene: sceneId });
       }
       insertTransaction('purchase', requestId, 'cart', ledger);
-      const owner = ownerId();
-      for (const kind of priced.furniture) {
-        if (Object.prototype.hasOwnProperty.call(shopFurniture, kind)) {
-          const spot = shopFurnitureSpot(kind as ShopFurnitureId, sceneId);
-          moveOwnedPiece(owner, species, kind, spot.sceneId, spot.x, spot.y);
+      for (const row of granted) {
+        const spot = buySpot(row.sku, sceneId);
+        if (!spot) {
+          if (row.sku.startsWith('bed_')) {
+            markBedStorageTip();
+          }
+          continue;
         }
+        moveOwnedPiece(owner, species, row.pieceId, spot.sceneId, spot.x, spot.y);
       }
       return {
         ok: true as const,

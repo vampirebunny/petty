@@ -174,6 +174,13 @@ export const catalog: CatalogItem[] = [
   { id: 'dogHouse', name: 'Dog House', kind: 'furniture', price: null, available: true, species: ['dog'] },
   { id: 'catTree', name: 'Cat Tree', kind: 'furniture', price: null, available: true, species: ['cat'] },
   { id: 'scratcher', name: 'Scratch Pole', kind: 'furniture', price: null, available: true, species: ['cat'] },
+  { id: 'bowl_food', name: 'Extra food bowl', kind: 'furniture', price: null, available: true },
+  { id: 'bowl_water', name: 'Extra water bowl', kind: 'furniture', price: null, available: true },
+  { id: 'bed_standard', name: 'Standard Bed', kind: 'furniture', price: null, available: true },
+  { id: 'bed_cloud_puff', name: 'Cloud Puff Bolster', kind: 'furniture', price: null, available: true, species: ['dog'] },
+  { id: 'bed_bone_sofa', name: 'Bone Pillow Sofa', kind: 'furniture', price: null, available: true, species: ['dog'] },
+  { id: 'bed_kitty_cave', name: 'Kitty Cave Pod', kind: 'furniture', price: null, available: true, species: ['cat'] },
+  { id: 'bed_moon_cradle', name: 'Moon Cradle', kind: 'furniture', price: null, available: true, species: ['cat'] },
   {
     id: 'second_wind',
     name: 'Second Wind',

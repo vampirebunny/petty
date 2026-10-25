@@ -1,6 +1,8 @@
 import { catalog, catalogItem } from './catalog';
 import { rememberActiveDefs, remoteItemDefs } from './remoteDefs';
 import { localDay } from './clock';
+import { stockedSkus } from '../actor/furniture';
+import { furnitureOf } from '../db/playerHome';
 import { currentOwner } from '../db/currentOwner';
 import { getDb } from '../db/database';
 import {
@@ -9,6 +11,7 @@ import {
   materializeShop,
   priceCart,
   shownDeal,
+  withHomeShelf,
   withScratchPole,
   type LimitedStock,
   type CartInput,
@@ -45,7 +48,7 @@ function parseRemote(json: string | null): ShopCatalog | null {
     }
     rememberActiveDefs(remote);
     const catalog = materializeShop(remote, defs());
-    return catalog ? withScratchPole(catalog) : null;
+    return catalog ? withHomeShelf(withScratchPole(catalog)) : null;
   } catch {
     return null;
   }
@@ -189,6 +192,9 @@ function ownedIds(): Set<string> {
   const furniture = database.getAllSync<{ piece_id: string }>('SELECT piece_id FROM owned_furniture WHERE owner_id = ?', owner);
   for (const piece of furniture) {
     owned.add(piece.piece_id);
+  }
+  for (const sku of stockedSkus(furnitureOf(owner))) {
+    owned.add(sku);
   }
   return owned;
 }

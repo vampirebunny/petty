@@ -1,4 +1,4 @@
-import { BlendMode, Skia, TileMode } from '@shopify/react-native-skia';
+import { BlendMode, ClipOp, Skia, TileMode } from '@shopify/react-native-skia';
 import type { SkCanvas } from '@shopify/react-native-skia';
 
 import { applyVariant, depthScale, resolveBreedById } from '../../actor';
@@ -18,6 +18,7 @@ import { drawCozyPools, drawLampPools, drawMoonPools, drawNightVeil, drawWindowL
 import { drawOverlay } from './marks';
 import { drawActor } from './pet';
 import type { OverlayBurst } from '../../playdate/overlay';
+import { caveDoor, cradleKnot, cradleSway, drawStyledBed, isStyledBed } from './beds';
 import { drawDogHouse } from './props';
 import { drawAmbient, drawBackdrop, drawHeldPlay, drawProp, drawToyShape, drawTreatShape } from './scenery';
 import { drawTrickProp } from './trickPropArt';
@@ -220,6 +221,22 @@ export function drawWorld(
                 Math.hypot(actor.x - prop.x, actor.y - prop.y) < 36,
             )
           : undefined;
+      if (isStyledBed(prop)) {
+        const sleeper = world.actors.find(
+          (actor) =>
+            actor.task.type === 'sleep' &&
+            actor.task.stage === 'sleeping' &&
+            actor.task.poi?.propId === prop.id,
+        );
+        const sway = prop.bedStyle === 'moon' && sleeper ? cradleSway(world.t, world.reducedMotion) : 0;
+        const line = sleeper?.y ?? prop.y;
+        const drawPart = (part: 'back' | 'front') => {
+          drawStyledBed(canvas, prop, part, sway);
+        };
+        items.push({ y: line - 0.2, late: lifted && engaged(prop.id), draw: () => withTint(roomTint, () => drawPart('back')) });
+        items.push({ y: line + 0.2, late: lifted && engaged(prop.id), draw: () => withTint(roomTint, () => drawPart('front')) });
+        continue;
+      }
       if (napper) {
         const drawPart = (part: 'back' | 'front') => {
           canvas.save();
@@ -277,7 +294,12 @@ export function drawWorld(
         use.phase === 'land' ||
         (use.phase === 'air' && use.surface !== 'floor'));
     for (const prop of scene.props) {
-      if (prop.kind === 'bed' && Math.abs(actor.x - prop.x) < (prop.w ?? 0) / 2 && actor.y > prop.y - 60) {
+      if (
+        prop.kind === 'bed' &&
+        !isStyledBed(prop) &&
+        Math.abs(actor.x - prop.x) < (prop.w ?? 0) / 2 &&
+        actor.y > prop.y - 60
+      ) {
         sortY = Math.max(sortY, prop.y + 1);
       }
       // The tree is one draw, so a cat on it has to sort in front or the platforms cover the climb.
@@ -289,19 +311,51 @@ export function drawWorld(
       y: sortY,
       late: lifted,
       draw: () => {
-        const rim = !cozy && (env.light?.rimStrength ?? 0) > 0.03;
-        if (bodyTint.a <= 0.001 && !rim) {
+        const bed = scene.props.find((prop) => prop.id && prop.id === actor.task.poi?.propId && prop.kind === 'bed');
+        const onStyled =
+          bed != null &&
+          isStyledBed(bed) &&
+          actor.asleep &&
+          actor.task.type === 'sleep' &&
+          actor.task.stage === 'sleeping';
+        const cave = onStyled && bed?.bedStyle === 'cave' ? bed : null;
+        const moon = onStyled && bed?.bedStyle === 'moon' ? bed : null;
+        const glow = onStyled && !actor.guest && (bed?.restMultiplier ?? 1) > 1;
+        if (glow && bed) {
+          const tint = (bed.restMultiplier ?? 1) > 2 ? '#FFE1A8' : '#D7F6EA';
+          const pulse = world.reducedMotion ? 0.35 : 0.28 + Math.sin(world.t * 3) * 0.08;
+          fillOval(canvas, actor.x, actor.y - 10, 54, 22, tint, pulse);
+        }
+        const drawPet = () => {
+          const rim = !cozy && (env.light?.rimStrength ?? 0) > 0.03;
+          if (bodyTint.a <= 0.001 && !rim) {
+            drawActor(canvas, actor, breed, floor, world.t, carrying, world.silhouette === true, world.reducedMotion);
+            return;
+          }
+          canvas.saveLayer();
           drawActor(canvas, actor, breed, floor, world.t, carrying, world.silhouette === true, world.reducedMotion);
-          return;
+          if (world.silhouette !== true) {
+            shadeActorLayer(canvas, env, actor, bodyTint, span);
+          } else if (bodyTint.a > 0.001) {
+            shadeActorLayer(canvas, { ...env, light: undefined }, actor, bodyTint, span);
+          }
+          canvas.restore();
+        };
+        canvas.save();
+        if (moon) {
+          const knot = cradleKnot(moon);
+          const sway = cradleSway(world.t, world.reducedMotion);
+          canvas.translate(knot.x, knot.y);
+          canvas.rotate(sway, 0, 0);
+          canvas.translate(-knot.x, -knot.y);
         }
-        // The pet gets its own layer: tint and rim light are painted SrcATop, so only the pet is touched.
-        canvas.saveLayer();
-        drawActor(canvas, actor, breed, floor, world.t, carrying, world.silhouette === true, world.reducedMotion);
-        if (world.silhouette !== true) {
-          shadeActorLayer(canvas, env, actor, bodyTint, span);
-        } else if (bodyTint.a > 0.001) {
-          shadeActorLayer(canvas, { ...env, light: undefined }, actor, bodyTint, span);
+        if (cave) {
+          const door = caveDoor(cave);
+          const clip = Skia.Path.Make();
+          clip.addOval(Skia.XYWHRect(door.cx - door.rx, door.cy - door.ry, door.rx * 2, door.ry * 2));
+          canvas.clipPath(clip, ClipOp.Intersect, true);
         }
+        drawPet();
         canvas.restore();
       },
     });

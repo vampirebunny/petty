@@ -45,6 +45,7 @@ export type ShopListing = {
   slot?: OutfitSlot;
   wearId?: string;
   isNewUntil?: string;
+  restMultiplier?: number;
 };
 
 export type ShopBundle = ShopBundleConfig;
@@ -81,7 +82,7 @@ export type PricedLine = {
   unitPrice: number;
   lineTotal: number;
   deal: boolean;
-  place: 'Pantry' | 'Closet' | 'Toy Box' | 'Home';
+  place: 'Pantry' | 'Closet' | 'Toy Box' | 'Home' | 'Storage';
 };
 
 export type PricedCart =
@@ -294,6 +295,9 @@ function placeFor(item: ShopListing): PricedLine['place'] {
   }
   if (item.category === 'toys') {
     return 'Toy Box';
+  }
+  if (item.id.startsWith('bed_')) {
+    return 'Storage';
   }
   if (item.category === 'home') {
     return 'Home';
@@ -641,7 +645,89 @@ const scratchPole: ShopListing = {
 const furnitureShelfPrices: Record<string, number> = {
   scratcher: 4000,
   catTree: 8000,
+  dogHouse: 8000,
 };
+
+const homeShelf: ShopListing[] = [
+  { id: 'bowl_food', name: 'Extra food bowl', category: 'home', shop: 'always', tier: 'standard', price: 600, sort: 10, stackable: false },
+  { id: 'bowl_water', name: 'Extra water bowl', category: 'home', shop: 'always', tier: 'standard', price: 600, sort: 11, stackable: false },
+  { id: 'bed_standard', name: 'Standard Bed', category: 'home', shop: 'always', tier: 'standard', price: 2500, sort: 20, stackable: false, restMultiplier: 1 },
+  {
+    id: 'bed_cloud_puff',
+    name: 'Cloud Puff Bolster',
+    category: 'home',
+    shop: 'always',
+    tier: 'standard',
+    species: ['dog'],
+    price: 4500,
+    sort: 21,
+    stackable: false,
+    restMultiplier: 2,
+    description: '2× faster rest',
+  },
+  {
+    id: 'bed_bone_sofa',
+    name: 'Bone Pillow Sofa',
+    category: 'home',
+    shop: 'always',
+    tier: 'standard',
+    species: ['dog'],
+    price: 6500,
+    sort: 22,
+    stackable: false,
+    restMultiplier: 2.5,
+    description: '2.5× faster rest',
+  },
+  {
+    id: 'bed_kitty_cave',
+    name: 'Kitty Cave Pod',
+    category: 'home',
+    shop: 'always',
+    tier: 'standard',
+    species: ['cat'],
+    price: 4500,
+    sort: 23,
+    stackable: false,
+    restMultiplier: 2,
+    description: '2× faster rest',
+  },
+  {
+    id: 'bed_moon_cradle',
+    name: 'Moon Cradle',
+    category: 'home',
+    shop: 'always',
+    tier: 'standard',
+    species: ['cat'],
+    price: 6500,
+    sort: 24,
+    stackable: false,
+    restMultiplier: 2.5,
+    description: '2.5× faster rest',
+  },
+];
+
+// Beds and bowls stay on the shelf even when a downloaded catalog predates them.
+export function withHomeShelf(catalog: ShopCatalog): ShopCatalog {
+  const present = new Set(catalog.items.map((item) => item.id));
+  const extra = homeShelf.filter((item) => !present.has(item.id));
+  const items = catalog.items.map((item) => {
+    const shelf = homeShelf.find((row) => row.id === item.id);
+    if (!shelf) {
+      return item;
+    }
+    return {
+      ...item,
+      name: shelf.name,
+      price: shelf.price ?? item.price,
+      restMultiplier: shelf.restMultiplier ?? item.restMultiplier,
+      description: shelf.description ?? item.description,
+    };
+  });
+  if (extra.length === 0) {
+    return items === catalog.items ? catalog : { ...catalog, items };
+  }
+  return { ...catalog, items: [...items, ...extra] };
+}
 
 export function withScratchPole(catalog: ShopCatalog): ShopCatalog {
   let changed = false;

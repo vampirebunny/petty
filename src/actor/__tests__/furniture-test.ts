@@ -3,11 +3,16 @@ import {
   bowlAlreadyInRoom,
   bowlRoomMessage,
   furnitureAt,
+  keepFirstBedPerRoom,
   movePiece,
   normalizeFurniture,
+  otherBedInRoom,
   placePiece,
   shopFurnitureSpot,
+  shopSku,
+  skuCount,
   starterFurniture,
+  stockedSkus,
   steerAim,
   stowPiece,
   syncFurniture,
@@ -230,4 +235,33 @@ it('leaves the scratch pole out of the catio until it is owned', () => {
   const placed = [...home.placed, { pieceId: 'scratcher', sceneId: 'catio', x: 38, y: 530 }];
   const scene = applyFurniture(scenes.catio, pieces, placed);
   expect(scene.props.find((prop) => prop.id === 'scratcher')).toMatchObject({ kind: 'scratcher', x: 38, y: 530, h: 74 });
+});
+
+it('starts a home with one living-room bed and one water bowl', () => {
+  const dog = starterFurniture('dog');
+  const cat = starterFurniture('cat');
+  expect(dog.pieces.filter((piece) => piece.kind === 'bed').map((piece) => piece.id)).toEqual(['livingroom-bed']);
+  expect(dog.placed.some((place) => place.pieceId === 'livingroom-bed' && place.sceneId === 'livingroom')).toBe(true);
+  expect(dog.placed.some((place) => place.sceneId === 'bedroom' && place.pieceId.includes('bed'))).toBe(false);
+  expect(cat.pieces.filter((piece) => piece.kind === 'bowl' && piece.contents === 'water')).toHaveLength(1);
+  expect(cat.pieces.some((piece) => piece.id === 'catio-water')).toBe(false);
+  expect(skuCount(dog.pieces, 'bed_standard')).toBe(1);
+  expect(skuCount(dog.pieces, 'bowl_food')).toBe(1);
+  expect(stockedSkus(dog.pieces).has('bed_standard')).toBe(false);
+  expect(shopSku({ id: 'livingroom-food', kind: 'bowl', contents: 'kibble' })).toBe('bowl_food');
+});
+
+it('keeps the first bed when a room was saved with two', () => {
+  const pieces = [
+    { id: 'livingroom-bed', kind: 'bed' as const },
+    { id: 'bed_cloud_puff', kind: 'bed' as const, catalogId: 'bed_cloud_puff' },
+  ];
+  const placed = [
+    { pieceId: 'livingroom-bed', sceneId: 'livingroom', x: 110, y: 540 },
+    { pieceId: 'bed_cloud_puff', sceneId: 'livingroom', x: 200, y: 500 },
+  ];
+  const repaired = keepFirstBedPerRoom(pieces, placed);
+  expect(repaired.placed.map((place) => place.pieceId)).toEqual(['livingroom-bed']);
+  expect(repaired.stored).toEqual([{ sceneId: 'livingroom', pieceId: 'bed_cloud_puff' }]);
+  expect(otherBedInRoom(pieces, repaired.placed, 'livingroom', 'bed_cloud_puff')?.pieceId).toBe('livingroom-bed');
 });

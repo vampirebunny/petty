@@ -12,6 +12,7 @@ import { iconStroke } from './theme';
 type Props = {
   needs: Needs;
   hydration: number;
+  energyMark?: string | null;
 };
 
 // Geometry lives in a 100-unit box so the ring can grow with its column and still
@@ -176,12 +177,19 @@ export function Ring({
   );
 }
 
-export function NeedRings({ needs, hydration }: Props) {
+export function NeedRings({ needs, hydration, energyMark = null }: Props) {
   return (
     <View style={styles.row}>
       <Ring need={tummy} value={100 - needs.hunger} />
       <Ring need={hydrationNeed} value={hydration} />
-      <Ring need={energy} value={needs.energy} />
+      <View style={styles.energyWrap}>
+        <Ring need={energy} value={needs.energy} />
+        {energyMark ? (
+          <View style={styles.restMark} pointerEvents="none">
+            <Text style={styles.restMarkText}>{energyMark}</Text>
+          </View>
+        ) : null}
+      </View>
       <Ring need={mood} value={needs.happiness} />
     </View>
   );
@@ -191,6 +199,23 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     gap: 10,
+  },
+  energyWrap: {
+    flex: 1,
+  },
+  restMark: {
+    position: 'absolute',
+    top: 4,
+    right: 0,
+    backgroundColor: '#FFE1A8',
+    borderRadius: 8,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+  },
+  restMarkText: {
+    fontFamily: fontFamily.extraBold,
+    fontSize: 10,
+    color: '#8A4B08',
   },
   tile: {
     flex: 1,

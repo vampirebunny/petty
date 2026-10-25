@@ -4,7 +4,7 @@ import {
   activityHydrationPerHour,
   collapseSleepSec,
   collapseWakeEnergy,
-  sleepEnergyGain,
+  liveRestGrant,
   decayPerHour,
   healthyWeightBand,
   overweightPlayWeightBonus,
@@ -2340,9 +2340,12 @@ function updateActor(world: World, actor: Actor, dt: number): void {
   }
   if (actor.asleep && actor.collapseLeft <= 0 && actor.task.type === 'sleep' && actor.task.stage === 'sleeping') {
     actor.sleepSec += dt;
+    const propId = actor.task.poi?.propId;
+    const bed = propId ? world.scene.props.find((prop) => prop.id === propId && prop.kind === 'bed') : undefined;
+    const gain = liveRestGrant(bed != null, bed?.restMultiplier ?? 1, actor.guest === true);
     while (actor.sleepSec + 1e-6 >= collapseSleepSec) {
       actor.sleepSec -= collapseSleepSec;
-      if (grantEnergyPop(actor, sleepEnergyGain) <= 0) {
+      if (grantEnergyPop(actor, gain) <= 0) {
         actor.sleepSec = 0;
         break;
       }

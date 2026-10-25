@@ -1,5 +1,7 @@
 import {
   bowlAlreadyInRoom,
+  keepFirstBedPerRoom,
+  otherBedInRoom,
   furnitureDefinition,
   grantPieces,
   isRetiredPiece,
@@ -97,6 +99,47 @@ export function grantToyOnce(ownerId: string): void {
 export function furnitureOf(ownerId: string): FurniturePiece[] {
   const rows = getDb().getAllSync<{ json: string }>('SELECT json FROM owned_furniture WHERE owner_id = ?', ownerId);
   return rows.map((row) => JSON.parse(row.json) as FurniturePiece).filter((piece) => !isRetiredPiece(piece.id));
+}
+
+const bedTipKey = 'bedStorageTip';
+
+export function markBedStorageTip(): void {
+  const row = getDb().getFirstSync<{ value: string }>('SELECT value FROM meta WHERE key = ?', bedTipKey);
+  if (row) {
+    return;
+  }
+  getDb().runSync('INSERT INTO meta (key, value) VALUES (?, ?)', bedTipKey, 'pending');
+}
+
+export function consumeBedStorageTip(): boolean {
+  const row = getDb().getFirstSync<{ value: string }>('SELECT value FROM meta WHERE key = ?', bedTipKey);
+  if (row?.value !== 'pending') {
+    return false;
+  }
+  getDb().runSync('UPDATE meta SET value = ? WHERE key = ?', 'seen', bedTipKey);
+  return true;
+}
+
+export function repairBedPlacements(ownerId: string, species: SpeciesId): void {
+  const pieces = furnitureOf(ownerId);
+  const placed = layoutOf(ownerId, species);
+  const repaired = keepFirstBedPerRoom(pieces, placed);
+  if (repaired.stored.length === 0) {
+    return;
+  }
+  for (const row of repaired.stored) {
+    console.warn(`Room ${row.sceneId} had more than one bed. Kept the first and stored ${row.pieceId}.`);
+  }
+  if (!hasLayout(ownerId, species)) {
+    return;
+  }
+  getDb().runSync(
+    'UPDATE home_layouts SET placements = ? WHERE owner_id = ? AND species = ?',
+    JSON.stringify(repaired.placed),
+    ownerId,
+    species,
+  );
+  emit();
 }
 
 export function layoutOf(ownerId: string, species: SpeciesId): FurniturePlacement[] {
@@ -197,6 +240,9 @@ export function moveOwnedPiece(
   const pieces = furnitureOf(ownerId);
   const layout = layoutOf(ownerId, species);
   if (bowlAlreadyInRoom(pieces, layout, sceneId, pieceId)) {
+    return;
+  }
+  if (otherBedInRoom(pieces, layout, sceneId, pieceId)) {
     return;
   }
   const owned = pieces.map((piece) => piece.id);

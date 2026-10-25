@@ -10,6 +10,7 @@ import type { ShopCatalog } from '../../economy/shop';
 import type { Env } from '../skia/env';
 import { ICON_BOX, itemIconPicture } from '../skia/itemIcon';
 import { drawProp, drawToyShape, drawTreatShape } from '../skia/scenery';
+import { BedThumb, bedThumbId } from './BedThumb';
 import { shop } from './theme';
 
 // Toy and treat art is authored to fit its own box, so every item uses the same radius. The box is
@@ -72,14 +73,31 @@ const furnitureIconEnv: Env = {
 };
 
 // Shop tiles show the same drawing as the room, fitted into the tile.
+function furnitureProp(itemId: string) {
+  if (itemId === 'bowl_food') {
+    return { id: itemId, kind: 'bowl', x: 0, y: 0, contents: 'kibble', color: '#2f7d5b' };
+  }
+  if (itemId === 'bowl_water') {
+    return { id: itemId, kind: 'bowl', x: 0, y: 0, contents: 'water', color: '#3f78b5' };
+  }
+  if (itemId === 'bed_standard') {
+    return { id: itemId, kind: 'bed', x: 0, y: 0, w: 112, color: '#c2653d' };
+  }
+  if (itemId === 'scratcher') {
+    return { id: itemId, kind: itemId, x: 0, y: 0, h: 74 };
+  }
+  return { id: itemId, kind: itemId, x: 0, y: 0 };
+}
+
 function drawFurnitureIcon(canvas: SkCanvas, itemId: string, size: number): void {
-  const prop =
-    itemId === 'scratcher'
-      ? { id: itemId, kind: itemId, x: 0, y: 0, h: 74 }
-      : { id: itemId, kind: itemId, x: 0, y: 0 };
+  const prop = furnitureProp(itemId);
   const bounds =
     itemId === 'scratcher'
       ? { x0: -40, y0: -86, x1: 44, y1: 12 }
+      : itemId.startsWith('bowl_')
+        ? { x0: -36, y0: -28, x1: 36, y1: 16 }
+        : itemId === 'bed_standard'
+          ? { x0: -70, y0: -36, x1: 70, y1: 16 }
       : { x0: -104, y0: -214, x1: 104, y1: 14 };
   const pad = size * 0.1;
   const scale = Math.min((size - pad * 2) / (bounds.x1 - bounds.x0), (size - pad * 2) / (bounds.y1 - bounds.y0));
@@ -101,7 +119,7 @@ export function ItemArt({ itemId, catalog, size, soon, species = null }: Props) 
     const canvas = recorder.beginRecording(Skia.XYWHRect(0, 0, size, size));
     const radius = size * ICON_RADIUS;
     const mid = size / 2;
-    if (item.id === 'catTree' || item.id === 'scratcher') {
+    if (item.category === 'home') {
       drawFurnitureIcon(canvas, item.id, size);
     } else if (item.category === 'toys') {
       drawToyShape(canvas, item.id, mid, mid, radius, 0, 'icon');
@@ -113,6 +131,9 @@ export function ItemArt({ itemId, catalog, size, soon, species = null }: Props) 
 
   if (!item || soon || item.shop === 'coming_soon' || (item.category === 'clothes' && !wear)) {
     return <MysteryBox size={size} />;
+  }
+  if (bedThumbId(item.id)) {
+    return <BedThumb itemId={item.id} size={size} />;
   }
   if (wear && item.slot) {
     const icon = itemIconPicture(item.slot, wear, shop.bg);

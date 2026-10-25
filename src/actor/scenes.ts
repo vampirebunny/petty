@@ -86,6 +86,9 @@ export type Prop = {
   color?: string;
   contents?: string;
   glow?: boolean;
+  // Shop beds. Missing means the original bolster, which rests at 1×.
+  bedStyle?: 'standard' | 'cloud' | 'bone' | 'cave' | 'moon';
+  restMultiplier?: number;
   // A low obstacle a fast pet hops over when it runs through it.
   hurdle?: boolean;
   shapes?: Shape[];
@@ -479,12 +482,8 @@ const sceneDefs = {
       },
       { kind: 'lamp', x: 540, y: 208 },
       { kind: 'rug', x: 330, y: 470, w: 380, h: 120, color: '#9a86c0', layer: 'back' },
-      { kind: 'bed', id: 'bedroom-bed', x: 520, y: 560, w: 112, color: '#d98b3a' },
     ],
-    pois: [
-      { id: 'bed', type: 'bed', x: 520, y: 562, propId: 'bedroom-bed' },
-      { id: 'home', type: 'home', x: 320, y: 470 },
-    ],
+    pois: [{ id: 'home', type: 'home', x: 320, y: 470 }],
   },
   sidewalk: {
     v: 1,

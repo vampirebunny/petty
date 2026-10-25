@@ -10,8 +10,6 @@ import type { Prop, Scene } from './scenes';
 export function createCatioScene(stageWidth: number, stageHeight: number): Scene {
   const horizon = Math.round(stageHeight * 0.46);
   const roofY = Math.round(horizon * 0.2);
-  const bowlX = stageWidth * 0.62;
-  const bowlY = stageHeight - 70;
 
   const props: Prop[] = [
     // Back: the garden beyond the mesh, then the screen itself (mesh, posts, roof, beam).
@@ -23,7 +21,6 @@ export function createCatioScene(stageWidth: number, stageHeight: number): Scene
     // Deck furniture.
     { kind: 'planter', id: 'catio-grass', x: stageWidth * 0.2, y: horizon + 48, w: 64, plant: 'catgrass' },
     { kind: 'planter', id: 'catio-flowers', x: stageWidth * 0.42, y: horizon + 40, w: 48, plant: 'flowers' },
-    { kind: 'bowl', id: 'catio-water', x: bowlX, y: bowlY, contents: 'water', color: '#5aa1c9' },
     // Corner posts in front, so it reads as an enclosure.
     { kind: 'catioPost', id: 'catio-post-left', x: 4, y: stageHeight, h: stageHeight, layer: 'front' },
     { kind: 'catioPost', id: 'catio-post-right', x: stageWidth - 4, y: stageHeight, h: stageHeight, layer: 'front' },
@@ -55,10 +52,7 @@ export function createCatioScene(stageWidth: number, stageHeight: number): Scene
     },
     surface: { bounce: 0.5, friction: 2.2 },
     props,
-    pois: [
-      { id: 'water', type: 'water', x: bowlX, y: bowlY, face: 1, propId: 'catio-water' },
-      { id: 'home', type: 'home', x: stageWidth * 0.5, y: horizon + 80 },
-    ],
+    pois: [{ id: 'home', type: 'home', x: stageWidth * 0.5, y: horizon + 80 }],
     lighting: { actorTint: lighting.actorTint.outdoor },
     ambient: {},
   };

@@ -18,6 +18,9 @@ export type FurniturePiece = {
   plant?: 'catgrass' | 'flowers' | 'catnip';
   scale?: number;
   layer?: 'back' | 'sorted' | 'front';
+  catalogId?: string;
+  bedStyle?: 'standard' | 'cloud' | 'bone' | 'cave' | 'moon';
+  restMultiplier?: number;
 };
 
 export type FurniturePlacement = {
@@ -55,6 +58,220 @@ export const shopFurniture = {
 
 export type ShopFurnitureId = keyof typeof shopFurniture;
 
+export type BedStyle = 'standard' | 'cloud' | 'bone' | 'cave' | 'moon';
+
+// World width of a shop bed. 280 SVG units map onto 1.5× an adult body.
+export const styledBedWidth = 120;
+
+const bedCatalog: Record<string, { name: string; style: BedStyle; rest: number; species?: 'dog' | 'cat' }> = {
+  bed_standard: { name: 'Standard Bed', style: 'standard', rest: 1 },
+  bed_cloud_puff: { name: 'Cloud Puff Bolster', style: 'cloud', rest: 2, species: 'dog' },
+  bed_bone_sofa: { name: 'Bone Pillow Sofa', style: 'bone', rest: 2.5, species: 'dog' },
+  bed_kitty_cave: { name: 'Kitty Cave Pod', style: 'cave', rest: 2, species: 'cat' },
+  bed_moon_cradle: { name: 'Moon Cradle', style: 'moon', rest: 2.5, species: 'cat' },
+};
+
+const bowlSpots: Record<string, Record<string, { x: number; y: number }>> = {
+  bowl_food: {
+    livingroom: { x: 540, y: 330 },
+    bedroom: { x: 180, y: 500 },
+    catio: { x: 400, y: 500 },
+  },
+  bowl_water: {
+    livingroom: { x: 500, y: 560 },
+    bedroom: { x: 240, y: 520 },
+    catio: { x: 400, y: 540 },
+  },
+};
+
+export function bedSkuOf(id: string): string | null {
+  const sku = id.split(':')[0] ?? id;
+  return bedCatalog[sku] ? sku : null;
+}
+
+export function shopSku(piece: FurniturePiece): string | null {
+  if (piece.catalogId) {
+    return piece.catalogId;
+  }
+  if (piece.kind === 'bowl') {
+    return piece.contents === 'water' ? 'bowl_water' : 'bowl_food';
+  }
+  if (piece.kind === 'bed') {
+    return bedSkuOf(piece.id) ?? 'bed_standard';
+  }
+  if (piece.kind === 'dogHouse' || piece.kind === 'catTree' || piece.kind === 'scratcher') {
+    return piece.kind;
+  }
+  return null;
+}
+
+export function skuCap(sku: string): number {
+  if (sku === 'bowl_food' || sku === 'bowl_water' || sku === 'bed_standard') {
+    return 3;
+  }
+  return 1;
+}
+
+export function skuCount(pieces: readonly FurniturePiece[], sku: string): number {
+  return pieces.filter((piece) => shopSku(piece) === sku).length;
+}
+
+// Shop cards hide a sku once the player owns its cap. Piece ids stay out of this set.
+export function stockedSkus(pieces: readonly FurniturePiece[]): Set<string> {
+  const counts = new Map<string, number>();
+  for (const piece of pieces) {
+    const sku = shopSku(piece);
+    if (!sku) {
+      continue;
+    }
+    counts.set(sku, (counts.get(sku) ?? 0) + 1);
+  }
+  const stocked = new Set<string>();
+  for (const [sku, count] of counts) {
+    if (count >= skuCap(sku)) {
+      stocked.add(sku);
+    }
+  }
+  return stocked;
+}
+
+export function nextFurnitureId(sku: string, pieces: readonly FurniturePiece[]): string {
+  if (skuCap(sku) === 1) {
+    return sku;
+  }
+  const taken = new Set(pieces.map((piece) => piece.id));
+  let n = 1;
+  while (taken.has(`${sku}:${n}`)) {
+    n += 1;
+  }
+  return `${sku}:${n}`;
+}
+
+export function isBedSku(sku: string): boolean {
+  return bedSkuOf(sku) != null;
+}
+
+const bedAnchors: Record<BedStyle, { x: number; y: number } | null> = {
+  standard: null,
+  cloud: { x: 140, y: 128 },
+  bone: { x: 140, y: 118 },
+  cave: { x: 140, y: 150 },
+  moon: { x: 140, y: 124 },
+};
+
+export function bedPoiOffset(piece: FurniturePiece): { x: number; y: number } {
+  const style = piece.bedStyle ?? 'standard';
+  const anchor = bedAnchors[style];
+  if (!anchor) {
+    return { x: 0, y: 2 };
+  }
+  const scale = (piece.w ?? styledBedWidth) / 280;
+  return { x: (anchor.x - 140) * scale, y: (anchor.y - 184) * scale };
+}
+
+export function bedDisplayName(piece: FurniturePiece): string {
+  const sku = shopSku(piece);
+  if (piece.kind === 'bed' && sku && bedCatalog[sku]) {
+    return bedCatalog[sku].name;
+  }
+  return 'Bed';
+}
+
+export function restBadge(multiplier: number | undefined): '×2' | '×2.5' | null {
+  if (multiplier === 2) {
+    return '×2';
+  }
+  if (multiplier === 2.5) {
+    return '×2.5';
+  }
+  return null;
+}
+
+export function roomRestBadge(
+  pieces: readonly FurniturePiece[],
+  placed: readonly FurniturePlacement[],
+  sceneId: string,
+  asleep: boolean,
+): '×2' | '×2.5' | null {
+  if (!asleep) {
+    return null;
+  }
+  for (const place of placed) {
+    if (place.sceneId !== sceneId) {
+      continue;
+    }
+    const piece = pieces.find((item) => item.id === place.pieceId);
+    if (piece?.kind === 'bed') {
+      return restBadge(piece.restMultiplier ?? bedCatalog[shopSku(piece) ?? '']?.rest ?? 1);
+    }
+  }
+  return null;
+}
+
+// The first bed in the saved list stays. The others leave the room and remain owned.
+export function keepFirstBedPerRoom(
+  pieces: readonly FurniturePiece[],
+  placed: readonly FurniturePlacement[],
+): { placed: FurniturePlacement[]; stored: { sceneId: string; pieceId: string }[] } {
+  const seen = new Set<string>();
+  const next: FurniturePlacement[] = [];
+  const stored: { sceneId: string; pieceId: string }[] = [];
+  for (const place of placed) {
+    const piece = pieces.find((item) => item.id === place.pieceId);
+    if (piece?.kind !== 'bed') {
+      next.push(place);
+      continue;
+    }
+    if (seen.has(place.sceneId)) {
+      stored.push({ sceneId: place.sceneId, pieceId: place.pieceId });
+      continue;
+    }
+    seen.add(place.sceneId);
+    next.push(place);
+  }
+  return { placed: next, stored };
+}
+
+export function otherBedInRoom(
+  pieces: readonly FurniturePiece[],
+  placed: readonly FurniturePlacement[],
+  sceneId: string,
+  pieceId: string,
+): FurniturePlacement | null {
+  for (const place of placed) {
+    if (place.sceneId !== sceneId || place.pieceId === pieceId) {
+      continue;
+    }
+    const other = pieces.find((item) => item.id === place.pieceId);
+    if (other?.kind === 'bed') {
+      return place;
+    }
+  }
+  return null;
+}
+
+function pieceForSku(id: string, sku: string): FurniturePiece | null {
+  const bed = bedCatalog[sku];
+  if (bed) {
+    return {
+      id,
+      kind: 'bed',
+      catalogId: sku,
+      bedStyle: bed.style,
+      restMultiplier: bed.rest,
+      w: bed.style === 'standard' ? 112 : styledBedWidth,
+      color: bed.style === 'standard' ? '#c2653d' : undefined,
+    };
+  }
+  if (sku === 'bowl_food') {
+    return { id, kind: 'bowl', catalogId: sku, contents: 'kibble', color: '#2f7d5b' };
+  }
+  if (sku === 'bowl_water') {
+    return { id, kind: 'bowl', catalogId: sku, contents: 'water', color: '#3f78b5' };
+  }
+  return null;
+}
+
 export function furnitureDefinition(id: string): FurniturePiece | null {
   for (const scene of Object.values(scenes)) {
     for (const prop of scene.props) {
@@ -63,11 +280,41 @@ export function furnitureDefinition(id: string): FurniturePiece | null {
       }
     }
   }
+  const sku = id.split(':')[0] ?? id;
+  const shaped = pieceForSku(id, sku);
+  if (shaped) {
+    return shaped;
+  }
   if (Object.prototype.hasOwnProperty.call(shopFurniture, id)) {
     const kind = id as ShopFurnitureId;
     return kind === 'scratcher' ? { id: kind, kind, h: 74 } : { id: kind, kind };
   }
   return null;
+}
+
+export function buySpot(sku: string, sceneId: string): { sceneId: string; x: number; y: number } | null {
+  if (isBedSku(sku)) {
+    return null;
+  }
+  if (Object.prototype.hasOwnProperty.call(shopFurniture, sku)) {
+    return shopFurnitureSpot(sku as ShopFurnitureId, sceneId);
+  }
+  const spots = bowlSpots[sku];
+  if (!spots) {
+    return null;
+  }
+  const requested = sceneById(sceneId);
+  const targetId = requested.playerOwned ? requested.id : 'livingroom';
+  const recorded = spots[targetId];
+  if (recorded) {
+    return { sceneId: targetId, x: recorded.x, y: recorded.y };
+  }
+  const floor = sceneById(targetId).floor;
+  return {
+    sceneId: targetId,
+    x: (floor.xMin + floor.xMax) / 2,
+    y: (floor.yMin + floor.yMax) / 2,
+  };
 }
 
 // First purchase lands in the scene the player is in when that scene is theirs, otherwise the living room.
@@ -128,7 +375,7 @@ export function pieceLabel(piece: FurniturePiece): string {
     return piece.contents === 'water' ? 'Water bowl' : 'Food bowl';
   }
   if (piece.kind === 'bed') {
-    return 'Bed';
+    return bedDisplayName(piece);
   }
   if (piece.kind === 'catTree') {
     return 'Cat tree';
@@ -148,16 +395,13 @@ export function pieceLabel(piece: FurniturePiece): string {
   return piece.id;
 }
 
-// Bowls and the bed ask before they leave. Other pieces do not. The name is the pet's.
+// Bowls ask before they leave. A bed does not. The name is the pet's.
 export function stowWarning(piece: FurniturePiece, name: string): string | null {
   if (piece.kind === 'bowl' && piece.contents === 'water') {
     return `${name} won't be able to drink here.`;
   }
   if (piece.kind === 'bowl') {
     return `${name} won't be able to eat here.`;
-  }
-  if (piece.kind === 'bed') {
-    return `${name} won't have a bed to nap on here.`;
   }
   return null;
 }
@@ -211,6 +455,12 @@ function pieceFromProp(prop: Prop): FurniturePiece | null {
   if (prop.layer) {
     piece.layer = prop.layer;
   }
+  if (prop.bedStyle) {
+    piece.bedStyle = prop.bedStyle;
+  }
+  if (prop.restMultiplier != null) {
+    piece.restMultiplier = prop.restMultiplier;
+  }
   return piece;
 }
 
@@ -237,6 +487,12 @@ function propFromPiece(piece: FurniturePiece, x: number, y: number): Prop {
   if (piece.layer) {
     prop.layer = piece.layer;
   }
+  if (piece.bedStyle) {
+    prop.bedStyle = piece.bedStyle;
+  }
+  if (piece.restMultiplier != null) {
+    prop.restMultiplier = piece.restMultiplier;
+  }
   return prop;
 }
 
@@ -248,7 +504,8 @@ function poiForPiece(piece: FurniturePiece, x: number, y: number): Poi | null {
     return { id: piece.id, type: 'water', x, y, face: 1, propId: piece.id };
   }
   if (piece.kind === 'bed') {
-    return { id: piece.id, type: 'bed', x, y: y + 2, propId: piece.id };
+    const offset = bedPoiOffset(piece);
+    return { id: piece.id, type: 'bed', x: x + offset.x, y: y + offset.y, propId: piece.id };
   }
   if (piece.kind === 'litterbox') {
     return { id: piece.id, type: 'litter', x, y, face: -1, propId: piece.id };
