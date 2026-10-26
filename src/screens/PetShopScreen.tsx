@@ -208,7 +208,9 @@ export function PetShopScreen({
     return ids;
   }, [inventory, pet.ownerId, toys, now]);
   const stock = useMemo(() => loadLimitedStock(), [now]);
-  const limitedOffer = featuredLimited(stock, clock);
+  // Off until the Golden Crown art is ready. The limited row and buy path stay in place.
+  const showLimitedCrown = false;
+  const limitedOffer = showLimitedCrown ? featuredLimited(stock, clock) : null;
   const dealId = day ? shownDeal(day.dealId, day.picks, owned) : null;
   const picks = day ? shownPicks(day.picks, owned) : [];
   const quote = useMemo(() => {
