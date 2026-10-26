@@ -2,7 +2,7 @@ import { getCachedInstallId } from '../compliance/identity';
 import { getSupabase } from '../compliance/supabase';
 import {
   readAccountLinked,
-  setServerOffsetMs,
+  noteServerTime,
   setSyncedRevision,
 } from '../db/accountMeta';
 import { getDb } from '../db/database';
@@ -78,7 +78,7 @@ export async function reconcileFromServer(claim?: ClaimResult | null): Promise<b
     }
     const serverNowMs = Date.parse(pulled.server_now ?? claim?.server_now ?? '');
     if (Number.isFinite(serverNowMs)) {
-      setServerOffsetMs(serverNowMs - deviceNow());
+      noteServerTime(serverNowMs);
     }
     if (typeof pulled.server_revision === 'number') {
       setSyncedRevision(pulled.server_revision);

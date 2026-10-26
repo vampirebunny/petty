@@ -1,4 +1,4 @@
-import { planTimePayout, type OwnerClock } from '../accrual';
+import { capAccrualNow, planTimePayout, type OwnerClock } from '../accrual';
 
 const hour = 3_600_000;
 
@@ -32,6 +32,46 @@ it('pays a live step of 15 and an exact return amount', () => {
   const away = planTimePayout(start + 9 * hour, owner({ timePaidThrough: start, lastTrustedTime: start }), 0, 'return');
   expect(away.amount).toBe(8 * 60);
   expect(away.owner.timePaidThrough).toBe(start + 9 * hour);
+});
+
+it('caps accrual at the server sample plus monotonic time', () => {
+  const sample = 1_700_000_000_000;
+  expect(
+    capAccrualNow({
+      wallNow: sample,
+      offsetMs: 0,
+      sampleServerMs: null,
+      samplePerfMs: null,
+      perfNowMs: 0,
+    }),
+  ).toBeNull();
+  expect(
+    capAccrualNow({
+      wallNow: sample + 10 * 24 * hour,
+      offsetMs: 0,
+      sampleServerMs: sample,
+      samplePerfMs: 0,
+      perfNowMs: 60_000,
+    }),
+  ).toBe(sample + 60_000);
+  expect(
+    capAccrualNow({
+      wallNow: sample + 10 * 24 * hour,
+      offsetMs: 0,
+      sampleServerMs: sample,
+      samplePerfMs: 5_000_000,
+      perfNowMs: 10,
+    }),
+  ).toBe(sample);
+  expect(
+    capAccrualNow({
+      wallNow: sample + 60_000,
+      offsetMs: 0,
+      sampleServerMs: sample,
+      samplePerfMs: 0,
+      perfNowMs: 10 * 60_000,
+    }),
+  ).toBe(sample + 60_000);
 });
 
 it('stops at the daily cap without jumping the paid-through clock to now', () => {

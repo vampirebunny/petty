@@ -14,7 +14,7 @@ import { masteredTrickIds, speciesOf } from '../sim/tracks';
 import { prepareTrickPurchase, trickMilestoneKey } from '../sim/tricks';
 import { listedPrice, quoteCart } from './shopState';
 import type { CartInput, PricedLine, SpeciesId } from './shop';
-import { serverNow } from '../db/accountMeta';
+import { accrualNow } from '../db/accountMeta';
 import { queueCoupled, queuePlayer } from '../sync/queue';
 import { economyConfig, type PlayFindKind } from './economyConfig';
 import { localDay } from './clock';
@@ -803,14 +803,18 @@ function grantBoops(source: string, key: string, ref: string | null, amount: num
   return amount;
 }
 
-export function payoutTimeAccrual(mode: 'live' | 'return', now = serverNow()): number {
+export function payoutTimeAccrual(mode: 'live' | 'return', wallNow?: number): number {
+  const payable = accrualNow(wallNow);
+  if (payable == null) {
+    return 0;
+  }
   let wrote = false;
   const amount = transaction(() => {
-    ensureOwnerRows(now);
+    ensureOwnerRows(payable);
     const owner = readOwner();
-    const day = localDay(now);
+    const day = localDay(payable);
     const planned = planTimePayout(
-      now,
+      payable,
       {
         timePaidThrough: owner.time_paid_through,
         timeCappedDay: owner.time_capped_day,
@@ -841,6 +845,60 @@ export function payoutTimeAccrual(mode: 'live' | 'return', now = serverNow()): n
     queuePlayer();
   }
   return amount;
+}
+
+export function dropRejectedTimePayout(key: string): void {
+  if (!ownerIsReady()) {
+    return;
+  }
+  const owner = ownerId();
+  let changed = false;
+  transaction(() => {
+    const row = db().getFirstSync<{ id: string; device_time: string }>(
+      'SELECT id, device_time FROM transactions WHERE owner_id = ? AND idempotency_key = ? AND source = ?',
+      owner,
+      key,
+      'time_payout',
+    );
+    if (row) {
+      const sum = db().getFirstSync<{ total: number }>(
+        "SELECT COALESCE(SUM(delta), 0) AS total FROM transaction_lines WHERE transaction_id = ? AND asset = 'boops'",
+        row.id,
+      );
+      const amount = Number(sum?.total ?? 0);
+      if (amount > 0) {
+        db().runSync(
+          'UPDATE balances SET boops = MAX(0, boops - ?), updated_at = ? WHERE owner_id = ?',
+          amount,
+          new Date().toISOString(),
+          owner,
+        );
+        const paidAt = Date.parse(row.device_time);
+        const day = localDay(Number.isFinite(paidAt) ? paidAt : Date.now());
+        const count = dailyCount(day, '', 'time_boops');
+        if (count > 0) {
+          setDaily(day, '', 'time_boops', Math.max(0, count - amount));
+        }
+      }
+      db().runSync('DELETE FROM transaction_lines WHERE transaction_id = ?', row.id);
+      db().runSync('DELETE FROM transactions WHERE id = ?', row.id);
+      changed = true;
+    }
+    const state = db().getFirstSync<{ owner_id: string }>('SELECT owner_id FROM owner_state WHERE owner_id = ?', owner);
+    const payable = accrualNow();
+    if (state && payable != null) {
+      const ownerRow = readOwner();
+      if (ownerRow.time_paid_through > payable) {
+        ownerRow.time_paid_through = payable;
+        ownerRow.last_trusted_time = Math.min(ownerRow.last_trusted_time, payable);
+        writeOwner(ownerRow);
+        changed = true;
+      }
+    }
+  });
+  if (changed) {
+    emit();
+  }
 }
 
 export function getDailyLogin(now = Date.now()): LoginOffer {
@@ -976,20 +1034,22 @@ export function onAppOpen(pet: PetState, now = Date.now()): OpenRewards {
       }
       grantLines('starter_grant', 'starter', null, lines);
       const seeded = readOwner();
-      seeded.time_paid_through = now;
-      seeded.last_trusted_time = now;
+      const cursor = accrualNow() ?? now;
+      seeded.time_paid_through = cursor;
+      seeded.last_trusted_time = cursor;
       writeOwner(seeded);
     }
     importLegacyOutfits();
     const owner = readOwner();
+    const payable = accrualNow() ?? owner.time_paid_through;
     const planned = planTimePayout(
-      now,
+      payable,
       {
         timePaidThrough: owner.time_paid_through,
         timeCappedDay: owner.time_capped_day,
         lastTrustedTime: owner.last_trusted_time,
       },
-      dailyCount(localDay(now), '', 'time_boops'),
+      dailyCount(localDay(payable), '', 'time_boops'),
       'return',
     );
     const bursts: Burst[] = [];

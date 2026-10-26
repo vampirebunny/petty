@@ -15,6 +15,34 @@ export type TimePayout = {
   day: string;
 };
 
+export type AccrualClock = {
+  wallNow: number;
+  offsetMs: number;
+  sampleServerMs: number | null;
+  samplePerfMs: number | null;
+  perfNowMs: number | null;
+};
+
+// Time Boops follow the last server sample, extended only by a monotonic clock.
+// A wall-clock jump cannot move this forward, and a new process cannot extend a sample it did not start.
+export function capAccrualNow(clock: AccrualClock): number | null {
+  const sample = clock.sampleServerMs;
+  if (sample == null || !Number.isFinite(sample)) {
+    return null;
+  }
+  const estimated = clock.wallNow + clock.offsetMs;
+  const perfNow = clock.perfNowMs;
+  const perfSample = clock.samplePerfMs;
+  const canExtend =
+    perfNow != null &&
+    perfSample != null &&
+    Number.isFinite(perfNow) &&
+    Number.isFinite(perfSample) &&
+    perfNow + 1000 >= perfSample;
+  const extended = canExtend ? sample + (perfNow - perfSample) : sample;
+  return Math.min(estimated, extended);
+}
+
 export function planTimePayout(
   now: number,
   owner: OwnerClock,

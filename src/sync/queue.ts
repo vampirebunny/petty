@@ -269,6 +269,29 @@ async function flushOutbox(): Promise<void> {
       return;
     }
     const results = Array.isArray(data) ? data : [];
+    const rejectedTime = rows.filter((row) => {
+      const match = results.find((item) => {
+        if (!item || typeof item !== 'object') {
+          return false;
+        }
+        return (item as { idempotency_key?: string }).idempotency_key === row.idempotency_key;
+      }) as { status?: string } | undefined;
+      if (match?.status !== 'invalid') {
+        return false;
+      }
+      try {
+        const payload = JSON.parse(row.payload) as { source?: string };
+        return payload.source === 'time_payout';
+      } catch {
+        return false;
+      }
+    });
+    if (rejectedTime.length > 0) {
+      const { dropRejectedTimePayout } = await import('../economy/service');
+      for (const row of rejectedTime) {
+        dropRejectedTimePayout(row.idempotency_key);
+      }
+    }
     for (const row of rows) {
       const match = results.find((item) => {
         if (!item || typeof item !== 'object') {

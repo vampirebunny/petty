@@ -1,4 +1,6 @@
+import { capAccrualNow } from '../economy/accrual';
 import { deviceNow } from '../sync/clientScope';
+import { currentOwner } from './currentOwner';
 import { getDb } from './database';
 
 const standbyListeners = new Set<() => void>();
@@ -104,6 +106,61 @@ export function setServerOffsetMs(offsetMs: number): void {
 
 export function serverNow(now = deviceNow()): number {
   return now + readServerOffsetMs();
+}
+
+const serverSampleKey = 'serverTimeSampleMs';
+const serverSamplePerfKey = 'serverTimeSamplePerf';
+const accrualRewindSlackMs = 2 * 60_000;
+
+function readNumber(key: string): number | null {
+  const raw = readMeta(key);
+  if (raw == null) {
+    return null;
+  }
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+// Remember this server instant and, if the accrual cursor was pushed ahead of it, bring the cursor back.
+export function noteServerTime(serverNowMs: number, perfNow = globalThis.performance?.now() ?? null): void {
+  if (!Number.isFinite(serverNowMs)) {
+    return;
+  }
+  setServerOffsetMs(serverNowMs - deviceNow());
+  writeMeta(serverSampleKey, String(serverNowMs));
+  if (perfNow != null && Number.isFinite(perfNow)) {
+    writeMeta(serverSamplePerfKey, String(perfNow));
+  }
+  let owner: string;
+  try {
+    owner = currentOwner();
+  } catch {
+    return;
+  }
+  const row = getDb().getFirstSync<{ time_paid_through: number; last_trusted_time: number }>(
+    'SELECT time_paid_through, last_trusted_time FROM owner_state WHERE owner_id = ?',
+    owner,
+  );
+  if (!row || row.time_paid_through <= serverNowMs + accrualRewindSlackMs) {
+    return;
+  }
+  getDb().runSync(
+    'UPDATE owner_state SET time_paid_through = ?, last_trusted_time = ? WHERE owner_id = ?',
+    serverNowMs,
+    Math.min(row.last_trusted_time, serverNowMs),
+    owner,
+  );
+}
+
+// Null until a server sample exists. After that, wall-clock changes do not extend accrual.
+export function accrualNow(wallNow = deviceNow(), perfNow = globalThis.performance?.now() ?? null): number | null {
+  return capAccrualNow({
+    wallNow,
+    offsetMs: readServerOffsetMs(),
+    sampleServerMs: readNumber(serverSampleKey),
+    samplePerfMs: readNumber(serverSamplePerfKey),
+    perfNowMs: perfNow,
+  });
 }
 
 export function readSyncedRevision(): number {

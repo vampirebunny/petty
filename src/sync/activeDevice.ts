@@ -7,11 +7,10 @@ import {
   readSyncedRevision,
   setHandleSaved,
   setOtherDeviceLabel,
-  setServerOffsetMs,
+  noteServerTime,
   setStandby,
 } from '../db/accountMeta';
 import { getDb } from '../db/database';
-import { deviceNow } from './clientScope';
 import { deviceLabel } from './deviceLabel';
 
 export type ClaimResult = {
@@ -63,6 +62,24 @@ export async function peekActiveDevice(): Promise<PeekResult | null> {
   return row;
 }
 
+export async function refreshServerTime(): Promise<boolean> {
+  const supabase = getSupabase();
+  if (!supabase) {
+    return false;
+  }
+  const { data, error } = await supabase.rpc('server_now');
+  const raw = typeof data === 'string' ? data : null;
+  if (error || raw == null) {
+    return false;
+  }
+  const serverNowMs = Date.parse(raw);
+  if (!Number.isFinite(serverNowMs)) {
+    return false;
+  }
+  noteServerTime(serverNowMs);
+  return true;
+}
+
 export async function claimDevice(options?: { claimId?: string; timeoutMs?: number }): Promise<ClaimResult | null> {
   const supabase = getSupabase();
   const deviceId = await getOrCreateInstallId();
@@ -86,7 +103,7 @@ export async function claimDevice(options?: { claimId?: string; timeoutMs?: numb
     }
     const serverNowMs = Date.parse(claim.server_now);
     if (Number.isFinite(serverNowMs)) {
-      setServerOffsetMs(serverNowMs - deviceNow());
+      noteServerTime(serverNowMs);
     }
     return claim;
   };

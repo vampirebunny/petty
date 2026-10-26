@@ -33,7 +33,7 @@ import { createUuid, getCachedInstallId } from '../compliance/identity';
 import { bootstrapLocal, wipeLocalData } from '../db/bootstrap';
 import { readAccountLinked, readStandby, readSyncedRevision, serverNow, setOtherDeviceLabel, setStandby } from '../db/accountMeta';
 import { grantSpeciesHome, moveOwnedPiece, stowOwnedPiece } from '../db/playerHome';
-import { claimDevice, enterStandby, hasUnsentPlay, peekActiveDevice, touchLastSeen, type ClaimResult } from '../sync/activeDevice';
+import { claimDevice, enterStandby, hasUnsentPlay, peekActiveDevice, refreshServerTime, touchLastSeen, type ClaimResult } from '../sync/activeDevice';
 import { devicePhrase } from '../sync/deviceLabel';
 import { reconcileFromServer } from '../sync/reconcile';
 import {
@@ -543,7 +543,13 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
         return;
       }
       if (!readAccountLinked()) {
-        settleReturn(current, Date.now());
+        void (async () => {
+          const net = await Network.getNetworkStateAsync();
+          if (net.isConnected) {
+            await refreshServerTime();
+          }
+          settleReturn(current, Date.now());
+        })();
         return;
       }
       void (async () => {
@@ -660,7 +666,7 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
       }
       const now = Date.now();
       if (previous === 'active' && status === 'background') {
-        payoutTimeAccrual('live', serverNow(now));
+        payoutTimeAccrual('live');
         const resolved = current.care.pendingReward ? resolveReward(current, now, 'none') : current;
         publish({ ...resolved, lastUpdatedAt: now, weightAppliedAt: now });
         void touchLastSeen();

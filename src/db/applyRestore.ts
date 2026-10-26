@@ -9,7 +9,7 @@ import {
   setHandleSaved,
   setLocalRevision,
   setRestoreInProgress,
-  setServerOffsetMs,
+  noteServerTime,
   setSyncedRevision,
 } from './accountMeta';
 import { setCurrentOwner } from './currentOwner';
@@ -212,7 +212,7 @@ export async function applyRestore(input: Input): Promise<void> {
     setHandleSaved(linkAccount && input.hasHandle);
     setSyncedRevision(input.serverRevision);
     setLocalRevision(input.serverRevision + 1);
-    setServerOffsetMs(input.serverNowMs - Date.now());
+    noteServerTime(input.serverNowMs);
     setRestoreInProgress(null);
   });
   const keys = await AsyncStorage.getAllKeys();
