@@ -1,6 +1,6 @@
 # Cursor Brief: Accounts, Cloud Sync & Friends (Boop Boop)
 
-**Accounts, sign-in, restore, and deletion are superseded by `docs/boop-boop-accounts-brief.md`.** That brief drops email OTP and sign-out. A guest who signs into an existing account is asked once, then the account replaces the device. There is no Keep / Cancel choice and no sign-out in v1. Handle rules below still stand. Friend search, requests, and blocks are not built yet.
+**Accounts, sign-in, restore, deletion, and log out are superseded by `docs/boop-boop-accounts-brief.md`.** That brief is the source of truth. It drops email OTP. Signed-in Settings has **Log out**: this phone returns to Welcome and the account stays. A guest who signs into an existing account is asked once, then the account replaces the device. There is no Keep / Cancel choice. Handle rules below still stand. Friend search, requests, and blocks are not built yet.
 
 ## Goal
 Let guests create a full account without losing their pet, give every account a unique handle, sync game data to Supabase, and let users find each other by handle, send friend requests, and block. Real friend playdates come in the next brief; this one builds the foundations.

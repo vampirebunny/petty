@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Modal, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Pressable } from 'react-native-gesture-handler';
-import { ChevronLeft } from 'lucide-react-native';
+import { ChevronLeft, X } from 'lucide-react-native';
 
 import { onAccountFlags, readAccountLinked, setHandleSaved } from '../db/accountMeta';
+import { logOutOfAccount } from '../compliance/accountWipe';
 import { runAccountDeletion } from '../compliance/deleteAccount';
 import { getSupabase } from '../compliance/supabase';
 import { setAuthTransition } from '../state/sessionGate';
@@ -57,6 +58,7 @@ export function SettingsScreen({ petName, onClose, pendingFriends, careReminders
   const [typed, setTyped] = useState('');
   const [working, setWorking] = useState(false);
   const [note, setNote] = useState<string | null>(null);
+  const [logoutNote, setLogoutNote] = useState<string | null>(null);
   const [appleOpen, setAppleOpen] = useState(false);
   const appleSent = useRef(false);
 
@@ -114,6 +116,28 @@ export function SettingsScreen({ petName, onClose, pendingFriends, careReminders
     if ('message' in result) {
       setNote(result.message);
     }
+  };
+
+  const submitLogOut = async () => {
+    setWorking(true);
+    setLogoutNote(null);
+    const wiped = await logOutOfAccount();
+    if (wiped) {
+      return;
+    }
+    setWorking(false);
+    setLogoutNote("Couldn't log out just now.");
+  };
+
+  const askLogOut = () => {
+    Alert.alert(
+      'Log out?',
+      `${petName} stays saved on your account. This phone goes back to the welcome screen.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Log out', onPress: () => void submitLogOut() },
+      ],
+    );
   };
 
   const askDeleteAnyway = () => {
@@ -219,6 +243,30 @@ export function SettingsScreen({ petName, onClose, pendingFriends, careReminders
             </CandyShell>
           )}
         </Pressable>
+        {linked ? (
+          <Pressable
+            accessibilityRole="button"
+            disabled={working}
+            onPress={askLogOut}
+            style={styles.rowHit}
+          >
+            {({ pressed }) => (
+              <CandyShell tint={tints.lilac} radius={22} uid="settings-log-out" pressed={pressed} style={styles.row}>
+                <Text style={[styles.rowText, { color: candyInk(tints.lilac) }]}>Log out</Text>
+              </CandyShell>
+            )}
+          </Pressable>
+        ) : null}
+        {logoutNote ? <Text style={styles.note}>{logoutNote}</Text> : null}
+        {logoutNote ? (
+          <Pressable accessibilityRole="button" disabled={working} onPress={() => void submitLogOut()} style={styles.rowHit}>
+            {({ pressed }) => (
+              <CandyShell tint={tints.sky} radius={22} uid="settings-log-out-retry" pressed={pressed} style={styles.row}>
+                <Text style={[styles.rowText, { color: candyInk(tints.sky) }]}>Try again</Text>
+              </CandyShell>
+            )}
+          </Pressable>
+        ) : null}
         <Pressable
           accessibilityRole="button"
           disabled={working}
@@ -251,6 +299,19 @@ export function SettingsScreen({ petName, onClose, pendingFriends, careReminders
       <Modal transparent visible={confirmOpen} animationType="fade" onRequestClose={() => setConfirmOpen(false)}>
         <View style={styles.dim}>
           <CandyShell tint={tints.pink} radius={28} uid="settings-confirm" style={styles.card}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Close"
+              disabled={working}
+              onPress={() => setConfirmOpen(false)}
+              style={styles.closeHit}
+            >
+              {({ pressed }) => (
+                <View style={[styles.close, pressed && !working && styles.closePressed]}>
+                  <X size={18} strokeWidth={iconStroke + 0.4} color={candyInk(tints.pink)} />
+                </View>
+              )}
+            </Pressable>
             <Text style={styles.cardTitle}>{linked ? accountCopy : guestCopy}</Text>
             <Text style={styles.fieldLabel}>Type DELETE to confirm.</Text>
             <TextInput
@@ -429,10 +490,23 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 360,
     paddingHorizontal: 18,
-    paddingTop: 22,
+    paddingTop: 10,
     paddingBottom: 16,
     gap: 12,
   },
+  closeHit: {
+    alignSelf: 'flex-end',
+    marginRight: -6,
+  },
+  close: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.55)',
+  },
+  closePressed: { opacity: 0.7 },
   cardTitle: {
     fontFamily: fontFamily.bold,
     fontSize: 16,

@@ -557,8 +557,11 @@ Apple requires apps with Sign in with Apple to revoke the user's tokens on accou
 - **Rows:**
   - **Guests:** **Sign in or create account** (top) → `AccountSheet` (`settings`).
   - **Linked accounts:** in its place, a non-tappable line: **"Signed in as @handle · Apple"** (or **· Google**, or **· Apple & Google**). No handle saved yet: **"Signed in with Apple · Pick your handle"**, tappable, opening the handle screen with **Later**. Right after creating the account, the strict handle screen from §6 opens on its own over Settings; the line is for coming back later.
+  - **Linked accounts:** **Log out**, directly above **Delete account**. Guests do not see it. Confirm: **"Log out?"** and **"{petName} stays saved on your account. This phone goes back to the welcome screen."** Buttons **Log out** / **Cancel**. No `DELETE` typing.
+    - Runs the full local wipe and a local sign-out (`scope: 'local'`). Does not call `delete_account`. The account, its pet, and other devices stay.
+    - A leftover guest that still needs `supersede_guest`, when that call fails, stays on Settings with a retry. With no pending guest token, log out works offline.
+    - After Welcome, **Get started** adopts a new guest under a new anonymous user. Signing into the old account still uses the §7 replace confirm, which removes that guest and brings the account pet back.
   - **Guests:** **Delete my progress.** **Linked accounts:** **Delete account**.
-- Nothing else for now (no sign-out).
 
 ---
 
@@ -680,7 +683,8 @@ Still open:
 - Phone → iPad → phone works as §9 describes, verified in the harness; two open devices settle into one active and one standby; **the standby device stays in standby through foregrounds until Play here.**
 - Lost session: local data kept, no new anonymous user, `reauth` sheet shown; an account deleted elsewhere is detected at sign-in and starts fresh; a network error never wipes.
 - Day-3 prompt follows the idle, cooldown, and cap rules and never shows after account creation; friends and purchase prompts exist behind flags that default to off.
-- Settings: **gear between the logo and the pet name, name truncating, logo and Boop counter unchanged**; guest sees **Sign in or create account** and **Delete my progress**; linked account sees "Signed in as @handle · provider" and **Delete account**; Style & sound on Home unchanged.
+- Settings: **gear between the logo and the pet name, name truncating, logo and Boop counter unchanged**; guest sees **Sign in or create account** and **Delete my progress**; linked account sees "Signed in as @handle · provider", **Log out**, and **Delete account**; Style & sound on Home unchanged.
+- **Log out** (linked accounts only) confirms, wipes this phone, and returns to Welcome without calling `delete_account`. The account pet stays on the server. A later guest pet is replaced only if they sign in again.
 - Delete stays disabled until `DELETE` is typed; deleting an Apple account revokes the token (asking for Apple once more if none is stored), **and still completes through **Delete anyway** if that second Apple sign-in is cancelled or fails;** retires the user's limited units without freeing their serials; deletes the auth user and all cascaded data (ledger included); runs the full wipe (new install id, no restart needed); returns to Welcome. A never-synced guest deletes offline; any other offline deletion is blocked; a failed server deletion wipes nothing locally.
 - The anonymous-user cleanup job deletes an empty 30-day-old guest, and leaves alone a guest with a pet (even one offline for months), linked accounts, and recent guests.
 - **[v14]** A second device that signs in or reconciles into an account that already has a handle never shows the picker.

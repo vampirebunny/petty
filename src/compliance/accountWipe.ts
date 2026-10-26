@@ -1,7 +1,7 @@
 import * as SecureStore from 'expo-secure-store';
 
 import { clearAgeGateStorage } from '../age/storage';
-import { setStandby } from '../db/accountMeta';
+import { readAccountLinked, setStandby } from '../db/accountMeta';
 import { wipeLocalData } from '../db/bootstrap';
 import { setCurrentOwner } from '../db/currentOwner';
 import { cancelReminders } from '../reminders/notifications';
@@ -72,4 +72,12 @@ export async function fullAccountWipe(): Promise<boolean> {
   }
   setAuthTransition('idle');
   return true;
+}
+
+/** Signs this phone out and wipes local progress. Does not call delete_account. */
+export async function logOutOfAccount(): Promise<boolean> {
+  if (!readAccountLinked()) {
+    return false;
+  }
+  return fullAccountWipe();
 }
