@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { loadCoachSeen } from '../../cuddle/guidance';
@@ -145,13 +145,16 @@ export function useCandyTips() {
 
   const seen = useCallback((id: TipId) => store.phases[id] === 'done', [store.phases]);
 
-  return {
-    current,
-    propTaps: store.propTaps,
-    offer,
-    performed,
-    dismiss,
-    notePropTap,
-    seen,
-  };
+  return useMemo(
+    () => ({
+      current,
+      propTaps: store.propTaps,
+      offer,
+      performed,
+      dismiss,
+      notePropTap,
+      seen,
+    }),
+    [current, dismiss, notePropTap, offer, performed, seen, store.propTaps],
+  );
 }

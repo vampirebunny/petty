@@ -1226,9 +1226,11 @@ export default function HomeScreen({ petApi }: Props) {
     }
     const update = () => {
       const path = cuddleHandle.current?.backPath();
-      if (path) {
-        setCoachTarget(stageToView({ x: (path.from.x + path.to.x) / 2, y: (path.from.y + path.to.y) / 2 }));
+      if (!path) {
+        return;
       }
+      const next = stageToView({ x: (path.from.x + path.to.x) / 2, y: (path.from.y + path.to.y) / 2 });
+      setCoachTarget((current) => (current && current.x === next.x && current.y === next.y ? current : next));
     };
     update();
     const timer = setInterval(update, 300);
