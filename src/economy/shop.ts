@@ -645,7 +645,7 @@ const scratchPole: ShopListing = {
 const furnitureShelfPrices: Record<string, number> = {
   scratcher: 4000,
   catTree: 8000,
-  dogHouse: 8000,
+  dogHouse: 6000,
 };
 
 const homeShelf: ShopListing[] = [
@@ -653,21 +653,21 @@ const homeShelf: ShopListing[] = [
   { id: 'bowl_water', name: 'Extra water bowl', category: 'home', shop: 'always', tier: 'standard', price: 600, sort: 11, stackable: false },
   {
     id: 'dogHouse',
-    name: 'Glass Conservatory',
+    name: 'Pup Cabana',
     category: 'home',
     shop: 'always',
     tier: 'standard',
     species: ['dog'],
-    price: 8000,
-    sort: 25,
+    price: 6000,
+    sort: 22,
     stackable: false,
-    restMultiplier: 2.5,
-    description: '2.5× faster rest',
+    restMultiplier: 2,
+    description: '2× faster rest',
   },
   { id: 'bed_standard', name: 'Standard Bed', category: 'home', shop: 'always', tier: 'standard', price: 2500, sort: 20, stackable: false, restMultiplier: 1 },
   {
     id: 'bed_cloud_puff',
-    name: 'Cloud Puff Bolster',
+    name: 'Marshmallow Mat',
     category: 'home',
     shop: 'always',
     tier: 'standard',
@@ -680,7 +680,7 @@ const homeShelf: ShopListing[] = [
   },
   {
     id: 'bed_bone_sofa',
-    name: 'Bone Pillow Sofa',
+    name: 'Peach Chaise',
     category: 'home',
     shop: 'always',
     tier: 'standard',
@@ -693,7 +693,7 @@ const homeShelf: ShopListing[] = [
   },
   {
     id: 'bed_kitty_cave',
-    name: 'Kitty Cave Pod',
+    name: 'Cushion Stack',
     category: 'home',
     shop: 'always',
     tier: 'standard',
@@ -706,7 +706,7 @@ const homeShelf: ShopListing[] = [
   },
   {
     id: 'bed_moon_cradle',
-    name: 'Moon Cradle',
+    name: 'Sultan Pillow',
     category: 'home',
     shop: 'always',
     tier: 'standard',

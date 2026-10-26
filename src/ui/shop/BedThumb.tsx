@@ -3,69 +3,59 @@ import { SvgXml } from 'react-native-svg';
 const thumbs: Record<string, string> = {
   bed_cloud_puff: `<svg viewBox="0 0 280 200" xmlns="http://www.w3.org/2000/svg">
     <defs>
-      <linearGradient id="cpPink" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFC4E1"/><stop offset="1" stop-color="#F48BBE"/></linearGradient>
-      <linearGradient id="cpLilac" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F3E8FF"/><stop offset="1" stop-color="#D6BEF5"/></linearGradient>
+      <linearGradient id="mTop" x1="0" y1="132" x2="0" y2="164"><stop offset="0" stop-color="#F2FFF9"/><stop offset="0.6" stop-color="#C4F2DE"/><stop offset="1" stop-color="#94E2C2"/></linearGradient>
+      <linearGradient id="mSide" x1="0" y1="150" x2="0" y2="182"><stop offset="0" stop-color="#7DD8B4"/><stop offset="1" stop-color="#43AE88"/></linearGradient>
+      <linearGradient id="mPink" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFD3E7"/><stop offset="1" stop-color="#F48DBE"/></linearGradient>
     </defs>
-    <ellipse cx="140" cy="186" rx="116" ry="9" fill="#E9BBD3" opacity="0.6"/>
-    <ellipse cx="140" cy="118" rx="118" ry="46" fill="url(#cpPink)"/>
-    <path d="M54 96 Q140 66 226 96" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" fill="none" opacity="0.55"/>
-    <ellipse cx="140" cy="124" rx="92" ry="30" fill="#FFE1EF"/>
-    <ellipse cx="140" cy="130" rx="84" ry="21" fill="url(#cpLilac)"/>
-    <path d="M92 124 Q140 116 188 124" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" fill="none" opacity="0.6"/>
-    <circle cx="46" cy="146" r="25" fill="url(#cpPink)"/>
-    <circle cx="234" cy="146" r="25" fill="url(#cpPink)"/>
-    <circle cx="92" cy="158" r="27" fill="url(#cpPink)"/>
-    <circle cx="188" cy="158" r="27" fill="url(#cpPink)"/>
-    <circle cx="140" cy="162" r="28" fill="url(#cpPink)"/>
+    <ellipse cx="140" cy="186" rx="124" ry="6" fill="#8FC9B2" opacity="0.45"/>
+    <rect x="22" y="148" width="236" height="34" rx="17" fill="url(#mSide)"/>
+    <rect x="24" y="132" width="232" height="32" rx="16" fill="url(#mTop)"/>
+    <path d="M48 138 Q140 131 232 138" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" fill="none" opacity="0.7"/>
+    <path d="M30 156 Q140 170 250 156" stroke="url(#mPink)" stroke-width="5" stroke-linecap="round" fill="none"/>
+    <g fill="url(#mPink)"><rect x="129" y="170" width="22" height="6" rx="3"/><circle cx="129" cy="170" r="3.6"/><circle cx="129" cy="176" r="3.6"/><circle cx="151" cy="170" r="3.6"/><circle cx="151" cy="176" r="3.6"/></g>
   </svg>`,
   bed_bone_sofa: `<svg viewBox="0 0 280 200" xmlns="http://www.w3.org/2000/svg">
     <defs>
-      <linearGradient id="bsMint" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#B8F0D8"/><stop offset="1" stop-color="#6FCFA6"/></linearGradient>
-      <linearGradient id="bsMintDeep" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9BE6C5"/><stop offset="1" stop-color="#57BE93"/></linearGradient>
-      <linearGradient id="bsButter" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFF1B0"/><stop offset="1" stop-color="#FFD25E"/></linearGradient>
+      <linearGradient id="chTop" x1="0" y1="138" x2="0" y2="162"><stop offset="0" stop-color="#FFF1E8"/><stop offset="0.55" stop-color="#FFD0BC"/><stop offset="1" stop-color="#FFAE92"/></linearGradient>
+      <linearGradient id="chSide" x1="0" y1="156" x2="0" y2="176"><stop offset="0" stop-color="#F59A80"/><stop offset="1" stop-color="#D06A52"/></linearGradient>
+      <linearGradient id="chArm" x1="0" y1="122" x2="0" y2="170"><stop offset="0" stop-color="#FFE6D9"/><stop offset="0.5" stop-color="#FFB89F"/><stop offset="1" stop-color="#E8806A"/></linearGradient>
+      <linearGradient id="chGold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE9A6"/><stop offset="0.5" stop-color="#F4C04A"/><stop offset="1" stop-color="#D99016"/></linearGradient>
     </defs>
-    <ellipse cx="140" cy="188" rx="112" ry="8" fill="#B5DCCB" opacity="0.7"/>
-    <rect x="54" y="166" width="14" height="18" rx="5" fill="#E8A86B"/>
-    <rect x="212" y="166" width="14" height="18" rx="5" fill="#E8A86B"/>
-    <rect x="52" y="72" width="176" height="70" rx="26" fill="url(#bsMintDeep)"/>
-    <rect x="40" y="124" width="200" height="48" rx="20" fill="url(#bsMint)"/>
-    <rect x="60" y="114" width="160" height="28" rx="14" fill="#DDFBEE"/>
-    <circle cx="102" cy="94" r="13" fill="url(#bsButter)"/>
-    <circle cx="102" cy="114" r="13" fill="url(#bsButter)"/>
-    <circle cx="178" cy="94" r="13" fill="url(#bsButter)"/>
-    <circle cx="178" cy="114" r="13" fill="url(#bsButter)"/>
-    <rect x="100" y="92" width="80" height="24" rx="12" fill="url(#bsButter)"/>
-    <rect x="26" y="98" width="44" height="76" rx="22" fill="url(#bsMint)"/>
-    <rect x="210" y="98" width="44" height="76" rx="22" fill="url(#bsMint)"/>
+    <ellipse cx="140" cy="186" rx="120" ry="6" fill="#E3A994" opacity="0.45"/>
+    <path d="M40 172 L54 172 L51 186 L43 186 Z M226 172 L240 172 L237 186 L229 186 Z" fill="url(#chGold)"/>
+    <rect x="28" y="156" width="224" height="20" rx="10" fill="url(#chSide)"/>
+    <rect x="30" y="138" width="222" height="24" rx="12" fill="url(#chTop)"/>
+    <path d="M36 157 Q144 165 250 157" stroke="url(#chGold)" stroke-width="4" stroke-linecap="round" fill="none"/>
+    <path d="M26 170 L26 136 Q26 122 42 122 Q58 122 58 136 L58 164 Z" fill="url(#chArm)"/>
+    <ellipse cx="42" cy="135" rx="13" ry="12" fill="#FFE3D5" stroke="#F4C04A" stroke-width="3"/>
   </svg>`,
   bed_kitty_cave: `<svg viewBox="0 0 280 200" xmlns="http://www.w3.org/2000/svg">
     <defs>
-      <linearGradient id="kcLav" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E2D2FF"/><stop offset="1" stop-color="#A98BE8"/></linearGradient>
-      <linearGradient id="kcPink" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFD0E6"/><stop offset="1" stop-color="#F59BC6"/></linearGradient>
+      <radialGradient id="csL" cx="0.45" cy="0.35" r="0.75"><stop offset="0" stop-color="#FBF7FF"/><stop offset="0.55" stop-color="#DCCBFA"/><stop offset="1" stop-color="#B79BEE"/></radialGradient>
+      <radialGradient id="csP" cx="0.45" cy="0.35" r="0.75"><stop offset="0" stop-color="#FFF0F7"/><stop offset="0.55" stop-color="#FFC4DE"/><stop offset="1" stop-color="#F79AC4"/></radialGradient>
+      <linearGradient id="csGold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE9A6"/><stop offset="0.5" stop-color="#F4C04A"/><stop offset="1" stop-color="#D99016"/></linearGradient>
     </defs>
-    <ellipse cx="140" cy="186" rx="108" ry="9" fill="#C9B6EA" opacity="0.6"/>
-    <path d="M72 84 L60 30 Q58 22 66 26 L112 58 Z" fill="url(#kcLav)"/>
-    <path d="M78 72 L70 40 L100 60 Z" fill="url(#kcPink)"/>
-    <path d="M208 84 L220 30 Q222 22 214 26 L168 58 Z" fill="url(#kcLav)"/>
-    <path d="M202 72 L210 40 L180 60 Z" fill="url(#kcPink)"/>
-    <path d="M50 180 Q40 180 40 168 L40 124 C40 48 240 48 240 124 L240 168 Q240 180 230 180 Z" fill="url(#kcLav)"/>
-    <ellipse cx="140" cy="140" rx="54" ry="44" fill="#5E4A82"/>
-    <ellipse cx="140" cy="140" rx="54" ry="44" fill="none" stroke="#F4ECFF" stroke-width="10"/>
-    <ellipse cx="140" cy="172" rx="44" ry="11" fill="url(#kcPink)"/>
+    <ellipse cx="140" cy="186" rx="118" ry="6" fill="#B9A3E0" opacity="0.5"/>
+    <ellipse cx="140" cy="162" rx="110" ry="16" fill="url(#csL)"/>
+    <ellipse cx="152" cy="146" rx="78" ry="12" fill="url(#csP)"/>
+    <path d="M74 146 A78 12 0 0 0 230 146" stroke="url(#csGold)" stroke-width="3" fill="none"/>
+    <ellipse cx="152" cy="146" rx="5" ry="3.2" fill="#E77FB0"/>
+    <path d="M58 176 Q62 174 66 176 L67 184 Q62 186 57 184 Z" fill="url(#csGold)"/>
   </svg>`,
   bed_moon_cradle: `<svg viewBox="0 0 280 200" xmlns="http://www.w3.org/2000/svg">
     <defs>
-      <linearGradient id="mcMoon" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFF2B3"/><stop offset="1" stop-color="#FFC94A"/></linearGradient>
-      <linearGradient id="mcPink" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFD6EA"/><stop offset="1" stop-color="#F7A3CB"/></linearGradient>
+      <linearGradient id="spTop" x1="0" y1="126" x2="0" y2="156"><stop offset="0" stop-color="#EFFFFC"/><stop offset="0.55" stop-color="#B5EEE6"/><stop offset="1" stop-color="#7FD6CA"/></linearGradient>
+      <linearGradient id="spFront" x1="0" y1="150" x2="0" y2="172"><stop offset="0" stop-color="#63C9BC"/><stop offset="1" stop-color="#2F9C90"/></linearGradient>
+      <linearGradient id="spGold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE9A6"/><stop offset="0.5" stop-color="#F4C04A"/><stop offset="1" stop-color="#D99016"/></linearGradient>
     </defs>
-    <ellipse cx="140" cy="188" rx="120" ry="8" fill="#E6CF8E" opacity="0.6"/>
-    <path d="M30 184 Q30 10 140 10 Q250 10 250 184" stroke="#D99A5E" stroke-width="11" stroke-linecap="round" fill="none"/>
-    <line x1="140" y1="18" x2="66" y2="94" stroke="#C98C55" stroke-width="2.5"/>
-    <line x1="140" y1="18" x2="214" y2="94" stroke="#C98C55" stroke-width="2.5"/>
-    <circle cx="140" cy="18" r="5" fill="#C98C55"/>
-    <ellipse cx="140" cy="128" rx="60" ry="11" fill="url(#mcPink)"/>
-    <path d="M58 92 C58 182 222 182 222 92 C206 146 74 146 58 92 Z" fill="url(#mcMoon)"/>
-    <path d="M140 168 L143.5 175 L151 176 L145.5 181 L147 188 L140 184.5 L133 188 L134.5 181 L129 176 L136.5 175 Z" fill="#FFC94A" stroke="#E0A52C" stroke-width="1"/>
+    <ellipse cx="140" cy="186" rx="120" ry="6" fill="#8CC6BE" opacity="0.45"/>
+    <rect x="34" y="176" width="14" height="9" rx="4" fill="#D99016"/>
+    <rect x="232" y="176" width="14" height="9" rx="4" fill="#D99016"/>
+    <path d="M44 160 L236 160 L254 170 L26 170 Z" fill="#F4C04A"/>
+    <path d="M42 150 Q140 160 238 150 Q244 160 236 168 Q140 174 44 168 Q36 160 42 150 Z" fill="url(#spFront)"/>
+    <path d="M62 130 Q140 124 218 130 Q232 140 238 150 Q140 160 42 150 Q48 140 62 130 Z" fill="url(#spTop)"/>
+    <ellipse cx="140" cy="141" rx="6" ry="3.5" fill="url(#spGold)"/>
+    <path d="M42 150 Q140 160 238 150" stroke="url(#spGold)" stroke-width="4" fill="none"/>
   </svg>`,
 };
 

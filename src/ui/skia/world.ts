@@ -1,10 +1,10 @@
-import { BlendMode, ClipOp, Skia, TileMode } from '@shopify/react-native-skia';
+import { BlendMode, Skia, TileMode } from '@shopify/react-native-skia';
 import type { SkCanvas } from '@shopify/react-native-skia';
 
-import { applyVariant, depthScale, resolveBreedById } from '../../actor';
+import { applyVariant, depthScale, dogBreeds, resolveBreedById, spawnActor } from '../../actor';
 import { furnitureClaims } from '../../actor/furnitureUse';
 import type { TimeOfDay, World } from '../../actor';
-import { stageBleed } from '../../actor/scenes';
+import { stageBleed, type Prop } from '../../actor/scenes';
 import { drawBird, drawBirdGround } from './birds';
 import { stageHeight, stageWidth } from '../../actor/geometry';
 import { actorTint, lighting, petLightAmount, sceneryTint, stepNightFade } from '../../actor/lighting';
@@ -18,12 +18,32 @@ import { drawCozyPools, drawLampPools, drawMoonPools, drawNightVeil, drawWindowL
 import { drawOverlay } from './marks';
 import { drawActor } from './pet';
 import type { OverlayBurst } from '../../playdate/overlay';
-import { caveDoor, cradleKnot, cradleSway, drawStyledBed, isStyledBed } from './beds';
-import { clipHouseOutside, drawConservatory } from './conservatory';
-import { houseSlot } from '../../actor/conservatory';
+import { bedCushionPoint, bedCushionReach } from '../../actor/furniture';
+import { drawPupCabana } from './cabana';
+import { drawStyledBed, isStyledBed } from './beds';
 import { drawAmbient, drawBackdrop, drawHeldPlay, drawProp, drawToyShape, drawTreatShape } from './scenery';
 import { drawTrickProp } from './trickPropArt';
 import type { Contact, Env } from './scenery';
+
+function drawCabanaFit(canvas: SkCanvas, prop: Prop, floor: { yMin: number; yMax: number }): void {
+  const rest = bedCushionPoint(prop);
+  for (const breed of dogBreeds()) {
+    const actor = spawnActor(
+      { id: breed.id, breedId: breed.id, ageDays: 40, weight: 0, vitality: 1, equipped: {}, asleep: false },
+      rest,
+    );
+    actor.octant = 'E';
+    actor.octantFrom = 'E';
+    actor.octantTarget = 'E';
+    actor.octantBlend = 1;
+    drawActor(canvas, actor, breed, floor, 0, null, true, true);
+    actor.octant = 'S';
+    actor.octantFrom = 'S';
+    actor.octantTarget = 'S';
+    actor.pose.lie = 1;
+    drawActor(canvas, actor, breed, floor, 0, null, true, true);
+  }
+}
 
 function drawTinted(canvas: SkCanvas, tint: Rgba, draw: () => void): void {
   if (tint.a <= 0.001) {
@@ -214,34 +234,27 @@ export function drawWorld(
   for (const prop of scene.props) {
     if ((prop.layer ?? 'sorted') === 'sorted') {
       if (isStyledBed(prop)) {
-        const sleeper = world.actors.find(
-          (actor) =>
-            actor.task.type === 'sleep' &&
-            actor.task.stage === 'sleeping' &&
-            actor.task.poi?.propId === prop.id,
-        );
-        const sway = prop.bedStyle === 'moon' && sleeper ? cradleSway(world.t, world.reducedMotion) : 0;
-        const line = sleeper?.y ?? prop.y;
-        const drawPart = (part: 'back' | 'front') => {
-          drawStyledBed(canvas, prop, part, sway);
-        };
-        items.push({ y: line - 0.2, late: lifted && engaged(prop.id), draw: () => withTint(roomTint, () => drawPart('back')) });
-        items.push({ y: line + 0.2, late: lifted && engaged(prop.id), draw: () => withTint(roomTint, () => drawPart('front')) });
+        items.push({
+          y: prop.y,
+          late: lifted && engaged(prop.id),
+          draw: () => withTint(roomTint, () => drawStyledBed(canvas, prop)),
+        });
         continue;
       }
       if (prop.kind === 'dogHouse') {
-        const opts = { detail: false, sparkles: false, night: env.tod.dark };
         const late = lifted && engaged(prop.id);
         items.push({
-          y: prop.y - 0.4,
+          y: prop.y,
           late,
-          draw: () => withTint(roomTint, () => drawConservatory(canvas, prop, 'back', opts)),
+          draw: () => withTint(roomTint, () => drawPupCabana(canvas, prop)),
         });
-        items.push({
-          y: prop.y + 0.4,
-          late,
-          draw: () => withTint(roomTint, () => drawConservatory(canvas, prop, 'front', opts)),
-        });
+        if (world.cabanaFit) {
+          items.push({
+            y: prop.y + 0.2,
+            late,
+            draw: () => drawCabanaFit(canvas, prop, floor),
+          });
+        }
         continue;
       }
       items.push({
@@ -289,25 +302,10 @@ export function drawWorld(
         use.phase === 'perch' ||
         use.phase === 'land' ||
         (use.phase === 'air' && use.surface !== 'floor'));
-    const nearHouse = scene.props.find(
-      (prop) =>
-        prop.kind === 'dogHouse' &&
-        Math.abs(actor.x - prop.x) < (prop.w ?? 260) / 2 + 24 &&
-        Math.abs(actor.y - prop.y) < 90,
-    );
-    const slot = nearHouse ? houseSlot(nearHouse, actor.x) : null;
-    if (nearHouse && slot === 'in') {
-      sortY = nearHouse.y;
-    } else if (nearHouse && slot === 'out') {
-      sortY = Math.max(sortY, nearHouse.y + 1);
-    }
     for (const prop of scene.props) {
-      if (
-        prop.kind === 'bed' &&
-        !isStyledBed(prop) &&
-        Math.abs(actor.x - prop.x) < (prop.w ?? 0) / 2 &&
-        actor.y > prop.y - 60
-      ) {
+      const cushion = prop.kind === 'bed' || prop.kind === 'dogHouse';
+      const reach = prop.kind === 'bed' && !isStyledBed(prop) ? 60 : cushion ? bedCushionReach(prop) : 0;
+      if (cushion && Math.abs(actor.x - prop.x) < (prop.w ?? 0) / 2 && actor.y > prop.y - reach) {
         sortY = Math.max(sortY, prop.y + 1);
       }
       // The tree is one draw, so a cat on it has to sort in front or the platforms cover the climb.
@@ -315,22 +313,14 @@ export function drawWorld(
         sortY = Math.max(sortY, prop.y + 1);
       }
     }
-    const paintActor = (clipOutside: boolean, showGlow: boolean) => {
+    const paintActor = (showGlow: boolean) => {
       const bed = scene.props.find(
         (prop) => prop.id && prop.id === actor.task.poi?.propId && (prop.kind === 'bed' || prop.kind === 'dogHouse'),
       );
-      const onHouse = bed?.kind === 'dogHouse' && actor.house?.phase === 'rest' && actor.asleep;
-      const onStyled =
-        bed != null &&
-        bed.kind === 'bed' &&
-        isStyledBed(bed) &&
-        actor.asleep &&
-        actor.task.type === 'sleep' &&
-        actor.task.stage === 'sleeping';
-      const cave = onStyled && bed?.bedStyle === 'cave' ? bed : null;
-      const moon = onStyled && bed?.bedStyle === 'moon' ? bed : null;
-      const multiplier = onHouse ? (bed?.restMultiplier ?? 2.5) : (bed?.restMultiplier ?? 1);
-      const glow = showGlow && (onStyled || onHouse) && !actor.guest && multiplier > 1;
+      const onBed =
+        bed != null && actor.asleep && actor.task.type === 'sleep' && actor.task.stage === 'sleeping';
+      const multiplier = bed?.restMultiplier ?? 1;
+      const glow = showGlow && onBed && !actor.guest && multiplier > 1;
       if (glow && bed) {
         const tint = multiplier > 2 ? '#FFE1A8' : '#D7F6EA';
         const pulse = world.reducedMotion ? 0.35 : 0.28 + Math.sin(world.t * 3) * 0.08;
@@ -351,32 +341,9 @@ export function drawWorld(
         }
         canvas.restore();
       };
-      canvas.save();
-      if (moon) {
-        const knot = cradleKnot(moon);
-        const sway = cradleSway(world.t, world.reducedMotion);
-        canvas.translate(knot.x, knot.y);
-        canvas.rotate(sway, 0, 0);
-        canvas.translate(-knot.x, -knot.y);
-      }
-      if (cave) {
-        const door = caveDoor(cave);
-        const clip = Skia.Path.Make();
-        clip.addOval(Skia.XYWHRect(door.cx - door.rx, door.cy - door.ry, door.rx * 2, door.ry * 2));
-        canvas.clipPath(clip, ClipOp.Intersect, true);
-      }
-      if (clipOutside && nearHouse) {
-        clipHouseOutside(canvas, nearHouse);
-      }
       drawPet();
-      canvas.restore();
     };
-    if (nearHouse && slot === 'cross') {
-      items.push({ y: nearHouse.y, late: lifted, draw: () => paintActor(false, true) });
-      items.push({ y: nearHouse.y + 1, late: lifted, draw: () => paintActor(true, false) });
-    } else {
-      items.push({ y: sortY, late: lifted, draw: () => paintActor(false, true) });
-    }
+    items.push({ y: sortY, late: lifted, draw: () => paintActor(true) });
   }
   if (overlay?.rope && world.actors.length >= 2) {
     const lower = Math.max(world.actors[0]?.y ?? 0, world.actors[1]?.y ?? 0);

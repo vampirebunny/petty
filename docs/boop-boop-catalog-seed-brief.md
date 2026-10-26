@@ -93,7 +93,7 @@ Upsert these `shop_items` rows. Species is shown as the array value. Starter ite
 | `mouse` | Catnip Mouse | toys | {cat} | standard | — | always | 800 |
 | `wand` | Feather Wand | toys | {cat} | standard | — | always | 1,400 |
 | `laser` | Laser Pointer | toys | {cat} | standard | — | rotation | 2,000 |
-| `dogHouse` | Glass Conservatory | home | {dog} | standard | 2.5× bed, one per room | always | 8,000 |
+| `dogHouse` | Pup Cabana | home | {dog} | standard | 2× bed, open on every side, one per room | always | 6,000 |
 | `catTree` | Cat Tree | home | {cat} | standard | — | always | 6,000 |
 | `biscuit` | Biscuit | treats | null | standard | — | always | 15 |
 | `special` | Salmon Bites | treats | null | standard | — | always | 40 |

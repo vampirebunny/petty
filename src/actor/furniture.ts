@@ -1,7 +1,7 @@
 import { daysToSenior } from '../sim/config';
 import { footprint } from '../ui/skia/layout';
 import { catBreeds } from './breeds';
-import { HOUSE_POINTS, HOUSE_REST, HOUSE_WIDTH, houseBlocks, houseContains, houseWorld, placeHouse } from './conservatory';
+import { HOUSE_REST } from './conservatory';
 import { geomOf, PET_SIZE } from './geometry';
 import type { Poi, Prop, Scene } from './scenes';
 import { sceneById, scenes } from './scenes';
@@ -64,25 +64,22 @@ export type ShopFurnitureId = keyof typeof shopFurniture;
 
 export type BedStyle = 'standard' | 'cloud' | 'bone' | 'cave' | 'moon';
 
-// World width of a dog shop bed. 280 SVG units of bed art map onto this width.
+// World width of a dog shop bed and the Pup Cabana. 280 SVG units of art map onto this width.
 export const styledBedWidth = 120;
 
-// Kitty-cave mouth in the 280-unit bed drawing. The stroke sits on the oval, so the
-// hole a cat can lie in is one stroke narrower than the oval.
-export const caveDoorRx = 90;
-export const caveDoorRy = 44;
-export const caveDoorStroke = 10;
+export const bedArtWidth = 280;
 
-// Moon cradle basket, the path from x = 58 to x = 222 in the 280-unit bed drawing.
-export const moonCradleSvgWidth = 164;
+// Floor line in each drawing. y grows downward.
+export const bedFloorY = 184;
+export const cabanaFloorY = 248;
 
-const bedArtWidth = 280;
+// The part a cat lies on, in the 280-wide drawing. The stack's top cushion is 156 across.
+// The sultan pillow is 196 across at its widest.
+export const stackCushionSvg = 156;
+export const pillowCushionSvg = 196;
 
 function catBedFitSvg(style: 'cave' | 'moon'): number {
-  if (style === 'cave') {
-    return caveDoorRx * 2 - caveDoorStroke;
-  }
-  return moonCradleSvgWidth;
+  return style === 'cave' ? stackCushionSvg : pillowCushionSvg;
 }
 
 // Widest adult cat torso, in world pixels. Growth through the adult stage ends at
@@ -129,10 +126,10 @@ function resolvedBedWidth(piece: FurniturePiece): number | undefined {
 
 const bedCatalog: Record<string, { name: string; style: BedStyle; rest: number; species?: 'dog' | 'cat' }> = {
   bed_standard: { name: 'Standard Bed', style: 'standard', rest: 1 },
-  bed_cloud_puff: { name: 'Cloud Puff Bolster', style: 'cloud', rest: 2, species: 'dog' },
-  bed_bone_sofa: { name: 'Bone Pillow Sofa', style: 'bone', rest: 2.5, species: 'dog' },
-  bed_kitty_cave: { name: 'Kitty Cave Pod', style: 'cave', rest: 2, species: 'cat' },
-  bed_moon_cradle: { name: 'Moon Cradle', style: 'moon', rest: 2.5, species: 'cat' },
+  bed_cloud_puff: { name: 'Marshmallow Mat', style: 'cloud', rest: 2, species: 'dog' },
+  bed_bone_sofa: { name: 'Peach Chaise', style: 'bone', rest: 2.5, species: 'dog' },
+  bed_kitty_cave: { name: 'Cushion Stack', style: 'cave', rest: 2, species: 'cat' },
+  bed_moon_cradle: { name: 'Sultan Pillow', style: 'moon', rest: 2.5, species: 'cat' },
 };
 
 const bowlSpots: Record<string, Record<string, { x: number; y: number }>> = {
@@ -215,45 +212,74 @@ export function isBedSku(sku: string): boolean {
   return bedSkuOf(sku) != null;
 }
 
+// Middle of the cushion the pet lies on. x = 140 is the drawing's center.
 const bedAnchors: Record<BedStyle, { x: number; y: number } | null> = {
   standard: null,
-  cloud: { x: 140, y: 128 },
-  bone: { x: 140, y: 118 },
-  cave: { x: 140, y: 150 },
-  moon: { x: 140, y: 124 },
+  cloud: { x: 140, y: 148 },
+  bone: { x: 141, y: 150 },
+  cave: { x: 152, y: 146 },
+  moon: { x: 140, y: 141 },
 };
 
-// Visible art in the 280-unit bed drawing. y grows downward and the floor anchor is y = 184.
+export const cabanaCushion = { x: 140, y: 202 };
+
+// Visible art. y grows downward. Beds share floor y = 184. The cabana floor is y = 248.
 const styledTapBox: Record<Exclude<BedStyle, 'standard'>, { x0: number; y0: number; x1: number; y1: number }> = {
-  cloud: { x0: 20, y0: 66, x1: 260, y1: 192 },
-  bone: { x0: 24, y0: 70, x1: 256, y1: 190 },
-  cave: { x0: 36, y0: 18, x1: 244, y1: 190 },
-  moon: { x0: 24, y0: 8, x1: 256, y1: 192 },
+  cloud: { x0: 22, y0: 132, x1: 258, y1: 192 },
+  bone: { x0: 26, y0: 122, x1: 250, y1: 192 },
+  cave: { x0: 30, y0: 134, x1: 250, y1: 192 },
+  moon: { x0: 26, y0: 124, x1: 254, y1: 192 },
 };
+
+const cabanaTapBox = { x0: 14, y0: 46, x1: 266, y1: 255 };
 
 const bedTapPad = 8;
 
 // How far above a bed's floor point a sleeper still counts as on the cushion.
 // Styled beds draw the cushion above the floor anchor, and a wider bed lifts it further.
-export function bedCushionReach(prop: { w?: number; bedStyle?: BedStyle }): number {
-  const style = prop.bedStyle ?? 'standard';
-  const anchor = bedAnchors[style];
+export function bedCushionReach(prop: { w?: number; bedStyle?: BedStyle; kind?: string }): number {
+  const anchor = prop.kind === 'dogHouse' ? cabanaCushion : bedAnchors[prop.bedStyle ?? 'standard'];
+  const floor = prop.kind === 'dogHouse' ? cabanaFloorY : bedFloorY;
   if (!anchor) {
     return 48;
   }
   const scale = (prop.w ?? styledBedWidth) / bedArtWidth;
-  const lift = (184 - anchor.y) * scale;
+  const lift = (floor - anchor.y) * scale;
   return Math.max(48, lift + 16);
 }
 
+// Where the pet stands to sleep: the middle of the cushion, in world space.
+export function bedCushionPoint(prop: { x: number; y: number; w?: number; bedStyle?: BedStyle; kind?: string }): { x: number; y: number } {
+  if (prop.kind === 'dogHouse') {
+    const scale = (prop.w ?? styledBedWidth) / bedArtWidth;
+    return {
+      x: prop.x + (cabanaCushion.x - 140) * scale,
+      y: prop.y + (cabanaCushion.y - cabanaFloorY) * scale,
+    };
+  }
+  const anchor = bedAnchors[prop.bedStyle ?? 'standard'];
+  if (!anchor) {
+    return { x: prop.x, y: prop.y + 2 };
+  }
+  const scale = (prop.w ?? styledBedWidth) / bedArtWidth;
+  return {
+    x: prop.x + (anchor.x - 140) * scale,
+    y: prop.y + (anchor.y - bedFloorY) * scale,
+  };
+}
+
 export function bedPoiOffset(piece: FurniturePiece): { x: number; y: number } {
+  if (piece.kind === 'dogHouse') {
+    const at = bedCushionPoint({ x: 0, y: 0, w: piece.w ?? styledBedWidth, kind: 'dogHouse' });
+    return at;
+  }
   const style = piece.bedStyle ?? 'standard';
   const anchor = bedAnchors[style];
   if (!anchor) {
     return { x: 0, y: 2 };
   }
   const scale = (resolvedBedWidth(piece) ?? styledBedWidth) / bedArtWidth;
-  return { x: (anchor.x - 140) * scale, y: (anchor.y - 184) * scale };
+  return { x: (anchor.x - 140) * scale, y: (anchor.y - bedFloorY) * scale };
 }
 
 export function bedDisplayName(piece: FurniturePiece): string {
@@ -383,7 +409,7 @@ export function furnitureDefinition(id: string): FurniturePiece | null {
       return { id: kind, kind, h: 74 };
     }
     if (kind === 'dogHouse') {
-      return { id: kind, kind, w: HOUSE_WIDTH, restMultiplier: HOUSE_REST };
+      return { id: kind, kind, w: styledBedWidth, restMultiplier: HOUSE_REST };
     }
     return { id: kind, kind };
   }
@@ -528,7 +554,7 @@ export function pieceLabel(piece: FurniturePiece): string {
     return 'Cat tree';
   }
   if (piece.kind === 'dogHouse') {
-    return 'Glass Conservatory';
+    return 'Pup Cabana';
   }
   if (piece.kind === 'scratcher') {
     return 'Scratcher';
@@ -645,7 +671,7 @@ function propFromPiece(piece: FurniturePiece, x: number, y: number): Prop {
     prop.restMultiplier = piece.restMultiplier;
   }
   if (piece.kind === 'dogHouse') {
-    prop.w = piece.w ?? HOUSE_WIDTH;
+    prop.w = styledBedWidth;
     prop.restMultiplier = piece.restMultiplier ?? HOUSE_REST;
   }
   return prop;
@@ -660,7 +686,7 @@ function poiForPiece(piece: FurniturePiece, x: number, y: number): Poi | null {
     return { id: piece.id, type: 'water', x, y, face: 1, propId: piece.id };
   }
   if (piece.kind === 'bed' || piece.kind === 'dogHouse') {
-    const offset = piece.kind === 'bed' ? bedPoiOffset(piece) : { x: 0, y: 2 };
+    const offset = bedPoiOffset(piece);
     return { id: piece.id, type: 'bed', x: x + offset.x, y: y + offset.y, propId: piece.id };
   }
   if (piece.kind === 'litterbox') {
@@ -858,13 +884,14 @@ export function applyFurniture(scene: Scene, pieces: FurniturePiece[], placed: F
   return { ...scene, props, pois: settleHouses(scene, props, pois) };
 }
 
-function settleHouses(scene: Scene, props: Prop[], pois: Poi[]): Poi[] {
+function settleHouses(_scene: Scene, props: Prop[], pois: Poi[]): Poi[] {
   for (const prop of props) {
     if (prop.kind !== 'dogHouse' || !prop.id) {
       continue;
     }
-    placeHouse(prop, scene.floor);
-    const rest = houseWorld(prop, HOUSE_POINTS.R.x, HOUSE_POINTS.R.y);
+    prop.w = styledBedWidth;
+    prop.restMultiplier = prop.restMultiplier ?? HOUSE_REST;
+    const rest = bedCushionPoint(prop);
     const found = pois.find((poi) => poi.propId === prop.id && poi.type === 'bed');
     if (found) {
       found.x = rest.x;
@@ -1037,16 +1064,25 @@ function tapEllipse(prop: Prop): Obstacle | null {
 }
 
 // The bed drawing sits above the floor anchor. A press on the cushion has to count.
+function artContains(
+  prop: Prop,
+  x: number,
+  y: number,
+  box: { x0: number; y0: number; x1: number; y1: number },
+  floorY: number,
+): boolean {
+  const scale = (prop.w ?? styledBedWidth) / bedArtWidth;
+  const left = prop.x + (box.x0 - 140) * scale - bedTapPad;
+  const right = prop.x + (box.x1 - 140) * scale + bedTapPad;
+  const top = prop.y + (box.y0 - floorY) * scale - bedTapPad;
+  const bottom = prop.y + (box.y1 - floorY) * scale + bedTapPad;
+  return x >= left && x <= right && y >= top && y <= bottom;
+}
+
 function bedContains(prop: Prop, x: number, y: number): boolean {
   const style = prop.bedStyle;
   if (style && style !== 'standard') {
-    const box = styledTapBox[style];
-    const scale = (prop.w ?? styledBedWidth) / bedArtWidth;
-    const left = prop.x + (box.x0 - 140) * scale - bedTapPad;
-    const right = prop.x + (box.x1 - 140) * scale + bedTapPad;
-    const top = prop.y + (box.y0 - 184) * scale - bedTapPad;
-    const bottom = prop.y + (box.y1 - 184) * scale + bedTapPad;
-    return x >= left && x <= right && y >= top && y <= bottom;
+    return artContains(prop, x, y, styledTapBox[style], bedFloorY);
   }
   const half = (prop.w ?? 112) / 2 + bedTapPad;
   return Math.abs(x - prop.x) <= half && y >= prop.y - 40 && y <= prop.y + 12;
@@ -1055,15 +1091,6 @@ function bedContains(prop: Prop, x: number, y: number): boolean {
 export function obstaclesIn(scene: Scene, openPropId: string | null): Obstacle[] {
   const list: Obstacle[] = [];
   for (const prop of scene.props) {
-    if (prop.kind === 'dogHouse') {
-      if (!prop.id || prop.id === openPropId) {
-        continue;
-      }
-      for (const block of houseBlocks(prop)) {
-        list.push({ id: prop.id, ...block });
-      }
-      continue;
-    }
     const obstacle = ellipseOf(prop);
     if (obstacle && obstacle.id !== openPropId) {
       list.push(obstacle);
@@ -1262,7 +1289,7 @@ export function furnitureAt(scene: Scene, x: number, y: number): string | null {
   const point = { x, y };
   for (const prop of scene.props) {
     if (prop.kind === 'dogHouse') {
-      if (!prop.id || !houseContains(prop, x, y)) {
+      if (!prop.id || !artContains(prop, x, y, cabanaTapBox, cabanaFloorY)) {
         continue;
       }
       if (!best || prop.y >= best.y) {

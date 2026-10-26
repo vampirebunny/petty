@@ -1,11 +1,32 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { getSupabase } from '../compliance/supabase';
-import type { Equipped, Look, Stats, Trait } from '../sim/types';
+import type { Equipped, Look, OutfitSlot, Stats, Trait } from '../sim/types';
 import type { FriendPet, FriendRow, LookupResult } from './types';
 
 const cacheKey = 'petty.friends.cache';
 const traits: Trait[] = ['stamina', 'agility', 'intelligence', 'boldness', 'affection', 'obedience'];
+const outfitSlots = new Set<OutfitSlot>(['hat', 'glasses', 'neckwear', 'jacket', 'boots']);
+
+function ownedOf(value: unknown): { slot: OutfitSlot; id: string }[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+  const owned: { slot: OutfitSlot; id: string }[] = [];
+  for (const entry of value) {
+    if (!entry || typeof entry !== 'object') {
+      continue;
+    }
+    const row = entry as Record<string, unknown>;
+    const slot = row.slot;
+    const id = row.id;
+    if (typeof slot !== 'string' || !outfitSlots.has(slot as OutfitSlot) || typeof id !== 'string' || !id || id.includes(':')) {
+      continue;
+    }
+    owned.push({ slot: slot as OutfitSlot, id });
+  }
+  return owned;
+}
 
 type Cache = {
   friends: FriendRow[];
@@ -47,6 +68,7 @@ function petOf(value: unknown): FriendPet | null {
     breedId,
     look,
     equipped,
+    owned: ownedOf(row.owned),
     ageDays: typeof row.ageDays === 'number' ? row.ageDays : 0,
     weight: typeof row.weight === 'number' ? row.weight : 0,
     vitality: typeof row.vitality === 'number' ? row.vitality : 0,

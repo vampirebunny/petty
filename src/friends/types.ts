@@ -1,4 +1,4 @@
-import type { Equipped, Look, Stats } from '../sim/types';
+import type { Equipped, Look, OutfitSlot, Stats } from '../sim/types';
 
 export type FriendPet = {
   petId?: string;
@@ -6,6 +6,8 @@ export type FriendPet = {
   breedId: string;
   look: Look;
   equipped: Equipped;
+  // Closet pieces this player owns. Missing on a card saved before that list existed.
+  owned?: { slot: OutfitSlot; id: string }[];
   ageDays: number;
   weight: number;
   vitality: number;

@@ -178,12 +178,16 @@ export function linearStroke(
   pos: number[] | null,
   width: number,
   a = 1,
+  cap: StrokeCap = StrokeCap.Butt,
 ): SkPaint {
-  return cached(`ls|${round3(x0)},${round3(y0)},${round3(x1)},${round3(y1)}|${colors.join(';')}|${pos?.join(',') ?? ''}|${round3(width)}|${round3(a)}`, () => {
+  return cached(`ls|${round3(x0)},${round3(y0)},${round3(x1)},${round3(y1)}|${colors.join(';')}|${pos?.join(',') ?? ''}|${round3(width)}|${round3(a)}|${cap}`, () => {
     const p = base();
     p.setStyle(PaintStyle.Stroke);
     p.setStrokeWidth(width);
-    p.setStrokeCap(StrokeCap.Butt);
+    p.setStrokeCap(cap);
+    if (cap === StrokeCap.Round) {
+      p.setStrokeJoin(StrokeJoin.Round);
+    }
     p.setShader(
       Skia.Shader.MakeLinearGradient(
         Skia.Point(x0, y0),

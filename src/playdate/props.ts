@@ -5,6 +5,7 @@ const throwMs = 500;
 export type PropView = {
   kind: BeatProp['kind'];
   holder: 'A' | 'B' | 'both' | null;
+  holderSlot?: number;
   x: number;
   y: number;
   z: number;
@@ -44,9 +45,16 @@ export function propAt(beats: readonly Beat[], elapsed: number): PropView | null
     }
     return { kind: prop.kind, holder: null, x: prop.throwTo.x, y: prop.throwTo.y, z: 0 };
   }
-  const holder = prop.holder ?? null;
+  const holder = prop.holderSlot != null ? null : (prop.holder ?? null);
   const at = pointOf(prop.at, { x: 0, y: 0 });
-  return { kind: prop.kind, holder, x: at.x, y: at.y, z: 0 };
+  return {
+    kind: prop.kind,
+    holder,
+    ...(prop.holderSlot != null ? { holderSlot: prop.holderSlot } : {}),
+    x: at.x,
+    y: at.y,
+    z: 0,
+  };
 }
 
 // The butterfly follows the same stored waypoints as the pet that is chasing it.

@@ -4,12 +4,11 @@ import { Canvas, Picture, Skia } from '@shopify/react-native-skia';
 import type { SkPicture } from '@shopify/react-native-skia';
 
 import { resolveBreedById, spawnActor } from '../../actor';
-import { HOUSE_POINTS, houseSlot, houseWorld, startHouse, stepHouse } from '../../actor/conservatory';
-import type { HouseRun } from '../../actor/conservatory';
+import { bedCushionPoint, styledBedWidth } from '../../actor/furniture';
 import type { Actor } from '../../actor/types';
 import { applyVariant } from '../../actor/variation';
 import type { PetState } from '../../sim/types';
-import { clipHouseOutside, drawConservatory } from '../skia/conservatory';
+import { drawPupCabana } from '../skia/cabana';
 import { drawActor } from '../skia/pet';
 
 type Props = {
@@ -22,41 +21,39 @@ type Props = {
 const width = 320;
 const height = 280;
 const prop = {
-  kind: 'dogHouse',
+  kind: 'dogHouse' as const,
   id: 'dogHouse',
-  x: 168,
-  y: 214,
-  w: 260,
-  restMultiplier: 2.5,
-  flip: false,
+  x: 160,
+  y: 200,
+  w: styledBedWidth,
+  restMultiplier: 2,
 };
+const cushion = bedCushionPoint(prop);
 const floor = { yMin: 40, yMax: 260 };
-const opts = { detail: true, sparkles: false, night: 0 };
+const artScale = styledBedWidth / 280;
+const fit = Math.min((width - 24) / (252 * artScale), (height - 36) / (209 * artScale));
+
+const approaches = [
+  { x: cushion.x - 56, y: cushion.y + 18 },
+  { x: cushion.x + 56, y: cushion.y + 12 },
+  { x: cushion.x - 8, y: cushion.y - 36 },
+  { x: cushion.x + 10, y: cushion.y + 34 },
+];
 
 function recordHouse(actor: Actor | null, seconds: number, reducedMotion: boolean): SkPicture {
   const recorder = Skia.PictureRecorder();
   const canvas = recorder.beginRecording(Skia.XYWHRect(0, 0, width, height));
-  drawConservatory(canvas, prop, 'back', opts);
+  canvas.save();
+  canvas.translate(width / 2, height / 2 + 16);
+  canvas.scale(fit, fit);
+  canvas.translate(-prop.x, -prop.y);
+  drawPupCabana(canvas, prop);
   const resolved = actor ? resolveBreedById(actor.breedId, actor.look) : null;
   const breed = actor && resolved ? applyVariant(resolved, actor.variant) : null;
-  const slot = actor ? houseSlot(prop, actor.x) : 'out';
-  const drawPet = () => {
-    if (actor && breed) {
-      drawActor(canvas, actor, breed, floor, seconds, null, false, reducedMotion);
-    }
-  };
-  if (slot !== 'out') {
-    drawPet();
+  if (actor && breed) {
+    drawActor(canvas, actor, breed, floor, seconds, null, false, reducedMotion);
   }
-  drawConservatory(canvas, prop, 'front', opts);
-  if (slot === 'cross') {
-    canvas.save();
-    clipHouseOutside(canvas, prop);
-    drawPet();
-    canvas.restore();
-  } else if (slot === 'out') {
-    drawPet();
-  }
+  canvas.restore();
   return recorder.finishRecordingAsPicture();
 }
 
@@ -64,7 +61,6 @@ export function ConservatoryPreview({ pet, reducedMotion, onAdd, onClose }: Prop
   const [picture, setPicture] = useState(() => recordHouse(null, 0, reducedMotion));
 
   useEffect(() => {
-    const door = houseWorld(prop, HOUSE_POINTS.A.x, HOUSE_POINTS.A.y);
     const actor = spawnActor(
       {
         id: pet.id,
@@ -78,19 +74,17 @@ export function ConservatoryPreview({ pet, reducedMotion, onAdd, onClose }: Prop
         asleep: false,
         energy: 0.4,
       },
-      { x: door.x - 36, y: door.y },
+      approaches[0]!,
     );
-    let run: HouseRun = startHouse(prop, 0.2, true);
-    let restTicks = 0;
+    let side = 0;
+    let lying = 0;
     let frame = 0;
     if (reducedMotion) {
-      const rest = houseWorld(prop, HOUSE_POINTS.R.x, HOUSE_POINTS.R.y);
-      actor.x = rest.x;
-      actor.y = rest.y;
+      actor.x = cushion.x;
+      actor.y = cushion.y;
       actor.pose.lie = 1;
       actor.pose.eyes = 1;
       actor.pose.headRest = 1;
-      frame = 1;
     }
     const paint = () => setPicture(recordHouse(actor, frame * 0.05, reducedMotion));
     const first = setTimeout(paint, 0);
@@ -98,41 +92,34 @@ export function ConservatoryPreview({ pet, reducedMotion, onAdd, onClose }: Prop
       return () => clearTimeout(first);
     }
     const timer = setInterval(() => {
-      const stepped = stepHouse(run, prop, actor, 0.05, Math.random, false);
-      if (stepped.move) {
-        const dx = stepped.move.x - actor.x;
-        const dy = stepped.move.y - actor.y;
+      if (lying > 0) {
+        lying -= 1;
+        actor.pose.lie = 1;
+        actor.pose.eyes = 1;
+        actor.pose.headRest = 1;
+        if (lying === 0) {
+          side = (side + 1) % approaches.length;
+          const next = approaches[side]!;
+          actor.x = next.x;
+          actor.y = next.y;
+          actor.pose.lie = 0;
+          actor.pose.eyes = 0;
+          actor.pose.headRest = 0;
+        }
+      } else {
+        const dx = cushion.x - actor.x;
+        const dy = cushion.y - actor.y;
         const dist = Math.hypot(dx, dy);
-        const step = 4.2;
-        if (dist <= step) {
-          actor.x = stepped.move.x;
-          actor.y = stepped.move.y;
+        actor.face = dx >= 0 ? 1 : -1;
+        if (dist < 4) {
+          actor.x = cushion.x;
+          actor.y = cushion.y;
+          lying = 36;
         } else {
+          const step = Math.min(3.2, dist);
           actor.x += (dx / dist) * step;
           actor.y += (dy / dist) * step;
         }
-      }
-      actor.face = run.holdFace ? run.face : actor.face;
-      actor.octant = actor.face >= 0 ? 'E' : 'W';
-      actor.octantFrom = actor.octant;
-      actor.pose.lie = run.lie;
-      actor.pose.eyes = run.eyes;
-      actor.pose.headRest = run.headRest;
-      actor.pose.headTurn = run.headTurn;
-      actor.pose.stretch = run.stretch;
-      actor.pose.paw = run.paw;
-      if (run.phase === 'rest') {
-        restTicks += 1;
-      } else {
-        restTicks = 0;
-      }
-      if (stepped.done || run.phase === 'done' || restTicks > 36) {
-        actor.x = door.x - 36;
-        actor.y = door.y;
-        actor.pose.lie = 0;
-        actor.pose.eyes = 0;
-        restTicks = 0;
-        run = startHouse(prop, Math.random(), true);
       }
       frame += 1;
       paint();
@@ -145,7 +132,7 @@ export function ConservatoryPreview({ pet, reducedMotion, onAdd, onClose }: Prop
 
   return (
     <View style={styles.sheet}>
-      <Text style={styles.title}>Glass Conservatory</Text>
+      <Text style={styles.title}>Pup Cabana</Text>
       <Canvas style={{ width, height }}>
         <Picture picture={picture} />
       </Canvas>

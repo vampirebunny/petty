@@ -211,7 +211,7 @@ Today the cat tree is hardcoded in the catio scene and copied into starter furni
 2. **Ownership:** player-owned, through the existing owned-furniture rows. A purchase or the dev grant adds a row.
 3. **Placement:** a newly owned piece appears at its `defaultSpot` when the current scene belongs to the player, otherwise in the living room. Holding it offers Put in storage or Move. Move is a drag. Put in storage clears that placement and leaves it owned. Saved furniture can come back in any scene marked as the player's (living room, bedroom, catio, and later scenes with that flag), not the park or Training School. A room holds one food bowl and one water bowl. Feed and Water follow those saved bowls in the room on screen, and the same spots are still there after the player leaves the room and comes back.
 4. **Cat tree:** keep the existing kind name, **`catTree`**. Remove the hardcoded prop from the catio scene and from starter furniture. It becomes a normal owned kind, placeable in any scene that belongs to the player. Update the furniture test that expects `catio-tree`: it should now pass only when the cat tree is owned and placed. Test installs lose it; that's fine.
-5. **Glass Conservatory** (`dogHouse`, dog): a 2.5× bed at 8,000 Boops. Placeable in the living room or bedroom. A room holds this or another bed, not both.
+5. **Pup Cabana** (`dogHouse`, dog): a 2× bed at 6,000 Boops. Open on every side, same width as the premium dog beds. The pet lies in the middle of the cushion. Placeable in the living room or bedroom. A room holds this or another bed, not both.
    - Dogs walk in, turn on the cushion until they face the door, and rest. Energy pays at 2.5×. Guests can use the house and do not get the multiplier.
    - **Doorway:** split the drawing into a **back layer** (roof back, interior shadow) and a **front layer** (front wall with the door opening cut out, roof front).
    - **Normally**, both layers sort together with the house's baseline, the way the bed sorts against pets today, so a dog standing in front of the house draws in front of it.
@@ -236,7 +236,7 @@ Don't add treat or meal rows yet. We're settling how treats work first, and the 
 - [ ] `crinkle`, `mouse` and `bone` play by their thrown rules (flicks replace the toy, as today); the crinkle sounds on bats and floor hits, and the mouse squeaks on pounces, bats and floor hits; `rope` stays out of the picker; the squeaky uses the new squeak with pitch variance
 - [ ] Held mode works for `wand` (feathers follow the finger on a spring; stalk, leap, swat, catch) and `laser` (pointer fixed at the bottom and aiming; the dot on the floor never caught; sessions end on a win); Done, the 8 s idle and switching toys all exit cleanly
 - [ ] Held mode ends any fetch and idles the pet on entry; wand and laser positions are in world space
-- [ ] Furniture kinds exist; `dogHouse` (Glass Conservatory, 8,000, 2.5×, one bed per room) and `catTree` are owned, placed and draggable in their allowed scenes; the cat tree is gone from the hardcoded catio and starter furniture; the furniture test is updated
+- [ ] Furniture kinds exist; `dogHouse` (Pup Cabana, 6,000, 2×, one bed per room) and `catTree` are owned, placed and draggable in their allowed scenes; the cat tree is gone from the hardcoded catio and starter furniture; the furniture test is updated
 - [ ] The dev grant screen writes clothing, toys and furniture to their own stores
 
 Send screenshots of every Part C item on a light and a dark pet (a dog and a cat), and short recordings of each new toy.

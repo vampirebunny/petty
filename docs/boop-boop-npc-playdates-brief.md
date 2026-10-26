@@ -13,7 +13,7 @@ Everything is local and works offline. Saved data is keyed to `ownerId`.
 - Always rewarding. No bad outcomes. A shy pet gets warm-up beats, then plays.
 - No live input. Choices happen before playback. During playback the user watches, skips to the end, or leaves. Leaving before the end saves nothing.
 - Data-driven activities and beats. New activities are data, not engine changes.
-- Partners are `PetSnapshot`s. NPCs are the only source now. `rehomed` and `friend` stay on the type for later.
+- Partners are `PetSnapshot`s. NPC playdates use `source: 'npc'`. A friend playdate uses `source: 'friend'`. `rehomed` stays on the type for later.
 
 ## Flow
 
@@ -209,9 +209,30 @@ Applied once, on complete or skip:
 
 One local blob per `ownerId`: cast, relationships, history (newest first, max 3), `lastPlaydateCompletedAt`. Discarding the pet deletes that pet's history, relationships, and the cooldown. The cast stays.
 
+## Friend playdates
+
+A linked player who has friends can invite them from the partner step. NPC cards stay the one-partner path above.
+
+1. Each friend who has a pet is a toggle. A tap shows a checkmark. A second tap clears it. The cap is 5. A friend with no pet stays on the list and cannot be checked. **Invite to playdate** stays disabled until at least one friend is checked, and while the cooldown is running.
+2. Place. Only rooms this pet owns: the living room, the bedroom, and the catio when this pet is a cat. Park and training school stay on the NPC path.
+3. Activity. One friend (two pets, counting the player's pet) uses the NPC activity offer for that pair and room. Two or more friends (three to six pets) offer three of four group activities, seeded by the date, the guest ids, and the room, so the set is stable that day and can change the next day.
+4. Outfit. The player's closet, same as an NPC playdate. Friends are not dressed here.
+5. Playback, results, and history. Rewards still pay once, to the player's pet. Bond is stored for every friend. The results and the history row name every friend.
+
+Group activities are not in the NPC offer:
+
+- **Conga.** Stamina and agility. Single file. The leader walks a loop of floor points. Each friend takes the same path one step later.
+- **Line dance.** Obedience and affection. One row. The same step, hop, spin, and sit at the same time.
+- **The wave.** Agility and affection. The same row. A hop travels from the player down the line, then a spin travels back.
+- **Pass the toy.** Intelligence and affection. An arc. A ball passes from the player through each friend and back.
+
+A pair record stays version 2 with `petA` and `petB`. A group record is version 3. `petB` is the first friend. `party` is every friend, length 2 to 5. Group beats use `slot` (0 is the player's pet) and `actor: 'all'` when every pet does the same thing. A prop may set `holderSlot`. Targets are fixed floor points. Replay reads the stored beats.
+
+Each friend is shown in the outfit on their pet card. They do not wear the NPC catalog. The card's `owned` list is that player's closet: ledger quantities for `hat`, `glasses`, `neckwear`, `jacket`, and `boots`, plus anything they already have equipped. A worn piece is kept only when it is in that list. An owned piece they are not wearing is not added.
+
 ## Out of scope
 
-- Rehome, friends, sharing, and async viewing by someone else
+- Rehome, sharing, and async viewing by someone else
 - A trick catalog or writing a learned trick onto the pet
 - Cooldown-skip purchases
 - Notifications when the cooldown ends

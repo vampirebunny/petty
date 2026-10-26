@@ -80,7 +80,7 @@ function particleCount(kind: FxId): number {
 }
 
 export function burstFor(input: {
-  version: 1 | 2;
+  version: number;
   emote?: string;
   fx?: string;
   seed: number;

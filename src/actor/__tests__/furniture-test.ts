@@ -6,12 +6,12 @@ import {
   bowlAlreadyInRoom,
   canPlaceFurniture,
   bowlRoomMessage,
-  caveDoorRx,
-  caveDoorStroke,
+  bedCushionPoint,
   furnitureAt,
   furnitureDefinition,
   keepFirstBedPerRoom,
-  moonCradleSvgWidth,
+  pillowCushionSvg,
+  stackCushionSvg,
   movePiece,
   normalizeFurniture,
   otherBedInRoom,
@@ -28,6 +28,7 @@ import {
   syncFurniture,
 } from '../furniture';
 import { daysToSenior } from '../../sim/config';
+import { HOUSE_REST } from '../conservatory';
 import { actionReason, sceneForSpecies, scenes } from '../scenes';
 import type { Scene } from '../scenes';
 import { createWorld, spawnActor, startUserTask, update } from '../sim';
@@ -305,10 +306,10 @@ it('hits the drawn bed above its floor point', () => {
       { kind: 'bed' as const, id: 'cave', x: 400, y: 520, w: caveWidth, bedStyle: 'cave' as const },
     ],
   } as Scene;
-  expect(furnitureAt(scene, 200, 500 + (118 - 184) * cloudScale)).toBe('cloud');
-  expect(furnitureAt(scene, 200, 500 + (72 - 184) * cloudScale)).toBe('cloud');
-  expect(furnitureAt(scene, 200, 500 + (40 - 184) * cloudScale)).toBeNull();
-  expect(furnitureAt(scene, 400, 520 + (140 - 184) * caveScale)).toBe('cave');
+  expect(furnitureAt(scene, 200, 500 + (148 - 184) * cloudScale)).toBe('cloud');
+  expect(furnitureAt(scene, 200, 500 + (136 - 184) * cloudScale)).toBe('cloud');
+  expect(furnitureAt(scene, 200, 500 + (90 - 184) * cloudScale)).toBeNull();
+  expect(furnitureAt(scene, 400 + (152 - 140) * caveScale, 520 + (146 - 184) * caveScale)).toBe('cave');
   expect(furnitureAt(scene, 400, 520 + 40)).toBeNull();
 });
 
@@ -446,7 +447,7 @@ it('keeps the first bed when a room was saved with two', () => {
   expect(otherBedInRoom(pieces, repaired.placed, 'livingroom', 'bed_cloud_puff')?.pieceId).toBe('livingroom-bed');
 });
 
-it('treats a press on the conservatory glass as the house', () => {
+it('treats a press on the cabana as the house', () => {
   const scene = {
     props: [{ kind: 'dogHouse' as const, id: 'dogHouse', x: 320, y: 530, w: 520, flip: false }],
   } as Scene;
@@ -454,11 +455,11 @@ it('treats a press on the conservatory glass as the house', () => {
   expect(furnitureAt(scene, 320, 620)).toBeNull();
 });
 
-it('counts the Glass Conservatory as the one bed and pays 2.5×', () => {
-  expect(furnitureDefinition('dogHouse')).toMatchObject({ kind: 'dogHouse', w: 520, restMultiplier: 2.5 });
+it('counts the Pup Cabana as the one bed and pays 2×', () => {
+  expect(furnitureDefinition('dogHouse')).toMatchObject({ kind: 'dogHouse', w: styledBedWidth, restMultiplier: HOUSE_REST });
   const pieces = [
     { id: 'livingroom-bed', kind: 'bed' as const },
-    { id: 'dogHouse', kind: 'dogHouse' as const, restMultiplier: 2.5 },
+    { id: 'dogHouse', kind: 'dogHouse' as const, restMultiplier: 2 },
   ];
   const placed = [
     { pieceId: 'livingroom-bed', sceneId: 'livingroom', x: 110, y: 540 },
@@ -470,12 +471,12 @@ it('counts the Glass Conservatory as the one bed and pays 2.5×', () => {
   expect(otherBedInRoom(pieces, repaired.placed, 'livingroom', 'dogHouse')?.pieceId).toBe('livingroom-bed');
   expect(
     roomRestBadge(
-      [{ id: 'dogHouse', kind: 'dogHouse', restMultiplier: 2.5 }],
+      [{ id: 'dogHouse', kind: 'dogHouse', restMultiplier: 2 }],
       [{ pieceId: 'dogHouse', sceneId: 'livingroom', x: 200, y: 500 }],
       'livingroom',
       true,
     ),
-  ).toBe('×2.5');
+  ).toBe('×2');
 });
 
 it('lets a bed be placed only in a room that fits it', () => {
@@ -496,8 +497,8 @@ it('lets a bed be placed only in a room that fits it', () => {
 it('makes premium cat beds at least as wide as an adult cat', () => {
   const cave = furnitureDefinition('bed_kitty_cave');
   const moon = furnitureDefinition('bed_moon_cradle');
-  const caveOpening = ((cave?.w ?? 0) / 280) * (caveDoorRx * 2 - caveDoorStroke);
-  const cradle = ((moon?.w ?? 0) / 280) * moonCradleSvgWidth;
+  const caveOpening = ((cave?.w ?? 0) / 280) * stackCushionSvg;
+  const cradle = ((moon?.w ?? 0) / 280) * pillowCushionSvg;
   for (const breed of catBreeds()) {
     const geom = geomOf(breed, daysToSenior, 0, 1);
     const body = geom.bodyLen * PET_SIZE * geom.sc;
@@ -524,4 +525,21 @@ it('makes premium cat beds at least as wide as an adult cat', () => {
   const live = applyFurniture(scenes.livingroom, [], []);
   syncFurniture(live, saved);
   expect(live.props.find((prop) => prop.id === 'bed_kitty_cave')?.w).toBe(cave?.w);
+});
+
+it('puts a sleeper in the middle of the cushion', () => {
+  for (const id of ['bed_cloud_puff', 'bed_bone_sofa', 'bed_kitty_cave', 'bed_moon_cradle', 'dogHouse'] as const) {
+    const piece = furnitureDefinition(id);
+    const scene = applyFurniture(
+      scenes.livingroom,
+      [piece!],
+      [{ pieceId: id, sceneId: 'livingroom', x: 300, y: 500 }],
+    );
+    const prop = scene.props.find((item) => item.id === id);
+    const poi = scene.pois.find((item) => item.propId === id && item.type === 'bed');
+    const middle = bedCushionPoint(prop!);
+    expect(poi?.x).toBeCloseTo(middle.x);
+    expect(poi?.y).toBeCloseTo(middle.y);
+    expect(middle.x).toBeCloseTo(prop!.x + (id === 'bed_kitty_cave' ? ((prop!.w ?? 0) / 280) * 12 : 0), 0);
+  }
 });

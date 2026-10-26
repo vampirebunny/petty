@@ -26,23 +26,29 @@ export function rememberPlaydate(
     return { save, applied: false };
   }
   const petId = record.petA.petId ?? '';
-  const partnerId = record.petB.snapshotId;
-  const current = save.relationships[petId]?.[partnerId] ?? {
-    bond: 0,
-    playdateCount: 0,
-    lastPlaydateAt: record.createdAt,
-  };
-  const relationship: Relationship = {
-    bond: Math.min(playdateConfig.bondMax, current.bond + record.outcome.bondDelta),
-    playdateCount: current.playdateCount + 1,
-    lastPlaydateAt: record.createdAt,
-  };
+  const partnerIds = record.party && record.party.length > 0 ? record.party.map((pet) => pet.snapshotId) : [record.petB.snapshotId];
+  let book: Record<string, Relationship> = { ...save.relationships[petId] };
+  for (const partnerId of partnerIds) {
+    const current = book[partnerId] ?? {
+      bond: 0,
+      playdateCount: 0,
+      lastPlaydateAt: record.createdAt,
+    };
+    book = {
+      ...book,
+      [partnerId]: {
+        bond: Math.min(playdateConfig.bondMax, current.bond + record.outcome.bondDelta),
+        playdateCount: current.playdateCount + 1,
+        lastPlaydateAt: record.createdAt,
+      },
+    };
+  }
   return {
     save: {
       ...save,
       relationships: {
         ...save.relationships,
-        [petId]: { ...save.relationships[petId], [partnerId]: relationship },
+        [petId]: book,
       },
       history: [record, ...save.history].slice(0, playdateConfig.historyLimit),
       lastPlaydateCompletedAt: completedAt,

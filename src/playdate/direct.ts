@@ -57,6 +57,21 @@ export function beatAt(beats: readonly Beat[], elapsedMs: number, actor: 'A' | '
   return found;
 }
 
+// The latest beat for one pet in a group. A beat with a slot moves that pet. A beat with no slot and actor 'all' moves every pet.
+export function beatForSlot(beats: readonly Beat[], elapsedMs: number, slot: number): Beat | null {
+  let found: Beat | null = null;
+  for (const beat of beats) {
+    if (beat.t > elapsedMs) {
+      break;
+    }
+    const matches = beat.slot === slot || (beat.slot == null && beat.actor === 'all');
+    if (matches && poseFor(beat.action)) {
+      found = beat;
+    }
+  }
+  return found;
+}
+
 type Point = { x: number; y: number };
 
 // What a beat needs from the live scene: where each pet is now, how big the two bodies are together,
@@ -128,6 +143,6 @@ export function directionFor(beat: Beat, side: 'A' | 'B', context: DirectContext
     target: targetFor(beat, side, context),
     pace,
     pose,
-    token: beat.t + (side === 'A' ? 0 : 1),
+    token: beat.t * 10 + (beat.slot ?? (side === 'A' ? 0 : 1)),
   };
 }

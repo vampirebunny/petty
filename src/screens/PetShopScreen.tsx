@@ -44,7 +44,8 @@ import {
   type SpeciesId,
 } from '../economy/shop';
 import { stockedSkus } from '../actor/furniture';
-import { furnitureOf } from '../db/playerHome';
+import { currentOwner } from '../db/currentOwner';
+import { furnitureOf, subscribePlayerHome } from '../db/playerHome';
 import { ensureShopDay, loadLimitedStock, loadShopCatalog } from '../economy/shopState';
 import { refreshShopCatalog } from '../economy/shopSync';
 import type { Equipped, OutfitSlot, PetState } from '../sim/types';
@@ -199,19 +200,20 @@ export function PetShopScreen({
   const dealReady = useRef(false);
   const catalog = useMemo(() => loadShopCatalog(now), [now]);
   const day = useMemo(() => (catalog ? ensureShopDay(species, now) : null), [catalog, now, species]);
+  const [homeTick, setHomeTick] = useState(0);
+  useEffect(() => subscribePlayerHome(() => setHomeTick((value) => value + 1)), []);
   const owned = useMemo(() => {
     const ids = ownedIds(inventory, toys);
-    if (pet.ownerId) {
-      const pieces = furnitureOf(pet.ownerId);
-      for (const piece of pieces) {
-        ids.add(piece.id);
-      }
-      for (const sku of stockedSkus(pieces)) {
-        ids.add(sku);
-      }
+    if (homeTick < 0) return ids;
+    const pieces = furnitureOf(currentOwner());
+    for (const piece of pieces) {
+      ids.add(piece.id);
+    }
+    for (const sku of stockedSkus(pieces)) {
+      ids.add(sku);
     }
     return ids;
-  }, [inventory, pet.ownerId, toys]);
+  }, [homeTick, inventory, toys]);
   // `now` moves when the catalog or the shop day refreshes, which is when cached stock should reload.
   const stock = useMemo(() => (now > 0 ? loadLimitedStock() : []), [now]);
   // Off until the Golden Crown art is ready. The limited row and buy path stay in place.
@@ -750,7 +752,7 @@ function ShopCard({
         ) : (
           <Pressable
             accessibilityRole={onPreview ? 'button' : undefined}
-            accessibilityLabel={onPreview ? 'Preview Glass Conservatory' : undefined}
+            accessibilityLabel={onPreview ? 'Preview Pup Cabana' : undefined}
             disabled={!onPreview}
             onPress={onPreview}
             style={[styles.well, { width: artSize, height: artSize }]}

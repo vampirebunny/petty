@@ -696,6 +696,8 @@ export type World = {
   sounds: SoundEvent[];
   // Debug rendering only: draw every actor as a flat black silhouette.
   silhouette?: boolean;
+  // Debug: adult dog silhouettes standing and lying on the cabana cushion.
+  cabanaFit?: boolean;
   // Pets never nap or collapse on their own. Other idles still run.
   noNap?: boolean;
   // The toy gestures and play use. Missing means the ball.

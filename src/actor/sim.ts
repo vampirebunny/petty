@@ -23,8 +23,8 @@ import { toyAllows } from '../items/playRules';
 import type { PlayBehavior } from '../items/playRules';
 import { bodyFrame, depthScale, geomOf, headFaceOf, PET_SIZE, reachOf, speedMax, stageWidth, travelGateX, xRangeOf } from './geometry';
 import { askFurnitureOff, furnitureBusy, stepFurniture, tryFurnitureIdle } from './furnitureUse';
-import { askHouseLeave, HOUSE_POINTS, HOUSE_REST, houseInside, houseWorld, startHouse, stepHouse, wantsHouseRest } from './conservatory';
-import { movePiece, obstaclesIn, steerAim } from './furniture';
+import { askHouseLeave, HOUSE_REST, houseInside, houseLift, stepHouse, wantsHouseRest } from './conservatory';
+import { bedCushionPoint, bedCushionReach, movePiece, obstaclesIn, steerAim } from './furniture';
 import { applyGesture, gestureOwns, gestureWantsCamera } from './gestures';
 import { GREET, greetClip, motionMods, planGreeting, scriptFor } from './greetings';
 import { BIRD_SPECIES, spawnBirds, stepBirds } from './birds';
@@ -146,7 +146,9 @@ function settleX(actor: Actor, nextX: number, lo: number, hi: number, dt: number
     actor.vx = 0;
     return;
   }
-  if (actor.x >= lo && actor.x <= hi) {
+  // On stage, or this step lands on stage. A step that only reaches the boundary
+  // leaves the pet outside again next frame: the body changes size and the edge moves.
+  if ((actor.x >= lo && actor.x <= hi) || (nextX >= lo && nextX <= hi)) {
     actor.x = clamp(nextX, lo, hi);
     return;
   }
@@ -995,19 +997,6 @@ function glanceAt(world: World, actor: Actor, kind: CareInvite): void {
   world.glance = { face: poi.x >= actor.x ? 1 : -1, left: 0.45 };
 }
 
-function beginHouseRest(world: World, actor: Actor, prop: Prop): void {
-  const door = houseWorld(prop, HOUSE_POINTS.A.x, HOUSE_POINTS.A.y);
-  const into = prop.flip ? -1 : 1;
-  const fromGlass = (actor.x - door.x) * into > 16;
-  actor.house = startHouse(prop, world.rng(), fromGlass);
-  actor.asleep = false;
-  actor.sleepSec = 0;
-  actor.task = taskOf('sleep', 'house');
-  const rest = houseWorld(prop, HOUSE_POINTS.R.x, HOUSE_POINTS.R.y);
-  actor.task.poi = { x: rest.x, y: rest.y, propId: prop.id };
-  actor.pantT = 0;
-}
-
 function finishHouse(world: World, actor: Actor): void {
   const run = actor.house;
   actor.house = null;
@@ -1031,18 +1020,6 @@ function finishHouse(world: World, actor: Actor): void {
 
 function beginInvitedSleep(world: World, actor: Actor): boolean {
   const bed = careTarget(world, actor, 'bed');
-  const prop = bed?.propId ? world.scene.props.find((item) => item.id === bed.propId) : undefined;
-  if (prop?.kind === 'dogHouse') {
-    const run = actor.house;
-    if (run && run.propId === prop.id && houseInside(run)) {
-      world.serving = 'bed';
-      return true;
-    }
-    releaseForCare(world, actor);
-    beginHouseRest(world, actor, prop);
-    world.serving = 'bed';
-    return true;
-  }
   releaseForCare(world, actor);
   actor.asleep = false;
   actor.sleepSec = 0;
@@ -1196,7 +1173,13 @@ function nextIdle(world: World, actor: Actor): void {
   if (!world.noNap && breed?.species !== 'cat') {
     const house = world.scene.props.find((prop) => prop.kind === 'dogHouse');
     if (house && wantsHouseRest(actor.energy, world.rng())) {
-      beginHouseRest(world, actor, house);
+      const poi = world.scene.pois.find((item) => item.propId === house.id && item.type === 'bed');
+      const cushion = bedCushionPoint(house);
+      actor.asleep = false;
+      actor.sleepSec = 0;
+      actor.task = taskOf('sleep', 'go');
+      actor.task.poi = poi ?? { x: cushion.x, y: cushion.y, propId: house.id };
+      actor.pantT = 0;
       return;
     }
   }
@@ -1417,12 +1400,7 @@ export function startUserTask(
   }
   if (task === 'sleep') {
     const bed = nearestPoi(world.scene, 'bed', actor);
-    const prop = bed?.propId ? world.scene.props.find((item) => item.id === bed.propId) : undefined;
     releaseForCare(world, actor);
-    if (prop?.kind === 'dogHouse') {
-      beginHouseRest(world, actor, prop);
-      return true;
-    }
     actor.asleep = true;
     actor.sleepSec = 0;
     actor.task = taskOf('sleep', bed ? 'go' : 'sleeping');
@@ -2526,7 +2504,8 @@ function bedForRest(world: World, actor: Actor): Prop | undefined {
     if (Math.abs(actor.x - prop.x) > half) {
       continue;
     }
-    if (actor.y < prop.y - 48 || actor.y > prop.y + 28) {
+    const above = prop.kind === 'bed' ? bedCushionReach(prop) : 48;
+    if (actor.y < prop.y - above || actor.y > prop.y + 28) {
       continue;
     }
     const distance = Math.hypot(actor.x - prop.x, actor.y - prop.y);
@@ -2565,7 +2544,7 @@ function updateActor(world: World, actor: Actor, dt: number): void {
         propId: bed.id,
       };
     }
-    const multiplier = houseRest ? HOUSE_REST : (bed?.restMultiplier ?? 1);
+    const multiplier = houseRest ? (bed?.restMultiplier ?? HOUSE_REST) : (bed?.restMultiplier ?? 1);
     const gain = liveRestGrant(bed != null || houseRest, multiplier, actor.guest === true);
     while (actor.sleepSec + 1e-6 >= collapseSleepSec) {
       actor.sleepSec -= collapseSleepSec;
@@ -2893,15 +2872,13 @@ function updateActor(world: World, actor: Actor, dt: number): void {
       targets.lie = actor.house.lie;
       targets.eyes = actor.house.eyes;
       targets.headRest = actor.house.headRest;
+      targets.headDown = actor.house.headDown;
       targets.stretch = actor.house.stretch;
       targets.paw = actor.house.paw;
-      targets.wagAmp = 0;
+      targets.wagAmp = actor.house.phase === 'rest' ? 0.12 : 0;
       if (actor.house.phase === 'rest' || actor.house.phase === 'settle') {
         targets.breathAmp = 0.03;
         targets.breathRate = 0.35;
-      }
-      if (actor.house.hop && actor.z <= 0) {
-        actor.vz = 120;
       }
       if (stepped.done || actor.house.phase === 'done') {
         finishHouse(world, actor);
@@ -3455,6 +3432,7 @@ function updateActor(world: World, actor: Actor, dt: number): void {
   }
   // Velocity picks the octant, after a short low-pass. A long turn keeps a curved walk unless the goal is already close.
   // A fast stop still skids on the old octant first.
+  const cabanaFace = actor.house != null && actor.task.stage === 'house';
   const eating = actor.task.type === 'eat' && actor.task.stage === 'eating';
   const greetingStill = (actor.task.type === 'greet' || actor.task.type === 'trick') && move == null;
   const scriptedSkid = actor.direction?.pose === 'skid' || !!actor.task.greet?.skid;
@@ -3467,18 +3445,18 @@ function updateActor(world: World, actor: Actor, dt: number): void {
   const goalDist = move ? Math.hypot((traveling ? move.x : move.x) - actor.x, move.y - actor.y) : Infinity;
   const slowing = Math.hypot(desired.x, desired.y) < actor.speed * 0.85;
   const ignoreAim = goalDist < facingConfig.arriveIgnore && slowing;
-  if (skidding || scriptedSkid) {
+  if (!cabanaFace && (skidding || scriptedSkid)) {
     aimOctant(actor, actor.octant);
-  } else if (greetingStill || (eating && sideLock == null)) {
+  } else if (!cabanaFace && (greetingStill || (eating && sideLock == null))) {
     aimOctant(actor, sideOctant(actor.face));
-  } else if (sideLock != null) {
+  } else if (!cabanaFace && sideLock != null) {
     aimOctant(actor, sideOctant(sideLock));
-  } else if (!ignoreAim && Math.hypot(actor.aimVx, actor.aimVy) >= facingConfig.restSpeed) {
+  } else if (!cabanaFace && !ignoreAim && Math.hypot(actor.aimVx, actor.aimVy) >= facingConfig.restSpeed) {
     aimOctant(actor, octantFromVelocity(actor.aimVx, actor.aimVy, actor.octantTarget));
-  } else if (!ignoreAim && actor.speed < facingConfig.restSpeed) {
+  } else if (!cabanaFace && !ignoreAim && actor.speed < facingConfig.restSpeed) {
     aimOctant(actor, sideOctant(actor.face));
   }
-  if (holdForTurn(actor) && !actor.jump && !skidding && !scriptedSkid) {
+  if (!cabanaFace && holdForTurn(actor) && !actor.jump && !skidding && !scriptedSkid) {
     if (goalDist < facingConfig.turnStop) {
       desired.x = 0;
       desired.y = 0;
@@ -3529,9 +3507,26 @@ function updateActor(world: World, actor: Actor, dt: number): void {
   if (actor.direction?.pose === 'skid') {
     targets.skid = 1;
   }
-  stepOctant(actor, dt);
-  if (actor.house?.holdFace) {
-    snapFacing(actor, actor.house.face);
+  if (cabanaFace && actor.house) {
+    const run = actor.house;
+    actor.octantFrom = run.octantFrom;
+    actor.octant = run.octant;
+    actor.octantTarget = run.octant;
+    actor.octantBlend = run.spinning ? run.octantBlend : 1;
+    actor.octantHold = 0;
+    actor.octantSpan = 0;
+    actor.face = run.face;
+    actor.aimFace = run.face;
+    const deck = world.scene.props.find((item) => item.id === run.propId);
+    if (deck && run.phase !== 'front' && run.phase !== 'done') {
+      actor.z = houseLift(deck, actor.y);
+      actor.vz = 0;
+    } else if (run.phase === 'front') {
+      actor.z = 0;
+      actor.vz = 0;
+    }
+  } else {
+    stepOctant(actor, dt);
   }
   stepYaw(actor, dt, 0);
   if (gestureWantsCamera(actor)) {
@@ -3587,12 +3582,9 @@ function updateActor(world: World, actor: Actor, dt: number): void {
       targets.headTurn = 0;
       actor.pose.headTurn = 0;
     }
-    if (!greeting && actor.speed > 14 && actor.pose.headTurn > 0.15 && !(actor.house?.holdFace && actor.house.headTurn > 0)) {
+    if (!greeting && actor.speed > 14 && actor.pose.headTurn > 0.15 && !cabanaFace) {
       actor.pose.headTurn = 0.15;
     }
-  }
-  if (actor.house?.holdFace) {
-    targets.headTurn = actor.house.headTurn;
   }
   // Gait: chosen from the speed with hysteresis, blended over ~150 ms, and limited by stamina and age.
   actor.share = topSpeed > 0 ? clamp(actor.speed / topSpeed, 0, 1.2) : 0;

@@ -16,7 +16,11 @@ export type ActivityId =
   | 'sniff'
   | 'splash'
   | 'nap'
-  | 'trick';
+  | 'trick'
+  | 'conga'
+  | 'line'
+  | 'wave'
+  | 'pass';
 
 export type SpeciesPair = 'dog-dog' | 'cat-cat' | 'dog-cat';
 
@@ -96,13 +100,17 @@ export type BeatTempo = 'snap' | 'normal' | 'linger';
 export type BeatProp = {
   kind: 'ball' | 'frisbee' | 'squeaky' | 'stick' | 'rope';
   holder?: 'A' | 'B' | 'both' | null;
+  // Which pet in a group is carrying it. 0 is the player's pet.
+  holderSlot?: number;
   throwTo?: { x: number; y: number };
   at?: { x: number; y: number };
 };
 
 export type Beat = {
   t: number;
-  actor: 'A' | 'B' | 'both';
+  actor: 'A' | 'B' | 'both' | 'all';
+  // Group playback. 0 is the player's pet. Set on a beat that moves one pet.
+  slot?: number;
   action: string;
   params?: BeatParams;
   // Set only when the step that produced this beat named them. Replay reads the stored values.
@@ -128,7 +136,7 @@ export type PlaydateOutcome = {
 };
 
 export type PlaydateRecord = {
-  version: 1 | 2;
+  version: 1 | 2 | 3;
   playdateId: string;
   ownerId: string;
   createdAt: string;
@@ -136,6 +144,8 @@ export type PlaydateRecord = {
   hour: number;
   petA: PetSnapshot;
   petB: PetSnapshot;
+  // Every friend, when this is a group playdate. petB is party[0].
+  party?: PetSnapshot[];
   activityId: ActivityId;
   outfit: Equipped;
   seed: number;

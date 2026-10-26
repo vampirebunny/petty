@@ -6,7 +6,7 @@ import type { SkPicture } from '@shopify/react-native-skia';
 import { breedById, createWorld, frameDt, growthFor, sceneById, setDirection, spawnActor, startGesture, startUserTask, takeSounds, todAt, update, voiceRate } from '../actor';
 import { playVoice } from '../audio/voice';
 import { bodyOf, faceEachOther, separate, tugShift } from '../playdate/contact';
-import { beatAt, directionFor, playdateEndMs, replayBeats } from '../playdate/direct';
+import { beatAt, beatForSlot, directionFor, playdateEndMs, replayBeats } from '../playdate/direct';
 import { burstFor, stepBursts } from '../playdate/overlay';
 import type { OverlayBurst } from '../playdate/overlay';
 import { butterflyAt, propAt } from '../playdate/props';
@@ -42,6 +42,11 @@ function applyProp(world: World, prop: PropView | null): void {
     state: 'free',
     ...extra,
   });
+  if (prop.holderSlot != null) {
+    const actor = world.actors[prop.holderSlot];
+    world.items = [item({ state: 'carried', holderId: actor?.id, x: actor?.x ?? prop.x, y: actor?.y ?? prop.y, z: 0 })];
+    return;
+  }
   if (prop.holder === 'A' || prop.holder === 'B') {
     const actor = prop.holder === 'A' ? world.actors[0] : world.actors[1];
     world.items = [item({ state: 'carried', holderId: actor?.id, x: actor?.x ?? prop.x, y: actor?.y ?? prop.y, z: 0 })];
@@ -61,15 +66,22 @@ export function PlaydateStage({ record, reducedMotion, onDone, onTogether }: Pro
   const { contentWidth: viewWidth, viewHeight } = useStageSize();
   const beats = useMemo(() => replayBeats(record), [record]);
   const endMs = useMemo(() => playdateEndMs(beats), [beats]);
+  const grouped = record.party != null && record.party.length >= 2;
   const world = useMemo(() => {
     const scene = sceneById(record.sceneId);
     const y = (scene.floor.yMin + scene.floor.yMax) / 2;
+    const cast = grouped ? [record.petA, ...(record.party ?? [])] : [record.petA, record.petB];
+    const left = scene.floor.xMin + 48;
+    const right = scene.floor.xMax - 48;
     return createWorld(
-      [spawnActor(actorSourceOf(record.petA), { x: 200, y }), spawnActor(actorSourceOf(record.petB), { x: 440, y })],
+      cast.map((pet, index) => {
+        const x = cast.length <= 1 ? (left + right) / 2 : left + ((right - left) * index) / (cast.length - 1);
+        return spawnActor(actorSourceOf(pet), { x, y });
+      }),
       record.seed || 1,
       scene,
     );
-  }, [record]);
+  }, [grouped, record]);
   const [picture, setPicture] = useState<SkPicture | null>(null);
   const onDoneRef = useRef(onDone);
   const onTogetherRef = useRef(onTogether);
@@ -86,7 +98,7 @@ export function PlaydateStage({ record, reducedMotion, onDone, onTogether }: Pro
     let raf = 0;
     let last = Date.now();
     let elapsed = 0;
-    let opening: OpeningState = { phase: 'portraitA', elapsed: 0 };
+    let opening: OpeningState = grouped ? { phase: 'play', elapsed: 0 } : { phase: 'portraitA', elapsed: 0 };
     let placed: OpeningPhase | null = null;
     let finished = false;
     let toldTogether = false;
@@ -153,12 +165,12 @@ export function PlaydateStage({ record, reducedMotion, onDone, onTogether }: Pro
       const right = world.actors[1];
       const floor = world.scene.floor;
       const y = (floor.yMin + floor.yMax) / 2;
-      if (left && right && opening.phase !== 'play') {
+      if (!grouped && left && right && opening.phase !== 'play') {
         const arrived =
           opening.phase === 'enterA' ? closeEnough(left, homeA, y) : opening.phase === 'enterB' ? closeEnough(right, homeB, y) : false;
         opening = stepOpening(opening, dt * 1000, arrived);
       }
-      if (left && right && opening.phase !== placed) {
+      if (!grouped && left && right && opening.phase !== placed) {
         placeOpening(opening.phase, left, right, floor, y);
         placed = opening.phase;
       }
@@ -171,9 +183,38 @@ export function PlaydateStage({ record, reducedMotion, onDone, onTogether }: Pro
       if (playing) {
         elapsed += step * 1000;
       }
-      const beatA = playing ? beatAt(beats, elapsed, 'A') : null;
-      const beatB = playing ? beatAt(beats, elapsed, 'B') : null;
-      if (playing && left && right) {
+      const beatA = playing && !grouped ? beatAt(beats, elapsed, 'A') : null;
+      const beatB = playing && !grouped ? beatAt(beats, elapsed, 'B') : null;
+      if (playing && grouped) {
+        const actors = world.actors;
+        for (let slot = 0; slot < actors.length; slot += 1) {
+          const pet = actors[slot];
+          const beat = beatForSlot(beats, elapsed, slot);
+          const other = actors[slot === 0 ? 1 : 0] ?? pet;
+          if (!pet || !beat || !other) {
+            continue;
+          }
+          const reach = bodyOf(pet, floor).radius + bodyOf(other, floor).radius;
+          setDirection(pet, directionFor(beat, 'A', { self: pet, other, reach, floor }));
+        }
+        for (const index of crossBeats(beats, elapsed, fired)) {
+          const beat = beats[index];
+          const slots = beat.slot != null ? [beat.slot] : beat.actor === 'all' ? actors.map((_, slot) => slot) : [];
+          for (const slot of slots) {
+            const pet = actors[slot];
+            if (!pet) {
+              continue;
+            }
+            if (beat.emote || beat.fx) {
+              arm(pet, beat, 'A');
+            }
+            if (beat.sfx === 'happy' || beat.action === 'celebrate') {
+              playShot(pet, { actor: 'A', speak: false, sound: 'cuddle_happy', rateScale: 1, jaw: true, skipIfBarking: true });
+            }
+          }
+        }
+      }
+      if (playing && left && right && !grouped) {
         const reach = bodyOf(left, floor).radius + bodyOf(right, floor).radius;
         if (beatA) {
           setDirection(left, directionFor(beatA, 'A', { self: left, other: right, reach, floor }));
@@ -184,6 +225,9 @@ export function PlaydateStage({ record, reducedMotion, onDone, onTogether }: Pro
         if (record.version >= 2) {
           for (const index of crossBeats(beats, elapsed, fired)) {
             const beat = beats[index];
+            if (beat.actor !== 'A' && beat.actor !== 'B' && beat.actor !== 'both') {
+              continue;
+            }
             const sides = beat.actor === 'both' ? (['A', 'B'] as const) : ([beat.actor] as const);
             for (const side of sides) {
               arm(side === 'A' ? left : right, beat, side);
@@ -207,7 +251,19 @@ export function PlaydateStage({ record, reducedMotion, onDone, onTogether }: Pro
       }
       world.items = [];
       update(world, step);
-      if (playing && left && right) {
+      if (playing && grouped) {
+        const actors = world.actors;
+        for (let i = 0; i < actors.length; i += 1) {
+          for (let j = i + 1; j < actors.length; j += 1) {
+            const a = actors[i];
+            const b = actors[j];
+            if (a && b) {
+              separate(a, b, floor, step);
+            }
+          }
+        }
+      }
+      if (playing && left && right && !grouped) {
         if (beatA?.action === 'tug' || beatA?.action === 'tug_rope') {
           tugShift(left, elapsed / 1000, 'A', step);
         }
@@ -222,13 +278,20 @@ export function PlaydateStage({ record, reducedMotion, onDone, onTogether }: Pro
       }
       const prop = playing && record.version >= 2 ? propAt(beats, elapsed) : null;
       applyProp(world, prop);
-      if (record.version >= 2 && prop && prop.holder != null) {
+      if (record.version >= 2 && prop && (prop.holder != null || prop.holderSlot != null)) {
         const pulse = 0.35 + 0.15 * Math.sin(elapsed / 180);
-        if (prop.holder !== 'B' && left) {
-          left.pose.jawHold = pulse;
-        }
-        if (prop.holder !== 'A' && right) {
-          right.pose.jawHold = pulse;
+        if (prop.holderSlot != null) {
+          const carrier = world.actors[prop.holderSlot];
+          if (carrier) {
+            carrier.pose.jawHold = pulse;
+          }
+        } else {
+          if (prop.holder !== 'B' && left) {
+            left.pose.jawHold = pulse;
+          }
+          if (prop.holder !== 'A' && right) {
+            right.pose.jawHold = pulse;
+          }
         }
       }
       if (record.version >= 2) {
@@ -236,7 +299,7 @@ export function PlaydateStage({ record, reducedMotion, onDone, onTogether }: Pro
           if (elapsed > jaw.until) {
             continue;
           }
-          const pet = jaw.id === left?.id ? left : jaw.id === right?.id ? right : null;
+          const pet = world.actors.find((actor) => actor.id === jaw.id);
           if (pet) {
             pet.pose.jawHold = 0.7;
           }
@@ -286,7 +349,7 @@ export function PlaydateStage({ record, reducedMotion, onDone, onTogether }: Pro
       running = false;
       cancelAnimationFrame(raf);
     };
-  }, [beats, endMs, record.hour, record.seed, record.version, reducedMotion, viewHeight, viewWidth, world]);
+  }, [beats, endMs, grouped, record.hour, record.seed, record.version, reducedMotion, viewHeight, viewWidth, world]);
 
   if (!picture) {
     return null;

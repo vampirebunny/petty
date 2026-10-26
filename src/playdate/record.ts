@@ -1,6 +1,7 @@
 import type { Equipped, PetState } from '../sim/types';
 import { playdateConfig } from './config';
 import { generatePlaydate } from './generate';
+import { generateGroupPlaydate } from './group';
 import { snapshotPet } from './snapshot';
 import type { ActivityDefinition, PetSnapshot, PlaydateRecord } from './types';
 
@@ -38,6 +39,46 @@ export function createPlaydateRecord(input: {
     hour: playdateConfig.dayHour,
     petA,
     petB: input.partner,
+    activityId: input.activity.id,
+    outfit: { ...input.outfit },
+    seed: input.seed,
+    beats: generated.beats,
+    outcome: generated.outcome,
+  };
+}
+
+export function createGroupPlaydateRecord(input: {
+  pet: PetState;
+  guests: readonly PetSnapshot[];
+  activity: ActivityDefinition;
+  sceneId: string;
+  outfit: Equipped;
+  seed: number;
+  createdAt: string;
+  ownerId: string;
+}): PlaydateRecord {
+  const snapshotId = `${input.pet.id}-${input.seed}`;
+  const petA = snapshotPet(input.pet, input.outfit, input.createdAt, snapshotId);
+  const party = input.guests.map((guest) => ({ ...guest }));
+  const first = party[0];
+  if (!first) {
+    throw new Error('A group playdate needs a friend.');
+  }
+  const generated = generateGroupPlaydate({
+    pets: [petA, ...party],
+    activity: input.activity,
+    sceneId: input.sceneId,
+  });
+  return {
+    version: 3,
+    playdateId: snapshotId,
+    ownerId: input.ownerId,
+    createdAt: input.createdAt,
+    sceneId: input.sceneId,
+    hour: playdateConfig.dayHour,
+    petA,
+    petB: first,
+    party,
     activityId: input.activity.id,
     outfit: { ...input.outfit },
     seed: input.seed,

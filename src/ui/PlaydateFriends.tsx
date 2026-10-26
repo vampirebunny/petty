@@ -6,6 +6,7 @@ import { findFriendsSnapshot, onFindFriends, openFindFriends } from '../friends/
 import { loadFriends } from '../friends/api';
 import { canUseFriends, inviteShareMessage } from '../friends/rules';
 import type { FriendRow } from '../friends/types';
+import { maxPlaydateFriends } from '../playdate/party';
 import { setSuppressOpenPath } from '../state/sessionGate';
 import { AccountSheet } from './AccountSheet';
 import { CandyShell, candyInk, tints } from './candy';
@@ -17,9 +18,13 @@ type Props = {
   linked: boolean;
   petName: string;
   handle: string | null;
+  cooling?: boolean;
+  selected?: readonly string[];
+  onToggle?: (userId: string) => void;
+  onInvite?: (friends: FriendRow[]) => void;
 };
 
-export function PlaydateFriends({ linked, petName, handle }: Props) {
+export function PlaydateFriends({ linked, petName, handle, cooling = false, selected = [], onToggle, onInvite }: Props) {
   const allowed = canUseFriends(linked);
   const [friends, setFriends] = useState<FriendRow[]>([]);
   const [offline, setOffline] = useState(false);
@@ -51,6 +56,17 @@ export function PlaydateFriends({ linked, petName, handle }: Props) {
     };
   }, [allowed]);
 
+  const invite = () => {
+    if (!allowed || cooling || !onInvite) {
+      return;
+    }
+    const chosen = friends.filter((friend) => selected.includes(friend.userId) && friend.pet);
+    if (chosen.length === 0) {
+      return;
+    }
+    onInvite(chosen);
+  };
+
   const share = () => {
     if (!allowed) {
       return;
@@ -65,16 +81,47 @@ export function PlaydateFriends({ linked, petName, handle }: Props) {
       {offline ? <Text style={styles.meta}>Offline</Text> : null}
       {allowed && friends.length === 0 ? <Text style={styles.meta}>No friends yet.</Text> : null}
       {!allowed ? <Text style={styles.meta}>No friends yet.</Text> : null}
+      {allowed && friends.length > 0 ? <Text style={styles.meta}>Pick up to {maxPlaydateFriends}</Text> : null}
       {allowed
-        ? friends.map((friend) => (
-            <View key={friend.userId} style={styles.row}>
-              <FriendFace userId={friend.userId} pet={friend.pet} />
-              <View style={styles.copy}>
-                <Text style={styles.handle}>@{friend.handle}</Text>
-                <Text style={styles.meta}>{friend.pet?.name ?? 'No pet yet'}</Text>
-              </View>
-            </View>
-          ))
+        ? friends.map((friend) => {
+            const checked = selected.includes(friend.userId);
+            const canPick = friend.pet != null && onToggle != null;
+            const full = !checked && selected.length >= maxPlaydateFriends;
+            const row = (
+              <>
+                <FriendFace userId={friend.userId} pet={friend.pet} />
+                <View style={styles.copy}>
+                  <Text style={styles.handle}>@{friend.handle}</Text>
+                  <Text style={styles.meta}>{friend.pet?.name ?? 'No pet yet'}</Text>
+                </View>
+                {canPick ? (
+                  <View style={[styles.check, checked && styles.checkOn]}>
+                    {checked ? <Text style={styles.checkMark}>✓</Text> : null}
+                  </View>
+                ) : null}
+              </>
+            );
+            if (!canPick) {
+              return (
+                <View key={friend.userId} style={styles.row}>
+                  {row}
+                </View>
+              );
+            }
+            return (
+              <Pressable
+                key={friend.userId}
+                accessibilityRole="checkbox"
+                accessibilityLabel={checked ? `Deselect @${friend.handle}` : `Select @${friend.handle}`}
+                accessibilityState={{ checked, disabled: cooling || full }}
+                disabled={cooling || full}
+                onPress={() => onToggle(friend.userId)}
+                style={[styles.row, checked && styles.rowOn, (cooling || full) && styles.dimmed]}
+              >
+                {row}
+              </Pressable>
+            );
+          })
         : null}
       {allowed ? (
         <Pressable accessibilityRole="button" accessibilityLabel="Find friends" onPress={() => openFindFriends()} style={styles.hit}>
@@ -93,6 +140,22 @@ export function PlaydateFriends({ linked, petName, handle }: Props) {
           )}
         </Pressable>
       )}
+      {allowed && friends.length > 0 && onInvite ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Invite to playdate"
+          accessibilityState={{ disabled: cooling || selected.length === 0 }}
+          disabled={cooling || selected.length === 0}
+          onPress={invite}
+          style={styles.hit}
+        >
+          {({ pressed }) => (
+            <CandyShell tint={tints.mint} radius={22} uid="playdate-party" pressed={pressed} style={[styles.button, (cooling || selected.length === 0) && styles.dimmed]}>
+              <Text style={[styles.buttonText, { color: candyInk(tints.mint) }]}>Invite to playdate</Text>
+            </CandyShell>
+          )}
+        </Pressable>
+      ) : null}
       {allowed ? (
         <Pressable accessibilityRole="button" accessibilityLabel="Invite a friend to Boop Boop" onPress={share} style={styles.hit}>
           {({ pressed }) => (
@@ -125,6 +188,28 @@ const styles = StyleSheet.create({
     backgroundColor: '#fffaf4',
     borderRadius: 18,
     padding: 8,
+  },
+  rowOn: {
+    backgroundColor: '#DDF6E8',
+  },
+  check: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#E4E8EF',
+  },
+  checkOn: {
+    backgroundColor: '#4FC98A',
+  },
+  checkMark: {
+    fontFamily: fontFamily.fredokaBold,
+    fontSize: 16,
+    color: '#14503A',
+  },
+  dimmed: {
+    opacity: 0.4,
   },
   copy: {
     flex: 1,

@@ -69,7 +69,7 @@ export function resolveSfx(name: string, species: 'dog' | 'cat'): Clip | null {
 }
 
 export function sfxShots(beat: Beat, speciesOf: (actor: 'A' | 'B') => 'dog' | 'cat'): SfxShot[] {
-  if (beat.sfx == null) {
+  if (beat.sfx == null || (beat.actor !== 'A' && beat.actor !== 'B' && beat.actor !== 'both')) {
     return [];
   }
   const sides: ('A' | 'B')[] = beat.actor === 'both' ? ['A', 'B'] : [beat.actor];
@@ -147,7 +147,7 @@ export function assignSfx(beats: Beat[], petA: PetSnapshot, petB: PetSnapshot, u
       beat.sfx = 'happy';
       continue;
     }
-    if (beat.actor === 'both') {
+    if (beat.actor !== 'A' && beat.actor !== 'B') {
       continue;
     }
     const species = (beat.actor === 'A' ? petA : petB).species;

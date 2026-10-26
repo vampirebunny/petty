@@ -40,6 +40,7 @@ function migrateRecord(record: PlaydateRecord, scaleAge: boolean): PlaydateRecor
     outfit: migrateEquipped(record.outfit),
     petA: migrateSnapshot(record.petA, scaleAge),
     petB: migrateSnapshot(record.petB, scaleAge),
+    ...(record.party ? { party: record.party.map((pet) => migrateSnapshot(pet, scaleAge)) } : {}),
   };
 }
 

@@ -2,6 +2,7 @@ import { stageOf } from '../sim/attributes';
 import type { Stage } from '../sim/types';
 import { playdateConfig } from './config';
 import { pickIndex, rngFrom } from './rng';
+import { groupActivities } from './group';
 import type { ActivityDefinition, ActivityId, BeatTemplateId, PetSnapshot, Species, SpeciesPair } from './types';
 
 const stageOrder: Stage[] = ['puppy', 'olderPuppy', 'adolescent', 'adult', 'senior'];
@@ -50,7 +51,7 @@ export const activities: ActivityDefinition[] = [
 ];
 
 export function activityById(id: string): ActivityDefinition | null {
-  return activities.find((activity) => activity.id === id) ?? null;
+  return activities.find((activity) => activity.id === id) ?? groupActivities.find((activity) => activity.id === id) ?? null;
 }
 
 export function speciesPair(a: Species, b: Species): SpeciesPair {

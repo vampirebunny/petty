@@ -2,19 +2,22 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Pressable } from 'react-native-gesture-handler';
 
-import { breedById, scenesFor } from '../actor';
+import { breedById, ownedScenes, scenesFor } from '../actor';
 import { seedOf } from '../actor/mulberry';
 import type { OwnedItem } from '../actor/closet';
 import { activityById, offerActivities, trainedLabel } from '../playdate/activities';
+import { offerGroupActivities } from '../playdate/group';
+import { formatFriendNames, toggleFriend } from '../playdate/party';
 import { formatCooldown } from '../playdate/cooldown';
 import { localDateKey, personalityHint } from '../playdate/hint';
 import { dailyCast } from '../playdate/npcs';
-import { createPlaydateRecord } from '../playdate/record';
+import { createGroupPlaydateRecord, createPlaydateRecord } from '../playdate/record';
 import { attributeGains, bondHint, rareEventLine } from '../playdate/rewards';
 import type { AttributeGain } from '../playdate/rewards';
 import { latestPlaydateTags, recentPlaydateTags, relationshipFor, rememberPlaydate } from '../playdate/save';
-import { snapshotPet } from '../playdate/snapshot';
+import { snapshotFromFriend, snapshotPet } from '../playdate/snapshot';
 import type { ActivityDefinition, PetSnapshot, PlaydateRecord, PlaydateSave } from '../playdate/types';
+import type { FriendRow } from '../friends/types';
 import type { Equipped, PetState } from '../sim/types';
 import { PlaydateResults } from '../ui/PlaydateResults';
 import type { ResultsNote } from '../ui/PlaydateResults';
@@ -26,6 +29,11 @@ import { fontFamily } from '../ui/font';
 import { PhoneColumn } from '../ui/PhoneColumn';
 import { WardrobePicker } from '../ui/WardrobePicker';
 import { minTouch } from '../ui/theme';
+
+function guestNames(record: PlaydateRecord): string {
+  const names = record.party && record.party.length > 0 ? record.party.map((pet) => pet.name) : [record.petB.name];
+  return formatFriendNames(names);
+}
 
 function resultNotes(record: PlaydateRecord, petName: string): ResultsNote[] {
   const notes: ResultsNote[] = record.outcome.rareEvents.map((event) => ({
@@ -63,6 +71,8 @@ export function PlaydateScreen({ pet, save, now, remaining, reducedMotion, onSav
   const date = localDateKey(now);
   const partners = useMemo(() => dailyCast(save.cast, ownerId, date), [date, ownerId, save.cast]);
   const [step, setStep] = useState<Step>('partner');
+  const [picked, setPicked] = useState<string[]>([]);
+  const [guests, setGuests] = useState<PetSnapshot[] | null>(null);
   const [partner, setPartner] = useState<PetSnapshot | null>(null);
   const [sceneId, setSceneId] = useState(pet.sceneId);
   const [activity, setActivity] = useState<ActivityDefinition | null>(null);
@@ -100,8 +110,14 @@ export function PlaydateScreen({ pet, save, now, remaining, reducedMotion, onSav
 
   const preview = useMemo(() => snapshotPet(pet, pet.equipped, '', 'preview'), [pet]);
   const petSpecies = breedById(pet.breedId)?.species === 'cat' ? 'cat' : 'dog';
-  const places = scenesFor(partner ? [petSpecies, partner.species] : petSpecies);
-  const activities = partner ? offerActivities(preview, partner, sceneId, date) : [];
+  const friendParty = guests != null && guests.length > 0;
+  const places = friendParty ? ownedScenes(petSpecies) : scenesFor(partner ? [petSpecies, partner.species] : petSpecies);
+  const activities =
+    guests && guests.length >= 2
+      ? offerGroupActivities(guests, sceneId, date)
+      : partner
+        ? offerActivities(preview, partner, sceneId, date)
+        : [];
   const cooling = remaining > 0;
   const countdown = `Next playdate in ${formatCooldown(remaining)}`;
   const heading =
@@ -154,12 +170,49 @@ export function PlaydateScreen({ pet, save, now, remaining, reducedMotion, onSav
     setStep('results');
   };
 
+  const inviteFriends = (rows: FriendRow[]) => {
+    const snaps = rows.flatMap((row) => {
+      if (!row.pet) {
+        return [];
+      }
+      const snap = snapshotFromFriend(row.userId, row.pet);
+      return snap ? [snap] : [];
+    });
+    const first = snaps[0];
+    if (!first) {
+      return;
+    }
+    setGuests(snaps);
+    setPartner(first);
+    setActivity(null);
+    setStep('place');
+  };
+
   const start = () => {
     if (!partner || !activity || cooling || !ownerId) {
       return;
     }
     const createdAt = new Date().toISOString();
-    const seed = seedOf(`${pet.id}|${partner.snapshotId}|${createdAt}`) >>> 0;
+    const seed = seedOf(`${pet.id}|${guests?.map((guest) => guest.snapshotId).join(',') ?? partner.snapshotId}|${createdAt}`) >>> 0;
+    if (guests && guests.length >= 2) {
+      const next = createGroupPlaydateRecord({
+        pet,
+        guests,
+        activity,
+        sceneId,
+        outfit,
+        seed,
+        createdAt,
+        ownerId,
+      });
+      finished.current = false;
+      setReplay(false);
+      setGains(null);
+      resetSkip();
+      setRecord(next);
+      setStep('play');
+      return;
+    }
     const next = createPlaydateRecord({
       pet,
       partner,
@@ -242,7 +295,15 @@ export function PlaydateScreen({ pet, save, now, remaining, reducedMotion, onSav
       <ScrollView style={styles.scroller} contentContainerStyle={styles.scroll}>
         {step === 'partner' ? (
           <View style={styles.stack}>
-            <PlaydateFriends linked={linked} petName={pet.name} handle={accountHandle} />
+            <PlaydateFriends
+              linked={linked}
+              petName={pet.name}
+              handle={accountHandle}
+              cooling={cooling}
+              selected={picked}
+              onToggle={(userId) => setPicked((current) => toggleFriend(current, userId))}
+              onInvite={inviteFriends}
+            />
             {partners.map((npc) => {
               const bond = relationshipFor(save, pet.id, npc.snapshotId)?.bond ?? 0;
               return (
@@ -253,6 +314,7 @@ export function PlaydateScreen({ pet, save, now, remaining, reducedMotion, onSav
                   accessibilityState={{ disabled: cooling }}
                   disabled={cooling}
                   onPress={() => {
+                    setGuests(null);
                     setPartner(npc);
                     setStep('place');
                   }}
@@ -275,12 +337,12 @@ export function PlaydateScreen({ pet, save, now, remaining, reducedMotion, onSav
                   <Pressable
                     key={saved.playdateId}
                     accessibilityRole="button"
-                    accessibilityLabel={`Replay playdate with ${saved.petB.name}`}
+                    accessibilityLabel={`Replay playdate with ${guestNames(saved)}`}
                     onPress={() => watch(saved)}
                     style={styles.choice}
                   >
                     <Text style={styles.choiceLabel}>
-                      {saved.petB.name} · {activityById(saved.activityId)?.name ?? 'Playdate'}
+                      {guestNames(saved)} · {activityById(saved.activityId)?.name ?? 'Playdate'}
                       {saved.outcome.rareEvents.some((event) => event.type === 'upset') ? ' · Upset' : ''}
                       {saved.beats.some((beat) => beat.tag === 'golden') ? ' · Golden' : ''}
                     </Text>
@@ -337,7 +399,7 @@ export function PlaydateScreen({ pet, save, now, remaining, reducedMotion, onSav
         {step === 'play' && record ? (
           <View style={styles.stack}>
             <Text style={styles.activity}>
-              {activityById(record.activityId)?.name ?? 'Playdate'} with {record.petB.name}
+              {activityById(record.activityId)?.name ?? 'Playdate'} with {guestNames(record)}
             </Text>
             <PlaydateStage record={record} reducedMotion={reducedMotion} onDone={finish} onTogether={dogsTogether} />
             {skipReady ? (
@@ -350,7 +412,7 @@ export function PlaydateScreen({ pet, save, now, remaining, reducedMotion, onSav
         {step === 'results' && record ? (
           <PlaydateResults
             title={replay ? 'Replay' : 'What a good playdate'}
-            friendName={record.petB.name}
+            friendName={guestNames(record)}
             petA={record.petA}
             petB={record.petB}
             moodDelta={record.outcome.moodDelta}

@@ -2,7 +2,7 @@ import { ClipOp, Skia } from '@shopify/react-native-skia';
 import type { SkCanvas } from '@shopify/react-native-skia';
 
 import type { Prop } from '../../actor/scenes';
-import { paintConservatory } from './conservatory';
+import { paintPupCabana } from './cabana';
 import { drawWindowDecor } from './decor';
 import type { Env } from './env';
 import { snowOn, weatherOf } from './env';
@@ -505,7 +505,7 @@ registerProp('shape', (c, prop, env) => drawShapes(c, prop.shapes ?? [], env));
 registerProp('bowl', drawBowl);
 registerProp('litterbox', drawLitterbox);
 registerProp('bed', drawBed);
-registerProp('dogHouse', (c) => paintConservatory(c, 'full', { detail: true, sparkles: false, night: 0 }));
+registerProp('dogHouse', (c, prop) => paintPupCabana(c, prop));
 registerProp('rug', (c, prop) => drawRug(c, prop));
 registerProp('couch', drawCouch);
 registerProp('window', drawWindow);

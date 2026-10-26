@@ -3,7 +3,7 @@ import { outfitSlots, wardrobe, wearItem } from '../actor/wardrobe';
 import type { ActorSource } from '../actor/types';
 import { styleBasis } from '../sim/attributes';
 import { currentStyle } from '../sim/offers';
-import type { Archetype, Equipped, Look, PetState, Stats } from '../sim/types';
+import type { Archetype, Equipped, Look, OutfitSlot, PetState, Stats } from '../sim/types';
 import type { PetSnapshot } from './types';
 
 function remoteWearDefs(outfit: Equipped): PetSnapshot['wearDefs'] {
@@ -51,6 +51,23 @@ export function snapshotPet(pet: PetState, outfit: Equipped, createdAt: string, 
   };
 }
 
+// The outfit they have on, limited to pieces that player owns. Missing owned keeps the worn outfit.
+// An owned piece they are not wearing is not added.
+export function friendOutfit(equipped: Equipped, owned?: readonly { slot: OutfitSlot; id: string }[]): Equipped {
+  if (!owned) {
+    return { ...equipped };
+  }
+  const allowed = new Set(owned.map((item) => `${item.slot}:${item.id}`));
+  const next: Equipped = {};
+  for (const slot of outfitSlots) {
+    const id = equipped[slot];
+    if (id && allowed.has(`${slot}:${id}`)) {
+      next[slot] = id;
+    }
+  }
+  return next;
+}
+
 export function snapshotFromFriend(
   userId: string,
   card: {
@@ -59,6 +76,7 @@ export function snapshotFromFriend(
     breedId: string;
     look: Look;
     equipped: Equipped;
+    owned?: readonly { slot: OutfitSlot; id: string }[];
     ageDays: number;
     weight: number;
     vitality: number;
@@ -71,7 +89,8 @@ export function snapshotFromFriend(
   if (!breedById(card.breedId) || !card.look?.coat || !card.name) {
     return null;
   }
-  const wearDefs = remoteWearDefs(card.equipped);
+  const equipped = friendOutfit(card.equipped, card.owned);
+  const wearDefs = remoteWearDefs(equipped);
   const species = breedById(card.breedId)?.species === 'cat' ? 'cat' : 'dog';
   return {
     snapshotId: `friend:${userId}`,
@@ -81,7 +100,7 @@ export function snapshotFromFriend(
     species,
     breedId: card.breedId,
     look: card.look,
-    equipped: card.equipped,
+    equipped,
     ...(wearDefs ? { wearDefs } : {}),
     ageDays: card.ageDays,
     weight: card.weight,
