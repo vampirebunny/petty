@@ -1,6 +1,6 @@
+import { activeCatalogVersion } from '../economy/catalogCache';
 import { economyConfig } from '../economy/economyConfig';
 import { appVersion } from '../economy/remoteDefs';
-import { loadShopCatalog } from '../economy/shopState';
 import { getDb } from './database';
 
 export type LedgerLine = {
@@ -33,7 +33,7 @@ export function writeLedgerEntry(
   const database = getDb();
   const kind = ledgerKind(source);
   const deviceTime = new Date().toISOString();
-  const catalogVersion = loadShopCatalog()?.version ?? null;
+  const catalogVersion = activeCatalogVersion();
   database.runSync(
     `INSERT INTO transactions (
        id, owner_id, idempotency_key, source, kind, source_ref, device_time, app_version, config_version, catalog_version

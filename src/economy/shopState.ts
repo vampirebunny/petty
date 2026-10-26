@@ -1,4 +1,5 @@
 import { catalog, catalogItem } from './catalog';
+import { promoteCatalog, readCatalogCache } from './catalogCache';
 import { rememberActiveDefs, remoteItemDefs } from './remoteDefs';
 import { localDay } from './clock';
 import { stockedSkus } from '../actor/furniture';
@@ -23,14 +24,6 @@ import {
   type SpeciesId,
 } from './shop';
 
-type CacheRow = {
-  active_json: string | null;
-  active_version: number | null;
-  pending_json: string | null;
-  pending_version: number | null;
-  pending_on: string | null;
-};
-
 export type ShopDay = { date: string; picks: DayPick[]; dealId: string | null };
 
 function defs() {
@@ -54,32 +47,13 @@ function parseRemote(json: string | null): ShopCatalog | null {
   }
 }
 
-function readCache(): CacheRow | null {
-  return getDb().getFirstSync<CacheRow>('SELECT * FROM shop_catalog_cache WHERE id = 1');
-}
-
-function promote(row: CacheRow): void {
-  getDb().runSync(
-    `INSERT INTO shop_catalog_cache (id, active_json, active_version, pending_json, pending_version, pending_on)
-     VALUES (1, ?, ?, NULL, NULL, NULL)
-     ON CONFLICT(id) DO UPDATE SET
-       active_json = excluded.active_json,
-       active_version = excluded.active_version,
-       pending_json = NULL,
-       pending_version = NULL,
-       pending_on = NULL`,
-    row.pending_json,
-    row.pending_version,
-  );
-}
-
 // The loaded shop catalog. A pending download becomes active at local midnight.
 // Nothing is bundled: before the first download this is null.
 export function loadShopCatalog(now = Date.now()): ShopCatalog | null {
   const today = localDay(now);
-  const row = readCache();
+  const row = readCatalogCache();
   if (row?.pending_json && row.pending_on && row.pending_on <= today) {
-    promote(row);
+    promoteCatalog(row);
     return parseRemote(row.pending_json);
   }
   return parseRemote(row?.active_json ?? null);
@@ -94,11 +68,11 @@ export function listedPrice(itemId: string, now = Date.now()): number | null {
 }
 
 export function applyCatalogNow(): boolean {
-  const row = readCache();
+  const row = readCatalogCache();
   if (!row?.pending_json) {
     return false;
   }
-  promote(row);
+  promoteCatalog(row);
   return true;
 }
 
@@ -130,7 +104,7 @@ export function saveLimitedStock(rows: LimitedStock[]): void {
 
 export function saveShopDownload(remote: RemoteShop, now = Date.now()): void {
   const today = localDay(now);
-  const row = readCache();
+  const row = readCatalogCache();
   const json = JSON.stringify(remote);
   const database = getDb();
   if (!row?.active_json) {
@@ -162,7 +136,7 @@ export function saveShopDownload(remote: RemoteShop, now = Date.now()): void {
 }
 
 export function remoteVersion(): number | null {
-  const row = readCache();
+  const row = readCatalogCache();
   return row?.pending_version ?? row?.active_version ?? null;
 }
 
