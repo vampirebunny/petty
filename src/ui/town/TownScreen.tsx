@@ -135,7 +135,7 @@ export function TownScreen({ pet, species, roadSpot, reducedMotion, onStand, onE
     setAlong(0);
     const actionsNow = actions.current;
     if (dest === 'home') {
-      zoom.value = 1;
+      setZoom(1);
       actionsNow.onStand('home');
       setSheet(true);
       return;
@@ -155,11 +155,8 @@ export function TownScreen({ pet, species, roadSpot, reducedMotion, onStand, onE
     actionsNow.onEnter('school');
   };
 
-  useEffect(() => {
-    finishRef.current = finish;
-  });
-
   const arrive = (dest: RoadSpot) => {
+    finishRef.current = finish;
     if (reducedRef.current) {
       finish(dest);
       return;

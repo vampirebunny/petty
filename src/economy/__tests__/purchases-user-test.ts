@@ -1,7 +1,15 @@
+import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import Purchases from 'react-native-purchases';
 
 import { resetPurchasesUserForTests, syncPurchasesUser } from '../purchasesUser';
+
+jest.mock('expo-constants', () => ({
+  __esModule: true,
+  default: {
+    expoGoConfig: null,
+  },
+}));
 
 jest.mock('react-native-purchases', () => ({
   __esModule: true,
@@ -16,6 +24,7 @@ jest.mock('react-native-purchases', () => ({
 
 const iosKey = 'EXPO_PUBLIC_REVENUECAT_IOS_KEY';
 const androidKey = 'EXPO_PUBLIC_REVENUECAT_ANDROID_KEY';
+const testStoreKey = 'EXPO_PUBLIC_REVENUECAT_TEST_STORE_KEY';
 
 function keyName(): string {
   return Platform.OS === 'android' ? androidKey : iosKey;
@@ -32,6 +41,8 @@ beforeEach(() => {
   jest.mocked(Purchases.getAppUserID).mockResolvedValue('user-a');
   delete process.env[iosKey];
   delete process.env[androidKey];
+  delete process.env[testStoreKey];
+  (Constants as { expoGoConfig: object | null }).expoGoConfig = null;
 });
 
 it('does not configure without an id', async () => {
@@ -67,6 +78,31 @@ it('lets a guest buy under the install id, then follows a later account id', asy
   expect(Purchases.logIn).toHaveBeenCalledTimes(1);
   expect(Purchases.logIn).toHaveBeenCalledWith('user-a');
   expect(Purchases.logOut).not.toHaveBeenCalled();
+});
+
+it('uses the Test Store key in Expo Go and leaves the store key for a development build', async () => {
+  (Constants as { expoGoConfig: object | null }).expoGoConfig = { debuggerHost: 'localhost' };
+  process.env[keyName()] = 'public_key';
+  process.env[testStoreKey] = 'test_key';
+  await syncPurchasesUser('user-a');
+  expect(Purchases.configure).toHaveBeenCalledWith({ apiKey: 'test_key', appUserID: 'user-a' });
+
+  resetPurchasesUserForTests();
+  (Constants as { expoGoConfig: object | null }).expoGoConfig = null;
+  jest.mocked(Purchases.configure).mockClear();
+  await syncPurchasesUser('user-a');
+  expect(Purchases.configure).toHaveBeenCalledWith({ apiKey: 'public_key', appUserID: 'user-a' });
+});
+
+it('keeps going when configure rejects the key', async () => {
+  process.env[keyName()] = 'public_key';
+  jest.mocked(Purchases.configure).mockImplementation(() => {
+    throw new Error('Invalid API key');
+  });
+  await expect(syncPurchasesUser('user-a')).resolves.toBeUndefined();
+  await syncPurchasesUser('user-a');
+  expect(Purchases.configure).toHaveBeenCalledTimes(2);
+  expect(Purchases.logIn).not.toHaveBeenCalled();
 });
 
 it('logs into an already configured SDK instead of configuring again', async () => {

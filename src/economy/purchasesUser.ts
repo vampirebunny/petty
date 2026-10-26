@@ -1,13 +1,28 @@
+import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import Purchases from 'react-native-purchases';
 
 let configuredUserId: string | null = null;
 let pending: Promise<void> = Promise.resolve();
 let warnedMissingKey = false;
+let warnedConfigure = false;
+
+/** Expo Go has no App Store or Play Billing. RevenueCat rejects a store key there. */
+function runningInExpoGo(): boolean {
+  if (!__DEV__) {
+    return false;
+  }
+  try {
+    return Constants.expoGoConfig != null;
+  } catch {
+    return false;
+  }
+}
 
 function publicSdkKey(): string | null {
-  const key =
-    Platform.OS === 'ios'
+  const key = runningInExpoGo()
+    ? process.env.EXPO_PUBLIC_REVENUECAT_TEST_STORE_KEY
+    : Platform.OS === 'ios'
       ? process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY
       : Platform.OS === 'android'
         ? process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY
@@ -32,10 +47,12 @@ async function applyPurchasesUser(userId: string | null): Promise<void> {
   }
   const apiKey = publicSdkKey();
   if (!apiKey) {
-    if (__DEV__ && !warnedMissingKey && (Platform.OS === 'ios' || Platform.OS === 'android')) {
+    if (__DEV__ && !warnedMissingKey && (runningInExpoGo() || Platform.OS === 'ios' || Platform.OS === 'android')) {
       warnedMissingKey = true;
       console.warn(
-        'RevenueCat public SDK key is missing. Set EXPO_PUBLIC_REVENUECAT_IOS_KEY and EXPO_PUBLIC_REVENUECAT_ANDROID_KEY.',
+        runningInExpoGo()
+          ? 'RevenueCat Test Store key is missing. Set EXPO_PUBLIC_REVENUECAT_TEST_STORE_KEY.'
+          : 'RevenueCat public SDK key is missing. Set EXPO_PUBLIC_REVENUECAT_IOS_KEY and EXPO_PUBLIC_REVENUECAT_ANDROID_KEY.',
       );
     }
     return;
@@ -45,7 +62,15 @@ async function applyPurchasesUser(userId: string | null): Promise<void> {
   }
   const alreadyConfigured = configuredUserId != null || (await Purchases.isConfigured());
   if (!alreadyConfigured) {
-    Purchases.configure({ apiKey, appUserID: userId });
+    try {
+      Purchases.configure({ apiKey, appUserID: userId });
+    } catch (error) {
+      if (__DEV__ && !warnedConfigure) {
+        warnedConfigure = true;
+        console.warn('RevenueCat could not be configured.', error);
+      }
+      return;
+    }
     configuredUserId = userId;
     return;
   }
@@ -62,4 +87,5 @@ export function resetPurchasesUserForTests(): void {
   configuredUserId = null;
   pending = Promise.resolve();
   warnedMissingKey = false;
+  warnedConfigure = false;
 }
