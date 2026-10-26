@@ -57,8 +57,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "permissions": [
-        "android.permission.MODIFY_AUDIO_SETTINGS",
-        "com.android.vending.BILLING"
+        "android.permission.MODIFY_AUDIO_SETTINGS"
       ]
     },
     "web": {

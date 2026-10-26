@@ -510,7 +510,7 @@ Linked accounts only. Mechanics are in Phase A; this is the behavior.
 | Prompt | Trigger | Type | Ships |
 |---|---|---|---|
 | `friends` | "Add friends" / "Play with a friend" on the playdate screen | **Hard gate** (account **and** saved handle) | Behind `ACCOUNT_PROMPT_FRIENDS`, **off** until friends UI ships |
-| `purchase` | Success screen after a successful IAP purchase, never before checkout | Soft | Behind `ACCOUNT_PROMPT_PURCHASE`, **off** until IAP ships |
+| `purchase` | Success screen after a successful IAP purchase, never before checkout. A guest pays under the install id. Apple and Google do not allow an account wall in front of the store sheet. | Soft | Behind `ACCOUNT_PROMPT_PURCHASE`, **off** until IAP ships |
 | `day3` | App opened on the user's **3rd distinct local calendar day** | Soft | **On** |
 
 Rules:

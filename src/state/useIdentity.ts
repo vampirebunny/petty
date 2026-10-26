@@ -22,6 +22,7 @@ import {
   refreshRetryIsDue,
 } from '../compliance/reauth';
 import { getSupabase } from '../compliance/supabase';
+import { syncPurchasesUser } from '../economy/purchasesUser';
 
 export type Identity = {
   ready: boolean;
@@ -177,6 +178,15 @@ export function useIdentity(): Identity {
       }),
     [],
   );
+
+  useEffect(() => {
+    if (!ready || !installId) {
+      return;
+    }
+    // Store rules require a purchase without account creation. The install id is the
+    // guest. A Supabase id, anonymous or linked, takes over only after it exists.
+    void syncPurchasesUser(userId ?? installId);
+  }, [ready, userId, installId]);
 
   return {
     ready,

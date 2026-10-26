@@ -2,7 +2,7 @@
 
 Players buy Boops packs, then spend Boops in the Pet Shop and Training School as they do today. Shop item prices are separate. The Golden Crown is hidden and is not part of this work.
 
-The Get Boops sheet and its art are in the Pet Shop. Real-money purchases are not built. Do that work from the open list below. Confirm the store product ids before writing the purchase code.
+The Get Boops sheet and its art are in the Pet Shop. The sheet still does not charge. RevenueCat is installed and identified. Do the rest from the open list below. Confirm the store product ids before writing the purchase code. Apple and Google require that a guest can pay without creating an account. The account prompt stays after a successful purchase.
 
 ## Shipped
 
@@ -10,6 +10,8 @@ The Get Boops sheet and its art are in the Pet Shop. Real-money purchases are no
 - A Get Boops button under the pet scene opens the sheet. Price buttons are lilac skeletons: no price text, no coin, not tappable.
 - While the age gate is `unavailable`, the sheet says "Can't reach the store right now" and offers Try again. Packs stay hidden until it is `ready`. Sparkles are still when Reduce Motion is on, and they stop when the sheet closes.
 - The balance-pill "+" and the shortfall prompt are not wired. The home counter still opens the Pet Shop.
+- `react-native-purchases` 10.15.1. Android resolves Play Billing Library 8.3.0 through that SDK. Do not add `com.android.vending.BILLING` to `app.json`. The library manifest supplies the permission and `com.google.android.play.billingclient.version`. Play Console keeps reporting AIDL until a new Android build that includes this SDK is the one it reviews.
+- `syncPurchasesUser` (`src/economy/purchasesUser.ts`), called from `useIdentity`. A guest is the install id. `Purchases.configure` always receives that id, so RevenueCat does not mint `$RCAnonymousID`. When a Supabase auth user id exists, anonymous or linked, `Purchases.logIn` runs only if the id changed. `Purchases.logOut` is never called. Linking in place keeps the same id, so it does not call `logIn`.
 
 ## Open
 
@@ -20,9 +22,7 @@ The Get Boops sheet and its art are in the Pet Shop. Real-money purchases are no
 
 ### SDK
 
-- [ ] Install `react-native-purchases` for this Expo SDK. Purchases need a development build. Public SDK keys come from app config, not source.
-- [ ] Call `Purchases.configure` only after the Supabase auth user id exists, and pass that id as `appUserID`. Never let RevenueCat mint `$RCAnonymousID`.
-- [ ] Call `Purchases.logIn` only when the auth user id actually changes. Linking in place keeps the same id.
+- [ ] Set `EXPO_PUBLIC_REVENUECAT_IOS_KEY` and `EXPO_PUBLIC_REVENUECAT_ANDROID_KEY` on the EAS development, preview, and production environments. `.env.local` is not uploaded. Purchases need a development build. Expo Go cannot complete a store purchase.
 
 ### Sheet
 
@@ -57,6 +57,8 @@ The balance on screen is the local SQLite ledger. A webhook insert alone does no
 - [ ] Wait up to 30 seconds for the matching transaction id. Then say "Your Boops are on the way. They'll appear shortly." A later apply still plays the burst.
 
 ### Guest who buys, then signs into an existing account
+
+Checkout never asks the player to create an account. A purchase made before any Supabase user uses the install id as RevenueCat `app_user_id`. The webhook credits that id. `logIn` later aliases it to the auth user.
 
 Linking in place (`linkIdentity`) keeps the auth user id, so those rows do not move. Signing into an account that already exists deletes the guest today, and `ledger_entries` cascades with them.
 
