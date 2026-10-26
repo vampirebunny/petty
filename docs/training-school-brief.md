@@ -133,6 +133,7 @@ The field list below is the shape of a catalog row and of the pet's training ent
 - The painted field has a fence, chalk lines, a goal, trees, bushes, and a bench. Dogs and cats share it.
 - The pet wanders the grass. Podiums, tunnels, hurdles, hoops, and cones are not painted into the field. They appear only when the player places them.
 - On a phone the field is about a third of the screen, shorter than the other rooms. A wide landscape layout keeps the full scene pane.
+- Those school controls, and the shorter phone stage, wait until the field cuts in. Until then the previous room's controls stay, including its Where card. Leaving the school keeps the school controls until the next room cuts in. Reduce Motion swaps them with the instant cut. The same wait applies to every scene change.
 - Tummy, Hydration, Energy, and Mood are hidden at the school. Those four values freeze for the visit and start falling again when the pet leaves.
 - The tall scene sits on top, and the two sections below it scroll vertically:
 
@@ -224,7 +225,7 @@ Players start with 1,000 Boops and accrue about 60 per hour. Prices below are th
 ---
 
 ## 6. Acceptance checklist
-- [ ] Training School appears in "Where to?"; taking the pet there opens the training room scene.
+- [ ] Training School appears in "Where to?"; taking the pet there opens the training room scene. School controls and the shorter phone stage appear when the field cuts in, not when the place is picked. Every scene change waits the same way.
 - [ ] A new pet has Sit, Speak and Paw in In Training at 0%, and no other tricks.
 - [ ] The Trick Shop shows only tricks for the pet's species. Locked tricks say "Unlocks at older age" and can't be bought. Owned tricks show their status.
 - [ ] The preview plays the generic demo. Buying debits Boops through the ledger and adds the trick to In Training on both the school and Home.

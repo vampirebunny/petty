@@ -168,6 +168,8 @@ type Props = {
   onTreatEaten?: () => void;
   onTreatSkipped?: () => void;
   onTraveling?: (active: boolean) => void;
+  // The drawn room just changed. Fires on the cut (fade complete), or immediately when there is no fade.
+  onSceneCut?: (sceneId: string) => void;
   onPointAdds?: (adds: PointAdd[]) => void;
   onGreeting?: (id: string) => void;
   onFellAsleep?: () => void;
@@ -240,6 +242,7 @@ export function PetView({
   onTreatEaten,
   onTreatSkipped,
   onTraveling,
+  onSceneCut,
   onPointAdds,
   onGreeting,
   onFellAsleep,
@@ -306,6 +309,8 @@ export function PetView({
   } | null>(null);
   const onTravelingRef = useRef(onTraveling);
   onTravelingRef.current = onTraveling;
+  const onSceneCutRef = useRef(onSceneCut);
+  onSceneCutRef.current = onSceneCut;
 
   const redraw = useCallback(() => {
     const recorder = Skia.PictureRecorder();
@@ -507,6 +512,7 @@ export function PetView({
   const seenSnap = useRef(snapSceneToken);
   useEffect(() => {
     const world = worldRef.current;
+    let snapped = false;
     if (snapSceneToken !== seenSnap.current) {
       seenSnap.current = snapSceneToken;
       if (world.scene.id !== scene.id) {
@@ -514,16 +520,22 @@ export function PetView({
         setWorldScene(world, scene);
         onTravelingRef.current?.(false);
         redraw();
-        return;
+        snapped = true;
       }
     }
-    if (world.scene.id !== scene.id) {
-      beginTravel(scene);
-      return;
+    if (!snapped) {
+      if (world.scene.id !== scene.id) {
+        beginTravel(scene);
+      } else {
+        const removed = syncFurniture(world.scene, scene);
+        for (const id of removed) {
+          releaseStoredPiece(world, id);
+        }
+      }
     }
-    const removed = syncFurniture(world.scene, scene);
-    for (const id of removed) {
-      releaseStoredPiece(world, id);
+    // Already showing this room (open, snap, or reduced motion). A walk-off waits for the cut.
+    if (travelRef.current == null) {
+      onSceneCutRef.current?.(world.scene.id);
     }
   }, [beginTravel, redraw, scene, snapSceneToken]);
 
@@ -982,6 +994,7 @@ export function PetView({
               startSceneEnter(world, actor, dest);
               travel.phase = 'enter';
               travel.fade = 0;
+              onSceneCutRef.current?.(world.scene.id);
             }
           }
         }

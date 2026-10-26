@@ -4,6 +4,8 @@ The pet screen's action panel is cotton-candy: glossy pink, blue, and lilac cont
 
 The Boops counter in the upper right opens the Pet Shop. So does Pet Shop on Where to?, the out-of-treats popup, and the break popup when it offers the shop. The popup closes, the pet walks off to the right, and the room fades, the same as a scene change, and then the shop cuts in. Reduce Motion skips the walk and opens the shop immediately. A return of 3 hours or more cuts straight to the living room: the pet does not walk home, and Where to? and the shop close.
 
+Picking a place sends the pet there right away. The controls stay on the room still on screen until the scene cuts: the pet walks off to the right, the room fades, and the new room appears. At that cut the Where card, care actions, storage, and the school panel swap, and on a phone the shorter Training School stage arrives with them. The same wait applies to every place, including leaving the school. Reduce Motion has no fade, so the controls change with the instant cut. A return of 3 hours or more still cuts straight to the living room, and the controls match that room.
+
 ## Sections
 
 Care (pink): Feed, Water, Treat, Sleep. Sleep says Wake only once the pet is actually asleep.

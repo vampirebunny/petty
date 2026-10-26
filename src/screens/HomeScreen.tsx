@@ -279,7 +279,13 @@ export default function HomeScreen({ petApi }: Props) {
         maxHeightShare: 1,
       }
     : undefined;
-  const atSchool = state?.sceneId === 'school';
+  const [shownSceneId, setShownSceneId] = useState<string | null>(null);
+  const showScene = useCallback((sceneId: string) => {
+    setShownSceneId((current) => (current === sceneId ? current : sceneId));
+  }, []);
+  // Controls follow the room on screen. sceneId updates when a place is picked, before the cut.
+  const controlsSceneId = shownSceneId ?? state?.sceneId ?? 'livingroom';
+  const atSchool = controlsSceneId === 'school';
   const logicalH = stageHeight;
   const { viewWidth, viewHeight, contentWidth } = useStageSize(
     stageFrame,
@@ -1256,6 +1262,7 @@ export default function HomeScreen({ petApi }: Props) {
 
   const preset = sceneById(state?.sceneId ?? 'livingroom');
   const scene = preset;
+  const controlsScene = sceneById(controlsSceneId);
 
   useEffect(() => {
     if (!state) {
@@ -1308,10 +1315,10 @@ export default function HomeScreen({ petApi }: Props) {
     if (!state) {
       return;
     }
-    const feedBlocked = actionReason(scene, 'feed');
-    const waterBlocked = actionReason(scene, 'refillWater', state.waterLevel);
+    const feedBlocked = actionReason(controlsScene, 'feed');
+    const waterBlocked = actionReason(controlsScene, 'refillWater', state.waterLevel);
     const countPropTap = (kind: TipKind) => {
-      const spot = placedInScene(home.pieces, home.placements, scene.id, kind);
+      const spot = placedInScene(home.pieces, home.placements, controlsScene.id, kind);
       if (spot) {
         setMovePieceId(spot.pieceId);
       }
@@ -1365,14 +1372,14 @@ export default function HomeScreen({ petApi }: Props) {
       countPropTap('bed');
       tips.performed('tip.sleep');
     };
-  }, [flash, home.pieces, home.placements, refillWater, rest, scene, state, tips]);
+  }, [controlsScene, flash, home.pieces, home.placements, refillWater, rest, state, tips]);
 
   const tipKind: TipKind | null =
     tips.current === 'tip.water' ? 'water' : tips.current === 'tip.food' ? 'food' : tips.current === 'tip.sleep' ? 'bed' : null;
   const tipSpot = tipKind
-    ? placedInScene(home.pieces, home.placements, scene.id, tipKind)
+    ? placedInScene(home.pieces, home.placements, controlsScene.id, tipKind)
     : tips.current === 'tip.move' && movePieceId
-      ? (home.placements.find((spot) => spot.pieceId === movePieceId && spot.sceneId === scene.id) ?? null)
+      ? (home.placements.find((spot) => spot.pieceId === movePieceId && spot.sceneId === controlsScene.id) ?? null)
       : null;
   const tipPiece = tipSpot ? home.pieces.find((piece) => piece.id === tipSpot.pieceId) : null;
   const propTip = tipSpot ? stageToView(markerPoint(tipPiece?.kind, tipSpot)) : null;
@@ -1525,8 +1532,8 @@ export default function HomeScreen({ petApi }: Props) {
         : (playableToys[0] ?? 'ball');
 
   const tummy = 100 - state.needs.hunger;
-  const feedReason = actionReason(scene, 'feed');
-  const waterReason = actionReason(scene, 'refillWater', state.waterLevel);
+  const feedReason = actionReason(controlsScene, 'feed');
+  const waterReason = actionReason(controlsScene, 'refillWater', state.waterLevel);
   const careActions = [
     {
       id: 'feed',
@@ -1829,7 +1836,7 @@ export default function HomeScreen({ petApi }: Props) {
             type: prop.type,
             sourceTrickId: prop.sourceTrickId,
           }));
-        const furniture: StorageChoice[] = scene.playerOwned
+        const furniture: StorageChoice[] = controlsScene.playerOwned
           ? home.pieces
               .filter((piece) => !home.placements.some((place) => place.pieceId === piece.id))
               .map((piece) => ({
@@ -1840,8 +1847,8 @@ export default function HomeScreen({ petApi }: Props) {
                 plant: piece.plant,
               }))
           : [];
-        setStorageItems(scene.playerOwned ? [...furniture, ...props] : props);
-        setStorageEmpty(scene.playerOwned ? 'Nothing in storage.' : 'Furniture stays in your rooms.');
+        setStorageItems(controlsScene.playerOwned ? [...furniture, ...props] : props);
+        setStorageEmpty(controlsScene.playerOwned ? 'Nothing in storage.' : 'Furniture stays in your rooms.');
         setStorageOpen(true);
       },
     },
@@ -2395,7 +2402,7 @@ export default function HomeScreen({ petApi }: Props) {
           <NeedRings
             needs={presentNeeds(state.needs, sumHolds(treatHolds))}
             hydration={state.hydration}
-            energyMark={roomRestBadge(home.pieces, home.placements, scene.id, state.asleep)}
+            energyMark={roomRestBadge(home.pieces, home.placements, controlsScene.id, state.asleep)}
           />
         )}
         {welcomeBack ? (
@@ -2418,12 +2425,12 @@ export default function HomeScreen({ petApi }: Props) {
               setPlacesOpen(true);
             }}
             accessibilityRole="button"
-            accessibilityLabel={`Go somewhere. ${state.name} is in the ${preset.name}`}
+            accessibilityLabel={`Go somewhere. ${state.name} is in the ${controlsScene.name}`}
           >
             {({ pressed }) => {
-              const flavor = placeFlavors[preset.iconId ?? preset.id] ?? 'peach';
+              const flavor = placeFlavors[controlsScene.iconId ?? controlsScene.id] ?? 'peach';
               const tint = tints[flavor];
-              const Icon = placeIcons[preset.iconId ?? preset.id] ?? placeIcons.livingroom;
+              const Icon = placeIcons[controlsScene.iconId ?? controlsScene.id] ?? placeIcons.livingroom;
               const ink = candyInk(tint);
               return (
                 <CandyShell tint={tint} radius={24} pressed={pressed} uid={whereUid} style={styles.whereRow}>
@@ -2433,7 +2440,7 @@ export default function HomeScreen({ petApi }: Props) {
                   <View style={styles.whereCopy}>
                     <Text style={[styles.whereKicker, { color: ink }]}>{state.name} is in the</Text>
                     <Text style={[styles.whereName, { color: ink }]} numberOfLines={1}>
-                      {preset.name}
+                      {controlsScene.name}
                     </Text>
                   </View>
                   <View style={[styles.wherePill, { shadowColor: tint.lip }]}>
@@ -2641,6 +2648,7 @@ export default function HomeScreen({ petApi }: Props) {
               onHydrationDelta={applyActorHydration}
               onDrank={reportDrank}
               onAte={reportAte}
+              onSceneCut={showScene}
               onFellAsleep={beginRest}
               onTrickEnd={() => {
                 const trackId = trickTrack.current;
