@@ -409,8 +409,8 @@ The `settings` reason uses this same flow.
 
 ## 6. Handle creation
 
-- **When:** right after a successful link, or after restore if the account has no handle, **when online**. It's the last step of account creation and has no skip button there.
-- **If that's interrupted** (app killed, offline): Home loads normally. The handle screen appears the next time Home is idle and the device is online, with a **Later** button. It doesn't count toward the soft-prompt cooldown or caps (§10a). The `friends` hard gate requires a saved handle.
+- **When:** right after a successful link, or after restore if the account has no handle, **when online**. It's the last step of account creation and has no skip button there. Settings replaces Home, so the same screen is mounted over Settings. Creating an account from **Sign in or create account** opens it there without another tap.
+- **If that's interrupted** (app killed, offline, or **Later** on a later visit): Home loads normally. The handle screen appears the next time Home is idle and the device is online, with a **Later** button. It doesn't count toward the soft-prompt cooldown or caps (§10a). The `friends` hard gate requires a saved handle.
 - Rules: `^[a-zA-Z0-9]{3,20}$`, display capitalization kept, uniqueness on `handle_lower`, stored in `profiles`.
 - Live check through `check_handle_available` (debounced), plus a final check on save. Handle the unique-violation race with "That handle was just taken."
 - Copy: "Pick your handle. This is how friends find you." Show **@handle · with {petName}**.
@@ -556,7 +556,7 @@ Apple requires apps with Sign in with Apple to revoke the user's tokens on accou
 - **Leave the existing Style & sound controls in `HomeActionPanel` exactly as they are.**
 - **Rows:**
   - **Guests:** **Sign in or create account** (top) → `AccountSheet` (`settings`).
-  - **Linked accounts:** in its place, a non-tappable line: **"Signed in as @handle · Apple"** (or **· Google**, or **· Apple & Google**). No handle saved yet: **"Signed in with Apple · Pick your handle"**, tappable, opening the handle screen.
+  - **Linked accounts:** in its place, a non-tappable line: **"Signed in as @handle · Apple"** (or **· Google**, or **· Apple & Google**). No handle saved yet: **"Signed in with Apple · Pick your handle"**, tappable, opening the handle screen with **Later**. Right after creating the account, the strict handle screen from §6 opens on its own over Settings; the line is for coming back later.
   - **Guests:** **Delete my progress.** **Linked accounts:** **Delete account**.
 - Nothing else for now (no sign-out).
 
@@ -671,7 +671,7 @@ Still open:
 - **I already have an account** on a fresh install signs in with `signInWithIdToken` (no anonymous user), restores pet, ledger, and state, writes the consent keys, and skips age/terms only when the age event exists and both terms and privacy are the current versions; an older terms or privacy version shows the terms screen; offline shows the internet message; cancel returns to Welcome.
 - **[v14+]** An iOS reinstall tells guest from account by `is_anonymous`, shows Welcome, and does not write the pet until **Get started**. **Get started** then restores a linked or anonymous server pet (anonymous does not set `meta.accountLinked`) and skips Adopt and Meet. A linked account with no pet continues into adoption. An anonymous session with no pet reuses that user. Offline shows "Connect to the internet to bring back your pet."
 - Native Apple sign-in succeeds with the hashed/raw nonce pair.
-- Guest → Sign in with Apple (iOS), Google (iOS + Android), Apple on Android: same `user_id`; pet, ledger, layouts, consent unchanged; handle saved through the RPC check; `meta.handleSaved` set; on Apple, the token is stored on the account before the handle screen.
+- Guest → Sign in with Apple (iOS), Google (iOS + Android), Apple on Android: same `user_id`; pet, ledger, layouts, consent unchanged; handle saved through the RPC check; `meta.handleSaved` set; on Apple, the token is stored on the account before the handle screen. Creating the account from Settings opens that screen immediately, with no **Later** button and no tap on **Pick your handle**.
 - A link that fails with "identity already exists" goes to restore without a second Apple sheet, and the Apple token ends up stored on the account, not the deleted guest. A link that fails on the network stays a guest.
 - Killing the app before saving the handle lands on Home on next launch, offline included; the handle screen appears at the next idle, online moment with **Later**.
 - Guest with a pet signs in to an existing account: confirmation shown; account restored; **the first settle runs on the account's pet, and the guest pet is never saved or pushed under the account id;** `starter` isn't granted again; the guest user is deleted by `supersede_guest` after the restore commits, and a failed supersede is retried on later opens.

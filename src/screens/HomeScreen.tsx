@@ -1424,16 +1424,19 @@ export default function HomeScreen({ petApi }: Props) {
 
   if (settingsOpen) {
     return hosted(
-      <PhoneColumn>
-        <SettingsScreen
-          petName={state.name}
-          pendingFriends={incomingFriends.length}
-          careRemindersOn={remindersOn}
-          onCareReminders={setRemindersOn}
-          onFriendsChanged={() => setFriendTick((value) => value + 1)}
-          onClose={() => setSettingsOpen(false)}
-        />
-      </PhoneColumn>
+      <>
+        <PhoneColumn>
+          <SettingsScreen
+            petName={state.name}
+            pendingFriends={incomingFriends.length}
+            careRemindersOn={remindersOn}
+            onCareReminders={setRemindersOn}
+            onFriendsChanged={() => setFriendTick((value) => value + 1)}
+            onClose={() => setSettingsOpen(false)}
+          />
+        </PhoneColumn>
+        <HandlePrompt petName={state.name} idle={false} />
+      </>
     );
   }
 
