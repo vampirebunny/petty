@@ -70,6 +70,17 @@ it('charges the bundle price and grants one prop instance', () => {
   });
   const spin = prepareTrickPurchase(pup, 'dog', 'dog_spin', 1000);
   expect(spin.ok && spin.prop).toBe(null);
+  const again = prepareTrickPurchase({ ...pup, ageDays: 3 }, 'dog', 'dog_jump_up', 250, ['podium']);
+  expect(again.ok).toBe(true);
+  if (!again.ok) {
+    return;
+  }
+  expect(again.price).toBe(250);
+  expect(again.prop).toBeNull();
+  expect(prepareTrickPurchase({ ...pup, ageDays: 3 }, 'dog', 'dog_jump_up', 249, ['podium'])).toEqual({
+    ok: false,
+    reason: 'insufficient_boops',
+  });
   expect(trickListing('dog_come')).toBeNull();
   expect(trickListing('dog_crawl')).toBeNull();
   expect(trickListing('cat_come')).toBeNull();

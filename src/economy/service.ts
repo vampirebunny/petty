@@ -9,7 +9,7 @@ import { currentOwner, ownerIsReady } from '../db/currentOwner';
 import { catalog, catalogItem, starterOutfits, storeItems, type CatalogItem, type TreatEffects } from './catalog';
 import { buySpot, furnitureDefinition, grantPieces, nextFurnitureId } from '../actor/furniture';
 import { writeLedgerEntry, type LedgerLine } from '../db/ledgerWrite';
-import { furnitureOf, markBedStorageTip, moveOwnedPiece, touchPlayerHome } from '../db/playerHome';
+import { furnitureOf, markBedStorageTip, moveOwnedPiece, touchPlayerHome, trickPropsOf } from '../db/playerHome';
 import { masteredTrickIds, speciesOf } from '../sim/tracks';
 import { prepareTrickPurchase, trickMilestoneKey } from '../sim/tricks';
 import { listedPrice, quoteCart } from './shopState';
@@ -655,7 +655,8 @@ export function buyTrick(
       if (hasKey(requestId)) {
         return { ok: true as const, pet };
       }
-      const quoted = prepareTrickPurchase(pet, speciesOf(pet.breedId), trickId, balance());
+      const ownedProps = trickPropsOf(ownerId()).map((prop) => prop.type);
+      const quoted = prepareTrickPurchase(pet, speciesOf(pet.breedId), trickId, balance(), ownedProps);
       if (!quoted.ok) {
         return quoted;
       }

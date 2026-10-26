@@ -13,6 +13,7 @@ import {
   priceCart,
   shownDeal,
   withHomeShelf,
+  withPriceAdjustments,
   withScratchPole,
   type LimitedStock,
   type CartInput,
@@ -41,7 +42,7 @@ function parseRemote(json: string | null): ShopCatalog | null {
     }
     rememberActiveDefs(remote);
     const catalog = materializeShop(remote, defs());
-    return catalog ? withHomeShelf(withScratchPole(catalog)) : null;
+    return catalog ? withPriceAdjustments(withHomeShelf(withScratchPole(catalog))) : null;
   } catch {
     return null;
   }

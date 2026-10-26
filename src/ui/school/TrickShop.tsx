@@ -5,7 +5,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { PawCoin } from '../../components/currency/PawCoin';
-import { ageAllowsTrick, tricksForSpecies, type TrickListing } from '../../sim/tricks';
+import { ageAllowsTrick, trickPrice, tricksForSpecies, type TrickListing } from '../../sim/tricks';
 import type { PetState } from '../../sim/types';
 import { fontFamily } from '../font';
 import { iconStroke } from '../theme';
@@ -77,11 +77,11 @@ export function TrickShop({
       const track = pet.training[trick.id];
       return {
         id: trick.id,
-        price: trick.priceBoops,
+        price: trickPrice(trick, trick.propType != null && ownedTypes.has(trick.propType)),
         mastered: Boolean(track?.mastered),
         owned: Boolean(track),
         fresh: trickIsNew(trick.id, now),
-        affordable: balance >= trick.priceBoops,
+        affordable: balance >= trickPrice(trick, trick.propType != null && ownedTypes.has(trick.propType)),
       };
     }),
   );
@@ -279,7 +279,7 @@ function Hero({
               ) : null}
             </View>
           </View>
-          <PriceButton price={trick.priceBoops} onPress={onOpen} tall />
+          <PriceButton price={trickPrice(trick, ownsProp)} onPress={onOpen} tall />
         </View>
       </GlossyFace>
     </Pressable>
@@ -343,7 +343,7 @@ function ShopCard({
             <Text style={styles.statusLilacText}>In training</Text>
           </View>
         ) : (
-          <PriceButton price={trick.priceBoops} onPress={onOpen} />
+          <PriceButton price={trickPrice(trick, ownsProp)} onPress={onOpen} />
         )}
       </View>
     </Pressable>
@@ -453,8 +453,9 @@ function PreviewSheet({
     });
   const sheetStyle = useAnimatedStyle(() => ({ transform: [{ translateY: drag.value }] }));
   const spin = useSharedValue(0);
-  const short = trick ? Math.max(0, trick.priceBoops - balance) : 0;
-  const affordable = trick != null && balance >= trick.priceBoops;
+  const asking = trick ? trickPrice(trick, ownsProp) : 0;
+  const short = trick ? Math.max(0, asking - balance) : 0;
+  const affordable = trick != null && balance >= asking;
   const family = trick ? familyPaint[colorFamilyOf(trick.id)] : familyPaint.purple;
   return (
     <Modal visible={trick != null} transparent animationType={reducedMotion ? 'none' : 'slide'} onRequestClose={onClose}>
@@ -524,7 +525,7 @@ function PreviewSheet({
                         <Text style={styles.buyText}>Buy & start training</Text>
                         <View style={styles.buyPill}>
                           <PawCoin size={16} spinAngle={spin} shine={false} />
-                          <Text style={styles.buyPrice}>{trick.priceBoops}</Text>
+                          <Text style={styles.buyPrice}>{asking}</Text>
                         </View>
                       </GlossyFace>
                     )}

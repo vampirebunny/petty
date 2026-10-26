@@ -1,5 +1,5 @@
 import { tricksForSpecies } from '../../sim/tricks';
-import { dayKey, shopOrder, trainingOrder, trickOfTheDay, untilMidnightLabel } from '../school/order';
+import { dayKey, shopOrder, stageAgeLabel, trainingOrder, trickOfTheDay, untilMidnightLabel } from '../school/order';
 
 it('picks the same trick of the day until the local date changes', () => {
   const morning = new Date(2026, 9, 25, 8, 0, 0).getTime();
@@ -10,6 +10,13 @@ it('picks the same trick of the day until the local date changes', () => {
   expect(trickOfTheDay(eligible, 'player-a', evening)?.id).toBe(first?.id);
   expect(dayKey(morning)).not.toBe(dayKey(next));
   expect(trickOfTheDay([], 'player-a', morning)).toBeNull();
+});
+
+it('names cat stages kitten and older kitten', () => {
+  expect(stageAgeLabel('puppy', 'cat')).toBe('Kitten');
+  expect(stageAgeLabel('olderPuppy', 'cat')).toBe('Older kitten');
+  expect(stageAgeLabel('puppy', 'dog')).toBe('Puppy');
+  expect(stageAgeLabel('olderPuppy', 'dog')).toBe('Older puppy');
 });
 
 it('counts down to local midnight', () => {
