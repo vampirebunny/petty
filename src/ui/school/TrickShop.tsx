@@ -33,6 +33,8 @@ type Props = {
   ownedPropTypes: string[];
   now: number;
   reducedMotion: boolean;
+  previewTip?: boolean;
+  onDismissPreviewTip?: () => void;
   onBuy: (trick: TrickListing) => void;
   onShop: () => void;
 };
@@ -45,6 +47,8 @@ export function TrickShop({
   ownedPropTypes,
   now,
   reducedMotion,
+  previewTip = false,
+  onDismissPreviewTip,
   onBuy,
   onShop,
 }: Props) {
@@ -82,11 +86,26 @@ export function TrickShop({
     }),
   );
   const byId = new Map(visible.map((trick) => [trick.id, trick]));
+  const openPreview = (trick: TrickListing) => {
+    setOpen(trick);
+    onDismissPreviewTip?.();
+  };
+  const openTrack = open ? pet.training[open.id] : undefined;
+  const openLocked = open != null && !ageAllowsTrick(pet.ageDays, open.minAgeStage);
 
   return (
     <View style={styles.wrap}>
       <Text style={styles.title}>Trick Shop</Text>
       <Text style={styles.sub}>New tricks {pet.name} can learn</Text>
+      {previewTip ? (
+        <View style={styles.tip}>
+          <Text style={styles.tipTitle}>Tap a trick for a preview</Text>
+          <Text style={styles.tipBody}>Tapping a trick shows a preview, including ones that are still locked.</Text>
+          <Pressable accessibilityRole="button" onPress={onDismissPreviewTip} style={styles.gotIt}>
+            <Text style={styles.gotItText}>Got it</Text>
+          </Pressable>
+        </View>
+      ) : null}
       {featured ? (
         <Hero
           trick={featured}
@@ -95,7 +114,7 @@ export function TrickShop({
           now={now}
           reducedMotion={reducedMotion}
           ownsProp={featured.propType != null && ownedTypes.has(featured.propType)}
-          onOpen={() => setOpen(featured)}
+          onOpen={() => openPreview(featured)}
         />
       ) : null}
       <View style={styles.filters}>
@@ -117,7 +136,7 @@ export function TrickShop({
               track={pet.training[id]}
               ownsProp={trick.propType != null && ownedTypes.has(trick.propType)}
               fresh={trickIsNew(id, now)}
-              onOpen={() => setOpen(trick)}
+              onOpen={() => openPreview(trick)}
             />
           );
         })}
@@ -132,7 +151,13 @@ export function TrickShop({
           </View>
           <View style={styles.grid}>
             {locked.map((trick) => (
-              <View key={trick.id} style={styles.lockedRow}>
+              <Pressable
+                key={trick.id}
+                accessibilityRole="button"
+                accessibilityLabel={`Preview ${trick.name}`}
+                onPress={() => openPreview(trick)}
+                style={styles.lockedRow}
+              >
                 <View style={styles.lockBubble}>
                   <Lock size={16} strokeWidth={iconStroke + 0.4} color={secondary} />
                 </View>
@@ -144,7 +169,7 @@ export function TrickShop({
                     At {stageAgeLabel(trick.minAgeStage, species)} age
                   </Text>
                 </View>
-              </View>
+              </Pressable>
             ))}
           </View>
         </View>
@@ -155,10 +180,14 @@ export function TrickShop({
         species={species}
         balance={balance}
         ownsProp={open?.propType != null && ownedTypes.has(open.propType)}
+        locked={openLocked}
+        learned={Boolean(openTrack?.mastered)}
+        inTraining={Boolean(openTrack) && !openTrack?.mastered}
+        ageLabel={open ? stageAgeLabel(open.minAgeStage, species) : ''}
         reducedMotion={reducedMotion}
         onClose={() => setOpen(null)}
         onBuy={() => {
-          if (!open) {
+          if (!open || openLocked || openTrack) {
             return;
           }
           const trick = open;
@@ -274,7 +303,6 @@ function ShopCard({
   const glyph = trickIcon(trick.id);
   const learned = Boolean(track?.mastered);
   const owned = Boolean(track) && !learned;
-  const tappable = !track;
   const badge = fresh
     ? 'NEW'
     : trick.propName && !track
@@ -285,7 +313,7 @@ function ShopCard({
   return (
     <Pressable
       accessibilityRole="button"
-      disabled={!tappable}
+      accessibilityLabel={`Preview ${trick.name}`}
       onPress={onOpen}
       style={styles.cardHit}
     >
@@ -385,6 +413,10 @@ function PreviewSheet({
   species,
   balance,
   ownsProp,
+  locked,
+  learned,
+  inTraining,
+  ageLabel,
   reducedMotion,
   onClose,
   onBuy,
@@ -395,6 +427,10 @@ function PreviewSheet({
   species: 'dog' | 'cat';
   balance: number;
   ownsProp: boolean;
+  locked: boolean;
+  learned: boolean;
+  inTraining: boolean;
+  ageLabel: string;
   reducedMotion: boolean;
   onClose: () => void;
   onBuy: () => void;
@@ -466,7 +502,22 @@ function PreviewSheet({
                   </View>
                 ) : null}
                 <View style={styles.spacer} />
-                {affordable ? (
+                {locked ? (
+                  <View style={styles.buyOff}>
+                    <Lock size={16} strokeWidth={iconStroke + 0.4} color={secondary} />
+                    <Text style={styles.buyOffText}>At {ageLabel} age</Text>
+                  </View>
+                ) : learned ? (
+                  <View style={styles.buyOff}>
+                    <Check size={16} strokeWidth={2.4} color={secondary} />
+                    <Text style={styles.buyOffText}>Learned</Text>
+                  </View>
+                ) : inTraining ? (
+                  <View style={[styles.statusLilac, styles.sheetStatus]}>
+                    <Check size={16} strokeWidth={2.4} color="#3B2577" />
+                    <Text style={styles.statusLilacText}>In training</Text>
+                  </View>
+                ) : affordable ? (
                   <Pressable accessibilityRole="button" onPress={onBuy}>
                     {({ pressed }) => (
                       <GlossyFace colors={[gold.top, gold.bottom]} lip={gold.inset} shadow={gold.base} radius={999} pressed={pressed} style={styles.buy}>
@@ -574,6 +625,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   statusLilacText: { fontFamily: fontFamily.extraBold, fontSize: 14, color: '#3B2577' },
+  sheetStatus: { alignSelf: 'stretch', minHeight: 60 },
   lockedBox: { backgroundColor: greySurface, borderRadius: 24, padding: 14, gap: 12 },
   lockedHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   lockedTitle: { flex: 1, fontFamily: fontFamily.fredokaSemibold, fontSize: 18, color: ink },
@@ -670,13 +722,34 @@ const styles = StyleSheet.create({
   },
   buyPrice: { fontFamily: fontFamily.extraBold, fontSize: 14, color: gold.ink },
   cant: { gap: 8, alignItems: 'center' },
+  tip: {
+    backgroundColor: ink,
+    borderRadius: 20,
+    padding: 14,
+    gap: 6,
+  },
+  tipTitle: { fontFamily: fontFamily.fredokaSemibold, fontSize: 18, color: white },
+  tipBody: { fontFamily: fontFamily.bold, fontSize: 14, color: white },
+  gotIt: {
+    alignSelf: 'flex-start',
+    marginTop: 4,
+    backgroundColor: white,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    minHeight: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  gotItText: { fontFamily: fontFamily.extraBold, fontSize: 14, color: ink },
   buyOff: {
     alignSelf: 'stretch',
     minHeight: 60,
     borderRadius: 999,
     backgroundColor: greySurface,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 6,
   },
   buyOffText: { fontFamily: fontFamily.fredokaSemibold, fontSize: 16, color: secondary },
   shopLink: { fontFamily: fontFamily.extraBold, fontSize: 14, color: '#3E86DB' },

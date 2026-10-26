@@ -2,6 +2,7 @@ import { forwardRef, useImperativeHandle, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 
+import { readShopPreviewTip, setShopPreviewTip } from '../../db/accountMeta';
 import type { TrickListing } from '../../sim/tricks';
 import { trackDef } from '../../sim/tracks';
 import type { PetState } from '../../sim/types';
@@ -65,7 +66,9 @@ export const SchoolControls = forwardRef<SchoolControlsHandle, Props>(function S
   const shopY = useRef(0);
   const driving = useRef(false);
   const driveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const previewKnown = useRef(readShopPreviewTip());
   const [segment, setSegment] = useState<Segment>('training');
+  const [previewTip, setPreviewTip] = useState(false);
   const trainingCount = Object.values(pet.training).filter((track) => {
     if (track.mastered) {
       return false;
@@ -99,11 +102,23 @@ export const SchoolControls = forwardRef<SchoolControlsHandle, Props>(function S
     },
   }));
 
+  const noteShop = () => {
+    if (previewKnown.current) {
+      return;
+    }
+    previewKnown.current = true;
+    setShopPreviewTip();
+    setPreviewTip(true);
+  };
+
   const show = (next: Segment) => {
     beginDrive();
     setSegment(next);
     const y = next === 'training' ? 0 : Math.max(0, shopY.current);
     scroll.current?.scrollTo({ y, animated: true });
+    if (next === 'shop' && shopY.current > 0) {
+      noteShop();
+    }
   };
 
   return (
@@ -124,7 +139,11 @@ export const SchoolControls = forwardRef<SchoolControlsHandle, Props>(function S
           return;
         }
         const y = event.nativeEvent.contentOffset.y;
-        const next: Segment = y + 12 >= shopY.current ? 'shop' : 'training';
+        const atShop = shopY.current > 0 && y + 12 >= shopY.current;
+        if (atShop) {
+          noteShop();
+        }
+        const next: Segment = atShop ? 'shop' : 'training';
         setSegment((current) => (current === next ? current : next));
       }}
       onMomentumScrollEnd={endDrive}
@@ -155,6 +174,8 @@ export const SchoolControls = forwardRef<SchoolControlsHandle, Props>(function S
           ownedPropTypes={ownedPropTypes}
           now={now}
           reducedMotion={reducedMotion}
+          previewTip={previewTip}
+          onDismissPreviewTip={() => setPreviewTip(false)}
           onBuy={onBuy}
           onShop={onShop}
         />

@@ -172,3 +172,11 @@ export function readSchoolTrickTip(): boolean {
 export function setSchoolTrickTip(): void {
   writeMeta('schoolTrickTip', '1');
 }
+
+export function readShopPreviewTip(): boolean {
+  return readMeta('shopPreviewTip') === '1';
+}
+
+export function setShopPreviewTip(): void {
+  writeMeta('shopPreviewTip', '1');
+}
