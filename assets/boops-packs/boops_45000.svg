@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 100" width="120" height="100">
+<defs>
+<radialGradient id="f-face" cx="0.35" cy="0.3" r="0.8"><stop offset="0" stop-color="#FFF6C4"/><stop offset="0.45" stop-color="#FFD24D"/><stop offset="0.85" stop-color="#F2A922"/><stop offset="1" stop-color="#C9801A"/></radialGradient>
+<linearGradient id="f-rim" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E89A20"/><stop offset="1" stop-color="#9A560A"/></linearGradient>
+<linearGradient id="f-wood" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#D99A5C"/><stop offset="1" stop-color="#9A5E2E"/></linearGradient>
+<linearGradient id="f-gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFF0B0"/><stop offset="0.5" stop-color="#FFD24D"/><stop offset="1" stop-color="#E89A20"/></linearGradient>
+<linearGradient id="f-ruby" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFB3D3"/><stop offset="0.45" stop-color="#F0378A"/><stop offset="1" stop-color="#9A1050"/></linearGradient>
+<linearGradient id="f-mint" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#D2FFF3"/><stop offset="0.5" stop-color="#43CDA9"/><stop offset="1" stop-color="#16806A"/></linearGradient>
+<symbol id="f-coin" viewBox="0 0 40 40">
+<circle cx="20" cy="21.5" r="17" fill="url(#f-rim)" stroke="#2A1E26" stroke-width="2.5"/>
+<circle cx="20" cy="19" r="16" fill="url(#f-face)" stroke="#2A1E26" stroke-width="2.5"/>
+<circle cx="20" cy="19" r="11.5" fill="none" stroke="#E39A26" stroke-width="2"/>
+<g fill="#C47C17"><ellipse cx="20" cy="22.5" rx="5" ry="4.2"/><circle cx="14.5" cy="16.5" r="2.2"/><circle cx="18" cy="13.5" r="2.2"/><circle cx="22" cy="13.5" r="2.2"/><circle cx="25.5" cy="16.5" r="2.2"/></g>
+<path d="M9.5 14 Q12 9 17 8" stroke="#FFFBE6" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+</symbol>
+<symbol id="f-edge" viewBox="0 0 40 16">
+<path d="M2 6 V10 Q20 17 38 10 V6 Z" fill="url(#f-rim)" stroke="#2A1E26" stroke-width="2" stroke-linejoin="round"/>
+<ellipse cx="20" cy="6" rx="18" ry="5" fill="url(#f-face)" stroke="#2A1E26" stroke-width="2"/>
+<ellipse cx="20" cy="6" rx="12" ry="3.2" fill="none" stroke="#E39A26" stroke-width="1.4"/>
+<path d="M8 4.5 Q12 2.5 17 2.2" stroke="#FFFBE6" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+</symbol>
+</defs>
+<circle cx="60" cy="48" r="52" fill="#FFF1B8" opacity="0.75"/><circle cx="60" cy="48" r="40" fill="#FFE38A" opacity="0.55"/>
+<ellipse cx="60" cy="96" rx="58" ry="4.5" fill="#2A1E26" opacity="0.12"/>
+<path d="M22 48 L28 10 Q60 0 92 10 L98 48 Z" fill="url(#f-wood)" stroke="#2A1E26" stroke-width="3" stroke-linejoin="round"/>
+<path d="M30 44 L34 15 Q60 7 86 15 L90 44 Z" fill="#7A4520" opacity="0.55"/>
+<path d="M44 6 L41 47 M76 6 L79 47" stroke="#2A1E26" stroke-width="7" stroke-linecap="round"/><path d="M44 6 L41 47 M76 6 L79 47" stroke="#FFD24D" stroke-width="3.5" stroke-linecap="round"/>
+<use href="#f-coin" x="37.6" y="15.2" width="20" height="20" transform="rotate(-5 47.6 25.2)"/>
+<use href="#f-coin" x="49.4" y="15.1" width="20" height="20" transform="rotate(10 59.4 25.1)"/>
+<use href="#f-coin" x="62.6" y="14.0" width="20" height="20" transform="rotate(-14 72.6 24.0)"/>
+<use href="#f-coin" x="30.5" y="23.8" width="20" height="20" transform="rotate(0 40.5 33.8)"/>
+<use href="#f-coin" x="43.0" y="23.0" width="20" height="20" transform="rotate(-5 53.0 33.0)"/>
+<use href="#f-coin" x="56.7" y="23.4" width="20" height="20" transform="rotate(10 66.7 33.4)"/>
+<use href="#f-coin" x="68.5" y="24.2" width="20" height="20" transform="rotate(-14 78.5 34.2)"/>
+<use href="#f-coin" x="23.9" y="32.2" width="20" height="20" transform="rotate(-9 33.9 42.2)"/>
+<use href="#f-coin" x="36.5" y="32.0" width="20" height="20" transform="rotate(6 46.5 42.0)"/>
+<use href="#f-coin" x="50.9" y="31.9" width="20" height="20" transform="rotate(-5 60.9 41.9)"/>
+<use href="#f-coin" x="62.6" y="32.4" width="20" height="20" transform="rotate(10 72.6 42.4)"/>
+<use href="#f-coin" x="73.7" y="31.3" width="20" height="20" transform="rotate(6 83.7 41.3)"/>
+<use href="#f-coin" x="20.1" y="39.9" width="20" height="20" transform="rotate(6 30.1 49.9)"/>
+<use href="#f-coin" x="30.2" y="40.7" width="20" height="20" transform="rotate(15 40.2 50.7)"/>
+<use href="#f-coin" x="43.8" y="39.6" width="20" height="20" transform="rotate(0 53.8 49.6)"/>
+<use href="#f-coin" x="55.9" y="38.9" width="20" height="20" transform="rotate(15 65.9 48.9)"/>
+<use href="#f-coin" x="69.5" y="38.9" width="20" height="20" transform="rotate(0 79.5 48.9)"/>
+<use href="#f-coin" x="80.9" y="40.7" width="20" height="20" transform="rotate(15 90.9 50.7)"/>
+
+<rect x="20" y="54" width="80" height="36" rx="6" fill="url(#f-wood)" stroke="#2A1E26" stroke-width="3"/>
+<path d="M23 66 H97 M23 78 H97" stroke="#8A5326" stroke-width="2"/>
+<rect x="30" y="54" width="9" height="36" fill="url(#f-gold)" stroke="#2A1E26" stroke-width="2.5"/><rect x="81" y="54" width="9" height="36" fill="url(#f-gold)" stroke="#2A1E26" stroke-width="2.5"/>
+<rect x="16" y="49" width="88" height="9" rx="3.5" fill="url(#f-gold)" stroke="#2A1E26" stroke-width="3"/>
+<path d="M21 52.5 H52" stroke="#FFFBE6" stroke-width="2" stroke-linecap="round"/>
+<rect x="52" y="60" width="16" height="18" rx="4" fill="url(#f-gold)" stroke="#2A1E26" stroke-width="2.5"/><circle cx="60" cy="66.5" r="2.6" fill="#2A1E26"/><path d="M60 67.5 V73" stroke="#2A1E26" stroke-width="2.4" stroke-linecap="round"/>
+<use href="#f-coin" x="9.0" y="46.0" width="20" height="20" transform="rotate(-18 19.0 56.0)"/>
+<use href="#f-coin" x="4.0" y="56.0" width="20" height="20" transform="rotate(10 14.0 66.0)"/>
+<use href="#f-coin" x="3.0" y="67.0" width="20" height="20" transform="rotate(-8 13.0 77.0)"/>
+<use href="#f-coin" x="91.0" y="46.0" width="20" height="20" transform="rotate(16 101.0 56.0)"/>
+<use href="#f-coin" x="96.0" y="56.0" width="20" height="20" transform="rotate(-10 106.0 66.0)"/>
+<use href="#f-coin" x="97.0" y="67.0" width="20" height="20" transform="rotate(12 107.0 77.0)"/>
+<use href="#f-coin" x="4.0" y="73.5" width="18" height="18" transform="rotate(10 13.0 82.5)"/>
+<use href="#f-coin" x="16.3" y="73.8" width="18" height="18" transform="rotate(15 25.3 82.8)"/>
+<use href="#f-coin" x="-1.1" y="82.1" width="18" height="18" transform="rotate(-9 7.9 91.1)"/>
+<use href="#f-coin" x="11.0" y="80.4" width="18" height="18" transform="rotate(-14 20.0 89.4)"/>
+<use href="#f-coin" x="21.5" y="82.0" width="18" height="18" transform="rotate(0 30.5 91.0)"/>
+<use href="#f-coin" x="86.4" y="72.1" width="18" height="18" transform="rotate(-14 95.4 81.1)"/>
+<use href="#f-coin" x="97.3" y="72.9" width="18" height="18" transform="rotate(10 106.3 81.9)"/>
+<use href="#f-coin" x="77.9" y="81.4" width="18" height="18" transform="rotate(-5 86.9 90.4)"/>
+<use href="#f-coin" x="91.9" y="80.0" width="18" height="18" transform="rotate(-5 100.9 89.0)"/>
+<use href="#f-coin" x="104.4" y="80.6" width="18" height="18" transform="rotate(6 113.4 89.6)"/>
+<use href="#f-edge" x="31.0" y="91.4" width="18" height="7.2"/>
+<use href="#f-edge" x="73.0" y="91.4" width="18" height="7.2"/>
+<use href="#f-coin" x="52.0" y="86.0" width="16" height="16" transform="rotate(6 60.0 94.0)"/>
+<path class="sparkle" transform="translate(10 22) scale(1)" d="M0 -6 L1.4 -1.4 L6 0 L1.4 1.4 L0 6 L-1.4 1.4 L-6 0 L-1.4 -1.4 Z" fill="#FFE27A"/>
+<path class="sparkle" transform="translate(110 18) scale(1)" d="M0 -6 L1.4 -1.4 L6 0 L1.4 1.4 L0 6 L-1.4 1.4 L-6 0 L-1.4 -1.4 Z" fill="#FFE27A"/>
+<path class="sparkle" transform="translate(60 4) scale(0.8)" d="M0 -6 L1.4 -1.4 L6 0 L1.4 1.4 L0 6 L-1.4 1.4 L-6 0 L-1.4 -1.4 Z" fill="#FFFFFF" stroke="#F2C94C" stroke-width="1"/>
+<path class="sparkle" transform="translate(114 44) scale(0.7)" d="M0 -6 L1.4 -1.4 L6 0 L1.4 1.4 L0 6 L-1.4 1.4 L-6 0 L-1.4 -1.4 Z" fill="#FFFFFF" stroke="#F2C94C" stroke-width="1"/>
+<path class="sparkle" transform="translate(6 46) scale(0.7)" d="M0 -6 L1.4 -1.4 L6 0 L1.4 1.4 L0 6 L-1.4 1.4 L-6 0 L-1.4 -1.4 Z" fill="#FFFFFF" stroke="#F2C94C" stroke-width="1"/>
+</svg>

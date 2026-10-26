@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 100" width="120" height="100">
+<defs>
+<radialGradient id="b-face" cx="0.35" cy="0.3" r="0.8"><stop offset="0" stop-color="#FFF6C4"/><stop offset="0.45" stop-color="#FFD24D"/><stop offset="0.85" stop-color="#F2A922"/><stop offset="1" stop-color="#C9801A"/></radialGradient>
+<linearGradient id="b-rim" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E89A20"/><stop offset="1" stop-color="#9A560A"/></linearGradient>
+
+<symbol id="b-coin" viewBox="0 0 40 40">
+<circle cx="20" cy="21.5" r="17" fill="url(#b-rim)" stroke="#2A1E26" stroke-width="2.5"/>
+<circle cx="20" cy="19" r="16" fill="url(#b-face)" stroke="#2A1E26" stroke-width="2.5"/>
+<circle cx="20" cy="19" r="11.5" fill="none" stroke="#E39A26" stroke-width="2"/>
+<g fill="#C47C17"><ellipse cx="20" cy="22.5" rx="5" ry="4.2"/><circle cx="14.5" cy="16.5" r="2.2"/><circle cx="18" cy="13.5" r="2.2"/><circle cx="22" cy="13.5" r="2.2"/><circle cx="25.5" cy="16.5" r="2.2"/></g>
+<path d="M9.5 14 Q12 9 17 8" stroke="#FFFBE6" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+</symbol>
+<symbol id="b-edge" viewBox="0 0 40 16">
+<path d="M2 6 V10 Q20 17 38 10 V6 Z" fill="url(#b-rim)" stroke="#2A1E26" stroke-width="2" stroke-linejoin="round"/>
+<ellipse cx="20" cy="6" rx="18" ry="5" fill="url(#b-face)" stroke="#2A1E26" stroke-width="2"/>
+<ellipse cx="20" cy="6" rx="12" ry="3.2" fill="none" stroke="#E39A26" stroke-width="1.4"/>
+<path d="M8 4.5 Q12 2.5 17 2.2" stroke="#FFFBE6" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+</symbol>
+</defs>
+<ellipse cx="60" cy="95" rx="50" ry="4.5" fill="#2A1E26" opacity="0.12"/>
+<use href="#b-edge" x="15.4" y="74.4" width="28" height="11.2"/>
+<use href="#b-edge" x="15.0" y="69.8" width="28" height="11.2"/>
+<use href="#b-edge" x="15.8" y="65.2" width="28" height="11.2"/>
+<use href="#b-edge" x="15.2" y="60.6" width="28" height="11.2"/>
+<use href="#b-edge" x="15.0" y="56.0" width="28" height="11.2"/>
+<use href="#b-edge" x="15.8" y="51.4" width="28" height="11.2"/>
+<use href="#b-edge" x="17.0" y="46.8" width="28" height="11.2"/>
+<use href="#b-edge" x="16.7" y="42.2" width="28" height="11.2"/>
+<use href="#b-edge" x="16.6" y="37.6" width="28" height="11.2"/>
+<use href="#b-edge" x="46.7" y="76.4" width="28" height="11.2"/>
+<use href="#b-edge" x="46.8" y="71.8" width="28" height="11.2"/>
+<use href="#b-edge" x="46.0" y="67.2" width="28" height="11.2"/>
+<use href="#b-edge" x="45.4" y="62.6" width="28" height="11.2"/>
+<use href="#b-edge" x="44.8" y="58.0" width="28" height="11.2"/>
+<use href="#b-edge" x="46.4" y="53.4" width="28" height="11.2"/>
+<use href="#b-edge" x="45.9" y="48.8" width="28" height="11.2"/>
+<use href="#b-edge" x="46.6" y="44.2" width="28" height="11.2"/>
+<use href="#b-edge" x="45.7" y="39.6" width="28" height="11.2"/>
+<use href="#b-edge" x="46.6" y="35.0" width="28" height="11.2"/>
+<use href="#b-edge" x="45.5" y="30.4" width="28" height="11.2"/>
+<use href="#b-edge" x="46.7" y="25.8" width="28" height="11.2"/>
+<use href="#b-edge" x="75.3" y="74.4" width="28" height="11.2"/>
+<use href="#b-edge" x="77.1" y="69.8" width="28" height="11.2"/>
+<use href="#b-edge" x="75.1" y="65.2" width="28" height="11.2"/>
+<use href="#b-edge" x="76.5" y="60.6" width="28" height="11.2"/>
+<use href="#b-edge" x="75.0" y="56.0" width="28" height="11.2"/>
+<use href="#b-edge" x="75.4" y="51.4" width="28" height="11.2"/>
+<use href="#b-edge" x="77.2" y="46.8" width="28" height="11.2"/>
+<use href="#b-edge" x="75.3" y="42.2" width="28" height="11.2"/>
+<use href="#b-coin" x="7.0" y="75.0" width="22" height="22" transform="rotate(-12 18.0 86.0)"/>
+<use href="#b-coin" x="35.0" y="77.0" width="22" height="22" transform="rotate(8 46.0 88.0)"/>
+<use href="#b-coin" x="64.0" y="77.0" width="22" height="22" transform="rotate(-6 75.0 88.0)"/>
+<use href="#b-coin" x="92.0" y="75.0" width="22" height="22" transform="rotate(14 103.0 86.0)"/>
+<path class="sparkle" transform="translate(14 40) scale(1)" d="M0 -6 L1.4 -1.4 L6 0 L1.4 1.4 L0 6 L-1.4 1.4 L-6 0 L-1.4 -1.4 Z" fill="#FFE27A"/>
+<path class="sparkle" transform="translate(104 34) scale(0.7)" d="M0 -6 L1.4 -1.4 L6 0 L1.4 1.4 L0 6 L-1.4 1.4 L-6 0 L-1.4 -1.4 Z" fill="#FFFFFF" stroke="#F2C94C" stroke-width="1"/>
+<path class="sparkle" transform="translate(76 14) scale(0.8)" d="M0 -6 L1.4 -1.4 L6 0 L1.4 1.4 L0 6 L-1.4 1.4 L-6 0 L-1.4 -1.4 Z" fill="#FFE27A"/>
+</svg>

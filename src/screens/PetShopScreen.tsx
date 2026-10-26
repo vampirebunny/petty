@@ -52,8 +52,10 @@ import { useLimitedContentWidth } from '../ui/PhoneColumn';
 import { useOpenedDuoBoopEdge, useOpenedDuoTopInset } from '../ui/useDeviceOrientation';
 import { isLandscapeSplit } from '../ui/wideLayout';
 import { fontFamily } from '../ui/font';
+import { GetBoopsSheet } from '../ui/shop/GetBoopsSheet';
 import { Glossy, LedgeCard } from '../ui/shop/Glossy';
 import { ItemArt } from '../ui/shop/ItemArt';
+import { LilacFace } from '../ui/shop/LilacFace';
 import { ShopStage } from '../ui/shop/ShopStage';
 import { shop, shopRadius } from '../ui/shop/theme';
 
@@ -182,6 +184,7 @@ export function PetShopScreen({
   const [clock, setClock] = useState(() => Date.now());
   const [cart, setCart] = useState<CartRow[]>([]);
   const [sheet, setSheet] = useState(false);
+  const [boopsOpen, setBoopsOpen] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [celebration, setCelebration] = useState<{ charge: number; lines: { name: string; place: string }[]; closet: boolean } | null>(
@@ -460,6 +463,19 @@ export function PetShopScreen({
               reducedMotion={reducedMotion}
               width={stageWidthPx}
             />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Get Boops"
+              onPress={() => setBoopsOpen(true)}
+              style={styles.getBoops}
+            >
+              {({ pressed }) => (
+                <LilacFace pressed={pressed} radius={22} height={56}>
+                  <StillCoin size={26} />
+                  <Text style={styles.getBoopsText}>Get Boops</Text>
+                </LilacFace>
+              )}
+            </Pressable>
           </View>
           <ScrollView
             style={split ? styles.choices : styles.choicesFill}
@@ -582,7 +598,7 @@ export function PetShopScreen({
           </ScrollView>
         </View>
       )}
-      {cart.length > 0 && !sheet && !celebration ? (
+      {cart.length > 0 && !sheet && !celebration && !boopsOpen ? (
         <CartBar
           count={cartCount}
           charge={charge}
@@ -660,6 +676,9 @@ export function PetShopScreen({
             ) : null}
           </View>
         </View>
+      ) : null}
+      {boopsOpen ? (
+        <GetBoopsSheet balance={balance} reducedMotion={reducedMotion} onClose={() => setBoopsOpen(false)} />
       ) : null}
     </View>
   );
@@ -1176,6 +1195,16 @@ const styles = StyleSheet.create({
     borderRightWidth: 4,
     borderRightColor: shop.pinkLine,
   },
+  getBoops: {
+    marginTop: 14,
+    marginHorizontal: 16,
+    shadowColor: '#7E62D6',
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 4,
+  },
+  getBoopsText: { fontFamily: fontFamily.fredokaBold, fontSize: 20, color: '#2E1A5E' },
   choices: { flex: 1, minWidth: 0 },
   choicesFill: { flex: 1 },
   scroll: { paddingTop: 16, paddingBottom: 120, gap: 18 },

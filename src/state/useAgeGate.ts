@@ -18,6 +18,7 @@ import {
 } from '../age/storage';
 import { PRIVACY_VERSION, TERMS_VERSION } from '../config/legal';
 import { onAgeGateRefresh } from './ageGateRefresh';
+import { setAgeGatePhase, type AgeGatePhase } from './ageGatePhase';
 import { eraseUnder13 } from '../compliance/deleteAccount';
 import {
   enqueueAgeDetermination,
@@ -27,7 +28,7 @@ import {
   signOutLocally,
 } from '../compliance/syncConsentRecords';
 
-export type AgeGatePhase = 'loading' | 'consent' | 'unavailable' | 'ready';
+export type { AgeGatePhase };
 
 function termsAreCurrent(terms: TermsAcceptance | null): boolean {
   return terms?.termsVersion === TERMS_VERSION && terms.privacyVersion === PRIVACY_VERSION;
@@ -46,6 +47,10 @@ export function useAgeGate({ onUnavailable }: Options) {
   useEffect(() => {
     onUnavailableRef.current = onUnavailable;
   }, [onUnavailable]);
+
+  useEffect(() => {
+    setAgeGatePhase(phase);
+  }, [phase]);
 
   const enqueueWork = useCallback((task: () => Promise<void>) => {
     const run = tail.current.then(task, task);

@@ -302,10 +302,12 @@ The device writes first and Supabase catches up; once IAP ships, the server beco
 
 **Phase 2 (when IAP ships)**
 
-- Purchases go through RevenueCat or StoreKit/Play Billing. The server verifies the receipt and writes the `iap` grant. The client never writes `iap` transactions.
-- Guests can't buy Boops, so purchases require an account.
-- Earned-Boops checks move from "flag" to "reject" for accounts that have ever purchased.
-- Refunds become an `admin_adjust` transaction that can push the balance below zero. Spending is blocked until the balance is positive again, and items already bought stay.
+The purchase rules are in [boops-iap-brief.md](boops-iap-brief.md).
+
+- Guests can buy. The store rules do not allow requiring an account first.
+- The RevenueCat webhook writes the grant. The phone copies that server row into the local ledger and does not push it back.
+- Earned Boops stay client-trusted until a later hardening pass. That pass is not part of the purchase work.
+- A refund is a reversal of the original credit and can push the balance below zero. Spending stays blocked until it is positive again. Items already bought stay.
 
 ## CurrencyService API
 
