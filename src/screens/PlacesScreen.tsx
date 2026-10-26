@@ -16,10 +16,11 @@ type Props = {
   onPick: (sceneId: string) => void;
   onClose: () => void;
   onShop: () => void;
+  onArcade: () => void;
   reducedMotion: boolean;
 };
 
-export function PlacesScreen({ species, currentSceneId, petName, onPick, onClose, onShop, reducedMotion }: Props) {
+export function PlacesScreen({ species, currentSceneId, petName, onPick, onClose, onShop, onArcade, reducedMotion }: Props) {
   const width = useContentWidth();
   const column = Math.max(0, (width - 12 * 2 - 8) / 2);
   const iconSize = Math.min(132, column);
@@ -48,11 +49,15 @@ export function PlacesScreen({ species, currentSceneId, petName, onPick, onClose
                   isCurrent={spot.sceneId != null && spot.sceneId === currentSceneId}
                   reducedMotion={reducedMotion}
                   onPress={() => {
-                    if (spot.sceneId == null) {
+                    if (spot.dest === 'shop') {
                       onShop();
                       return;
                     }
-                    if (spot.sceneId !== currentSceneId) {
+                    if (spot.dest === 'arcade') {
+                      onArcade();
+                      return;
+                    }
+                    if (spot.sceneId != null && spot.sceneId !== currentSceneId) {
                       onPick(spot.sceneId);
                     }
                     onClose();

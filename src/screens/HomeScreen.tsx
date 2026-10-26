@@ -33,6 +33,8 @@ import {
   saveSoundEnabled,
 } from '../storage/session';
 import { PlacesScreen } from './PlacesScreen';
+import { ArcadeScreen } from './ArcadeScreen';
+import { flushCloudHopScore } from '../minigames/cloudHop/scores';
 import { PantryScreen } from './PantryScreen';
 import { PetShopScreen } from './PetShopScreen';
 import { placeFlavors, placeIcons, speciesLabel } from '../ui/actionIcons';
@@ -339,6 +341,7 @@ export default function HomeScreen({ petApi }: Props) {
   const [clock, setClock] = useState(() => Date.now());
   const [pantryOpen, setPantryOpen] = useState(false);
   const [shopOpen, setShopOpen] = useState(false);
+  const [arcadeOpen, setArcadeOpen] = useState(false);
   const [bedTip, setBedTip] = useState(false);
   const [bedSwap, setBedSwap] = useState<{ piece: FurniturePiece; occupantId: string; name: string; x: number; y: number } | null>(null);
   useEffect(() => {
@@ -430,6 +433,7 @@ export default function HomeScreen({ petApi }: Props) {
     setSeenSnap(homeSnapToken);
     setPlacesOpen(false);
     setShopOpen(false);
+    setArcadeOpen(false);
   }
   const whereUid = useId().replace(/:/g, '');
   const [facingOpen, setFacingOpen] = useState(false);
@@ -528,6 +532,7 @@ export default function HomeScreen({ petApi }: Props) {
       } else {
         unmuteBloops();
         pullShop();
+        void flushCloudHopScore();
         if (!openPathSuppressed()) {
           setFriendTick((value) => value + 1);
         }
@@ -552,7 +557,11 @@ export default function HomeScreen({ petApi }: Props) {
       setPlaydateOpen(false);
     });
     const unsubHandle = onHandlePrompt(() => setFriendTick((value) => value + 1));
-    const unsubAccount = onAccountFlags(() => setFriendTick((value) => value + 1));
+    const unsubAccount = onAccountFlags(() => {
+      setFriendTick((value) => value + 1);
+      void flushCloudHopScore();
+    });
+    void flushCloudHopScore();
     return () => {
       unsubModal();
       unsubHandle();
@@ -1593,6 +1602,12 @@ export default function HomeScreen({ petApi }: Props) {
     );
   }
 
+  if (arcadeOpen) {
+    return hosted(
+      <ArcadeScreen pet={state} reducedMotion={reducedMotion} onClose={() => setArcadeOpen(false)} />,
+    );
+  }
+
   if (shopOpen) {
     return hosted(
       <PetShopScreen
@@ -2027,6 +2042,18 @@ export default function HomeScreen({ petApi }: Props) {
 
   const sheetTop = split ? 0 : previewBottom;
   const trickTitle = (trackId: string) => trackName(trackId, species);
+  const leaveForArcade = () => {
+    clearSheetTimer();
+    setSheetWait(false);
+    setPlacesOpen(false);
+    setDialog(null);
+    const stage = stageHandle.current;
+    if (!stage) {
+      setArcadeOpen(true);
+      return;
+    }
+    stage.depart(() => setArcadeOpen(true));
+  };
   const leaveForShop = () => {
     clearSheetTimer();
     setSheetWait(false);
@@ -3032,6 +3059,7 @@ export default function HomeScreen({ petApi }: Props) {
             onPick={setScene}
             onClose={() => setPlacesOpen(false)}
             onShop={() => leaveForShop()}
+            onArcade={() => leaveForArcade()}
           />
           </PhoneColumn>
         </View>

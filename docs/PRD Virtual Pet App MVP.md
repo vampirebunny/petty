@@ -97,7 +97,13 @@ Each phase builds on the one before it and ends at an exit check, listed in the 
 | 4. Accounts and social | Guest-to-account upgrade, pet sync, share card and clip, read-only friend visits, and account and data deletion. Store age signals and anonymous consent records ship with the age gate. | A guest can upgrade, back up the pet, add a friend by invite link and share a card. |
 | 5. Beta | Legal and store checks, matching age rating, privacy policy, analytics and a small beta. | The privacy attorney consult is done, the store listing and rating match the 13+ terms, the store privacy and support URLs point at `https://boopboop.mylisto.app`, and the beta is released. |
 
-Later, after the MVP proves the loop: earned and premium cosmetics, more breeds, encounters between the owner's pet and a friend's pet, pet exchange or restart, mini-games, multiple owned pets, and public showcases. A friend encounter is still not a live session. Premium cosmetics are cosmetic-only. The rest of the monetization model stays open.
+Where to? lists Arcade for both dogs and cats. Choosing it uses the same leave as the Pet Shop: the pet walks off to the right, the room fades, and the Arcade cuts in. Reduce Motion skips the walk. Leave on the Arcade returns to the room the pet left, with no walk back in. A return of 3 hours or more also closes the Arcade.
+
+The Arcade lists Cloud Hop and Paddle Paws. Cloud Hop is playable and uses the current pet, including its outfit. There is no species picker. Paddle Paws is shown and does nothing. The run is score only and does not grant Boops or change inventory. The start screen offers Play and Leaderboard, and Back there returns to the Arcade. Pause offers Resume, the app sound switch, and End run. Game over offers Play again, Leaderboard, and Menu. Menu returns to the Arcade.
+
+The leaderboard is one global top 20 of each account's best Cloud Hop score. A row shows rank, handle, the pet name from the run that set the score, and the score. A new run updates that row only when the score is higher. Guests can play. Their best stays on the device and is not uploaded. Game over asks them to log in or create an account to save the score. After the account is linked and has a handle, that pending best is submitted, and the account keeps the higher of the pending score and any stored score.
+
+Later, after the MVP proves the loop: earned and premium cosmetics, more breeds, encounters between the owner's pet and a friend's pet, pet exchange or restart, more mini-games, multiple owned pets, and public showcases. A friend encounter is still not a live session. Premium cosmetics are cosmetic-only. The rest of the monetization model stays open.
 
 ## Functional requirements: care and growth
 

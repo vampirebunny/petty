@@ -1,5 +1,5 @@
 import { useId, type ReactNode } from 'react';
-import Svg, { Circle, Defs, Ellipse, G, LinearGradient, Path, Polygon, Rect, Stop } from 'react-native-svg';
+import Svg, { Circle, ClipPath, Defs, Ellipse, G, LinearGradient, Path, Polygon, Rect, Stop } from 'react-native-svg';
 
 import type { SpotId } from './spots';
 
@@ -236,6 +236,80 @@ export function SchoolIcon({ size }: { size: number }) {
   );
 }
 
+export function ArcadeIcon({ size }: { size: number }) {
+  const top = useSvgId('arT');
+  const base = useSvgId('arB');
+  const glass = useSvgId('arG');
+  const clip = useSvgId('arC');
+  return (
+    <IconSvg size={size}>
+      <Defs>
+        <Shade id={top} y1={7} y2={23} top="#ffa6d2" bottom="#f06aaa" />
+        <Shade id={base} y1={52} y2={74} top="#f27ab3" bottom="#c94489" />
+        <Shade id={glass} y1={23} y2={52} top="#eefaff" bottom="#bfe6ff" />
+        <ClipPath id={clip}>
+          <Rect x={20} y={23} width={44} height={29} rx={2} />
+        </ClipPath>
+      </Defs>
+      <Ellipse cx={60} cy={116} rx={40} ry={6} fill="#4a2f5e" opacity={0.12} />
+      <G transform="translate(-1.3, -2) scale(1.46)">
+        <Circle cx={24} cy={10} r={7} fill="#f06aaa" />
+        <Circle cx={60} cy={10} r={7} fill="#f06aaa" />
+        <Circle cx={24} cy={10} r={3.2} fill="#ffc4e2" />
+        <Circle cx={60} cy={10} r={3.2} fill="#ffc4e2" />
+        <Rect x={15} y={7} width={54} height={16} rx={8} fill={`url(#${top})`} />
+        <Rect x={18} y={9} width={48} height={3} rx={1.5} fill="#ffffff" opacity={0.45} />
+        <G fill="#ffe27a">
+          <Circle cx={24} cy={16} r={2} />
+          <Circle cx={31.2} cy={16} r={2} />
+          <Circle cx={38.4} cy={16} r={2} />
+          <Circle cx={45.6} cy={16} r={2} />
+          <Circle cx={52.8} cy={16} r={2} />
+          <Circle cx={60} cy={16} r={2} />
+        </G>
+        <Rect x={18} y={21} width={48} height={33} rx={3} fill="#f06aaa" />
+        <Rect x={20} y={23} width={44} height={29} rx={2} fill={`url(#${glass})`} />
+        <G clipPath={`url(#${clip})`}>
+          <Rect x={20} y={23} width={44} height={2.5} fill="#a7cfe8" />
+          <Path d="M40 25 V31" stroke="#4a2f5e" strokeWidth={1.6} />
+          <Rect x={37.5} y={30} width={5} height={3.5} rx={1} fill="#f5b82e" />
+          <Path
+            d="M38.2 33.4 q-3 3 -1 6.2 M41.8 33.4 q3 3 1 6.2"
+            fill="none"
+            stroke="#f5b82e"
+            strokeWidth={1.8}
+            strokeLinecap="round"
+          />
+          <Circle cx={28.5} cy={48} r={7} fill="#ff9fcc" />
+          <Path
+            d="M22 46 Q28 43 35 48 M23 50.5 Q29 47 34.5 51.5 M26 42 Q31 46 30 54"
+            fill="none"
+            stroke="#e2569b"
+            strokeWidth={1.2}
+          />
+          <Ellipse cx={43} cy={49.5} rx={7} ry={5} fill="#ffd23f" />
+          <Circle cx={46.5} cy={43.5} r={4.2} fill="#ffd23f" />
+          <Ellipse cx={50.8} cy={44.2} rx={2.4} ry={1.4} fill="#ff8a3d" />
+          <Circle cx={47.4} cy={42.6} r={0.9} fill="#2a1f33" />
+          <Circle cx={57.5} cy={48.5} r={6} fill="#eeb06a" stroke="#b8732f" strokeWidth={1.2} />
+          <G fill="#a8652a">
+            <Circle cx={55.5} cy={47} r={0.9} />
+            <Circle cx={59.3} cy={47.6} r={0.9} />
+            <Circle cx={57.4} cy={50.6} r={0.9} />
+          </G>
+          <Path d="M23 25.5 H28 L21 52 H20 Z" fill="#ffffff" opacity={0.55} />
+        </G>
+        <Rect x={15} y={52} width={54} height={22} rx={6} fill={`url(#${base})`} />
+        <Rect x={18} y={53.5} width={48} height={2.5} rx={1.25} fill="#ffffff" opacity={0.35} />
+        <Rect x={21} y={59} width={17} height={10} rx={3} fill="#3b3466" />
+        <Rect x={52.5} y={58} width={3} height={7} rx={1.5} fill="#4a2f5e" />
+        <Circle cx={54} cy={58} r={3.6} fill="#ffe27a" />
+        <Circle cx={62.5} cy={64} r={2.8} fill="#8fd0ff" />
+      </G>
+    </IconSvg>
+  );
+}
+
 export const locationIcons = {
   shop: ShopIcon,
   school: SchoolIcon,
@@ -243,4 +317,5 @@ export const locationIcons = {
   livingroom: SofaIcon,
   bedroom: BedIcon,
   catio: CatioIcon,
+  arcade: ArcadeIcon,
 } satisfies Record<SpotId, ({ size }: { size: number }) => ReactNode>;

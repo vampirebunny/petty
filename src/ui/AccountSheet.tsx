@@ -21,7 +21,8 @@ export type AccountSheetReason =
   | 'settings'
   | 'restore'
   | 'reauth'
-  | 'apple_reauth';
+  | 'apple_reauth'
+  | 'score';
 
 type Props = {
   reason: AccountSheetReason;
@@ -59,9 +60,13 @@ const copy: Record<AccountSheetReason, { title: string; body: string }> = {
     title: 'Finish deleting',
     body: 'Sign in with Apple once more to finish deleting your account.',
   },
+  score: {
+    title: 'Save your score',
+    body: 'Log in or create an account to save your score.',
+  },
 };
 
-const linkReasons = new Set<AccountSheetReason>(['friends', 'purchase', 'day3', 'settings']);
+const linkReasons = new Set<AccountSheetReason>(['friends', 'purchase', 'day3', 'settings', 'score']);
 
 function withPet(text: string, petName: string): string {
   return text.replaceAll('{petName}', petName || 'your pet');
