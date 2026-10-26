@@ -2,7 +2,7 @@
 
 ## App rules
 
-These override the lab and `training_catalog.sql` where they differ.
+These are the rules for trick animations.
 
 - Come and Crawl are not in the app. There is no stool. Dog Place and cat Place are one trick, Jump Up, and it uses a podium for both species.
 - In-place tricks keep the facing the pet already has. The head may still turn toward the camera on beats that set `faceCam`.
@@ -13,11 +13,9 @@ These override the lab and `training_catalog.sql` where they differ.
 
 
 
-Reference: **Trick Lab** (the `trick-lab.html` demo). It plays every purchasable trick on the app's own pose channels, `poseRate` easing and `jump.ts` physics. Each trick has a success version and three fail versions, and the full scripts can be copied as JSON from the page ("Copy all tricks").
+Shipped scripts live in `src/actor/data/trickScripts.ts`. Each purchasable trick has a success version and three fail versions, played on the app's pose channels, `poseRate` easing, and `jump.ts` physics. `drawActor` renders every channel the scripts use, except the three new ones in §3.
 
-The demo's pet is a simplified stand-in for the Skia renderer. **Port the scripts, not the drawing.** The app's `drawActor` already renders every channel the scripts use, except the three new ones in §3.
-
-Starter tricks (Sit, Speak, Paw) are unchanged and are not in the demo.
+Starter tricks (Sit, Speak, Paw) are unchanged and are not in that script table.
 
 ---
 
@@ -25,7 +23,7 @@ Starter tricks (Sit, Speak, Paw) are unchanged and are not in the demo.
 
 `greetings.ts` already runs scripted `GreetStep[]` lists: `dur`, `pose`, `wag`, `sound`, `move` + `untilArrive`, `spin`, `face`, `rate`, `toy`. Tricks use the same shape.
 
-- Create `actor/data/tricks.ts` from the demo's `TRICKS` and `TAILS` (paste the "Copy all tricks" JSON and type it).
+- Trick scripts live in `src/actor/data/trickScripts.ts`.
 - Run trick scripts through the same step runner as greetings, extended with the fields below.
 - The keys match `catalog_tricks.pet_animation_key`. Map `dog.roll_over` to the `dog_roll_over` script, and so on.
 
@@ -177,7 +175,7 @@ barZ = Math.min(anchor.bar_height * PROP_SCALE, heightCapPx - obstacleMargin * w
 The current `actor.spin` only turns to the far side and back, which is a look-back. **Spin `{ turns: 1 }` must turn all the way around through the octant ring:**
 - Step `aimOctant` around E → SE → S → SW → W → NW → N → NE → E, spreading the step `dur` over the 8 octants.
 - That way the 3/4, front and back views all show.
-- The demo fakes this by squashing the side view.
+- Do not fake the turn by squashing the side view.
 - `turns: 0.5` ends facing the other way.
 - While spinning, march the feet in place (`walk ≈ 0.55`, with the phase advancing).
 
@@ -185,7 +183,7 @@ The current `actor.spin` only turns to the far side and back, which is a look-ba
 
 ## 6. Ball tricks (Catch, Fetch)
 
-Use the existing ball toy item and its physics, not the demo's scripted arc.
+Use the existing ball toy item and its physics.
 - **Catch:** throw the ball toward the pet. Use `predictCrossing` at the mouth height to time the in-place hop so the mouth meets the ball at the apex. On contact, the item becomes `carried` (`carry = true`).
 - **Fetch (cat):**
   - Throw the ball to the floor away from the cat.

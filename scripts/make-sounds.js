@@ -1,7 +1,7 @@
-// Renders the bark and the meow from docs/pet-demo-v2_2.html (playVoice) into WAV files.
+// Renders the bark and the meow into WAV files.
 // Run: node scripts/make-sounds.js
-// The demo builds these live with an oscillator, a biquad filter and a gain envelope. This script
-// runs the same graph offline so the app can play a recorded clip and change its pitch with the
+// Each clip is an oscillator, a biquad filter, and a gain envelope, recorded offline so the app
+// can play a clip and change its pitch with the
 // playback rate (breed pitch times the age factor, with pitch correction off).
 const fs = require('fs');
 const path = require('path');
