@@ -1,3 +1,4 @@
+import Constants from 'expo-constants';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -111,7 +112,23 @@ export function RangeControl({
   );
 }
 
-export function DebugPanel({
+/** Expo Go sets this. Dev clients, store builds, and web leave it null. */
+function runningInExpoGo(): boolean {
+  try {
+    return Constants.expoGoConfig != null;
+  } catch {
+    return false;
+  }
+}
+
+export function DebugPanel(props: Props) {
+  if (!runningInExpoGo()) {
+    return null;
+  }
+  return <DebugPanelBody {...props} />;
+}
+
+function DebugPanelBody({
   state,
   mood,
   cue,
