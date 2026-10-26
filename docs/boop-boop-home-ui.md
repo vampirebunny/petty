@@ -18,7 +18,9 @@ Learned tricks sit under those sections in the blue candy style. Badges are lila
 
 Play opens a Toy Box card under the preview. It lists toys the pet owns. Tapping one throws or holds that toy and closes the card.
 
-Feed and Treat open a Pantry card in that same place. Feed lists Kibble, which is always free, plus any special food this pet can eat. Treat lists the treats in inventory. Each owned stack shows a count. Tapping a tile serves it and closes the card. Tapping outside the card closes it without serving. A full food bowl does not open the Pantry: it says the bowl is already full.
+Feed and Treat open a Pantry card in that same place. Feed lists Kibble, which is always free, plus any special food this pet can eat. Treat lists the treats in inventory. Each owned stack shows a count. Tapping a tile serves it and closes the card. A full food bowl does not open the Pantry: it says the bowl is already full.
+
+Storage, the Toy Box, the Prop sheet, the Pantry, and the bowl notice close the same way. A tap on the pet scene closes the card and does not pet, throw, cuddle, or serve. A tap on the empty area around the card closes it too. A tap on a tile still chooses that item.
 
 A low Tummy, Hydration, or Energy (under 30) puts a need badge and sparkles on Feed, Water, or Sleep.
 
@@ -41,7 +43,7 @@ A tap never moves a prop. Floor flicks and cuddle strokes are unchanged. Cuddle 
 One candy tooltip shows at a time. Doing the action marks it seen. Dismissing it without acting allows one later show, then never again, except `tip.move`, which is marked seen the moment it appears. Seen tips are stored on the device.
 
 - `tip.water`, `tip.sleep`: the first time hydration or energy crosses under 30, pointing at the water bowl or bed. Hunger does not show a bowl tip.
-- `tip.cuddle`: the first time Cuddle is entered. Copy is "Stroke his back or head". The ghost finger and the long-press help sheet stay.
+- `tip.cuddle`: the first time Cuddle is entered. Copy is "Stroke his back or head". The ghost finger and the long-press help sheet stay. A tap outside that sheet closes it.
 - `tip.move`: after two prop taps, or when a new placeable arrives once a prop tap has already happened. "Hold to move or store". The first time it appears it is marked seen, so a later tap or a new placeable does not bring it back.
 
 After a prop tip has been seen, that prop shimmers while its need stays under 30. Reduce Motion turns off the bob, the pulse, and the shimmer.
@@ -50,6 +52,6 @@ After a prop tip has been seen, that prop shimmers while its need stays under 30
 
 Phones stay portrait. A tablet or an unfolded foldable may rotate once its shorter side is at least 520dp. The landscape split starts at 600dp. Surface Duo rotates on one screen (about 540×720). Opened wide, hinge vertical, the window is about 1114×720 and uses the landscape split. Opened with the hinge horizontal, the window is about 720×1114 and stays stacked. Portrait, including an upright iPad, keeps the scene stacked above the controls.
 
-In landscape, the header (logo, name, Boop counter) stays full width. On an opened Surface Duo the Boop total sits further in from the right edge, clear of the clock and status icons. The scene fills the left side. The controls sit in a column on the right, at most 400pt. When that column is narrower, the rings, Where card, training, and action panel scale down together so they stay on screen. The Toy Box and Pantry cards open in that column, under the header. The seam is not locked to a fold hinge.
+In landscape, the header (logo, name, Boop counter) stays full width. On an opened Surface Duo the Boop total sits further in from the right edge, clear of the clock and status icons. The scene fills the left side. The controls sit in a column on the right, at most 400pt. When that column is narrower, the rings, Where card, training, and action panel scale down together so they stay on screen. The Toy Box, Pantry, Storage, and Prop cards open in that column, under the header. A tap on the scene still closes them. The seam is not locked to a fold hinge.
 
 Wardrobe, the Pet Shop, and the playdate outfit step put the preview on the left and the choices on the right. Pantry, the rest of playdate, places, and adopt stay one centered column of that same width so they do not stretch across the window.

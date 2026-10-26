@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { helpItems, helpTitle } from '../../cuddle/guidance';
@@ -41,8 +41,8 @@ type HelpProps = { visible: boolean; onClose: () => void };
 export function CuddleHelpSheet({ visible, onClose }: HelpProps) {
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.sheetBackdrop}>
-        <View style={styles.sheet} accessibilityViewIsModal>
+      <Pressable accessibilityLabel="Close" onPress={onClose} style={styles.sheetBackdrop}>
+        <Pressable accessible={false} style={styles.sheet} accessibilityViewIsModal onPress={() => {}}>
           <Text style={styles.sheetTitle} accessibilityRole="header">
             {helpTitle}
           </Text>
@@ -60,8 +60,8 @@ export function CuddleHelpSheet({ visible, onClose }: HelpProps) {
           >
             <Text style={styles.cardNextText}>Close</Text>
           </Pressable>
-        </View>
-      </View>
+        </Pressable>
+      </Pressable>
     </Modal>
   );
 }

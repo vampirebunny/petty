@@ -1,4 +1,4 @@
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text } from 'react-native';
 
 import { minTouch, theme } from './theme';
 
@@ -11,8 +11,8 @@ type Props = {
 export function SilentModeHint({ visible, onClose }: Props) {
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.sheetBackdrop}>
-        <View style={styles.sheet} accessibilityViewIsModal>
+      <Pressable accessibilityLabel="Close" onPress={onClose} style={styles.sheetBackdrop}>
+        <Pressable accessible={false} style={styles.sheet} accessibilityViewIsModal onPress={() => {}}>
           <Text style={styles.sheetTitle} accessibilityRole="header">
             Can&apos;t hear anything?
           </Text>
@@ -27,8 +27,8 @@ export function SilentModeHint({ visible, onClose }: Props) {
           >
             <Text style={styles.buttonText}>Got it</Text>
           </Pressable>
-        </View>
-      </View>
+        </Pressable>
+      </Pressable>
     </Modal>
   );
 }

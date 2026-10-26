@@ -464,6 +464,7 @@ export default function HomeScreen({ petApi }: Props) {
   const [treatNote, setTreatNote] = useState<string | null>(null);
   const [feedOpen, setFeedOpen] = useState(false);
   const [feedNote, setFeedNote] = useState<string | null>(null);
+  const closePickerRef = useRef<() => boolean>(() => false);
   const [cuddleOn, setCuddleOn] = useState(false);
   const tips = useCandyTips();
   const [helpOpen, setHelpOpen] = useState(false);
@@ -858,7 +859,12 @@ export default function HomeScreen({ petApi }: Props) {
     cuddleEndRef.current = cuddleEnd;
   }, [cuddleEnd, cuddleMove, cuddleTap]);
   const onCuddleMoveStage = useCallback((x: number, y: number) => cuddleMoveRef.current(x, y), []);
-  const onCuddleTapStage = useCallback((x: number, y: number) => cuddleTapRef.current(x, y), []);
+  const onCuddleTapStage = useCallback((x: number, y: number) => {
+    if (closePickerRef.current()) {
+      return;
+    }
+    cuddleTapRef.current(x, y);
+  }, []);
   const onCuddleEndStage = useCallback(() => cuddleEndRef.current(), []);
 
   const dropRef = useRef(softDropHere);
@@ -961,6 +967,9 @@ export default function HomeScreen({ petApi }: Props) {
   );
   const onStageTap = useCallback(
     (x: number, y: number) => {
+      if (closePickerRef.current()) {
+        return;
+      }
       tipsRef.current.dismiss();
       if (holdTargetRef.current) {
         closeHold();
@@ -2771,6 +2780,21 @@ export default function HomeScreen({ petApi }: Props) {
         />
     </ScrollView>
   );
+
+  closePickerRef.current = () => {
+    if (!storageOpen && !playOpen && !propOpen && !feedOpen && !treatOpen && bowlNotice == null) {
+      return false;
+    }
+    setStorageOpen(false);
+    setPlayOpen(false);
+    setPropOpen(false);
+    setFeedOpen(false);
+    setFeedNote(null);
+    setTreatOpen(false);
+    setTreatNote(null);
+    setBowlNotice(null);
+    return true;
+  };
 
   const homeIdle =
     stageReady &&

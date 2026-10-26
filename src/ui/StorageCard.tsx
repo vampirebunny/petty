@@ -5,6 +5,7 @@ import { Canvas, Picture, Skia } from '@shopify/react-native-skia';
 import { PROP_SCALE, type TrickPropType } from '../sim/trickProps';
 import { drawTrickProp } from './skia/trickPropArt';
 import { fontFamily } from './font';
+import { SheetDismiss } from './SheetDismiss';
 import { BedThumb, bedThumbId } from './shop/BedThumb';
 import { FurnitureIcon } from './shop/ItemArt';
 
@@ -39,8 +40,7 @@ function isTrickType(value: string): value is TrickPropType {
 
 export function StorageCard({ items, empty, top, onClose, onPick }: Props) {
   return (
-    <View style={[styles.layer, { top }]} pointerEvents="box-none">
-      <Pressable style={styles.dim} accessibilityLabel="Close storage" onPress={onClose} />
+    <SheetDismiss top={top} label="Close storage" onClose={onClose}>
       <View style={styles.card}>
         <Text style={styles.title}>Storage</Text>
         {items.length === 0 ? (
@@ -71,7 +71,7 @@ export function StorageCard({ items, empty, top, onClose, onPick }: Props) {
           </ScrollView>
         )}
       </View>
-    </View>
+    </SheetDismiss>
   );
 }
 
@@ -126,17 +126,6 @@ function TrickGlyph({ type, sourceTrickId }: { type: TrickPropType; sourceTrickI
 }
 
 const styles = StyleSheet.create({
-  layer: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 30,
-    paddingHorizontal: 20,
-  },
-  dim: {
-    ...StyleSheet.absoluteFill,
-  },
   card: {
     backgroundColor: '#FFF6FB',
     borderRadius: 24,

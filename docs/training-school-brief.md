@@ -24,7 +24,7 @@ These override anything below that still reads the other way.
 - The preview pet is an adult golden retriever or an adult domestic shorthair, default coat, no clothes. The preview plays that trick's success script. A furniture trick spawns its prop inside the preview.
 - Trick props are not furniture. Buying a furniture trick charges the bundle price and puts one prop in the Prop box. A second purchase of the same type grants a second prop. Placements are for the current scene only and return to the box on a scene change. They are not saved in the room layout.
 - While a trick is in training, practice uses one prop. A learned trick uses every prop of that type already on the scene, nearest first. If none are out, the pet lifts the prop that purchase granted, and letting go places it and starts the trick.
-- The Learned tricks section has a Prop button. It opens a Prop sheet like the Toy Box. Choosing a prop only places it.
+- The Learned tricks section has a Prop button. It opens a Prop sheet like the Toy Box. Choosing a prop only places it. A tap on the scene, or on the empty area around the sheet, closes it without placing.
 - Holding a placed trick prop offers Put in storage or Move. Put in storage returns it to the box before a scene change. The Prop button still only places. Props still clear when the scene changes.
 
 ---

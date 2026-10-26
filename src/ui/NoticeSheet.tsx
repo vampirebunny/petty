@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { fontFamily } from './font';
+import { SheetDismiss } from './SheetDismiss';
 
 type Props = {
   message: string;
@@ -10,30 +11,18 @@ type Props = {
 
 export function NoticeSheet({ message, top, onClose }: Props) {
   return (
-    <View style={[styles.layer, { top }]} pointerEvents="box-none">
-      <Pressable style={styles.dim} accessibilityLabel="Close" onPress={onClose} />
+    <SheetDismiss top={top} label="Close" onClose={onClose} zIndex={60}>
       <View style={styles.card}>
         <Text style={styles.message}>{message}</Text>
         <Pressable accessibilityRole="button" accessibilityLabel="OK" onPress={onClose} style={styles.choice}>
           <Text style={styles.label}>OK</Text>
         </Pressable>
       </View>
-    </View>
+    </SheetDismiss>
   );
 }
 
 const styles = StyleSheet.create({
-  layer: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 40,
-    paddingHorizontal: 20,
-  },
-  dim: {
-    ...StyleSheet.absoluteFill,
-  },
   card: {
     backgroundColor: '#FFF6FB',
     borderRadius: 24,

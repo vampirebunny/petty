@@ -6,6 +6,7 @@ import * as Haptics from 'expo-haptics';
 import { playPointPop } from '../audio/badge';
 import { fontFamily } from './font';
 import { ICON_RADIUS } from './shop/ItemArt';
+import { SheetDismiss } from './SheetDismiss';
 import { drawTreatShape } from './skia/scenery';
 
 type Choice = { id: string; name: string; count?: number | null };
@@ -44,8 +45,7 @@ export function TreatPicker({
   };
 
   return (
-    <View style={[styles.layer, top != null ? { top } : styles.centered]} pointerEvents="box-none">
-      <Pressable style={styles.dim} accessibilityLabel={closeLabel} onPress={() => press(onClose)} />
+    <SheetDismiss top={top ?? 0} label={closeLabel} onClose={() => press(onClose)}>
       <View style={styles.card}>
         <Text style={styles.title}>{title}</Text>
         {note ? <Text style={styles.note}>{note}</Text> : null}
@@ -80,7 +80,7 @@ export function TreatPicker({
           </ScrollView>
         )}
       </View>
-    </View>
+    </SheetDismiss>
   );
 }
 
@@ -100,21 +100,6 @@ function TreatGlyph({ id, species }: { id: string; species: 'dog' | 'cat' | null
 }
 
 const styles = StyleSheet.create({
-  layer: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 30,
-    paddingHorizontal: 20,
-  },
-  centered: {
-    top: 0,
-    justifyContent: 'center',
-  },
-  dim: {
-    ...StyleSheet.absoluteFill,
-  },
   card: {
     backgroundColor: '#FFFFFF',
     borderRadius: 24,

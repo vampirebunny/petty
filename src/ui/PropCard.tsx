@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { fontFamily } from './font';
+import { SheetDismiss } from './SheetDismiss';
 
 export type PropChoice = {
   id: string;
@@ -16,8 +17,7 @@ type Props = {
 
 export function PropCard({ props, top, onClose, onPick }: Props) {
   return (
-    <View style={[styles.layer, { top }]} pointerEvents="box-none">
-      <Pressable style={styles.dim} accessibilityLabel="Close props" onPress={onClose} />
+    <SheetDismiss top={top} label="Close props" onClose={onClose}>
       <View style={styles.card}>
         <Text style={styles.title}>Prop</Text>
         {props.length === 0 ? (
@@ -38,22 +38,11 @@ export function PropCard({ props, top, onClose, onPick }: Props) {
           </View>
         )}
       </View>
-    </View>
+    </SheetDismiss>
   );
 }
 
 const styles = StyleSheet.create({
-  layer: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 30,
-    paddingHorizontal: 20,
-  },
-  dim: {
-    ...StyleSheet.absoluteFill,
-  },
   card: {
     backgroundColor: '#FFF6FB',
     borderRadius: 24,

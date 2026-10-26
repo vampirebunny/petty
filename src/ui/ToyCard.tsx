@@ -5,6 +5,7 @@ import { Canvas, Picture, Skia } from '@shopify/react-native-skia';
 import { drawToyShape } from './skia/scenery';
 import { ICON_RADIUS } from './shop/ItemArt';
 import { fontFamily } from './font';
+import { SheetDismiss } from './SheetDismiss';
 
 export type ToyChoice = {
   id: string;
@@ -22,8 +23,7 @@ type Props = {
 
 export function ToyCard({ toys, top, empty, selectedId, onClose, onPick }: Props) {
   return (
-    <View style={[styles.layer, { top }]} pointerEvents="box-none">
-      <Pressable style={styles.dim} accessibilityLabel="Close toys" onPress={onClose} />
+    <SheetDismiss top={top} label="Close toys" onClose={onClose}>
       <View style={styles.card}>
         <Text style={styles.title}>Toy Box</Text>
         {toys.length === 0 ? (
@@ -46,7 +46,7 @@ export function ToyCard({ toys, top, empty, selectedId, onClose, onPick }: Props
           </View>
         )}
       </View>
-    </View>
+    </SheetDismiss>
   );
 }
 
@@ -66,17 +66,6 @@ function ToyGlyph({ kind }: { kind: string }) {
 }
 
 const styles = StyleSheet.create({
-  layer: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 30,
-    paddingHorizontal: 20,
-  },
-  dim: {
-    ...StyleSheet.absoluteFill,
-  },
   card: {
     backgroundColor: '#FFFFFF',
     borderRadius: 24,
