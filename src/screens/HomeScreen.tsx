@@ -772,6 +772,7 @@ export default function HomeScreen({ petApi }: Props) {
         const stage = stagePoint(event.x, event.y, viewWidth, viewHeight, contentWidth, stageWidth, logicalH);
         if (event.type === 'move') {
           touchedRef.current = true;
+          tipsRef.current.performed('tip.cuddle');
           handle.touch({ kind: 'move', zone: event.zone, x: stage.x });
           const now = Date.now();
           if (now - lastTrailAt.current > 35) {
@@ -786,6 +787,7 @@ export default function HomeScreen({ petApi }: Props) {
           feedback.current?.heart(event.x, event.y);
         } else if (event.type === 'tooFast') {
           touchedRef.current = true;
+          tipsRef.current.performed('tip.cuddle');
           handle.touch({ kind: 'flinch', zone: 'back', x: stage.x });
         } else {
           touchedRef.current = true;
@@ -820,10 +822,15 @@ export default function HomeScreen({ petApi }: Props) {
         return;
       }
       const stage = stagePoint(x, y, viewWidth, viewHeight, contentWidth, stageWidth, logicalH);
-      if (handle.zoneAt(stage.x, stage.y) === 'nose') {
+      const zone = handle.zoneAt(stage.x, stage.y);
+      if (zone) {
         touchedRef.current = true;
         tipsRef.current.performed('tip.cuddle');
-        handle.touch({ kind: 'boop', zone: 'nose', x: stage.x });
+        if (zone === 'nose') {
+          handle.touch({ kind: 'boop', zone: 'nose', x: stage.x });
+        }
+      } else {
+        tipsRef.current.dismiss();
       }
     },
     [acceptingTouch, contentWidth, logicalH, viewHeight, viewWidth],
@@ -1139,7 +1146,6 @@ export default function HomeScreen({ petApi }: Props) {
       cuddleHandle.current?.setGesturing(false);
       setCuddleOn(false);
       setGhost(null);
-      tipsRef.current.dismiss();
       return;
     }
     cuddleOnRef.current = true;
@@ -1165,6 +1171,7 @@ export default function HomeScreen({ petApi }: Props) {
         touchActive.current = false;
         setCuddleOn(false);
         setGhost(null);
+        tipsRef.current.dismiss();
         flash(
           event.reason === 'tolerance'
             ? `${petName} has had enough cuddles for now.`
@@ -1175,6 +1182,7 @@ export default function HomeScreen({ petApi }: Props) {
         touchActive.current = false;
         setCuddleOn(false);
         setGhost(null);
+        tipsRef.current.dismiss();
       } else if (event.petted >= 1) {
         tipsRef.current.performed('tip.cuddle');
       }

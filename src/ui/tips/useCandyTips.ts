@@ -19,10 +19,16 @@ export function useCandyTips() {
   const [current, setCurrent] = useState<TipId | null>(null);
   const queue = useRef<TipId[]>([]);
   const storeRef = useRef(store);
+  const currentRef = useRef<TipId | null>(null);
   const ready = useRef(false);
   useEffect(() => {
     storeRef.current = store;
   }, [store]);
+
+  const setTip = useCallback((id: TipId | null) => {
+    currentRef.current = id;
+    setCurrent(id);
+  }, []);
 
   useEffect(() => {
     let cancel = false;
@@ -46,6 +52,7 @@ export function useCandyTips() {
       }
       if (!cancel) {
         ready.current = true;
+        storeRef.current = next;
         setStore(next);
       }
     })();
@@ -62,13 +69,13 @@ export function useCandyTips() {
 
   const reveal = useCallback(
     (id: TipId) => {
-      setCurrent(id);
+      setTip(id);
       const next = phaseOnShow(id, storeRef.current.phases[id]);
       if (next && next !== storeRef.current.phases[id]) {
         persist({ ...storeRef.current, phases: { ...storeRef.current.phases, [id]: next } });
       }
     },
-    [persist],
+    [persist, setTip],
   );
 
   const showNext = useCallback(() => {
@@ -80,36 +87,40 @@ export function useCandyTips() {
         return;
       }
     }
-    setCurrent(null);
-  }, [reveal]);
+    setTip(null);
+  }, [reveal, setTip]);
 
   const offer = useCallback(
     (id: TipId) => {
       if (!ready.current || !canOffer(id, storeRef.current.phases[id])) {
         return;
       }
-      if (current === id || queue.current.includes(id)) {
+      if (currentRef.current === id || queue.current.includes(id)) {
         return;
       }
-      if (current) {
+      if (currentRef.current) {
         queue.current.push(id);
         return;
       }
       reveal(id);
     },
-    [current, reveal],
+    [reveal],
   );
 
   const finish = useCallback(
     (id: TipId, event: 'act' | 'dismiss') => {
-      const phases = { ...storeRef.current.phases, [id]: phaseAfter(storeRef.current.phases[id], event) };
-      persist({ ...storeRef.current, phases });
-      if (current === id) {
-        setCurrent(null);
+      const prev = storeRef.current.phases[id];
+      const phase = phaseAfter(prev, event);
+      if (phase !== prev) {
+        persist({ ...storeRef.current, phases: { ...storeRef.current.phases, [id]: phase } });
+      }
+      queue.current = queue.current.filter((queued) => queued !== id);
+      if (currentRef.current === id) {
+        setTip(null);
         showNext();
       }
     },
-    [current, persist, showNext],
+    [persist, setTip, showNext],
   );
 
   const performed = useCallback(
@@ -120,10 +131,11 @@ export function useCandyTips() {
   );
 
   const dismiss = useCallback(() => {
-    if (current) {
-      finish(current, 'dismiss');
+    const id = currentRef.current;
+    if (id) {
+      finish(id, 'dismiss');
     }
-  }, [current, finish]);
+  }, [finish]);
 
   const notePropTap = useCallback(() => {
     const propTaps = storeRef.current.propTaps + 1;
