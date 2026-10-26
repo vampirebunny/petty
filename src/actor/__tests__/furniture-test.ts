@@ -3,11 +3,13 @@ import {
   bowlAlreadyInRoom,
   bowlRoomMessage,
   furnitureAt,
+  furnitureDefinition,
   keepFirstBedPerRoom,
   movePiece,
   normalizeFurniture,
   otherBedInRoom,
   placePiece,
+  roomRestBadge,
   shopFurnitureSpot,
   shopSku,
   skuCount,
@@ -264,4 +266,28 @@ it('keeps the first bed when a room was saved with two', () => {
   expect(repaired.placed.map((place) => place.pieceId)).toEqual(['livingroom-bed']);
   expect(repaired.stored).toEqual([{ sceneId: 'livingroom', pieceId: 'bed_cloud_puff' }]);
   expect(otherBedInRoom(pieces, repaired.placed, 'livingroom', 'bed_cloud_puff')?.pieceId).toBe('livingroom-bed');
+});
+
+it('counts the Glass Conservatory as the one bed and pays 2.5×', () => {
+  expect(furnitureDefinition('dogHouse')).toMatchObject({ kind: 'dogHouse', w: 260, restMultiplier: 2.5 });
+  const pieces = [
+    { id: 'livingroom-bed', kind: 'bed' as const },
+    { id: 'dogHouse', kind: 'dogHouse' as const, restMultiplier: 2.5 },
+  ];
+  const placed = [
+    { pieceId: 'livingroom-bed', sceneId: 'livingroom', x: 110, y: 540 },
+    { pieceId: 'dogHouse', sceneId: 'livingroom', x: 200, y: 500 },
+  ];
+  const repaired = keepFirstBedPerRoom(pieces, placed);
+  expect(repaired.placed.map((place) => place.pieceId)).toEqual(['livingroom-bed']);
+  expect(repaired.stored).toEqual([{ sceneId: 'livingroom', pieceId: 'dogHouse' }]);
+  expect(otherBedInRoom(pieces, repaired.placed, 'livingroom', 'dogHouse')?.pieceId).toBe('livingroom-bed');
+  expect(
+    roomRestBadge(
+      [{ id: 'dogHouse', kind: 'dogHouse', restMultiplier: 2.5 }],
+      [{ pieceId: 'dogHouse', sceneId: 'livingroom', x: 200, y: 500 }],
+      'livingroom',
+      true,
+    ),
+  ).toBe('×2.5');
 });

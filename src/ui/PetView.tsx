@@ -87,6 +87,7 @@ import type { PointAdd } from './cuddle/pointAdds';
 import type { Cue, PetState } from '../sim/types';
 import type { FurniturePiece, FurniturePlacement } from '../actor/furniture';
 import { applyFurniture, furnitureAt, movePiece, showPiece, syncFurniture } from '../actor/furniture';
+import { askHouseLeave, houseInside } from '../actor/conservatory';
 import { askFurnitureOff, furnitureClaims } from '../actor/furnitureUse';
 import { skyAt, solarHour } from '../actor/sky';
 import { drawWorld } from './skia/world';
@@ -115,7 +116,7 @@ export type StageHandle = {
   walkBack: (onArrived: () => void) => void;
   moveFurniture: (pieceId: string, x: number, y: number) => { sceneId: string; x: number; y: number } | null;
   showStoredFurniture: (piece: FurniturePiece) => { sceneId: string; x: number; y: number } | null;
-  stowFurniture: (pieceId: string) => boolean;
+  stowFurniture: (pieceId: string) => boolean | 'wait';
   stowTrickProp: (instanceId: string) => void;
   placedTrickIds: () => string[];
   liftedProp: () => string | null;
@@ -183,6 +184,8 @@ type Props = {
   onPointAdds?: (adds: PointAdd[]) => void;
   onGreeting?: (id: string) => void;
   onFellAsleep?: () => void;
+  onHouseStowed?: (pieceId: string) => void;
+  onHouseMoved?: (pieceId: string, sceneId: string, x: number, y: number) => void;
   onTrickEnd?: () => void;
   furniture?: FurniturePiece[];
   placements?: FurniturePlacement[];
@@ -256,6 +259,8 @@ export function PetView({
   onPointAdds,
   onGreeting,
   onFellAsleep,
+  onHouseStowed,
+  onHouseMoved,
   onTrickEnd,
   stageRef,
   furniture = [],
@@ -699,6 +704,12 @@ export function PetView({
           askFurnitureOff(using);
           return null;
         }
+        const housed = world.actors.find((actor) => actor.house?.propId === pieceId && houseInside(actor.house));
+        if (housed?.house) {
+          housed.house.moveAfter = { x, y };
+          askHouseLeave(housed.house);
+          return null;
+        }
         return movePiece(world.scene, pieceId, x, y);
       },
       showStoredFurniture: (piece) => {
@@ -721,6 +732,13 @@ export function PetView({
       },
       stowFurniture: (pieceId) => {
         const world = worldRef.current;
+        const housed = world.actors.find((actor) => actor.house?.propId === pieceId && houseInside(actor.house));
+        if (housed?.house) {
+          housed.house.stowAfter = true;
+          housed.house.moveAfter = null;
+          askHouseLeave(housed.house);
+          return 'wait';
+        }
         const woke = releaseStoredPiece(world, pieceId);
         world.scene.props = world.scene.props.filter((prop) => prop.id !== pieceId);
         world.scene.pois = world.scene.pois.filter((poi) => poi.propId !== pieceId);
@@ -945,10 +963,14 @@ export function PetView({
   }, [onPointAdds]);
   const onFellAsleepRef = useRef(onFellAsleep);
   const onTrickEndRef = useRef(onTrickEnd);
+  const onHouseStowedRef = useRef(onHouseStowed);
+  const onHouseMovedRef = useRef(onHouseMoved);
   useEffect(() => {
     onFellAsleepRef.current = onFellAsleep;
     onTrickEndRef.current = onTrickEnd;
-  }, [onFellAsleep, onTrickEnd]);
+    onHouseStowedRef.current = onHouseStowed;
+    onHouseMovedRef.current = onHouseMoved;
+  }, [onFellAsleep, onTrickEnd, onHouseStowed, onHouseMoved]);
   const hungerRef = useRef(pet.needs.hunger);
   hungerRef.current = pet.needs.hunger;
   const energyRef = useRef(pet.needs.energy);
@@ -1061,6 +1083,22 @@ export function PetView({
       }
       for (const sound of takeSounds(world)) {
         playVoice(sound);
+      }
+      const stowed = world.pendingHouseStow;
+      if (stowed) {
+        world.pendingHouseStow = null;
+        releaseStoredPiece(world, stowed);
+        world.scene.props = world.scene.props.filter((prop) => prop.id !== stowed);
+        world.scene.pois = world.scene.pois.filter((poi) => poi.propId !== stowed);
+        if (world.liftedId === stowed) {
+          world.liftedId = null;
+        }
+        onHouseStowedRef.current?.(stowed);
+      }
+      const moved = world.pendingHouseMove;
+      if (moved) {
+        world.pendingHouseMove = null;
+        onHouseMovedRef.current?.(moved.pieceId, moved.sceneId, moved.x, moved.y);
       }
       if (takeBirdChirps(world) > 0) {
         playChirp();

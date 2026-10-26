@@ -16,7 +16,7 @@ import { releaseMusic, setMusicEnabled, suspendMusic, switchMusic } from '../aud
 import { setSoundEnabled } from '../audio/voice';
 import type { CuddleOut } from '../actor';
 import { stageHeight, stageWidth } from '../actor/geometry';
-import { bowlAlreadyInRoom, bowlRoomMessage, otherBedInRoom, pieceLabel, roomRestBadge, shopSku, stowWarning } from '../actor/furniture';
+import { bowlAlreadyInRoom, bowlRoomMessage, countsAsBed, otherBedInRoom, pieceLabel, roomRestBadge, shopSku, stowWarning } from '../actor/furniture';
 import type { FurniturePiece } from '../actor/furniture';
 import { flickSpeedThreshold } from '../input/flick';
 import { CuddleGesture } from '../input/cuddleGesture';
@@ -137,9 +137,7 @@ const badgeLabels: Record<string, string> = {
 type TipKind = 'food' | 'water' | 'bed';
 
 function isTipPiece(piece: { kind: string; contents?: string }, kind: TipKind) {
-  return kind === 'bed'
-    ? piece.kind === 'bed'
-    : piece.kind === 'bowl' && (kind === 'water' ? piece.contents === 'water' : piece.contents !== 'water');
+  return kind === 'bed' ? countsAsBed(piece) : piece.kind === 'bowl' && (kind === 'water' ? piece.contents === 'water' : piece.contents !== 'water');
 }
 
 // A home owns a bed in more than one room. The hint has to use the one standing in the room on screen.
@@ -752,6 +750,7 @@ export default function HomeScreen({ petApi }: Props) {
   const holdPiece = useRef<string | null>(null);
   const holdProp = useRef(false);
   const armedMove = useRef<{ id: string; prop: boolean } | null>(null);
+  const houseSwap = useRef<{ pieceId: string; x: number; y: number } | null>(null);
   const draggingArmed = useRef(false);
   const holdTargetRef = useRef<{ id: string; prop: boolean; warning: string | null } | null>(null);
   const homePiecesRef = useRef<FurniturePiece[]>(home.pieces);
@@ -2302,7 +2301,7 @@ export default function HomeScreen({ petApi }: Props) {
                 setBowlNotice(bowlRoomMessage(blocked));
                 return;
               }
-              const occupant = piece?.kind === 'bed' ? otherBedInRoom(home.pieces, home.placements, scene.id, piece.id) : null;
+              const occupant = piece && countsAsBed(piece) ? otherBedInRoom(home.pieces, home.placements, scene.id, piece.id) : null;
               if (piece && occupant) {
                 const current = home.pieces.find((owned) => owned.id === occupant.pieceId);
                 setBedSwap({
@@ -2770,6 +2769,29 @@ export default function HomeScreen({ petApi }: Props) {
               onAte={reportAte}
               onSceneCut={showScene}
               onFellAsleep={beginRest}
+              onHouseStowed={(id) => {
+                stowFurniture(id);
+                if (state.asleep) {
+                  rest();
+                }
+                const follow = houseSwap.current;
+                houseSwap.current = null;
+                if (!follow) {
+                  return;
+                }
+                const piece = home.pieces.find((item) => item.id === follow.pieceId);
+                if (!piece) {
+                  return;
+                }
+                const shown = stageHandle.current?.showStoredFurniture(piece) ?? null;
+                if (shown) {
+                  stageHandle.current?.moveFurniture(piece.id, follow.x, follow.y);
+                  moveFurniture(piece.id, scene.id, follow.x, follow.y);
+                }
+              }}
+              onHouseMoved={(id, sceneId, x, y) => {
+                moveFurniture(id, sceneId, x, y);
+              }}
               onTrickEnd={() => {
                 const trackId = trickTrack.current;
                 const kind = trickDialog.current;
@@ -2871,9 +2893,14 @@ export default function HomeScreen({ petApi }: Props) {
                 placeIntent.current = null;
                 stageHandle.current?.stowTrickProp(target.id);
               } else {
-                const woke = stageHandle.current?.stowFurniture(target.id) ?? false;
+                const held = stageHandle.current?.stowFurniture(target.id) ?? false;
+                if (held === 'wait') {
+                  armedMove.current = null;
+                  closeHold();
+                  return;
+                }
                 stowFurniture(target.id);
-                if (woke) {
+                if (held) {
                   rest();
                 }
               }
@@ -2918,7 +2945,11 @@ export default function HomeScreen({ petApi }: Props) {
             onPress: () => {
               const swap = bedSwap;
               setBedSwap(null);
-              stageHandle.current?.stowFurniture(swap.occupantId);
+              const held = stageHandle.current?.stowFurniture(swap.occupantId);
+              if (held === 'wait') {
+                houseSwap.current = { pieceId: swap.piece.id, x: swap.x, y: swap.y };
+                return;
+              }
               stowFurniture(swap.occupantId);
               const shown = stageHandle.current?.showStoredFurniture(swap.piece) ?? null;
               if (shown) {

@@ -11,6 +11,7 @@ import type { Env } from '../skia/env';
 import { ICON_BOX, itemIconPicture } from '../skia/itemIcon';
 import { drawProp, drawToyShape, drawTreatShape } from '../skia/scenery';
 import { BedThumb, bedThumbId } from './BedThumb';
+import { ConservatoryThumb } from './ConservatoryThumb';
 import { shop } from './theme';
 
 // Toy and treat art is authored to fit its own box, so every item uses the same radius. The box is
@@ -117,6 +118,9 @@ function furnitureBounds(itemId: string) {
   if (itemId === 'litterbox') {
     return { x0: -48, y0: -32, x1: 52, y1: 10 };
   }
+  if (itemId === 'dogHouse') {
+    return { x0: -120, y0: -200, x1: 130, y1: 20 };
+  }
   return { x0: -104, y0: -214, x1: 104, y1: 14 };
 }
 
@@ -182,6 +186,9 @@ export function ItemArt({ itemId, catalog, size, soon, species = null }: Props) 
 
   if (!item || soon || item.shop === 'coming_soon' || (item.category === 'clothes' && !wear)) {
     return <MysteryBox size={size} />;
+  }
+  if (item.id === 'dogHouse') {
+    return <ConservatoryThumb size={size} />;
   }
   if (bedThumbId(item.id)) {
     return <BedThumb itemId={item.id} size={size} />;

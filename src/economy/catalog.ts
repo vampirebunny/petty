@@ -171,7 +171,7 @@ export const catalog: CatalogItem[] = [
     species: ['dog', 'cat'],
     effects: { premiumMeal: true },
   },
-  { id: 'dogHouse', name: 'Dog House', kind: 'furniture', price: null, available: true, species: ['dog'] },
+  { id: 'dogHouse', name: 'Glass Conservatory', kind: 'furniture', price: null, available: true, species: ['dog'] },
   { id: 'catTree', name: 'Cat Tree', kind: 'furniture', price: null, available: true, species: ['cat'] },
   { id: 'scratcher', name: 'Scratch Pole', kind: 'furniture', price: null, available: true, species: ['cat'] },
   { id: 'bowl_food', name: 'Extra food bowl', kind: 'furniture', price: null, available: true },

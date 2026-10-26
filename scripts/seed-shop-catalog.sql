@@ -55,7 +55,7 @@ insert into public.shop_items (id, name, category, price, shop, species, descrip
   ('mouse', 'Lilac Catnip Mouse', 'toys', 800, 'always', array['cat'], null, 6, true, 'standard', null),
   ('wand', 'Feather Wand', 'toys', 1400, 'always', array['cat'], null, 7, true, 'standard', null),
   ('laser', 'Purple Laser Pointer', 'toys', 2000, 'rotation', array['cat'], null, 8, true, 'standard', null),
-  ('dogHouse', 'Dog House', 'home', 8000, 'always', array['dog'], null, 0, true, 'standard', null),
+  ('dogHouse', 'Glass Conservatory', 'home', 8000, 'always', array['dog'], '2.5× faster rest', 25, true, 'standard', null),
   ('bowl_food', 'Extra food bowl', 'home', 600, 'always', null, null, 10, true, 'standard', null),
   ('bowl_water', 'Extra water bowl', 'home', 600, 'always', null, null, 11, true, 'standard', null),
   ('bed_standard', 'Standard Bed', 'home', 2500, 'always', null, null, 20, true, 'standard', null),

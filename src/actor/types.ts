@@ -511,6 +511,7 @@ export type Actor = {
   idle: Idle;
   // Scratch pole or cat tree use. Null while the cat is on a normal idle.
   furniture: import('./furnitureUse').FurnitureRun | null;
+  house: import('./conservatory').HouseRun | null;
   phase: number;
   panPh: number;
   chewPh: number;
@@ -662,6 +663,8 @@ export type World = {
   serving: CareInvite | null;
   // Set the frame he lies down, so the pet record can flip asleep.
   pendingRest: boolean;
+  pendingHouseStow: string | null;
+  pendingHouseMove: { pieceId: string; sceneId: string; x: number; y: number } | null;
   restLatched: boolean;
   glance: { face: 1 | -1; left: number } | null;
   liftedId: string | null;

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Image, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   Easing,
@@ -52,6 +52,7 @@ import { useLimitedContentWidth } from '../ui/PhoneColumn';
 import { useOpenedDuoBoopEdge, useOpenedDuoTopInset } from '../ui/useDeviceOrientation';
 import { isLandscapeSplit } from '../ui/wideLayout';
 import { fontFamily } from '../ui/font';
+import { ConservatoryPreview } from '../ui/shop/ConservatoryPreview';
 import { GetBoopsSheet } from '../ui/shop/GetBoopsSheet';
 import { Glossy, LedgeCard } from '../ui/shop/Glossy';
 import { ItemArt } from '../ui/shop/ItemArt';
@@ -187,6 +188,7 @@ export function PetShopScreen({
   const [boopsOpen, setBoopsOpen] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [housePreview, setHousePreview] = useState(false);
   const [celebration, setCelebration] = useState<{ charge: number; lines: { name: string; place: string }[]; closet: boolean } | null>(
     null,
   );
@@ -511,6 +513,7 @@ export function PetShopScreen({
                       width={142}
                       butter
                       species={species}
+                      onPreview={item.id === 'dogHouse' ? () => setHousePreview(true) : undefined}
                       onAdd={() => add(item.id, 'item')}
                       onRemove={() => remove(item.id, 'item')}
                       onQty={(qty) => setQty(item.id, 'item', qty)}
@@ -571,6 +574,7 @@ export function PetShopScreen({
                       wearing={wearingHas(wearing, item.id)}
                       width={cardWidth}
                       species={species}
+                      onPreview={item.id === 'dogHouse' ? () => setHousePreview(true) : undefined}
                       onAdd={() => add(item.id, 'item')}
                       onRemove={() => remove(item.id, 'item')}
                       onQty={(qty) => setQty(item.id, 'item', qty)}
@@ -680,6 +684,18 @@ export function PetShopScreen({
       {boopsOpen ? (
         <GetBoopsSheet balance={balance} reducedMotion={reducedMotion} onClose={() => setBoopsOpen(false)} />
       ) : null}
+      <Modal visible={housePreview} transparent animationType="fade" onRequestClose={() => setHousePreview(false)}>
+        <Pressable style={styles.previewScrim} onPress={() => setHousePreview(false)}>
+          <Pressable onPress={() => undefined}>
+            <ConservatoryPreview
+              pet={pet}
+              reducedMotion={reducedMotion}
+              onAdd={() => add('dogHouse', 'item')}
+              onClose={() => setHousePreview(false)}
+            />
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -695,6 +711,7 @@ function ShopCard({
   width,
   butter,
   species,
+  onPreview,
   onAdd,
   onRemove,
   onQty,
@@ -709,6 +726,7 @@ function ShopCard({
   width: number;
   butter?: boolean;
   species?: 'dog' | 'cat';
+  onPreview?: () => void;
   onAdd: () => void;
   onRemove: () => void;
   onQty: (qty: number) => void;
@@ -729,9 +747,15 @@ function ShopCard({
         {butter ? (
           <ItemArt itemId={item.id} catalog={catalog} size={64} soon={soon} species={species} />
         ) : (
-          <View style={[styles.well, { width: artSize, height: artSize }]}>
+          <Pressable
+            accessibilityRole={onPreview ? 'button' : undefined}
+            accessibilityLabel={onPreview ? 'Preview Glass Conservatory' : undefined}
+            disabled={!onPreview}
+            onPress={onPreview}
+            style={[styles.well, { width: artSize, height: artSize }]}
+          >
             <ItemArt itemId={item.id} catalog={catalog} size={artSize} soon={soon} species={species} />
-          </View>
+          </Pressable>
         )}
         <Text style={[styles.name, butter && styles.centered]}>{item.name}</Text>
         {item.tier === 'exclusive' ? (
@@ -1159,6 +1183,13 @@ function CartSheet({
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: shop.bg },
+  previewScrim: {
+    flex: 1,
+    backgroundColor: 'rgba(40, 24, 32, 0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

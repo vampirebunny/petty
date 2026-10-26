@@ -218,7 +218,7 @@ export function grantSpeciesHome(ownerId: string, species: SpeciesId): void {
 }
 
 export function grantOwnedFurniture(ownerId: string, species: SpeciesId, kind: ShopFurnitureId, sceneId: string): void {
-  const piece = kind === 'scratcher' ? { id: kind, kind, h: 74 } : { id: kind, kind };
+  const piece = furnitureDefinition(kind) ?? { id: kind, kind };
   getDb().runSync(
     'INSERT OR IGNORE INTO owned_furniture (owner_id, piece_id, json) VALUES (?, ?, ?)',
     ownerId,

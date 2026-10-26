@@ -23,6 +23,8 @@ import { toyAllows } from '../items/playRules';
 import type { PlayBehavior } from '../items/playRules';
 import { bodyFrame, depthScale, geomOf, headFaceOf, PET_SIZE, reachOf, speedMax, stageWidth, travelGateX, xRangeOf } from './geometry';
 import { askFurnitureOff, furnitureBusy, stepFurniture, tryFurnitureIdle } from './furnitureUse';
+import { askHouseLeave, HOUSE_POINTS, HOUSE_REST, houseInside, houseWorld, startHouse, stepHouse, wantsHouseRest } from './conservatory';
+import { movePiece } from './furniture';
 import { applyGesture, gestureOwns, gestureWantsCamera } from './gestures';
 import { GREET, greetClip, motionMods, planGreeting, scriptFor } from './greetings';
 import { BIRD_SPECIES, spawnBirds, stepBirds } from './birds';
@@ -312,6 +314,7 @@ export function spawnActor(source: ActorSource, at?: Vec): Actor {
     task: taskOf(source.asleep ? 'sleep' : 'idle', source.asleep ? 'sleeping' : ''),
     idle: idleOf(),
     furniture: null,
+    house: null,
     phase: 0,
     panPh: 0,
     chewPh: 0,
@@ -426,6 +429,8 @@ export function createWorld(actors: Actor[], seed = 1, scene: Scene = scenes.liv
     invites: [],
     serving: null,
     pendingRest: false,
+    pendingHouseStow: null,
+    pendingHouseMove: null,
     restLatched: false,
     glance: null,
     liftedId: null,
@@ -563,6 +568,7 @@ export function setWorldScene(world: World, scene: Scene): void {
     actor.speed = 0;
     snapFacing(actor, 1);
     actor.spin = null;
+    actor.house = null;
     actor.bark = { active: false, t: 0, fired: [false, false], open: 0, sound: false };
     if (actor.asleep) {
       actor.task = taskOf('sleep', bed ? 'go' : 'sleeping');
@@ -850,22 +856,7 @@ function beginIdle(world: World, actor: Actor, mode: IdleMode): void {
     actor.idle.dur = 30;
   }
   actor.idle.sit = mode === 'purr' ? true : mode === 'pant' ? roll() < 0.5 : false;
-  const dog = breedById(actor.breedId)?.species !== 'cat';
-  let house: { x: number; y: number; propId?: string } | null = null;
-  if (mode === 'nap' && dog) {
-    let bestD = Infinity;
-    for (const prop of world.scene.props) {
-      if (prop.kind !== 'dogHouse') {
-        continue;
-      }
-      const dist = Math.hypot(prop.x - actor.x, prop.y - actor.y);
-      if (dist < bestD) {
-        bestD = dist;
-        house = { x: prop.x, y: prop.y, propId: prop.id };
-      }
-    }
-  }
-  const bed = house ?? (mode === 'nap' ? nearestPoi(world.scene, 'bed', actor) : null);
+  const bed = mode === 'nap' ? nearestPoi(world.scene, 'bed', actor) : null;
   if (bed) {
     actor.idle.target = { x: bed.x, y: bed.y };
     actor.idle.arrived = false;
@@ -893,7 +884,7 @@ function ownsLocomotion(actor: Actor): boolean {
   if (actor.task.type === 'fetch' || actor.task.type === 'travel') {
     return true;
   }
-  if ((actor.task.type === 'eat' || actor.task.type === 'sleep') && actor.task.stage === 'go') {
+  if ((actor.task.type === 'eat' || actor.task.type === 'sleep') && (actor.task.stage === 'go' || actor.task.stage === 'house')) {
     return true;
   }
   return actor.task.type === 'idle' && (actor.idle.mode === 'walk' || actor.idle.mode === 'zoom');
@@ -930,7 +921,7 @@ function careTarget(world: World, actor: Actor, kind: CareInvite): Poi | null {
   for (const prop of world.scene.props) {
     const matches =
       kind === 'bed'
-        ? prop.kind === 'bed'
+        ? prop.kind === 'bed' || prop.kind === 'dogHouse'
         : kind === 'food'
           ? prop.kind === 'bowl' && prop.contents !== 'water'
           : prop.kind === 'bowl' && prop.contents === 'water';
@@ -968,8 +959,54 @@ function glanceAt(world: World, actor: Actor, kind: CareInvite): void {
   world.glance = { face: poi.x >= actor.x ? 1 : -1, left: 0.45 };
 }
 
+function beginHouseRest(world: World, actor: Actor, prop: Prop): void {
+  const door = houseWorld(prop, HOUSE_POINTS.A.x, HOUSE_POINTS.A.y);
+  const into = prop.flip ? -1 : 1;
+  const fromGlass = (actor.x - door.x) * into > 16;
+  actor.house = startHouse(prop, world.rng(), fromGlass);
+  actor.asleep = false;
+  actor.sleepSec = 0;
+  actor.task = taskOf('sleep', 'house');
+  const rest = houseWorld(prop, HOUSE_POINTS.R.x, HOUSE_POINTS.R.y);
+  actor.task.poi = { x: rest.x, y: rest.y, propId: prop.id };
+  actor.pantT = 0;
+}
+
+function finishHouse(world: World, actor: Actor): void {
+  const run = actor.house;
+  actor.house = null;
+  actor.asleep = false;
+  actor.sleepSec = 0;
+  if (run?.stowAfter && run.propId) {
+    world.pendingHouseStow = run.propId;
+  } else if (run?.moveAfter && run.propId) {
+    const moved = movePiece(world.scene, run.propId, run.moveAfter.x, run.moveAfter.y);
+    if (moved) {
+      world.pendingHouseMove = { pieceId: run.propId, sceneId: moved.sceneId, x: moved.x, y: moved.y };
+    }
+  }
+  const pending = run?.pending;
+  if (pending && pending.task !== 'idle') {
+    startUserTask(world, actor, pending.task as UserTask, pending.roll ?? 1, pending.drop, pending.flick);
+    return;
+  }
+  goIdle(world, actor);
+}
+
 function beginInvitedSleep(world: World, actor: Actor): boolean {
   const bed = careTarget(world, actor, 'bed');
+  const prop = bed?.propId ? world.scene.props.find((item) => item.id === bed.propId) : undefined;
+  if (prop?.kind === 'dogHouse') {
+    const run = actor.house;
+    if (run && run.propId === prop.id && houseInside(run)) {
+      world.serving = 'bed';
+      return true;
+    }
+    releaseForCare(world, actor);
+    beginHouseRest(world, actor, prop);
+    world.serving = 'bed';
+    return true;
+  }
   releaseForCare(world, actor);
   actor.asleep = false;
   actor.sleepSec = 0;
@@ -1120,6 +1157,13 @@ function nextIdle(world: World, actor: Actor): void {
   if (tryFurnitureIdle(world, actor)) {
     return;
   }
+  if (!world.noNap && breed?.species !== 'cat') {
+    const house = world.scene.props.find((prop) => prop.kind === 'dogHouse');
+    if (house && wantsHouseRest(actor.energy, world.rng())) {
+      beginHouseRest(world, actor, house);
+      return;
+    }
+  }
   // Occasional autonomous drink when water is available. Thirst makes this much more likely.
   if (!actor.guest && canAutonomousDrink(world) && world.rng() < 0.08 + 0.72 * (1 - actor.hydration) && canBehave(actor, 'eat')) {
     startUserTask(world, actor, 'drink');
@@ -1259,6 +1303,7 @@ function noteFetchFind(world: World, actor: Actor): void {
 function goIdle(world: World, actor: Actor): void {
   noteFetchFind(world, actor);
   releaseCarried(world, actor);
+  actor.house = null;
   if (startNextInvite(world, actor)) {
     return;
   }
@@ -1314,6 +1359,14 @@ export function startUserTask(
   if (!actor.guest) {
     abortParkHello(world);
   }
+  if (actor.house && !houseInside(actor.house)) {
+    actor.house = null;
+  }
+  if (actor.house && houseInside(actor.house) && task !== 'idle') {
+    actor.house.pending = { task, roll, drop, flick };
+    askHouseLeave(actor.house);
+    return true;
+  }
   if (task !== 'idle' && task !== 'wake' && holdFurniture(actor, { task: { task, roll, drop, flick } })) {
     return true;
   }
@@ -1327,9 +1380,13 @@ export function startUserTask(
     return true;
   }
   if (task === 'sleep') {
-    // Walk to the bed when the scene has one, otherwise sleep where the pet stands.
     const bed = nearestPoi(world.scene, 'bed', actor);
+    const prop = bed?.propId ? world.scene.props.find((item) => item.id === bed.propId) : undefined;
     releaseForCare(world, actor);
+    if (prop?.kind === 'dogHouse') {
+      beginHouseRest(world, actor, prop);
+      return true;
+    }
     actor.asleep = true;
     actor.sleepSec = 0;
     actor.task = taskOf('sleep', bed ? 'go' : 'sleeping');
@@ -2346,8 +2403,12 @@ export function placeTrickProp(world: World, owned: OwnedTrickProp, x: number, y
 export function releaseStoredPiece(world: World, pieceId: string): boolean {
   let woke = false;
   for (const actor of world.actors) {
+    const onHouse = actor.house?.propId === pieceId && houseInside(actor.house);
     const onFurniture = actor.furniture?.pieceId === pieceId;
     const onTask = actor.task.poi?.propId === pieceId && (actor.task.type === 'eat' || actor.task.type === 'sleep' || actor.task.type === 'idle');
+    if (onHouse) {
+      continue;
+    }
     if (!onFurniture && !onTask) {
       continue;
     }
@@ -2414,7 +2475,7 @@ export { planGreeting };
 function bedForRest(world: World, actor: Actor): Prop | undefined {
   const propId = actor.task.poi?.propId;
   if (propId) {
-    const linked = world.scene.props.find((prop) => prop.id === propId && prop.kind === 'bed');
+    const linked = world.scene.props.find((prop) => prop.id === propId && (prop.kind === 'bed' || prop.kind === 'dogHouse'));
     if (linked) {
       return linked;
     }
@@ -2422,7 +2483,7 @@ function bedForRest(world: World, actor: Actor): Prop | undefined {
   let best: Prop | undefined;
   let bestDistance = Infinity;
   for (const prop of world.scene.props) {
-    if (prop.kind !== 'bed') {
+    if (prop.kind !== 'bed' && prop.kind !== 'dogHouse') {
       continue;
     }
     const half = Math.max(36, (prop.w ?? 112) / 2);
@@ -2454,9 +2515,12 @@ function updateActor(world: World, actor: Actor, dt: number): void {
   } else if (!world.noNap && !actor.guest && !actor.asleep && actor.energy * 100 + actor.pendingEnergy <= 0) {
     beginCollapse(world, actor);
   }
-  if (actor.asleep && actor.collapseLeft <= 0 && actor.task.type === 'sleep' && actor.task.stage === 'sleeping') {
+  const houseRest = actor.house?.phase === 'rest';
+  if (actor.asleep && actor.collapseLeft <= 0 && actor.task.type === 'sleep' && (actor.task.stage === 'sleeping' || houseRest)) {
     actor.sleepSec += dt;
-    const bed = bedForRest(world, actor);
+    const bed = houseRest
+      ? world.scene.props.find((prop) => prop.id === actor.house?.propId)
+      : bedForRest(world, actor);
     if (bed?.id && actor.task.poi?.propId !== bed.id) {
       actor.task.poi = {
         x: actor.task.poi?.x ?? actor.x,
@@ -2465,7 +2529,8 @@ function updateActor(world: World, actor: Actor, dt: number): void {
         propId: bed.id,
       };
     }
-    const gain = liveRestGrant(bed != null, bed?.restMultiplier ?? 1, actor.guest === true);
+    const multiplier = houseRest ? HOUSE_REST : (bed?.restMultiplier ?? 1);
+    const gain = liveRestGrant(bed != null || houseRest, multiplier, actor.guest === true);
     while (actor.sleepSec + 1e-6 >= collapseSleepSec) {
       actor.sleepSec -= collapseSleepSec;
       if (grantEnergyPop(actor, gain) <= 0) {
@@ -2764,6 +2829,47 @@ function updateActor(world: World, actor: Actor, dt: number): void {
     targets.breathRate = 3;
     if (actor.task.t > 3) {
       goIdle(world, actor);
+    }
+  } else if (actor.task.type === 'sleep' && actor.house && actor.task.stage === 'house') {
+    const prop = world.scene.props.find((item) => item.id === actor.house?.propId && item.kind === 'dogHouse');
+    if (!prop || !actor.house) {
+      finishHouse(world, actor);
+    } else {
+      const stepped = stepHouse(actor.house, prop, actor, dt, world.rng, actor.energy >= 0.999);
+      if (stepped.noteAsleep && !actor.asleep && !world.restLatched) {
+        world.restLatched = true;
+        world.pendingRest = true;
+        clearInvite(world, 'bed');
+        if (world.serving === 'bed') {
+          world.serving = null;
+        }
+      }
+      if (stepped.noteAsleep) {
+        actor.asleep = true;
+      }
+      if (actor.house.phase === 'stretch' || actor.house.phase === 'out' || actor.house.phase === 'done') {
+        actor.asleep = false;
+      }
+      if (stepped.move) {
+        move = stepped.move;
+        vmax = limit * 0.45;
+      }
+      targets.lie = actor.house.lie;
+      targets.eyes = actor.house.eyes;
+      targets.headRest = actor.house.headRest;
+      targets.stretch = actor.house.stretch;
+      targets.paw = actor.house.paw;
+      targets.wagAmp = 0;
+      if (actor.house.phase === 'rest' || actor.house.phase === 'settle') {
+        targets.breathAmp = 0.03;
+        targets.breathRate = 0.35;
+      }
+      if (actor.house.hop && actor.z <= 0) {
+        actor.vz = 120;
+      }
+      if (stepped.done || actor.house.phase === 'done') {
+        finishHouse(world, actor);
+      }
     }
   } else if (actor.task.type === 'sleep') {
     const bed = actor.task.poi ?? poiOf(world.scene, 'bed');
@@ -3388,6 +3494,9 @@ function updateActor(world: World, actor: Actor, dt: number): void {
     targets.skid = 1;
   }
   stepOctant(actor, dt);
+  if (actor.house?.holdFace) {
+    snapFacing(actor, actor.house.face);
+  }
   stepYaw(actor, dt, 0);
   if (gestureWantsCamera(actor)) {
     faceCamera = true;
@@ -3442,9 +3551,12 @@ function updateActor(world: World, actor: Actor, dt: number): void {
       targets.headTurn = 0;
       actor.pose.headTurn = 0;
     }
-    if (!greeting && actor.speed > 14 && actor.pose.headTurn > 0.15) {
+    if (!greeting && actor.speed > 14 && actor.pose.headTurn > 0.15 && !(actor.house?.holdFace && actor.house.headTurn > 0)) {
       actor.pose.headTurn = 0.15;
     }
+  }
+  if (actor.house?.holdFace) {
+    targets.headTurn = actor.house.headTurn;
   }
   // Gait: chosen from the speed with hysteresis, blended over ~150 ms, and limited by stamina and age.
   actor.share = topSpeed > 0 ? clamp(actor.speed / topSpeed, 0, 1.2) : 0;

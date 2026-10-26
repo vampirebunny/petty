@@ -1,3 +1,4 @@
+import { HOUSE_POINTS, HOUSE_REST, HOUSE_WIDTH, houseWorld, placeHouse } from './conservatory';
 import { footprint } from '../ui/skia/layout';
 import type { Poi, Prop, Scene } from './scenes';
 import { sceneById, scenes } from './scenes';
@@ -177,6 +178,10 @@ export function bedDisplayName(piece: FurniturePiece): string {
   return 'Bed';
 }
 
+export function countsAsBed(piece: { kind: string }): boolean {
+  return piece.kind === 'bed' || piece.kind === 'dogHouse';
+}
+
 export function restBadge(multiplier: number | undefined): '×2' | '×2.5' | null {
   if (multiplier === 2) {
     return '×2';
@@ -201,8 +206,9 @@ export function roomRestBadge(
       continue;
     }
     const piece = pieces.find((item) => item.id === place.pieceId);
-    if (piece?.kind === 'bed') {
-      return restBadge(piece.restMultiplier ?? bedCatalog[shopSku(piece) ?? '']?.rest ?? 1);
+    if (piece && countsAsBed(piece)) {
+      const rest = piece.kind === 'dogHouse' ? (piece.restMultiplier ?? HOUSE_REST) : (piece.restMultiplier ?? bedCatalog[shopSku(piece) ?? '']?.rest ?? 1);
+      return restBadge(rest);
     }
   }
   return null;
@@ -218,7 +224,7 @@ export function keepFirstBedPerRoom(
   const stored: { sceneId: string; pieceId: string }[] = [];
   for (const place of placed) {
     const piece = pieces.find((item) => item.id === place.pieceId);
-    if (piece?.kind !== 'bed') {
+    if (!piece || !countsAsBed(piece)) {
       next.push(place);
       continue;
     }
@@ -243,7 +249,7 @@ export function otherBedInRoom(
       continue;
     }
     const other = pieces.find((item) => item.id === place.pieceId);
-    if (other?.kind === 'bed') {
+    if (other && countsAsBed(other)) {
       return place;
     }
   }
@@ -287,7 +293,13 @@ export function furnitureDefinition(id: string): FurniturePiece | null {
   }
   if (Object.prototype.hasOwnProperty.call(shopFurniture, id)) {
     const kind = id as ShopFurnitureId;
-    return kind === 'scratcher' ? { id: kind, kind, h: 74 } : { id: kind, kind };
+    if (kind === 'scratcher') {
+      return { id: kind, kind, h: 74 };
+    }
+    if (kind === 'dogHouse') {
+      return { id: kind, kind, w: HOUSE_WIDTH, restMultiplier: HOUSE_REST };
+    }
+    return { id: kind, kind };
   }
   return null;
 }
@@ -381,7 +393,7 @@ export function pieceLabel(piece: FurniturePiece): string {
     return 'Cat tree';
   }
   if (piece.kind === 'dogHouse') {
-    return 'Dog house';
+    return 'Glass Conservatory';
   }
   if (piece.kind === 'scratcher') {
     return 'Scratcher';
@@ -493,6 +505,10 @@ function propFromPiece(piece: FurniturePiece, x: number, y: number): Prop {
   if (piece.restMultiplier != null) {
     prop.restMultiplier = piece.restMultiplier;
   }
+  if (piece.kind === 'dogHouse') {
+    prop.w = piece.w ?? HOUSE_WIDTH;
+    prop.restMultiplier = piece.restMultiplier ?? HOUSE_REST;
+  }
   return prop;
 }
 
@@ -503,8 +519,8 @@ function poiForPiece(piece: FurniturePiece, x: number, y: number): Poi | null {
   if (piece.kind === 'bowl') {
     return { id: piece.id, type: 'water', x, y, face: 1, propId: piece.id };
   }
-  if (piece.kind === 'bed') {
-    const offset = bedPoiOffset(piece);
+  if (piece.kind === 'bed' || piece.kind === 'dogHouse') {
+    const offset = piece.kind === 'bed' ? bedPoiOffset(piece) : { x: 0, y: 2 };
     return { id: piece.id, type: 'bed', x: x + offset.x, y: y + offset.y, propId: piece.id };
   }
   if (piece.kind === 'litterbox') {
@@ -699,7 +715,25 @@ export function applyFurniture(scene: Scene, pieces: FurniturePiece[], placed: F
     }
   }
 
-  return { ...scene, props, pois };
+  return { ...scene, props, pois: settleHouses(scene, props, pois) };
+}
+
+function settleHouses(scene: Scene, props: Prop[], pois: Poi[]): Poi[] {
+  for (const prop of props) {
+    if (prop.kind !== 'dogHouse' || !prop.id) {
+      continue;
+    }
+    placeHouse(prop, scene.floor);
+    const rest = houseWorld(prop, HOUSE_POINTS.R.x, HOUSE_POINTS.R.y);
+    const found = pois.find((poi) => poi.propId === prop.id && poi.type === 'bed');
+    if (found) {
+      found.x = rest.x;
+      found.y = rest.y;
+    } else {
+      pois.push({ id: prop.id, type: 'bed', x: rest.x, y: rest.y, propId: prop.id });
+    }
+  }
+  return pois;
 }
 
 // One placement per piece inside a single species home. Unknown pieces are ignored.
@@ -767,6 +801,7 @@ export function syncFurniture(live: Scene, next: Scene): string[] {
       live.pois.push({ ...poi });
     }
   }
+  settleHouses(live, live.props, live.pois);
   return removed;
 }
 
@@ -793,6 +828,10 @@ export function showPiece(scene: Scene, piece: FurniturePiece, x: number, y: num
       scene.pois.push(poi);
     }
   }
+  const placed = scene.props.find((prop) => prop.id === piece.id);
+  if (placed) {
+    settleHouses(scene, [placed], scene.pois);
+  }
   return point;
 }
 
@@ -817,6 +856,10 @@ export function movePiece(scene: Scene, pieceId: string, x: number, y: number): 
   const dy = next.y - prop.y;
   prop.x = next.x;
   prop.y = next.y;
+  if (prop.kind === 'dogHouse') {
+    settleHouses(scene, [prop], scene.pois);
+    return { sceneId: scene.id, x: next.x, y: next.y };
+  }
   for (const poi of scene.pois) {
     if (poi.propId === pieceId) {
       poi.x += dx;

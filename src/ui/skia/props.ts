@@ -2,6 +2,7 @@ import { ClipOp, Skia } from '@shopify/react-native-skia';
 import type { SkCanvas } from '@shopify/react-native-skia';
 
 import type { Prop } from '../../actor/scenes';
+import { paintConservatory } from './conservatory';
 import { drawWindowDecor } from './decor';
 import type { Env } from './env';
 import { snowOn, weatherOf } from './env';
@@ -504,21 +505,7 @@ registerProp('shape', (c, prop, env) => drawShapes(c, prop.shapes ?? [], env));
 registerProp('bowl', drawBowl);
 registerProp('litterbox', drawLitterbox);
 registerProp('bed', drawBed);
-registerProp('dogHouse', (c) => drawDogHouse(c));
-
-export function drawDogHouse(c: SkCanvas, part: 'full' | 'back' | 'front' = 'full'): void {
-  if (part !== 'front') {
-    rect(c, -34, -58, 68, 46, '#d9c4ae');
-    poly(c, [-38, -22, 0, -70, 38, -22], '#c45b6e');
-  }
-  if (part !== 'back') {
-    rect(c, -40, -64, 80, 64, '#f6e6d4');
-    ellipse(c, 0, -14, 15, 22, '#5c4638');
-    poly(c, [-48, -18, 0, -84, 48, -18], '#e07a8a');
-    ellipse(c, 0, -78, 7, 5, '#f4d35e');
-    rect(c, -10, -46, 20, 5, '#fffaf4');
-  }
-}
+registerProp('dogHouse', (c) => paintConservatory(c, 'full', { detail: true, sparkles: false, night: 0 }));
 registerProp('rug', (c, prop) => drawRug(c, prop));
 registerProp('couch', drawCouch);
 registerProp('window', drawWindow);

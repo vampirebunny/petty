@@ -651,6 +651,19 @@ const furnitureShelfPrices: Record<string, number> = {
 const homeShelf: ShopListing[] = [
   { id: 'bowl_food', name: 'Extra food bowl', category: 'home', shop: 'always', tier: 'standard', price: 600, sort: 10, stackable: false },
   { id: 'bowl_water', name: 'Extra water bowl', category: 'home', shop: 'always', tier: 'standard', price: 600, sort: 11, stackable: false },
+  {
+    id: 'dogHouse',
+    name: 'Glass Conservatory',
+    category: 'home',
+    shop: 'always',
+    tier: 'standard',
+    species: ['dog'],
+    price: 8000,
+    sort: 25,
+    stackable: false,
+    restMultiplier: 2.5,
+    description: '2.5× faster rest',
+  },
   { id: 'bed_standard', name: 'Standard Bed', category: 'home', shop: 'always', tier: 'standard', price: 2500, sort: 20, stackable: false, restMultiplier: 1 },
   {
     id: 'bed_cloud_puff',
@@ -721,6 +734,7 @@ export function withHomeShelf(catalog: ShopCatalog): ShopCatalog {
       price: shelf.price ?? item.price,
       restMultiplier: shelf.restMultiplier ?? item.restMultiplier,
       description: shelf.description ?? item.description,
+      sort: shelf.sort,
     };
   });
   if (extra.length === 0) {
