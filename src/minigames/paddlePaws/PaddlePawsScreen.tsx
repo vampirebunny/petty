@@ -7,6 +7,7 @@ import { useSharedValue } from 'react-native-reanimated';
 import { breedById, spawnActor, voiceRate } from '../../actor';
 import type { Actor, Breed } from '../../actor/types';
 import { growthFor } from '../../actor/growth';
+import { pauseArcadeRound, resumeArcadeRound, startArcadeRound, stopArcadeRound } from '../../audio/arcadeMusic';
 import { playBadgeChime, playPointPop } from '../../audio/badge';
 import { playBloop, preloadBloops } from '../../audio/bloop';
 import { playVoice, setSoundEnabled, soundEnabled } from '../../audio/voice';
@@ -236,6 +237,7 @@ export function PaddlePawsScreen({ pet, reducedMotion, onBack, onMenu }: Props) 
         return;
       }
       overRef.current = run.overId;
+      stopArcadeRound();
       setOverlay('over');
       void settle(run);
     },
@@ -290,6 +292,7 @@ export function PaddlePawsScreen({ pet, reducedMotion, onBack, onMenu }: Props) 
       activeRef.current = active;
       if (!active && runRef.current?.phase === 'play') {
         pauseRun(runRef.current);
+        pauseArcadeRound();
         setOverlay('paused');
       }
       if (returned) {
@@ -305,6 +308,10 @@ export function PaddlePawsScreen({ pet, reducedMotion, onBack, onMenu }: Props) 
     };
   }, [openResults, redraw]);
 
+  useEffect(() => {
+    return () => stopArcadeRound();
+  }, []);
+
   const start = () => {
     const best = bestRef.current;
     const run = createRun({
@@ -314,6 +321,7 @@ export function PaddlePawsScreen({ pet, reducedMotion, onBack, onMenu }: Props) 
       bestScore: best.score,
     });
     beginRun(run);
+    startArcadeRound();
     runRef.current = run;
     overRef.current = 0;
     sigRef.current = '';
@@ -404,6 +412,7 @@ export function PaddlePawsScreen({ pet, reducedMotion, onBack, onMenu }: Props) 
                   return;
                 }
                 pauseRun(run);
+                pauseArcadeRound();
                 setOverlay('paused');
               }}
               style={styles.pause}
@@ -481,6 +490,7 @@ export function PaddlePawsScreen({ pet, reducedMotion, onBack, onMenu }: Props) 
               if (run) {
                 resumeRun(run);
               }
+              resumeArcadeRound();
               setOverlay('play');
             }} style={styles.btn}>
               <Text style={styles.btnText}>Resume</Text>

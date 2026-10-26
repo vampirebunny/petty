@@ -7,6 +7,7 @@ import { useSharedValue } from 'react-native-reanimated';
 import { breedById, spawnActor, voiceRate } from '../../actor';
 import type { Actor, Breed } from '../../actor/types';
 import { growthFor } from '../../actor/growth';
+import { pauseArcadeRound, resumeArcadeRound, startArcadeRound, stopArcadeRound } from '../../audio/arcadeMusic';
 import { playVoice, setSoundEnabled, soundEnabled } from '../../audio/voice';
 import { onAccountFlags, readAccountLinked, readHandleSaved } from '../../db/accountMeta';
 import type { PetState } from '../../sim/types';
@@ -303,6 +304,7 @@ export function CloudHopScreen({ pet, reducedMotion, onBack, onMenu }: Props) {
           }
           if (run.overId !== overRef.current) {
             overRef.current = run.overId;
+            stopArcadeRound();
             setOverlay('over');
             void settle(run);
           }
@@ -320,6 +322,7 @@ export function CloudHopScreen({ pet, reducedMotion, onBack, onMenu }: Props) {
       activeRef.current = active;
       if (!active && runRef.current?.phase === 'play') {
         pauseRun(runRef.current);
+        pauseArcadeRound();
         setOverlay('paused');
       }
       if (returned) {
@@ -375,9 +378,14 @@ export function CloudHopScreen({ pet, reducedMotion, onBack, onMenu }: Props) {
     });
   }
 
+  useEffect(() => {
+    return () => stopArcadeRound();
+  }, []);
+
   const start = () => {
     const run = makeRun(logicalH);
     beginRun(run);
+    startArcadeRound();
     overRef.current = 0;
     setSummary(null);
     setOverlay('play');
@@ -453,6 +461,7 @@ export function CloudHopScreen({ pet, reducedMotion, onBack, onMenu }: Props) {
                 if (runRef.current) {
                   pauseRun(runRef.current);
                 }
+                pauseArcadeRound();
                 setOverlay('paused');
               }}
               style={styles.pause}
@@ -543,6 +552,7 @@ export function CloudHopScreen({ pet, reducedMotion, onBack, onMenu }: Props) {
                 if (runRef.current) {
                   resumeRun(runRef.current);
                 }
+                resumeArcadeRound();
                 setOverlay('play');
               }}
               style={styles.btn}
@@ -569,6 +579,7 @@ export function CloudHopScreen({ pet, reducedMotion, onBack, onMenu }: Props) {
                   return;
                 }
                 endRun(run);
+                stopArcadeRound();
                 setOverlay('over');
                 void settle(run);
               }}

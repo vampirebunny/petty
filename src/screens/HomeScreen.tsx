@@ -13,6 +13,7 @@ import {
   stagePoint,
 } from '../actor';
 import { preloadBloops, releaseBloops, silenceBloops, unmuteBloops } from '../audio/bloop';
+import { stopArcadeRound, suspendArcade } from '../audio/arcadeMusic';
 import { releaseMusic, setMusicEnabled, suspendMusic, switchMusic } from '../audio/music';
 import { setSoundEnabled } from '../audio/voice';
 import type { CuddleOut } from '../actor';
@@ -525,6 +526,7 @@ export default function HomeScreen({ petApi }: Props) {
     const appState = AppState.addEventListener('change', (next) => {
       const background = next !== 'active';
       suspendMusic(background);
+      suspendArcade(background);
       if (background) {
         silenceBloops();
         counterRef.current?.snap();
@@ -541,6 +543,7 @@ export default function HomeScreen({ petApi }: Props) {
     return () => {
       mounted = false;
       appState.remove();
+      stopArcadeRound();
       releaseMusic();
       releaseBloops();
       if (noteTimer.current) {

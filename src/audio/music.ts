@@ -46,6 +46,11 @@ let subscription: { remove(): void } | null = null;
 let last = -1;
 let wanted = false;
 let suspended = false;
+let held = false;
+
+export function isMusicEnabled(): boolean {
+  return wanted;
+}
 
 // A random index in 0..count-1 that is never `prev`: draw from the other count-1 slots, then skip over prev.
 export function pickNext(count: number, prev: number, rand: () => number = Math.random): number {
@@ -81,7 +86,7 @@ function playNext(): void {
       }
     });
     player = next;
-    if (!suspended) {
+    if (!suspended && !held) {
       next.play();
     }
   } catch {
@@ -105,7 +110,7 @@ export function setMusicEnabled(on: boolean): void {
       return;
     }
     if (player) {
-      if (!suspended) {
+      if (!suspended && !held) {
         player.play();
       }
       return;
@@ -121,7 +126,7 @@ export function setMusicEnabled(on: boolean): void {
 export function suspendMusic(off: boolean): void {
   suspended = off;
   try {
-    if (off) {
+    if (off || held) {
       player?.pause();
     } else if (wanted) {
       player?.play();
@@ -131,7 +136,24 @@ export function suspendMusic(off: boolean): void {
   }
 }
 
+// Keeps scene music quiet while an arcade round owns the speakers.
+export function holdMusic(on: boolean): void {
+  held = on;
+  try {
+    if (on || suspended) {
+      player?.pause();
+      return;
+    }
+    if (wanted) {
+      player?.play();
+    }
+  } catch {
+    // stay silent
+  }
+}
+
 export function releaseMusic(): void {
   wanted = false;
+  held = false;
   dispose();
 }
