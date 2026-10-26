@@ -1588,12 +1588,14 @@ function lensPath(shape: 'wayfarer' | 'round' | 'soft' | 'heart' | 'star', w: nu
   }
   const p = Skia.PathBuilder.Make();
   if (shape === 'heart') {
-    // Plump heart. The cleft stays above the eye and the sides wrap the pupil.
-    p.moveTo(0, h * 1.02);
-    p.cubicTo(-w * 0.15, h * 0.45, -w * 1.02, h * 0.55, -w * 1.02, 0);
-    p.cubicTo(-w * 1.02, -h * 0.55, -w * 0.55, -h * 1.05, 0, -h * 0.88);
-    p.cubicTo(w * 0.55, -h * 1.05, w * 1.02, -h * 0.55, w * 1.02, 0);
-    p.cubicTo(w * 1.02, h * 0.55, w * 0.15, h * 0.45, 0, h * 1.02);
+    // Two lobes and a point. The cleft stays above the pupil, and deep enough that the rim does not close it.
+    p.moveTo(0, h * 0.98);
+    p.cubicTo(-w * 0.2, h * 0.45, -w * 1.05, h * 0.35, -w * 1.02, -h * 0.05);
+    p.cubicTo(-w * 1.0, -h * 0.72, -w * 0.55, -h * 1.12, -w * 0.22, -h * 0.78);
+    p.cubicTo(-w * 0.08, -h * 0.62, 0, -h * 0.62, 0, -h * 0.62);
+    p.cubicTo(0, -h * 0.62, w * 0.08, -h * 0.62, w * 0.22, -h * 0.78);
+    p.cubicTo(w * 0.55, -h * 1.12, w * 1.0, -h * 0.72, w * 1.02, -h * 0.05);
+    p.cubicTo(w * 1.05, h * 0.35, w * 0.2, h * 0.45, 0, h * 0.98);
     p.close();
     return p.detach();
   }
