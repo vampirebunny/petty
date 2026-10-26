@@ -126,6 +126,43 @@ function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
 
+// Scene changes walk off and back on. A playdate entrance parks a pet (hold) and walks it on (enter).
+function mayLeaveStage(actor: Actor): boolean {
+  if (actor.task.type !== 'travel') {
+    return false;
+  }
+  return actor.task.stage === 'exit' || actor.task.stage === 'enter' || actor.task.stage === 'hold';
+}
+
+const returnSpeed = 180;
+
+// On stage, the pet stops at the edge. Off stage, it walks back on unless a scene change or playdate entrance owns it.
+function settleX(actor: Actor, nextX: number, lo: number, hi: number, dt: number, leaving: boolean): void {
+  if (leaving) {
+    actor.x = nextX;
+    return;
+  }
+  if (!Number.isFinite(nextX) || !Number.isFinite(actor.x)) {
+    actor.x = (lo + hi) / 2;
+    actor.vx = 0;
+    return;
+  }
+  if (actor.x >= lo && actor.x <= hi) {
+    actor.x = clamp(nextX, lo, hi);
+    return;
+  }
+  const dest = clamp(actor.x, lo, hi);
+  const dir = dest >= actor.x ? 1 : -1;
+  const proposed = (nextX - actor.x) * dir;
+  const walk = returnSpeed * Math.max(dt, 0);
+  const step = Math.min(Math.abs(dest - actor.x), Math.max(proposed, walk));
+  actor.x += dir * step;
+  if (proposed < walk) {
+    actor.vx = dir * returnSpeed;
+    actor.vy = 0;
+  }
+}
+
 function easeDisplay(current: number, target: number, dt: number): number {
   return current + (target - current) * (1 - Math.exp(-dt / displayTau));
 }
@@ -3384,14 +3421,14 @@ function updateActor(world: World, actor: Actor, dt: number): void {
   }
 
   // The larger body (head in front, tail behind) sticks out from its anchor, so keep all of it inside the stage.
-  // A scene change walks the pet off-screen, so that path is not clamped in x.
+  // A scene change and a playdate entrance are the only paths allowed to leave the stage.
   const traveling = actor.task.type === 'travel';
+  const leavingStage = mayLeaveStage(actor);
   const { lo: xLo, hi: xHi } = xRangeOf(floor, frame.geom, frame.scale);
-  const greetWide = actor.task.type === 'greet';
   // Floor furniture can sit inside the body inset (the catio scratch pole). Let the cat walk up to the floor edge to use it.
   const onFurnitureFloor = actor.furniture != null && actor.furniture.pin == null;
-  const xClampLo = greetWide ? xLo - 110 : onFurnitureFloor ? floor.xMin : xLo;
-  const xClampHi = greetWide ? xHi + 110 : onFurnitureFloor ? floor.xMax : xHi;
+  const xClampLo = onFurnitureFloor ? Math.max(0, floor.xMin) : xLo;
+  const xClampHi = onFurnitureFloor ? Math.min(stageWidth, floor.xMax) : xHi;
   const desired = { x: 0, y: 0 };
   if (move && !(actor.jump && jumpOwnsMotion(actor))) {
     const tx = traveling ? move.x : clamp(move.x, xClampLo, xClampHi);
@@ -3472,7 +3509,7 @@ function updateActor(world: World, actor: Actor, dt: number): void {
     actor.vy += dvy;
   }
   const nextX = actor.x + actor.vx * dt;
-  actor.x = traveling ? nextX : clamp(nextX, xClampLo, xClampHi);
+  settleX(actor, nextX, xClampLo, xClampHi, dt, leavingStage);
   actor.y = clamp(actor.y + actor.vy * dt, floor.yMin, floor.yMax);
   if (actor.furniture?.pin) {
     actor.x = clamp(actor.furniture.pin.x, xClampLo, xClampHi);
@@ -3638,8 +3675,8 @@ function updateActor(world: World, actor: Actor, dt: number): void {
   }
   considerHurdle(world, actor);
   stepJump(actor, dt);
-  if (actor.task.type !== 'travel') {
-    actor.x = clamp(actor.x, xClampLo, xClampHi);
+  if (!leavingStage) {
+    settleX(actor, actor.x, xClampLo, xClampHi, dt, false);
   }
 }
 

@@ -1,7 +1,8 @@
+import { breedById } from '../breeds';
 import { poiOf, scenes } from '../scenes';
-import { stageWidth } from '../geometry';
+import { depthScale, geomOf, PET_SIZE, stageWidth, xRangeOf } from '../geometry';
 import { createWorld, spawnActor, startSceneEnter, startSceneExit, syncActor, update } from '../sim';
-import type { ActorSource } from '../types';
+import type { Actor, ActorSource, World } from '../types';
 
 function source(overrides: Partial<ActorSource> = {}): ActorSource {
   return {
@@ -60,4 +61,37 @@ it('walks the pet off the right edge, then in from the left of the next scene', 
   run(world, 6);
   expect(Math.abs(pup.x - home!.x)).toBeLessThan(16);
   expect(pup.task.type).toBe('idle');
+});
+
+function rangeOf(world: World, actor: Actor) {
+  const breed = breedById(actor.breedId);
+  if (!breed) {
+    throw new Error('breed');
+  }
+  const floor = world.scene.floor;
+  const geom = geomOf(breed, actor.displayAgeDays, actor.displayWeight, actor.vitality);
+  const scale = PET_SIZE * geom.sc * depthScale(actor.y, floor.yMin, floor.yMax);
+  return xRangeOf(floor, geom, scale);
+}
+
+it('walks a pet back on stage when it is left off screen', () => {
+  const pup = spawnActor(source());
+  const world = createWorld([pup], 1, scenes.livingroom);
+  pup.x = -240;
+  pup.vx = 0;
+  pup.task = { type: 'idle', stage: '', t: 0, bats: 0, cool: 0 };
+  const range = rangeOf(world, pup);
+  run(world, 4);
+  expect(pup.x).toBeGreaterThanOrEqual(range.lo - 1);
+  expect(pup.x).toBeLessThanOrEqual(range.hi + 1);
+});
+
+it('leaves a playdate entrance parked off stage', () => {
+  const pup = spawnActor(source());
+  const world = createWorld([pup], 1, scenes.park);
+  pup.x = -220;
+  pup.vx = 0;
+  pup.task = { type: 'travel', stage: 'hold', t: 0, bats: 0, cool: 0 };
+  run(world, 2);
+  expect(pup.x).toBeLessThan(0);
 });
