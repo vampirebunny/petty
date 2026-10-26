@@ -68,6 +68,7 @@ await rm(dist, { recursive: true, force: true });
 await mkdir(dist, { recursive: true });
 await copyFile(path.join(root, "styles.css"), path.join(dist, "styles.css"));
 await copyFile(path.join(root, "..", "assets", "icon.png"), path.join(dist, "icon.png"));
+await copyFile(path.join(root, "preview.png"), path.join(dist, "preview.png"));
 await copyFile(path.join(root, "home.html"), path.join(dist, "index.html"));
 await mkdir(path.join(dist, "get"), { recursive: true });
 await copyFile(path.join(root, "get.html"), path.join(dist, "get", "index.html"));
