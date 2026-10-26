@@ -112,7 +112,7 @@ import type { PointPop } from '../ui/AttributePops';
 import { careConfig } from '../sim/careConfig';
 import { formatRest, isResting, restRemainingMs, treatProgressPreview } from '../sim/training';
 import { BadgeCelebration } from '../ui/BadgeCelebration';
-import { ChevronRight, Cookie, Droplet, HandHeart, Moon, Settings, Soup, Sparkles } from 'lucide-react-native';
+import { ChevronRight, Cookie, Droplet, HandHeart, Moon, Settings, Sparkles } from 'lucide-react-native';
 import { playBadgeChime } from '../audio/badge';
 import { GREET } from '../actor/greetings';
 import { PetView } from '../ui/PetView';
@@ -489,7 +489,7 @@ export default function HomeScreen({ petApi }: Props) {
   const [popped, setPopped] = useState<string[] | null>(null);
   const [movePieceId, setMovePieceId] = useState<string | null>(null);
   const [knownPieceIds, setKnownPieceIds] = useState<string | null>(null);
-  const prevNeeds = useRef<{ h: number; t: number; e: number } | null>(null);
+  const prevNeeds = useRef<{ h: number; e: number } | null>(null);
   // null until storage answers. true once shown or already dismissed this install.
   const [silentHintSeen, setSilentHintSeen] = useState<boolean | null>(null);
   const noteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1319,7 +1319,7 @@ export default function HomeScreen({ petApi }: Props) {
     if (!state) {
       return;
     }
-    const next = { h: state.hydration, t: 100 - state.needs.hunger, e: state.needs.energy };
+    const next = { h: state.hydration, e: state.needs.energy };
     const prev = prevNeeds.current;
     prevNeeds.current = next;
     if (!prev) {
@@ -1327,9 +1327,6 @@ export default function HomeScreen({ petApi }: Props) {
     }
     if (prev.h >= needThreshold && next.h < needThreshold) {
       tips.offer('tip.water');
-    }
-    if (prev.t >= needThreshold && next.t < needThreshold) {
-      tips.offer('tip.food');
     }
     if (prev.e >= needThreshold && next.e < needThreshold) {
       tips.offer('tip.sleep');
@@ -1425,8 +1422,7 @@ export default function HomeScreen({ petApi }: Props) {
     };
   }, [controlsScene, flash, home.pieces, home.placements, refillWater, rest, state, tips]);
 
-  const tipKind: TipKind | null =
-    tips.current === 'tip.water' ? 'water' : tips.current === 'tip.food' ? 'food' : tips.current === 'tip.sleep' ? 'bed' : null;
+  const tipKind: TipKind | null = tips.current === 'tip.water' ? 'water' : tips.current === 'tip.sleep' ? 'bed' : null;
   const tipSpot = tipKind
     ? placedInScene(home.pieces, home.placements, controlsScene.id, tipKind)
     : tips.current === 'tip.move' && movePieceId
@@ -2022,13 +2018,11 @@ export default function HomeScreen({ petApi }: Props) {
       ? { flavor: 'bond' as const, icon: HandHeart, text: 'Stroke his back or head', bold: 'Stroke', target: coachTarget }
       : tips.current === 'tip.water' && propTip
         ? { flavor: 'care' as const, icon: Droplet, text: `Press Water to give ${petName} a drink`, bold: 'Water', target: propTip }
-        : tips.current === 'tip.food' && propTip
-          ? { flavor: 'care' as const, icon: Soup, text: 'Press Feed to fill the bowl', bold: 'Feed', target: propTip }
-          : tips.current === 'tip.sleep' && propTip
-            ? { flavor: 'care' as const, icon: Moon, text: `Press Sleep so ${petName} can nap`, bold: 'Sleep', target: propTip }
-            : tips.current === 'tip.move' && propTip
-              ? { flavor: 'style' as const, icon: Sparkles, text: 'Hold to move or store', bold: 'Hold', target: propTip }
-              : null;
+        : tips.current === 'tip.sleep' && propTip
+          ? { flavor: 'care' as const, icon: Moon, text: `Press Sleep so ${petName} can nap`, bold: 'Sleep', target: propTip }
+          : tips.current === 'tip.move' && propTip
+            ? { flavor: 'style' as const, icon: Sparkles, text: 'Hold to move or store', bold: 'Hold', target: propTip }
+            : null;
 
   const sheetTop = split ? 0 : previewBottom;
   const trickTitle = (trackId: string) => trackName(trackId, species);

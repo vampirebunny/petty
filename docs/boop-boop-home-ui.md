@@ -38,7 +38,7 @@ A tap never moves a prop. Floor flicks and cuddle strokes are unchanged. Cuddle 
 
 One candy tooltip shows at a time. Doing the action marks it seen. Dismissing it without acting allows one later show, then never again, except `tip.move`, which is marked seen the moment it appears. Seen tips are stored on the device.
 
-- `tip.water`, `tip.food`, `tip.sleep`: the first time that stat crosses under 30, pointing at the bowl or bed.
+- `tip.water`, `tip.sleep`: the first time hydration or energy crosses under 30, pointing at the water bowl or bed. Hunger does not show a bowl tip.
 - `tip.cuddle`: the first time Cuddle is entered. Copy is "Stroke his back or head". The ghost finger and the long-press help sheet stay.
 - `tip.move`: after two prop taps, or when a new placeable arrives once a prop tap has already happened. "Hold to move or store". The first time it appears it is marked seen, so a later tap or a new placeable does not bring it back.
 
