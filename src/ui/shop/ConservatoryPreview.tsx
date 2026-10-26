@@ -4,7 +4,7 @@ import { Canvas, Picture, Skia } from '@shopify/react-native-skia';
 import type { SkPicture } from '@shopify/react-native-skia';
 
 import { resolveBreedById, spawnActor } from '../../actor';
-import { bedCushionPoint, styledBedWidth } from '../../actor/furniture';
+import { bedCushionPoint, cabanaWidth } from '../../actor/furniture';
 import type { Actor } from '../../actor/types';
 import { applyVariant } from '../../actor/variation';
 import type { PetState } from '../../sim/types';
@@ -25,12 +25,12 @@ const prop = {
   id: 'dogHouse',
   x: 160,
   y: 200,
-  w: styledBedWidth,
+  w: cabanaWidth,
   restMultiplier: 2,
 };
 const cushion = bedCushionPoint(prop);
 const floor = { yMin: 40, yMax: 260 };
-const artScale = styledBedWidth / 280;
+const artScale = cabanaWidth / 280;
 const fit = Math.min((width - 24) / (252 * artScale), (height - 36) / (209 * artScale));
 
 const approaches = [

@@ -1,4 +1,4 @@
-import { furnitureOf, layoutOf } from '../../db/playerHome';
+import { furnitureOf, layoutOf, reclaimFurnitureInventory } from '../../db/playerHome';
 import { getDb } from '../../db/database';
 import { enterClient, leaveClient, type ClientBinding } from '../../sync/clientScope';
 import { openClientDatabase } from '../../sync/harnessDb';
@@ -119,6 +119,42 @@ it('puts a bought bed in owned furniture without a placement', () => {
     expect(bought.ok && standard.ok).toBe(true);
     expect(unplaced).toEqual(expect.arrayContaining(['bed_cloud_puff', 'bed_standard:1']));
     expect(placed.map((place) => place.pieceId)).toEqual(['livingroom-bed']);
+  } finally {
+    leaveClient();
+  }
+});
+
+it('moves premium dog beds out of inventory and into storage', () => {
+  const phone = client();
+  enterClient(phone);
+  try {
+    const db = getDb();
+    db.runSync(
+      'INSERT INTO home_layouts (owner_id, species, placements) VALUES (?, ?, ?)',
+      'owner-1',
+      'dog',
+      JSON.stringify([{ pieceId: 'livingroom-bed', sceneId: 'livingroom', x: 110, y: 540 }]),
+    );
+    db.runSync(
+      'INSERT INTO inventory (owner_id, item_id, quantity, first_acquired_at) VALUES (?, ?, 1, ?)',
+      'owner-1',
+      'bed_cloud_puff',
+      '2026-10-26T12:00:00Z',
+    );
+    db.runSync(
+      'INSERT INTO inventory (owner_id, item_id, quantity, first_acquired_at) VALUES (?, ?, 1, ?)',
+      'owner-1',
+      'bed_bone_sofa',
+      '2026-10-26T12:00:00Z',
+    );
+    expect(reclaimFurnitureInventory('owner-1', 'dog')).toBe(true);
+    const pieces = furnitureOf('owner-1');
+    const placed = layoutOf('owner-1', 'dog');
+    const unplaced = pieces.filter((piece) => !placed.some((place) => place.pieceId === piece.id)).map((piece) => piece.id);
+    expect(unplaced).toEqual(expect.arrayContaining(['bed_cloud_puff', 'bed_bone_sofa']));
+    expect(pieces.find((piece) => piece.id === 'bed_cloud_puff')?.bedStyle).toBe('cloud');
+    expect(pieces.find((piece) => piece.id === 'bed_bone_sofa')?.bedStyle).toBe('bone');
+    expect(db.getAllSync('SELECT item_id FROM inventory')).toEqual([]);
   } finally {
     leaveClient();
   }

@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
 
 import type { FurniturePiece, FurniturePlacement } from '../actor/furniture';
+import { reloadWallet } from '../economy/service';
 import {
   furnitureOf,
   layoutOf,
+  reclaimFurnitureInventory,
   repairBedPlacements,
+  repairUnusablePlacements,
   subscribePlayerHome,
   toysOf,
   type SpeciesId,
@@ -28,15 +31,29 @@ export function usePlayerHome(ownerId: string | undefined, species: SpeciesId) {
       return;
     }
     const id = ownerId;
+    let loading = false;
     const load = () => {
-      repairBedPlacements(id, species);
-      setSnapshot({
-        ownerId: id,
-        species,
-        pieces: furnitureOf(id),
-        placements: layoutOf(id, species),
-        toys: toysOf(id),
-      });
+      if (loading) {
+        return;
+      }
+      loading = true;
+      try {
+        const reclaimed = reclaimFurnitureInventory(id, species);
+        repairUnusablePlacements(id, species);
+        repairBedPlacements(id, species);
+        setSnapshot({
+          ownerId: id,
+          species,
+          pieces: furnitureOf(id),
+          placements: layoutOf(id, species),
+          toys: toysOf(id),
+        });
+        if (reclaimed) {
+          reloadWallet();
+        }
+      } finally {
+        loading = false;
+      }
     };
     load();
     return subscribePlayerHome(load);

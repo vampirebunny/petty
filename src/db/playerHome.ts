@@ -1,18 +1,25 @@
 import {
   bowlAlreadyInRoom,
+  buySpot,
+  isBedSku,
   keepFirstBedPerRoom,
+  nextFurnitureId,
   otherBedInRoom,
   furnitureDefinition,
   grantPieces,
   isRetiredPiece,
+  placementsPetCanUse,
   placePiece,
   shopFurnitureSpot,
+  skuCap,
+  skuCount,
   stowPiece,
   starterFurniture,
   type FurniturePiece,
   type FurniturePlacement,
   type ShopFurnitureId,
 } from '../actor/furniture';
+import { catalogItem } from '../economy/catalog';
 import { startingToys } from '../sim/config';
 import { getDb } from './database';
 import { writeLedgerEntry } from './ledgerWrite';
@@ -118,6 +125,73 @@ export function consumeBedStorageTip(): boolean {
   }
   getDb().runSync('UPDATE meta SET value = ? WHERE key = ?', 'seen', bedTipKey);
   return true;
+}
+
+// Shop furniture that was written into the pantry instead of the home. Beds stay unplaced.
+export function grantFurnitureSku(ownerId: string, species: SpeciesId, sku: string, sceneId: string): boolean {
+  const pieces = furnitureOf(ownerId);
+  if (skuCount(pieces, sku) >= skuCap(sku)) {
+    return false;
+  }
+  const pieceId = nextFurnitureId(sku, pieces);
+  const defined = furnitureDefinition(pieceId);
+  if (!defined) {
+    return false;
+  }
+  getDb().runSync(
+    'INSERT OR IGNORE INTO owned_furniture (owner_id, piece_id, json) VALUES (?, ?, ?)',
+    ownerId,
+    pieceId,
+    JSON.stringify(defined),
+  );
+  const spot = buySpot(sku, sceneId);
+  if (spot) {
+    moveOwnedPiece(ownerId, species, pieceId, spot.sceneId, spot.x, spot.y);
+    return true;
+  }
+  if (isBedSku(sku)) {
+    markBedStorageTip();
+  }
+  emit();
+  return true;
+}
+
+// A furniture row in inventory is owned, but Storage only reads owned pieces.
+export function reclaimFurnitureInventory(ownerId: string, species: SpeciesId): boolean {
+  const rows = getDb().getAllSync<{ item_id: string; quantity: number }>(
+    'SELECT item_id, quantity FROM inventory WHERE owner_id = ? AND quantity > 0',
+    ownerId,
+  );
+  let changed = false;
+  for (const row of rows) {
+    if (catalogItem(row.item_id)?.kind !== 'furniture') {
+      continue;
+    }
+    const sceneId = row.item_id === 'dogHouse' ? 'livingroom' : species === 'cat' ? 'catio' : 'livingroom';
+    grantFurnitureSku(ownerId, species, row.item_id, sceneId);
+    getDb().runSync('DELETE FROM inventory WHERE owner_id = ? AND item_id = ?', ownerId, row.item_id);
+    changed = true;
+  }
+  return changed;
+}
+
+export function repairUnusablePlacements(ownerId: string, species: SpeciesId): void {
+  if (!hasLayout(ownerId, species)) {
+    return;
+  }
+  const pieces = furnitureOf(ownerId);
+  const placed = layoutOf(ownerId, species);
+  const next = placementsPetCanUse(pieces, placed, species);
+  if (next.length === placed.length) {
+    return;
+  }
+  getDb().runSync(
+    'UPDATE home_layouts SET placements = ? WHERE owner_id = ? AND species = ?',
+    JSON.stringify(next),
+    ownerId,
+    species,
+  );
+  emit();
 }
 
 export function repairBedPlacements(ownerId: string, species: SpeciesId): void {

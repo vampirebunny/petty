@@ -1,5 +1,5 @@
 import { shopFurniture, type ShopFurnitureId } from '../actor/furniture';
-import { grantOwnedFurniture, touchPlayerHome } from '../db/playerHome';
+import { grantFurnitureSku, grantOwnedFurniture, touchPlayerHome } from '../db/playerHome';
 import { getDb } from '../db/database';
 import { catalogItem } from '../economy/catalog';
 import type { Equipped } from '../sim/types';
@@ -28,6 +28,11 @@ export async function grantDevItem(
   }
   const item = catalogItem(id);
   if (!item) {
+    return;
+  }
+  if (item.kind === 'furniture') {
+    const sceneId = id === 'dogHouse' ? 'livingroom' : species === 'cat' ? 'catio' : 'livingroom';
+    grantFurnitureSku(ownerId, species, id, sceneId);
     return;
   }
   if (item.kind === 'outfit' && item.slot && item.wearId) {

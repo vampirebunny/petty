@@ -1,7 +1,7 @@
 import { ClipOp, Skia, StrokeCap } from '@shopify/react-native-skia';
 import type { SkCanvas, SkPaint } from '@shopify/react-native-skia';
 
-import { cabanaFloorY, styledBedWidth } from '../../actor/furniture';
+import { cabanaFloorY, cabanaWidth } from '../../actor/furniture';
 import type { Prop } from '../../actor/scenes';
 import { fill, linear, linearStroke, radial, stroke } from './ink';
 
@@ -78,7 +78,7 @@ function drawArt(c: SkCanvas): void {
 }
 
 function place(c: SkCanvas, prop: Prop): void {
-  const scale = (prop.w ?? styledBedWidth) / 280;
+  const scale = (prop.w ?? cabanaWidth) / 280;
   c.scale(scale, scale);
   c.translate(-originX, -cabanaFloorY);
 }

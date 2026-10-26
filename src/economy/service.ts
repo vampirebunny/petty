@@ -297,6 +297,10 @@ function emit(): void {
   }
 }
 
+export function reloadWallet(): void {
+  emit();
+}
+
 export function subscribe(listener: (snapshot: WalletSnapshot) => void): () => void {
   listeners.add(listener);
   listener(snapshot());

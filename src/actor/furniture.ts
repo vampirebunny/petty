@@ -64,8 +64,11 @@ export type ShopFurnitureId = keyof typeof shopFurniture;
 
 export type BedStyle = 'standard' | 'cloud' | 'bone' | 'cave' | 'moon';
 
-// World width of a dog shop bed and the Pup Cabana. 280 SVG units of art map onto this width.
+// World width of a dog shop bed. 280 SVG units of bed art map onto this width.
 export const styledBedWidth = 120;
+
+// The cabana uses the same drawing, drawn twice as wide and twice as tall.
+export const cabanaWidth = styledBedWidth * 2;
 
 export const bedArtWidth = 280;
 
@@ -93,9 +96,11 @@ export function adultCatBodyWidth(): number {
   return widest;
 }
 
-// World width of a premium cat bed so the part the cat lies in is at least one adult body wide.
+// World width of a premium cat bed. The sultan pillow's sleeping surface is at least one
+// adult body wide. The cushion stack is half of that fit.
 export function catBedWidth(style: 'cave' | 'moon'): number {
-  return (adultCatBodyWidth() * bedArtWidth) / catBedFitSvg(style);
+  const fit = (adultCatBodyWidth() * bedArtWidth) / catBedFitSvg(style);
+  return style === 'cave' ? fit / 2 : fit;
 }
 
 function shopBedWidth(bed: { style: BedStyle; species?: 'dog' | 'cat' }): number {
@@ -109,8 +114,11 @@ function resolvedBedWidth(piece: FurniturePiece): number | undefined {
   const sku = shopSku(piece);
   const bed = sku ? bedCatalog[sku] : undefined;
   const style = piece.bedStyle ?? bed?.style;
-  if (bed?.species === 'cat' && (style === 'cave' || style === 'moon')) {
-    return Math.max(piece.w ?? 0, catBedWidth(style));
+  if (bed?.species === 'cat' && style === 'cave') {
+    return catBedWidth('cave');
+  }
+  if (bed?.species === 'cat' && style === 'moon') {
+    return Math.max(piece.w ?? 0, catBedWidth('moon'));
   }
   if (piece.w != null) {
     return piece.w;
@@ -243,7 +251,7 @@ export function bedCushionReach(prop: { w?: number; bedStyle?: BedStyle; kind?: 
   if (!anchor) {
     return 48;
   }
-  const scale = (prop.w ?? styledBedWidth) / bedArtWidth;
+  const scale = (prop.w ?? (prop.kind === 'dogHouse' ? cabanaWidth : styledBedWidth)) / bedArtWidth;
   const lift = (floor - anchor.y) * scale;
   return Math.max(48, lift + 16);
 }
@@ -251,7 +259,7 @@ export function bedCushionReach(prop: { w?: number; bedStyle?: BedStyle; kind?: 
 // Where the pet stands to sleep: the middle of the cushion, in world space.
 export function bedCushionPoint(prop: { x: number; y: number; w?: number; bedStyle?: BedStyle; kind?: string }): { x: number; y: number } {
   if (prop.kind === 'dogHouse') {
-    const scale = (prop.w ?? styledBedWidth) / bedArtWidth;
+    const scale = (prop.w ?? cabanaWidth) / bedArtWidth;
     return {
       x: prop.x + (cabanaCushion.x - 140) * scale,
       y: prop.y + (cabanaCushion.y - cabanaFloorY) * scale,
@@ -268,12 +276,21 @@ export function bedCushionPoint(prop: { x: number; y: number; w?: number; bedSty
   };
 }
 
+function bedOf(piece: FurniturePiece) {
+  const sku = shopSku(piece);
+  return sku ? bedCatalog[sku] : undefined;
+}
+
+function bedStyleOf(piece: FurniturePiece): BedStyle {
+  return piece.bedStyle ?? bedOf(piece)?.style ?? 'standard';
+}
+
 export function bedPoiOffset(piece: FurniturePiece): { x: number; y: number } {
   if (piece.kind === 'dogHouse') {
-    const at = bedCushionPoint({ x: 0, y: 0, w: piece.w ?? styledBedWidth, kind: 'dogHouse' });
+    const at = bedCushionPoint({ x: 0, y: 0, w: piece.w ?? cabanaWidth, kind: 'dogHouse' });
     return at;
   }
-  const style = piece.bedStyle ?? 'standard';
+  const style = bedStyleOf(piece);
   const anchor = bedAnchors[style];
   if (!anchor) {
     return { x: 0, y: 2 };
@@ -409,7 +426,7 @@ export function furnitureDefinition(id: string): FurniturePiece | null {
       return { id: kind, kind, h: 74 };
     }
     if (kind === 'dogHouse') {
-      return { id: kind, kind, w: styledBedWidth, restMultiplier: HOUSE_REST };
+      return { id: kind, kind, w: cabanaWidth, restMultiplier: HOUSE_REST };
     }
     return { id: kind, kind };
   }
@@ -518,6 +535,21 @@ function pieceSpecies(piece: FurniturePiece): 'dog' | 'cat' | null {
     return (sku && bedCatalog[sku]?.species) || null;
   }
   return null;
+}
+
+// A placement this pet cannot use belongs back in storage. Park, school, and the other pet's pieces.
+export function placementsPetCanUse(
+  pieces: readonly FurniturePiece[],
+  placed: readonly FurniturePlacement[],
+  species: 'dog' | 'cat',
+): FurniturePlacement[] {
+  return placed.filter((place) => {
+    const piece = pieces.find((item) => item.id === place.pieceId);
+    if (!piece) {
+      return true;
+    }
+    return canPlaceFurniture(piece, place.sceneId, species);
+  });
 }
 
 // Park and school are not homes. A species-locked piece stays in storage for the other pet.
@@ -664,14 +696,18 @@ function propFromPiece(piece: FurniturePiece, x: number, y: number): Prop {
   if (piece.layer) {
     prop.layer = piece.layer;
   }
-  if (piece.bedStyle) {
-    prop.bedStyle = piece.bedStyle;
+  const bed = piece.kind === 'bed' ? bedOf(piece) : undefined;
+  const style = piece.bedStyle ?? bed?.style;
+  if (style && style !== 'standard') {
+    prop.bedStyle = style;
   }
   if (piece.restMultiplier != null) {
     prop.restMultiplier = piece.restMultiplier;
+  } else if (bed && bed.rest !== 1) {
+    prop.restMultiplier = bed.rest;
   }
   if (piece.kind === 'dogHouse') {
-    prop.w = styledBedWidth;
+    prop.w = cabanaWidth;
     prop.restMultiplier = piece.restMultiplier ?? HOUSE_REST;
   }
   return prop;
@@ -889,7 +925,7 @@ function settleHouses(_scene: Scene, props: Prop[], pois: Poi[]): Poi[] {
     if (prop.kind !== 'dogHouse' || !prop.id) {
       continue;
     }
-    prop.w = styledBedWidth;
+    prop.w = cabanaWidth;
     prop.restMultiplier = prop.restMultiplier ?? HOUSE_REST;
     const rest = bedCushionPoint(prop);
     const found = pois.find((poi) => poi.propId === prop.id && poi.type === 'bed');
@@ -956,6 +992,12 @@ export function syncFurniture(live: Scene, next: Scene): string[] {
     }
     if (updated.color) {
       prop.color = updated.color;
+    }
+    if (updated.bedStyle) {
+      prop.bedStyle = updated.bedStyle;
+    }
+    if (updated.restMultiplier != null) {
+      prop.restMultiplier = updated.restMultiplier;
     }
     kept.push(prop);
     incoming.delete(prop.id);

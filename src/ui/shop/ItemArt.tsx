@@ -10,7 +10,7 @@ import type { ShopCatalog } from '../../economy/shop';
 import type { Env } from '../skia/env';
 import { ICON_BOX, itemIconPicture } from '../skia/itemIcon';
 import { drawProp, drawToyShape, drawTreatShape } from '../skia/scenery';
-import { styledBedWidth } from '../../actor/furniture';
+import { cabanaWidth } from '../../actor/furniture';
 import { BedThumb, bedThumbId } from './BedThumb';
 import { shop } from './theme';
 
@@ -119,7 +119,7 @@ function furnitureBounds(itemId: string) {
     return { x0: -48, y0: -32, x1: 52, y1: 10 };
   }
   if (itemId === 'dogHouse') {
-    const scale = styledBedWidth / 280;
+    const scale = cabanaWidth / 280;
     return { x0: (14 - 140) * scale, y0: (46 - 248) * scale, x1: (266 - 140) * scale, y1: (255 - 248) * scale };
   }
   return { x0: -104, y0: -214, x1: 104, y1: 14 };

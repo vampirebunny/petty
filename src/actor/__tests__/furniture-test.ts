@@ -15,6 +15,7 @@ import {
   movePiece,
   normalizeFurniture,
   otherBedInRoom,
+  placementsPetCanUse,
   placePiece,
   roomRestBadge,
   shopFurnitureSpot,
@@ -23,6 +24,7 @@ import {
   starterFurniture,
   stockedSkus,
   steerAim,
+  cabanaWidth,
   styledBedWidth,
   stowPiece,
   syncFurniture,
@@ -456,7 +458,7 @@ it('treats a press on the cabana as the house', () => {
 });
 
 it('counts the Pup Cabana as the one bed and pays 2×', () => {
-  expect(furnitureDefinition('dogHouse')).toMatchObject({ kind: 'dogHouse', w: styledBedWidth, restMultiplier: HOUSE_REST });
+  expect(furnitureDefinition('dogHouse')).toMatchObject({ kind: 'dogHouse', w: cabanaWidth, restMultiplier: HOUSE_REST });
   const pieces = [
     { id: 'livingroom-bed', kind: 'bed' as const },
     { id: 'dogHouse', kind: 'dogHouse' as const, restMultiplier: 2 },
@@ -494,7 +496,17 @@ it('lets a bed be placed only in a room that fits it', () => {
   expect(canPlaceFurniture({ id: 'scratcher', kind: 'scratcher' }, 'livingroom', 'cat')).toBe(true);
 });
 
-it('makes premium cat beds at least as wide as an adult cat', () => {
+it('sends a premium dog bed back to storage when this pet cannot use where it was left', () => {
+  const dogBed = { id: 'bed_cloud_puff', kind: 'bed' as const, catalogId: 'bed_cloud_puff' };
+  const placed = [
+    { pieceId: 'bed_cloud_puff', sceneId: 'livingroom', x: 200, y: 500 },
+    { pieceId: 'bed_cloud_puff', sceneId: 'park', x: 200, y: 500 },
+  ];
+  expect(placementsPetCanUse([dogBed], placed, 'dog').map((place) => place.sceneId)).toEqual(['livingroom']);
+  expect(placementsPetCanUse([dogBed], placed, 'cat')).toEqual([]);
+});
+
+it('makes the sultan pillow at least as wide as an adult cat and the stack half of that', () => {
   const cave = furnitureDefinition('bed_kitty_cave');
   const moon = furnitureDefinition('bed_moon_cradle');
   const caveOpening = ((cave?.w ?? 0) / 280) * stackCushionSvg;
@@ -502,10 +514,10 @@ it('makes premium cat beds at least as wide as an adult cat', () => {
   for (const breed of catBreeds()) {
     const geom = geomOf(breed, daysToSenior, 0, 1);
     const body = geom.bodyLen * PET_SIZE * geom.sc;
-    expect(caveOpening + 1e-6).toBeGreaterThanOrEqual(body);
     expect(cradle + 1e-6).toBeGreaterThanOrEqual(body);
   }
-  expect(caveOpening + 1e-6).toBeGreaterThanOrEqual(adultCatBodyWidth());
+  expect(caveOpening * 2 + 1e-6).toBeGreaterThanOrEqual(adultCatBodyWidth());
+  expect(caveOpening * 2).toBeCloseTo(adultCatBodyWidth());
   expect(cradle + 1e-6).toBeGreaterThanOrEqual(adultCatBodyWidth());
   expect(furnitureDefinition('bed_cloud_puff')?.w).toBe(styledBedWidth);
   expect(furnitureDefinition('bed_bone_sofa')?.w).toBe(styledBedWidth);
@@ -525,6 +537,19 @@ it('makes premium cat beds at least as wide as an adult cat', () => {
   const live = applyFurniture(scenes.livingroom, [], []);
   syncFurniture(live, saved);
   expect(live.props.find((prop) => prop.id === 'bed_kitty_cave')?.w).toBe(cave?.w);
+});
+
+it('draws an owned premium dog bed from its id when the save has no style', () => {
+  const saved = applyFurniture(
+    scenes.livingroom,
+    [{ id: 'bed_cloud_puff', kind: 'bed' }],
+    [{ pieceId: 'bed_cloud_puff', sceneId: 'livingroom', x: 200, y: 500 }],
+  );
+  expect(saved.props.find((prop) => prop.id === 'bed_cloud_puff')?.bedStyle).toBe('cloud');
+  const live = applyFurniture(scenes.livingroom, [], []);
+  live.props.push({ id: 'bed_cloud_puff', kind: 'bed', x: 110, y: 540, w: 112, color: '#c2653d' });
+  syncFurniture(live, saved);
+  expect(live.props.find((prop) => prop.id === 'bed_cloud_puff')?.bedStyle).toBe('cloud');
 });
 
 it('puts a sleeper in the middle of the cushion', () => {
