@@ -20,9 +20,9 @@ Where to? offers Pet Shop, Training School, Park, Living room, and Bedroom. Cats
 
 Tapping a trick that is not resting rolls success the same way as before: `clamp(0.55 + 0.003 × obedience + 0.004 × progress, 0.50, 0.97)`. A mastered trick always performs, with no modal and no payout.
 
-- A miss plays the confused reaction and opens **Not quite**. Try again rolls the same trick. Not now closes. Misses pay nothing and cost no focus.
-- A success plays the trick and opens **Good job**. Yes spends 1 basic treat and pays credit `1`, then plays an extra bark or meow on top of the trick. No, leaving the scene, or backgrounding the app pays credit `0.25` and plays no extra sound. Yes with no treats left opens **Out of treats** and pays credit `0.25`.
-- Only one training modal is open at a time. Other trick rings are disabled while it is open.
+- A miss plays the trick's failed clip when it has one, then the pet runs a short distance that stays on stage. The sheet opens 0.5 seconds after the pet stops. Reduce Motion skips the run and still waits 0.5 seconds. Closing the sheet walks the pet back to where the run started. Try again waits for that walk, then rolls the same trick. Not now closes. Miss copy rotates through a short list. The bar keeps its current progress. Misses pay nothing and cost no focus.
+- A success plays the trick and opens the sheet 0.5 seconds after it finishes. The sheet shows the current progress and the progress a treat would add. Give a treat spends 1 basic treat and pays credit `1`, then plays an extra bark or meow on top of the trick. At home the button shows how many basic treats are left. At Training School the treats are on the house and the button has no count. No treat this time, leaving the scene, or backgrounding the app pays credit `0.25` and plays no extra sound. Give a treat with none left opens **Out of treats** and pays credit `0.25`.
+- Only one training sheet is open at a time. Trick controls stay disabled while it is open and during the 0.5 second wait.
 
 ## Focus and rest
 
@@ -30,9 +30,11 @@ Each trick has its own session. A treated success costs 1 focus. A success witho
 
 Session length is `round(5 + 5 × clamp(stamina / 100, 0, 1))` from the shown stamina score, about 5 to 10 treated reps. It is read live. When focus used reaches that length, the trick rests until `restUntil` (10 minutes, `trickRestMs`). Other tricks stay available.
 
-The break modal shows a live countdown. If any rep in the session was unpaid, the copy says the pet lost focus and that treats help it stay focused longer. Otherwise it is the normal "needs a break" copy. The ring shows `Rest 9:42`, or `Rest 1h 12m` once the wait is an hour or more. Tapping a resting trick reopens the modal and does not roll. When the timer ends, focus resets and the ring pulses once.
+The break sheet shows a live countdown in the ring (`9:42`, or `1h 12m` once the wait is an hour or more). If any rep in the session was unpaid, the title is **Focus ran out!** and the copy says the pet needs a breather, then that Second Wind treats help them stay focused longer. The treat picture sits on the left. The countdown, that copy, the name, and how many are owned sit to its right. Otherwise the title is **What a session!** and the copy celebrates the trick. Tapping a resting trick, including the countdown on the Training School list, opens this sheet immediately and does not roll. When the timer ends, focus resets and the ring pulses once.
 
-The rep that fills the session still shows Good job first. The break modal follows that choice, unless the trick just became mastered.
+Owned Second Winds show **Use Second Wind** and how many are left. None owned offers **Visit Pet Shop**. After the daily limit, both of those are hidden and only **I'll wait** remains. The sheet does not buy a Second Wind in place.
+
+The rep that fills the session still shows the success sheet first. The break sheet follows that choice, unless the trick just became mastered.
 
 ## Attributes
 

@@ -405,6 +405,18 @@ export function canUse(pet: PetState, itemId: string, opts: UseOpts = {}, now = 
   return { ok: false, reason: 'not_available' };
 }
 
+// What the break sheet can offer. The daily limit hides both use and the shop.
+export function secondWindOffer(pet: PetState, trickId: string, owned: number, now = Date.now()): 'use' | 'shop' | 'wait' {
+  const track = pet.training[trickId];
+  if (!track || !isResting(track, now)) {
+    return 'wait';
+  }
+  if (dailyCount(localDay(now), pet.id, 'second_wind') >= economyConfig.secondWind.dailyLimitPerPet) {
+    return 'wait';
+  }
+  return owned > 0 ? 'use' : 'shop';
+}
+
 function commitPurchase(item: CatalogItem, qty: number, key: string): void {
   const price = listedPrice(item.id);
   if (price == null || item.kind === 'toy') {

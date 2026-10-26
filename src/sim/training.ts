@@ -99,6 +99,17 @@ function grantMastery(state: PetState, trackId: string): PetState {
   return { ...next, xp: next.xp + careConfig.masteryXp, milestones };
 }
 
+// Progress a treat would add right now, capped at the room left to 100.
+export function treatProgressPreview(state: PetState, trackId: string): number {
+  const def = trackDef(trackId);
+  const track = state.training[trackId];
+  if (!def?.tier || !track || track.mastered) {
+    return 0;
+  }
+  const gain = careConfig.tierGain[def.tier] * intelligenceFactor(state) * careConfig.creditTreat;
+  return Math.min(Math.max(0, 100 - track.progress), gain);
+}
+
 // A resolved successful rep. Choice is a treat or none. Resting tricks are blocked before this runs.
 export function payRep(state: PetState, trackId: string, choice: RewardChoice, now: number): PetState {
   const def = trackDef(trackId);

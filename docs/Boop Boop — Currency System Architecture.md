@@ -249,12 +249,12 @@ A Second Wind is a consumable that ends a training rest early. It buys time, not
 
 - **Scope: one trick.** Rest is stored per trick, so a Second Wind ends the rest of the trick it's used from (that trick's button or its "needs a break" pop-up). Other tricks' rests are unchanged. Catalog effect: `{ type: "end_rest", scope: "trick" }`; called as `use(itemId, petId, { trickId }, requestId)`.
 - **When it can be used:** only while that trick is resting. At any other time the item is shown in inventory but can't be used.
-- **Where it's offered:** in the "needs a break" pop-up, next to the countdown: "Use a Second Wind? (you have 3)". If the user has none, the button opens the pet store.
+- **Where it's offered:** on the break sheet, next to the countdown. The row shows the pet-shop Second Wind art and "You have N". Owning one offers **Use Second Wind**. Owning none offers **Visit Pet Shop**. After the daily limit the row and both actions are hidden.
 - **What happens:** the pet perks up with a quick full-body shake-off, ears up and tail going, and a happy bark or meow. That trick's rest timer ends and its button switches back from the countdown to ready.
 - **Reps after a Second Wind:** a fresh session for that trick, with the same rep count as after a natural rest (from the pet's attributes and whether treats are given). No bonus reps, no change to learning rate.
 - **Limit:** `secondWind.dailyLimitPerPet` (5) per pet per day, in `daily_counters`. After that the offer is hidden and the rest runs out normally.
 - **Ledger:** one `consume` transaction, −1 Second Wind, `source_ref` = `<petId>:<trickId>:rest`. The rest ending and the item spend commit in the same SQLite transaction.
-- **Buy and use in one tap:** if bought from the pop-up, the purchase and the use are two transactions committed together, so the user is never charged without the rest ending.
+- **Bought in the shop:** the break sheet does not buy a Second Wind in place. **Visit Pet Shop** leaves for the shop, and the player buys it there. `buyAndUse` remains for callers that still purchase and spend in one step.
 
 ## Offline, clock integrity and sync
 

@@ -32,6 +32,10 @@ import {
   stopHeld,
   startUserTask,
   startTrick,
+  startSpook,
+  startSpookReturn,
+  takeSpookSettle,
+  takeSpookReturn,
   trickPropAt,
   placeTrickProp,
   moveTrickProp,
@@ -103,6 +107,12 @@ export type StageHandle = {
   liftTrickProp: (owned: { instanceId: string; type: TrickPropType; sourceTrickId: string }) => void;
   trickPropIds: (type: TrickPropType | null, mastered: boolean) => string[];
   startTrick: (trickId: string, outcome: TrickOutcome, propIds: string[]) => boolean;
+  // Stores the callback for a miss cue that is about to start the bolt.
+  armSpook: (onSettled: () => void) => void;
+  // Runs a short on-stage bolt, then calls back. Immediate when the pet cannot move.
+  spook: (onSettled: () => void) => void;
+  // Walks back to where the bolt started. Immediate when the pet never left.
+  walkBack: (onArrived: () => void) => void;
   moveFurniture: (pieceId: string, x: number, y: number) => { sceneId: string; x: number; y: number } | null;
   showStoredFurniture: (piece: FurniturePiece) => { sceneId: string; x: number; y: number } | null;
   stowFurniture: (pieceId: string) => boolean;
@@ -384,6 +394,8 @@ export function PetView({
     energyGain?: number;
   } | null>(null);
   const energyPopToken = useRef<number | null>(null);
+  const spookSettledRef = useRef<(() => void) | null>(null);
+  const spookReturnRef = useRef<(() => void) | null>(null);
   const onTreatMoodRef = useRef(onTreatMood);
   const onTreatEatenRef = useRef(onTreatEaten);
   const onTreatSkippedRef = useRef(onTreatSkipped);
@@ -426,7 +438,11 @@ export function PetView({
       } else if (kind === 'praise') {
         actor.bark = { active: true, t: 0, fired: [false, false], open: 0, sound: true };
       } else if (kind === 'confused') {
-        startUserTask(world, actor, 'confused');
+        if (reducedRef.current || !startSpook(world, actor)) {
+          const settled = spookSettledRef.current;
+          spookSettledRef.current = null;
+          settled?.();
+        }
       } else if (kind === 'eat') {
         inviteCare(world, actor, 'food');
       } else if (kind === 'refuse') {
@@ -653,6 +669,25 @@ export function PetView({
           return false;
         }
         return startTrick(worldRef.current, actor, trickId, outcome, propIds);
+      },
+      armSpook: (onSettled) => {
+        spookSettledRef.current = onSettled;
+      },
+      spook: (onSettled) => {
+        spookSettledRef.current = onSettled;
+        const actor = worldRef.current.actors[0];
+        if (reducedRef.current || !actor || !startSpook(worldRef.current, actor)) {
+          spookSettledRef.current = null;
+          onSettled();
+        }
+      },
+      walkBack: (onArrived) => {
+        spookReturnRef.current = onArrived;
+        const actor = worldRef.current.actors[0];
+        if (reducedRef.current || !actor || !startSpookReturn(worldRef.current, actor)) {
+          spookReturnRef.current = null;
+          onArrived();
+        }
       },
       moveFurniture: (pieceId, x, y) => {
         if (travelRef.current) {
@@ -960,6 +995,16 @@ export function PetView({
       }
       if (takeTrickFinish(world)) {
         onTrickEndRef.current?.();
+      }
+      if (takeSpookSettle(world)) {
+        const settled = spookSettledRef.current;
+        spookSettledRef.current = null;
+        settled?.();
+      }
+      if (takeSpookReturn(world)) {
+        const arrived = spookReturnRef.current;
+        spookReturnRef.current = null;
+        arrived?.();
       }
       const greeted = world.actors[0] ? takePendingGreeting(world.actors[0]) : null;
       if (greeted) {

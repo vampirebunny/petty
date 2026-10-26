@@ -141,7 +141,7 @@ export function InTrainingList({
               highlighted={ringId === id}
               reducedMotion={reducedMotion}
               disabled={disabled || kind === 'locked'}
-              onTrain={kind === 'resting' || kind === 'locked' ? undefined : () => onTrain(id)}
+              onTrain={kind === 'locked' ? undefined : () => onTrain(id)}
               tip={tip?.id === id ? tip : null}
               onDismissTip={onDismissTip}
               Icon={kind === 'locked' ? Lock : iconOf(id, species)}
@@ -265,7 +265,12 @@ function TrainRow({
           {subline(kind, traits)}
         </Text>
       </View>
-      {onTrain ? (
+      {kind === 'resting' ? (
+        <View style={styles.restPill}>
+          <Clock size={14} strokeWidth={iconStroke + 0.4} color={secondary} />
+          <Text style={styles.restText}>{restLabel}</Text>
+        </View>
+      ) : onTrain ? (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`Train ${name}`}
@@ -283,23 +288,35 @@ function TrainRow({
         </Pressable>
       ) : (
         <View style={styles.restPill}>
-          {kind === 'locked' ? (
-            <Lock size={14} strokeWidth={iconStroke + 0.4} color={secondary} />
-          ) : (
-            <Clock size={14} strokeWidth={iconStroke + 0.4} color={secondary} />
-          )}
-          <Text style={styles.restText}>{kind === 'locked' ? 'Locked' : restLabel}</Text>
+          <Lock size={14} strokeWidth={iconStroke + 0.4} color={secondary} />
+          <Text style={styles.restText}>Locked</Text>
         </View>
       )}
     </>
   );
-  const face = resting ? (
+  const row = resting ? (
     <View style={[styles.row, styles.rowRest]}>{content}</View>
   ) : (
     <GlossyFace colors={family.card} lip={family.inset} shadow={family.drop} soft={family.soft} radius={24} style={styles.row}>
       {content}
     </GlossyFace>
   );
+  const face =
+    kind === 'resting' && onTrain ? (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${name} is resting. ${restLabel} until practice.`}
+        disabled={disabled}
+        onPress={() => {
+          void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          onTrain();
+        }}
+      >
+        {row}
+      </Pressable>
+    ) : (
+      row
+    );
   return (
     <View>
       <Animated.View style={[highlighted ? styles.highlight : null, pulse]}>{face}</Animated.View>

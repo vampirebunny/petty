@@ -669,6 +669,10 @@ export type World = {
   trickProps: import('../sim/trickProps').PlacedTrickProp[];
   liftedPropId: string | null;
   trickFinished: boolean;
+  // Where a missed rep bolted from, so the pet can walk back when the sheet closes.
+  spookHome: { x: number; y: number } | null;
+  spookSettled: boolean;
+  spookReturned: boolean;
   // World time when a furniture affordance may be picked again, keyed by actor and affordance.
   furnitureUsed?: Record<string, number>;
   squishId: string | null;

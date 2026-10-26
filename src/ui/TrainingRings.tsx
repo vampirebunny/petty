@@ -275,7 +275,7 @@ export function TrainingRings({
                   resting={resting}
                   restLabel={`Rest ${formatRest(restRemainingMs(track, now))}`}
                   fresh={fresh}
-                  onPress={locked || disabled ? undefined : () => onPractice(id)}
+                  onPress={locked || (disabled && !resting) ? undefined : () => onPractice(id)}
                 />
               </Spotlight>
             </View>

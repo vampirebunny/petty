@@ -49,7 +49,7 @@ import { usePlayerHome } from '../state/usePlayerHome';
 import { useEconomy } from '../economy/useEconomy';
 import { basicTreatId } from '../economy/state';
 import { KIBBLE_ID, catalogItem, foodsInInventory } from '../economy/catalog';
-import { newRequestId, outfitsOwned } from '../economy/service';
+import { newRequestId, outfitsOwned, secondWindOffer } from '../economy/service';
 import { refreshShopCatalog } from '../economy/shopSync';
 import { playRuleFor } from '../items/playRules';
 import { canGiveTreat, treatsInInventory } from '../treats';
@@ -101,15 +101,18 @@ import { SchoolControls } from '../ui/school/SchoolControls';
 import type { SchoolControlsHandle } from '../ui/school/SchoolControls';
 import { onAccountFlags, readAccountLinked, readSchoolTrickTip, setSchoolTrickTip } from '../db/accountMeta';
 import { FunModal } from '../ui/FunModal';
+import { TrainingSheet } from '../ui/TrainingSheet';
+import { missCopy } from '../ui/trainingResult';
 import { HandlePrompt } from '../ui/HandleScreen';
 import { Day3Prompt } from '../ui/Day3Prompt';
 import { ReauthPrompt } from '../ui/ReauthPrompt';
 import { TreatPicker } from '../ui/TreatPicker';
 import { AttributePops, trainingPopColor, traitPopColor } from '../ui/AttributePops';
 import type { PointPop } from '../ui/AttributePops';
-import { formatRest, isResting, restRemainingMs } from '../sim/training';
+import { careConfig } from '../sim/careConfig';
+import { formatRest, isResting, restRemainingMs, treatProgressPreview } from '../sim/training';
 import { BadgeCelebration } from '../ui/BadgeCelebration';
-import { Bone, ChevronRight, CircleHelp, Cookie, Droplet, HandHeart, Moon, Settings, Soup, Sparkles } from 'lucide-react-native';
+import { ChevronRight, Cookie, Droplet, HandHeart, Moon, Settings, Soup, Sparkles } from 'lucide-react-native';
 import { playBadgeChime } from '../audio/badge';
 import { GREET } from '../actor/greetings';
 import { PetView } from '../ui/PetView';
@@ -263,9 +266,11 @@ export default function HomeScreen({ petApi }: Props) {
   const treatHoldsRef = useRef<NeedHold[]>([]);
   const clearPops = useCallback(() => setPops(null), []);
   const [dialog, setDialog] = useState<
-    | { kind: 'good' | 'miss' | 'out' | 'break'; trackId: string }
+    | { kind: 'good' | 'out' | 'break'; trackId: string }
+    | { kind: 'miss'; trackId: string; copy: number }
     | null
   >(null);
+  const [sheetWait, setSheetWait] = useState(false);
   const [previewBottom, setPreviewBottom] = useState(0);
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const duoTop = useOpenedDuoTopInset();
@@ -757,6 +762,16 @@ export default function HomeScreen({ petApi }: Props) {
   }, [home.pieces, state?.name]);
   const trickDialog = useRef<'good' | 'miss' | null>(null);
   const trickTrack = useRef<string | null>(null);
+  const sheetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const missCursor = useRef(0);
+  useEffect(
+    () => () => {
+      if (sheetTimer.current) {
+        clearTimeout(sheetTimer.current);
+      }
+    },
+    [],
+  );
   const placeIntent = useRef<{ trackId: string; learned: boolean } | null>(null);
   const queuedPlay = useRef<{
     trackId: string;
@@ -774,6 +789,9 @@ export default function HomeScreen({ petApi }: Props) {
     if (stageHandle.current?.startTrick(next.trackId, next.outcome, next.propIds)) {
       trickDialog.current = next.dialog;
       trickTrack.current = next.trackId;
+      if (next.dialog) {
+        setSheetWait(true);
+      }
     }
   }, [dialog]);
   const flickPiece = useRef<string | null>(null);
@@ -1683,7 +1701,7 @@ export default function HomeScreen({ petApi }: Props) {
     noteGain(trackId, before, after, deferMood);
     const track = after.training[trackId];
     if (track && !track.mastered && isResting(track, Date.now())) {
-      setDialog({ kind: 'break', trackId });
+      openBreak(trackId);
     } else {
       setDialog(null);
     }
@@ -1700,6 +1718,65 @@ export default function HomeScreen({ petApi }: Props) {
   };
   const dialogLive = dialog != null && !(dialog.kind === 'good' && !state.care.pendingReward);
   const biteWaiting = state.care.pendingReward?.choice === 'treat';
+  const clearSheetTimer = () => {
+    if (sheetTimer.current) {
+      clearTimeout(sheetTimer.current);
+      sheetTimer.current = null;
+    }
+  };
+  const openSheet = (kind: 'good' | 'miss', trackId: string) => {
+    clearSheetTimer();
+    setSheetWait(true);
+    sheetTimer.current = setTimeout(() => {
+      sheetTimer.current = null;
+      setSheetWait(false);
+      if (kind === 'miss') {
+        const copy = missCursor.current;
+        missCursor.current += 1;
+        setDialog({ kind, trackId, copy });
+        return;
+      }
+      setDialog({ kind, trackId });
+    }, 500);
+  };
+  const revealMiss = (trackId: string, fromCue: boolean) => {
+    const show = () => openSheet('miss', trackId);
+    const stage = stageHandle.current;
+    if (reducedMotion || !stage) {
+      show();
+      return;
+    }
+    setSheetWait(true);
+    if (fromCue) {
+      stage.armSpook(show);
+      return;
+    }
+    stage.spook(show);
+  };
+  const openBreak = (trackId: string) => {
+    clearSheetTimer();
+    setSheetWait(false);
+    setDialog({ kind: 'break', trackId });
+  };
+  const dismissSheet = (then?: () => void) => {
+    clearSheetTimer();
+    setDialog(null);
+    setSheetWait(then != null);
+    const stage = stageHandle.current;
+    if (reducedMotion || !stage) {
+      then?.();
+      if (!then) {
+        setSheetWait(false);
+      }
+      return;
+    }
+    stage.walkBack(() => {
+      then?.();
+      if (!then) {
+        setSheetWait(false);
+      }
+    });
+  };
   const propTypeOf = (value: string): TrickPropType | null =>
     value === 'podium' || value === 'tunnel' || value === 'hurdle' || value === 'cones' || value === 'hoop' ? value : null;
   const playCatalog = (trackId: string, learned: boolean) => {
@@ -1709,6 +1786,7 @@ export default function HomeScreen({ petApi }: Props) {
     const listing = trickListing(trackId);
     const track = state.training[trackId];
     if (!listing || !track) {
+      setSheetWait(false);
       return;
     }
     const mastered = learned || track.mastered;
@@ -1718,6 +1796,7 @@ export default function HomeScreen({ petApi }: Props) {
       if (owned && type) {
         placeIntent.current = { trackId, learned };
         stageHandle.current?.liftTrickProp({ instanceId: owned.instanceId, type, sourceTrickId: owned.sourceTrickId });
+        setSheetWait(false);
         return;
       }
     }
@@ -1725,12 +1804,13 @@ export default function HomeScreen({ petApi }: Props) {
     let pending: 'good' | 'miss' | null = null;
     if (!mastered) {
       if (isResting(track, clock)) {
-        setDialog({ kind: 'break', trackId });
+        openBreak(trackId);
         return;
       }
       const progress = track.progress;
       const result = attemptTrick(trackId);
       if (!result) {
+        setSheetWait(false);
         return;
       }
       if (!result.mastered && result.ok) {
@@ -1744,26 +1824,33 @@ export default function HomeScreen({ petApi }: Props) {
     const started = stageHandle.current?.startTrick(trackId, outcome, ids) ?? false;
     if (!started) {
       queuedPlay.current = { trackId, outcome, dialog: pending, propIds: ids };
+      setSheetWait(false);
       return;
     }
     trickDialog.current = pending;
     trickTrack.current = trackId;
+    if (pending) {
+      setSheetWait(true);
+    }
   };
   playCatalogRef.current = playCatalog;
   const practice = (trackId: string) => {
     if (trickTip?.id === trackId) {
       setTrickTip(null);
     }
-    if (dialogLive || biteWaiting) {
+    const resting = state.training[trackId];
+    if (resting && !resting.mastered && isResting(resting, clock)) {
+      if (biteWaiting) {
+        return;
+      }
+      openBreak(trackId);
+      return;
+    }
+    if (dialogLive || biteWaiting || sheetWait) {
       return;
     }
     if (trickListing(trackId)) {
       playCatalog(trackId, false);
-      return;
-    }
-    const track = state.training[trackId];
-    if (track && isResting(track, clock)) {
-      setDialog({ kind: 'break', trackId });
       return;
     }
     if (trackId === 'speak') {
@@ -1774,9 +1861,9 @@ export default function HomeScreen({ petApi }: Props) {
       return;
     }
     if (result.ok) {
-      setDialog({ kind: 'good', trackId });
+      openSheet('good', trackId);
     } else if (result.confused) {
-      setDialog({ kind: 'miss', trackId });
+      revealMiss(trackId, true);
     }
   };
   const learned = Object.values(state.training)
@@ -1898,6 +1985,8 @@ export default function HomeScreen({ petApi }: Props) {
   const sheetTop = split ? 0 : previewBottom;
   const trickTitle = (trackId: string) => trackName(trackId, species);
   const leaveForShop = () => {
+    clearSheetTimer();
+    setSheetWait(false);
     setPlacesOpen(false);
     setDialog(null);
     const stage = stageHandle.current;
@@ -1912,21 +2001,27 @@ export default function HomeScreen({ petApi }: Props) {
   if (shownDialog?.kind === 'good') {
     const trackId = shownDialog.trackId;
     const label = trickTitle(trackId);
+    const progress = Math.round(state.training[trackId]?.progress ?? 0);
+    const bonus = Math.round(treatProgressPreview(state, trackId));
+    const treatCount = economyApi.inventory.find((row) => row.itemId === basicTreatId)?.qty ?? 0;
     trainingDialog = (
-      <FunModal
-        title={`Good job, ${state.name}!`}
-        body={
-          atSchool
-            ? `Give a treat? Treats are on the house at Training School!`
-            : `${state.name} nailed ${label}! Give a treat?\nTreats help ${state.name} learn faster!`
-        }
-        icon={Bone}
-        tint="butter"
-        sparkle
+      <TrainingSheet
+        header="success"
+        title={`${label}, nailed it!`}
+        body={atSchool ? `${state.name} is so proud. Treats are on the house.` : `${state.name} is so proud. Reward the good work?`}
         reducedMotion={reducedMotion}
         top={sheetTop}
+        progress={{
+          label,
+          detail: bonus > 0 ? `${progress}%  +${bonus}% with treat` : `${progress}%`,
+          fill: progress,
+          color: '#F0A020',
+        }}
         primary={{
-          label: 'Yes, give treat',
+          label: 'Give a treat',
+          tone: 'butter',
+          icon: 'bone',
+          badge: atSchool ? undefined : `${treatCount} left`,
           onPress: () => {
             const startBite = (applied?: typeof state) => {
               const paid = resolveTraining('treat', applied, true);
@@ -1957,7 +2052,7 @@ export default function HomeScreen({ petApi }: Props) {
           },
         }}
         secondary={{
-          label: 'No',
+          label: 'No treat this time',
           closeFirst: true,
           onPress: () => {
             const paid = resolveTraining('none');
@@ -1971,35 +2066,50 @@ export default function HomeScreen({ petApi }: Props) {
   } else if (shownDialog?.kind === 'miss') {
     const trackId = shownDialog.trackId;
     const label = trickTitle(trackId);
+    const line = missCopy(shownDialog.copy, state.name, label);
+    const progress = Math.round(state.training[trackId]?.progress ?? 0);
     trainingDialog = (
-      <FunModal
-        title="Not quite!"
-        body={`${state.name} didn't get ${label} this time. Try again?`}
-        icon={CircleHelp}
-        tint="lilac"
+      <TrainingSheet
+        header="miss"
+        title={line.title}
+        body={line.body}
         reducedMotion={reducedMotion}
         top={sheetTop}
+        progress={{
+          label,
+          detail: `${progress}% · progress kept`,
+          fill: progress,
+          color: '#7B5CFF',
+        }}
         primary={{
           label: 'Try again',
+          tone: 'lilac',
+          icon: 'retry',
           onPress: () => {
-            if (trackId === 'speak') {
-              offerSilentHint();
-            }
-            const result = attemptTrick(trackId);
-            if (!result || result.mastered) {
-              setDialog(null);
-              return;
-            }
-            if (result.ok) {
-              setDialog({ kind: 'good', trackId });
-            } else if (result.confused) {
-              setDialog({ kind: 'miss', trackId });
-            } else {
-              setDialog(null);
-            }
+            dismissSheet(() => {
+              if (trickListing(trackId)) {
+                playCatalog(trackId, false);
+                return;
+              }
+              if (trackId === 'speak') {
+                offerSilentHint();
+              }
+              const result = attemptTrick(trackId);
+              if (!result || result.mastered) {
+                setSheetWait(false);
+                return;
+              }
+              if (result.ok) {
+                openSheet('good', trackId);
+              } else if (result.confused) {
+                revealMiss(trackId, true);
+              } else {
+                setSheetWait(false);
+              }
+            });
           },
         }}
-        secondary={{ label: 'Not now', onPress: () => setDialog(null) }}
+        secondary={{ label: 'Not now', closeFirst: true, onPress: () => dismissSheet() }}
       />
     );
   } else if (shownDialog?.kind === 'out') {
@@ -2017,7 +2127,7 @@ export default function HomeScreen({ petApi }: Props) {
           onPress: () => {
             const track = state.training[trackId];
             if (track && !track.mastered && isResting(track, clock)) {
-              setDialog({ kind: 'break', trackId });
+              openBreak(trackId);
             } else {
               setDialog(null);
             }
@@ -2028,46 +2138,55 @@ export default function HomeScreen({ petApi }: Props) {
     );
   } else if (shownDialog?.kind === 'break') {
     const track = state.training[shownDialog.trackId];
-    const remain = track ? formatRest(restRemainingMs(track, clock)) : '0:00';
+    const remainMs = track ? restRemainingMs(track, clock) : 0;
     const label = trickTitle(shownDialog.trackId);
-    const body = track?.hadNoTreat
-      ? `${state.name} lost focus! Treats help ${state.name} stay focused longer. ${state.name} can practice again in ${remain}.`
-      : `Great work on ${label}! ${state.name} can practice again in ${remain}.`;
-    const windOwned = economyApi.inventory.some((row) => row.itemId === 'second_wind' && row.qty > 0);
-    const windCheck = economyApi.canAfford('second_wind');
-    const windUnavailable = !windCheck.ok && windCheck.reason !== 'insufficient_boops';
+    const windOwned = economyApi.inventory.find((row) => row.itemId === 'second_wind')?.qty ?? 0;
+    const offer = secondWindOffer(state, shownDialog.trackId, windOwned, clock);
+    const focused = track?.hadNoTreat === true;
     trainingDialog = (
-      <FunModal
-        title={`${state.name} needs a break!`}
-        body={body}
-        icon={Moon}
-        tint="sky"
+      <TrainingSheet
+        header="break"
+        title={focused ? 'Focus ran out!' : 'What a session!'}
+        body={
+          focused
+            ? `${state.name} needs a breather. Second Wind treats help ${state.name} stay focused longer.`
+            : `Great work on ${label}!`
+        }
         reducedMotion={reducedMotion}
         top={sheetTop}
-        primary={{
-          label: windOwned ? 'Second Wind' : windUnavailable ? 'OK' : windCheck.ok ? 'Buy Second Wind' : 'Pet Shop',
-          onPress: () => {
-            if (!windOwned && windUnavailable) {
-              setDialog(null);
-              return;
-            }
-            if (!windOwned && !windCheck.ok) {
-              leaveForShop();
-              return;
-            }
-            const requestId = newRequestId();
-            const used = windOwned
-              ? economyApi.useItem(state, 'second_wind', { trickId: shownDialog.trackId }, requestId)
-              : economyApi.buyAndUse(state, 'second_wind', { trickId: shownDialog.trackId }, requestId);
-            if (!used.ok || !used.pet) {
-              flash(!used.ok && used.reason === 'daily_limit' ? 'Second Wind is used up for today.' : 'Could not use that.');
-              return;
-            }
-            commitPet(used.pet, 'speak');
-            setDialog(null);
-          },
-        }}
-        secondary={windUnavailable ? undefined : { label: 'OK', onPress: () => setDialog(null) }}
+        remain={{ label: track ? formatRest(remainMs) : '0:00', fraction: remainMs / careConfig.trickRestMs }}
+        wind={
+          offer === 'wait'
+            ? undefined
+            : {
+                owned: windOwned,
+                species,
+              }
+        }
+        primary={
+          offer === 'wait'
+            ? undefined
+            : {
+                label: offer === 'use' ? 'Use Second Wind' : 'Visit Pet Shop',
+                tone: offer === 'use' ? 'sky' : 'butter',
+                icon: offer === 'use' ? undefined : 'shop',
+                onPress: () => {
+                  if (offer === 'shop') {
+                    leaveForShop();
+                    return;
+                  }
+                  const requestId = newRequestId();
+                  const used = economyApi.useItem(state, 'second_wind', { trickId: shownDialog.trackId }, requestId);
+                  if (!used.ok || !used.pet) {
+                    flash(!used.ok && used.reason === 'daily_limit' ? 'Second Wind is used up for today.' : 'Could not use that.');
+                    return;
+                  }
+                  commitPet(used.pet, 'speak');
+                  dismissSheet();
+                },
+              }
+        }
+        secondary={{ label: "I'll wait", closeFirst: true, onPress: () => dismissSheet() }}
       />
     );
   }
@@ -2556,6 +2675,7 @@ export default function HomeScreen({ petApi }: Props) {
     !helpOpen &&
     !silentHintOpen &&
     !dialogLive &&
+    !sheetWait &&
     !burst &&
     tips.current == null;
 
@@ -2655,8 +2775,12 @@ export default function HomeScreen({ petApi }: Props) {
                 const kind = trickDialog.current;
                 trickDialog.current = null;
                 trickTrack.current = null;
-                if (kind && trackId) {
-                  setDialog({ kind, trackId });
+                if (kind === 'miss' && trackId) {
+                  revealMiss(trackId, false);
+                  return;
+                }
+                if (kind === 'good' && trackId) {
+                  openSheet('good', trackId);
                   return;
                 }
                 const next = queuedPlay.current;
@@ -2664,7 +2788,12 @@ export default function HomeScreen({ petApi }: Props) {
                 if (next && (stageHandle.current?.startTrick(next.trackId, next.outcome, next.propIds) ?? false)) {
                   trickDialog.current = next.dialog;
                   trickTrack.current = next.trackId;
+                  if (next.dialog) {
+                    setSheetWait(true);
+                  }
+                  return;
                 }
+                setSheetWait(false);
               }}
               onPlayFind={noteFind}
               onHeld={(on) => {

@@ -432,6 +432,9 @@ export function createWorld(actors: Actor[], seed = 1, scene: Scene = scenes.liv
     trickProps: [],
     liftedPropId: null,
     trickFinished: false,
+    spookHome: null,
+    spookSettled: false,
+    spookReturned: false,
     furnitureUsed: {},
     squishId: null,
     squishAt: 0,
@@ -2219,6 +2222,81 @@ export function takeTrickFinish(world: World): boolean {
   return done;
 }
 
+const SPOOK_DISTANCE = 120;
+const SPOOK_MIN = 36;
+
+function spookRange(actor: Actor, world: World): { lo: number; hi: number } {
+  const floor = world.scene.floor;
+  const sized = travelScale(actor, floor);
+  if (!sized) {
+    return { lo: floor.xMin + 16, hi: floor.xMax - 16 };
+  }
+  return xRangeOf(floor, sized.geom, sized.scale);
+}
+
+// A short bolt that stays on stage. False when there is no room to run.
+export function startSpook(world: World, actor: Actor): boolean {
+  const floor = world.scene.floor;
+  const range = spookRange(actor, world);
+  if (!world.spookHome) {
+    world.spookHome = { x: actor.x, y: actor.y };
+  }
+  const face: 1 | -1 = actor.face >= 0 ? 1 : -1;
+  const ahead = face > 0 ? range.hi - actor.x : actor.x - range.lo;
+  const behind = face > 0 ? actor.x - range.lo : range.hi - actor.x;
+  const dir: 1 | -1 = ahead >= SPOOK_MIN || ahead >= behind ? face : face > 0 ? -1 : 1;
+  const room = dir > 0 ? range.hi - actor.x : actor.x - range.lo;
+  const step = Math.min(SPOOK_DISTANCE, room);
+  if (step < SPOOK_MIN) {
+    return false;
+  }
+  const x = clamp(actor.x + dir * step, range.lo, range.hi);
+  actor.furniture = null;
+  actor.asleep = false;
+  actor.direction = null;
+  actor.play = null;
+  actor.z = 0;
+  actor.vz = 0;
+  cancelJump(actor);
+  actor.jumpKind = null;
+  actor.task = taskOf('travel', 'spook');
+  actor.task.poi = { x, y: clamp(actor.y, floor.yMin, floor.yMax) };
+  actor.pantT = 0;
+  return true;
+}
+
+// Walk back to the spot saved when the bolt started. False when there is nowhere to return to.
+export function startSpookReturn(world: World, actor: Actor): boolean {
+  const home = world.spookHome;
+  if (!home) {
+    return false;
+  }
+  const floor = world.scene.floor;
+  if (Math.hypot(home.x - actor.x, home.y - actor.y) < 8) {
+    world.spookHome = null;
+    return false;
+  }
+  actor.furniture = null;
+  actor.asleep = false;
+  actor.direction = null;
+  actor.task = taskOf('travel', 'return');
+  actor.task.poi = { x: clamp(home.x, floor.xMin, floor.xMax), y: clamp(home.y, floor.yMin, floor.yMax) };
+  actor.pantT = 0;
+  return true;
+}
+
+export function takeSpookSettle(world: World): boolean {
+  const done = world.spookSettled;
+  world.spookSettled = false;
+  return done;
+}
+
+export function takeSpookReturn(world: World): boolean {
+  const done = world.spookReturned;
+  world.spookReturned = false;
+  return done;
+}
+
 export function trickBusy(actor: Actor): boolean {
   return actor.task.type === 'trick' && actor.task.trick != null && !actor.task.trick.done;
 }
@@ -2513,9 +2591,26 @@ function updateActor(world: World, actor: Actor, dt: number): void {
     faceCamera = directed.faceCamera;
   } else if (actor.task.type === 'travel' && actor.task.poi) {
     move = { x: actor.task.poi.x, y: actor.task.poi.y };
-    vmax = clamp(limit * 0.7, 170, 240);
-    wagRate = 10;
-    if (actor.task.stage === 'enter' && Math.hypot(actor.task.poi.x - actor.x, actor.task.poi.y - actor.y) < 8 && actor.speed < 16) {
+    const spooking = actor.task.stage === 'spook';
+    const returning = actor.task.stage === 'return';
+    vmax = spooking ? limit : returning ? Math.min(limit * 0.45, 110) : clamp(limit * 0.7, 170, 240);
+    wagRate = spooking ? 14 : 8;
+    const dist = Math.hypot(actor.task.poi.x - actor.x, actor.task.poi.y - actor.y);
+    const travelStage = actor.task.stage;
+    if ((spooking || returning) && dist < 12 && actor.speed < 36) {
+      actor.x = actor.task.poi.x;
+      actor.y = actor.task.poi.y;
+      actor.vx = 0;
+      actor.vy = 0;
+      actor.speed = 0;
+      goIdle(world, actor);
+      if (travelStage === 'spook') {
+        world.spookSettled = true;
+      } else {
+        world.spookHome = null;
+        world.spookReturned = true;
+      }
+    } else if (travelStage === 'enter' && dist < 8 && actor.speed < 16) {
       goIdle(world, actor);
     }
   } else if (actor.task.type === 'idle') {
