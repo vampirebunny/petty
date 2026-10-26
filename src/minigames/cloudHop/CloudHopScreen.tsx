@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AppState, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { AppState, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Canvas, Picture, Skia, useFont } from '@shopify/react-native-skia';
 import type { SkPicture } from '@shopify/react-native-skia';
 import { useSharedValue } from 'react-native-reanimated';
@@ -35,7 +35,7 @@ import { flushCloudHopScore, loadBoard, readSeen, recordRun, rememberSeen } from
 import type { Board } from './scores';
 import type { Run as HopRun } from './types';
 
-type Overlay = 'menu' | 'play' | 'paused' | 'over' | 'board';
+type Overlay = 'menu' | 'play' | 'paused' | 'over';
 
 type Summary = {
   cause: string;
@@ -112,7 +112,6 @@ export function CloudHopScreen({ pet, reducedMotion, onBack, onMenu }: Props) {
   });
   const [summary, setSummary] = useState<Summary | null>(null);
   const [board, setBoard] = useState<Board | null>(null);
-  const [boardNote, setBoardNote] = useState('');
   const [soundOn, setSoundOn] = useState(true);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [devHeight, setDevHeight] = useState('0');
@@ -131,7 +130,6 @@ export function CloudHopScreen({ pet, reducedMotion, onBack, onMenu }: Props) {
   const petRef = useRef(pet);
   const reducedRef = useRef(reducedMotion);
   const activeRef = useRef(true);
-  const boardFrom = useRef<Overlay>('menu');
   boxRef.current = box;
   overlayRef.current = overlay;
   petRef.current = pet;
@@ -228,6 +226,11 @@ export function CloudHopScreen({ pet, reducedMotion, onBack, onMenu }: Props) {
       setSoundEnabled(on);
       if (!cancelled) {
         setSoundOn(on);
+      }
+    });
+    void loadBoard().then((next) => {
+      if (!cancelled && next) {
+        setBoard(next);
       }
     });
     return () => {
@@ -392,15 +395,6 @@ export function CloudHopScreen({ pet, reducedMotion, onBack, onMenu }: Props) {
     });
   };
 
-  const openBoard = (from: Overlay) => {
-    boardFrom.current = from;
-    setOverlay('board');
-    void loadBoard().then((next) => {
-      setBoard(next);
-      setBoardNote(next ? '' : 'Scores will show when you are online.');
-    });
-  };
-
   const scale = box.width > 0 ? box.width / WORLD_W : 1;
   const playing = overlay === 'play';
 
@@ -512,29 +506,29 @@ export function CloudHopScreen({ pet, reducedMotion, onBack, onMenu }: Props) {
       {overlay === 'menu' ? (
         <View style={styles.overlay}>
           <View style={styles.card}>
-            <Text style={styles.title}>Cloud Hop</Text>
-            <Text style={styles.body}>Ride the clouds up. Score points for height and everything you grab. Dodge the birds, outrun the fog. One fall and it is over.</Text>
-            <Text style={styles.how}>{HOW_TO}</Text>
-            <Pressable accessibilityRole="button" onPress={start} style={styles.btn}>
-              <Text style={styles.btnText}>Play</Text>
-            </Pressable>
-            <Pressable accessibilityRole="button" onPress={() => openBoard('menu')} style={styles.ghost}>
-              <Text style={styles.ghostText}>Leaderboard</Text>
-            </Pressable>
-            <Pressable accessibilityRole="button" onPress={onBack} style={styles.ghost}>
-              <Text style={styles.ghostText}>Back</Text>
-            </Pressable>
-            {__DEV__ ? (
-              <View style={styles.dev}>
-                <Text style={styles.devLabel}>Start height</Text>
-                <TextInput value={devHeight} onChangeText={setDevHeight} keyboardType="number-pad" style={styles.input} />
-                <Text style={styles.devLabel}>Seed</Text>
-                <TextInput value={devSeed} onChangeText={setDevSeed} keyboardType="number-pad" style={styles.input} />
-                <DevToggle label="Unlock everything" on={devUnlock} onPress={() => setDevUnlock((value) => !value)} />
-                <DevToggle label="Hitboxes" on={devHit} onPress={() => setDevHit((value) => !value)} />
-                <DevToggle label="Invincible" on={devGod} onPress={() => setDevGod((value) => !value)} />
-              </View>
-            ) : null}
+            <ScrollView style={styles.cardScroll} contentContainerStyle={styles.cardContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator>
+              <Text style={styles.title}>Cloud Hop</Text>
+              <Text style={styles.body}>Ride the clouds up. Score points for height and everything you grab. Dodge the birds, outrun the fog. One fall and it is over.</Text>
+              <Text style={styles.how}>{HOW_TO}</Text>
+              <TopScores board={board} />
+              <Pressable accessibilityRole="button" onPress={start} style={styles.btn}>
+                <Text style={styles.btnText}>Play</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" onPress={onBack} style={styles.ghost}>
+                <Text style={styles.ghostText}>Back</Text>
+              </Pressable>
+              {__DEV__ ? (
+                <View style={styles.dev}>
+                  <Text style={styles.devLabel}>Start height</Text>
+                  <TextInput value={devHeight} onChangeText={setDevHeight} keyboardType="number-pad" style={styles.input} />
+                  <Text style={styles.devLabel}>Seed</Text>
+                  <TextInput value={devSeed} onChangeText={setDevSeed} keyboardType="number-pad" style={styles.input} />
+                  <DevToggle label="Unlock everything" on={devUnlock} onPress={() => setDevUnlock((value) => !value)} />
+                  <DevToggle label="Hitboxes" on={devHit} onPress={() => setDevHit((value) => !value)} />
+                  <DevToggle label="Invincible" on={devGod} onPress={() => setDevGod((value) => !value)} />
+                </View>
+              ) : null}
+            </ScrollView>
           </View>
         </View>
       ) : null}
@@ -589,74 +583,66 @@ export function CloudHopScreen({ pet, reducedMotion, onBack, onMenu }: Props) {
       {overlay === 'over' && summary ? (
         <View style={styles.overlay}>
           <View style={styles.card}>
-            <Text style={styles.heading}>Game over</Text>
-            <Text style={styles.reason}>{summary.cause}</Text>
-            <View style={styles.stats}>
-              <Stat value={summary.score.toLocaleString()} label="Score" />
-              <Stat value={String(summary.meters)} label="Meters" />
-              <Stat value={summary.best.toLocaleString()} label="High score" />
-            </View>
-            {summary.rank ? <Text style={styles.rank}>You are #{summary.rank}</Text> : null}
-            {summary.waiting ? <Text style={styles.note}>We will add your score when you are back online.</Text> : null}
-            <View style={styles.extras}>
-              {summary.isBest ? <Text style={styles.extra}>New best score</Text> : null}
-              <Text style={styles.extra}>
-                Height {summary.meters} m · {summary.heightPts.toLocaleString()} pts
-              </Text>
-              <Text style={styles.extra}>Collected · {summary.collected.toLocaleString()} pts</Text>
-              <Text style={styles.extra}>Best combo {summary.combo}</Text>
-              <Text style={styles.extra}>Perfect landings {summary.perfect}</Text>
-              {summary.near > 0 ? <Text style={styles.extra}>Close calls {summary.near}</Text> : null}
-            </View>
-            {summary.guest ? (
-              <Pressable accessibilityRole="button" onPress={() => setSheetOpen(true)} style={styles.btn}>
-                <Text style={styles.btnText}>Log in or create an account to save your score</Text>
+            <ScrollView style={styles.cardScroll} contentContainerStyle={styles.cardContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator>
+              <Text style={styles.heading}>Game over</Text>
+              <Text style={styles.reason}>{summary.cause}</Text>
+              <View style={styles.stats}>
+                <Stat value={summary.score.toLocaleString()} label="Score" />
+                <Stat value={String(summary.meters)} label="Meters" />
+                <Stat value={summary.best.toLocaleString()} label="High score" />
+              </View>
+              {summary.rank ? <Text style={styles.rank}>You are #{summary.rank}</Text> : null}
+              {summary.waiting ? <Text style={styles.note}>We will add your score when you are back online.</Text> : null}
+              <View style={styles.extras}>
+                {summary.isBest ? <Text style={styles.extra}>New best score</Text> : null}
+                <Text style={styles.extra}>
+                  Height {summary.meters} m · {summary.heightPts.toLocaleString()} pts
+                </Text>
+                <Text style={styles.extra}>Collected · {summary.collected.toLocaleString()} pts</Text>
+                <Text style={styles.extra}>Best combo {summary.combo}</Text>
+                <Text style={styles.extra}>Perfect landings {summary.perfect}</Text>
+                {summary.near > 0 ? <Text style={styles.extra}>Close calls {summary.near}</Text> : null}
+              </View>
+              <TopScores board={board} />
+              {summary.guest ? (
+                <Pressable accessibilityRole="button" onPress={() => setSheetOpen(true)} style={styles.btn}>
+                  <Text style={styles.btnText}>Log in or create an account to save your score</Text>
+                </Pressable>
+              ) : null}
+              <Pressable accessibilityRole="button" onPress={start} style={summary.guest ? styles.ghost : styles.btn}>
+                <Text style={summary.guest ? styles.ghostText : styles.btnText}>Play again</Text>
               </Pressable>
-            ) : null}
-            <Pressable accessibilityRole="button" onPress={start} style={summary.guest ? styles.ghost : styles.btn}>
-              <Text style={summary.guest ? styles.ghostText : styles.btnText}>Play again</Text>
-            </Pressable>
-            <Pressable accessibilityRole="button" onPress={() => openBoard('over')} style={styles.ghost}>
-              <Text style={styles.ghostText}>Leaderboard</Text>
-            </Pressable>
-            <Pressable accessibilityRole="button" onPress={onMenu} style={styles.ghost}>
-              <Text style={styles.ghostText}>Menu</Text>
-            </Pressable>
-          </View>
-        </View>
-      ) : null}
-
-      {overlay === 'board' ? (
-        <View style={styles.overlay}>
-          <View style={styles.card}>
-            <Text style={styles.heading}>Top scores</Text>
-            <View style={styles.list}>
-              {board?.rows.map((row) => (
-                <View key={`${row.rank}-${row.handle}`} style={[styles.lbRow, row.mine && styles.lbMe]}>
-                  <Text style={styles.lbRank}>{row.rank}</Text>
-                  <Text style={styles.lbName} numberOfLines={1}>
-                    {row.handle}
-                    {row.petName ? ` · ${row.petName}` : ''}
-                  </Text>
-                  <Text style={styles.lbScore}>{row.score.toLocaleString()}</Text>
-                </View>
-              ))}
-              {board && board.rows.length === 0 ? <Text style={styles.note}>No scores yet.</Text> : null}
-              {boardNote ? <Text style={styles.note}>{boardNote}</Text> : null}
-            </View>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => setOverlay(boardFrom.current === 'over' ? 'over' : 'menu')}
-              style={styles.ghost}
-            >
-              <Text style={styles.ghostText}>Back</Text>
-            </Pressable>
+              <Pressable accessibilityRole="button" onPress={onMenu} style={styles.ghost}>
+                <Text style={styles.ghostText}>Menu</Text>
+              </Pressable>
+            </ScrollView>
           </View>
         </View>
       ) : null}
       {sheetOpen ? (
         <AccountSheet reason="score" petName={pet.name} onClose={() => setSheetOpen(false)} />
       ) : null}
+    </View>
+  );
+}
+
+function TopScores({ board }: { board: Board | null }) {
+  if (!board || board.rows.length === 0) {
+    return null;
+  }
+  return (
+    <View style={styles.list}>
+      <Text style={styles.scoresTitle}>Top Scores</Text>
+      {board.rows.map((row) => (
+        <View key={`${row.rank}-${row.handle}`} style={[styles.lbRow, row.mine && styles.lbMe]}>
+          <Text style={styles.lbRank}>{row.rank}</Text>
+          <Text style={styles.lbName} numberOfLines={1}>
+            {row.handle}
+            {row.petName ? ` · ${row.petName}` : ''}
+          </Text>
+          <Text style={styles.lbScore}>{row.score.toLocaleString()}</Text>
+        </View>
+      ))}
     </View>
   );
 }
@@ -764,7 +750,11 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     width: '100%',
     maxWidth: 360,
+    maxHeight: '100%',
+    overflow: 'hidden',
   },
+  cardScroll: { flexGrow: 0, flexShrink: 1 },
+  cardContent: { gap: 12 },
   title: { fontFamily: fontFamily.fredokaBold, fontSize: 44, color: '#e2569b', textAlign: 'center' },
   heading: { fontFamily: fontFamily.fredokaBold, fontSize: 32, color: '#4a2f5e', textAlign: 'center' },
   body: { fontFamily: fontFamily.semibold, fontSize: 15, lineHeight: 22, color: '#7a5f8f', textAlign: 'center' },
@@ -784,6 +774,7 @@ const styles = StyleSheet.create({
   note: { fontFamily: fontFamily.semibold, fontSize: 13, color: '#7a5f8f', textAlign: 'center' },
   extras: { backgroundColor: '#f6ecff', borderRadius: 16, padding: 10, gap: 4 },
   extra: { fontFamily: fontFamily.bold, fontSize: 13, color: '#4a2f5e' },
+  scoresTitle: { fontFamily: fontFamily.fredokaBold, fontSize: 18, color: '#4a2f5e', textAlign: 'center', paddingTop: 4 },
   list: { backgroundColor: '#f6ecff', borderRadius: 16, padding: 6, gap: 2 },
   lbRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6, paddingHorizontal: 8, borderRadius: 12 },
   lbMe: { backgroundColor: '#ffd6ea' },

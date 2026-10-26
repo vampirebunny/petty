@@ -230,6 +230,10 @@ export type Pose = {
   pawHigh: number;
   // Stand Tall. The torso rises about the hind hip.
   stand: number;
+  // Side-view doggy paddle. 0 = off, 1 = swimming.
+  swim: number;
+  // Hit pose. Replaces the pupils with X.
+  xEyes: number;
 };
 
 export type IdleMode = 'still' | 'pant' | 'purr' | 'nap' | 'walk' | 'zoom' | 'stalk';

@@ -101,7 +101,7 @@ Every faucet is capped by time, by count, or by being one-time, so no single act
 | Play finds | A finished fetch, frisbee, laser or toy round (15%), or a completed Cuddle session (5%). Not single strokes, not training reps | Daily cap; actions only, never idle time | `find:<action_id>` |
 | Daily login | Paid on open with the other grants; 7-day ladder | Once per day | `login:<yyyy-mm-dd>` |
 | Welcome back | Open after 7+ days away; fixed gift | Once per absence | `welcome:<yyyy-mm-dd>` |
-| Mini-games | A finished run can pay Boops from score and pickups. Cloud Hop does not. Its score is only a leaderboard result and never changes Boops or inventory. | Daily Boops cap | `minigame:<run_id>` |
+| Mini-games | A finished run can pay Boops from score and pickups. Cloud Hop and Paddle Paws do not. Their scores are only leaderboard results and never change Boops or inventory. | Daily Boops cap | `minigame:<run_id>` |
 | Playdates | Fixed reward per completed playdate | Existing cooldown | `playdate:<playdate_id>` |
 | Level-ups | Every level above the pet's `lastPaidLevel`, found by `checkLevelUp` | Once per level per pet; skipped levels all pay | `level:<pet>:<n>` |
 | Trick mastered | Each trick mastered (sit, speak, paw, and later tricks); 100 Boops, no treats | Once per trick per pet | `milestone:trick:<trickId>:<pet>` |

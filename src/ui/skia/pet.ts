@@ -274,8 +274,9 @@ export function drawActor(
   }
   const barkOpen = actor.bark.open;
   // Streaming back at a gallop pulls the ears flat and stretches the tail out behind the body.
-  const earBackNow = pose.earBack + 0.35 * pose.stream + (posed?.ear ?? 0);
-  const wag = Math.sin(actor.wagPh) * pose.wagAmp * (1 - 0.7 * pose.stream);
+  const floppy = earProfiles[breed.earType]?.stiff ? 0 : 0.4;
+  const earBackNow = pose.earBack + 0.35 * pose.stream + floppy * pose.swim + (posed?.ear ?? 0);
+  const wag = Math.sin(actor.wagPh) * (pose.wagAmp + 0.28 * pose.swim) * (1 - 0.7 * pose.stream);
   let eyeClosed = Math.max(pose.eyes, pose.squint, actor.blinkT < 0.12 ? 1 : 0);
   if (barkOpen > 0.05) {
     eyeClosed = 0;
@@ -377,6 +378,11 @@ export function drawActor(
       return furnitureTarget(hip, posedPaw);
     }
     const offset = leg === 1 || leg === 2 ? Math.PI : 0;
+    if (pose.swim > 0.5 && !posedPaw) {
+      const swing = 0.55 + Math.sin(actor.phase + (nearFore ? 0 : Math.PI)) * 0.7;
+      const len = geom.L;
+      return { x: hip.x - Math.sin(swing) * len, y: hip.y + Math.cos(swing) * len };
+    }
     const gait = blendedFoot(actor.gait, leg, actor.phase, geom.L, actor.share);
     const stand = { x: hip.x + (fore ? 3 : -1) + gait.x * pose.walk, y: gait.y * pose.walk };
     const sit = fore ? { x: hip.x + 4, y: 0 } : { x: hip.x + 0.45 * geom.L, y: 0 };
@@ -1144,7 +1150,13 @@ export function drawActor(
     c.save();
     c.translate(face.farEye.x, face.farEye.y);
     c.scale(face.farEyeScale.x * (cat ? 1 + 1.2 * pose.pupils : 1), face.farEyeScale.y);
-    drawEye(c, 0, 0, eyeR, eyeClosed, breed, cf);
+    if (pose.xEyes > 0.5) {
+      const s = eyeR * 0.9;
+      strokeLine(c, -s, -s, s, s, '#2a1f33', 2);
+      strokeLine(c, s, -s, -s, s, '#2a1f33', 2);
+    } else {
+      drawEye(c, 0, 0, eyeR, eyeClosed, breed, cf);
+    }
     c.restore();
     if (fa < 0.999) {
       c.restore();
@@ -1156,7 +1168,13 @@ export function drawActor(
   if (cat && pose.pupils > 0.001) {
     c.scale(1 + 1.2 * pose.pupils, 1);
   }
-  drawEye(c, 0, 0, eyeR, eyeClosed, breed, cf);
+  if (pose.xEyes > 0.5) {
+    const s = eyeR * 0.9;
+    strokeLine(c, -s, -s, s, s, '#2a1f33', 2);
+    strokeLine(c, s, -s, -s, s, '#2a1f33', 2);
+  } else {
+    drawEye(c, 0, 0, eyeR, eyeClosed, breed, cf);
+  }
   c.restore();
   if (geom.bags > 0.04) {
     fillOval(c, ex, ey + eyeR * 1.15, eyeR * 0.9, eyeR * 0.45, '#6b5344', 0.45 * geom.bags);

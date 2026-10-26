@@ -50,6 +50,8 @@ export const poseRate: Record<keyof Pose, number> = {
   faceFront: 14,
   pawHigh: 8,
   stand: 4,
+  swim: 8,
+  xEyes: 14,
 };
 
 export function defaultPose(): Pose {
@@ -103,6 +105,8 @@ export function defaultPose(): Pose {
     faceFront: 0,
     pawHigh: 0,
     stand: 0,
+    swim: 0,
+    xEyes: 0,
   };
 }
 
