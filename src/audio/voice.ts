@@ -1,7 +1,8 @@
-import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
+import { createAudioPlayer } from 'expo-audio';
 import type { AudioPlayer } from 'expo-audio';
 
 import type { SoundEvent } from '../actor';
+import { configurePlayback } from './session';
 
 // A sound without a clip here stays silent.
 const clips: Partial<Record<SoundEvent['sound'], number>> = {
@@ -54,7 +55,7 @@ export function playChirp(): void {
   try {
     if (!ready) {
       ready = true;
-      void setAudioModeAsync({ playsInSilentMode: false, interruptionMode: 'mixWithOthers' });
+      configurePlayback();
     }
     if (!chirpPlayer) {
       chirpPlayer = createAudioPlayer(chirpClip);
@@ -101,7 +102,7 @@ export function playVoice(event: SoundEvent): void {
   try {
     if (!ready) {
       ready = true;
-      void setAudioModeAsync({ playsInSilentMode: false, interruptionMode: 'mixWithOthers' });
+      configurePlayback();
     }
     const pool = poolFor(event.sound);
     if (!pool) {

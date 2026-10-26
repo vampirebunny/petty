@@ -1,5 +1,7 @@
-import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
+import { createAudioPlayer } from 'expo-audio';
 import type { AudioPlayer } from 'expo-audio';
+
+import { configurePlayback } from './session';
 
 // Metro needs static requires, so the track list is explicit.
 const tracks: number[] = [
@@ -108,7 +110,7 @@ export function setMusicEnabled(on: boolean): void {
       }
       return;
     }
-    void setAudioModeAsync({ playsInSilentMode: false, interruptionMode: 'mixWithOthers' });
+    configurePlayback();
     playNext();
   } catch {
     // stay silent

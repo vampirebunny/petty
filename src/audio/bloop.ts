@@ -1,6 +1,7 @@
-import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
+import { createAudioPlayer } from 'expo-audio';
 import type { AudioPlayer } from 'expo-audio';
 
+import { configurePlayback } from './session';
 import { playbackRate, soundEnabled } from './voice';
 
 const clip = require('../../assets/sounds/floraphonic-marimba-bloop-2-188149.mp3');
@@ -46,7 +47,7 @@ export function preloadBloops(): void {
     return;
   }
   try {
-    void setAudioModeAsync({ playsInSilentMode: false, interruptionMode: 'mixWithOthers' });
+    configurePlayback();
     players = Array.from({ length: poolSize }, () => createAudioPlayer(clip));
     players.forEach(arm);
   } catch {
