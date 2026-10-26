@@ -67,6 +67,7 @@ export {
   sceneForSpecies,
   sceneList,
   scenesFor,
+  ownedScenes,
   sceneSource,
   scenes,
   stageBleed,

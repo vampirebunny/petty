@@ -1,10 +1,17 @@
+import { breedById, catBreeds } from '../breeds';
+import { bodyFrame, geomOf, PET_SIZE, xRangeOf } from '../geometry';
 import {
+  adultCatBodyWidth,
   applyFurniture,
   bowlAlreadyInRoom,
+  canPlaceFurniture,
   bowlRoomMessage,
+  caveDoorRx,
+  caveDoorStroke,
   furnitureAt,
   furnitureDefinition,
   keepFirstBedPerRoom,
+  moonCradleSvgWidth,
   movePiece,
   normalizeFurniture,
   otherBedInRoom,
@@ -16,10 +23,13 @@ import {
   starterFurniture,
   stockedSkus,
   steerAim,
+  styledBedWidth,
   stowPiece,
   syncFurniture,
 } from '../furniture';
+import { daysToSenior } from '../../sim/config';
 import { actionReason, sceneForSpecies, scenes } from '../scenes';
+import type { Scene } from '../scenes';
 import { createWorld, spawnActor, startUserTask, update } from '../sim';
 
 const floor = { xMin: 0, xMax: 640, yMin: 200, yMax: 650 };
@@ -84,6 +94,124 @@ it('walks off a bed that overlaps the screen edge without spinning', () => {
   }
   expect(flips).toBeLessThan(6);
   expect(Math.hypot(actor.x - (bed?.x ?? 0), actor.y - (bed?.y ?? 0))).toBeGreaterThan(40);
+});
+
+it('walks back onto the stage instead of running in place on the edge', () => {
+  const actor = spawnActor(
+    { id: 'pet', breedId: 'retriever', ageDays: 400, weight: 0, vitality: 1, equipped: {}, asleep: false },
+    { x: 200, y: 400 },
+  );
+  const world = createWorld([actor], 1, scenes.livingroom);
+  const breed = breedById('retriever')!;
+  const frame = bodyFrame(
+    breed,
+    actor.displayAgeDays,
+    actor.displayWeight,
+    actor.vitality,
+    actor.pose,
+    0,
+    0,
+    actor.x,
+    actor.y,
+    actor.face,
+    world.scene.floor,
+    0,
+    actor.gait,
+    0,
+  );
+  const range = xRangeOf(world.scene.floor, frame.geom, frame.scale);
+  actor.x = range.lo - 0.4;
+  actor.vx = 280;
+  actor.speed = 280;
+  actor.task.type = 'idle';
+  actor.idle.mode = 'walk';
+  actor.idle.dur = 999;
+  actor.idle.t = 0;
+  actor.idle.arrived = false;
+  actor.idle.target = { x: range.hi - 30, y: 620 };
+  for (let i = 0; i < 90; i += 1) {
+    update(world, 1 / 30);
+  }
+  expect(actor.x).toBeGreaterThan(range.lo + 40);
+});
+
+it('keeps walking past the conservatory instead of sticking to the room edge', () => {
+  const home = starterFurniture('dog');
+  const house = furnitureDefinition('dogHouse');
+  const scene = applyFurniture(
+    scenes.livingroom,
+    [...home.pieces, house!],
+    [...home.placed, { pieceId: 'dogHouse', sceneId: 'livingroom', x: 320, y: 530 }],
+  );
+  const goal = { x: 300, y: 400 };
+  for (const [x, y] of [
+    [40, 300],
+    [80, 600],
+    [600, 300],
+    [320, 620],
+  ] as const) {
+    const actor = spawnActor(
+      { id: 'pet', breedId: 'retriever', ageDays: 400, weight: 0, vitality: 1, equipped: {}, asleep: false },
+      { x, y },
+    );
+    const world = createWorld([actor], 1, scene);
+    actor.task.type = 'idle';
+    actor.task.stage = '';
+    actor.task.poi = undefined;
+    actor.idle.mode = 'walk';
+    actor.idle.dur = 999;
+    actor.idle.t = 0;
+    actor.idle.arrived = false;
+    actor.idle.target = goal;
+    let best = Infinity;
+    for (let i = 0; i < 360; i += 1) {
+      update(world, 1 / 30);
+      best = Math.min(best, Math.hypot(goal.x - actor.x, goal.y - actor.y));
+    }
+    expect(best).toBeLessThan(80);
+  }
+});
+
+it('reaches the food bowl when the conservatory spans the room', () => {
+  const home = starterFurniture('dog');
+  const house = furnitureDefinition('dogHouse');
+  const scene = applyFurniture(
+    scenes.livingroom,
+    [...home.pieces, house!],
+    [...home.placed, { pieceId: 'dogHouse', sceneId: 'livingroom', x: 320, y: 530 }],
+  );
+  const actor = spawnActor(
+    { id: 'pet', breedId: 'retriever', ageDays: 400, weight: 0, vitality: 1, equipped: {}, asleep: false },
+    { x: 500, y: 620 },
+  );
+  const world = createWorld([actor], 1, scene);
+  world.foodStocked = true;
+  expect(startUserTask(world, actor, 'eat')).toBe(true);
+  for (let i = 0; i < 1500 && actor.task.stage !== 'eating'; i += 1) {
+    update(world, 1 / 30);
+  }
+  expect(actor.task.stage).toBe('eating');
+});
+
+it('reaches the water bowl from behind the conservatory', () => {
+  const home = starterFurniture('dog');
+  const house = furnitureDefinition('dogHouse');
+  const scene = applyFurniture(
+    scenes.livingroom,
+    [...home.pieces, house!],
+    [...home.placed, { pieceId: 'dogHouse', sceneId: 'livingroom', x: 320, y: 530 }],
+  );
+  const actor = spawnActor(
+    { id: 'pet', breedId: 'retriever', ageDays: 400, weight: 0, vitality: 1, equipped: {}, asleep: false },
+    { x: 200, y: 280 },
+  );
+  const world = createWorld([actor], 2, scene);
+  world.waterLevel = 1;
+  expect(startUserTask(world, actor, 'drink')).toBe(true);
+  for (let i = 0; i < 1500 && actor.task.stage !== 'eating'; i += 1) {
+    update(world, 1 / 30);
+  }
+  expect(actor.task.stage).toBe('eating');
 });
 
 it('walks onto a bowl it is using and around one that is in the way', () => {
@@ -163,6 +291,27 @@ it('hits a bowl and misses the rug', () => {
   expect(furnitureAt(scenes.livingroom, 330, 440)).toBeNull();
 });
 
+it('hits the drawn bed above its floor point', () => {
+  expect(furnitureAt(scenes.livingroom, 110, 506)).toBe('livingroom-bed');
+  expect(furnitureAt(scenes.livingroom, 110, 522)).toBe('livingroom-bed');
+  expect(furnitureAt(scenes.livingroom, 110, 470)).toBeNull();
+
+  const cloudScale = styledBedWidth / 280;
+  const caveWidth = 200;
+  const caveScale = caveWidth / 280;
+  const scene = {
+    props: [
+      { kind: 'bed' as const, id: 'cloud', x: 200, y: 500, w: styledBedWidth, bedStyle: 'cloud' as const },
+      { kind: 'bed' as const, id: 'cave', x: 400, y: 520, w: caveWidth, bedStyle: 'cave' as const },
+    ],
+  } as Scene;
+  expect(furnitureAt(scene, 200, 500 + (118 - 184) * cloudScale)).toBe('cloud');
+  expect(furnitureAt(scene, 200, 500 + (72 - 184) * cloudScale)).toBe('cloud');
+  expect(furnitureAt(scene, 200, 500 + (40 - 184) * cloudScale)).toBeNull();
+  expect(furnitureAt(scene, 400, 520 + (140 - 184) * caveScale)).toBe('cave');
+  expect(furnitureAt(scene, 400, 520 + 40)).toBeNull();
+});
+
 it('clamps a dragged bowl to the walkable floor', () => {
   const home = starterFurniture('dog');
   const owned = home.pieces.map((piece) => piece.id);
@@ -208,6 +357,35 @@ it('stores furniture and puts it back only in a room the player owns', () => {
   expect(live.pois.some((poi) => poi.propId === 'livingroom-food')).toBe(false);
   expect(shopFurnitureSpot('dogHouse', 'park').sceneId).toBe('livingroom');
   expect(shopFurnitureSpot('scratcher', 'bedroom').sceneId).toBe('bedroom');
+});
+
+it('keeps bowls placed in a room after leaving and coming back', () => {
+  const food = { id: 'bowl_food:1', kind: 'bowl' as const, catalogId: 'bowl_food' };
+  const water = { id: 'bowl_water:1', kind: 'bowl' as const, catalogId: 'bowl_water' };
+  const pieces = [food, water];
+  const placed = [
+    { pieceId: food.id, sceneId: 'bedroom', x: 180, y: 500 },
+    { pieceId: water.id, sceneId: 'bedroom', x: 240, y: 520 },
+  ];
+  const first = applyFurniture(scenes.bedroom, pieces, placed);
+  const away = applyFurniture(scenes.livingroom, pieces, placed);
+  const back = applyFurniture(scenes.bedroom, pieces, placed);
+  expect(back.props.filter((prop) => prop.kind === 'bowl').map((prop) => prop.id).sort()).toEqual([
+    'bowl_food:1',
+    'bowl_water:1',
+  ]);
+  expect(back.props.find((prop) => prop.id === 'bowl_food:1')).toMatchObject({ contents: 'kibble', x: 180, y: 500 });
+  expect(back.props.find((prop) => prop.id === 'bowl_water:1')).toMatchObject({ contents: 'water', x: 240, y: 520 });
+  expect(actionReason(back, 'feed')).toBe('');
+  expect(actionReason(back, 'refillWater', 0.4)).toBe('');
+  expect(actionReason(first, 'feed')).toBe('');
+  expect(actionReason(away, 'feed')).toBe('There is no food bowl in this scene.');
+  expect(actionReason(scenes.bedroom, 'feed')).toBe('There is no food bowl in this scene.');
+  expect(actionReason(scenes.bedroom, 'refillWater', 0.4)).toBe('There is no water bowl to refill here.');
+  const bare = { id: 'livingroom-food', kind: 'bowl' as const };
+  const remembered = applyFurniture(scenes.bedroom, [bare], [{ pieceId: bare.id, sceneId: 'bedroom', x: 200, y: 420 }]);
+  expect(remembered.props.find((prop) => prop.id === 'livingroom-food')).toMatchObject({ contents: 'kibble' });
+  expect(actionReason(remembered, 'feed')).toBe('');
 });
 
 it('keeps a room to one food bowl and one water bowl', () => {
@@ -268,8 +446,16 @@ it('keeps the first bed when a room was saved with two', () => {
   expect(otherBedInRoom(pieces, repaired.placed, 'livingroom', 'bed_cloud_puff')?.pieceId).toBe('livingroom-bed');
 });
 
+it('treats a press on the conservatory glass as the house', () => {
+  const scene = {
+    props: [{ kind: 'dogHouse' as const, id: 'dogHouse', x: 320, y: 530, w: 520, flip: false }],
+  } as Scene;
+  expect(furnitureAt(scene, 320, 350)).toBe('dogHouse');
+  expect(furnitureAt(scene, 320, 620)).toBeNull();
+});
+
 it('counts the Glass Conservatory as the one bed and pays 2.5×', () => {
-  expect(furnitureDefinition('dogHouse')).toMatchObject({ kind: 'dogHouse', w: 260, restMultiplier: 2.5 });
+  expect(furnitureDefinition('dogHouse')).toMatchObject({ kind: 'dogHouse', w: 520, restMultiplier: 2.5 });
   const pieces = [
     { id: 'livingroom-bed', kind: 'bed' as const },
     { id: 'dogHouse', kind: 'dogHouse' as const, restMultiplier: 2.5 },
@@ -290,4 +476,52 @@ it('counts the Glass Conservatory as the one bed and pays 2.5×', () => {
       true,
     ),
   ).toBe('×2.5');
+});
+
+it('lets a bed be placed only in a room that fits it', () => {
+  const standard = { id: 'bed_standard:1', kind: 'bed' as const, catalogId: 'bed_standard' };
+  const dogBed = { id: 'bed_cloud_puff', kind: 'bed' as const, catalogId: 'bed_cloud_puff' };
+  const catBed = { id: 'bed_kitty_cave', kind: 'bed' as const, catalogId: 'bed_kitty_cave' };
+  expect(canPlaceFurniture(standard, 'livingroom', 'dog')).toBe(true);
+  expect(canPlaceFurniture(standard, 'park', 'dog')).toBe(false);
+  expect(canPlaceFurniture(standard, 'school', 'cat')).toBe(false);
+  expect(canPlaceFurniture(dogBed, 'bedroom', 'dog')).toBe(true);
+  expect(canPlaceFurniture(dogBed, 'livingroom', 'cat')).toBe(false);
+  expect(canPlaceFurniture(catBed, 'catio', 'cat')).toBe(true);
+  expect(canPlaceFurniture(catBed, 'bedroom', 'dog')).toBe(false);
+  expect(canPlaceFurniture({ id: 'dogHouse', kind: 'dogHouse' }, 'catio', 'dog')).toBe(false);
+  expect(canPlaceFurniture({ id: 'scratcher', kind: 'scratcher' }, 'livingroom', 'cat')).toBe(true);
+});
+
+it('makes premium cat beds at least as wide as an adult cat', () => {
+  const cave = furnitureDefinition('bed_kitty_cave');
+  const moon = furnitureDefinition('bed_moon_cradle');
+  const caveOpening = ((cave?.w ?? 0) / 280) * (caveDoorRx * 2 - caveDoorStroke);
+  const cradle = ((moon?.w ?? 0) / 280) * moonCradleSvgWidth;
+  for (const breed of catBreeds()) {
+    const geom = geomOf(breed, daysToSenior, 0, 1);
+    const body = geom.bodyLen * PET_SIZE * geom.sc;
+    expect(caveOpening + 1e-6).toBeGreaterThanOrEqual(body);
+    expect(cradle + 1e-6).toBeGreaterThanOrEqual(body);
+  }
+  expect(caveOpening + 1e-6).toBeGreaterThanOrEqual(adultCatBodyWidth());
+  expect(cradle + 1e-6).toBeGreaterThanOrEqual(adultCatBodyWidth());
+  expect(furnitureDefinition('bed_cloud_puff')?.w).toBe(styledBedWidth);
+  expect(furnitureDefinition('bed_bone_sofa')?.w).toBe(styledBedWidth);
+
+  const saved = applyFurniture(
+    scenes.livingroom,
+    [
+      { id: 'bed_kitty_cave', kind: 'bed', catalogId: 'bed_kitty_cave', bedStyle: 'cave', w: 120, restMultiplier: 2 },
+      { id: 'bed_moon_cradle', kind: 'bed', catalogId: 'bed_moon_cradle', bedStyle: 'moon', w: 120, restMultiplier: 2.5 },
+    ],
+    [
+      { pieceId: 'bed_kitty_cave', sceneId: 'livingroom', x: 200, y: 500 },
+      { pieceId: 'bed_moon_cradle', sceneId: 'bedroom', x: 320, y: 500 },
+    ],
+  );
+  expect(saved.props.find((prop) => prop.id === 'bed_kitty_cave')?.w).toBe(cave?.w);
+  const live = applyFurniture(scenes.livingroom, [], []);
+  syncFurniture(live, saved);
+  expect(live.props.find((prop) => prop.id === 'bed_kitty_cave')?.w).toBe(cave?.w);
 });

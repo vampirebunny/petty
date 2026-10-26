@@ -9,6 +9,7 @@ import {
   actionReason,
   breedById,
   sceneById,
+  sceneForSpecies,
   stagePoint,
 } from '../actor';
 import { preloadBloops, releaseBloops, silenceBloops, unmuteBloops } from '../audio/bloop';
@@ -16,7 +17,7 @@ import { releaseMusic, setMusicEnabled, suspendMusic, switchMusic } from '../aud
 import { setSoundEnabled } from '../audio/voice';
 import type { CuddleOut } from '../actor';
 import { stageHeight, stageWidth } from '../actor/geometry';
-import { bowlAlreadyInRoom, bowlRoomMessage, countsAsBed, otherBedInRoom, pieceLabel, roomRestBadge, shopSku, stowWarning } from '../actor/furniture';
+import { applyFurniture, bowlAlreadyInRoom, bowlRoomMessage, canPlaceFurniture, countsAsBed, otherBedInRoom, pieceLabel, roomRestBadge, shopSku, stowWarning } from '../actor/furniture';
 import type { FurniturePiece } from '../actor/furniture';
 import { flickSpeedThreshold } from '../input/flick';
 import { CuddleGesture } from '../input/cuddleGesture';
@@ -57,7 +58,7 @@ import { trackName } from '../sim/tracks';
 import { failBand, trickListing } from '../sim/tricks';
 import type { TrickPropType } from '../sim/trickProps';
 import { currentOwner } from '../db/currentOwner';
-import { consumeBedStorageTip, trickPropsOf } from '../db/playerHome';
+import { consumeBedStorageTip, furnitureOf, layoutOf, trickPropsOf } from '../db/playerHome';
 import { ghostDelayMs, ghostEligible, startCuddleSession } from '../cuddle/guidance';
 import { HomeActionPanel } from '../ui/HomeActionPanel';
 import { ToyCard } from '../ui/ToyCard';
@@ -338,7 +339,7 @@ export default function HomeScreen({ petApi }: Props) {
     cancelBursts,
   } = petApi;
   const homeSpecies = state ? (breedById(state.breedId)?.species === 'cat' ? 'cat' : 'dog') : 'dog';
-  const home = usePlayerHome(state?.ownerId, homeSpecies);
+  const home = usePlayerHome(currentOwner(), homeSpecies);
   const economyApi = useEconomy(state != null);
   const [clock, setClock] = useState(() => Date.now());
   const [pantryOpen, setPantryOpen] = useState(false);
@@ -392,6 +393,11 @@ export default function HomeScreen({ petApi }: Props) {
   }, []);
   // Controls follow the room on screen. sceneId updates when a place is picked, before the cut.
   const controlsSceneId = shownSceneId ?? state?.sceneId ?? 'livingroom';
+  // Feed and water follow bowls saved in this room, not the bowls baked into the room template.
+  const careScene = useMemo(
+    () => applyFurniture(sceneForSpecies(sceneById(controlsSceneId), homeSpecies), home.pieces, home.placements),
+    [controlsSceneId, home.pieces, home.placements, homeSpecies],
+  );
   const atSchool = controlsSceneId === 'school';
   const logicalH = stageHeight;
   const { viewWidth, viewHeight, contentWidth } = useStageSize(
@@ -1363,10 +1369,10 @@ export default function HomeScreen({ petApi }: Props) {
     if (!state) {
       return;
     }
-    const feedBlocked = actionReason(controlsScene, 'feed');
-    const waterBlocked = actionReason(controlsScene, 'refillWater', state.waterLevel);
+    const feedBlocked = actionReason(careScene, 'feed');
+    const waterBlocked = actionReason(careScene, 'refillWater', state.waterLevel);
     const countPropTap = (kind: TipKind) => {
-      const spot = placedInScene(home.pieces, home.placements, controlsScene.id, kind);
+      const spot = placedInScene(home.pieces, home.placements, careScene.id, kind);
       if (spot) {
         setMovePieceId(spot.pieceId);
       }
@@ -1420,7 +1426,7 @@ export default function HomeScreen({ petApi }: Props) {
       countPropTap('bed');
       tips.performed('tip.sleep');
     };
-  }, [controlsScene, flash, home.pieces, home.placements, refillWater, rest, state, tips]);
+  }, [careScene, flash, home.pieces, home.placements, refillWater, rest, state, tips]);
 
   const tipKind: TipKind | null = tips.current === 'tip.water' ? 'water' : tips.current === 'tip.sleep' ? 'bed' : null;
   const tipSpot = tipKind
@@ -1651,8 +1657,8 @@ export default function HomeScreen({ petApi }: Props) {
         : (playableToys[0] ?? 'ball');
 
   const tummy = 100 - state.needs.hunger;
-  const feedReason = actionReason(controlsScene, 'feed');
-  const waterReason = actionReason(controlsScene, 'refillWater', state.waterLevel);
+  const feedReason = actionReason(careScene, 'feed');
+  const waterReason = actionReason(careScene, 'refillWater', state.waterLevel);
   const careActions = [
     {
       id: 'feed',
@@ -1943,6 +1949,10 @@ export default function HomeScreen({ petApi }: Props) {
     fresh: popped != null && !popped.includes(trick.id),
   }));
 
+  const savedHome = () => {
+    const ownerId = currentOwner();
+    return { pieces: furnitureOf(ownerId), placements: layoutOf(ownerId, homeSpecies) };
+  };
   const styleActions = [
     {
       id: 'wardrobe',
@@ -1967,19 +1977,19 @@ export default function HomeScreen({ petApi }: Props) {
             type: prop.type,
             sourceTrickId: prop.sourceTrickId,
           }));
-        const furniture: StorageChoice[] = controlsScene.playerOwned
-          ? home.pieces
-              .filter((piece) => !home.placements.some((place) => place.pieceId === piece.id))
-              .map((piece) => ({
-                id: piece.id,
-                label: pieceLabel(piece),
-                kind: 'furniture' as const,
-                sku: shopSku(piece) ?? piece.kind,
-                plant: piece.plant,
-              }))
-          : [];
-        setStorageItems(controlsScene.playerOwned ? [...furniture, ...props] : props);
-        setStorageEmpty(controlsScene.playerOwned ? 'Nothing in storage.' : 'Furniture stays in your rooms.');
+        const saved = savedHome();
+        const furniture: StorageChoice[] = saved.pieces
+          .filter((piece) => !saved.placements.some((place) => place.pieceId === piece.id))
+          .map((piece) => ({
+            id: piece.id,
+            label: pieceLabel(piece),
+            kind: 'furniture' as const,
+            sku: shopSku(piece) ?? piece.kind,
+            plant: piece.plant,
+            inactive: !canPlaceFurniture(piece, controlsScene.id, homeSpecies),
+          }));
+        setStorageItems([...furniture, ...props]);
+        setStorageEmpty('Nothing in storage.');
         setStorageOpen(true);
       },
     },
@@ -2338,15 +2348,19 @@ export default function HomeScreen({ petApi }: Props) {
                 armedMove.current = { id: item.id, prop: true };
               }
             } else {
-              const piece = home.pieces.find((owned) => owned.id === item.id);
-              const blocked = piece ? bowlAlreadyInRoom(home.pieces, home.placements, scene.id, piece.id) : null;
+              const saved = savedHome();
+              const piece = saved.pieces.find((owned) => owned.id === item.id);
+              if (!piece || !canPlaceFurniture(piece, controlsScene.id, homeSpecies)) {
+                return;
+              }
+              const blocked = bowlAlreadyInRoom(saved.pieces, saved.placements, controlsScene.id, piece.id);
               if (blocked) {
                 setBowlNotice(bowlRoomMessage(blocked));
                 return;
               }
-              const occupant = piece && countsAsBed(piece) ? otherBedInRoom(home.pieces, home.placements, scene.id, piece.id) : null;
+              const occupant = countsAsBed(piece) ? otherBedInRoom(saved.pieces, saved.placements, controlsScene.id, piece.id) : null;
               if (piece && occupant) {
-                const current = home.pieces.find((owned) => owned.id === occupant.pieceId);
+                const current = saved.pieces.find((owned) => owned.id === occupant.pieceId);
                 setBedSwap({
                   piece,
                   occupantId: occupant.pieceId,
@@ -2357,10 +2371,19 @@ export default function HomeScreen({ petApi }: Props) {
                 setStorageOpen(false);
                 return;
               }
-              const placed = piece ? stageHandle.current?.showStoredFurniture(piece) : null;
-              if (piece && placed) {
-                moveFurniture(piece.id, placed.sceneId, placed.x, placed.y);
+              const placed = stageHandle.current?.showStoredFurniture(piece) ?? null;
+              const blockedThere = placed
+                ? bowlAlreadyInRoom(saved.pieces, saved.placements, placed.sceneId, piece.id)
+                : null;
+              if (placed && blockedThere) {
+                stageHandle.current?.stowFurniture(piece.id);
+                setBowlNotice(bowlRoomMessage(blockedThere));
+                return;
+              }
+              if (placed && moveFurniture(piece.id, placed.sceneId, placed.x, placed.y)) {
                 armedMove.current = { id: piece.id, prop: false };
+              } else if (placed) {
+                stageHandle.current?.stowFurniture(piece.id);
               }
             }
             setStorageOpen(false);
@@ -2405,7 +2428,7 @@ export default function HomeScreen({ petApi }: Props) {
           }}
           onPick={(foodId) => {
             const served = () => {
-              const spot = placedInScene(home.pieces, home.placements, scene.id, 'food');
+              const spot = placedInScene(home.pieces, home.placements, controlsScene.id, 'food');
               if (spot) {
                 setMovePieceId(spot.pieceId);
               }

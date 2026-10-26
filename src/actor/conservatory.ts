@@ -1,22 +1,22 @@
 import type { Prop } from './scenes';
 
-// The art is 360×300. A literal map of 80 units onto the longest dog does not fit the
-// room, so the house is a fixed 260px wide. The cushion is about one adult body.
-export const HOUSE_WIDTH = 260;
-export const VIEW_W = 360;
+// Quarter view, 400×300. The anchor is the floor in front of the steps.
+// 520 stage px keeps the door and the glass large enough to read next to an adult dog.
+export const HOUSE_WIDTH = 520;
+export const VIEW_W = 400;
 export const VIEW_H = 300;
-export const ANCHOR = { x: 180, y: 268 };
+export const ANCHOR = { x: 200, y: 294 };
 export const SCALE = HOUSE_WIDTH / VIEW_W;
 export const ADULT_BODY = 80;
 export const HOUSE_REST = 2.5;
 
 export const HOUSE_POINTS = {
-  A: { x: 60, y: 268 },
-  S1: { x: 112, y: 250 },
-  S2: { x: 122, y: 238 },
-  D: { x: 124, y: 229 },
-  I: { x: 170, y: 230 },
-  R: { x: 228, y: 232 },
+  A: { x: 130, y: 294 },
+  S1: { x: 130, y: 276 },
+  S2: { x: 130, y: 266 },
+  D: { x: 130, y: 250 },
+  I: { x: 150, y: 240 },
+  R: { x: 214, y: 238 },
 } as const;
 
 const IN_PATH = [HOUSE_POINTS.A, HOUSE_POINTS.S1, HOUSE_POINTS.S2, HOUSE_POINTS.D, HOUSE_POINTS.I, HOUSE_POINTS.R];
@@ -69,6 +69,46 @@ export function houseLocal(svgX: number, svgY: number, flip: boolean): { x: numb
   return { x: (x - ANCHOR.x) * SCALE, y: (svgY - ANCHOR.y) * SCALE };
 }
 
+// Floor shadow in the viewBox: oval at (200, 284) with radii 192 and 12.
+// The door (96–164) is left out. One oval the width of the glass is wider than
+// the walkable floor, and the dog stops against it with nowhere to go around.
+const SHADOW_Y = 284;
+const SHADOW_RX = 192;
+const SHADOW_RY = 12;
+const DOOR_X0 = 96;
+const DOOR_X1 = 164;
+
+export type HouseBlock = { x: number; y: number; hw: number; hd: number };
+
+export function houseBlocks(prop: Prop): HouseBlock[] {
+  const flip = prop.flip === true;
+  const left = 200 - SHADOW_RX;
+  const right = 200 + SHADOW_RX;
+  const spans = [
+    [left, DOOR_X0],
+    [DOOR_X1, right],
+  ] as const;
+  return spans.map(([x0, x1]) => {
+    const at = houseLocal((x0 + x1) / 2, SHADOW_Y, flip);
+    return {
+      x: prop.x + at.x,
+      y: prop.y + at.y,
+      hw: Math.max(1, ((x1 - x0) / 2) * SCALE),
+      hd: Math.max(1, SHADOW_RY * SCALE),
+    };
+  });
+}
+
+// The painted house, including the topiaries and the weathervane, in stage space.
+export function houseContains(prop: Prop, x: number, y: number): boolean {
+  const flip = prop.flip === true;
+  const a = houseLocal(8, 24, flip);
+  const b = houseLocal(384, 296, flip);
+  const lx = x - prop.x;
+  const ly = y - prop.y;
+  return lx >= Math.min(a.x, b.x) && lx <= Math.max(a.x, b.x) && ly >= Math.min(a.y, b.y) && ly <= Math.max(a.y, b.y);
+}
+
 export function houseWorld(prop: Prop, svgX: number, svgY: number): { x: number; y: number } {
   const local = houseLocal(svgX, svgY, prop.flip === true);
   return { x: prop.x + local.x, y: prop.y + local.y };
@@ -80,21 +120,26 @@ export function svgXOf(prop: Prop, worldX: number): number {
   return svg;
 }
 
-// Door opening in viewBox x. Past 142 the body is inside the glass.
-export function houseSlot(prop: Prop, worldX: number): 'out' | 'in' | 'cross' {
+// The door is on the front wall. Up-screen of the inside point is behind the glass.
+// The doorway band, from the upper step down to that point, is drawn twice so the
+// dog reads as walking through the opening.
+export function houseSlot(prop: Prop, worldX: number, worldY: number): 'out' | 'in' | 'cross' {
   const x = svgXOf(prop, worldX);
-  if (x > 142) {
+  const y = (worldY - prop.y) / SCALE + ANCHOR.y;
+  const inBody = x >= 50 && x <= 338;
+  if (y < HOUSE_POINTS.I.y && inBody) {
     return 'in';
   }
-  if (x < 106) {
-    return 'out';
+  const inDoor = x >= 96 && x <= 164;
+  if (inDoor && y <= HOUSE_POINTS.S2.y && y >= HOUSE_POINTS.I.y) {
+    return 'cross';
   }
-  return 'cross';
+  return 'out';
 }
 
 export function shouldFlipHouse(x: number, xMin: number, xMax: number): boolean {
-  const leftEdge = x + houseLocal(30, 268, false).x;
-  const rightEdge = x + houseLocal(342, 240, false).x;
+  const leftEdge = x + houseLocal(8, ANCHOR.y, false).x;
+  const rightEdge = x + houseLocal(384, ANCHOR.y, false).x;
   const left = leftEdge - xMin;
   const right = xMax - rightEdge;
   if (left >= ADULT_BODY) {
@@ -106,6 +151,13 @@ export function shouldFlipHouse(x: number, xMin: number, xMax: number): boolean 
 export function placeHouse(prop: Prop, floor: { xMin: number; xMax: number }): void {
   prop.w = HOUSE_WIDTH;
   prop.restMultiplier = HOUSE_REST;
+  const left = houseLocal(8, ANCHOR.y, false).x;
+  const right = houseLocal(384, ANCHOR.y, false).x;
+  const minX = floor.xMin - left;
+  const maxX = floor.xMax - right;
+  if (minX <= maxX) {
+    prop.x = Math.min(maxX, Math.max(minX, prop.x));
+  }
   prop.flip = shouldFlipHouse(prop.x, floor.xMin, floor.xMax);
 }
 

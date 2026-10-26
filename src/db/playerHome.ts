@@ -236,19 +236,19 @@ export function moveOwnedPiece(
   sceneId: string,
   x: number,
   y: number,
-): void {
+): boolean {
   const pieces = furnitureOf(ownerId);
   const layout = layoutOf(ownerId, species);
   if (bowlAlreadyInRoom(pieces, layout, sceneId, pieceId)) {
-    return;
+    return false;
   }
   if (otherBedInRoom(pieces, layout, sceneId, pieceId)) {
-    return;
+    return false;
   }
   const owned = pieces.map((piece) => piece.id);
   const next = placePiece(layout, pieceId, sceneId, x, y, owned);
   if (!next) {
-    return;
+    return false;
   }
   const database = getDb();
   if (hasLayout(ownerId, species)) {
@@ -267,6 +267,7 @@ export function moveOwnedPiece(
     );
   }
   emit();
+  return true;
 }
 
 export function stowOwnedPiece(ownerId: string, species: SpeciesId, pieceId: string): void {

@@ -1,5 +1,8 @@
-import { HOUSE_POINTS, HOUSE_REST, HOUSE_WIDTH, houseWorld, placeHouse } from './conservatory';
+import { daysToSenior } from '../sim/config';
 import { footprint } from '../ui/skia/layout';
+import { catBreeds } from './breeds';
+import { HOUSE_POINTS, HOUSE_REST, HOUSE_WIDTH, houseBlocks, houseContains, houseWorld, placeHouse } from './conservatory';
+import { geomOf, PET_SIZE } from './geometry';
 import type { Poi, Prop, Scene } from './scenes';
 import { sceneById, scenes } from './scenes';
 import type { Vec } from './types';
@@ -35,8 +38,8 @@ export const shopFurniture = {
   dogHouse: {
     scenes: ['livingroom', 'bedroom'] as const,
     spot: {
-      livingroom: { x: 150, y: 520 },
-      bedroom: { x: 180, y: 460 },
+      livingroom: { x: 320, y: 530 },
+      bedroom: { x: 320, y: 520 },
     },
   },
   catTree: {
@@ -61,8 +64,68 @@ export type ShopFurnitureId = keyof typeof shopFurniture;
 
 export type BedStyle = 'standard' | 'cloud' | 'bone' | 'cave' | 'moon';
 
-// World width of a shop bed. 280 SVG units map onto 1.5× an adult body.
+// World width of a dog shop bed. 280 SVG units of bed art map onto this width.
 export const styledBedWidth = 120;
+
+// Kitty-cave mouth in the 280-unit bed drawing. The stroke sits on the oval, so the
+// hole a cat can lie in is one stroke narrower than the oval.
+export const caveDoorRx = 90;
+export const caveDoorRy = 44;
+export const caveDoorStroke = 10;
+
+// Moon cradle basket, the path from x = 58 to x = 222 in the 280-unit bed drawing.
+export const moonCradleSvgWidth = 164;
+
+const bedArtWidth = 280;
+
+function catBedFitSvg(style: 'cave' | 'moon'): number {
+  if (style === 'cave') {
+    return caveDoorRx * 2 - caveDoorStroke;
+  }
+  return moonCradleSvgWidth;
+}
+
+// Widest adult cat torso, in world pixels. Growth through the adult stage ends at
+// daysToSenior, and depth 1 is a cat standing at the front of the room.
+export function adultCatBodyWidth(): number {
+  let widest = 0;
+  for (const breed of catBreeds()) {
+    const geom = geomOf(breed, daysToSenior, 0, 1);
+    widest = Math.max(widest, geom.bodyLen * PET_SIZE * geom.sc);
+  }
+  return widest;
+}
+
+// World width of a premium cat bed so the part the cat lies in is at least one adult body wide.
+export function catBedWidth(style: 'cave' | 'moon'): number {
+  return (adultCatBodyWidth() * bedArtWidth) / catBedFitSvg(style);
+}
+
+function shopBedWidth(bed: { style: BedStyle; species?: 'dog' | 'cat' }): number {
+  if (bed.species === 'cat' && (bed.style === 'cave' || bed.style === 'moon')) {
+    return catBedWidth(bed.style);
+  }
+  return bed.style === 'standard' ? 112 : styledBedWidth;
+}
+
+function resolvedBedWidth(piece: FurniturePiece): number | undefined {
+  const sku = shopSku(piece);
+  const bed = sku ? bedCatalog[sku] : undefined;
+  const style = piece.bedStyle ?? bed?.style;
+  if (bed?.species === 'cat' && (style === 'cave' || style === 'moon')) {
+    return Math.max(piece.w ?? 0, catBedWidth(style));
+  }
+  if (piece.w != null) {
+    return piece.w;
+  }
+  if (style === 'standard') {
+    return 112;
+  }
+  if (style) {
+    return styledBedWidth;
+  }
+  return undefined;
+}
 
 const bedCatalog: Record<string, { name: string; style: BedStyle; rest: number; species?: 'dog' | 'cat' }> = {
   bed_standard: { name: 'Standard Bed', style: 'standard', rest: 1 },
@@ -160,13 +223,36 @@ const bedAnchors: Record<BedStyle, { x: number; y: number } | null> = {
   moon: { x: 140, y: 124 },
 };
 
+// Visible art in the 280-unit bed drawing. y grows downward and the floor anchor is y = 184.
+const styledTapBox: Record<Exclude<BedStyle, 'standard'>, { x0: number; y0: number; x1: number; y1: number }> = {
+  cloud: { x0: 20, y0: 66, x1: 260, y1: 192 },
+  bone: { x0: 24, y0: 70, x1: 256, y1: 190 },
+  cave: { x0: 36, y0: 18, x1: 244, y1: 190 },
+  moon: { x0: 24, y0: 8, x1: 256, y1: 192 },
+};
+
+const bedTapPad = 8;
+
+// How far above a bed's floor point a sleeper still counts as on the cushion.
+// Styled beds draw the cushion above the floor anchor, and a wider bed lifts it further.
+export function bedCushionReach(prop: { w?: number; bedStyle?: BedStyle }): number {
+  const style = prop.bedStyle ?? 'standard';
+  const anchor = bedAnchors[style];
+  if (!anchor) {
+    return 48;
+  }
+  const scale = (prop.w ?? styledBedWidth) / bedArtWidth;
+  const lift = (184 - anchor.y) * scale;
+  return Math.max(48, lift + 16);
+}
+
 export function bedPoiOffset(piece: FurniturePiece): { x: number; y: number } {
   const style = piece.bedStyle ?? 'standard';
   const anchor = bedAnchors[style];
   if (!anchor) {
     return { x: 0, y: 2 };
   }
-  const scale = (piece.w ?? styledBedWidth) / 280;
+  const scale = (resolvedBedWidth(piece) ?? styledBedWidth) / bedArtWidth;
   return { x: (anchor.x - 140) * scale, y: (anchor.y - 184) * scale };
 }
 
@@ -265,7 +351,7 @@ function pieceForSku(id: string, sku: string): FurniturePiece | null {
       catalogId: sku,
       bedStyle: bed.style,
       restMultiplier: bed.rest,
-      w: bed.style === 'standard' ? 112 : styledBedWidth,
+      w: shopBedWidth(bed),
       color: bed.style === 'standard' ? '#c2653d' : undefined,
     };
   }
@@ -349,11 +435,23 @@ export function shopFurnitureSpot(kind: ShopFurnitureId, sceneId: string): { sce
 
 export type BowlUse = 'food' | 'water';
 
-export function bowlUse(piece: FurniturePiece): BowlUse | null {
+// A bowl is water when it says so, or when its id is a water bowl. Anything else holds food.
+export function bowlContents(piece: { kind: string; id?: string; contents?: string; catalogId?: string }): 'kibble' | 'water' | null {
   if (piece.kind !== 'bowl') {
     return null;
   }
-  return piece.contents === 'water' ? 'water' : 'food';
+  if (piece.contents === 'water' || piece.catalogId === 'bowl_water' || (piece.id?.includes('water') ?? false)) {
+    return 'water';
+  }
+  return 'kibble';
+}
+
+export function bowlUse(piece: FurniturePiece): BowlUse | null {
+  const contents = bowlContents(piece);
+  if (!contents) {
+    return null;
+  }
+  return contents === 'water' ? 'water' : 'food';
 }
 
 // A room keeps one food bowl and one water bowl. The piece already in that room does not count.
@@ -380,6 +478,43 @@ export function bowlAlreadyInRoom(
 
 export function bowlRoomMessage(use: BowlUse): string {
   return `There's already a ${use} bowl in this room.`;
+}
+
+function pieceSpecies(piece: FurniturePiece): 'dog' | 'cat' | null {
+  if (piece.kind === 'dogHouse') {
+    return 'dog';
+  }
+  if (piece.kind === 'catTree' || piece.kind === 'scratcher' || piece.kind === 'litterbox' || piece.kind === 'planter' || piece.kind === 'catioPost') {
+    return 'cat';
+  }
+  if (piece.kind === 'bed') {
+    const sku = shopSku(piece);
+    return (sku && bedCatalog[sku]?.species) || null;
+  }
+  return null;
+}
+
+// Park and school are not homes. A species-locked piece stays in storage for the other pet.
+export function canPlaceFurniture(piece: FurniturePiece, sceneId: string, species: 'dog' | 'cat'): boolean {
+  const scene = sceneById(sceneId);
+  if (!scene.playerOwned || (scene.species != null && scene.species !== species)) {
+    return false;
+  }
+  const locked = pieceSpecies(piece);
+  if (locked != null && locked !== species) {
+    return false;
+  }
+  const sku = shopSku(piece);
+  if (sku && Object.prototype.hasOwnProperty.call(shopFurniture, sku)) {
+    const allowed = shopFurniture[sku as ShopFurnitureId].scenes;
+    if (!(allowed as readonly string[]).includes(sceneId)) {
+      return false;
+    }
+  }
+  if (piece.kind === 'planter' || piece.kind === 'catioPost') {
+    return sceneId === 'catio';
+  }
+  return true;
 }
 
 export function pieceLabel(piece: FurniturePiece): string {
@@ -478,14 +613,18 @@ function pieceFromProp(prop: Prop): FurniturePiece | null {
 
 function propFromPiece(piece: FurniturePiece, x: number, y: number): Prop {
   const prop: Prop = { kind: piece.kind, id: piece.id, x, y };
-  if (piece.contents) {
+  const contents = bowlContents(piece);
+  if (contents) {
+    prop.contents = contents;
+  } else if (piece.contents) {
     prop.contents = piece.contents;
   }
   if (piece.color) {
     prop.color = piece.color;
   }
-  if (piece.w != null) {
-    prop.w = piece.w;
+  const bedWidth = piece.kind === 'bed' ? resolvedBedWidth(piece) : piece.w;
+  if (bedWidth != null) {
+    prop.w = bedWidth;
   }
   if (piece.h != null) {
     prop.h = piece.h;
@@ -513,10 +652,11 @@ function propFromPiece(piece: FurniturePiece, x: number, y: number): Prop {
 }
 
 function poiForPiece(piece: FurniturePiece, x: number, y: number): Poi | null {
-  if (piece.kind === 'bowl' && piece.contents === 'kibble') {
+  const contents = bowlContents(piece);
+  if (contents === 'kibble') {
     return { id: piece.id, type: 'food', x, y, face: 1, propId: piece.id };
   }
-  if (piece.kind === 'bowl') {
+  if (contents === 'water') {
     return { id: piece.id, type: 'water', x, y, face: 1, propId: piece.id };
   }
   if (piece.kind === 'bed' || piece.kind === 'dogHouse') {
@@ -781,6 +921,15 @@ export function syncFurniture(live: Scene, next: Scene): string[] {
     }
     prop.x = updated.x;
     prop.y = updated.y;
+    if (updated.w != null) {
+      prop.w = updated.w;
+    }
+    if (updated.contents) {
+      prop.contents = updated.contents;
+    }
+    if (updated.color) {
+      prop.color = updated.color;
+    }
     kept.push(prop);
     incoming.delete(prop.id);
   }
@@ -796,6 +945,8 @@ export function syncFurniture(live: Scene, next: Scene): string[] {
     if (found) {
       found.x = poi.x;
       found.y = poi.y;
+      found.type = poi.type;
+      found.face = poi.face;
       found.propId = poi.propId;
     } else {
       live.pois.push({ ...poi });
@@ -885,9 +1036,34 @@ function tapEllipse(prop: Prop): Obstacle | null {
   return { ...obstacle, y: prop.y - 12, hw: Math.max(obstacle.hw, 40), hd: 36 };
 }
 
+// The bed drawing sits above the floor anchor. A press on the cushion has to count.
+function bedContains(prop: Prop, x: number, y: number): boolean {
+  const style = prop.bedStyle;
+  if (style && style !== 'standard') {
+    const box = styledTapBox[style];
+    const scale = (prop.w ?? styledBedWidth) / bedArtWidth;
+    const left = prop.x + (box.x0 - 140) * scale - bedTapPad;
+    const right = prop.x + (box.x1 - 140) * scale + bedTapPad;
+    const top = prop.y + (box.y0 - 184) * scale - bedTapPad;
+    const bottom = prop.y + (box.y1 - 184) * scale + bedTapPad;
+    return x >= left && x <= right && y >= top && y <= bottom;
+  }
+  const half = (prop.w ?? 112) / 2 + bedTapPad;
+  return Math.abs(x - prop.x) <= half && y >= prop.y - 40 && y <= prop.y + 12;
+}
+
 export function obstaclesIn(scene: Scene, openPropId: string | null): Obstacle[] {
   const list: Obstacle[] = [];
   for (const prop of scene.props) {
+    if (prop.kind === 'dogHouse') {
+      if (!prop.id || prop.id === openPropId) {
+        continue;
+      }
+      for (const block of houseBlocks(prop)) {
+        list.push({ id: prop.id, ...block });
+      }
+      continue;
+    }
     const obstacle = ellipseOf(prop);
     if (obstacle && obstacle.id !== openPropId) {
       list.push(obstacle);
@@ -974,7 +1150,25 @@ function sidePoint(obstacle: Obstacle, from: Vec, goal: Vec, bounds: Floor): Vec
     }
     return Math.hypot(a.x - from.x, a.y - from.y) - Math.hypot(b.x - from.x, b.y - from.y);
   });
-  return options[0];
+  const chosen = options[0];
+  // Already standing on this side, and the goal is still behind the piece.
+  // A point a step further around the rim keeps the pet moving instead of parking there.
+  if (Math.hypot(chosen.x - from.x, chosen.y - from.y) > 16 || firstHitT(chosen, goal, obstacle) == null) {
+    return chosen;
+  }
+  const rx = (from.x - obstacle.x) / obstacle.hw;
+  const ry = (from.y - obstacle.y) / obstacle.hd;
+  const rlen = Math.hypot(rx, ry) || 1;
+  const ox = rx / rlen;
+  const oy = ry / rlen;
+  const gx = (goal.x - obstacle.x) / obstacle.hw;
+  const gy = (goal.y - obstacle.y) / obstacle.hd;
+  const turn = (ox * gy - oy * gx >= 0 ? 1 : -1) * 0.9;
+  const c = Math.cos(turn);
+  const s = Math.sin(turn);
+  const nx = ox * c - oy * s;
+  const ny = ox * s + oy * c;
+  return standingPoint(obstacle, nx * obstacle.hw, ny * obstacle.hd, bounds) ?? chosen;
 }
 
 // Leave an obstacle the pet is already standing in. The tangent toward the goal is
@@ -1067,6 +1261,24 @@ export function furnitureAt(scene: Scene, x: number, y: number): string | null {
   let best: { id: string; y: number } | null = null;
   const point = { x, y };
   for (const prop of scene.props) {
+    if (prop.kind === 'dogHouse') {
+      if (!prop.id || !houseContains(prop, x, y)) {
+        continue;
+      }
+      if (!best || prop.y >= best.y) {
+        best = { id: prop.id, y: prop.y };
+      }
+      continue;
+    }
+    if (prop.kind === 'bed') {
+      if (!prop.id || !bedContains(prop, x, y)) {
+        continue;
+      }
+      if (!best || prop.y >= best.y) {
+        best = { id: prop.id, y: prop.y };
+      }
+      continue;
+    }
     const obstacle = tapEllipse(prop);
     if (!obstacle || !contains(obstacle, point)) {
       continue;

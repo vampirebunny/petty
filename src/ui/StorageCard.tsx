@@ -17,6 +17,8 @@ export type StorageChoice = {
   /** Shop sku, or the furniture kind when the piece has no sku. */
   sku?: string;
   plant?: 'catgrass' | 'flowers' | 'catnip';
+  /** Owned, but this scene is not a place for it. */
+  inactive?: boolean;
 };
 
 type Props = {
@@ -49,12 +51,14 @@ export function StorageCard({ items, empty, top, onClose, onPick }: Props) {
               <Pressable
                 key={`${item.kind}:${item.id}`}
                 accessibilityRole="button"
-                accessibilityLabel={item.label}
+                accessibilityLabel={item.inactive ? `${item.label}, not for this room` : item.label}
+                accessibilityState={{ disabled: item.inactive === true }}
+                disabled={item.inactive === true}
                 onPress={() => onPick(item)}
-                style={styles.choice}
+                style={[styles.choice, item.inactive ? styles.choiceInactive : null]}
               >
                 <StorageGlyph item={item} />
-                <Text style={styles.label} numberOfLines={2}>
+                <Text style={[styles.label, item.inactive ? styles.labelInactive : null]} numberOfLines={2}>
                   {item.label}
                 </Text>
               </Pressable>
@@ -156,6 +160,9 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingVertical: 4,
   },
+  choiceInactive: {
+    opacity: 0.38,
+  },
   glyph: {
     width: GLYPH,
     height: GLYPH,
@@ -165,5 +172,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6B4C7A',
     textAlign: 'center',
+  },
+  labelInactive: {
+    color: '#B7A3C4',
   },
 });

@@ -559,6 +559,11 @@ export function scenesFor(species: 'dog' | 'cat' | readonly ('dog' | 'cat')[]): 
   return sceneList.filter((scene) => scene.species == null || allowed.includes(scene.species));
 }
 
+// Rooms this pet owns. Park and training school are not the player's.
+export function ownedScenes(species: 'dog' | 'cat'): Scene[] {
+  return scenesFor(species).filter((scene) => scene.playerOwned === true);
+}
+
 // The data a preset was built from, as plain JSON, so it can be edited and applied back.
 export function sceneSource(id: string): unknown {
   const def = (sceneDefs as Record<string, unknown>)[id] ?? sceneDefs.livingroom;
@@ -650,13 +655,19 @@ export function hasRefillableWaterBowl(scene: Scene): boolean {
   return scene.props.some((prop) => prop.kind === 'bowl' && prop.contents === 'water');
 }
 
+function hasFoodBowl(scene: Scene): boolean {
+  return (
+    poiOf(scene, 'food') != null || scene.props.some((prop) => prop.kind === 'bowl' && prop.contents !== 'water')
+  );
+}
+
 export function actionEnabled(
   scene: Scene,
   action: 'feed' | 'drink' | 'refillWater' | 'rest',
   waterLevel = 1,
 ): boolean {
   if (action === 'feed') {
-    return poiOf(scene, 'food') != null;
+    return hasFoodBowl(scene);
   }
   if (action === 'drink') {
     return poiOf(scene, 'water') != null;

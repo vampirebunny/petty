@@ -32,6 +32,7 @@ import { noteForegroundDay } from '../compliance/accountPrompts';
 import { createUuid, getCachedInstallId } from '../compliance/identity';
 import { bootstrapLocal, wipeLocalData } from '../db/bootstrap';
 import { readAccountLinked, readStandby, readSyncedRevision, serverNow, setOtherDeviceLabel, setStandby } from '../db/accountMeta';
+import { currentOwner } from '../db/currentOwner';
 import { grantSpeciesHome, moveOwnedPiece, stowOwnedPiece } from '../db/playerHome';
 import { claimDevice, enterStandby, hasUnsentPlay, peekActiveDevice, refreshServerTime, touchLastSeen, type ClaimResult } from '../sync/activeDevice';
 import { devicePhrase } from '../sync/deviceLabel';
@@ -130,7 +131,7 @@ type PetApi = {
     waitForBite?: boolean,
   ) => { before: PetState; after: PetState; waiting: boolean } | null;
   seeCoach: (id: string) => void;
-  moveFurniture: (pieceId: string, sceneId: string, x: number, y: number) => void;
+  moveFurniture: (pieceId: string, sceneId: string, x: number, y: number) => boolean;
   stowFurniture: (pieceId: string) => void;
   rememberGreeting: (id: string) => void;
   offerTreat: (treatId: string, applied?: PetState) => { ok: true; mood: number } | { ok: false; reason: 'unknown' | 'full' | 'species' };
@@ -1033,20 +1034,21 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
   const seeCoach = useCallback((id: string) => dispatch({ type: 'seeCoach', id }), [dispatch]);
   const moveFurniture = useCallback((pieceId: string, sceneId: string, x: number, y: number) => {
     const current = stateRef.current;
-    const ownerId = current?.ownerId;
-    if (!current || !ownerId) {
-      return;
+    if (!current) {
+      return false;
     }
-    moveOwnedPiece(ownerId, speciesOf(current.breedId), pieceId, sceneId, x, y);
-    queuePlayer();
+    const saved = moveOwnedPiece(currentOwner(), speciesOf(current.breedId), pieceId, sceneId, x, y);
+    if (saved) {
+      queuePlayer();
+    }
+    return saved;
   }, []);
   const stowFurniture = useCallback((pieceId: string) => {
     const current = stateRef.current;
-    const ownerId = current?.ownerId;
-    if (!current || !ownerId) {
+    if (!current) {
       return;
     }
-    stowOwnedPiece(ownerId, speciesOf(current.breedId), pieceId);
+    stowOwnedPiece(currentOwner(), speciesOf(current.breedId), pieceId);
     queuePlayer();
   }, []);
   const dismissWelcome = useCallback(() => setWelcomeBack(false), []);
