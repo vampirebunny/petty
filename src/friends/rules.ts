@@ -7,7 +7,7 @@ export type RelationAction = {
   action: 'send' | 'accept' | 'none';
 };
 
-export const inviteUrl = 'https://boopboop.mylisto.app/get';
+export const inviteUrl = 'https://boopboop.mylisto.app';
 
 /** Search, requests, and the invite share are for a linked account only. */
 export function canUseFriends(linked: boolean): boolean {

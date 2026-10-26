@@ -15,10 +15,10 @@ it('hides cancel during the decline cooldown', () => {
   expect(relationAction('none').action).toBe('send');
 });
 
-it('builds the invite share with the get link and an optional handle', () => {
+it('builds the invite share with the site link and an optional handle', () => {
   expect(inviteShareMessage(null)).toBe(
     `I've been playing Boop Boop, a virtual pet game. Adopt a pet so ours can have playdates! ${inviteUrl}`,
   );
   expect(inviteShareMessage('Maple')).toContain(`${inviteUrl}\nMy handle is @Maple`);
-  expect(inviteUrl).toBe('https://boopboop.mylisto.app/get');
+  expect(inviteUrl).toBe('https://boopboop.mylisto.app');
 });
