@@ -94,9 +94,7 @@ describe('wardrobe closet', () => {
 
   it('uses the same name in the closet and the shop seed', () => {
     // The seed file is the shop_items.name source. Node types are not in this app's tsconfig.
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const fs = require('fs') as { readFileSync: (path: string, encoding: string) => string };
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const path = require('path') as { join: (...parts: string[]) => string };
     const sql = fs.readFileSync(path.join(process.cwd(), 'scripts/seed-shop-catalog.sql'), 'utf8');
     const rows = [...sql.matchAll(/\('((?:hat|glasses|neckwear|jacket|boots):[^']+)', '([^']+)'/g)];

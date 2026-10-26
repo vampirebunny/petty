@@ -14,9 +14,7 @@ it('resolves art from art_key and ignores an unknown key', () => {
 });
 
 it('splits sparkles out of each pack file and keeps the rest of the drawing', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const fs = require('fs') as { readFileSync(path: string, encoding: 'utf8'): string };
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const path = require('path') as { join(...parts: string[]): string };
   for (const key of keys) {
     const file = fs.readFileSync(path.join('assets/boops-packs', `${key}.svg`), 'utf8').trim();

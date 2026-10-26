@@ -21,7 +21,6 @@ export const dogTasks: readonly TaskType[] = [...sharedTasks, 'pant', 'paw', 'ba
 export const catTasks: readonly TaskType[] = [...sharedTasks, 'purr', 'groom', 'pounce'];
 
 const white = '#f7f4ee';
-const ink = '#241d19';
 // A pug's mask is a soft warm brown, not black, so the face stays readable and friendly.
 const pugMask = '#8a7461';
 

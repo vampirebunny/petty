@@ -7,7 +7,7 @@ import type { TimeOfDay, World } from '../../actor';
 import { stageBleed } from '../../actor/scenes';
 import { drawBird, drawBirdGround } from './birds';
 import { stageHeight, stageWidth } from '../../actor/geometry';
-import { actorTint, indoorOverlayAlpha, lighting, petLightAmount, sceneryTint, stepNightFade } from '../../actor/lighting';
+import { actorTint, lighting, petLightAmount, sceneryTint, stepNightFade } from '../../actor/lighting';
 import { skyAt } from '../../actor/sky';
 import type { SkyState } from '../../actor/sky';
 import type { Rgba } from '../../actor/timeOfDay';

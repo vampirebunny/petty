@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Canvas, Picture, Skia } from '@shopify/react-native-skia';
+import type { SkPicture } from '@shopify/react-native-skia';
 
 import { resolveBreedById, spawnActor } from '../../actor';
 import { HOUSE_POINTS, houseSlot, houseWorld, startHouse, stepHouse } from '../../actor/conservatory';
@@ -30,12 +31,37 @@ const prop = {
   flip: false,
 };
 const floor = { yMin: 40, yMax: 260 };
+const opts = { detail: true, sparkles: false, night: 0 };
+
+function recordHouse(actor: Actor | null, seconds: number, reducedMotion: boolean): SkPicture {
+  const recorder = Skia.PictureRecorder();
+  const canvas = recorder.beginRecording(Skia.XYWHRect(0, 0, width, height));
+  drawConservatory(canvas, prop, 'back', opts);
+  const resolved = actor ? resolveBreedById(actor.breedId, actor.look) : null;
+  const breed = actor && resolved ? applyVariant(resolved, actor.variant) : null;
+  const slot = actor ? houseSlot(prop, actor.x) : 'out';
+  const drawPet = () => {
+    if (actor && breed) {
+      drawActor(canvas, actor, breed, floor, seconds, null, false, reducedMotion);
+    }
+  };
+  if (slot !== 'out') {
+    drawPet();
+  }
+  drawConservatory(canvas, prop, 'front', opts);
+  if (slot === 'cross') {
+    canvas.save();
+    clipHouseOutside(canvas, prop);
+    drawPet();
+    canvas.restore();
+  } else if (slot === 'out') {
+    drawPet();
+  }
+  return recorder.finishRecordingAsPicture();
+}
 
 export function ConservatoryPreview({ pet, reducedMotion, onAdd, onClose }: Props) {
-  const actorRef = useRef<Actor | null>(null);
-  const runRef = useRef<HouseRun | null>(null);
-  const restTicks = useRef(0);
-  const [frame, setFrame] = useState(0);
+  const [picture, setPicture] = useState(() => recordHouse(null, 0, reducedMotion));
 
   useEffect(() => {
     const door = houseWorld(prop, HOUSE_POINTS.A.x, HOUSE_POINTS.A.y);
@@ -54,92 +80,68 @@ export function ConservatoryPreview({ pet, reducedMotion, onAdd, onClose }: Prop
       },
       { x: door.x - 36, y: door.y },
     );
-    actorRef.current = actor;
-    runRef.current = startHouse(prop, 0.2, true);
+    let run: HouseRun = startHouse(prop, 0.2, true);
+    let restTicks = 0;
+    let frame = 0;
     if (reducedMotion) {
-      actor.x = houseWorld(prop, HOUSE_POINTS.R.x, HOUSE_POINTS.R.y).x;
-      actor.y = houseWorld(prop, HOUSE_POINTS.R.x, HOUSE_POINTS.R.y).y;
+      const rest = houseWorld(prop, HOUSE_POINTS.R.x, HOUSE_POINTS.R.y);
+      actor.x = rest.x;
+      actor.y = rest.y;
       actor.pose.lie = 1;
       actor.pose.eyes = 1;
       actor.pose.headRest = 1;
-      setFrame(1);
-      return;
+      frame = 1;
+    }
+    const paint = () => setPicture(recordHouse(actor, frame * 0.05, reducedMotion));
+    const first = setTimeout(paint, 0);
+    if (reducedMotion) {
+      return () => clearTimeout(first);
     }
     const timer = setInterval(() => {
-      const dog = actorRef.current;
-      const run = runRef.current;
-      if (!dog || !run) {
-        return;
-      }
-      const stepped = stepHouse(run, prop, dog, 0.05, Math.random, false);
+      const stepped = stepHouse(run, prop, actor, 0.05, Math.random, false);
       if (stepped.move) {
-        const dx = stepped.move.x - dog.x;
-        const dy = stepped.move.y - dog.y;
+        const dx = stepped.move.x - actor.x;
+        const dy = stepped.move.y - actor.y;
         const dist = Math.hypot(dx, dy);
         const step = 4.2;
         if (dist <= step) {
-          dog.x = stepped.move.x;
-          dog.y = stepped.move.y;
+          actor.x = stepped.move.x;
+          actor.y = stepped.move.y;
         } else {
-          dog.x += (dx / dist) * step;
-          dog.y += (dy / dist) * step;
+          actor.x += (dx / dist) * step;
+          actor.y += (dy / dist) * step;
         }
       }
-      dog.face = run.holdFace ? run.face : dog.face;
-      dog.octant = dog.face >= 0 ? 'E' : 'W';
-      dog.octantFrom = dog.octant;
-      dog.pose.lie = run.lie;
-      dog.pose.eyes = run.eyes;
-      dog.pose.headRest = run.headRest;
-      dog.pose.headTurn = run.headTurn;
-      dog.pose.stretch = run.stretch;
-      dog.pose.paw = run.paw;
+      actor.face = run.holdFace ? run.face : actor.face;
+      actor.octant = actor.face >= 0 ? 'E' : 'W';
+      actor.octantFrom = actor.octant;
+      actor.pose.lie = run.lie;
+      actor.pose.eyes = run.eyes;
+      actor.pose.headRest = run.headRest;
+      actor.pose.headTurn = run.headTurn;
+      actor.pose.stretch = run.stretch;
+      actor.pose.paw = run.paw;
       if (run.phase === 'rest') {
-        restTicks.current += 1;
+        restTicks += 1;
       } else {
-        restTicks.current = 0;
+        restTicks = 0;
       }
-      if (stepped.done || run.phase === 'done' || restTicks.current > 36) {
-        dog.x = door.x - 36;
-        dog.y = door.y;
-        dog.pose.lie = 0;
-        dog.pose.eyes = 0;
-        restTicks.current = 0;
-        runRef.current = startHouse(prop, Math.random(), true);
+      if (stepped.done || run.phase === 'done' || restTicks > 36) {
+        actor.x = door.x - 36;
+        actor.y = door.y;
+        actor.pose.lie = 0;
+        actor.pose.eyes = 0;
+        restTicks = 0;
+        run = startHouse(prop, Math.random(), true);
       }
-      setFrame((value) => value + 1);
+      frame += 1;
+      paint();
     }, 50);
-    return () => clearInterval(timer);
-  }, [pet, reducedMotion]);
-
-  const picture = useMemo(() => {
-    const recorder = Skia.PictureRecorder();
-    const canvas = recorder.beginRecording(Skia.XYWHRect(0, 0, width, height));
-    const opts = { detail: true, sparkles: false, night: 0 };
-    drawConservatory(canvas, prop, 'back', opts);
-    const actor = actorRef.current;
-    const resolved = actor ? resolveBreedById(actor.breedId, actor.look) : null;
-    const breed = actor && resolved ? applyVariant(resolved, actor.variant) : null;
-    const slot = actor ? houseSlot(prop, actor.x) : 'out';
-    const drawPet = () => {
-      if (actor && breed) {
-        drawActor(canvas, actor, breed, floor, frame * 0.05, null, false, reducedMotion);
-      }
+    return () => {
+      clearTimeout(first);
+      clearInterval(timer);
     };
-    if (slot !== 'out') {
-      drawPet();
-    }
-    drawConservatory(canvas, prop, 'front', opts);
-    if (slot === 'cross') {
-      canvas.save();
-      clipHouseOutside(canvas, prop);
-      drawPet();
-      canvas.restore();
-    } else if (slot === 'out') {
-      drawPet();
-    }
-    return recorder.finishRecordingAsPicture();
-  }, [frame, reducedMotion]);
+  }, [pet, reducedMotion]);
 
   return (
     <View style={styles.sheet}>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { AccessibilityInfo, AppState, Image, Linking, Platform, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Gesture, GestureDetector, Pressable, ScrollView } from 'react-native-gesture-handler';
@@ -177,9 +177,111 @@ const traitLabel: Record<Trait, string> = {
   obedience: 'Obedience',
 };
 
+let playCatalogLatest: (trackId: string, learned: boolean) => void = () => {};
+let playLearnedTrick: (trackId: string) => void = () => {};
+
 function formatScore(value: number): string {
   const rounded = Math.round(value * 10) / 10;
   return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+}
+
+function StageTouch({
+  cuddleOn,
+  onCuddleTap,
+  onCuddleMove,
+  onCuddleEnd,
+  onTap,
+  onHoldStart,
+  onHoldMove,
+  onHoldEnd,
+  onFlickStart,
+  onFlickMove,
+  onFlickEnd,
+  onFlickFinish,
+  children,
+}: {
+  cuddleOn: boolean;
+  onCuddleTap: (x: number, y: number) => void;
+  onCuddleMove: (x: number, y: number) => void;
+  onCuddleEnd: () => void;
+  onTap: (x: number, y: number) => void;
+  onHoldStart: (x: number, y: number) => void;
+  onHoldMove: (x: number, y: number) => void;
+  onHoldEnd: (x: number, y: number) => void;
+  onFlickStart: (x: number, y: number) => void;
+  onFlickMove: (x: number, y: number, vx: number, vy: number) => void;
+  onFlickEnd: (x: number, y: number, vx: number, vy: number) => void;
+  onFlickFinish: (x: number, y: number) => void;
+  children: ReactNode;
+}) {
+  const gesture = useMemo(() => {
+    if (cuddleOn) {
+      const boop = Gesture.Tap()
+        .maxDistance(12)
+        .onEnd((event, success) => {
+          if (success) {
+            runOnJS(onCuddleTap)(event.x, event.y);
+          }
+        });
+      const drag = Gesture.Pan()
+        .minDistance(4)
+        .onUpdate((event) => {
+          runOnJS(onCuddleMove)(event.x, event.y);
+        })
+        .onFinalize(() => {
+          runOnJS(onCuddleEnd)();
+        });
+      return Gesture.Exclusive(boop, drag);
+    }
+    const tap = Gesture.Tap()
+      .maxDuration(250)
+      .maxDistance(10)
+      .onEnd((event, success) => {
+        if (success) {
+          runOnJS(onTap)(event.x, event.y);
+        }
+      });
+    const hold = Gesture.Pan()
+      .activateAfterLongPress(400)
+      .onStart((event) => {
+        runOnJS(onHoldStart)(event.x, event.y);
+      })
+      .onUpdate((event) => {
+        runOnJS(onHoldMove)(event.x, event.y);
+      })
+      .onFinalize((event) => {
+        runOnJS(onHoldEnd)(event.x, event.y);
+      });
+    const flick = Gesture.Pan()
+      .minDistance(10)
+      .onStart((event) => {
+        runOnJS(onFlickStart)(event.x, event.y);
+      })
+      .onUpdate((event) => {
+        runOnJS(onFlickMove)(event.x, event.y, event.velocityX, event.velocityY);
+      })
+      .onEnd((event) => {
+        runOnJS(onFlickEnd)(event.x, event.y, event.velocityX, event.velocityY);
+      })
+      .onFinalize((event) => {
+        runOnJS(onFlickFinish)(event.x, event.y);
+      });
+    return Gesture.Exclusive(tap, hold, flick);
+  }, [
+    cuddleOn,
+    onCuddleEnd,
+    onCuddleMove,
+    onCuddleTap,
+    onFlickEnd,
+    onFlickFinish,
+    onFlickMove,
+    onFlickStart,
+    onHoldEnd,
+    onHoldMove,
+    onHoldStart,
+    onTap,
+  ]);
+  return <GestureDetector gesture={gesture}>{children}</GestureDetector>;
 }
 
 export default function HomeScreen({ petApi }: Props) {
@@ -242,12 +344,13 @@ export default function HomeScreen({ petApi }: Props) {
   const [pantryOpen, setPantryOpen] = useState(false);
   const [shopOpen, setShopOpen] = useState(false);
   const [bedTip, setBedTip] = useState(false);
-  const [bedSwap, setBedSwap] = useState<{ piece: FurniturePiece; occupantId: string; name: string; x: number; y: number   } | null>(null);
-  const playCatalogRef = useRef<(trackId: string, learned: boolean) => void>(() => {});
+  const [bedSwap, setBedSwap] = useState<{ piece: FurniturePiece; occupantId: string; name: string; x: number; y: number } | null>(null);
   useEffect(() => {
-    if (!shopOpen && consumeBedStorageTip()) {
-      setBedTip(true);
+    if (shopOpen || !consumeBedStorageTip()) {
+      return;
     }
+    const id = setTimeout(() => setBedTip(true), 0);
+    return () => clearTimeout(id);
   }, [shopOpen]);
   const [, setShopStamp] = useState(0);
   const counterRef = useRef<BoopCounterHandle>(null);
@@ -321,13 +424,12 @@ export default function HomeScreen({ petApi }: Props) {
   const [reducedMotion, setReducedMotion] = useState(false);
   const [wardrobeOpen, setWardrobeOpen] = useState(false);
   const [placesOpen, setPlacesOpen] = useState(false);
-  useEffect(() => {
-    if (homeSnapToken === 0) {
-      return;
-    }
+  const [seenSnap, setSeenSnap] = useState(homeSnapToken);
+  if (homeSnapToken !== 0 && homeSnapToken !== seenSnap) {
+    setSeenSnap(homeSnapToken);
     setPlacesOpen(false);
     setShopOpen(false);
-  }, [homeSnapToken]);
+  }
   const whereUid = useId().replace(/:/g, '');
   const [facingOpen, setFacingOpen] = useState(false);
   const [clothingOpen, setClothingOpen] = useState(false);
@@ -779,7 +881,6 @@ export default function HomeScreen({ petApi }: Props) {
     dialog: 'good' | 'miss' | null;
     propIds: string[];
   } | null>(null);
-  const playCatalogRef = useRef<(trackId: string, learned: boolean, rolled?: boolean) => void>(() => {});
   useEffect(() => {
     if (dialog != null || !queuedPlay.current) {
       return;
@@ -806,7 +907,7 @@ export default function HomeScreen({ petApi }: Props) {
     holdTargetRef.current = null;
     setHoldConfirm(false);
     setHoldTarget(null);
-  }, []);
+  }, [setHoldConfirm, setHoldTarget]);
   const dropMoved = useCallback(
     (id: string, prop: boolean, x: number, y: number) => {
       const point = stagePoint(x, y, viewWidth, viewHeight, contentWidth, stageWidth, logicalH);
@@ -821,7 +922,7 @@ export default function HomeScreen({ petApi }: Props) {
         const intent = placeIntent.current;
         placeIntent.current = null;
         if (intent) {
-          playCatalogRef.current(intent.trackId, intent.learned);
+          playCatalogLatest(intent.trackId, intent.learned);
         }
         void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         return;
@@ -1023,74 +1124,6 @@ export default function HomeScreen({ petApi }: Props) {
     },
     [contentWidth, dropMoved, logicalH, viewHeight, viewWidth],
   );
-  const gesture = useMemo(() => {
-    if (cuddleOn) {
-      // Cuddle replaces the ball gestures: a drag is a stroke or a scratch, a tap on the nose is a boop.
-      const boop = Gesture.Tap()
-        .maxDistance(12)
-        .onEnd((event, success) => {
-          if (success) {
-            runOnJS(onCuddleTapStage)(event.x, event.y);
-          }
-        });
-      const drag = Gesture.Pan()
-        .minDistance(4)
-        .onUpdate((event) => {
-          runOnJS(onCuddleMoveStage)(event.x, event.y);
-        })
-        .onFinalize(() => {
-          runOnJS(onCuddleEndStage)();
-        });
-      return Gesture.Exclusive(boop, drag);
-    }
-    const tap = Gesture.Tap()
-      .maxDuration(250)
-      .maxDistance(10)
-      .onEnd((event, success) => {
-        if (success) {
-          runOnJS(onStageTap)(event.x, event.y);
-        }
-      });
-    const hold = Gesture.Pan()
-      .activateAfterLongPress(400)
-      .onStart((event) => {
-        runOnJS(onHoldStart)(event.x, event.y);
-      })
-      .onUpdate((event) => {
-        runOnJS(onHoldMove)(event.x, event.y);
-      })
-      .onFinalize((event) => {
-        runOnJS(onHoldEnd)(event.x, event.y);
-      });
-    const flick = Gesture.Pan()
-      .minDistance(10)
-      .onStart((event) => {
-        runOnJS(onFlickStart)(event.x, event.y);
-      })
-      .onUpdate((event) => {
-        runOnJS(onFlickMove)(event.x, event.y, event.velocityX, event.velocityY);
-      })
-      .onEnd((event) => {
-        runOnJS(onFlickEnd)(event.x, event.y, event.velocityX, event.velocityY);
-      })
-      .onFinalize((event) => {
-        runOnJS(onFlickFinish)(event.x, event.y);
-      });
-    return Gesture.Exclusive(tap, hold, flick);
-  }, [
-    cuddleOn,
-    onCuddleEndStage,
-    onCuddleMoveStage,
-    onCuddleTapStage,
-    onFlickEnd,
-    onFlickFinish,
-    onFlickMove,
-    onFlickStart,
-    onHoldEnd,
-    onHoldMove,
-    onHoldStart,
-    onStageTap,
-  ]);
   const petName = state?.name ?? 'Your pet';
 
   const toggleCuddle = useCallback(() => {
@@ -1117,7 +1150,7 @@ export default function HomeScreen({ petApi }: Props) {
         setSessionNumber(session);
       }
     });
-  }, [startCuddle]);
+  }, [setCuddleOn, setGhost, setSessionNumber, startCuddle]);
 
   const onCuddleEvent = useCallback(
     (event: CuddleOut | { type: 'interrupted' }) => {
@@ -1143,7 +1176,7 @@ export default function HomeScreen({ petApi }: Props) {
         finishCuddle(event.petted);
       }
     },
-    [finishCuddle, flash, petName],
+    [finishCuddle, flash, petName, setCuddleOn, setGhost],
   );
 
   // The ghost finger strokes the back once if a settled pet goes untouched, for the first few sessions.
@@ -1170,7 +1203,7 @@ export default function HomeScreen({ petApi }: Props) {
       }
     }, 200);
     return () => clearInterval(timer);
-  }, [cuddleOn, sessionNumber, stageToView, tips.current]);
+  }, [cuddleOn, sessionNumber, stageToView, tips]);
 
   // Keeps the cuddle tip on the pet while the pet settles.
   useEffect(() => {
@@ -1186,7 +1219,7 @@ export default function HomeScreen({ petApi }: Props) {
     update();
     const timer = setInterval(update, 300);
     return () => clearInterval(timer);
-  }, [stageToView, tips.current]);
+  }, [stageToView, tips]);
 
   const inventory = economyApi.inventory;
 
@@ -1421,6 +1454,78 @@ export default function HomeScreen({ petApi }: Props) {
       ) : null}
     </FindFriendsHost>
   );
+
+  const propTypeOf = (value: string): TrickPropType | null =>
+    value === 'podium' || value === 'tunnel' || value === 'hurdle' || value === 'cones' || value === 'hoop' ? value : null;
+  const playCatalog = useCallback(
+    (trackId: string, learned: boolean) => {
+      if (!state) {
+        return;
+      }
+      if (state.care.pendingReward?.choice === 'treat') {
+        return;
+      }
+      const listing = trickListing(trackId);
+      const track = state.training[trackId];
+      if (!listing || !track) {
+        setSheetWait(false);
+        return;
+      }
+      const mastered = learned || track.mastered;
+      if (listing.propType && (stageHandle.current?.trickPropIds(listing.propType, true).length ?? 0) === 0) {
+        const owned = trickPropsOf(currentOwner()).find((prop) => prop.sourceTrickId === trackId);
+        const type = owned ? propTypeOf(owned.type) : null;
+        if (owned && type) {
+          placeIntent.current = { trackId, learned };
+          stageHandle.current?.liftTrickProp({ instanceId: owned.instanceId, type, sourceTrickId: owned.sourceTrickId });
+          setSheetWait(false);
+          return;
+        }
+      }
+      let outcome: 'success' | 'early' | 'mid' | 'almost' = 'success';
+      let pending: 'good' | 'miss' | null = null;
+      if (!mastered) {
+        if (isResting(track, clock)) {
+          if (sheetTimer.current) {
+            clearTimeout(sheetTimer.current);
+            sheetTimer.current = null;
+          }
+          setSheetWait(false);
+          setDialog({ kind: 'break', trackId });
+          return;
+        }
+        const progress = track.progress;
+        const result = attemptTrick(trackId);
+        if (!result) {
+          setSheetWait(false);
+          return;
+        }
+        if (!result.mastered && result.ok) {
+          pending = 'good';
+        } else if (!result.mastered && result.confused) {
+          outcome = failBand(progress);
+          pending = 'miss';
+        }
+      }
+      const ids = listing.propType ? (stageHandle.current?.trickPropIds(listing.propType, mastered) ?? []) : [];
+      const started = stageHandle.current?.startTrick(trackId, outcome, ids) ?? false;
+      if (!started) {
+        queuedPlay.current = { trackId, outcome, dialog: pending, propIds: ids };
+        setSheetWait(false);
+        return;
+      }
+      trickDialog.current = pending;
+      trickTrack.current = trackId;
+      if (pending) {
+        setSheetWait(true);
+      }
+    },
+    [attemptTrick, clock, setDialog, setSheetWait, state],
+  );
+  useLayoutEffect(() => {
+    playCatalogLatest = playCatalog;
+    playLearnedTrick = (trackId) => playCatalog(trackId, true);
+  }, [playCatalog]);
 
   if (!state || !mood) {
     return null;
@@ -1700,7 +1805,7 @@ export default function HomeScreen({ petApi }: Props) {
   const afterPayout = (trackId: string, before: typeof state, after: typeof state, deferMood = false) => {
     noteGain(trackId, before, after, deferMood);
     const track = after.training[trackId];
-    if (track && !track.mastered && isResting(track, Date.now())) {
+    if (track && !track.mastered && isResting(track, clock)) {
       openBreak(trackId);
     } else {
       setDialog(null);
@@ -1777,63 +1882,6 @@ export default function HomeScreen({ petApi }: Props) {
       }
     });
   };
-  const propTypeOf = (value: string): TrickPropType | null =>
-    value === 'podium' || value === 'tunnel' || value === 'hurdle' || value === 'cones' || value === 'hoop' ? value : null;
-  const playCatalog = (trackId: string, learned: boolean) => {
-    if (state.care.pendingReward?.choice === 'treat') {
-      return;
-    }
-    const listing = trickListing(trackId);
-    const track = state.training[trackId];
-    if (!listing || !track) {
-      setSheetWait(false);
-      return;
-    }
-    const mastered = learned || track.mastered;
-    if (listing.propType && (stageHandle.current?.trickPropIds(listing.propType, true).length ?? 0) === 0) {
-      const owned = trickPropsOf(currentOwner()).find((prop) => prop.sourceTrickId === trackId);
-      const type = owned ? propTypeOf(owned.type) : null;
-      if (owned && type) {
-        placeIntent.current = { trackId, learned };
-        stageHandle.current?.liftTrickProp({ instanceId: owned.instanceId, type, sourceTrickId: owned.sourceTrickId });
-        setSheetWait(false);
-        return;
-      }
-    }
-    let outcome: 'success' | 'early' | 'mid' | 'almost' = 'success';
-    let pending: 'good' | 'miss' | null = null;
-    if (!mastered) {
-      if (isResting(track, clock)) {
-        openBreak(trackId);
-        return;
-      }
-      const progress = track.progress;
-      const result = attemptTrick(trackId);
-      if (!result) {
-        setSheetWait(false);
-        return;
-      }
-      if (!result.mastered && result.ok) {
-        pending = 'good';
-      } else if (!result.mastered && result.confused) {
-        outcome = failBand(progress);
-        pending = 'miss';
-      }
-    }
-    const ids = listing.propType ? (stageHandle.current?.trickPropIds(listing.propType, mastered) ?? []) : [];
-    const started = stageHandle.current?.startTrick(trackId, outcome, ids) ?? false;
-    if (!started) {
-      queuedPlay.current = { trackId, outcome, dialog: pending, propIds: ids };
-      setSheetWait(false);
-      return;
-    }
-    trickDialog.current = pending;
-    trickTrack.current = trackId;
-    if (pending) {
-      setSheetWait(true);
-    }
-  };
-  playCatalogRef.current = playCatalog;
   const practice = (trackId: string) => {
     if (trickTip?.id === trackId) {
       setTrickTip(null);
@@ -1891,7 +1939,7 @@ export default function HomeScreen({ petApi }: Props) {
           speak();
           return;
         }
-        playCatalog(track.id, true);
+        playLearnedTrick(track.id);
       },
     }));
   const tricks = learned.map((trick) => ({
@@ -2719,7 +2767,20 @@ export default function HomeScreen({ petApi }: Props) {
         }}
       >
         {split ? null : homeHeader}
-        <GestureDetector gesture={gesture}>
+        <StageTouch
+          cuddleOn={cuddleOn}
+          onCuddleTap={onCuddleTapStage}
+          onCuddleMove={onCuddleMoveStage}
+          onCuddleEnd={onCuddleEndStage}
+          onTap={onStageTap}
+          onHoldStart={onHoldStart}
+          onHoldMove={onHoldMove}
+          onHoldEnd={onHoldEnd}
+          onFlickStart={onFlickStart}
+          onFlickMove={onFlickMove}
+          onFlickEnd={onFlickEnd}
+          onFlickFinish={onFlickFinish}
+        >
           <View
             ref={stageViewRef}
             collapsable={false}
@@ -2868,7 +2929,7 @@ export default function HomeScreen({ petApi }: Props) {
               />
             ) : null}
           </View>
-        </GestureDetector>
+        </StageTouch>
         {holdTarget ? (
           <HoldPieceSheet
             warning={holdTarget.warning}

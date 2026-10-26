@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
@@ -85,10 +85,10 @@ export function RangeControl({
   value: number;
   onChange: (value: number) => void;
 }) {
-  const width = useRef(1);
+  const [trackWidth, setTrackWidth] = useState(1);
   const change = (next: number) => onChange(Math.min(max, Math.max(min, next)));
   const pan = Gesture.Pan().onUpdate((event) => {
-    const ratio = Math.min(1, Math.max(0, event.x / width.current));
+    const ratio = Math.min(1, Math.max(0, event.x / trackWidth));
     runOnJS(change)(min + (max - min) * ratio);
   });
   const span = max - min;
@@ -101,7 +101,7 @@ export function RangeControl({
         <View
           style={styles.track}
           onLayout={(event) => {
-            width.current = event.nativeEvent.layout.width;
+            setTrackWidth(event.nativeEvent.layout.width);
           }}
         >
           <View style={[styles.fill, { width: `${Math.min(100, Math.max(0, fill))}%` }]} />

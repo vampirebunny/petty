@@ -5,8 +5,7 @@ import type { SkPicture } from '@shopify/react-native-skia';
 
 import { breedById, createWorld, frameDt, geomOf, spawnActor, takeSounds, todAt, update } from '../../actor';
 import { PET_SIZE, reachOf, rearOf, stageHeight, stageWidth } from '../../actor/geometry';
-import type { Equipped } from '../../sim/types';
-import type { PetState } from '../../sim/types';
+import type { Equipped, PetState } from '../../sim/types';
 import { drawPetOnly } from '../skia/world';
 import { shopAnchor, shopPetScene } from './shopFloor';
 

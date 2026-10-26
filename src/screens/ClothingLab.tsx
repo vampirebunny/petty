@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Canvas, Picture, Skia } from '@shopify/react-native-skia';
 import { Pressable } from 'react-native-gesture-handler';
@@ -105,7 +105,7 @@ export function ClothingLab({ reducedMotion, onClose }: Props) {
   const view = views.find((entry) => entry.id === viewId) ?? views[0];
   const ageDays = ages.find((entry) => entry.id === age)?.days ?? 16;
 
-  const picture = useMemo(() => {
+  const picture = (() => {
     const recorder = Skia.PictureRecorder();
     const canvas = recorder.beginRecording(Skia.XYWHRect(0, 0, stageW, stageH));
     canvas.clear(Skia.Color('#f4efe6'));
@@ -140,7 +140,7 @@ export function ClothingLab({ reducedMotion, onClose }: Props) {
     actor.speed = pose === 'walk' ? 40 : 0;
     drawActor(canvas, actor, dark ? darkBreed(breed) : breed, { yMin: 0, yMax: stageH }, t, null, false, reducedMotion);
     return recorder.finishRecordingAsPicture();
-  }, [ageDays, breed, dark, equipped, pose, reducedMotion, t, view.face, view.octant, wearDefs]);
+  })();
 
   const pickSlot = (slot: OutfitSlot, id: string | undefined) => {
     setSample(null);

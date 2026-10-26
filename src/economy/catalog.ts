@@ -15,7 +15,7 @@ export type CatalogItem = {
   starter?: boolean;
   slot?: OutfitSlot;
   wearId?: string;
-  species?: Array<'dog' | 'cat'>;
+  species?: ('dog' | 'cat')[];
   reaction?: TreatReaction | { dog: TreatReaction; cat: TreatReaction };
   effects?: {
     casual?: TreatEffects;
@@ -231,7 +231,7 @@ export function foodsInInventory(
 ): FoodChoice[] {
   const qty = new Map(inventory.map((stack) => [stack.itemId, stack.qty]));
   const choices: FoodChoice[] = [{ id: KIBBLE_ID, name: 'Kibble', count: null }];
-  const push = (id: string, name: string, count: number, allowed: Array<'dog' | 'cat'>) => {
+  const push = (id: string, name: string, count: number, allowed: ('dog' | 'cat')[]) => {
     if (count > 0 && allowed.includes(species) && !choices.some((choice) => choice.id === id)) {
       choices.push({ id, name, count });
     }

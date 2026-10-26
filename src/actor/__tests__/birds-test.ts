@@ -1,5 +1,4 @@
-import { scenes } from '../scenes';
-import { compileScene } from '../scenes';
+import { compileScene, scenes } from '../scenes';
 import { spawnBirds, stepBirds } from '../birds';
 import type { BirdSpot, BirdWorld } from '../birds';
 import { createWorld, spawnActor, takeMoodPops, update } from '../sim';

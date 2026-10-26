@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useImperativeHandle, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef } from 'react';
 import type { Ref } from 'react';
 import { AppState, StyleSheet } from 'react-native';
 import { useSharedValue } from 'react-native-reanimated';
@@ -277,37 +277,43 @@ export function PetView({
   const { viewWidth, viewHeight } = useStageSize(frame, undefined, heightShare);
   const widthRef = useRef(viewWidth);
   const heightRef = useRef(viewHeight);
-  widthRef.current = viewWidth;
-  heightRef.current = viewHeight;
   const species = breedById(pet.breedId)?.species === 'cat' ? 'cat' : 'dog';
   const baseScene = sceneForSpecies(sceneOverride ?? sceneById(pet.sceneId), species);
-  const furnitureKey = furniture.map((piece) => piece.id).join('|');
-  const placementKey = placements.map((place) => `${place.pieceId}@${place.sceneId}:${place.x},${place.y}`).join('|');
   const scene = useMemo(
     () => applyFurniture(baseScene, furniture, placements),
-    [baseScene, furniture, furnitureKey, placementKey, placements],
+    [baseScene, furniture, placements],
   );
   const worldRef = useRef<World>(createWorld([spawnActor(sourceOf(pet))], 1, scene));
   const parkOffersRef = useRef(parkOffers);
   const parkStrangerRef = useRef(parkStranger);
   const parkOnRef = useRef(parkVisitors);
-  parkOffersRef.current = parkOffers;
-  parkStrangerRef.current = parkStranger;
-  parkOnRef.current = parkVisitors;
   const activeRef = useRef(AppState.currentState === 'active');
   const hourRef = useRef(hour);
   const reducedRef = useRef(reducedMotion);
   const toysRef = useRef(toys);
   const playToyRef = useRef(playToy);
-  toysRef.current = toys;
-  playToyRef.current = playToy;
   const todRef = useRef<TimeOfDay>(todAt(12));
   const todAtMs = useRef(0);
-  if (hourRef.current !== hour) {
-    todAtMs.current = 0;
-  }
-  hourRef.current = hour;
-  reducedRef.current = reducedMotion;
+  useLayoutEffect(() => {
+    widthRef.current = viewWidth;
+    heightRef.current = viewHeight;
+  }, [viewHeight, viewWidth]);
+  useLayoutEffect(() => {
+    parkOffersRef.current = parkOffers;
+    parkStrangerRef.current = parkStranger;
+    parkOnRef.current = parkVisitors;
+  }, [parkOffers, parkStranger, parkVisitors]);
+  useLayoutEffect(() => {
+    toysRef.current = toys;
+    playToyRef.current = playToy;
+  }, [playToy, toys]);
+  useLayoutEffect(() => {
+    if (hourRef.current !== hour) {
+      todAtMs.current = 0;
+    }
+    hourRef.current = hour;
+    reducedRef.current = reducedMotion;
+  }, [hour, reducedMotion]);
   const picture = useSharedValue<SkPicture>(
     useMemo(() => {
       const recorder = Skia.PictureRecorder();
@@ -315,6 +321,10 @@ export function PetView({
       return recorder.finishRecordingAsPicture();
     }, [viewHeight, viewWidth]),
   );
+  const pictureSink = useRef(picture);
+  useLayoutEffect(() => {
+    pictureSink.current = picture;
+  }, [picture]);
   const travelRef = useRef<{
     dest: Scene | null;
     phase: 'exit' | 'fade' | 'enter';
@@ -323,9 +333,11 @@ export function PetView({
     onLeft?: () => void;
   } | null>(null);
   const onTravelingRef = useRef(onTraveling);
-  onTravelingRef.current = onTraveling;
   const onSceneCutRef = useRef(onSceneCut);
-  onSceneCutRef.current = onSceneCut;
+  useLayoutEffect(() => {
+    onTravelingRef.current = onTraveling;
+    onSceneCutRef.current = onSceneCut;
+  }, [onSceneCut, onTraveling]);
 
   const redraw = useCallback(() => {
     const recorder = Skia.PictureRecorder();
@@ -350,43 +362,30 @@ export function PetView({
     const next = recorder.finishRecordingAsPicture();
     // Leave the previous picture for GC. dispose() marks the host object dead while Fabric
     // and the Skia recorder can still read it, which throws and wedges the React scheduler.
-    picture.value = next;
-  }, [picture]);
+    pictureSink.current.value = next;
+  }, []);
   const redrawRef = useRef(redraw);
   useEffect(() => {
     redrawRef.current = redraw;
   }, [redraw]);
 
+  const actorSource = useMemo(() => sourceOf(pet), [pet]);
+
   useEffect(() => {
     const world = worldRef.current;
-    const actor = world.actors.find((item) => item.id === pet.id && !item.guest);
+    const actor = world.actors.find((item) => item.id === actorSource.id && !item.guest);
     const guests = world.actors.filter((item) => item.guest);
     if (!actor) {
-      world.actors = [spawnActor(sourceOf(pet)), ...guests];
+      world.actors = [spawnActor(actorSource), ...guests];
       world.items = [];
     } else {
-      syncActor(actor, sourceOf(pet));
+      syncActor(actor, actorSource);
       world.actors = [actor, ...guests];
     }
     syncWorldWater(world, pet.waterLevel);
     syncWorldFood(world, pet.foodInBowl, pet.bowlItemId != null);
     redraw();
-  }, [
-    pet.ageDays,
-    pet.asleep,
-    pet.breedId,
-    pet.equipped,
-    pet.bowlItemId,
-    pet.foodInBowl,
-    pet.id,
-    pet.look,
-    pet.vitality,
-    pet.needs.energy,
-    pet.hydration,
-    pet.waterLevel,
-    pet.weight,
-    redraw,
-  ]);
+  }, [actorSource, pet.bowlItemId, pet.foodInBowl, pet.waterLevel, redraw]);
 
   const pendingCue = useRef<{
     kind: typeof cueKind;
@@ -601,6 +600,11 @@ export function PetView({
     }),
     [],
   );
+
+  const onHeldRef = useRef(onHeld);
+  useLayoutEffect(() => {
+    onHeldRef.current = onHeld;
+  }, [onHeld]);
 
   useImperativeHandle(
     stageRef,
@@ -936,11 +940,7 @@ export function PetView({
     onHydrationRef.current(delta);
   }, []);
 
-  const onHeldRef = useRef(onHeld);
   const heldWas = useRef(false);
-  useEffect(() => {
-    onHeldRef.current = onHeld;
-  }, [onHeld]);
   const onStatusRef = useRef(onStatus);
   useEffect(() => {
     onStatusRef.current = onStatus;
@@ -972,11 +972,13 @@ export function PetView({
     onHouseMovedRef.current = onHouseMoved;
   }, [onFellAsleep, onTrickEnd, onHouseStowed, onHouseMoved]);
   const hungerRef = useRef(pet.needs.hunger);
-  hungerRef.current = pet.needs.hunger;
   const energyRef = useRef(pet.needs.energy);
-  energyRef.current = pet.needs.energy;
   const hydrationRef = useRef(pet.hydration);
-  hydrationRef.current = pet.hydration;
+  useLayoutEffect(() => {
+    hungerRef.current = pet.needs.hunger;
+    energyRef.current = pet.needs.energy;
+    hydrationRef.current = pet.hydration;
+  }, [pet.hydration, pet.needs.energy, pet.needs.hunger]);
   const statusRef = useRef('');
 
   const step = useCallback(

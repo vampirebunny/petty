@@ -10,27 +10,40 @@ import {
   type SpeciesId,
 } from '../db/playerHome';
 
+type HomeSnapshot = {
+  ownerId: string;
+  species: SpeciesId;
+  pieces: FurniturePiece[];
+  placements: FurniturePlacement[];
+  toys: string[];
+};
+
+const emptyHome = { pieces: [], placements: [], toys: [] };
+
 export function usePlayerHome(ownerId: string | undefined, species: SpeciesId) {
-  const [pieces, setPieces] = useState<FurniturePiece[]>([]);
-  const [placements, setPlacements] = useState<FurniturePlacement[]>([]);
-  const [toys, setToys] = useState<string[]>([]);
+  const [snapshot, setSnapshot] = useState<HomeSnapshot | null>(null);
 
   useEffect(() => {
     if (!ownerId) {
-      setPieces([]);
-      setPlacements([]);
-      setToys([]);
       return;
     }
+    const id = ownerId;
     const load = () => {
-      repairBedPlacements(ownerId, species);
-      setPieces(furnitureOf(ownerId));
-      setPlacements(layoutOf(ownerId, species));
-      setToys(toysOf(ownerId));
+      repairBedPlacements(id, species);
+      setSnapshot({
+        ownerId: id,
+        species,
+        pieces: furnitureOf(id),
+        placements: layoutOf(id, species),
+        toys: toysOf(id),
+      });
     };
     load();
     return subscribePlayerHome(load);
   }, [ownerId, species]);
 
-  return { pieces, placements, toys };
+  if (!ownerId || snapshot == null || snapshot.ownerId !== ownerId || snapshot.species !== species) {
+    return emptyHome;
+  }
+  return { pieces: snapshot.pieces, placements: snapshot.placements, toys: snapshot.toys };
 }

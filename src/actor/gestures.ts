@@ -1,6 +1,5 @@
 import { jump } from './jump';
-import type { GestureRun, Pose } from './types';
-import type { Actor } from './types';
+import type { Actor, GestureRun, Pose } from './types';
 
 export type GestureStep = {
   ms: number;

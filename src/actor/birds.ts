@@ -203,7 +203,6 @@ function rand(b: Bird): number {
 }
 const range = (b: Bird, lo: number, hi: number) => lo + (hi - lo) * rand(b);
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
-const ease = (u: number) => u * u * (3 - 2 * u);
 
 function hashSeed(s: string): number {
   let h = 2166136261;

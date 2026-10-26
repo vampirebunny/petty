@@ -211,8 +211,9 @@ export function PetShopScreen({
       }
     }
     return ids;
-  }, [inventory, pet.ownerId, toys, now]);
-  const stock = useMemo(() => loadLimitedStock(), [now]);
+  }, [inventory, pet.ownerId, toys]);
+  // `now` moves when the catalog or the shop day refreshes, which is when cached stock should reload.
+  const stock = useMemo(() => (now > 0 ? loadLimitedStock() : []), [now]);
   // Off until the Golden Crown art is ready. The limited row and buy path stay in place.
   const showLimitedCrown = false;
   const limitedOffer = showLimitedCrown ? featuredLimited(stock, clock) : null;

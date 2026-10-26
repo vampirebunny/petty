@@ -5,7 +5,7 @@ import { speciesOf } from '../sim/tracks';
 export type TreatKind = {
   id: string;
   name: string;
-  species: Array<'dog' | 'cat'>;
+  species: ('dog' | 'cat')[];
   rarity: 'common' | 'special' | 'rare';
   effects: Effects;
   reaction: TreatReaction | { dog: TreatReaction; cat: TreatReaction };
