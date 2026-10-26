@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Modal, Platform, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Modal, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Pressable } from 'react-native-gesture-handler';
 import { ChevronLeft } from 'lucide-react-native';
 
@@ -7,7 +7,6 @@ import { onAccountFlags, readAccountLinked, setHandleSaved } from '../db/account
 import { runAccountDeletion } from '../compliance/deleteAccount';
 import { getSupabase } from '../compliance/supabase';
 import { setAuthTransition } from '../state/sessionGate';
-import { usePro } from '../state/usePro';
 import { AccountSheet } from '../ui/AccountSheet';
 import { FriendsManage } from '../ui/FriendsManage';
 import { CandyShell, GRAY, candyInk, tints } from '../ui/candy';
@@ -58,9 +57,6 @@ export function SettingsScreen({ petName, onClose, pendingFriends, careReminders
   const [typed, setTyped] = useState('');
   const [working, setWorking] = useState(false);
   const [note, setNote] = useState<string | null>(null);
-  const [proNote, setProNote] = useState<string | null>(null);
-  const [proBusy, setProBusy] = useState(false);
-  const pro = usePro();
   const [appleOpen, setAppleOpen] = useState(false);
   const appleSent = useRef(false);
 
@@ -223,32 +219,6 @@ export function SettingsScreen({ petName, onClose, pendingFriends, careReminders
             </CandyShell>
           )}
         </Pressable>
-        {Platform.OS === 'web' ? null : (
-          <Pressable
-            accessibilityRole="button"
-            disabled={working || proBusy}
-            onPress={() => {
-              setProNote(null);
-              setProBusy(true);
-              void pro.presentPro().then((message) => {
-                setProBusy(false);
-                if (message) {
-                  setProNote(message);
-                }
-              });
-            }}
-            style={styles.rowHit}
-          >
-            {({ pressed }) => (
-              <CandyShell tint={tints.lilac} radius={22} uid="settings-pro" pressed={pressed} style={styles.row}>
-                <Text style={[styles.rowText, { color: candyInk(tints.lilac) }]}>
-                  {proBusy ? 'One moment…' : pro.isPro ? 'Manage Boop Boop Pro' : 'Boop Boop Pro'}
-                </Text>
-              </CandyShell>
-            )}
-          </Pressable>
-        )}
-        {proNote ? <Text style={styles.note}>{proNote}</Text> : null}
         <Pressable
           accessibilityRole="button"
           disabled={working}

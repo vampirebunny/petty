@@ -70,7 +70,7 @@ Build one mobile codebase for iOS and Android, in portrait on phones, as a 2D si
 | Local storage | AsyncStorage at first, then SQLite | Always behind a storage interface. |
 | Backend | Supabase | Postgres, auth with anonymous sign-ins, Edge Functions, scheduled jobs and row-level security. Anonymous sign-in and append-only consent records start with the age gate. Pet sync stays in Phase 4. |
 | Push and reminders | Local notifications first | Remote push only if needed later. |
-| Payments | RevenueCat | Only if purchases are added, which is out of scope for the MVP. |
+| Payments | RevenueCat | No subscription paywall. Real-money Boops, if added later, are out of scope for the MVP. |
 | Age signals | Apple Declared Age Range API, Google Play Age Signals API | Platform-provided age categories. |
 
 **Constraints that shape every feature**
