@@ -89,8 +89,12 @@ export function geomOf(breed: Breed, ageDays: number, weight: number, vitality =
   const foreX = bodyLen / 2 - 16;
   const span = foreX - Px;
   const aSit = Math.asin(clamp(span === 0 ? 0 : (0.9 * L - 4) / span, 0, 0.95));
+  // A newborn draws at 0.62 of full scale. Legs and body length keep growing after that,
+  // so full scale stops at 1.19× the newborn and a grown pet stays within 1.5× its baby size.
+  const newbornScale = 0.62;
+  const grownScale = newbornScale * 1.19;
   const geom: Geom = {
-    sc: (0.62 + 0.38 * growth.scale) * breed.size,
+    sc: (newbornScale + (grownScale - newbornScale) * growth.scale) * breed.size,
     L,
     bodyH,
     bodyLen,

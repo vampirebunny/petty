@@ -129,7 +129,7 @@ const dogVisuals: BreedVisual[] = [
     id: 'dachshund',
     name: 'Dachshund',
     species: 'dog',
-    bodyLen: 1.65,
+    bodyLen: 1.25,
     bodyH: 0.62,
     legLen: 0.34,
     head: 0.78,
@@ -370,7 +370,8 @@ const catVisuals: BreedVisual[] = [
     earColor: '#5f4630',
     muzzle: '#d9c4a5',
     pitch: 1.3,
-    size: 1.25,
+    // Big for a cat, small enough that a kitten matches the other large babies.
+    size: 0.79,
     cuteness: 1,
     eyeColor: '#c9b24a',
     pattern: 'stripes',
