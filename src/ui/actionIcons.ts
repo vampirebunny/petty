@@ -9,7 +9,6 @@ import {
   PawPrint,
   Shirt,
   Soup,
-  Sparkles,
   Sun,
   Users,
   Volleyball,
@@ -49,7 +48,6 @@ export const actionIcons: Record<string, LucideIcon> = {
   // lucide has no slashed music icon, so the off state shows through the button's inactive style.
   music: Music,
   musicOff: Music,
-  personality: Sparkles,
   help: CircleQuestionMark,
   potty: House,
   clean: Shovel,

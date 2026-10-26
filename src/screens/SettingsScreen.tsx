@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Modal, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Modal, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Pressable } from 'react-native-gesture-handler';
 import { ChevronLeft, X } from 'lucide-react-native';
 
@@ -8,15 +8,18 @@ import { logOutOfAccount } from '../compliance/accountWipe';
 import { runAccountDeletion } from '../compliance/deleteAccount';
 import { getSupabase } from '../compliance/supabase';
 import { setAuthTransition } from '../state/sessionGate';
+import type { PetState } from '../sim/types';
 import { AccountSheet } from '../ui/AccountSheet';
 import { FriendsManage } from '../ui/FriendsManage';
 import { CandyShell, GRAY, candyInk, tints } from '../ui/candy';
 import { fontFamily } from '../ui/font';
 import { HandleScreen } from '../ui/HandleScreen';
 import { iconStroke, theme } from '../ui/theme';
+import { TraitBars } from '../ui/TraitBars';
 import { useOpenedDuoTopInset } from '../ui/useDeviceOrientation';
 
 type Props = {
+  pet: PetState;
   petName: string;
   onClose: () => void;
   pendingFriends: number;
@@ -45,7 +48,7 @@ function providerPhrase(identities: { provider: string }[]): string {
   return '';
 }
 
-export function SettingsScreen({ petName, onClose, pendingFriends, careRemindersOn, onCareReminders, onFriendsChanged }: Props) {
+export function SettingsScreen({ pet, petName, onClose, pendingFriends, careRemindersOn, onCareReminders, onFriendsChanged }: Props) {
   const duoTop = useOpenedDuoTopInset();
   const [tick, setTick] = useState(0);
   const linked = readAccountLinked();
@@ -200,7 +203,7 @@ export function SettingsScreen({ petName, onClose, pendingFriends, careReminders
         </Pressable>
         <Text style={styles.title}>Settings</Text>
       </View>
-      <View style={styles.body}>
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
         {linked && !shown ? (
           <Text style={styles.line}>Signed in</Text>
         ) : linked ? (
@@ -223,6 +226,7 @@ export function SettingsScreen({ petName, onClose, pendingFriends, careReminders
             )}
           </Pressable>
         )}
+        <TraitBars pet={pet} />
         <Pressable
           accessibilityRole="button"
           onPress={() => {
@@ -295,7 +299,7 @@ export function SettingsScreen({ petName, onClose, pendingFriends, careReminders
             )}
           </Pressable>
         ) : null}
-      </View>
+      </ScrollView>
       <Modal transparent visible={confirmOpen} animationType="fade" onRequestClose={() => setConfirmOpen(false)}>
         <View style={styles.dim}>
           <CandyShell tint={tints.pink} radius={28} uid="settings-confirm" style={styles.card}>
@@ -440,9 +444,13 @@ const styles = StyleSheet.create({
     fontSize: 22,
     color: theme.ink,
   },
+  scroll: {
+    flex: 1,
+  },
   body: {
     paddingHorizontal: 20,
     paddingTop: 12,
+    paddingBottom: 32,
     gap: 14,
   },
   line: {

@@ -44,7 +44,6 @@ const tintFor: Record<string, TintName> = {
   soundOff: 'sky',
   music: 'lilac',
   musicOff: 'lilac',
-  personality: 'orchid',
   help: 'periwinkle',
   potty: 'butter',
   clean: 'peach',

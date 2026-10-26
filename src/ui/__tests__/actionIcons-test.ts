@@ -17,7 +17,6 @@ const actionIds = [
   'soundOff',
   'music',
   'musicOff',
-  'personality',
   'help',
   'potty',
   'clean',

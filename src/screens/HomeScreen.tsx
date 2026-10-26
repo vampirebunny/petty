@@ -22,7 +22,7 @@ import type { FurniturePiece } from '../actor/furniture';
 import { flickSpeedThreshold } from '../input/flick';
 import { CuddleGesture } from '../input/cuddleGesture';
 import type { GestureEvent } from '../input/cuddleGesture';
-import { archetypeNames, archetypeStyleNames, attributeScore, currentStyle, petStrokeIntervalMs, shownAttributeSteps, styleBasis, traits } from '../sim';
+import { petStrokeIntervalMs, shownAttributeSteps } from '../sim';
 import type { Trait } from '../sim';
 import {
   loadHasSeenSilentModeHint,
@@ -180,11 +180,6 @@ const traitLabel: Record<Trait, string> = {
 
 let playCatalogLatest: (trackId: string, learned: boolean) => void = () => {};
 let playLearnedTrick: (trackId: string) => void = () => {};
-
-function formatScore(value: number): string {
-  const rounded = Math.round(value * 10) / 10;
-  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
-}
 
 function StageTouch({
   cuddleOn,
@@ -450,7 +445,6 @@ export default function HomeScreen({ petApi }: Props) {
   const [friendBlock, setFriendBlock] = useState<{ userId: string; handle: string } | null>(null);
   const [addGate, setAddGate] = useState(false);
   const accountHandle = useAccountHandle();
-  const [personalityOpen, setPersonalityOpen] = useState(false);
   const [playOpen, setPlayOpen] = useState(false);
   const [propOpen, setPropOpen] = useState(false);
   const [storageOpen, setStorageOpen] = useState(false);
@@ -1569,6 +1563,7 @@ export default function HomeScreen({ petApi }: Props) {
       <>
         <PhoneColumn>
           <SettingsScreen
+            pet={state}
             petName={state.name}
             pendingFriends={incomingFriends.length}
             careRemindersOn={remindersOn}
@@ -1650,12 +1645,6 @@ export default function HomeScreen({ petApi }: Props) {
     );
   }
 
-  const origin = state.attributes.archetype;
-  const style = currentStyle(origin, styleBasis(state), state.attributes.potential);
-  const styleLine =
-    style === origin
-      ? archetypeNames[origin]
-      : `Born: ${archetypeNames[origin]} · Style: ${archetypeStyleNames[style]}`;
   const species = breedById(state.breedId)?.species ?? 'dog';
   const playableToys = home.toys.filter((id) => playRuleFor(species, id));
   const savedToy = state.activeToyId;
@@ -2001,14 +1990,6 @@ export default function HomeScreen({ petApi }: Props) {
         setStorageItems([...furniture, ...props]);
         setStorageEmpty('Nothing in storage.');
         setStorageOpen(true);
-      },
-    },
-    {
-      id: 'personality',
-      label: 'Traits',
-      onPress: () => {
-        tips.dismiss();
-        setPersonalityOpen((open) => !open);
       },
     },
     {
@@ -2694,17 +2675,6 @@ export default function HomeScreen({ petApi }: Props) {
           }
         />
         {note ? <Text style={styles.hint}>{note}</Text> : null}
-        {personalityOpen ? (
-          <View style={styles.personality}>
-            <Text style={styles.personalityMeta}>{styleLine}</Text>
-            {traits.map((trait) => (
-              <Text key={trait} style={styles.score}>
-                {traitLabel[trait]} {formatScore(attributeScore(state, trait))} /{' '}
-                {state.attributes.potential[trait]}
-              </Text>
-            ))}
-          </View>
-        ) : null}
         <CuddleHelpSheet visible={helpOpen} onClose={() => setHelpOpen(false)} />
         <SilentModeHint visible={silentHintOpen} onClose={dismissSilentHint} />
         <DebugPanel
@@ -2742,7 +2712,6 @@ export default function HomeScreen({ petApi }: Props) {
     !placesOpen &&
     !facingOpen &&
     !clothingOpen &&
-    !personalityOpen &&
     !playOpen &&
     !heldPlay &&
     !treatOpen &&
@@ -3296,18 +3265,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 18,
     color: '#5C6B80',
-  },
-  score: {
-    fontSize: 14,
-    color: '#5C6B80',
-  },
-  personality: {
-    gap: 2,
-  },
-  personalityMeta: {
-    fontSize: 15,
-    color: '#243044',
-    marginBottom: 4,
   },
   scenes: {
     flexDirection: 'row',
