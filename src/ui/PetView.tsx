@@ -181,6 +181,9 @@ type Props = {
   onTraveling?: (active: boolean) => void;
   // The drawn room just changed. Fires on the cut (fade complete), or immediately when there is no fade.
   onSceneCut?: (sceneId: string) => void;
+  // Fresh mount from the road. The pet walks in from off the left. Reduce Motion stays put.
+  enterFromLeft?: boolean;
+  onWalkIn?: () => void;
   onPointAdds?: (adds: PointAdd[]) => void;
   onGreeting?: (id: string) => void;
   onFellAsleep?: () => void;
@@ -256,6 +259,8 @@ export function PetView({
   onTreatSkipped,
   onTraveling,
   onSceneCut,
+  enterFromLeft = false,
+  onWalkIn,
   onPointAdds,
   onGreeting,
   onFellAsleep,
@@ -333,10 +338,12 @@ export function PetView({
   } | null>(null);
   const onTravelingRef = useRef(onTraveling);
   const onSceneCutRef = useRef(onSceneCut);
+  const onWalkInRef = useRef(onWalkIn);
   useLayoutEffect(() => {
     onTravelingRef.current = onTraveling;
     onSceneCutRef.current = onSceneCut;
-  }, [onSceneCut, onTraveling]);
+    onWalkInRef.current = onWalkIn;
+  }, [onSceneCut, onTraveling, onWalkIn]);
 
   const redraw = useCallback(() => {
     const recorder = Skia.PictureRecorder();
@@ -367,6 +374,25 @@ export function PetView({
   useEffect(() => {
     redrawRef.current = redraw;
   }, [redraw]);
+
+  const walkedIn = useRef(false);
+  useLayoutEffect(() => {
+    if (!enterFromLeft || walkedIn.current) {
+      return;
+    }
+    walkedIn.current = true;
+    onWalkInRef.current?.();
+    const world = worldRef.current;
+    const actor = world.actors[0];
+    onSceneCutRef.current?.(world.scene.id);
+    if (reducedRef.current || !actor) {
+      return;
+    }
+    startSceneEnter(world, actor, world.scene);
+    travelRef.current = { dest: world.scene, phase: 'enter', fade: 0 };
+    onTravelingRef.current?.(true);
+    redrawRef.current();
+  }, [enterFromLeft]);
 
   const actorSource = useMemo(() => sourceOf(pet), [pet]);
 

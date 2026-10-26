@@ -388,6 +388,7 @@ export default function HomeScreen({ petApi }: Props) {
       }
     : undefined;
   const [shownSceneId, setShownSceneId] = useState<string | null>(null);
+  const [arriveId, setArriveId] = useState<string | null>(null);
   const showScene = useCallback((sceneId: string) => {
     setShownSceneId((current) => (current === sceneId ? current : sceneId));
   }, []);
@@ -473,6 +474,7 @@ export default function HomeScreen({ petApi }: Props) {
   const [coachTarget, setCoachTarget] = useState<{ x: number; y: number } | null>(null);
   const cuddleHandle = useRef<CuddleHandle>(null);
   const stageHandle = useRef<StageHandle>(null);
+  const stateNow = useRef(state);
   const feedback = useRef<FeedbackHandle>(null);
   const tracker = useRef(new CuddleGesture());
   const touchedRef = useRef(false);
@@ -490,6 +492,9 @@ export default function HomeScreen({ petApi }: Props) {
   useEffect(() => {
     tipsRef.current = tips;
   }, [tips]);
+  useEffect(() => {
+    stateNow.current = state;
+  }, [state]);
   const [popped, setPopped] = useState<string[] | null>(null);
   const [movePieceId, setMovePieceId] = useState<string | null>(null);
   const [knownPieceIds, setKnownPieceIds] = useState<string | null>(null);
@@ -1682,7 +1687,12 @@ export default function HomeScreen({ petApi }: Props) {
           roadSpot={state.roadSpot}
           reducedMotion={reducedMotion}
           onStand={(spot) => commitPet({ ...state, roadSpot: spot, asleep: false })}
-          onEnter={setScene}
+          onEnter={(sceneId) => {
+            const walksIn =
+              sceneId === 'livingroom' || sceneId === 'bedroom' || sceneId === 'catio' || sceneId === 'park' || sceneId === 'school';
+            setArriveId(walksIn ? sceneId : null);
+            setScene(sceneId);
+          }}
           onShop={() => {
             commitPet({ ...state, roadSpot: 'petShop', asleep: false });
             setShopOpen(true);
@@ -2089,6 +2099,31 @@ export default function HomeScreen({ petApi }: Props) {
       return;
     }
     stage.depart(() => setShopOpen(true));
+  };
+  const leaveForTown = (sceneId: string) => {
+    if (state.care.pendingReward) {
+      const trackId = state.care.pendingReward.trackId;
+      const paid = resolveTraining('none');
+      if (paid) {
+        noteGain(trackId, paid.before, paid.after);
+      }
+      setDialog(null);
+    }
+    const spot = roadSpotForScene(sceneId);
+    commitPet({ ...state, asleep: false });
+    const go = () => {
+      const current = stateNow.current;
+      if (!current) {
+        return;
+      }
+      commitPet({ ...current, roadSpot: spot, asleep: false });
+    };
+    const stage = stageHandle.current;
+    if (!stage) {
+      go();
+      return;
+    }
+    stage.depart(go);
   };
   const shownDialog = dialogLive ? dialog : null;
   let trainingDialog: ReactNode = null;
@@ -2593,17 +2628,7 @@ export default function HomeScreen({ petApi }: Props) {
         }
         onDismissTip={() => setTrickTip(null)}
         onShop={() => leaveForShop()}
-        onLeave={() => {
-          if (state.care.pendingReward) {
-            const trackId = state.care.pendingReward.trackId;
-            const paid = resolveTraining('none');
-            if (paid) {
-              noteGain(trackId, paid.before, paid.after);
-            }
-            setDialog(null);
-          }
-          commitPet({ ...state, roadSpot: roadSpotForScene(state.sceneId), asleep: false });
-        }}
+        onLeave={() => leaveForTown(state.sceneId)}
         onBuy={(trick) => {
           const bought = economyApi.buyTrick(state, trick.id, newRequestId());
           if (!bought.ok || !bought.pet) {
@@ -2638,17 +2663,7 @@ export default function HomeScreen({ petApi }: Props) {
         <View style={styles.where}>
           <Text style={styles.sectionTitle}>Where</Text>
           <Pressable
-            onPress={() => {
-              if (state.care.pendingReward) {
-                const trackId = state.care.pendingReward.trackId;
-                const paid = resolveTraining('none');
-                if (paid) {
-                  noteGain(trackId, paid.before, paid.after);
-                }
-                setDialog(null);
-              }
-              commitPet({ ...state, roadSpot: roadSpotForScene(controlsScene.id), asleep: false });
-            }}
+            onPress={() => leaveForTown(controlsScene.id)}
             accessibilityRole="button"
             accessibilityLabel={`Go somewhere. ${state.name} is in the ${controlsScene.name}`}
           >
@@ -2867,6 +2882,8 @@ export default function HomeScreen({ petApi }: Props) {
               flick={cue.flick}
               hour={hour}
               reducedMotion={reducedMotion}
+              enterFromLeft={arriveId === state.sceneId}
+              onWalkIn={() => setArriveId(null)}
               onWeightDelta={applyActorWeight}
               onEnergyDelta={applyActorEnergy}
               onHungerDelta={applyActorHunger}

@@ -133,7 +133,7 @@ The field list below is the shape of a catalog row and of the pet's training ent
 - The painted field has a fence, chalk lines, a goal, trees, bushes, and a bench. Dogs and cats share it.
 - The pet wanders the grass. Podiums, tunnels, hurdles, hoops, and cones are not painted into the field. They appear only when the player places them.
 - On a phone the field is about a third of the screen, shorter than the other rooms. A wide landscape layout keeps the full scene pane.
-- Opening the school from the road shows the field and the school controls together. There is no previous room underneath. On a phone the field is the shorter stage as soon as it is on screen. Leaving the school puts the pet on the road outside Training School.
+- Opening the school from the road shows the field and the school controls together, and the pet walks in from off the left. Reduce Motion skips that walk. There is no previous room underneath. On a phone the field is the shorter stage as soon as it is on screen. Leaving the school walks the pet off to the right and fades the field, then puts them on the road outside Training School. Reduce Motion cuts straight to the road.
 - Tummy, Hydration, Energy, and Mood are hidden at the school. Those four values freeze for the visit and start falling again when the pet leaves.
 - The tall scene sits on top, and the two sections below it scroll vertically:
 

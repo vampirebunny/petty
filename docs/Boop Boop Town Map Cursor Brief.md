@@ -15,9 +15,9 @@ The map is drawn in the cotton-candy style. This pass does not include Vet, Groo
 
 ## How leaving works
 
-- Leave the Pet Shop and the pet is on the road outside the Pet Shop. Leave the Arcade and it is outside the Arcade. Leave the Park, Training School, or a home room and it is outside that door.
+- Leave the Pet Shop and the pet is on the road outside the Pet Shop. Leave the Arcade and it is outside the Arcade. Leave the living room, bedroom, catio, park, or training school and the pet walks off to the right, the room fades, and the map cuts in with the pet outside that door. Home rooms share the Home door. Reduce Motion skips the walk and the fade.
 - The Boop counter and the training sheet still open the Pet Shop directly. Closing the shop still lands on the road outside the shop. The shop's closet button still opens the wardrobe.
-- Tap the door the pet is already beside to go in with no walk. Home still opens the room sheet.
+- Tap the door the pet is already beside to enter with no walk along the road. Home still opens the room sheet. The living room, bedroom, catio, park, and training school still walk the pet in from the left.
 - Standing on the road, there is no Back button. During a walk, Back stops the walk and the pet stays by the door it started from. It does not enter a building.
 - Opening the app puts the pet back where it was: inside a place, or on the road beside the last door.
 - Leaving a scene ends the current action. A nap does not resume in the next place.
@@ -112,14 +112,14 @@ Tapping a door starts the walk. There is no confirm step.
 2. Move along the curves at a constant speed (sample by arc length). Any trip takes at least 0.8 s and at most 2.5 s.
 3. Skip (the pill, or tapping the destination again) arrives at once.
 4. Tapping a different door mid-walk re-routes from the current point: back to the nearest node on the current edge, then on to the new door.
-5. Arrival at Home opens the room sheet. The pet stays outside Home. Arrival at the Park or Training School opens that scene. Arrival at the Pet Shop or Arcade opens that screen. There is no zoom. The town pet is taken off the map before the place draws its own pet.
+5. Arrival at Home opens the room sheet. The pet stays outside Home. Choosing the living room, bedroom, catio, park, or training school cuts to that scene and the pet walks in from off the left. Reduce Motion skips the walk-in. Arrival at the Pet Shop or Arcade opens that screen. There is no zoom. The town pet is taken off the map before the place draws its own pet.
 6. Shop and Arcade, opened from the road, do not also play the in-room walk-off.
 
 ## Done when
 
 - [x] The road is titled Boop Boop Town, with no Settings gear, and the old grid is gone.
-- [x] Leaving a place, including the Pet Shop and the Arcade, puts the pet on the road beside that door. Back does not uncover the previous room.
-- [x] Tapping another door walks the pet along the path, then opens that place. Home opens the room sheet first.
+- [x] Leaving the living room, bedroom, catio, park, or training school walks the pet off to the right and fades the room before the map. Leaving the Pet Shop or the Arcade puts the pet on the road beside that door. Back does not uncover the previous room.
+- [x] Tapping another door walks the pet along the path, then opens that place. Home opens the room sheet first. The living room, bedroom, catio, park, and training school walk the pet in from the left.
 - [x] Catio shows only for a cat.
 - [x] Every trip takes 0.8–2.5 s, the pet faces its direction of travel, and it stays on the path.
 - [x] Skip arrives at once. Another tap mid-walk re-routes. Back during a walk returns the pet to the door it started from.
