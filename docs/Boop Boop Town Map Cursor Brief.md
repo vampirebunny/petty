@@ -4,14 +4,14 @@ Oct 26, 2026 · @A
 
 ## Goal
 
-Replace the "Where to?" icon grid with Boop Boop Town. The town is the road, not a picker laid over a hidden room. Leaving a place puts the pet on the road next to the door it just used. The previous room is not kept underneath.
+Boop Boop Town is the road, not a picker laid over a hidden room. Leaving a place puts the pet on the road next to the door it just used. The previous room is not kept underneath. The old "Where to?" grid is gone.
 
-The visual reference is the Boop Boop Town Map design canvas. Match its cotton-candy look. This pass does not include Vet, Groomer, or their roads. A new place adds its own road when it is built.
+The map is drawn in the cotton-candy style. This pass does not include Vet, Groomer, or their roads. A new place adds its own road when it is built.
 
 - **Doors:** Home, Pet Shop, Park, Training School, Arcade.
 - **Home rooms stay off the road.** Tapping Home walks the pet to Home, then a bottom sheet offers the room. Living room and Bedroom show for every pet. Catio shows for a cat, using the scene flags already on the catio (`playerOwned` and `species: 'cat'`), the same ownership as the other home rooms. Dogs see two rooms, centered.
 - **No Settings gear** on this screen.
-- Keep the scenes themselves. Do not delete the old grid until the town is working; then remove it and its unused styles.
+- Keep the scenes themselves. The grid and its unused styles are already removed.
 
 ## How leaving works
 
@@ -34,7 +34,7 @@ All map art is drawn in code with react-native-svg, in the existing cotton candy
 ### Map
 
 - Starts below the header and fills the screen. Top corners rounded (32 pt). Mint grass with lighter and darker soft patches. Grass colors live in one theme object so time of day can tint them later.
-- The map is a fixed 390 by 640 space (the design canvas, cropped below the arcade now that the groomer spur is gone). Scale it to the device width and keep the aspect ratio. It scrolls vertically when it is taller than the screen. On open, scroll so the pet is visible.
+- The map is a fixed 390 by 640 space, cropped below the arcade. Scale it to the device width and keep the aspect ratio. It scrolls vertically when it is taller than the screen. On open, scroll so the pet is visible.
 - Portrait tablets center the map at a max width of 600 pt, with the grass color filling the sides. Landscape keeps the existing phone column (about 400 pt).
 - Paths: cream, two stacked strokes (outer tan ~26 pt, inner cream ~18 pt, round caps). Two round plazas join the paths. The lower plaza has a small fountain.
 - Decoration: a pond on the left, bush clusters, tiny pastel flower dots. Decoration is not tappable.
@@ -62,7 +62,7 @@ While walking, scale the pet slightly by y (about 0.9 at the top of the map to 1
 - A dotted pink route shows the remaining path.
 - A pink ring pulses under the destination.
 - A white pill at the bottom: paw icon, "Walking to the {placeName}", and "Skip" in purple.
-- With Reduce Motion on, the pet moves instantly, the zoom is skipped, and the room sheet appears in place.
+- With Reduce Motion on, the pet moves instantly and the room sheet appears in place. There is no zoom.
 
 ### Home room sheet
 
@@ -112,16 +112,16 @@ Tapping a door starts the walk. There is no confirm step.
 2. Move along the curves at a constant speed (sample by arc length). Any trip takes at least 0.8 s and at most 2.5 s.
 3. Skip (the pill, or tapping the destination again) arrives at once.
 4. Tapping a different door mid-walk re-routes from the current point: back to the nearest node on the current edge, then on to the new door.
-5. Arrival at Home opens the room sheet. The pet stays outside Home. Arrival at the Park or Training School opens that scene. Arrival at the Pet Shop or Arcade opens that screen. A short zoom toward the door (about 300 ms) plays first, then the scene.
+5. Arrival at Home opens the room sheet. The pet stays outside Home. Arrival at the Park or Training School opens that scene. Arrival at the Pet Shop or Arcade opens that screen. There is no zoom. The town pet is taken off the map before the place draws its own pet.
 6. Shop and Arcade, opened from the road, do not also play the in-room walk-off.
 
 ## Done when
 
-- [ ] The road is titled Boop Boop Town, with no Settings gear, and the old grid is gone.
-- [ ] Leaving a place, including the Pet Shop and the Arcade, puts the pet on the road beside that door. Back does not uncover the previous room.
-- [ ] Tapping another door walks the pet along the path, then opens that place. Home opens the room sheet first.
-- [ ] Catio shows only for a cat.
-- [ ] Every trip takes 0.8–2.5 s, the pet faces its direction of travel, and it stays on the path.
-- [ ] Skip arrives at once. Another tap mid-walk re-routes. Back during a walk returns the pet to the door it started from.
-- [ ] Reopening the app shows the pet where it last was, inside a place or on the road.
-- [ ] Works offline, with Reduce Motion, on a small phone, and on a tablet.
+- [x] The road is titled Boop Boop Town, with no Settings gear, and the old grid is gone.
+- [x] Leaving a place, including the Pet Shop and the Arcade, puts the pet on the road beside that door. Back does not uncover the previous room.
+- [x] Tapping another door walks the pet along the path, then opens that place. Home opens the room sheet first.
+- [x] Catio shows only for a cat.
+- [x] Every trip takes 0.8–2.5 s, the pet faces its direction of travel, and it stays on the path.
+- [x] Skip arrives at once. Another tap mid-walk re-routes. Back during a walk returns the pet to the door it started from.
+- [x] Reopening the app shows the pet where it last was, inside a place or on the road.
+- [x] Works offline, with Reduce Motion, on a small phone, and on a tablet.

@@ -125,15 +125,15 @@ The field list below is the shape of a catalog row and of the pet's training ent
 
 ## 3. UI
 
-### "Where to?"
-- Add a **Training School** icon button to the existing grid. Show the name only, in the same style as the other locations.
+### Boop Boop Town
+- Training School is a door on the road, with the bell-tower schoolhouse. Tapping it walks the pet there, then opens the training room. Home rooms are not doors.
 
 ### Training School scene
 - An outdoor field on the same 640 × 680 stage as the park. It uses the park's live sky, weather, seasonal grass, and blowing leaves. Birds perch on the goal and the bench and forage on the grass.
 - The painted field has a fence, chalk lines, a goal, trees, bushes, and a bench. Dogs and cats share it.
 - The pet wanders the grass. Podiums, tunnels, hurdles, hoops, and cones are not painted into the field. They appear only when the player places them.
 - On a phone the field is about a third of the screen, shorter than the other rooms. A wide landscape layout keeps the full scene pane.
-- Those school controls, and the shorter phone stage, wait until the field cuts in. Until then the previous room's controls stay, including its Where card. Leaving the school keeps the school controls until the next room cuts in. Reduce Motion swaps them with the instant cut. The same wait applies to every scene change.
+- Opening the school from the road shows the field and the school controls together. There is no previous room underneath. On a phone the field is the shorter stage as soon as it is on screen. Leaving the school puts the pet on the road outside Training School.
 - Tummy, Hydration, Energy, and Mood are hidden at the school. Those four values freeze for the visit and start falling again when the pet leaves.
 - The tall scene sits on top, and the two sections below it scroll vertically:
 
@@ -225,7 +225,7 @@ Players start with 1,000 Boops and accrue about 60 per hour. Prices below are th
 ---
 
 ## 6. Acceptance checklist
-- [ ] Training School appears in "Where to?"; taking the pet there opens the training room scene. School controls and the shorter phone stage appear when the field cuts in, not when the place is picked. Every scene change waits the same way.
+- [x] Training School is a door on Boop Boop Town. Taking the pet there opens the training room, and the school controls and the shorter phone stage are on screen with the field.
 - [ ] A new pet has Sit, Speak and Paw in In Training at 0%, and no other tricks.
 - [ ] The Trick Shop shows only tricks for the pet's species. Locked tricks say "Unlocks at older age" and can't be bought. Owned tricks show their status.
 - [ ] The preview plays the generic demo. Buying debits Boops through the ledger and adds the trick to In Training on both the school and Home.

@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { StyleSheet } from 'react-native';
 import { Canvas, Picture, Skia } from '@shopify/react-native-skia';
 import type { SkPicture } from '@shopify/react-native-skia';
+import { useSharedValue } from 'react-native-reanimated';
 
 import { resolveBreedById, spawnActor } from '../../actor';
 import { sideOctant } from '../../actor/facing';
@@ -32,14 +33,25 @@ function sourceOf(pet: PetState) {
   };
 }
 
+function blankPicture(width: number, height: number) {
+  const recorder = Skia.PictureRecorder();
+  recorder.beginRecording(Skia.XYWHRect(0, 0, width, height));
+  return recorder.finishRecordingAsPicture();
+}
+
 export function TownPet({ pet, walking, face, reducedMotion, width, height }: Props) {
-  const [picture, setPicture] = useState<SkPicture | null>(null);
+  const picture = useSharedValue<SkPicture>(useMemo(() => blankPicture(width, height), [height, width]));
+  const pictureSink = useRef(picture);
   const actorRef = useRef<Actor | null>(null);
   const petRef = useRef(pet);
   const walkingRef = useRef(walking);
   const faceRef = useRef(face);
   const reducedRef = useRef(reducedMotion);
   const sizeRef = useRef({ width, height });
+
+  useEffect(() => {
+    pictureSink.current = picture;
+  }, [picture]);
 
   useEffect(() => {
     petRef.current = pet;
@@ -74,8 +86,9 @@ export function TownPet({ pet, walking, face, reducedMotion, width, height }: Pr
       canvas.scale(0.5, 0.5);
       drawActor(canvas, actor, breed, { yMin: 0, yMax: 80 }, clock, null, false, reducedRef.current);
       canvas.restore();
-      // Leave the previous picture for GC. dispose() kills it while the canvas can still read it.
-      setPicture(recorder.finishRecordingAsPicture());
+      // Same path as the room view: swap the picture on the shared value.
+      // Disposing it, or handing it through React state, frees it while the canvas is still reading it.
+      pictureSink.current.value = recorder.finishRecordingAsPicture();
     };
     const tick = () => {
       if (!alive) {
@@ -124,10 +137,11 @@ export function TownPet({ pet, walking, face, reducedMotion, width, height }: Pr
     };
   }, []);
 
-  if (!picture) {
-    return null;
-  }
-  return <Canvas style={[styles.canvas, { width, height }]}>{<Picture picture={picture} />}</Canvas>;
+  return (
+    <Canvas style={[styles.canvas, { width, height }]}>
+      <Picture picture={picture} />
+    </Canvas>
+  );
 }
 
 const styles = StyleSheet.create({
