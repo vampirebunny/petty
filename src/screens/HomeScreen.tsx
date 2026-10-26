@@ -49,7 +49,7 @@ import { usePlayerHome } from '../state/usePlayerHome';
 import { useEconomy } from '../economy/useEconomy';
 import { basicTreatId } from '../economy/state';
 import { KIBBLE_ID, catalogItem, foodsInInventory } from '../economy/catalog';
-import { newRequestId, outfitsOwned, secondWindOffer } from '../economy/service';
+import { grantDevBoops, newRequestId, outfitsOwned, secondWindOffer } from '../economy/service';
 import { refreshShopCatalog } from '../economy/shopSync';
 import { playRuleFor } from '../items/playRules';
 import { canGiveTreat, treatsInInventory } from '../treats';
@@ -242,7 +242,8 @@ export default function HomeScreen({ petApi }: Props) {
   const [pantryOpen, setPantryOpen] = useState(false);
   const [shopOpen, setShopOpen] = useState(false);
   const [bedTip, setBedTip] = useState(false);
-  const [bedSwap, setBedSwap] = useState<{ piece: FurniturePiece; occupantId: string; name: string; x: number; y: number } | null>(null);
+  const [bedSwap, setBedSwap] = useState<{ piece: FurniturePiece; occupantId: string; name: string; x: number; y: number   } | null>(null);
+  const playCatalogRef = useRef<(trackId: string, learned: boolean) => void>(() => {});
   useEffect(() => {
     if (!shopOpen && consumeBedStorageTip()) {
       setBedTip(true);
@@ -2656,6 +2657,7 @@ export default function HomeScreen({ petApi }: Props) {
             }
             void grantDevItem(state.ownerId, species, state.equipped, id);
           }}
+          onGrantBoops={() => grantDevBoops(10_000)}
         />
     </ScrollView>
   );

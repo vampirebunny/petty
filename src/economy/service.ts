@@ -803,6 +803,22 @@ function grantBoops(source: string, key: string, ref: string | null, amount: num
   return amount;
 }
 
+/** Local test credit. Stays on this device and is not sent to the server ledger. */
+export function grantDevBoops(amount = 10_000): void {
+  if (amount <= 0 || !ownerIsReady()) {
+    return;
+  }
+  transaction(() => {
+    ensureOwnerRows();
+    const owner = ownerId();
+    writeLedgerEntry(owner, newRequestId(), 'dev_grant', `dev:${newRequestId()}`, null, [{ asset: 'boops', delta: amount }], {
+      outbox: false,
+    });
+    setBalance(balance() + amount);
+  });
+  emit();
+}
+
 export function payoutTimeAccrual(mode: 'live' | 'return', wallNow?: number): number {
   const payable = accrualNow(wallNow);
   if (payable == null) {

@@ -32,6 +32,7 @@ type Props = {
   onFacing?: () => void;
   onClothing?: () => void;
   onGrant?: (id: string) => void;
+  onGrantBoops?: () => void;
 };
 
 const hourMs = 60 * 60 * 1000;
@@ -130,6 +131,7 @@ export function DebugPanel({
   onFacing,
   onClothing,
   onGrant,
+  onGrantBoops,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [shownGreeting, setShownGreeting] = useState('');
@@ -146,6 +148,11 @@ export function DebugPanel({
       </Pressable>
       {open ? (
         <View style={styles.body}>
+      {onGrantBoops ? (
+        <Pressable style={styles.button} onPress={onGrantBoops}>
+          <Text style={styles.buttonLabel}>+10000 boops</Text>
+        </Pressable>
+      ) : null}
       <Text style={styles.line}>Hunger {format(state.needs.hunger)}</Text>
       <Text style={styles.line}>Energy {format(state.needs.energy)}</Text>
       <Text style={styles.line}>Happiness {format(state.needs.happiness)}</Text>
