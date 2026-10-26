@@ -1,5 +1,6 @@
 import { shownLevel, stageOf, withDerived } from '../sim/attributes';
 import { ensureGame } from '../sim/game';
+import { readRoadSpot } from '../sim/road';
 import type { PetState } from '../sim/types';
 import { asyncPetStorage } from '../storage/asyncStorage';
 import { getDb } from './database';
@@ -12,6 +13,12 @@ let queue: Promise<void> = Promise.resolve();
 function revive(json: string): PetState {
   const parsed = JSON.parse(json) as PetState;
   const pet = withDerived(ensureGame(parsed));
+  const spot = readRoadSpot(pet.roadSpot);
+  if (spot) {
+    pet.roadSpot = spot;
+  } else {
+    delete pet.roadSpot;
+  }
   if (pet.lastPaidLevel != null && pet.lastPaidStage != null) {
     return pet;
   }

@@ -519,8 +519,8 @@ it('makes the sultan pillow at least as wide as an adult cat and the stack half 
   expect(caveOpening * 2 + 1e-6).toBeGreaterThanOrEqual(adultCatBodyWidth());
   expect(caveOpening * 2).toBeCloseTo(adultCatBodyWidth());
   expect(cradle + 1e-6).toBeGreaterThanOrEqual(adultCatBodyWidth());
-  expect(furnitureDefinition('bed_cloud_puff')?.w).toBe(styledBedWidth);
-  expect(furnitureDefinition('bed_bone_sofa')?.w).toBe(styledBedWidth);
+  expect(furnitureDefinition('bed_cloud_puff')?.w).toBe(styledBedWidth * 2);
+  expect(furnitureDefinition('bed_bone_sofa')?.w).toBe(styledBedWidth * 2.5);
 
   const saved = applyFurniture(
     scenes.livingroom,
@@ -546,6 +546,13 @@ it('draws an owned premium dog bed from its id when the save has no style', () =
     [{ pieceId: 'bed_cloud_puff', sceneId: 'livingroom', x: 200, y: 500 }],
   );
   expect(saved.props.find((prop) => prop.id === 'bed_cloud_puff')?.bedStyle).toBe('cloud');
+  expect(saved.props.find((prop) => prop.id === 'bed_cloud_puff')?.w).toBe(styledBedWidth * 2);
+  const stored = applyFurniture(
+    scenes.livingroom,
+    [{ id: 'bed_bone_sofa', kind: 'bed', catalogId: 'bed_bone_sofa', bedStyle: 'bone', w: styledBedWidth }],
+    [{ pieceId: 'bed_bone_sofa', sceneId: 'livingroom', x: 200, y: 500 }],
+  );
+  expect(stored.props.find((prop) => prop.id === 'bed_bone_sofa')?.w).toBe(styledBedWidth * 2.5);
   const live = applyFurniture(scenes.livingroom, [], []);
   live.props.push({ id: 'bed_cloud_puff', kind: 'bed', x: 110, y: 540, w: 112, color: '#c2653d' });
   syncFurniture(live, saved);
@@ -565,6 +572,7 @@ it('puts a sleeper in the middle of the cushion', () => {
     const middle = bedCushionPoint(prop!);
     expect(poi?.x).toBeCloseTo(middle.x);
     expect(poi?.y).toBeCloseTo(middle.y);
-    expect(middle.x).toBeCloseTo(prop!.x + (id === 'bed_kitty_cave' ? ((prop!.w ?? 0) / 280) * 12 : 0), 0);
+    const artX = id === 'bed_kitty_cave' ? 12 : id === 'bed_bone_sofa' ? 1 : 0;
+    expect(middle.x).toBeCloseTo(prop!.x + ((prop!.w ?? 0) / 280) * artX, 0);
   }
 });

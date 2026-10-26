@@ -121,6 +121,8 @@ export type PetState = {
   weightAppliedAt: number;
   bornAt: number;
   sceneId: string;
+  /** Set while the pet is on the road in Boop Boop Town, beside this door. Missing means inside sceneId. */
+  roadSpot?: import('./road').RoadSpot;
   equipped: Equipped;
   look: Look;
   attributes: PetAttributes;

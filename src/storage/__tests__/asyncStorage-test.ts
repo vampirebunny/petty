@@ -171,3 +171,19 @@ it('strips furniture off a pet save', async () => {
   expect(loaded && 'furniture' in loaded).toBe(false);
   expect(loaded && 'furniturePlaced' in loaded).toBe(false);
 });
+
+it('keeps a road spot and leaves an old save inside its room', async () => {
+  const pet = testPet(3, 'retriever', 50, 'Pup', 'pet');
+  pet.roadSpot = 'petShop';
+  await asyncPetStorage.save(pet);
+  await expect(asyncPetStorage.load()).resolves.toMatchObject({ roadSpot: 'petShop', sceneId: pet.sceneId });
+
+  const indoors = testPet(3, 'retriever', 50, 'Pup', 'pet');
+  const saved = JSON.parse(JSON.stringify(indoors)) as Record<string, unknown>;
+  delete saved.roadSpot;
+  saved.roadSpot = 'nowhere';
+  await AsyncStorage.setItem('petty.pet', JSON.stringify(saved));
+  const loaded = await asyncPetStorage.load();
+  expect(loaded?.sceneId).toBe(indoors.sceneId);
+  expect(loaded?.roadSpot).toBeUndefined();
+});

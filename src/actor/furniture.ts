@@ -107,6 +107,12 @@ function shopBedWidth(bed: { style: BedStyle; species?: 'dog' | 'cat' }): number
   if (bed.species === 'cat' && (bed.style === 'cave' || bed.style === 'moon')) {
     return catBedWidth(bed.style);
   }
+  if (bed.style === 'cloud') {
+    return styledBedWidth * 2;
+  }
+  if (bed.style === 'bone') {
+    return styledBedWidth * 2.5;
+  }
   return bed.style === 'standard' ? 112 : styledBedWidth;
 }
 
@@ -119,6 +125,9 @@ function resolvedBedWidth(piece: FurniturePiece): number | undefined {
   }
   if (bed?.species === 'cat' && style === 'moon') {
     return Math.max(piece.w ?? 0, catBedWidth('moon'));
+  }
+  if (bed?.species === 'dog' && (style === 'cloud' || style === 'bone')) {
+    return shopBedWidth(bed);
   }
   if (piece.w != null) {
     return piece.w;

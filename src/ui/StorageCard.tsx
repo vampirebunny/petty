@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Canvas, Picture, Skia } from '@shopify/react-native-skia';
 
 import { PROP_SCALE, type TrickPropType } from '../sim/trickProps';
@@ -46,7 +46,12 @@ export function StorageCard({ items, empty, top, onClose, onPick }: Props) {
         {items.length === 0 ? (
           <Text style={styles.empty}>{empty}</Text>
         ) : (
-          <View style={styles.row}>
+          <ScrollView
+            style={styles.scroller}
+            contentContainerStyle={styles.row}
+            showsVerticalScrollIndicator
+            nestedScrollEnabled
+          >
             {items.map((item) => (
               <Pressable
                 key={`${item.kind}:${item.id}`}
@@ -63,7 +68,7 @@ export function StorageCard({ items, empty, top, onClose, onPick }: Props) {
                 </Text>
               </Pressable>
             ))}
-          </View>
+          </ScrollView>
         )}
       </View>
     </View>
@@ -137,6 +142,11 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     padding: 16,
     gap: 12,
+    maxHeight: '100%',
+  },
+  scroller: {
+    flexGrow: 0,
+    flexShrink: 1,
   },
   title: {
     fontFamily: fontFamily.fredokaBold,

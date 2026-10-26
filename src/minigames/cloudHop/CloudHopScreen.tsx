@@ -302,7 +302,7 @@ export function CloudHopScreen({ pet, reducedMotion, onBack, onMenu }: Props) {
               bannerSub: run.banner?.sub ?? '',
             });
           }
-          if (run.overId !== overRef.current) {
+          if (run.phase === 'over' && run.overId !== overRef.current) {
             overRef.current = run.overId;
             stopArcadeRound();
             setOverlay('over');
@@ -383,10 +383,10 @@ export function CloudHopScreen({ pet, reducedMotion, onBack, onMenu }: Props) {
   }, []);
 
   const start = () => {
+    overRef.current = 0;
     const run = makeRun(logicalH);
     beginRun(run);
     startArcadeRound();
-    overRef.current = 0;
     setSummary(null);
     setOverlay('play');
     setHud({

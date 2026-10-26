@@ -78,7 +78,7 @@ function playNext(): void {
   try {
     dispose();
     last = pickNext(tracks.length, last);
-    const next = createAudioPlayer(tracks[last]);
+    const next = createAudioPlayer(tracks[last], { keepAudioSessionActive: true });
     next.volume = volume;
     subscription = next.addListener('playbackStatusUpdate', (status) => {
       if (status.didJustFinish) {

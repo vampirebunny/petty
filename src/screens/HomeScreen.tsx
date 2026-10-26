@@ -33,7 +33,8 @@ import {
   saveMusicEnabled,
   saveSoundEnabled,
 } from '../storage/session';
-import { PlacesScreen } from './PlacesScreen';
+import { TownScreen } from '../ui/town/TownScreen';
+import { roadSpotForScene } from '../sim/road';
 import { ArcadeScreen } from './ArcadeScreen';
 import { flushCloudHopScore } from '../minigames/cloudHop/scores';
 import { PantryScreen } from './PantryScreen';
@@ -428,11 +429,9 @@ export default function HomeScreen({ petApi }: Props) {
   const [hour, setHour] = useState<number | null>(null);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [wardrobeOpen, setWardrobeOpen] = useState(false);
-  const [placesOpen, setPlacesOpen] = useState(false);
   const [seenSnap, setSeenSnap] = useState(homeSnapToken);
   if (homeSnapToken !== 0 && homeSnapToken !== seenSnap) {
     setSeenSnap(homeSnapToken);
-    setPlacesOpen(false);
     setShopOpen(false);
     setArcadeOpen(false);
   }
@@ -1607,7 +1606,14 @@ export default function HomeScreen({ petApi }: Props) {
 
   if (arcadeOpen) {
     return hosted(
-      <ArcadeScreen pet={state} reducedMotion={reducedMotion} onClose={() => setArcadeOpen(false)} />,
+      <ArcadeScreen
+        pet={state}
+        reducedMotion={reducedMotion}
+        onClose={() => {
+          commitPet({ ...state, roadSpot: 'arcade', asleep: false });
+          setArcadeOpen(false);
+        }}
+      />,
     );
   }
 
@@ -1620,7 +1626,10 @@ export default function HomeScreen({ petApi }: Props) {
         toys={home.toys}
         species={breedById(state.breedId)?.species === 'cat' ? 'cat' : 'dog'}
         reducedMotion={reducedMotion}
-        onClose={() => setShopOpen(false)}
+        onClose={() => {
+          commitPet({ ...state, roadSpot: 'petShop', asleep: false });
+          setShopOpen(false);
+        }}
         onOpenCloset={() => {
           setShopOpen(false);
           setPantryOpen(false);
@@ -1660,6 +1669,30 @@ export default function HomeScreen({ petApi }: Props) {
         onClose={() => setWardrobeOpen(false)}
         onOpenStore={() => setShopOpen(true)}
       />
+    );
+  }
+
+  if (state.roadSpot) {
+    const townSpecies = breedById(state.breedId)?.species === 'cat' ? 'cat' : 'dog';
+    return hosted(
+      <PhoneColumn>
+        <TownScreen
+          pet={state}
+          species={townSpecies}
+          roadSpot={state.roadSpot}
+          reducedMotion={reducedMotion}
+          onStand={(spot) => commitPet({ ...state, roadSpot: spot, asleep: false })}
+          onEnter={setScene}
+          onShop={() => {
+            commitPet({ ...state, roadSpot: 'petShop', asleep: false });
+            setShopOpen(true);
+          }}
+          onArcade={() => {
+            commitPet({ ...state, roadSpot: 'arcade', asleep: false });
+            setArcadeOpen(true);
+          }}
+        />
+      </PhoneColumn>
     );
   }
 
@@ -2045,23 +2078,11 @@ export default function HomeScreen({ petApi }: Props) {
 
   const sheetTop = split ? 0 : previewBottom;
   const trickTitle = (trackId: string) => trackName(trackId, species);
-  const leaveForArcade = () => {
-    clearSheetTimer();
-    setSheetWait(false);
-    setPlacesOpen(false);
-    setDialog(null);
-    const stage = stageHandle.current;
-    if (!stage) {
-      setArcadeOpen(true);
-      return;
-    }
-    stage.depart(() => setArcadeOpen(true));
-  };
   const leaveForShop = () => {
     clearSheetTimer();
     setSheetWait(false);
-    setPlacesOpen(false);
     setDialog(null);
+    commitPet({ ...state, asleep: false });
     const stage = stageHandle.current;
     if (!stage) {
       setShopOpen(true);
@@ -2264,7 +2285,6 @@ export default function HomeScreen({ petApi }: Props) {
     );
   }
 
-  const placeSpecies = breedById(state.breedId)?.species ?? 'dog';
   const payoutPoint = burst?.origin ?? { x: stageWidth / 2, y: stageHeight * 0.5 };
   const payoutLocal = stageToView(payoutPoint);
   const payoutOrigin = { x: stageWindow.x + payoutLocal.x, y: stageWindow.y + payoutLocal.y };
@@ -2572,7 +2592,7 @@ export default function HomeScreen({ petApi }: Props) {
             : undefined
         }
         onDismissTip={() => setTrickTip(null)}
-        onShop={() => setShopOpen(true)}
+        onShop={() => leaveForShop()}
         onLeave={() => {
           if (state.care.pendingReward) {
             const trackId = state.care.pendingReward.trackId;
@@ -2582,7 +2602,7 @@ export default function HomeScreen({ petApi }: Props) {
             }
             setDialog(null);
           }
-          setPlacesOpen(true);
+          commitPet({ ...state, roadSpot: roadSpotForScene(state.sceneId), asleep: false });
         }}
         onBuy={(trick) => {
           const bought = economyApi.buyTrick(state, trick.id, newRequestId());
@@ -2627,7 +2647,7 @@ export default function HomeScreen({ petApi }: Props) {
                 }
                 setDialog(null);
               }
-              setPlacesOpen(true);
+              commitPet({ ...state, roadSpot: roadSpotForScene(controlsScene.id), asleep: false });
             }}
             accessibilityRole="button"
             accessibilityLabel={`Go somewhere. ${state.name} is in the ${controlsScene.name}`}
@@ -2739,7 +2759,6 @@ export default function HomeScreen({ petApi }: Props) {
 
   const homeIdle =
     stageReady &&
-    !placesOpen &&
     !facingOpen &&
     !clothingOpen &&
     !playOpen &&
@@ -2758,8 +2777,6 @@ export default function HomeScreen({ petApi }: Props) {
     <View style={styles.screen}>
       <View
         style={[styles.root, { paddingTop: 64 + duoTop }]}
-        accessibilityElementsHidden={placesOpen}
-        importantForAccessibility={placesOpen ? 'no-hide-descendants' : 'auto'}
       >
       {celebrating ? (
         <BadgeCelebration
@@ -3051,22 +3068,6 @@ export default function HomeScreen({ petApi }: Props) {
           secondary={{ label: 'Cancel', onPress: () => setBedSwap(null) }}
         />
       ) : null}
-      {placesOpen ? (
-        <View style={styles.placesCover} accessibilityViewIsModal>
-          <PhoneColumn>
-          <PlacesScreen
-            species={placeSpecies}
-            currentSceneId={preset.id}
-            petName={state.name}
-            reducedMotion={reducedMotion}
-            onPick={setScene}
-            onClose={() => setPlacesOpen(false)}
-            onShop={() => leaveForShop()}
-            onArcade={() => leaveForArcade()}
-          />
-          </PhoneColumn>
-        </View>
-      ) : null}
       {burst && stageReady ? (
         <BoopsPayout
           key={burst.id}
@@ -3199,11 +3200,6 @@ const styles = StyleSheet.create({
   controlsHost: {
     flex: 1,
     minHeight: 0,
-  },
-  placesCover: {
-    ...StyleSheet.absoluteFill,
-    zIndex: 20,
-    elevation: 20,
   },
   root: {
     flex: 1,

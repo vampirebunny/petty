@@ -32,7 +32,7 @@ function playLoop(): void {
   try {
     dispose();
     last = pickNext(tracks.length, last);
-    const next = createAudioPlayer(tracks[last]);
+    const next = createAudioPlayer(tracks[last], { keepAudioSessionActive: true });
     next.loop = true;
     next.volume = volume;
     player = next;

@@ -1,8 +1,6 @@
 import { useId, type ReactNode } from 'react';
 import Svg, { Circle, ClipPath, Defs, Ellipse, G, LinearGradient, Path, Polygon, Rect, Stop } from 'react-native-svg';
 
-import type { SpotId } from './spots';
-
 const viewW = 120;
 const viewH = 124;
 
@@ -231,7 +229,11 @@ export function SchoolIcon({ size }: { size: number }) {
       <Rect x={76} y={58} width={14} height={14} rx={4} fill="#FFFFFF" opacity={0.85} />
       <Path d="M78 96 L86 72 L94 96 Z" fill="#F2A3C4" />
       <Rect x={74} y={94} width={24} height={6} rx={3} fill="#E07AA8" />
-      <Circle cx={60} cy={34} r={5} fill="#FFE29A" />
+      <Rect x={50} y={2} width={20} height={34} rx={4} fill="#C45B8A" />
+      <Rect x={50} y={2} width={20} height={34} rx={4} fill={`url(#${grad})`} />
+      <Rect x={46} y={0} width={28} height={8} rx={3} fill="#F7B6D2" />
+      <Circle cx={60} cy={18} r={5} fill="#FFE29A" />
+      <Rect x={58} y={22} width={4} height={10} rx={2} fill="#E7C56A" />
     </IconSvg>
   );
 }
@@ -318,4 +320,4 @@ export const locationIcons = {
   bedroom: BedIcon,
   catio: CatioIcon,
   arcade: ArcadeIcon,
-} satisfies Record<SpotId, ({ size }: { size: number }) => ReactNode>;
+};

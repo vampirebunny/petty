@@ -81,11 +81,12 @@ export function resume(state: PetState, now: number): PetState {
     lastUpdatedAt: now < state.lastUpdatedAt ? state.lastUpdatedAt : now,
     weightAppliedAt: now,
   };
-  const home =
-    elapsedH >= AWAY_DECAY.returnHomeAfterH && settled.sceneId !== defaultSceneId
-      ? { ...rememberScene(settled, defaultSceneId), sceneId: defaultSceneId }
-      : settled;
-  return withDerived(home);
+  if (elapsedH >= AWAY_DECAY.returnHomeAfterH && settled.sceneId !== defaultSceneId) {
+    const home = { ...rememberScene(settled, defaultSceneId), sceneId: defaultSceneId };
+    delete home.roadSpot;
+    return withDerived(home);
+  }
+  return withDerived(settled);
 }
 
 export function debugJump(state: PetState, elapsedMs: number): PetState {

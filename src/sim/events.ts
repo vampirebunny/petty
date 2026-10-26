@@ -109,6 +109,8 @@ export function applyEvent(state: PetState, event: PetEvent): EventResult {
   if (event.type === 'setScene') {
     const next = rememberScene(copyState(state), event.sceneId);
     next.sceneId = event.sceneId;
+    next.asleep = false;
+    delete next.roadSpot;
     if (next.care.pendingReward) {
       return { state: withDerived(resolveReward(next, state.lastUpdatedAt, 'none')), cue: { kind: 'none' } };
     }

@@ -329,7 +329,6 @@ export function PetView({
     dest: Scene | null;
     phase: 'exit' | 'fade' | 'enter';
     fade: number;
-    asleep: boolean;
     onLeft?: () => void;
   } | null>(null);
   const onTravelingRef = useRef(onTraveling);
@@ -514,15 +513,13 @@ export function PetView({
         redraw();
         return;
       }
-      const asleep = actor.asleep || actor.task.type === 'sleep';
       if (!travelRef.current || travelRef.current.phase === 'enter') {
         startSceneExit(world, actor);
-        travelRef.current = { dest, phase: 'exit', fade: 0, asleep };
+        travelRef.current = { dest, phase: 'exit', fade: 0 };
         onTravelingRef.current?.(true);
       } else {
         travelRef.current.dest = dest;
         travelRef.current.onLeft = undefined;
-        travelRef.current.asleep = asleep || travelRef.current.asleep;
       }
       redraw();
     },
@@ -832,15 +829,13 @@ export function PetView({
           onLeft();
           return;
         }
-        const asleep = actor.asleep || actor.task.type === 'sleep';
         if (!travelRef.current || travelRef.current.phase === 'enter') {
           startSceneExit(world, actor);
-          travelRef.current = { dest: null, phase: 'exit', fade: 0, asleep, onLeft };
+          travelRef.current = { dest: null, phase: 'exit', fade: 0, onLeft };
           onTravelingRef.current?.(true);
         } else {
           travelRef.current.dest = null;
           travelRef.current.onLeft = onLeft;
-          travelRef.current.asleep = asleep || travelRef.current.asleep;
         }
         redrawRef.current();
       },
@@ -1068,9 +1063,6 @@ export function PetView({
           }
         }
         if (travel.phase === 'enter' && !isSceneTravel(actor)) {
-          if (travel.asleep) {
-            startUserTask(world, actor, 'sleep');
-          }
           travelRef.current = null;
           onTravelingRef.current?.(false);
           const queued = pendingCue.current;

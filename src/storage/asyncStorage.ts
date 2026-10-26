@@ -24,6 +24,7 @@ import type {
 import type { PetStorage } from './PetStorage';
 import { migrateEquipped } from '../actor/closet';
 import { migrateBreedId } from './migrateIds';
+import { readRoadSpot } from '../sim/road';
 
 const storageKey = 'petty.pet';
 
@@ -223,6 +224,12 @@ function migratePet(value: unknown): PetState | null {
   delete (next as { treats?: unknown }).treats;
   delete (next as { furniture?: unknown }).furniture;
   delete (next as { furniturePlaced?: unknown }).furniturePlaced;
+  const spot = readRoadSpot(raw.roadSpot);
+  if (spot) {
+    next.roadSpot = spot;
+  } else {
+    delete next.roadSpot;
+  }
   return withDerived(ensureGame(next));
 }
 
