@@ -917,7 +917,7 @@ export function drawActor(
   actor.mouthMark = toyMouthStage(actor, { x: mouth.x + rearShift.x, y: mouth.y }, rig.dir, scale);
   const drawCarry = (): void => {
     if (carrying !== null) {
-      drawToyShape(c, carrying, mouthLocal.x, mouthLocal.y, 8);
+      drawToyShape(c, carrying, mouthLocal.x, mouthLocal.y, carrying === 'frisbee' ? 16 : 8);
     }
   };
   const view = Math.max(face.turn, face.front);

@@ -39,7 +39,7 @@ describe('wardrobe closet', () => {
     expect(wearItem('jacket', 'rain')).toMatchObject({ id: 'rain', shape: 'raincoat', colorway: { c: '#f2c230' } });
     expect(wearItem('jacket', 'puffer')?.colorway).toEqual({ c: '#f28c28', d: '#ffe0c2' });
     const hoodie = wearItem('jacket', 'hoodie');
-    expect(hoodie).toMatchObject({ id: 'hoodie', label: 'Cozy Hoodie', shape: 'hoodie', colorway: { c: '#FF9FCB', d: '#8A5AD6' } });
+    expect(hoodie).toMatchObject({ id: 'hoodie', label: 'Cozy Pink Hoodie', shape: 'hoodie', colorway: { c: '#FF9FCB', d: '#8A5AD6' } });
     expect(jacketHasSleeves(hoodie!)).toBe(true);
     expect(jacketHasSleeves(wearItem('jacket', 'sweater')!)).toBe(true);
     expect(jacketHasSleeves(wearItem('jacket', 'rain')!)).toBe(false);

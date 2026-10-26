@@ -388,7 +388,7 @@ export function drawWorld(
       late: lifted,
       draw: () =>
         drawTinted(canvas, bodyTint, () => {
-          const radius = 8 * depthScale(toy.y, floor.yMin, floor.yMax);
+          const radius = (toy.kind === 'frisbee' ? 16 : 8) * depthScale(toy.y, floor.yMin, floor.yMax);
           const shade = clamp(1 - toy.z / 260, 0.4, 1);
           fillOval(canvas, toy.x, toy.y + 1, radius * shade * 1.1, radius * 0.4 * shade, '#000000', 0.15);
           const treatId = toy.kind.startsWith('treat:') ? toy.kind.slice('treat:'.length) : null;

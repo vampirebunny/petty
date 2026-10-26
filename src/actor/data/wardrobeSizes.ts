@@ -78,7 +78,7 @@ export const wardrobeSizes = {
     classic: { shape: 'wayfarer', w: 1.4, h: 1.15, frame: 0.42, lens: '#12141c', lensAlpha: 0.62, glares: 2 },
     square: { shape: 'round', w: 1.3, h: 1.3, frame: 0.26, lens: '#9fd0ff', lensAlpha: 0.22, glares: 1 },
     'red-rim': { shape: 'soft', w: 1.4, h: 1.2, frame: 0.4, lens: '#ffffff', lensAlpha: 0.12, glares: 1 },
-    heart: { shape: 'heart', w: 1.55, h: 1.45, frame: 0.42, lens: '#FFB3D6', lensAlpha: 0.45, glares: 1 },
+    heart: { shape: 'heart', w: 1.75, h: 1.9, frame: 0.42, lens: '#FFB3D6', lensAlpha: 0.45, glares: 1 },
     star: { shape: 'star', w: 1.25, h: 1.25, frame: 0.34, lens: '#FFE38F', lensAlpha: 0.45, glares: 0 },
   } as Record<
     string,

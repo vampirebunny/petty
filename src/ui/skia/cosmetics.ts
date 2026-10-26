@@ -1564,8 +1564,10 @@ function glassesLayout(face: HeadFace, item: WearItem): GlassesLayout | null {
   const eyeR = face.eyeR;
   const view = Math.max(face.turn, face.front);
   // Close-set eyes (husky) shrink the lenses at the 3/4 and front views so they never overlap.
+  // Hearts keep a higher floor so the lens still wraps the pupil when the face is narrow.
+  const heart = st.shape === 'heart';
   const need = 2 * st.w * eyeR + st.frame * eyeR + eyeR * 0.4;
-  const fit = clamp(face.gap3 / need, 0.6, 1);
+  const fit = clamp(face.gap3 / need, heart ? 0.88 : 0.6, 1);
   const k = 1 + (fit - 1) * view;
   const y = face.nearEye.y - eyeR * 0.05;
   return {
@@ -1586,9 +1588,12 @@ function lensPath(shape: 'wayfarer' | 'round' | 'soft' | 'heart' | 'star', w: nu
   }
   const p = Skia.PathBuilder.Make();
   if (shape === 'heart') {
-    p.moveTo(0, h * 0.95);
-    p.cubicTo(-w * 1.15, h * 0.15, -w * 1.05, -h, 0, -h * 0.2);
-    p.cubicTo(w * 1.05, -h, w * 1.15, h * 0.15, 0, h * 0.95);
+    // Plump heart. The cleft stays above the eye and the sides wrap the pupil.
+    p.moveTo(0, h * 1.02);
+    p.cubicTo(-w * 0.15, h * 0.45, -w * 1.02, h * 0.55, -w * 1.02, 0);
+    p.cubicTo(-w * 1.02, -h * 0.55, -w * 0.55, -h * 1.05, 0, -h * 0.88);
+    p.cubicTo(w * 0.55, -h * 1.05, w * 1.02, -h * 0.55, w * 1.02, 0);
+    p.cubicTo(w * 1.02, h * 0.55, w * 0.15, h * 0.45, 0, h * 1.02);
     p.close();
     return p.detach();
   }

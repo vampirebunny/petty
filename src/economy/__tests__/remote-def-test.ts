@@ -192,7 +192,7 @@ it('ignores a remote def for a bundled id', () => {
     },
   );
   expect(journal).toEqual([]);
-  expect(catalogItem('neckwear:bell')?.name).toBe('Bell Collar');
+  expect(catalogItem('neckwear:bell')?.name).toBe('Brown Bell Collar');
   expect(wearItem('neckwear', 'bell')?.colorway.c).toBe('#6b3a2a');
 });
 
