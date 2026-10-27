@@ -1,6 +1,6 @@
 import { createWorld, sceneById, spawnActor, update } from '../../actor';
-import { stageWidth } from '../../actor/geometry';
-import { portraitFrame, portraitZoom } from '../camera';
+import { stageHeight, stageWidth } from '../../actor/geometry';
+import { portraitFrame, portraitFrameFor, portraitSpan, portraitZoom } from '../camera';
 import {
   closeEnough,
   emptyMs,
@@ -76,6 +76,21 @@ describe('playdate opening', () => {
     expect(frame.zoom).toBeGreaterThan(2);
     expect(frame.x).toBeGreaterThan(100);
     expect(frame.x).toBeLessThan(stageWidth - 100);
+  });
+
+  it('zooms a long sitting pet out so the nose and tail stay in the close-up', () => {
+    const scene = sceneById('park');
+    const floor = scene.floor;
+    const y = (floor.yMin + floor.yMax) / 2;
+    const grown = { displayAgeDays: 400, displayWeight: 0, vitality: 1, x: homeA, y };
+    const pug = portraitFrameFor({ ...grown, breedId: 'pug' }, floor);
+    const dachshund = portraitFrameFor({ ...grown, breedId: 'dachshund' }, floor);
+    expect(pug.zoom).toBe(portraitZoom);
+    expect(dachshund.zoom).toBeLessThan(portraitZoom);
+    expect(dachshund.zoom).toBeGreaterThan(1.5);
+    const span = portraitSpan({ ...grown, breedId: 'dachshund' }, floor);
+    expect(span.width * dachshund.zoom).toBeLessThanOrEqual(stageWidth * 0.84 + 0.01);
+    expect(span.height * dachshund.zoom).toBeLessThanOrEqual(stageHeight * 0.84 + 0.01);
   });
 
   it('parks a pet fully off-screen and walks the other in from the left', () => {

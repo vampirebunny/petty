@@ -1,4 +1,5 @@
-import { stageHeight, stageWidth } from '../actor/geometry';
+import { breedById } from '../actor/breeds';
+import { depthScale, geomOf, PET_SIZE, reachOf, rearOf, stageHeight, stageWidth } from '../actor/geometry';
 import { easeInOutSine } from '../actor/pose';
 import { rngFrom } from './rng';
 import type { Beat } from './types';
@@ -34,10 +35,49 @@ function punchAmount(age: number): number {
 // Close-up on one pet. The lift aims above the feet so the head stays in frame.
 export const portraitZoom = 3;
 const portraitLift = 56;
+// How much of the close-up the sitting pet may fill. A long body zooms out instead of losing its nose or tail.
+const portraitFill = 0.84;
 
-export function portraitFrame(x: number, y: number): CameraFrame {
-  const center = clampCenter(x, y - portraitLift, portraitZoom);
-  return { x: center.x, y: center.y, zoom: portraitZoom };
+type PortraitPet = {
+  breedId: string;
+  displayAgeDays: number;
+  displayWeight: number;
+  vitality: number;
+  x: number;
+  y: number;
+};
+
+// Nose-to-tail and feet-to-ears of the sitting pet, in stage units. Sitting tips the body up, so a long low dog stays wide.
+export function portraitSpan(
+  pet: Pick<PortraitPet, 'breedId' | 'displayAgeDays' | 'displayWeight' | 'vitality' | 'y'>,
+  floor: { yMin: number; yMax: number },
+): { width: number; height: number } {
+  const breed = breedById(pet.breedId);
+  if (!breed) {
+    return { width: 0, height: 0 };
+  }
+  const geom = geomOf(breed, pet.displayAgeDays, pet.displayWeight, pet.vitality);
+  const scale = PET_SIZE * geom.sc * depthScale(pet.y, floor.yMin, floor.yMax);
+  return {
+    width: (reachOf(geom) + rearOf(geom)) * Math.cos(geom.aSit) * scale,
+    height: (geom.L + geom.bodyH + geom.headR * 2.4) * scale,
+  };
+}
+
+export function portraitZoomFor(pet: Pick<PortraitPet, 'breedId' | 'displayAgeDays' | 'displayWeight' | 'vitality' | 'y'>, floor: { yMin: number; yMax: number }): number {
+  const span = portraitSpan(pet, floor);
+  const zoomW = span.width > 0 ? (stageWidth * portraitFill) / span.width : portraitZoom;
+  const zoomH = span.height > 0 ? (stageHeight * portraitFill) / span.height : portraitZoom;
+  return Math.min(portraitZoom, zoomW, zoomH);
+}
+
+export function portraitFrame(x: number, y: number, zoom = portraitZoom): CameraFrame {
+  const center = clampCenter(x, y - portraitLift, zoom);
+  return { x: center.x, y: center.y, zoom };
+}
+
+export function portraitFrameFor(pet: PortraitPet, floor: { yMin: number; yMax: number }): CameraFrame {
+  return portraitFrame(pet.x, pet.y, portraitZoomFor(pet, floor));
 }
 
 function clampCenter(x: number, y: number, zoom: number): { x: number; y: number } {

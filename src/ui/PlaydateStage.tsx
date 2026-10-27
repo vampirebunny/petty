@@ -15,7 +15,7 @@ import type { Item } from '../items/types';
 import type { Actor, World } from '../actor';
 import { actorSourceOf } from '../playdate/snapshot';
 import type { Beat, PlaydateRecord } from '../playdate/types';
-import { cameraAt, portraitFrame } from '../playdate/camera';
+import { cameraAt, portraitFrameFor } from '../playdate/camera';
 import type { FrozenCenter } from '../playdate/camera';
 import { closeEnough, homeA, homeB, placeOpening, playSpeed, stepOpening } from '../playdate/opening';
 import type { OpeningPhase, OpeningState } from '../playdate/opening';
@@ -329,9 +329,9 @@ export function PlaydateStage({ record, reducedMotion, onDone, onTogether }: Pro
       const canvas = recorder.beginRecording(Skia.XYWHRect(0, 0, viewWidth, viewHeight));
       const camera =
         opening.phase === 'portraitA' && left
-          ? portraitFrame(left.x, left.y)
+          ? portraitFrameFor(left, floor)
           : opening.phase === 'portraitB' && right
-            ? portraitFrame(right.x, right.y)
+            ? portraitFrameFor(right, floor)
             : playing && record.version >= 2
               ? cameraAt(beats, elapsed, frozen, reducedMotion, record.seed)
               : undefined;
