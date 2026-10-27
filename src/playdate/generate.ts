@@ -645,9 +645,6 @@ export function generatePlaydate(input: {
     beats.push({ t: lastT, actor: 'both', action: closingActions[index] ?? 'celebrate', params: place });
   }
   const rareEvents: PlaydateOutcome['rareEvents'] = [];
-  if (contested && contest.upset) {
-    rareEvents.push({ type: 'upset' });
-  }
   const chance = 0.05 + (score(petA, 'intelligence') / 100) * 0.22;
   if (petB.partyTricks.length > 0 && rng() < chance) {
     const trickId = petB.partyTricks[Math.min(petB.partyTricks.length - 1, Math.floor(rng() * petB.partyTricks.length))];

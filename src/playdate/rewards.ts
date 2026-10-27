@@ -62,9 +62,6 @@ const trickLabel: Record<PartyTrick, string> = {
 };
 
 export function rareEventLine(event: RareEvent, petName: string, partnerName: string): string {
-  if (event.type === 'upset') {
-    return `An upset. The underdog took it, and ${petName} is still thinking about it.`;
-  }
   return `${partnerName} showed off ${trickLabel[event.trickId]}. ${petName} is watching.`;
 }
 

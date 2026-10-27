@@ -314,7 +314,7 @@ describe('playdate generator', () => {
     for (let seed = 0; seed < 80; seed += 1) {
       const generated = generatePlaydate({ petA: star, petB: pup, activity: activity('chase'), sceneId: 'park', seed });
       played += 1;
-      if (generated.outcome.rareEvents.some((event) => event.type === 'upset')) {
+      if (generated.beats.some((beat) => beat.tag === 'upset')) {
         upsets += 1;
       }
     }
@@ -328,7 +328,7 @@ describe('playdate generator', () => {
     let shown = null as ReturnType<typeof generatePlaydate> | null;
     for (let seed = 0; seed < 200 && (!upset || !shown); seed += 1) {
       const generated = generatePlaydate({ petA: star, petB: pup, activity: activity('chase'), sceneId: 'park', seed });
-      if (!upset && generated.outcome.rareEvents.some((event) => event.type === 'upset')) {
+      if (!upset && generated.beats.some((beat) => beat.tag === 'upset')) {
         upset = generated;
       }
       if (!shown && generated.beats.some((beat) => beat.tag === 'trick_shown')) {

@@ -126,7 +126,7 @@ export type Beat = {
   delay?: number;
 };
 
-export type RareEvent = { type: 'trick_shown'; trickId: PartyTrick } | { type: 'upset' };
+export type RareEvent = { type: 'trick_shown'; trickId: PartyTrick };
 
 export type PlaydateOutcome = {
   moodDelta: number;

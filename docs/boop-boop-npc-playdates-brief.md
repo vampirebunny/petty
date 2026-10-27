@@ -23,8 +23,8 @@ Everything is local and works offline. Saved data is keyed to `ownerId`.
 4. Activity picker. Up to 3 activities that fit the pair, the place, and both ages, with the attributes each one trains.
 5. The same closet picker as home, limited to items the user owns, opening on the everyday outfit. The choice is stored on the playdate only. NPC partners wear the full catalog.
 6. Playback at hour 14.
-7. Results: happiness, a bar for each trained attribute, bond, and any rare line. Each bar shows the score before (the app's dark color), the gain (green, right after it), and the potential (a pale bar behind). The row also shows the new total over potential and the gain as numbers. An upset and a golden closing each get a line when the record has them. Replay or finish. A replay from history shows no bars.
-8. Recent playdates, newest first, at most 3. Opening one replays the saved beats and does not pay rewards again. The row names an upset or a golden moment when the stored record has one.
+7. Results: happiness, a bar for each trained attribute, bond, and any rare line. Each bar shows the score before (the app's dark color), the gain (green, right after it), and the potential (a pale bar behind). The row also shows the new total over potential and the gain as numbers. A golden closing gets a line when the record has one. A playdate is not a contest, so results never name a winner or an upset. Replay or finish. A replay from history shows no bars.
+8. Recent playdates, newest first, at most 3. Opening one replays the saved beats and does not pay rewards again. The row names a golden moment when the stored record has one.
 
 ## Data model
 
@@ -126,9 +126,7 @@ type PlaydateOutcome = {
   moodDelta: number;               // happiness points
   attributeXp: Partial<Record<Trait, number>>;
   bondDelta: number;
-  rareEvents: Array<
-    { type: 'trick_shown'; trickId: 'sit' | 'paw' | 'speak' } | { type: 'upset' }
-  >;
+  rareEvents: Array<{ type: 'trick_shown'; trickId: 'sit' | 'paw' | 'speak' }>;
 };
 ```
 
@@ -161,7 +159,7 @@ For a partner and a place, offer every legal activity up to 3. Weight the pick t
 - Each activity template has intro, main, and finale variants. A twist can replace or follow part of the main act. A twist that just played is not picked again while another one fits.
 - Boldness chooses who moves first. If either pet's boldness is under 40, the timeline opens with 1 to 3 beats: sniff, hide, then approach. It still ends in play.
 - Affection at 55 or more adds a nuzzle before the close.
-- A race compares agility. Anything else compares stamina. The favorite's chance is `0.5 + 0.38 * tanh(gap / 25)`. A tie is the roll, and a tie is not an upset. One winner roll covers every winner and loser beat. When the underdog wins, the winner celebrates and the loser does a double-take, and the results call it an upset.
+- A race compares agility. Anything else compares stamina. The favorite's chance is `0.5 + 0.38 * tanh(gap / 25)`. A tie is the roll, and a tie is not an upset. One winner roll covers every winner and loser beat. When the underdog finishes first, that pet celebrates and the other does a double-take. That moment stays in the animation. Results do not record it.
 - Intelligence raises the chance of a `trick_shown` result. When it hits, the guest shows sit, paw, or speak in the finale and the host celebrates. Speak opens the mouth. The line is display-only.
 - One closing roll, then the closing place. A nap playdate always ends asleep. Otherwise, about 1 in 50 is a shared nap with one heart, and about 1 in 25 is both pets celebrating toward the camera. Both are tagged golden. After an upset with affection at 55 or more, the loser nuzzles. After zoomies, both flop. The rest end on nap, celebrate, or walk off together.
 - The watcher reacts when a beat leaves them free. A shy watcher glances instead of a full-body reaction.
@@ -199,7 +197,7 @@ Applied once, on complete or skip:
 - Flat attribute points from `attributesTrained`, which are the attributes the activity card lists. They are added on top of the score the pet shows (the higher of stored current and natural growth), stored in current, and clamped at potential. No `trainingGain`, no level XP, no change to `pet.bond`.
 - The results bars use the shown score before and after, worked out from the pet before the rewards are paid. Aging or a cap can make the shown gain smaller than the points.
 - Partner bond `+8`, clamped at 100.
-- A rare "showed off a trick" line when the roll hits, and an upset line when the underdog won. Nothing is stored on the pet.
+- A rare "showed off a trick" line when the roll hits. Nothing is stored on the pet. Results do not mention a winner or an upset.
 
 ### Cooldown
 
@@ -248,7 +246,7 @@ Each friend is shown in the outfit on their pet card. They do not wear the NPC c
 - A senior is never offered a race. Splash appears only in the park, and only for two dogs.
 - A dog-cat playdate is never offered tug-of-war or splash, and its beats are not the dog-dog template.
 - A low-boldness pairing opens with warm-up beats and still ends warmly: nap, celebrate, walk off, flop, or nuzzle. A golden closing is tagged golden.
-- The same seed repeats a contest. A tie is an even chance. A huge stat gap still leaves the underdog a small chance, and an upset record includes the celebration and the double-take.
+- The same seed repeats a contest. A tie is an even chance. A huge stat gap still leaves the underdog a small chance, and that finish still includes the celebration and the double-take in the beats. Results do not call it an upset.
 - A shown trick has a finale beat and a partner celebrate. The closing beat stays at the end of the timeline.
 - Version 1 replays match the stored beat samples. Version 2 uses at most one ambient cue. Parallel sound beats at the same time each fire once. An unknown sound stays silent. With no camera beat active, the stage passes no camera. A punch follows the zoom curve, and the same seed shakes the same way.
 - Rewards apply once, including after skip. Happiness never passes 100. Attribute current never passes potential. A second settle of the same id does not pay again.

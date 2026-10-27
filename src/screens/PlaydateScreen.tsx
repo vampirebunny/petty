@@ -36,11 +36,13 @@ function guestNames(record: PlaydateRecord): string {
 }
 
 function resultNotes(record: PlaydateRecord, petName: string): ResultsNote[] {
-  const notes: ResultsNote[] = record.outcome.rareEvents.map((event) => ({
-    id: event.type === 'trick_shown' ? event.trickId : event.type,
-    label: rareEventLine(event, petName, record.petB.name),
-    tone: 'rare',
-  }));
+  const notes: ResultsNote[] = record.outcome.rareEvents
+    .filter((event) => event.type === 'trick_shown')
+    .map((event) => ({
+      id: event.trickId,
+      label: rareEventLine(event, petName, record.petB.name),
+      tone: 'rare' as const,
+    }));
   if (record.beats.some((beat) => beat.tag === 'golden')) {
     notes.push({ id: 'golden', label: 'A golden moment.', tone: 'golden' });
   }
@@ -343,7 +345,6 @@ export function PlaydateScreen({ pet, save, now, remaining, reducedMotion, onSav
                   >
                     <Text style={styles.choiceLabel}>
                       {guestNames(saved)} · {activityById(saved.activityId)?.name ?? 'Playdate'}
-                      {saved.outcome.rareEvents.some((event) => event.type === 'upset') ? ' · Upset' : ''}
                       {saved.beats.some((beat) => beat.tag === 'golden') ? ' · Golden' : ''}
                     </Text>
                   </Pressable>
