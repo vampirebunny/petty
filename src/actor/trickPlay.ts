@@ -1,8 +1,8 @@
 import { facingRing, type Facing } from './data/facing';
 import { stepsFor, type TrickOutcome, type TrickStep } from './data/trickScripts';
-import { jump, jumpConfig } from './jump';
+import { jump, jumpConfig, resolveJump } from './jump';
 import { defaultPose } from './pose';
-import { approachSign, barHeight, hoopClearance, propPoint, type PlacedTrickProp } from '../sim/trickProps';
+import { approachSign, barTop, hoopApex, propPoint, TUNNEL, type PlacedTrickProp } from '../sim/trickProps';
 import { stageDayThresholds } from '../sim/config';
 import type { Actor, Pose, World } from './types';
 
@@ -20,6 +20,10 @@ export type TrickPlayback = {
   spinFace: 1 | -1;
   propIds: string[];
   propCursor: number;
+  // Locked when the pet commits to a prop. Recomputed each frame, the exit flips once they pass the middle and they turn around.
+  pathSign: 1 | -1 | null;
+  // Side of the bar the pet jumped from on a knock. The bar falls once the pet crosses it. 0 means no knock pending.
+  knockSide: number;
 };
 
 export function beginPlayback(
@@ -45,6 +49,8 @@ export function beginPlayback(
     spinFace: face,
     propIds,
     propCursor: 0,
+    pathSign: null,
+    knockSide: 0,
   };
 }
 
@@ -67,13 +73,23 @@ type Env = {
   jumping: boolean;
 };
 
-function targetOf(step: TrickStep, env: Env, face: 1 | -1): { x: number; y: number } | null {
+// The side the pet started from stays the side for the whole prop. Crossing the middle must not reverse the course.
+function courseSign(play: TrickPlayback, x: number, y: number, prop: PlacedTrickProp, face: 1 | -1): 1 | -1 {
+  if (play.pathSign != null) {
+    return play.pathSign;
+  }
+  const sign = approachSign(x, y, prop.x, prop.y, face, 80);
+  play.pathSign = sign;
+  return sign;
+}
+
+function targetOf(step: TrickStep, env: Env, play: TrickPlayback): { x: number; y: number } | null {
   const move = step.move;
   if (!move) {
     return null;
   }
   if (move.dx != null && move.to == null) {
-    return { x: env.x + face * move.dx, y: env.y + (move.dy ?? 0) };
+    return { x: env.x + play.face * move.dx, y: env.y + (move.dy ?? 0) };
   }
   const to = move.to;
   if (!to) {
@@ -83,7 +99,7 @@ function targetOf(step: TrickStep, env: Env, face: 1 | -1): { x: number; y: numb
     return { x: env.x, y: env.y + 40 };
   }
   if ('ball' in to) {
-    return { x: env.ballX ?? env.x + face * 40, y: env.y };
+    return { x: env.ballX ?? env.x + play.face * 40, y: env.y };
   }
   if ('x' in to) {
     return { x: to.x, y: env.y + (move.dy ?? 0) };
@@ -91,7 +107,7 @@ function targetOf(step: TrickStep, env: Env, face: 1 | -1): { x: number; y: numb
   if (!env.prop) {
     return { x: env.x, y: env.y };
   }
-  const sign = approachSign(env.x, env.y, env.prop.x, env.prop.y, face, 80);
+  const sign = courseSign(play, env.x, env.y, env.prop, play.face);
   const point = propPoint(
     env.prop.type,
     to.at,
@@ -170,7 +186,7 @@ export function advancePlayback(play: TrickPlayback, dt: number, env: Env): void
     });
   }
   env.pose(pose, step.rate, step.wag);
-  const goal = targetOf(step, env, play.face);
+  const goal = targetOf(step, env, play);
   if (goal && step.move) {
     env.moveTo(goal.x, goal.y, step.move.speed * Math.max(env.limit, 40), !step.move.slide);
     if (!step.move.backward && !step.move.slide && Math.abs(goal.x - env.x) > 6) {
@@ -194,6 +210,7 @@ export function advancePlayback(play: TrickPlayback, dt: number, env: Env): void
   }
   if (play.propCursor + 1 < play.propIds.length) {
     play.propCursor += 1;
+    play.pathSign = null;
     play.index = 0;
     play.steps = stepsFor(play.trickId, 'success');
     return;
@@ -263,7 +280,7 @@ export function applyTrickPose(
       let targetX = hop.inPlace ? actor.x : undefined;
       let landZ = 0;
       if (hop.to && prop && typeof hop.to === 'object' && 'prop' in hop.to) {
-        const sign = approachSign(actor.x, actor.y, prop.x, prop.y, play.face, 80);
+        const sign = courseSign(play, actor.x, actor.y, prop, play.face);
         const point = propPoint(prop.type, hop.to.at, prop.x, prop.y, sign, bodyLength, jumpConfig.hurdleApproach, jumpConfig.hurdlePast);
         targetX = point.x;
         landZ = hop.landZ === 'top' ? point.landZ : 0;
@@ -273,18 +290,34 @@ export function applyTrickPose(
       if (hop.landZ === 0) {
         landZ = 0;
       }
-      const cap = jumpConfig.heightCap * bodyHeight;
-      jump(actor, {
+      const bodyHPx = resolveJump(actor)?.bodyHPx ?? bodyHeight;
+      let obstacleHeight: number | undefined;
+      let heightPx: number | undefined;
+      if (prop?.type === 'hurdle' && hop.knock) {
+        // A miss: the apex stays under the bar so the feet clip it.
+        heightPx = barTop(prop) * 0.6;
+      } else if (prop?.type === 'hurdle' && hop.clear === 'bar') {
+        // The jump clears the drawn bar. The bar was fitted to this pet's ceiling when the trick began.
+        obstacleHeight = barTop(prop);
+      } else if (prop?.type === 'hoop' && hop.heightPx === 'hoop') {
+        // The body's middle passes through the ring's middle.
+        heightPx = hoopApex(prop, bodyHPx);
+      }
+      const launched = jump(actor, {
         targetX,
         landZ,
         height: hop.height,
         fast: hop.fast,
         wiggle: hop.wiggle,
-        obstacleHeight: hop.clear === 'bar' ? barHeight(bodyHeight, cap) + 6 : undefined,
-        heightPx: hop.heightPx === 'hoop' ? hoopClearance(bodyHeight * 0.5) : undefined,
+        obstacleHeight,
+        heightPx,
       });
       if (hop.knock && prop) {
-        prop.knocked = true;
+        if (launched) {
+          play.knockSide = Math.sign(actor.x - prop.x) || -play.face;
+        } else {
+          prop.knocked = true;
+        }
       }
     },
     sound: (kind, rate) => {
@@ -329,5 +362,37 @@ export function applyTrickPose(
     },
     jumping: actor.jump != null,
   });
+  // The bar drops when the pet passes over it, not when it leaves the ground.
+  if (play.knockSide !== 0 && prop) {
+    const side = Math.sign(actor.x - prop.x);
+    if ((side !== 0 && side !== play.knockSide) || !actor.jump) {
+      prop.knocked = true;
+      play.knockSide = 0;
+    }
+  }
+  // Inside the tube the crawl is immediate. A slow ease leaves the head above the roof, and the pet stalls there.
+  if (
+    prop?.type === 'tunnel' &&
+    actor.z <= 0.5 &&
+    Math.abs(actor.y - prop.y) < 28 &&
+    Math.abs(actor.x - prop.x) < TUNNEL.half + TUNNEL.mouth
+  ) {
+    targets.stalk = 1;
+    targets.crouch = 1;
+    targets.headDown = Math.max(targets.headDown, 0.9);
+    targets.earBack = 1;
+    targets.headUp = 0;
+    targets.sit = 0;
+    actor.pose.stalk = 1;
+    actor.pose.crouch = 1;
+    actor.pose.headDown = Math.max(actor.pose.headDown, 0.9);
+    actor.pose.earBack = 1;
+    actor.pose.headUp = 0;
+    actor.pose.sit = 0;
+    const dashing = play.steps[play.index]?.move?.to;
+    if (dashing && typeof dashing === 'object' && 'at' in dashing && dashing.at === 'out') {
+      vmax = Math.max(vmax, Math.max(limit, 90) * 2.6);
+    }
+  }
   return { move, vmax, wagRate };
 }

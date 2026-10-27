@@ -218,40 +218,42 @@ Use the existing ball toy item and its physics.
 
 ## 8. Props in trick animations
 
-**Every training prop works for both dogs and cats.** Place, Jump the Hurdle, Weave, Jump Through Hoop and Through the Tunnel each have a dog script and a cat script that use the same prop and the same anchors. Only Jump Up (stool) is cat-only. The species difference comes from `jumpConfig.dog` vs `jumpConfig.cat`: cats jump higher per body length and do a butt wiggle first, so the hurdle bar usually stays at full height for a cat.
+**Every training prop works for both dogs and cats.** Jump Up, Jump the Hurdle, Weave, Jump Through Hoop, and Through the Tunnel each have a dog script and a cat script that use the same prop type. The species difference comes from `jumpConfig.dog` vs `jumpConfig.cat`: cats jump higher per body length and do a butt wiggle first, so a fitted hurdle bar usually stays higher for a cat.
 
-Anchors come from `catalog_items.anchors`. They are relative to the prop's floor origin (bottom centre) and multiplied by **`PROP_SCALE` (start at 1.6, then tune)** so a tunnel fits an adult of the biggest breed while it crouches.
+`src/sim/trickProps.ts` is the geometry both the path and the art read (`TUNNEL`, `HURDLE`, `HOOP`, `CONES`, and the podium constants). Numbers are in stage pixels, already multiplied by `PROP_SCALE` (1.6).
 
-Derived points the scripts use, where `bl` = pet body length × scale:
+Derived points the scripts use, where `bl` = pet body length × scale. `sign` −1 runs toward +x. Approaching from the right reverses the path. The art stays left-right. The sign is chosen once, when the pet commits to that prop, and held until the prop is finished. It is not recomputed from the pet's current x, or crossing the middle turns the course around. A trick walks straight to those points. Scene obstacles do not steer it.
 
 | prop | `at` points |
 |---|---|
-| podium / stool | `approach = x − halfTop − 0.62·bl`, `top = x`, `off = x + halfTop + 0.7·bl` |
-| tunnel | `approach = entry.x − 0.55·bl`, `mid = x`, `out = exit.x + 0.7·bl` |
-| hurdle | `approach = x − hurdleApproach·size − 0.5·bl`, `landing = x + hurdlePast·size + 0.5·bl` |
-| cones | `approach = path[0].x − 0.75·bl`, `c0…c3 = path[i].x`, `out = path[last].x + 0.75·bl` |
-| hoop | `approach = x − 0.5·bl − 95·size`, `landing = x + 0.5·bl + 95·size` |
+| podium | `approach = x − halfTop − 0.62·bl`, `top = x` at `landZ = 30·PROP_SCALE`, `off = x + halfTop + 0.7·bl` |
+| tunnel | `approach = x − half − 0.55·bl`, `mid = x`, `out = x + half + mouth + 1.5·bl` |
+| hurdle | `approach = x − hurdleApproach − 0.5·bl`, `landing = x + hurdlePast + 0.5·bl` |
+| cones | `approach = path[0].x − 0.75·bl` on the line, `c0…c3 = path[i]` offset by `± CONES.weave` on alternating sides, `out` a body length past the last cone |
+| hoop | `approach = x − 0.5·bl − 95`, `landing = x + 0.5·bl + 95` |
+
+Cone side offset comes only from `propPoint`. The `c0`–`c3` steps do not set `move.dy`. Approach may still use `dy`.
+
+### Fitted heights
+
+When a trick starts, `startTrick` fits each of its props once and leaves the height for the rest of the scene:
+
+- A hurdle writes `barZ`: 85% of the pet's jump ceiling, after the obstacle margin, clamped between `barMin` and `barMax`.
+- A hoop writes `hoopZ`: the ring center that puts the torso in the lower part of the ring, so the ears clear the top. It is clamped between the lowest ring that still clears the stand and `zMax`.
+- The jump then clears `barTop` (hurdle) or uses `hoopApex` (hoop). Unfitted props use the default bar and ring heights.
+- If another pet is already mid-trick on that prop, it is not resized or un-knocked. The second pet jumps the height that is already set.
+
+A knocked hurdle does not fall on takeoff. The bar drops when the pet crosses it, or when the jump ends without a crossing.
 
 ### Layering
-Draw each training prop in two passes, with the pet in between:
-- **Tunnel:**
-  - Behind the pet: both openings.
-  - In front of the pet: the tube body.
-  - The pet vanishes inside and pops out the exit.
-  - `stalk: 1` keeps it under `inner_height`.
-- **Hurdle:**
-  - The bar is drawn at a 3/4 angle, from the back post to the front post.
-  - Behind the pet: the back post and the bar.
-  - In front of the pet: the front post.
-- **Hoop:**
-  - Draw the ring edge-on as a thin ellipse.
-  - Behind the pet: its back arc.
-  - In front of the pet: its front arc.
-- **Cones:**
-  - Cones the pet passes **behind** (even-indexed on the weave path) are drawn over the pet.
-  - Cones it passes in front of are drawn under it.
-  - The pet also shifts depth by ±18 between cones.
-- **Pet in front of a prop:** when it walks in front of a prop (`dy > 8`, going around), draw it after both passes.
+
+Tunnel, hurdle, hoop, and podium draw in two passes, with the pet between them. `splitsAroundActors` is false for cones: the whole line is one depth-sorted item at `prop.y`, and every pet sorts against that line by its own `y`. Storage glyphs draw every prop in one `'whole'` pass. The pet-only preview does too for cones, and splits the other props so the pet passes through them. The school preview places the pet a short walk before the approach, and keeps the exit inside the distance the pet can actually walk.
+
+- **Tunnel:** openings behind the pet, tube wall in front. The opening sits on the ground line (`TUNNEL.foot` is 0), and a short skirt below that line covers the paws. While the pet is inside the tube, the crawl pose is snapped on, ears flat, and the run through the exit is a fast dash. The exit is a body length past the mouth, so the pet is clear of the tube when the dash ends.
+- **Hurdle:** the bar runs across the path. Its far half and the far post draw behind the pet. Its near half and the near post draw in front. The drawn bar height is `barZ`.
+- **Hoop:** the back arc is behind the pet and the front arc is in front, so the pet threads the ring. The ring center is `hoopZ`.
+- **Cones:** one depth plane at `prop.y`. Weave stops sit about `CONES.weave` to either side, past the 8px "pet in front" threshold.
+- **Pet in front of a split prop:** when any pet is more than 8px in front of the prop, that pet draws after both passes.
 
 ---
 
@@ -265,16 +267,16 @@ The scripts are written for an adult. Apply these on top:
 
 ## 10. Acceptance checklist
 - [ ] All 30 non-starter tricks play their success script with the same beats as Trick Lab:
-  - Dogs: 9 plain, Stand Tall, Sing, and 5 furniture tricks (Place, Through the Tunnel, Jump the Hurdle, Weave, Jump Through Hoop).
-  - Cats: 6 plain, Stand Tall, Sing, and 6 furniture tricks (Place, Through the Tunnel, Jump the Hurdle, Weave, Jump Up, Jump Through Hoop).
+  - Dogs: 9 plain, Stand Tall, Sing, and 5 furniture tricks (Jump Up, Through the Tunnel, Jump the Hurdle, Weave, Jump Through Hoop).
+  - Cats: 6 plain, Stand Tall, Sing, and 5 furniture tricks (Jump Up, Through the Tunnel, Jump the Hurdle, Weave, Jump Through Hoop).
 - [ ] Training furniture is shared by species. A cat can train on the podium, hurdle or cones a dog's bundle brought in, and the reverse.
 - [ ] A failed roll plays the band's fail script by progress, then "try again?". A success plays the full script, then "give treat?".
 - [ ] High Five reads clearly differently from Paw.
 - [ ] Spin passes through front and back views.
 - [ ] Stand Tall keeps the hind feet planted and the face level.
-- [ ] Place and Jump Up land on top of the prop. The pet sits there, then hops down from that height.
-- [ ] The hurdle bar lowers for small pets and puppies, and every size clears it.
-- [ ] The pet is hidden inside the tunnel, passes through the hoop with the ring around its body, and weaves in and out of the cones.
+- [ ] Jump Up lands on top of the podium. The pet sits there, then hops down from that height.
+- [ ] The hurdle bar and hoop are fitted to the pet when the trick starts. A small pet or a puppy gets a lower bar, and that pet clears it. A second pet already sharing the prop jumps the height that is already set.
+- [ ] The pet is hidden inside the tunnel, passes through the hoop with the ring around its body, and weaves to alternating sides of the cones.
 - [ ] Catch meets the ball at the jump apex. Fetch brings the ball to the front and drops it.
 - [ ] Sing plays a pitched melody from the existing clips, with the jaw opening on each note.
 - [ ] Changing a prop's size or colour (different anchors) still lines up every furniture trick.

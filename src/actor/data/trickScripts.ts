@@ -153,7 +153,7 @@ const dogJump: TrickStep[] = [
 const dogTunnel: TrickStep[] = [
   { label: 'Lines up', move: { to: { prop: 'tunnel', at: 'approach' }, speed: 0.8 }, untilArrive: true, dur: 4 },
   { label: 'Crouches', dur: 0.35, pose: { stalk: 1, headDown: 0.25, earBack: 0.3 } },
-  { label: 'Dashes through', move: { to: { prop: 'tunnel', at: 'out' }, speed: 1.4 }, untilArrive: true, dur: 4, pose: { stalk: 1, headDown: 0.3, earBack: 0.45 } },
+  { label: 'Dashes through', move: { to: { prop: 'tunnel', at: 'out' }, speed: 2.6 }, untilArrive: true, dur: 4, pose: { stalk: 1, crouch: 1, headDown: 0.85, earBack: 0.6 } },
   { label: 'Pops out', dur: 0.25, sound: 'yip' },
   { label: 'Happy hop', jump: { inPlace: true, height: 0.35 } },
   { label: 'Wags', dur: 0.9, pose: { faceCam: 0.5, pant: 0.6 }, wag: wag(0.7, 14) },
@@ -164,17 +164,17 @@ const dogHurdle: TrickStep[] = [
   { label: 'Trots on', move: { dx: 50, speed: 0.6 }, untilArrive: true, dur: 2 },
   { label: 'Proud', dur: 1.0, pose: { faceCam: 0.5, pant: 0.6 }, wag: wag(0.7, 14), sound: 'woof' },
 ];
-const weave = (at: string, dy: number, speed: number): TrickStep => ({
-  move: { to: { prop: 'cones', at }, dy, speed, pass: true },
+const weave = (at: string, speed: number): TrickStep => ({
+  move: { to: { prop: 'cones', at }, speed, pass: true },
   untilArrive: true,
-  dur: 3,
+  dur: 2.2,
 });
 const dogWeave: TrickStep[] = [
   { label: 'Lines up', move: { to: { prop: 'cones', at: 'approach' }, dy: -18, speed: 0.8 }, untilArrive: true, dur: 4 },
-  { label: 'Weaves the cones', ...weave('c0', -18, 0.65) },
-  weave('c1', 18, 0.65),
-  weave('c2', -18, 0.65),
-  weave('c3', 18, 0.65),
+  { label: 'Weaves the cones', ...weave('c0', 1.05) },
+  weave('c1', 1.05),
+  weave('c2', 1.05),
+  weave('c3', 1.05),
   { label: 'Out the end', move: { to: { prop: 'cones', at: 'out' }, dy: 0, speed: 0.6 }, untilArrive: true, dur: 3 },
   { label: 'Proud', dur: 1.0, pose: { faceCam: 0.5, pant: 0.6 }, wag: wag(0.7, 14), sound: 'woof' },
 ];
@@ -234,7 +234,7 @@ const catSing: TrickStep[] = [
 const catTunnel: TrickStep[] = [
   { label: 'Lines up', move: { to: { prop: 'tunnel', at: 'approach' }, speed: 0.7 }, untilArrive: true, dur: 4, pose: { tailLift: 0.6 } },
   { label: 'Crouches', dur: 0.4, pose: { stalk: 1, pupils: 1, wiggle: 0.6 } },
-  { label: 'Zooms through', move: { to: { prop: 'tunnel', at: 'out' }, speed: 1.6 }, untilArrive: true, dur: 4, pose: { stalk: 1, earBack: 0.4 } },
+  { label: 'Zooms through', move: { to: { prop: 'tunnel', at: 'out' }, speed: 2.8 }, untilArrive: true, dur: 4, pose: { stalk: 1, crouch: 1, headDown: 0.85, earBack: 0.55 } },
   { label: 'Pops out', dur: 0.5, pose: { tailLift: 1 }, sound: 'trill' },
   { label: 'Sits', dur: 0.8, pose: { sit: 1, faceCam: 0.6, tailLift: 0.6 } },
 ];
@@ -260,18 +260,18 @@ const catHurdle: TrickStep[] = [
   { label: 'Lands, tail up', dur: 0.5, pose: { tailLift: 1 } },
   { label: 'Sits, pleased', dur: 1.0, pose: { sit: 1, faceCam: 0.6, tailLift: 0.5 }, sound: 'trill' },
 ];
-const catWeaveStep = (at: string, dy: number): TrickStep => ({
-  move: { to: { prop: 'cones', at }, dy, speed: 0.5, pass: true },
+const catWeaveStep = (at: string): TrickStep => ({
+  move: { to: { prop: 'cones', at }, speed: 0.95, pass: true },
   untilArrive: true,
-  dur: 3,
+  dur: 2.2,
   pose: { tailLift: 0.8 },
 });
 const catWeave: TrickStep[] = [
   { label: 'Lines up', move: { to: { prop: 'cones', at: 'approach' }, dy: -18, speed: 0.6 }, untilArrive: true, dur: 4, pose: { tailLift: 0.6 } },
-  { label: 'Weaves the cones', ...catWeaveStep('c0', -18) },
-  catWeaveStep('c1', 18),
-  catWeaveStep('c2', -18),
-  catWeaveStep('c3', 18),
+  { label: 'Weaves the cones', ...catWeaveStep('c0') },
+  catWeaveStep('c1'),
+  catWeaveStep('c2'),
+  catWeaveStep('c3'),
   { label: 'Out the end', move: { to: { prop: 'cones', at: 'out' }, dy: 0, speed: 0.5 }, untilArrive: true, dur: 3, pose: { tailLift: 1 } },
   { label: 'Sits, pleased', dur: 1.0, pose: { sit: 1, faceCam: 0.6, tailLift: 0.5 }, sound: 'meow' },
 ];

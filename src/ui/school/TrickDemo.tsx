@@ -4,14 +4,46 @@ import { Canvas, Picture, Skia } from '@shopify/react-native-skia';
 import type { SkPicture } from '@shopify/react-native-skia';
 
 import { breedById, createWorld, defaultLook, frameDt, placeTrickProp, spawnActor, startTrick, todAt, update } from '../../actor';
-import type { World } from '../../actor';
+import type { Actor, World } from '../../actor';
+import { geomOf, PET_SIZE, xRangeOf } from '../../actor/geometry';
+import { jumpConfig } from '../../actor/jump';
 import { previewBackdrop, previewHome, previewScene } from '../../actor/previewScene';
 import { drawPetOnly } from '../skia/world';
+import { propPoint, type TrickPropType } from '../../sim/trickProps';
 import { trickListing } from '../../sim/tricks';
 
 const noon = todAt(12);
 const frameMs = 1000 / 30;
 const demoBreed = { dog: 'retriever', cat: 'domesticShorthair' } as const;
+
+// The pet starts a short walk before the approach, and the whole course stays on the floor.
+function previewLayout(
+  actor: Actor,
+  type: TrickPropType,
+  floor: { xMin: number; xMax: number },
+): { petX: number; propX: number } {
+  const breed = breedById(actor.breedId);
+  const geom = breed ? geomOf(breed, actor.displayAgeDays, actor.displayWeight, actor.vitality) : null;
+  const scale = geom ? PET_SIZE * geom.sc : 1;
+  const range = geom ? xRangeOf(floor, geom, scale) : { lo: floor.xMin + 48, hi: floor.xMax - 48 };
+  const bodyLength = Math.max(scale * 48, 36);
+  const endAt = type === 'podium' ? 'off' : type === 'hurdle' || type === 'hoop' ? 'landing' : 'out';
+  const approach = propPoint(type, 'approach', 0, 0, -1, bodyLength, jumpConfig.hurdleApproach, jumpConfig.hurdlePast);
+  const end = propPoint(type, endAt, 0, 0, -1, bodyLength, jumpConfig.hurdleApproach, jumpConfig.hurdlePast);
+  const lead = 72;
+  let propX = actor.x - approach.x;
+  let petX = actor.x - lead;
+  const right = propX + end.x;
+  if (right > range.hi - 8) {
+    const delta = right - (range.hi - 8);
+    propX -= delta;
+    petX -= delta;
+  }
+  if (petX < range.lo + 8) {
+    petX = range.lo + 8;
+  }
+  return { petX, propX };
+}
 
 type Props = {
   species: 'dog' | 'cat';
@@ -53,10 +85,12 @@ export function TrickDemo({ species, trickId, width, height: heightProp }: Props
     const actor = world.actors[0];
     const listing = trickListing(trickId);
     if (actor && listing?.propType) {
+      const spot = previewLayout(actor, listing.propType, world.scene.floor);
+      actor.x = spot.petX;
       placeTrickProp(
         world,
         { instanceId: 'preview', type: listing.propType, sourceTrickId: trickId },
-        previewHome.x + 90,
+        spot.propX,
         previewHome.y,
       );
     }

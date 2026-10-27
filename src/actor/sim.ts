@@ -70,7 +70,7 @@ import { canBehave, reactionFor, type UserTask } from './behavior';
 import { defaultPose, easePose } from './pose';
 import { applyTrickPose, beginPlayback, seniorStand } from './trickPlay';
 import type { TrickOutcome } from './data/trickScripts';
-import type { OwnedTrickProp, PlacedTrickProp } from '../sim/trickProps';
+import { fitTrickProp, propYInset, type OwnedTrickProp, type PlacedTrickProp } from '../sim/trickProps';
 import { newCuddle, stepCuddle } from './cuddle';
 import { nearestPoi, poiOf, sceneForSpecies, scenes, stageHeight } from './scenes';
 import type { Poi, Prop, Scene } from './scenes';
@@ -2369,6 +2369,21 @@ export function startTrick(world: World, actor: Actor, trickId: string, outcome:
   if (trickBusy(actor)) {
     return false;
   }
+  const reach = resolveJump(actor, { heightPx: 1e4 });
+  for (const id of propIds) {
+    const prop = world.trickProps.find((item) => item.instanceId === id);
+    if (!prop) {
+      continue;
+    }
+    const inUse = world.actors.some((other) => other !== actor && trickBusy(other) && other.task.trick?.propIds.includes(id));
+    if (inUse) {
+      continue;
+    }
+    prop.knocked = false;
+    if (reach) {
+      fitTrickProp(prop, reach.heightPx, reach.bodyHPx, jumpConfig.obstacleMargin);
+    }
+  }
   const mods = motionMods(actor.displayAgeDays, actor.vitality, actor.energy);
   const face: 1 | -1 = actor.face >= 0 ? 1 : -1;
   actor.task = taskOf('trick');
@@ -2396,7 +2411,7 @@ export function placeTrickProp(world: World, owned: OwnedTrickProp, x: number, y
     ...owned,
     type: owned.type,
     x: clamp(x, floor.xMin, floor.xMax),
-    y: clamp(y, floor.yMin, floor.yMax),
+    y: clampPropY(owned.type, y, floor.yMin, floor.yMax),
     knocked: false,
   };
   world.trickProps = world.trickProps.filter((prop) => prop.instanceId !== owned.instanceId);
@@ -2460,8 +2475,18 @@ export function moveTrickProp(world: World, instanceId: string, x: number, y: nu
   }
   const floor = world.scene.floor;
   prop.x = clamp(x, floor.xMin, floor.xMax);
-  prop.y = clamp(y, floor.yMin, floor.yMax);
+  prop.y = clampPropY(prop.type, y, floor.yMin, floor.yMax);
   return prop;
+}
+
+function clampPropY(type: PlacedTrickProp['type'], y: number, yMin: number, yMax: number): number {
+  const inset = propYInset(type);
+  const lo = yMin + inset;
+  const hi = yMax - inset;
+  if (lo > hi) {
+    return clamp(y, yMin, yMax);
+  }
+  return clamp(y, lo, hi);
 }
 
 export function debugFlipFace(actor: Actor): void {
@@ -3406,7 +3431,7 @@ function updateActor(world: World, actor: Actor, dt: number): void {
       ? floor
       : { xMin: xClampLo, xMax: xClampHi, yMin: floor.yMin, yMax: floor.yMax };
     const aim =
-      traveling || actor.z > 1
+      traveling || actor.z > 1 || actor.task.type === 'trick'
         ? { x: tx, y: ty }
         : steerAim(
             { x: actor.x, y: actor.y },

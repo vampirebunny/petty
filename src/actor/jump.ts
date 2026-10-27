@@ -264,6 +264,7 @@ export type ResolvedJump = {
   pitchPeak: number;
   puppy: number;
   bodyH: number;
+  bodyHPx: number;
   bodyLenPx: number;
   prep: number;
   airTime: number;
@@ -340,6 +341,7 @@ export function resolveJump(actor: Actor, request: JumpRequest = {}): ResolvedJu
     pitchPeak: (params.pitchDeg * Math.PI) / 180,
     puppy: reduced || fast ? 0 : age.puppy,
     bodyH: sized.bodyH,
+    bodyHPx: worldH,
     bodyLenPx: worldL,
     prep: wiggleDur + anticipation + takeoff,
     airTime: (2 * v0) / gravity,

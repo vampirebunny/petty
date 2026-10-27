@@ -90,10 +90,10 @@ function StorageGlyph({ item }: { item: StorageChoice }) {
 
 const trickBounds: Record<TrickPropType, { x0: number; y0: number; x1: number; y1: number }> = {
   podium: { x0: -48, y0: -36, x1: 48, y1: 8 },
-  tunnel: { x0: -66, y0: -40, x1: 66, y1: 10 },
+  tunnel: { x0: -78, y0: -68, x1: 78, y1: 12 },
   hurdle: { x0: -40, y0: -70, x1: 34, y1: 2 },
-  hoop: { x0: -16, y0: -82, x1: 16, y1: 6 },
-  cones: { x0: -72, y0: -36, x1: 72, y1: 2 },
+  hoop: { x0: -26, y0: -150, x1: 26, y1: 8 },
+  cones: { x0: -120, y0: -40, x1: 120, y1: 4 },
 };
 
 function TrickGlyph({ type, sourceTrickId }: { type: TrickPropType; sourceTrickId: string }) {
@@ -113,8 +113,7 @@ function TrickGlyph({ type, sourceTrickId }: { type: TrickPropType; sourceTrickI
     canvas.translate(GLYPH / 2 - ((bounds.x0 + bounds.x1) / 2) * scale, GLYPH / 2 - ((bounds.y0 + bounds.y1) / 2) * scale);
     canvas.scale(scale, scale);
     const prop = { instanceId: 'icon', type, sourceTrickId, x: 0, y: 0, knocked: false };
-    drawTrickProp(canvas, prop, 'back');
-    drawTrickProp(canvas, prop, 'front');
+    drawTrickProp(canvas, prop, 'whole');
     canvas.restore();
     return recorder.finishRecordingAsPicture();
   }, [sourceTrickId, type]);

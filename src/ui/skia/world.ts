@@ -22,7 +22,7 @@ import { bedCushionPoint, bedCushionReach } from '../../actor/furniture';
 import { drawPupCabana } from './cabana';
 import { drawStyledBed, isStyledBed } from './beds';
 import { drawAmbient, drawBackdrop, drawHeldPlay, drawProp, drawToyShape, drawTreatShape } from './scenery';
-import { drawTrickProp } from './trickPropArt';
+import { drawTrickProp, splitsAroundActors } from './trickPropArt';
 import type { Contact, Env } from './scenery';
 
 function drawCabanaFit(canvas: SkCanvas, prop: Prop, floor: { yMin: number; yMax: number }): void {
@@ -269,8 +269,16 @@ export function drawWorld(
   }
   const span = { x: -bleed - 400, y: -600, w: stageWidth + bleed * 2 + 800, h: stageHeight + 1200 };
   for (const prop of world.trickProps ?? []) {
-    const petInFront = world.actors.some((actor) => actor.y > prop.y + 8);
     const liftedProp = world.liftedPropId === prop.instanceId;
+    if (!splitsAroundActors(prop)) {
+      items.push({
+        y: prop.y,
+        late: liftedProp,
+        draw: () => drawTrickProp(canvas, prop, 'whole'),
+      });
+      continue;
+    }
+    const petInFront = world.actors.some((actor) => actor.y > prop.y + 8);
     items.push({
       y: petInFront ? prop.y - 4 : prop.y - 1,
       late: liftedProp,
@@ -490,8 +498,13 @@ export function drawPetOnly(
   canvas.translate(-camera.x, -camera.y);
   const bodyTint = scene.time === 'indoor' ? { r: 0, g: 0, b: 0, a: 0 } : actorTint(scene, tod);
   const lead = world.actors[0];
+  const petInFront = (propY: number, pad: number) => lead != null && lead.y > propY + pad;
   for (const prop of world.trickProps ?? []) {
-    if (!(lead && lead.y > prop.y + 8)) {
+    if (!splitsAroundActors(prop)) {
+      if (lead == null || lead.y >= prop.y) {
+        drawTrickProp(canvas, prop, 'whole');
+      }
+    } else if (!petInFront(prop.y, 8)) {
       drawTrickProp(canvas, prop, 'back');
     }
   }
@@ -504,11 +517,16 @@ export function drawPetOnly(
     drawTinted(canvas, bodyTint, () => drawActor(canvas, actor, breed, floor, world.t, null, world.silhouette === true, world.reducedMotion));
   }
   for (const prop of world.trickProps ?? []) {
-    const petInFront = lead != null && lead.y > prop.y + 8;
-    if (petInFront) {
-      drawTrickProp(canvas, prop, 'back');
+    if (!splitsAroundActors(prop)) {
+      if (lead != null && lead.y < prop.y) {
+        drawTrickProp(canvas, prop, 'whole');
+      }
+    } else {
+      if (petInFront(prop.y, 8)) {
+        drawTrickProp(canvas, prop, 'back');
+      }
+      drawTrickProp(canvas, prop, 'front');
     }
-    drawTrickProp(canvas, prop, 'front');
   }
   canvas.restore();
 }
