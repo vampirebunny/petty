@@ -7,7 +7,7 @@ let pending: Promise<void> = Promise.resolve();
 let warnedMissingKey = false;
 let warnedConfigure = false;
 
-/** Expo Go has no App Store or Play Billing. RevenueCat rejects a store key there. */
+/** Expo Go has no App Store or Play Billing, so RevenueCat stays unconfigured there. */
 function runningInExpoGo(): boolean {
   if (!__DEV__) {
     return false;
@@ -20,9 +20,11 @@ function runningInExpoGo(): boolean {
 }
 
 function publicSdkKey(): string | null {
-  const key = runningInExpoGo()
-    ? process.env.EXPO_PUBLIC_REVENUECAT_TEST_STORE_KEY
-    : Platform.OS === 'ios'
+  if (runningInExpoGo()) {
+    return null;
+  }
+  const key =
+    Platform.OS === 'ios'
       ? process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY
       : Platform.OS === 'android'
         ? process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY
@@ -41,18 +43,24 @@ export function syncPurchasesUser(userId: string | null): Promise<void> {
   return pending;
 }
 
+/** getOfferings rejects until configure has finished. */
+export function whenPurchasesConfigured(): Promise<boolean> {
+  return pending.then(
+    () => Purchases.isConfigured(),
+    () => Purchases.isConfigured(),
+  );
+}
+
 async function applyPurchasesUser(userId: string | null): Promise<void> {
   if (!userId) {
     return;
   }
   const apiKey = publicSdkKey();
   if (!apiKey) {
-    if (__DEV__ && !warnedMissingKey && (runningInExpoGo() || Platform.OS === 'ios' || Platform.OS === 'android')) {
+    if (__DEV__ && !warnedMissingKey && !runningInExpoGo() && (Platform.OS === 'ios' || Platform.OS === 'android')) {
       warnedMissingKey = true;
       console.warn(
-        runningInExpoGo()
-          ? 'RevenueCat Test Store key is missing. Set EXPO_PUBLIC_REVENUECAT_TEST_STORE_KEY.'
-          : 'RevenueCat public SDK key is missing. Set EXPO_PUBLIC_REVENUECAT_IOS_KEY and EXPO_PUBLIC_REVENUECAT_ANDROID_KEY.',
+        'RevenueCat public SDK key is missing. Set EXPO_PUBLIC_REVENUECAT_IOS_KEY and EXPO_PUBLIC_REVENUECAT_ANDROID_KEY.',
       );
     }
     return;

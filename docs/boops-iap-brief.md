@@ -2,16 +2,17 @@
 
 Players buy Boops packs, then spend Boops in the Pet Shop and Training School as they do today. Shop item prices are separate. The Golden Crown is hidden and is not part of this work.
 
-The Get Boops sheet and its art are in the Pet Shop. The sheet still does not charge. RevenueCat is installed and identified. Do the rest from the open list below. Confirm the store product ids before writing the purchase code. Apple and Google require that a guest can pay without creating an account. The account prompt stays after a successful purchase.
+The Get Boops sheet and its art are in the Pet Shop. The sheet shows store prices and still does not charge. RevenueCat is installed and identified. Do the rest from the open list below. Confirm the store product ids before writing the purchase code. Apple and Google require that a guest can pay without creating an account. The account prompt stays after a successful purchase.
 
 ## Shipped
 
 - Six SVGs in `assets/boops-packs/`. Cards use `art_key`, at width 84 in a 70-tall box, bottom-aligned. See [boops-pack-art-brief.md](boops-pack-art-brief.md).
-- A Get Boops button under the pet scene opens the sheet. Price buttons are lilac skeletons: no price text, no coin, not tappable.
+- A Get Boops button under the pet scene opens the sheet. Price buttons show the store `priceString`, with no coin, and are not tappable yet.
 - While the age gate is `unavailable`, the sheet says "Can't reach the store right now" and offers Try again. Packs stay hidden until it is `ready`. Sparkles are still when Reduce Motion is on, and they stop when the sheet closes.
 - The balance-pill "+" and the shortfall prompt are not wired. The home counter still opens the Pet Shop.
 - `react-native-purchases` 10.15.1. Android resolves Play Billing Library 8.3.0 through that SDK. Do not add `com.android.vending.BILLING` to `app.json`. The library manifest supplies the permission and `com.google.android.play.billingclient.version`. Play Console keeps reporting AIDL until a new Android build that includes this SDK is the one it reviews.
-- `syncPurchasesUser` (`src/economy/purchasesUser.ts`), called from `useIdentity`. A guest is the install id. `Purchases.configure` always receives that id, so RevenueCat does not mint `$RCAnonymousID`. When a Supabase auth user id exists, anonymous or linked, `Purchases.logIn` runs only if the id changed. `Purchases.logOut` is never called. Linking in place keeps the same id, so it does not call `logIn`.
+- `syncPurchasesUser` (`src/economy/purchasesUser.ts`), called from `useIdentity`. A guest is the install id. `Purchases.configure` always receives that id, so RevenueCat does not mint `$RCAnonymousID`. When a Supabase auth user id exists, anonymous or linked, `Purchases.logIn` runs only if the id changed. `Purchases.logOut` is never called. Linking in place keeps the same id, so it does not call `logIn`. The iOS key is `EXPO_PUBLIC_REVENUECAT_IOS_KEY` and the Android key is `EXPO_PUBLIC_REVENUECAT_ANDROID_KEY`. There is no Test Store key. Expo Go leaves RevenueCat unconfigured.
+- `loadBoopsPrices` (`src/economy/boopsOffering.ts`) runs after configure finishes. It calls `Purchases.getOfferings()` and reads `offerings.current`, the Offering marked current in the dashboard. Development and production use that same Offering. Cards match `package.product.identifier` to the local pack id. A missing pack is hidden and logged. If the Offering is missing or no pack resolves, the sheet says "Can't reach the store right now". Try again refreshes the age gate and loads the Offering again.
 
 ## Open
 
@@ -26,8 +27,6 @@ The Get Boops sheet and its art are in the Pet Shop. The sheet still does not ch
 
 ### Sheet
 
-- [ ] Fill price buttons with the store `priceString` from the default Offering. Never hardcode a price, and never put the coin on a price button.
-- [ ] Hide a card whose product is missing from the Offering, and log it. If no pack resolves, show "Can't reach the store right now" and Try again.
 - [ ] Add the "+" on the Boops counter everywhere that pill is shown, and open this same sheet.
 - [ ] On Pet Shop or Trick Shop Buy with too few Boops, open shortfall mode: item name and the amount missing. Highlight the smallest pack that covers it. If none covers it, highlight nothing and keep the normal banner. Do not suggest buying several packs. After the credit, close the sheet and return to the item. Do not auto-buy.
 - [ ] Cancel does nothing. Pending shows "Waiting for approval. Your Boops will arrive once it's approved." Errors use the store message where it is safe, and "You weren't charged" only when the SDK says so.

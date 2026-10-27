@@ -5,6 +5,7 @@ import Animated, { FadeIn, SlideInDown, runOnJS, useAnimatedStyle, useSharedValu
 import { X } from 'lucide-react-native';
 
 import { PawCoin } from '../../components/currency/PawCoin';
+import { loadBoopsPrices } from '../../economy/boopsOffering';
 import { boopsPacks } from '../../economy/boopsPacks';
 import { requestAgeGateRefresh } from '../../state/ageGateRefresh';
 import { onAgeGatePhase, readAgeGatePhase, type AgeGatePhase } from '../../state/ageGatePhase';
@@ -36,9 +37,29 @@ export function GetBoopsSheet({ balance, reducedMotion, onClose }: Props) {
   const { height: screenH } = useWindowDimensions();
   const drag = useSharedValue(0);
   const spin = useSharedValue(0);
+  const [reload, setReload] = useState(0);
+  const [prices, setPrices] = useState<ReadonlyMap<string, string> | 'pending' | 'missing'>('pending');
   const packs = [...boopsPacks].sort((a, b) => a.sortOrder - b.sortOrder);
-  const showPacks = phase !== 'unavailable';
+  const storeMissing = phase === 'unavailable' || (phase === 'ready' && prices === 'missing');
+  const showPacks = !storeMissing;
   const animateArt = phase === 'ready' && !reducedMotion;
+  const visiblePacks = prices instanceof Map ? packs.filter((pack) => prices.has(pack.productId)) : packs;
+
+  useEffect(() => {
+    if (phase !== 'ready') {
+      return;
+    }
+    let cancelled = false;
+    void loadBoopsPrices().then((next) => {
+      if (cancelled) {
+        return;
+      }
+      setPrices(next && next.size > 0 ? next : 'missing');
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [phase, reload]);
 
   const pan = Gesture.Pan()
     .onUpdate((event) => {
@@ -85,29 +106,38 @@ export function GetBoopsSheet({ balance, reducedMotion, onClose }: Props) {
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
           {showPacks ? (
             <View style={styles.grid}>
-              {packs.map((pack) => (
-                <View key={pack.artKey} style={styles.slot}>
-                  <LedgeCard face="#FFFFFF" ledge="#F0CFE0" radius={22} ledgeHeight={4} style={styles.card}>
-                    {pack.tag ? (
-                      <View style={styles.tag}>
-                        <Text style={styles.tagText}>{pack.tag}</Text>
+              {visiblePacks.map((pack) => {
+                const price = prices instanceof Map ? prices.get(pack.productId) : null;
+                return (
+                  <View key={pack.artKey} style={styles.slot}>
+                    <LedgeCard face="#FFFFFF" ledge="#F0CFE0" radius={22} ledgeHeight={4} style={styles.card}>
+                      {pack.tag ? (
+                        <View style={styles.tag}>
+                          <Text style={styles.tagText}>{pack.tag}</Text>
+                        </View>
+                      ) : null}
+                      <View style={styles.artBox}>
+                        <PackArt artKey={pack.artKey} width={packArtWidth} animate={animateArt} />
                       </View>
-                    ) : null}
-                    <View style={styles.artBox}>
-                      <PackArt artKey={pack.artKey} width={packArtWidth} animate={animateArt} />
-                    </View>
-                    <Text style={styles.amount}>{money(pack.boops)}</Text>
-                    <Text style={styles.unit}>Boops</Text>
-                    <View
-                      accessibilityElementsHidden
-                      importantForAccessibility="no-hide-descendants"
-                      style={styles.price}
-                    >
-                      <LilacFace />
-                    </View>
-                  </LedgeCard>
-                </View>
-              ))}
+                      <Text style={styles.amount}>{money(pack.boops)}</Text>
+                      <Text style={styles.unit}>Boops</Text>
+                      <View
+                        accessibilityElementsHidden={!price}
+                        importantForAccessibility={price ? 'auto' : 'no-hide-descendants'}
+                        style={styles.price}
+                      >
+                        <LilacFace>
+                          {price ? (
+                            <Text style={styles.priceText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+                              {price}
+                            </Text>
+                          ) : null}
+                        </LilacFace>
+                      </View>
+                    </LedgeCard>
+                  </View>
+                );
+              })}
             </View>
           ) : (
             <View style={styles.offline}>
@@ -115,7 +145,11 @@ export function GetBoopsSheet({ balance, reducedMotion, onClose }: Props) {
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Try again"
-                onPress={() => requestAgeGateRefresh()}
+                onPress={() => {
+                  requestAgeGateRefresh();
+                  setPrices('pending');
+                  setReload((attempt) => attempt + 1);
+                }}
               >
                 {({ pressed }) => (
                   <LilacFace pressed={pressed} radius={22} style={styles.retry}>
@@ -199,6 +233,7 @@ const styles = StyleSheet.create({
   amount: { fontFamily: fontFamily.fredokaBold, fontSize: 24, color: '#2A1E26' },
   unit: { fontFamily: fontFamily.fredokaSemibold, fontSize: 12, color: '#6B4F5E', marginBottom: 8 },
   price: { alignSelf: 'stretch', marginTop: 6 },
+  priceText: { fontFamily: fontFamily.fredokaBold, fontSize: 16, color: '#2E1A5E', paddingHorizontal: 8 },
   offline: { alignItems: 'center', gap: 14, paddingVertical: 28, paddingHorizontal: 12 },
   offlineText: {
     fontFamily: fontFamily.fredokaSemibold,
