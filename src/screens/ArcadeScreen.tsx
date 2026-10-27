@@ -2,11 +2,13 @@ import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { CloudHopScreen } from '../minigames/cloudHop/CloudHopScreen';
 import { PaddlePawsScreen } from '../minigames/paddlePaws/PaddlePawsScreen';
+import { StayScreen } from '../minigames/stay/StayScreen';
 import type { PetState } from '../sim/types';
 import { fontFamily } from '../ui/font';
 import { HandlePrompt } from '../ui/HandleScreen';
 import { CloudHopIcon } from '../ui/places/cloudHopIcon';
 import { PaddlePawsIcon } from '../ui/places/paddlePawsIcon';
+import { StayIcon } from '../ui/places/stayIcon';
 import { useContentWidth } from '../ui/PhoneColumn';
 
 type Props = {
@@ -16,9 +18,9 @@ type Props = {
 };
 
 export function ArcadeScreen({ pet, reducedMotion, onClose }: Props) {
-  const [game, setGame] = useState<'hop' | 'paddle' | null>(null);
+  const [game, setGame] = useState<'hop' | 'paddle' | 'stay' | null>(null);
   const width = useContentWidth();
-  const tile = Math.min(148, Math.max(96, (width - 48) / 2));
+  const tile = Math.min(120, Math.max(84, (width - 56) / 3));
 
   if (game === 'hop') {
     return (
@@ -33,6 +35,15 @@ export function ArcadeScreen({ pet, reducedMotion, onClose }: Props) {
     return (
       <View style={styles.fill}>
         <PaddlePawsScreen pet={pet} reducedMotion={reducedMotion} onBack={() => setGame(null)} onMenu={() => setGame(null)} />
+        <HandlePrompt petName={pet.name} idle={false} />
+      </View>
+    );
+  }
+
+  if (game === 'stay') {
+    return (
+      <View style={styles.fill}>
+        <StayScreen pet={pet} reducedMotion={reducedMotion} onBack={() => setGame(null)} onMenu={() => setGame(null)} />
         <HandlePrompt petName={pet.name} idle={false} />
       </View>
     );
@@ -58,6 +69,10 @@ export function ArcadeScreen({ pet, reducedMotion, onClose }: Props) {
           <Pressable accessibilityRole="button" accessibilityLabel="Paddle Paws" onPress={() => setGame('paddle')} style={styles.tile}>
             <PaddlePawsIcon size={tile} />
             <Text style={styles.label}>Paddle Paws</Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="Stay" onPress={() => setGame('stay')} style={styles.tile}>
+            <StayIcon size={tile} />
+            <Text style={styles.label}>Stay!</Text>
           </Pressable>
         </View>
       </ScrollView>
@@ -85,5 +100,5 @@ const styles = StyleSheet.create({
   subtitle: { fontFamily: fontFamily.bold, fontSize: 15, color: '#6B6F8A' },
   grid: { flexDirection: 'row', gap: 12 },
   tile: { flex: 1, alignItems: 'center' },
-  label: { marginTop: 8, fontFamily: fontFamily.black, fontSize: 20, color: '#2C2F4A', textAlign: 'center' },
+  label: { marginTop: 8, fontFamily: fontFamily.black, fontSize: 16, lineHeight: 20, color: '#2C2F4A', textAlign: 'center' },
 });

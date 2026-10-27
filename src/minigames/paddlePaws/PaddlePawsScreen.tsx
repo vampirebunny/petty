@@ -94,7 +94,7 @@ function playSounds(run: Run, pet: PetState, breed: Breed): void {
   }
 }
 
-export function PaddlePawsScreen({ pet, reducedMotion, onBack, onMenu }: Props) {
+export function PaddlePawsScreen({ pet, reducedMotion, onMenu }: Props) {
   const font = useFont(require('@expo-google-fonts/fredoka/700Bold/Fredoka_700Bold.ttf'), 20);
   const fontSm = useFont(require('@expo-google-fonts/fredoka/700Bold/Fredoka_700Bold.ttf'), 12);
   const [box, setBox] = useState({ width: 0, height: 0 });
@@ -472,8 +472,8 @@ export function PaddlePawsScreen({ pet, reducedMotion, onBack, onMenu }: Props) 
               <Pressable accessibilityRole="button" onPress={start} style={styles.btn}>
                 <Text style={styles.btnText}>Swim</Text>
               </Pressable>
-              <Pressable accessibilityRole="button" onPress={onBack} style={styles.ghost}>
-                <Text style={styles.ghostText}>Back</Text>
+              <Pressable accessibilityRole="button" onPress={onMenu} style={styles.ghost}>
+                <Text style={styles.ghostText}>Menu</Text>
               </Pressable>
             </ScrollView>
           </View>

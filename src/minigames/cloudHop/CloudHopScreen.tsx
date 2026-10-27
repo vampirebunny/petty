@@ -94,7 +94,7 @@ function playSounds(run: HopRun, pet: PetState, breed: Breed): void {
   }
 }
 
-export function CloudHopScreen({ pet, reducedMotion, onBack, onMenu }: Props) {
+export function CloudHopScreen({ pet, reducedMotion, onMenu }: Props) {
   const font = useFont(require('@expo-google-fonts/fredoka/700Bold/Fredoka_700Bold.ttf'), 18);
   const fontLg = useFont(require('@expo-google-fonts/fredoka/700Bold/Fredoka_700Bold.ttf'), 24);
   const [box, setBox] = useState({ width: 0, height: 0 });
@@ -523,8 +523,8 @@ export function CloudHopScreen({ pet, reducedMotion, onBack, onMenu }: Props) {
               <Pressable accessibilityRole="button" onPress={start} style={styles.btn}>
                 <Text style={styles.btnText}>Play</Text>
               </Pressable>
-              <Pressable accessibilityRole="button" onPress={onBack} style={styles.ghost}>
-                <Text style={styles.ghostText}>Back</Text>
+              <Pressable accessibilityRole="button" onPress={onMenu} style={styles.ghost}>
+                <Text style={styles.ghostText}>Menu</Text>
               </Pressable>
               {__DEV__ ? (
                 <View style={styles.dev}>

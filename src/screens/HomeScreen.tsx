@@ -37,6 +37,7 @@ import { TownScreen } from '../ui/town/TownScreen';
 import { roadSpotForScene } from '../sim/road';
 import { ArcadeScreen } from './ArcadeScreen';
 import { flushCloudHopScore } from '../minigames/cloudHop/scores';
+import { flushStayTime } from '../minigames/stay/scores';
 import { PantryScreen } from './PantryScreen';
 import { PetShopScreen } from './PetShopScreen';
 import { placeFlavors, placeIcons, speciesLabel } from '../ui/actionIcons';
@@ -540,6 +541,7 @@ export default function HomeScreen({ petApi }: Props) {
         unmuteBloops();
         pullShop();
         void flushCloudHopScore();
+        void flushStayTime();
         if (!openPathSuppressed()) {
           setFriendTick((value) => value + 1);
         }
@@ -568,8 +570,10 @@ export default function HomeScreen({ petApi }: Props) {
     const unsubAccount = onAccountFlags(() => {
       setFriendTick((value) => value + 1);
       void flushCloudHopScore();
+      void flushStayTime();
     });
     void flushCloudHopScore();
+    void flushStayTime();
     return () => {
       unsubModal();
       unsubHandle();
