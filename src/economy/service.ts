@@ -33,7 +33,7 @@ export type Burst = {
   origin?: { x: number; y: number };
   id?: number;
 };
-export type OpenRewards = { pet: PetState; bursts: Burst[]; login: LoginOffer; awayMs: number };
+export type OpenRewards = { pet: PetState; bursts: Burst[]; login: LoginOffer };
 
 const listeners = new Set<(snapshot: WalletSnapshot) => void>();
 
@@ -1105,7 +1105,6 @@ export function onAppOpen(pet: PetState, now = Date.now()): OpenRewards {
       pet: progressed.pet,
       bursts,
       login: loginOffer(owner.login_last_claimed_day, owner.login_streak, localDay(now)),
-      awayMs: away,
     };
   });
   emit();

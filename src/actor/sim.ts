@@ -1348,13 +1348,6 @@ function grantRestEnergy(actor: Actor): void {
   grantEnergyPop(actor, collapseWakeEnergy);
 }
 
-// The points are already on the pet. This only queues the same +energy chip sleep and meals show.
-export function noteEnergyPop(actor: Actor, amount: number): void {
-  if (amount > 0) {
-    actor.energyPops.push(amount);
-  }
-}
-
 export function takeEnergyPops(actor: Actor): number[] {
   const amounts = actor.energyPops;
   actor.energyPops = [];

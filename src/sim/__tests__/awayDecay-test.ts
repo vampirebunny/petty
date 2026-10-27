@@ -36,7 +36,7 @@ it('raises energy toward the recover target and does not pass it', () => {
   const after = applyAwayDecay(full, AWAY_DECAY.needs.energy.recoverHalfLifeH);
   expect(after.energy).toBeGreaterThan(full.energy);
   expect(after.energy).toBeLessThanOrEqual(AWAY_DECAY.needs.energy.recoverTarget);
-  const rested = applyAwayDecay({ ...full, energy: 90 }, 48);
+  const rested = applyAwayDecay({ ...full, energy: 70 }, 48);
   expect(rested.energy).toBeCloseTo(AWAY_DECAY.needs.energy.recoverTarget, 5);
 });
 

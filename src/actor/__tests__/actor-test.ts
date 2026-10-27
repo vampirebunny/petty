@@ -16,7 +16,6 @@ import {
   stagePoint,
   startUserTask,
   takeBowlDrinks,
-  noteEnergyPop,
   takeEnergyDelta,
   takeEnergyPops,
   takeHungerDelta,
@@ -344,17 +343,6 @@ it('gives energy after a user sleep of at least five seconds', () => {
   }
   expect(takeEnergyDelta(pup)).toBeCloseTo(5, 5);
   expect(takeEnergyPops(pup)).toEqual([5]);
-});
-
-it('shows a return energy pop without adding the points twice', () => {
-  const pup = actor();
-  pup.energy = 1;
-  noteEnergyPop(pup, 60);
-  expect(pup.energy).toBe(1);
-  expect(takeEnergyDelta(pup)).toBe(0);
-  expect(takeEnergyPops(pup)).toEqual([60]);
-  noteEnergyPop(pup, 0);
-  expect(takeEnergyPops(pup)).toEqual([]);
 });
 
 it('tops up the last sleep tick so energy stops at 100', () => {

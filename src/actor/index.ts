@@ -103,7 +103,6 @@ export {
   takePlayFinds,
   takeTreatMoods,
   takeTreatFinishes,
-  noteEnergyPop,
   takeEnergyDelta,
   takeEnergyPops,
   takeMoodPops,

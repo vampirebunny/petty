@@ -3,7 +3,7 @@ export const AWAY_DECAY = {
   needs: {
     tummy: { graceH: 12, graceTarget: 60, floor: 10, halfLifeH: 24 },
     mood: { graceH: 12, graceTarget: 70, floor: 20, halfLifeH: 36 },
-    energy: { recovers: true, recoverTarget: 90, recoverHalfLifeH: 2 },
+    energy: { recovers: true, recoverTarget: 70, recoverHalfLifeH: 2 },
   },
   weight: { graceH: 24, halfLifeH: 96 },
   welcomeBackThresholdH: 12,
