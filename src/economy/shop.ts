@@ -46,6 +46,8 @@ export type ShopListing = {
   wearId?: string;
   isNewUntil?: string;
   restMultiplier?: number;
+  // Colorway theme slug. A themed item is only sold on its collection's day.
+  theme?: string;
 };
 
 export type ShopBundle = ShopBundleConfig;
@@ -177,6 +179,7 @@ export function chooseDay(
     const eligible = catalog.items.filter(
       (item) =>
         categories.includes(item.category) &&
+        !sellsByCollection(item) &&
         item.tier !== 'limited' &&
         item.shop !== 'featured' &&
         (item.shop === 'rotation' || (item.shop === 'always' && item.tier !== 'exclusive')) &&
@@ -243,6 +246,7 @@ export function tabItems(catalog: ShopCatalog, category: ShopCategory, species: 
     .filter(
       (item) =>
         item.category === category &&
+        !sellsByCollection(item) &&
         ((item.shop === 'always' && item.tier !== 'exclusive') || item.shop === 'coming_soon') &&
         fitsSpecies(item.species, species),
     )
@@ -271,6 +275,55 @@ export function featuredBundle(catalog: ShopCatalog, date: string): ShopBundle |
   return bundles[mod] ?? null;
 }
 
+export function sellsByCollection(item: ShopListing): item is ShopListing & { theme: string } {
+  return (
+    item.theme != null &&
+    item.category === 'clothes' &&
+    item.shop === 'always' &&
+    item.tier === 'standard' &&
+    item.price != null
+  );
+}
+
+export type ShopCollection = { theme: string; name: string; items: ShopListing[]; endsAt: number };
+
+export const collectionWindowMs = 3 * 60 * 60 * 1000;
+const windowsPerDay = 24 / 3;
+
+export function collectionEndsAt(now: number): number {
+  return (Math.floor(now / collectionWindowMs) + 1) * collectionWindowMs;
+}
+
+// Windows are cut from the epoch, so they ignore the local clock. The extra step each day
+// keeps a theme from landing on the same hours every day when there are 8 themes.
+export function collectionTheme(catalog: ShopCatalog, now: number): string | null {
+  const themes = [...new Set(catalog.items.filter(sellsByCollection).map((item) => item.theme))].sort();
+  if (themes.length === 0) {
+    return null;
+  }
+  const window = Math.floor(now / collectionWindowMs);
+  const index = window + Math.floor(window / windowsPerDay);
+  return themes[index % themes.length] ?? null;
+}
+
+export function themeName(theme: string): string {
+  return theme
+    .split('-')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
+export function collectionAt(catalog: ShopCatalog, now: number, species: SpeciesId): ShopCollection | null {
+  const theme = collectionTheme(catalog, now);
+  if (!theme) {
+    return null;
+  }
+  const items = catalog.items
+    .filter((item) => sellsByCollection(item) && item.theme === theme && fitsSpecies(item.species, species))
+    .sort((a, b) => a.sort - b.sort || a.id.localeCompare(b.id));
+  return items.length > 0 ? { theme, name: themeName(theme), items, endsAt: collectionEndsAt(now) } : null;
+}
+
 export function contentsValue(bundle: ShopBundle, items: ShopListing[]): number {
   let total = 0;
   for (const part of bundle.contents) {
@@ -287,12 +340,12 @@ export function savePercent(price: number, was: number): number {
   return Math.round(((was - price) / was) * 100);
 }
 
-export function countdownLabel(ms: number): string {
+export function countdownLabel(ms: number, lead = 'New stock in'): string {
   const total = Math.max(0, Math.floor(ms / 1000));
   const hours = Math.floor(total / 3600);
   const minutes = Math.floor((total % 3600) / 60);
   const seconds = total % 60;
-  return `New stock in ${hours}h ${minutes}m ${seconds}s`;
+  return `${lead} ${hours}h ${minutes}m ${seconds}s`;
 }
 
 function placeFor(item: ShopListing): PricedLine['place'] {
@@ -362,10 +415,12 @@ export function priceCart(
   owned: ReadonlySet<string>,
   species: SpeciesId,
   balance: number,
+  now: number | null = null,
 ): PricedCart {
   if (lines.length === 0) {
     return { ok: false, reason: 'not_available' };
   }
+  const liveTheme = now == null ? null : collectionTheme(catalog, now);
   const merged = new Map<string, CartInput>();
   for (const line of lines) {
     if (line.qty < 1) {
@@ -443,6 +498,7 @@ export function priceCart(
       item.shop === 'coming_soon' ||
       item.shop === 'featured' ||
       item.tier === 'limited' ||
+      (sellsByCollection(item) && item.theme !== liveTheme) ||
       item.price == null ||
       !payable(item.price) ||
       !fitsSpecies(item.species, species)
@@ -519,6 +575,7 @@ export type RemoteShopItem = {
   active: boolean;
   def?: unknown;
   minAppVersion?: string | null;
+  theme?: string | null;
 };
 
 export type RemoteShop = {
@@ -529,6 +586,12 @@ export type RemoteShop = {
   items: RemoteShopItem[];
   bundles: ShopBundle[];
 };
+
+// A download cached before the theme column was read has no theme. Generated colorway ids end in ".<theme>".
+function themeFromId(id: string): string | undefined {
+  const dot = id.lastIndexOf('.');
+  return id.includes(':') && dot > id.indexOf(':') ? id.slice(dot + 1) || undefined : undefined;
+}
 
 export function materializeShop(remote: RemoteShop, defs: ItemDef[]): ShopCatalog {
   const byId = new Map(defs.map((def) => [def.id, def]));
@@ -586,6 +649,7 @@ export function materializeShop(remote: RemoteShop, defs: ItemDef[]): ShopCatalo
       slot: def.slot,
       wearId: def.wearId,
       isNewUntil: row.isNewUntil ?? undefined,
+      theme: row.theme ?? themeFromId(row.id),
     });
   }
   const slots = remote.pickSlots.filter((slot) => pickSlots.includes(slot));

@@ -25,6 +25,8 @@ import { buyLimited } from '../economy/limited';
 import { limitedSerial, newRequestId, purchaseCart } from '../economy/service';
 import type { InventoryRow } from '../economy/service';
 import {
+  collectionAt,
+  collectionEndsAt,
   contentsValue,
   countdownLabel,
   discounted,
@@ -35,6 +37,7 @@ import {
   isNewItem,
   priceCart,
   savePercent,
+  sellsByCollection,
   shownDeal,
   shownPicks,
   tabItems,
@@ -183,6 +186,7 @@ export function PetShopScreen({
   const celebrateSpin = useSharedValue(0);
   const celebrateDrop = useSharedValue(0);
   const [now, setNow] = useState(() => Date.now());
+  const [windowAt, setWindowAt] = useState(() => Date.now());
   const [cart, setCart] = useState<CartRow[]>([]);
   const [sheet, setSheet] = useState(false);
   const [boopsOpen, setBoopsOpen] = useState(false);
@@ -234,8 +238,9 @@ export function PetShopScreen({
       owned,
       species,
       Number.MAX_SAFE_INTEGER,
+      windowAt,
     );
-  }, [cart, catalog, day, dealId, owned, species]);
+  }, [cart, catalog, day, dealId, owned, species, windowAt]);
 
   useEffect(() => {
     void refreshShopCatalog().then((ok) => {
@@ -267,6 +272,12 @@ export function PetShopScreen({
     const timer = setTimeout(() => setNow(Date.now()), wait);
     return () => clearTimeout(timer);
   }, [now]);
+
+  useEffect(() => {
+    const wait = Math.max(0, collectionEndsAt(windowAt) - Date.now()) + 40;
+    const timer = setTimeout(() => setWindowAt(Date.now()), wait);
+    return () => clearTimeout(timer);
+  }, [windowAt]);
 
   useEffect(() => {
     let cancel = false;
@@ -367,6 +378,23 @@ export function PetShopScreen({
         : [],
     [catalog, rowBundles, species],
   );
+  const collection = useMemo(
+    () => (catalog ? collectionAt(catalog, windowAt, species) : null),
+    [catalog, windowAt, species],
+  );
+  const collectionTheme = collection?.theme ?? null;
+  const [cartTheme, setCartTheme] = useState<string | null>(null);
+  if (catalog && collectionTheme !== cartTheme) {
+    setCartTheme(collectionTheme);
+    const kept = cart.filter((row) => {
+      const item = row.kind === 'item' ? findItem(catalog, row.id) : null;
+      return !item || !sellsByCollection(item) || item.theme === collectionTheme;
+    });
+    if (kept.length !== cart.length) {
+      setCart(kept);
+      setNote('That collection left the shop. Its pieces were taken out of your bag.');
+    }
+  }
   const pickItems = useMemo(() => {
     if (!catalog || !day) {
       return [];
@@ -381,7 +409,7 @@ export function PetShopScreen({
     return items;
   }, [catalog, day, owned, species]);
   const sections = useMemo(() => {
-    const rows: { key: string; kind: 'picks' | 'limited' | 'bundle' | 'category'; categoryId?: ShopCategory }[] = [
+    const rows: { key: string; kind: 'picks' | 'limited' | 'bundle' | 'category' | 'collection'; categoryId?: ShopCategory }[] = [
       { key: 'picks', kind: 'picks' },
     ];
     if (limitedOffer && crown) {
@@ -392,9 +420,15 @@ export function PetShopScreen({
     }
     for (const group of groups) {
       rows.push({ key: group.id, kind: 'category', categoryId: group.id });
+      if (group.id === 'clothes' && collection) {
+        rows.push({ key: 'collection', kind: 'collection' });
+      }
+    }
+    if (collection && !groups.some((group) => group.id === 'clothes')) {
+      rows.push({ key: 'collection', kind: 'collection' });
     }
     return rows;
-  }, [bundle, crown, groups, limitedOffer]);
+  }, [bundle, collection, crown, groups, limitedOffer]);
 
   const add = useCallback((id: string, kind: CartRow['kind']) => {
     setCart((rows) => {
@@ -554,7 +588,7 @@ export function PetShopScreen({
                     <Animated.View entering={reducedMotion ? undefined : FadeIn.duration(280)} style={styles.picks}>
                       <View style={styles.picksHead}>
                         <Text style={styles.section}>{"Today's picks"}</Text>
-                        <ShopCountdown day={day.date} />
+                        <ShopCountdown endsAt={nextLocalMidnight(day.date)} />
                       </View>
                       <ItemShelf
                         items={pickItems}
@@ -603,6 +637,37 @@ export function PetShopScreen({
                       onAdd={() => add(bundle.id, 'bundle')}
                       onQty={(qty) => setQty(bundle.id, 'bundle', qty)}
                     />
+                  );
+                }
+                if (section.kind === 'collection' && collection) {
+                  return (
+                    <View style={styles.category}>
+                      <View style={styles.picksHead}>
+                        <View style={styles.collectionTitle}>
+                          <Text style={styles.collectionKicker}>Now in the shop</Text>
+                          <Text style={styles.section} accessibilityRole="header" numberOfLines={1}>
+                            {collection.name}
+                          </Text>
+                        </View>
+                        <ShopCountdown endsAt={collection.endsAt} lead="New collection in" />
+                      </View>
+                      <ItemShelf
+                        items={collection.items}
+                        width={cardWidth}
+                        gap={12}
+                        catalog={catalog}
+                        dealId={dealId}
+                        today={today}
+                        owned={owned}
+                        cart={cart}
+                        wearing={wearing}
+                        species={species}
+                        onPreview={previewHouse}
+                        onAdd={add}
+                        onRemove={remove}
+                        onQty={setQty}
+                      />
+                    </View>
                   );
                 }
                 const group = groups.find((entry) => entry.id === section.categoryId);
@@ -755,7 +820,7 @@ export function PetShopScreen({
   );
 }
 
-function ShopCountdown({ day }: { day: string }) {
+function ShopCountdown({ endsAt, lead }: { endsAt: number; lead?: string }) {
   const [clock, setClock] = useState(() => Date.now());
   useEffect(() => {
     const timer = setInterval(() => setClock(Date.now()), 1000);
@@ -764,7 +829,7 @@ function ShopCountdown({ day }: { day: string }) {
   return (
     <Glossy variant="white" ledge={2} style={styles.countChip}>
       <Clock size={14} strokeWidth={2.6} color={shop.inkAccent} />
-      <Text style={styles.countText}>{countdownLabel(nextLocalMidnight(day) - clock)}</Text>
+      <Text style={styles.countText}>{countdownLabel(endsAt - clock, lead)}</Text>
     </Glossy>
   );
 }
@@ -1416,6 +1481,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   categoryNote: { fontFamily: fontFamily.extraBold, fontSize: 12, color: shop.inkMuted },
+  collectionTitle: { flexShrink: 1 },
+  collectionKicker: { fontFamily: fontFamily.extraBold, fontSize: 12, color: shop.inkAccent },
   categoryRow: { paddingHorizontal: 16, paddingTop: 12, alignItems: 'stretch' },
   shelfList: { flexGrow: 0 },
   shelfRow: { gap: 0 },

@@ -101,6 +101,20 @@ No events this round. The featured card cycles through bundles by day (`bundles[
 
 ---
 
+## 5a. Collection rotation
+
+The generated colorways (rows with a `theme`, from `tools/colorways`) are not on the Clothes shelf. One theme at a time is sold in its own **"Now in the shop"** section, right under Clothes, and the theme changes **every 3 hours**.
+
+- **Which themes rotate:** a themed row that is `clothes`, `always`, `standard` and priced. Exclusive themes (Rainbow Sherbet, `rotation`/`exclusive`) and limited ones (Midnight Stars, `featured`/`limited`) never join the rotation and keep their own paths. Exclusive pieces can still be a daily pick.
+- **Which theme is up:** windows are cut from the epoch (`Math.floor(now / 3h)`), so they need no server and every player sees the same theme at the same moment. Boundaries follow UTC, so local times vary by time zone. Themes step in slug order, and the order moves one extra step each day so a theme doesn't land on the same hours daily. Adding a theme reshuffles the schedule from then on.
+- **Section:** "Now in the shop", the theme name (from the slug: `autumn-plaid` → "Autumn Plaid"), a "New collection in …" countdown, and a card row filtered by species. Owned pieces show Owned.
+- **Picks:** rotating themed pieces are never daily picks, so picks and the collection don't overlap.
+- **Buying:** a rotating piece can only be bought while its theme is up (`priceCart` and `listedPrice`). When the theme changes while the shop is open, its pieces are taken out of the bag with a note.
+- **Older downloads:** a catalog cached before the app read `theme` gets it from the end of the generated id (`hat:beanie.mint-choc` → `mint-choc`), so no catalog version bump is needed.
+- **Older app builds** don't know about themes and still list every colorway on the Clothes shelf.
+
+---
+
 ## 6. Page layout (match the mockup)
 
 Top to bottom:
@@ -113,8 +127,8 @@ Top to bottom:
    - The chip says "Trying on: Rain Boots", or "Add clothes to try them on" when no clothes are in the cart.
 3. **Today's picks:** a horizontally scrolling row on a butter-yellow shelf, plus the countdown chip.
 4. **Featured bundle card.**
-5. **Categories:** Boosts, Clothes, Toys, and Treats, all on the page under the bundle. Each section has a title and where items go: "Goes to your Pantry", "Try on, then Closet", "Goes to your Toy Box". There is no tab bar.
-6. **Item rows:** each category is a horizontal scroll of `always` and `coming_soon` items, filtered by species. Cards are a fixed width so the next one peeks in. `coming_soon` cards sort after the buyable ones in their category. A category with nothing to show is omitted.
+5. **Categories:** Boosts, Clothes, Toys, and Treats, all on the page under the bundle. Each section has a title and where items go: "Goes to your Pantry", "Try on, then Closet", "Goes to your Toy Box". There is no tab bar. The current collection (section 5a) sits right under Clothes.
+6. **Item rows:** each category is a horizontal scroll of `always` and `coming_soon` items, filtered by species. Rotating colorway themes are left out of Clothes. Cards are a fixed width so the next one peeks in. `coming_soon` cards sort after the buyable ones in their category. A category with nothing to show is omitted.
 
 **Card states:**
 

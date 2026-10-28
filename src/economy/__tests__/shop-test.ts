@@ -1,4 +1,20 @@
-import { catalogForDay, chooseDay, dealFor, discounted, featuredLimited, limitedBuyLabel, materializeShop, priceCart, tabItems, type ShopCatalog, type ShopListing } from '../shop';
+import {
+  catalogForDay,
+  chooseDay,
+  collectionAt,
+  collectionEndsAt,
+  collectionTheme,
+  collectionWindowMs,
+  dealFor,
+  discounted,
+  featuredLimited,
+  limitedBuyLabel,
+  materializeShop,
+  priceCart,
+  tabItems,
+  type ShopCatalog,
+  type ShopListing,
+} from '../shop';
 import { shopPetScene } from '../../ui/shop/shopFloor';
 
 function item(partial: Pick<ShopListing, 'id'> & Partial<ShopListing>): ShopListing {
@@ -242,4 +258,105 @@ it('keeps exclusives off the always shelf and out of the always pick pool', () =
     [],
   );
   expect(picks.picks).toEqual([]);
+});
+
+describe('collection rotation', () => {
+  const themed = shop([
+    item({ id: 'hat:top' }),
+    item({ id: 'hat:beanie.autumn-plaid', theme: 'autumn-plaid', sort: 1 }),
+    item({ id: 'hat:cap.autumn-plaid', theme: 'autumn-plaid', sort: 0 }),
+    item({ id: 'hat:beanie.mint-choc', theme: 'mint-choc' }),
+    item({ id: 'hat:beanie.strawberry-milk', theme: 'strawberry-milk', species: ['cat'] }),
+    item({ id: 'hat:beanie.rainbow-sherbet', theme: 'rainbow-sherbet', shop: 'rotation', tier: 'exclusive' }),
+    item({ id: 'hat:beanie.midnight-stars', theme: 'midnight-stars', shop: 'featured', tier: 'limited' }),
+  ]);
+
+  const hours = collectionWindowMs;
+  const start = Math.floor(Date.parse('2026-10-23T00:00:00Z') / hours) * hours;
+  const when = (theme: string, catalog = themed) => {
+    for (let step = 0; step < 64; step += 1) {
+      if (collectionTheme(catalog, start + step * hours) === theme) {
+        return start + step * hours;
+      }
+    }
+    throw new Error(`no window for ${theme}`);
+  };
+
+  it('holds one theme for three hours, then moves to the next', () => {
+    const first = collectionTheme(themed, start);
+    expect(collectionTheme(themed, start + hours - 1)).toBe(first);
+    expect(collectionTheme(themed, start + hours)).not.toBe(first);
+    expect(collectionEndsAt(start + 5)).toBe(start + hours);
+    const seen = new Set([0, 1, 2].map((step) => collectionTheme(themed, start + step * hours)));
+    expect(seen).toEqual(new Set(['autumn-plaid', 'mint-choc', 'strawberry-milk']));
+  });
+
+  it('shifts each theme to different hours the next day', () => {
+    const eight = shop(
+      ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].map((theme) => item({ id: `hat:beanie.${theme}`, theme })),
+    );
+    for (let step = 0; step < 8; step += 1) {
+      const at = start + step * hours;
+      expect(collectionTheme(eight, at + 8 * hours)).not.toBe(collectionTheme(eight, at));
+    }
+  });
+
+  it('leaves exclusive and limited themes out of the rotation', () => {
+    for (let step = 0; step < 24; step += 1) {
+      expect(['rainbow-sherbet', 'midnight-stars']).not.toContain(collectionTheme(themed, start + step * hours));
+    }
+  });
+
+  it('lists the current theme in sort order and respects species', () => {
+    const at = when('autumn-plaid');
+    expect(collectionAt(themed, at + 60_000, 'dog')).toEqual({
+      theme: 'autumn-plaid',
+      name: 'Autumn Plaid',
+      items: [expect.objectContaining({ id: 'hat:cap.autumn-plaid' }), expect.objectContaining({ id: 'hat:beanie.autumn-plaid' })],
+      endsAt: at + hours,
+    });
+    const catTime = when('strawberry-milk');
+    expect(collectionAt(themed, catTime, 'dog')).toBeNull();
+    expect(collectionAt(themed, catTime, 'cat')?.items.map((entry) => entry.id)).toEqual(['hat:beanie.strawberry-milk']);
+  });
+
+  it('keeps collection pieces off the Clothes shelf and out of the daily picks', () => {
+    expect(tabItems(themed, 'clothes', 'dog').map((entry) => entry.id)).toEqual(['hat:top']);
+    const picks = chooseDay(themed, 'dog', new Set(), today, []);
+    expect(picks.picks.map((pick) => pick.itemId)).toEqual(['hat:beanie.rainbow-sherbet']);
+  });
+
+  it('sells a collection piece only while its collection is up', () => {
+    const live = when('mint-choc');
+    const other = when('autumn-plaid');
+    const line = [{ id: 'hat:beanie.mint-choc', kind: 'item' as const, qty: 1 }];
+    expect(priceCart(themed, line, null, new Set(), 'dog', 1000, live).ok).toBe(true);
+    expect(priceCart(themed, line, null, new Set(), 'dog', 1000, other)).toEqual({ ok: false, reason: 'not_available' });
+    expect(priceCart(themed, line, null, new Set(), 'dog', 1000).ok).toBe(false);
+    expect(priceCart(themed, [{ id: 'hat:top', kind: 'item', qty: 1 }], null, new Set(), 'dog', 1000, other).ok).toBe(true);
+  });
+
+  it('reads the theme from a generated id when a cached download predates the column', () => {
+    const built = materializeShop(
+      {
+        version: 1,
+        pickSlots: ['clothes'],
+        noRepeatDays: 5,
+        dealPct: 20,
+        items: [
+          { id: 'hat:beanie.mint-choc', name: 'Mint Choc Beanie', category: 'clothes', price: 1100, shop: 'always', species: null, isNewUntil: null, description: null, sort: 0, active: true },
+          { id: 'hat:top', name: 'Top Hat', category: 'clothes', price: 1800, shop: 'always', species: null, isNewUntil: null, description: null, sort: 0, active: true },
+        ],
+        bundles: [],
+      },
+      [
+        { id: 'hat:beanie.mint-choc', name: 'Mint Choc Beanie', kind: 'outfit', slot: 'hat', wearId: 'beanie.mint-choc' },
+        { id: 'hat:top', name: 'Top Hat', kind: 'outfit', slot: 'hat', wearId: 'top' },
+      ],
+    );
+    expect(built.items.map((entry) => [entry.id, entry.theme])).toEqual([
+      ['hat:beanie.mint-choc', 'mint-choc'],
+      ['hat:top', undefined],
+    ]);
+  });
 });

@@ -53,6 +53,7 @@ function asItem(row: Record<string, unknown>): RemoteShopItem | null {
     active: row.active !== false,
     def: row.def,
     minAppVersion: typeof row.min_app_version === 'string' ? row.min_app_version : null,
+    theme: typeof row.theme === 'string' && row.theme.length > 0 ? row.theme : null,
   };
 }
 

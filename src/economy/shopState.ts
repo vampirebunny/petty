@@ -8,9 +8,11 @@ import { currentOwner } from '../db/currentOwner';
 import { getDb } from '../db/database';
 import {
   chooseDay,
+  collectionTheme,
   itemDefsFromCatalog,
   materializeShop,
   priceCart,
+  sellsByCollection,
   shownDeal,
   withHomeShelf,
   withPriceAdjustments,
@@ -86,8 +88,12 @@ export function loadShopCatalog(now = Date.now()): ShopCatalog | null {
 }
 
 export function listedPrice(itemId: string, now = Date.now()): number | null {
-  const item = loadShopCatalog(now)?.items.find((entry) => entry.id === itemId);
-  if (!item || item.price == null || item.shop === 'hidden' || item.shop === 'coming_soon' || item.shop === 'featured' || item.tier === 'limited') {
+  const catalogNow = loadShopCatalog(now);
+  const item = catalogNow?.items.find((entry) => entry.id === itemId);
+  if (!catalogNow || !item || item.price == null || item.shop === 'hidden' || item.shop === 'coming_soon' || item.shop === 'featured' || item.tier === 'limited') {
+    return null;
+  }
+  if (sellsByCollection(item) && item.theme !== collectionTheme(catalogNow, now)) {
     return null;
   }
   return item.price;
@@ -269,5 +275,5 @@ export function quoteCart(lines: CartInput[], species: SpeciesId, balance: numbe
   if (!day || !catalogNow) {
     return { ok: false as const, reason: 'not_available' };
   }
-  return priceCart(catalogNow, lines, shownDeal(day.dealId, day.picks, ownedIds()), ownedIds(), species, balance);
+  return priceCart(catalogNow, lines, shownDeal(day.dealId, day.picks, ownedIds()), ownedIds(), species, balance, now);
 }
