@@ -158,13 +158,6 @@ export function strideOf(L: number, gait: Gait, share: number): number {
 
 const smooth = (t: number): number => t * t * (3 - 2 * t);
 
-// Cubic from x0 to x1 with end slopes m0 and m1 (dx per unit of s).
-function hermite(s: number, x0: number, x1: number, m0: number, m1: number): number {
-  const s2 = s * s;
-  const s3 = s2 * s;
-  return (2 * s3 - 3 * s2 + 1) * x0 + (s3 - 2 * s2 + s) * m0 + (-2 * s3 + 3 * s2) * x1 + (s3 - s2) * m1;
-}
-
 // Blended gait numbers, so stride, bounce and streaming change smoothly across a gait change.
 export function blendedGait(state: GaitState, pick: (gait: Gait) => number): number {
   return lerp(pick(state.from), pick(state.current), smooth(state.blend));
@@ -178,12 +171,8 @@ export function gaitFootFor(gait: Gait, leg: 0 | 1 | 2 | 3, phase: number, strid
   if (u < def.duty) {
     return { x: stride * (0.5 - u / def.duty), y: 0 };
   }
-  const span = 1 - def.duty;
-  const swing = (u - def.duty) / span;
-  // Leave the ground still moving with the stance, and land the same way, so the paw
-  // does not stop and then snap into the next step.
-  const slope = (-stride * span) / def.duty;
-  return { x: hermite(swing, -stride * 0.5, stride * 0.5, slope, slope), y: -lift * Math.sin(Math.PI * swing) };
+  const swing = (u - def.duty) / (1 - def.duty);
+  return { x: stride * (swing - 0.5), y: -lift * Math.sin(Math.PI * swing) };
 }
 
 // The foot for the current blend of gaits.

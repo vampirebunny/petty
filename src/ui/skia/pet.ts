@@ -1,7 +1,7 @@
 import { BlendMode, Skia, StrokeCap } from '@shopify/react-native-skia';
 import type { SkCanvas, SkPaint, SkPicture } from '@shopify/react-native-skia';
 
-import { blendedFoot, bodyFrame, isDarkCoat, placeLeg, wearItem } from '../../actor';
+import { blendedFoot, bodyFrame, isDarkCoat, solveKnee, wearItem } from '../../actor';
 import type { Actor, Breed, Geom, Pose } from '../../actor';
 import { blendedTheta, facingFit, projectLocal } from '../../actor/facing';
 import { facingConfig } from '../../actor/data/facing';
@@ -87,8 +87,7 @@ type Pt = { x: number; y: number };
 
 type Paw = { x: number; y: number; shin: number; knee: Pt };
 
-// Two-bone leg: the knee bends toward `side`. A long stride stretches the bones so the paw
-// keeps moving with the step instead of locking straight and waiting.
+// Two-bone leg: the knee bends toward `side`, the paw stays on the bone length even when the target is out of reach.
 function drawLeg(
   c: SkCanvas,
   hip: Pt,
@@ -107,9 +106,12 @@ function drawLeg(
   pawScale = 1,
   claws = 0,
 ): Paw {
-  const posed = placeLeg(hip, target, geom.L, side);
-  const knee = posed.knee;
-  const paw = posed.paw;
+  const bone = geom.L / 2;
+  const knee = solveKnee(hip, target, bone, side);
+  const ex = target.x - knee.x;
+  const ey = target.y - knee.y;
+  const length = Math.hypot(ex, ey) || 1;
+  const paw = { x: knee.x + (ex / length) * bone, y: knee.y + (ey / length) * bone };
   const leg = Skia.PathBuilder.Make();
   leg.moveTo(hip.x, hip.y);
   leg.lineTo(knee.x, knee.y);

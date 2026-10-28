@@ -204,6 +204,34 @@ type Props = {
   parkStranger?: (nonce: number) => ParkOffer;
 };
 
+function actorsRushing(world: World): boolean {
+  return world.actors.some((actor) => {
+    const gait = actor.gait.current;
+    return (
+      actor.speed > 12 ||
+      actor.pose.walk > 0.35 ||
+      actor.task.type === 'travel' ||
+      actor.task.type === 'fetch' ||
+      gait === 'trot' ||
+      gait === 'canter' ||
+      gait === 'gallop'
+    );
+  });
+}
+
+function stageInMotion(world: World): boolean {
+  if (world.held || actorsRushing(world)) {
+    return true;
+  }
+  return world.items.some(
+    (item) => item.state === 'free' && (item.z > 0.5 || Math.abs(item.vx) + Math.abs(item.vy) + Math.abs(item.vz) > 4),
+  );
+}
+
+// Each stat flush re-renders Home, saves the pet, and reschedules reminders. While the
+// pet runs or a toy flies they wait, and go out together when the stage settles.
+const motionFlushMs = 5000;
+
 function sourceOf(pet: PetState) {
   return {
     id: pet.id,
@@ -372,21 +400,7 @@ export function PetView({
     const stepNow = world.reducedMotion ? 0 : Math.round(world.t * 10);
     // Moving the pet already spends the frame. Rebuilding the lawn and the trees then, or on
     // each step of the fade, is what makes a run and the fade stutter.
-    const rushing =
-      fade > 0.001 ||
-      travel?.phase === 'fade' ||
-      world.actors.some((actor) => {
-        const gait = actor.gait.current;
-        return (
-          actor.speed > 12 ||
-          actor.pose.walk > 0.35 ||
-          actor.task.type === 'travel' ||
-          actor.task.type === 'fetch' ||
-          gait === 'trot' ||
-          gait === 'canter' ||
-          gait === 'gallop'
-        );
-      });
+    const rushing = fade > 0.001 || travel?.phase === 'fade' || actorsRushing(world);
     const step = rushing ? plates.current.step : stepNow;
     const key = roomPlateKey(world, width, height, todRef.current, step);
     const record = (layer: 'back' | 'live' | 'front') => {
@@ -930,6 +944,7 @@ export function PetView({
     }
   }, [cuddleActive]);
 
+  const statsFlushedAt = useRef(0);
   const pendingWeight = useRef(0);
   const pendingEnergy = useRef(0);
   const pendingHunger = useRef(0);
@@ -1217,13 +1232,17 @@ export function PetView({
           onCuddleRef.current?.({ type: 'interrupted' });
         }
         pendingWeight.current += takeWeightDelta(actor);
-        flushWeight(false);
         pendingEnergy.current += takeEnergyDelta(actor);
-        flushEnergy(false);
         pendingHunger.current += takeHungerDelta(actor);
-        flushHunger(false);
         pendingHydration.current += takeHydrationDelta(actor);
-        flushHydration(false);
+        const clock = Date.now();
+        if (!stageInMotion(world) || clock - statsFlushedAt.current >= motionFlushMs) {
+          statsFlushedAt.current = clock;
+          flushWeight(false);
+          flushEnergy(false);
+          flushHunger(false);
+          flushHydration(false);
+        }
         const pops = takeEnergyPops(actor);
         const moodPops = takeMoodPops(actor);
         if (pops.length > 0 || moodPops.length > 0) {
@@ -1271,14 +1290,16 @@ export function PetView({
 
   useEffect(() => {
     let raf = 0;
-    let last = Date.now();
+    // The frame's own timestamp, not the moment JS got to it, so a late callback does not
+    // shorten one step and lengthen the next.
+    let last: number | null = null;
     let running = true;
-    const loop = () => {
+    const loop = (stamp?: number) => {
       if (!running) {
         return;
       }
-      const now = Date.now();
-      step(now - last);
+      const now = typeof stamp === 'number' ? stamp : performance.now();
+      step(last == null ? 0 : now - last);
       last = now;
       if (activeRef.current) {
         raf = requestAnimationFrame(loop);
@@ -1286,7 +1307,7 @@ export function PetView({
     };
     kick.current = () => {
       cancelAnimationFrame(raf);
-      last = Date.now();
+      last = null;
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
