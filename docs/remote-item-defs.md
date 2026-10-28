@@ -63,7 +63,7 @@ Same outfit fields as v1, plus per-part fills. `DEF_SCHEMA_MAX` is 2. `theme`, `
 
 `colorway.parts` maps a name in `PART_NAMES[shape]` to a hex or `{ "pattern", "c"?, "d"? }`. A name that is not in `PART_NAMES`, or a fill that is not a hex, is dropped. The rest of the item is kept. `colorway.baffles` is a list of hexes and is read only for `puffer`. `patternParts` lists which parts receive `colorway.pattern`. Each entry must be in `PART_NAMES[shape]`. When `patternParts` is omitted, the default is `PATTERN_PARTS[shape]`, and a pattern on a shape whose default list is empty is rejected.
 
-The launch colorways are already rows on the hosted shop. Generator ids look like `beanie.strawberry-milk`. Shop ids look like `hat:beanie.strawberry-milk`. Common, uncommon, and rare are `shop always` and `tier standard`. Exclusive is `shop rotation` and `tier exclusive`, so it joins Today's picks. Limited is `shop featured`, `tier limited`, cap 500. `rarity` stores the generator tier. NPCs only roll bundled wardrobe ids, so these rows never land on an NPC.
+The launch colorways are already rows on the hosted shop. Generator ids look like `beanie.strawberry-milk`. Shop ids look like `hat:beanie.strawberry-milk`. Common, uncommon, and rare are `shop always` and `tier standard`. Exclusive is `shop rotation` and `tier exclusive`, so it joins Today's picks. Limited is `shop featured`, `tier limited`, cap 500. `rarity` stores the generator tier and does not set the price. Each shape costs the same Boops as the hand-made item of that shape, listed in `docs/CURSOR_BRIEF-2.md`. That price list is live via `20261028120000_colorway_shape_prices.sql`. NPCs only roll bundled wardrobe ids, so these rows never land on an NPC.
 
 Treat. The shop id is a plain id.
 

@@ -23,12 +23,35 @@ const root = join(__dirname);
 const picks = JSON.parse(readFileSync(join(root, 'picks.json'), 'utf8')) as string[];
 const items = JSON.parse(readFileSync(join(root, 'generated', 'colorways.json'), 'utf8')) as Generated[];
 
-const priceOf: Record<Tier, number> = {
-  common: 150,
-  uncommon: 250,
-  rare: 400,
-  limited: 900,
-  exclusive: 700,
+// Same Boops as the hand-made item of that shape (October 2026 list).
+// Rarity still chooses the shelf. It does not change the price.
+// A shape with two standards uses the always-shelf price.
+// Star shades match the other shades at 900. High-tops match the other sneakers at 2000.
+const priceOf: Record<string, number> = {
+  beanie: 1100,
+  party: 1400,
+  top: 1800,
+  cap: 1200,
+  bucket: 1300,
+  beret: 1500,
+  square: 900,
+  'red-rim': 900,
+  heart: 1200,
+  star: 900,
+  collar: 600,
+  bandana: 500,
+  scarf: 700,
+  bow: 600,
+  bowtie: 800,
+  sweater: 3000,
+  hoodie: 3200,
+  puffer: 3000,
+  vest: 3000,
+  raincoat: 3500,
+  red: 2000,
+  rain: 2000,
+  sneaker: 2000,
+  hightop: 2000,
 };
 
 function sqlText(value: string): string {
@@ -40,9 +63,11 @@ function sqlNullable(value: string | undefined): string {
 }
 
 function price(item: Generated): number {
-  const base = priceOf[item.tier];
-  const scaled = item.slot === 'jacket' ? base * 1.5 : item.slot === 'glasses' ? base * 0.8 : base;
-  return Math.round(scaled);
+  const amount = priceOf[item.shape];
+  if (amount == null) {
+    throw new Error(`no price for shape ${item.shape}`);
+  }
+  return amount;
 }
 
 function shelf(tier: Tier): { shop: string; tier: string; cap: string } {

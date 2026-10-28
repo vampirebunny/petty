@@ -58,11 +58,32 @@ Shop id is `${slot}:${shape}.${theme}`, for example `hat:beanie.strawberry-milk`
 
 `shop_items.tier` stays `standard | exclusive | limited`:
 
-- common, uncommon, rare → `tier standard`, `shop always`, no cap. Prices 150, 250, 400.
-- exclusive → `tier exclusive`, `shop rotation` (Today's picks), no cap, 700.
-- limited → `tier limited`, `shop featured`, cap 500, 900. Purchase goes through the existing reservation path.
+- common, uncommon, rare → `tier standard`, `shop always`, no cap.
+- exclusive → `tier exclusive`, `shop rotation` (Today's picks), no cap.
+- limited → `tier limited`, `shop featured`, cap 500. Purchase goes through the existing reservation path.
 
-Jackets ×1.5, glasses ×0.8, rounded to integer Boops. Species is null, so both dogs and cats can buy them. NPCs only roll bundled wardrobe ids, so these rows never land on an NPC.
+Price follows the shape, matching the hand-made item already on the shelf. Rarity does not change it. A shape with two standard prices uses the always-shelf one. Star shades, including Gold Star Shades, are 900 with the other shades. High-tops, including Gold High-Tops, are 2000 with the other sneakers. `20261028120000_colorway_shape_prices.sql` is applied on hosted project `unfatkwtzfkqnnbgzuqs`. A device that already has a catalog shows the new prices at the next local midnight.
+
+| Shape | Boops | Matches |
+| --- | --- | --- |
+| bandana | 500 | Cherry Bandana |
+| collar, bow | 600 | Brown Bell Collar, Pink Bow |
+| scarf | 700 | Candy Stripe Scarf |
+| bow tie | 800 | Navy Bow Tie |
+| round specs, rims, star shades | 900 | Black Shades, Round Gold Specs, Gold Star Shades |
+| beanie | 1100 | Pink Beanie |
+| ball cap | 1200 | Red Ball Cap |
+| heart shades | 1200 | Pink Heart Shades |
+| bucket | 1300 | Sunny Bucket Hat |
+| party hat | 1400 | Party Hat |
+| beret | 1500 | Rose Beret |
+| top hat | 1800 | Black Top Hat |
+| boots, rain boots, sneakers, high-tops | 2000 | Yellow Rain Boots, White Sneakers, Gold High-Tops |
+| sweater, puffer, vest | 3000 | Cherry Sweater, Mint Puffer, Blue Quilted Vest |
+| hoodie | 3200 | Cozy Pink Hoodie |
+| raincoat | 3500 | Yellow Raincoat |
+
+Species is null, so both dogs and cats can buy them. NPCs only roll bundled wardrobe ids, so these rows never land on an NPC.
 
 The remote validator accepts `colorway.parts`, `colorway.baffles`, and `patternParts` whose names are in `PART_NAMES[shape]`. A bad part fill is dropped, not fatal. A pattern that is not in `KNOWN_PATTERNS` drops the row, which is how an older build hides an unknown pattern.
 
