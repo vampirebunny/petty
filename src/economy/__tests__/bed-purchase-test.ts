@@ -3,6 +3,7 @@ import { getDb } from '../../db/database';
 import { enterClient, leaveClient, type ClientBinding } from '../../sync/clientScope';
 import { openClientDatabase } from '../../sync/harnessDb';
 import { purchaseCart } from '../service';
+import { invalidateShopCatalog, loadShopCatalog } from '../shopState';
 
 jest.mock('../../sync/queue', () => ({
   queuePlayer: () => undefined,
@@ -83,6 +84,7 @@ const remote = {
 };
 
 it('puts a bought bed in owned furniture without a placement', () => {
+  invalidateShopCatalog();
   const phone = client();
   enterClient(phone);
   try {
@@ -155,6 +157,25 @@ it('moves premium dog beds out of inventory and into storage', () => {
     expect(pieces.find((piece) => piece.id === 'bed_cloud_puff')?.bedStyle).toBe('cloud');
     expect(pieces.find((piece) => piece.id === 'bed_bone_sofa')?.bedStyle).toBe('bone');
     expect(db.getAllSync('SELECT item_id FROM inventory')).toEqual([]);
+  } finally {
+    leaveClient();
+  }
+});
+
+it('reuses a parsed shop catalog for the same day', () => {
+  invalidateShopCatalog();
+  const phone = client();
+  enterClient(phone);
+  try {
+    getDb().runSync(
+      `INSERT INTO shop_catalog_cache (id, active_json, active_version, pending_json, pending_version, pending_on)
+       VALUES (1, ?, 1, NULL, NULL, NULL)`,
+      JSON.stringify(remote),
+    );
+    const first = loadShopCatalog();
+    const second = loadShopCatalog();
+    expect(first).not.toBeNull();
+    expect(second).toBe(first);
   } finally {
     leaveClient();
   }

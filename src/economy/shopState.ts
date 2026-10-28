@@ -27,6 +27,24 @@ import {
 
 export type ShopDay = { date: string; picks: DayPick[]; dealId: string | null };
 
+type ParsedCatalog = { day: string; token: number; catalog: ShopCatalog | null };
+
+let catalogToken = 0;
+let catalogCache: ParsedCatalog | null = null;
+
+export function invalidateShopCatalog(): void {
+  catalogToken += 1;
+}
+
+// A catalog already parsed this session, or undefined when the shop still has to read SQLite.
+export function peekShopCatalog(now = Date.now()): ShopCatalog | null | undefined {
+  const today = localDay(now);
+  if (!catalogCache || catalogCache.day !== today || catalogCache.token !== catalogToken) {
+    return undefined;
+  }
+  return catalogCache.catalog;
+}
+
 function defs() {
   return [...itemDefsFromCatalog(catalog), ...remoteItemDefs()];
 }
@@ -52,12 +70,19 @@ function parseRemote(json: string | null): ShopCatalog | null {
 // Nothing is bundled: before the first download this is null.
 export function loadShopCatalog(now = Date.now()): ShopCatalog | null {
   const today = localDay(now);
+  if (catalogCache && catalogCache.day === today && catalogCache.token === catalogToken) {
+    return catalogCache.catalog;
+  }
   const row = readCatalogCache();
+  let catalog: ShopCatalog | null;
   if (row?.pending_json && row.pending_on && row.pending_on <= today) {
     promoteCatalog(row);
-    return parseRemote(row.pending_json);
+    catalog = parseRemote(row.pending_json);
+  } else {
+    catalog = parseRemote(row?.active_json ?? null);
   }
-  return parseRemote(row?.active_json ?? null);
+  catalogCache = { day: today, token: catalogToken, catalog };
+  return catalog;
 }
 
 export function listedPrice(itemId: string, now = Date.now()): number | null {
@@ -74,6 +99,7 @@ export function applyCatalogNow(): boolean {
     return false;
   }
   promoteCatalog(row);
+  invalidateShopCatalog();
   return true;
 }
 
@@ -121,6 +147,7 @@ export function saveShopDownload(remote: RemoteShop, now = Date.now()): void {
       json,
       remote.version,
     );
+    invalidateShopCatalog();
     return;
   }
   if (row.active_version === remote.version || row.pending_version === remote.version) {
@@ -134,6 +161,7 @@ export function saveShopDownload(remote: RemoteShop, now = Date.now()): void {
     remote.version,
     tomorrow,
   );
+  invalidateShopCatalog();
 }
 
 export function remoteVersion(): number | null {

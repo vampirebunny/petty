@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Image, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { FlatList, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   Easing,
@@ -46,7 +46,7 @@ import {
 import { stockedSkus } from '../actor/furniture';
 import { currentOwner } from '../db/currentOwner';
 import { furnitureOf, subscribePlayerHome } from '../db/playerHome';
-import { ensureShopDay, loadLimitedStock, loadShopCatalog } from '../economy/shopState';
+import { ensureShopDay, loadLimitedStock, loadShopCatalog, peekShopCatalog, type ShopDay } from '../economy/shopState';
 import { refreshShopCatalog } from '../economy/shopSync';
 import type { Equipped, OutfitSlot, PetState } from '../sim/types';
 import { useLimitedContentWidth } from '../ui/PhoneColumn';
@@ -183,7 +183,6 @@ export function PetShopScreen({
   const celebrateSpin = useSharedValue(0);
   const celebrateDrop = useSharedValue(0);
   const [now, setNow] = useState(() => Date.now());
-  const [clock, setClock] = useState(() => Date.now());
   const [cart, setCart] = useState<CartRow[]>([]);
   const [sheet, setSheet] = useState(false);
   const [boopsOpen, setBoopsOpen] = useState(false);
@@ -198,8 +197,12 @@ export function PetShopScreen({
   const dealRef = useRef<string | null>(null);
   const dayRef = useRef<string | null>(null);
   const dealReady = useRef(false);
-  const catalog = useMemo(() => loadShopCatalog(now), [now]);
-  const day = useMemo(() => (catalog ? ensureShopDay(species, now) : null), [catalog, now, species]);
+  const [catalog, setCatalog] = useState<ShopCatalog | null>(() => peekShopCatalog(now) ?? null);
+  const [settled, setSettled] = useState(() => peekShopCatalog(now) !== undefined);
+  const [day, setDay] = useState<ShopDay | null>(() => {
+    const cached = peekShopCatalog(now);
+    return cached ? ensureShopDay(species, now) : null;
+  });
   const [homeTick, setHomeTick] = useState(0);
   useEffect(() => subscribePlayerHome(() => setHomeTick((value) => value + 1)), []);
   const owned = useMemo(() => {
@@ -218,9 +221,8 @@ export function PetShopScreen({
   const stock = useMemo(() => (now > 0 ? loadLimitedStock() : []), [now]);
   // Off until the Golden Crown art is ready. The limited row and buy path stay in place.
   const showLimitedCrown = false;
-  const limitedOffer = showLimitedCrown ? featuredLimited(stock, clock) : null;
+  const limitedOffer = showLimitedCrown ? featuredLimited(stock, now) : null;
   const dealId = day ? shownDeal(day.dealId, day.picks, owned) : null;
-  const picks = day ? shownPicks(day.picks, owned) : [];
   const quote = useMemo(() => {
     if (!catalog || !day) {
       return null;
@@ -267,9 +269,24 @@ export function PetShopScreen({
   }, [now]);
 
   useEffect(() => {
-    const timer = setInterval(() => setClock(Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, []);
+    let cancel = false;
+    const frame = requestAnimationFrame(() => {
+      if (cancel) {
+        return;
+      }
+      const loaded = loadShopCatalog(now);
+      if (cancel) {
+        return;
+      }
+      setCatalog(loaded);
+      setDay(loaded ? ensureShopDay(species, now) : null);
+      setSettled(true);
+    });
+    return () => {
+      cancel = true;
+      cancelAnimationFrame(frame);
+    };
+  }, [now, species]);
 
   useEffect(() => {
     const date = day?.date ?? null;
@@ -332,20 +349,54 @@ export function PetShopScreen({
   const charge = quote?.ok ? quote.charge : 0;
   const short = Math.max(0, charge - balance);
   const canBuy = !!quote?.ok && cart.length > 0 && short === 0 && !busy;
-  const today = localDay(clock);
+  const today = localDay(now);
   const bundle = catalog && !limitedOffer ? featuredBundle(catalog, today) : null;
-  const rowBundles = (catalog?.bundles ?? []).filter((entry) => entry.id !== bundle?.id);
+  const rowBundles = useMemo(
+    () => (catalog?.bundles ?? []).filter((entry) => entry.id !== bundle?.id),
+    [bundle, catalog],
+  );
   const crown = limitedOffer && catalog ? findItem(catalog, limitedOffer.itemId) : null;
   const crownSerial = crown && owned.has(crown.id) ? limitedSerial(crown.id) : null;
   const crownLabel = limitedBuyLabel(limitedOffer, online);
-  const groups = catalog
-    ? categories
-        .map((entry) => ({ ...entry, items: tabItems(catalog, entry.id, species) }))
-        .filter((entry) => entry.items.length > 0 || (entry.id === 'treats' && rowBundles.length > 0))
-    : [];
-  const remain = day ? nextLocalMidnight(day.date) - clock : 0;
+  const groups = useMemo(
+    () =>
+      catalog
+        ? categories
+            .map((entry) => ({ ...entry, items: tabItems(catalog, entry.id, species) }))
+            .filter((entry) => entry.items.length > 0 || (entry.id === 'treats' && rowBundles.length > 0))
+        : [],
+    [catalog, rowBundles, species],
+  );
+  const pickItems = useMemo(() => {
+    if (!catalog || !day) {
+      return [];
+    }
+    const items: ShopListing[] = [];
+    for (const pick of shownPicks(day.picks, owned)) {
+      const item = findItem(catalog, pick.itemId);
+      if (item && fitsSpecies(item.species, species)) {
+        items.push(item);
+      }
+    }
+    return items;
+  }, [catalog, day, owned, species]);
+  const sections = useMemo(() => {
+    const rows: { key: string; kind: 'picks' | 'limited' | 'bundle' | 'category'; categoryId?: ShopCategory }[] = [
+      { key: 'picks', kind: 'picks' },
+    ];
+    if (limitedOffer && crown) {
+      rows.push({ key: 'limited', kind: 'limited' });
+    }
+    if (bundle) {
+      rows.push({ key: 'bundle', kind: 'bundle' });
+    }
+    for (const group of groups) {
+      rows.push({ key: group.id, kind: 'category', categoryId: group.id });
+    }
+    return rows;
+  }, [bundle, crown, groups, limitedOffer]);
 
-  const add = (id: string, kind: CartRow['kind']) => {
+  const add = useCallback((id: string, kind: CartRow['kind']) => {
     setCart((rows) => {
       const existing = rows.find((row) => row.id === id && row.kind === kind);
       if (existing && kind === 'item') {
@@ -359,17 +410,19 @@ export function PetShopScreen({
       }
       return [...rows, { id, kind, qty: 1, addedAt: Date.now() }];
     });
-  };
-  const remove = (id: string, kind: CartRow['kind']) => {
+  }, [catalog]);
+  const remove = useCallback((id: string, kind: CartRow['kind']) => {
     setCart((rows) => rows.filter((row) => !(row.id === id && row.kind === kind)));
-  };
-  const setQty = (id: string, kind: CartRow['kind'], qty: number) => {
-    if (qty < 1) {
-      remove(id, kind);
-      return;
-    }
-    setCart((rows) => rows.map((row) => (row.id === id && row.kind === kind ? { ...row, qty } : row)));
-  };
+  }, []);
+  const setQty = useCallback((id: string, kind: CartRow['kind'], qty: number) => {
+    setCart((rows) => {
+      if (qty < 1) {
+        return rows.filter((row) => !(row.id === id && row.kind === kind));
+      }
+      return rows.map((row) => (row.id === id && row.kind === kind ? { ...row, qty } : row));
+    });
+  }, []);
+  const previewHouse = useCallback(() => setHousePreview(true), []);
 
   const buy = () => {
     if (!canBuy) {
@@ -454,7 +507,7 @@ export function PetShopScreen({
           <Text style={styles.pillText}>{money(balance)}</Text>
         </Glossy>
       </View>
-      {!catalog || !day ? (
+      {settled && (!catalog || !day) ? (
         <View style={styles.closed}>
           <Text style={styles.closedTitle}>The shop is opening soon!</Text>
           <Text style={styles.closedBody}>Connect to the internet to visit.</Text>
@@ -482,127 +535,126 @@ export function PetShopScreen({
               )}
             </Pressable>
           </View>
-          <ScrollView
-            style={split ? styles.choices : styles.choicesFill}
-            contentContainerStyle={styles.scroll}
-            directionalLockEnabled
-            showsVerticalScrollIndicator={false}
-          >
-            {note && !sheet ? <Text style={styles.note}>{note}</Text> : null}
-            <Animated.View key={day.date} entering={reducedMotion ? undefined : FadeIn.duration(280)} style={styles.picks}>
-              <View style={styles.picksHead}>
-                <Text style={styles.section}>{"Today's picks"}</Text>
-                <Glossy variant="white" ledge={2} style={styles.countChip}>
-                  <Clock size={14} strokeWidth={2.6} color={shop.inkAccent} />
-                  <Text style={styles.countText}>{countdownLabel(remain)}</Text>
-                </Glossy>
-              </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pickRow}>
-                {picks.map((pick) => {
-                  const item = findItem(catalog, pick.itemId);
-                  if (!item || !fitsSpecies(item.species, species)) {
-                    return null;
-                  }
+          {catalog && day ? (
+            <FlatList
+              style={split ? styles.choices : styles.choicesFill}
+              contentContainerStyle={styles.scroll}
+              data={sections}
+              extraData={{ cart, owned, dealId, today }}
+              keyExtractor={(section) => section.key}
+              initialNumToRender={2}
+              maxToRenderPerBatch={2}
+              windowSize={3}
+              directionalLockEnabled
+              showsVerticalScrollIndicator={false}
+              ListHeaderComponent={note && !sheet ? <Text style={styles.note}>{note}</Text> : null}
+              renderItem={({ item: section }) => {
+                if (section.kind === 'picks') {
                   return (
-                    <ShopCard
-                      key={pick.itemId}
-                      item={item}
-                      catalog={catalog}
-                      deal={item.id === dealId}
-                      fresh={isNewItem(item, today)}
-                      owned={owned.has(item.id)}
-                      row={cart.find((entry) => entry.kind === 'item' && entry.id === item.id) ?? null}
-                      wearing={wearingHas(wearing, item.id)}
-                      width={142}
-                      butter
-                      species={species}
-                      onPreview={item.id === 'dogHouse' ? () => setHousePreview(true) : undefined}
-                      onAdd={() => add(item.id, 'item')}
-                      onRemove={() => remove(item.id, 'item')}
-                      onQty={(qty) => setQty(item.id, 'item', qty)}
+                    <Animated.View entering={reducedMotion ? undefined : FadeIn.duration(280)} style={styles.picks}>
+                      <View style={styles.picksHead}>
+                        <Text style={styles.section}>{"Today's picks"}</Text>
+                        <ShopCountdown day={day.date} />
+                      </View>
+                      <ItemShelf
+                        items={pickItems}
+                        width={142}
+                        gap={10}
+                        butter
+                        catalog={catalog}
+                        dealId={dealId}
+                        today={today}
+                        owned={owned}
+                        cart={cart}
+                        wearing={wearing}
+                        species={species}
+                        onPreview={previewHouse}
+                        onAdd={add}
+                        onRemove={remove}
+                        onQty={setQty}
+                      />
+                    </Animated.View>
+                  );
+                }
+                if (section.kind === 'limited' && limitedOffer && crown) {
+                  return (
+                    <LimitedCard
+                      name={crown.name}
+                      price={crown.price ?? 0}
+                      cap={limitedOffer.cap}
+                      unitsLeft={limitedOffer.unitsLeft}
+                      label={crownLabel}
+                      serial={crownSerial}
+                      busy={busy}
+                      onBuy={() => setCrownRequest(newRequestId())}
                     />
                   );
-                })}
-              </ScrollView>
-            </Animated.View>
-            {limitedOffer && crown ? (
-              <LimitedCard
-                name={crown.name}
-                price={crown.price ?? 0}
-                cap={limitedOffer.cap}
-                unitsLeft={limitedOffer.unitsLeft}
-                label={crownLabel}
-                serial={crownSerial}
-                busy={busy}
-                onBuy={() => setCrownRequest(newRequestId())}
-              />
-            ) : null}
-            {bundle ? (
-              <BundleCard
-                name={bundle.name}
-                description={bundle.description}
-                price={bundle.price}
-                was={contentsValue(bundle, catalog.items)}
-                percent={savePercent(bundle.price, contentsValue(bundle, catalog.items))}
-                qty={cart.find((row) => row.kind === 'bundle' && row.id === bundle.id)?.qty ?? 0}
-                catalog={catalog}
-                onAdd={() => add(bundle.id, 'bundle')}
-                onQty={(qty) => setQty(bundle.id, 'bundle', qty)}
-              />
-            ) : null}
-            {groups.map((group) => (
-              <View key={group.id} style={styles.category}>
-                <View style={styles.categoryHead}>
-                  <Text style={styles.section} accessibilityRole="header">
-                    {group.title}
-                  </Text>
-                  <Text style={styles.categoryNote}>{group.note}</Text>
-                </View>
-                <ScrollView
-                  horizontal
-                  nestedScrollEnabled
-                  directionalLockEnabled
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.categoryRow}
-                >
-                  {group.items.map((item) => (
-                    <ShopCard
-                      key={item.id}
-                      item={item}
+                }
+                if (section.kind === 'bundle' && bundle) {
+                  return (
+                    <BundleCard
+                      name={bundle.name}
+                      description={bundle.description}
+                      price={bundle.price}
+                      was={contentsValue(bundle, catalog.items)}
+                      percent={savePercent(bundle.price, contentsValue(bundle, catalog.items))}
+                      qty={cart.find((row) => row.kind === 'bundle' && row.id === bundle.id)?.qty ?? 0}
                       catalog={catalog}
-                      deal={item.id === dealId}
-                      fresh={isNewItem(item, today)}
-                      owned={!item.stackable && owned.has(item.id)}
-                      row={cart.find((entry) => entry.kind === 'item' && entry.id === item.id) ?? null}
-                      wearing={wearingHas(wearing, item.id)}
-                      width={cardWidth}
-                      species={species}
-                      onPreview={item.id === 'dogHouse' ? () => setHousePreview(true) : undefined}
-                      onAdd={() => add(item.id, 'item')}
-                      onRemove={() => remove(item.id, 'item')}
-                      onQty={(qty) => setQty(item.id, 'item', qty)}
+                      onAdd={() => add(bundle.id, 'bundle')}
+                      onQty={(qty) => setQty(bundle.id, 'bundle', qty)}
                     />
-                  ))}
-                  {group.id === 'treats'
-                    ? rowBundles.map((entry) => (
-                        <BundleCard
-                          key={entry.id}
-                          name={entry.name}
-                          description={entry.description}
-                          price={entry.price}
-                          was={contentsValue(entry, catalog.items)}
-                          percent={savePercent(entry.price, contentsValue(entry, catalog.items))}
-                          qty={cart.find((row) => row.kind === 'bundle' && row.id === entry.id)?.qty ?? 0}
-                          catalog={catalog}
-                          onAdd={() => add(entry.id, 'bundle')}
-                          onQty={(qty) => setQty(entry.id, 'bundle', qty)}
-                        />
-                      ))
-                    : null}
-                </ScrollView>
-              </View>
-            ))}
-          </ScrollView>
+                  );
+                }
+                const group = groups.find((entry) => entry.id === section.categoryId);
+                if (!group) {
+                  return null;
+                }
+                return (
+                  <View style={styles.category}>
+                    <View style={styles.categoryHead}>
+                      <Text style={styles.section} accessibilityRole="header">
+                        {group.title}
+                      </Text>
+                      <Text style={styles.categoryNote}>{group.note}</Text>
+                    </View>
+                    <ItemShelf
+                      items={group.items}
+                      width={cardWidth}
+                      gap={12}
+                      catalog={catalog}
+                      dealId={dealId}
+                      today={today}
+                      owned={owned}
+                      respectStack
+                      cart={cart}
+                      wearing={wearing}
+                      species={species}
+                      onPreview={previewHouse}
+                      onAdd={add}
+                      onRemove={remove}
+                      onQty={setQty}
+                    />
+                    {group.id === 'treats'
+                      ? rowBundles.map((entry) => (
+                          <BundleCard
+                            key={entry.id}
+                            name={entry.name}
+                            description={entry.description}
+                            price={entry.price}
+                            was={contentsValue(entry, catalog.items)}
+                            percent={savePercent(entry.price, contentsValue(entry, catalog.items))}
+                            qty={cart.find((row) => row.kind === 'bundle' && row.id === entry.id)?.qty ?? 0}
+                            catalog={catalog}
+                            onAdd={() => add(entry.id, 'bundle')}
+                            onQty={(qty) => setQty(entry.id, 'bundle', qty)}
+                          />
+                        ))
+                      : null}
+                  </View>
+                );
+              }}
+            />
+          ) : null}
         </View>
       )}
       {cart.length > 0 && !sheet && !celebration && !boopsOpen ? (
@@ -703,13 +755,113 @@ export function PetShopScreen({
   );
 }
 
-function ShopCard({
+function ShopCountdown({ day }: { day: string }) {
+  const [clock, setClock] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setClock(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+  return (
+    <Glossy variant="white" ledge={2} style={styles.countChip}>
+      <Clock size={14} strokeWidth={2.6} color={shop.inkAccent} />
+      <Text style={styles.countText}>{countdownLabel(nextLocalMidnight(day) - clock)}</Text>
+    </Glossy>
+  );
+}
+
+function cartQty(cart: CartRow[], id: string): number {
+  return cart.find((entry) => entry.kind === 'item' && entry.id === id)?.qty ?? 0;
+}
+
+const ItemShelf = memo(function ItemShelf({
+  items,
+  width,
+  gap,
+  butter,
+  catalog,
+  dealId,
+  today,
+  owned,
+  respectStack,
+  cart,
+  wearing,
+  species,
+  onPreview,
+  onAdd,
+  onRemove,
+  onQty,
+}: {
+  items: ShopListing[];
+  width: number;
+  gap: number;
+  butter?: boolean;
+  catalog: ShopCatalog;
+  dealId: string | null;
+  today: string;
+  owned: Set<string>;
+  respectStack?: boolean;
+  cart: CartRow[];
+  wearing: Map<OutfitSlot, string>;
+  species: SpeciesId;
+  onPreview: () => void;
+  onAdd: (id: string, kind: CartRow['kind']) => void;
+  onRemove: (id: string, kind: CartRow['kind']) => void;
+  onQty: (id: string, kind: CartRow['kind'], qty: number) => void;
+}) {
+  const layout = useCallback(
+    (_: ArrayLike<ShopListing> | null | undefined, index: number) => ({
+      length: width + gap,
+      offset: (width + gap) * index,
+      index,
+    }),
+    [gap, width],
+  );
+  return (
+    <FlatList
+      horizontal
+      data={items}
+      keyExtractor={(item) => item.id}
+      initialNumToRender={3}
+      maxToRenderPerBatch={4}
+      windowSize={3}
+      nestedScrollEnabled
+      directionalLockEnabled
+      showsHorizontalScrollIndicator={false}
+      removeClippedSubviews={false}
+      style={styles.shelfList}
+      contentContainerStyle={[butter ? styles.pickRow : styles.categoryRow, styles.shelfRow]}
+      getItemLayout={layout}
+      renderItem={({ item }) => (
+        <View style={{ width, marginRight: gap }}>
+          <ShopCard
+            item={item}
+            catalog={catalog}
+            deal={item.id === dealId}
+            fresh={isNewItem(item, today)}
+            owned={respectStack ? !item.stackable && owned.has(item.id) : owned.has(item.id)}
+            qty={cartQty(cart, item.id)}
+            wearing={wearingHas(wearing, item.id)}
+            width={width}
+            butter={butter}
+            species={species}
+            onPreview={item.id === 'dogHouse' ? onPreview : undefined}
+            onAdd={onAdd}
+            onRemove={onRemove}
+            onQty={onQty}
+          />
+        </View>
+      )}
+    />
+  );
+});
+
+const ShopCard = memo(function ShopCard({
   item,
   catalog,
   deal,
   fresh,
   owned,
-  row,
+  qty,
   wearing,
   width,
   butter,
@@ -724,20 +876,21 @@ function ShopCard({
   deal: boolean;
   fresh: boolean;
   owned: boolean;
-  row: CartRow | null;
+  qty: number;
   wearing: boolean;
   width: number;
   butter?: boolean;
   species?: 'dog' | 'cat';
   onPreview?: () => void;
-  onAdd: () => void;
-  onRemove: () => void;
-  onQty: (qty: number) => void;
+  onAdd: (id: string, kind: CartRow['kind']) => void;
+  onRemove: (id: string, kind: CartRow['kind']) => void;
+  onQty: (id: string, kind: CartRow['kind'], qty: number) => void;
 }) {
   const soon = item.shop === 'coming_soon';
   const price = item.price == null ? null : deal ? discounted(item.price, catalog.dealPct) : item.price;
   const clothes = item.category === 'clothes';
   const artSize = Math.round(width - 24);
+  const row = qty > 0 ? { id: item.id, kind: 'item' as const, qty, addedAt: 0 } : null;
   return (
     <View style={[styles.cardSlot, { width }, !butter && styles.cardStretch]}>
       <LedgeCard
@@ -794,9 +947,9 @@ function ShopCard({
           stackable={item.stackable}
           clothes={clothes}
           name={item.name}
-          onAdd={onAdd}
-          onRemove={onRemove}
-          onQty={onQty}
+          onAdd={() => onAdd(item.id, 'item')}
+          onRemove={() => onRemove(item.id, 'item')}
+          onQty={(next) => onQty(item.id, 'item', next)}
         />
       </LedgeCard>
       {fresh ? (
@@ -813,7 +966,7 @@ function ShopCard({
       ) : null}
     </View>
   );
-}
+});
 
 function CardAction({
   soon,
@@ -1263,7 +1416,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   categoryNote: { fontFamily: fontFamily.extraBold, fontSize: 12, color: shop.inkMuted },
-  categoryRow: { paddingHorizontal: 16, paddingTop: 12, gap: 12, alignItems: 'stretch' },
+  categoryRow: { paddingHorizontal: 16, paddingTop: 12, alignItems: 'stretch' },
+  shelfList: { flexGrow: 0 },
+  shelfRow: { gap: 0 },
   cardSlot: { overflow: 'visible' },
   cardStretch: { alignSelf: 'stretch' },
   card: { padding: 12, gap: 6 },
