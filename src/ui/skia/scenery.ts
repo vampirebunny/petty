@@ -7,7 +7,7 @@ import type { Prop } from '../../actor/scenes';
 import { drawBackdropLayers } from './backdrop';
 import { fillCircle, fillOval, oval, paintOf } from './draw';
 import type { Env } from './env';
-import { motionStep, snowOn, weatherOf } from './env';
+import { motionStep, snowOn, takeMotionRecord, weatherOf } from './env';
 import { activeTintKey, glow } from './ink';
 import { lampGlow } from './light';
 import { extras, drawPropBody, petNear } from './props';
@@ -134,7 +134,8 @@ export function drawProp(c: SkCanvas, prop: Prop, env: Env): void {
   if (key) {
     const step = live ? motionStep(env) : 0;
     let slot = propShots.get(key);
-    if (!slot || slot.step !== step) {
+    let recorded = false;
+    if ((!slot || slot.step !== step) && (!live || takeMotionRecord(env.t))) {
       if (!slot && propShots.size >= PROP_CAP) {
         const oldest = propShots.keys().next().value;
         if (oldest !== undefined) {
@@ -146,10 +147,16 @@ export function drawProp(c: SkCanvas, prop: Prop, env: Env): void {
       drawPropBody(canvas, prop, env);
       slot = { picture: recorder.finishRecordingAsPicture(), step };
       propShots.set(key, slot);
-    } else if (!live) {
-      noteLampGlow(prop, env);
+      recorded = true;
     }
-    c.drawPicture(slot.picture);
+    if (slot) {
+      if (!recorded && !live) {
+        noteLampGlow(prop, env);
+      }
+      c.drawPicture(slot.picture);
+    } else {
+      drawPropBody(c, prop, env);
+    }
   } else {
     drawPropBody(c, prop, env);
   }

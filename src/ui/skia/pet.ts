@@ -1,7 +1,7 @@
 import { BlendMode, Skia, StrokeCap } from '@shopify/react-native-skia';
 import type { SkCanvas, SkPaint, SkPicture } from '@shopify/react-native-skia';
 
-import { blendedFoot, bodyFrame, depthScale, isDarkCoat, solveKnee, wearItem } from '../../actor';
+import { blendedFoot, bodyFrame, isDarkCoat, solveKnee, wearItem } from '../../actor';
 import type { Actor, Breed, Geom, Pose } from '../../actor';
 import { blendedTheta, facingFit, projectLocal } from '../../actor/facing';
 import { facingConfig } from '../../actor/data/facing';
@@ -215,8 +215,8 @@ function phaseStep(ph: number, steps: number): number {
   return Math.round((u / CYCLE) * steps) % steps;
 }
 
-function poseInFlight(pose: Pose, ignoreWalk = false): boolean {
-  if ((!ignoreWalk && pose.walk > 0.05) || pose.shake > 0.01 || pose.swim > 0.5 || pose.rubSway > 0.05) {
+function poseInFlight(pose: Pose): boolean {
+  if (pose.walk > 0.05 || pose.shake > 0.01 || pose.swim > 0.5 || pose.rubSway > 0.05) {
     return true;
   }
   if (pose.stand > 0.2 || pose.pant > 0.2 || pose.knead > 0.05 || pose.paddle > 0.05 || pose.kick > 0.05 || pose.wiggle > 0.05) {
@@ -376,131 +376,6 @@ function replayIdlePet(
   drawSleepMarks(c, actor, actor.pose, t, shot.headLift);
 }
 
-// A steady walk replays eight cycle frames. y is left out of the key: bodyFrame uses it only for
-// depth scale, and a new picture every few pixels would never hit. The recorded scale is corrected
-// at replay. Fetch, jumps, turns, blinks, and barks stay live.
-const WALK_CAP = 32;
-const WALK_STEPS = 8;
-type WalkShot = {
-  picture: SkPicture;
-  headDx: number;
-  headDy: number;
-  mouthDx: number;
-  mouthDy: number;
-  depth: number;
-};
-const walkShots = new Map<string, WalkShot>();
-
-function walkCacheable(actor: Actor, silhouette: boolean): boolean {
-  if (silhouette || placing || actor.debugTheta != null || actor.spin || actor.jump || actor.turning) {
-    return false;
-  }
-  if (actor.task.type !== 'walk' || actor.furniture || actor.house) {
-    return false;
-  }
-  if (actor.hearts.length > 0 || actor.z > 2 || actor.pose.walk < 0.85) {
-    return false;
-  }
-  if (actor.blinkT < 0.12 || actor.bark.open > 0.05) {
-    return false;
-  }
-  if (actor.octantFrom !== actor.octant && actor.octantBlend > 0.02 && actor.octantBlend < 0.98) {
-    return false;
-  }
-  return !poseInFlight(actor.pose, true);
-}
-
-function walkKey(actor: Actor, breed: Breed, carrying: string | null, reduced: boolean): string {
-  const look = actor.look;
-  const variant = actor.variant;
-  const worn = Object.keys(actor.equipped)
-    .sort()
-    .map((slot) => `${slot}:${actor.equipped[slot as keyof typeof actor.equipped] ?? ''}`)
-    .join(',');
-  const defs = actor.wearDefs;
-  const cuts = defs
-    ? Object.keys(defs)
-        .sort()
-        .map((slot) => `${slot}:${defs[slot as keyof typeof defs]?.id ?? ''}`)
-        .join(',')
-    : '';
-  const gait = actor.gait;
-  return [
-    breed.id,
-    look ? `${look.coat}|${look.pattern ?? ''}|${look.accent ?? ''}|${look.eyeColor ?? ''}` : '',
-    Math.round(variant.earSize * 100),
-    Math.round(variant.tailFluff * 100),
-    Math.round(variant.markingIntensity * 100),
-    variant.oneEarFlop ? 1 : 0,
-    worn,
-    cuts,
-    actor.octant,
-    actor.face,
-    Math.round(actor.octantBlend),
-    gait.current,
-    gait.from,
-    Math.round(gait.blend * 4),
-    Math.round(actor.share * 4),
-    Math.round(actor.speed / 40),
-    Math.round(actor.pose.walk * 5),
-    phaseStep(actor.phase, WALK_STEPS),
-    Math.round(actor.displayAgeDays),
-    Math.round(actor.displayWeight * 10),
-    Math.round(actor.vitality * 20),
-    carrying ?? '',
-    reduced ? 1 : 0,
-  ].join(';');
-}
-
-function replayWalkPet(
-  c: SkCanvas,
-  actor: Actor,
-  breed: Breed,
-  floor: { yMin: number; yMax: number },
-  t: number,
-  carrying: string | null,
-  reduced: boolean,
-): void {
-  const key = walkKey(actor, breed, carrying, reduced);
-  let shot = walkShots.get(key);
-  if (!shot) {
-    if (walkShots.size >= WALK_CAP) {
-      const oldest = walkShots.keys().next().value;
-      if (oldest !== undefined) {
-        walkShots.delete(oldest);
-      }
-    }
-    const recorder = Skia.PictureRecorder();
-    const canvas = recorder.beginRecording(Skia.XYWHRect(-520, -640, 1040, 860));
-    placing = { x: 0, y: 0 };
-    try {
-      drawActor(canvas, actor, breed, floor, t, carrying, false, reduced);
-    } finally {
-      placing = null;
-    }
-    const head = actor.headMark;
-    const mouth = actor.mouthMark;
-    shot = {
-      picture: recorder.finishRecordingAsPicture(),
-      headDx: (head?.x ?? actor.x) - actor.x,
-      headDy: (head?.y ?? actor.y) - actor.y,
-      mouthDx: (mouth?.x ?? actor.x) - actor.x,
-      mouthDy: (mouth?.y ?? actor.y) - actor.y,
-      depth: depthScale(actor.y, floor.yMin, floor.yMax),
-    };
-    walkShots.set(key, shot);
-  }
-  const depth = depthScale(actor.y, floor.yMin, floor.yMax);
-  const ratio = shot.depth > 0 ? depth / shot.depth : 1;
-  c.save();
-  c.translate(actor.x, actor.y);
-  c.scale(ratio, ratio);
-  c.drawPicture(shot.picture);
-  c.restore();
-  actor.headMark = { x: actor.x + shot.headDx * ratio, y: actor.y + shot.headDy * ratio };
-  actor.mouthMark = { x: actor.x + shot.mouthDx * ratio, y: actor.y + shot.mouthDy * ratio };
-}
-
 export function drawActor(
   c: SkCanvas,
   actor: Actor,
@@ -513,10 +388,6 @@ export function drawActor(
 ): void {
   if (idleCacheable(actor, silhouette)) {
     replayIdlePet(c, actor, breed, floor, t, carrying, reduced);
-    return;
-  }
-  if (walkCacheable(actor, silhouette)) {
-    replayWalkPet(c, actor, breed, floor, t, carrying, reduced);
     return;
   }
   const posed = actor.jump && actor.jump.phase !== 'turn' ? actor.jump.visual : null;

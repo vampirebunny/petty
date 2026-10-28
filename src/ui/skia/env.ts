@@ -73,6 +73,23 @@ export function motionStep(env: { t: number; reduced: boolean }): number {
   return env.reduced ? 0 : Math.round(env.t * 10);
 }
 
+// One ambient picture per frame. Rebuilding the lawn, the sky, and every swaying prop on the same
+// tick stalls the ball and a running pet.
+let recordStamp = Number.NaN;
+let recordLeft = 0;
+
+export function takeMotionRecord(t: number): boolean {
+  if (t !== recordStamp) {
+    recordStamp = t;
+    recordLeft = 1;
+  }
+  if (recordLeft <= 0) {
+    return false;
+  }
+  recordLeft -= 1;
+  return true;
+}
+
 /** Snow on things: only where it can fall (outdoor scenes and the view through windows). */
 export function snowOn(env: Env): number {
   return weatherOf(env).snowCover;

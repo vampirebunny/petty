@@ -6,7 +6,7 @@ import type { Scene } from '../../actor';
 import { stageHeight, stageWidth } from '../../actor/geometry';
 import type { Shape } from '../../actor/scenes';
 import type { Env } from './env';
-import { motionStep, weatherOf } from './env';
+import { motionStep, takeMotionRecord, weatherOf } from './env';
 import { activeTintKey, clamp01, css, gradRect, linear, mixc, rect, rgba, stroke } from './ink';
 import { grassTone, foliageOf } from './nature';
 import { drawShape } from './shapes';
@@ -151,7 +151,7 @@ function drawGrassTufts(c: SkCanvas, scene: Scene, env: Env, color: string, cove
 function grassKey(scene: Scene, env: Env, color: string, cover: number): string {
   const f = foliageOf(env);
   const bleed = Math.round(env.bleed ?? 0);
-  const pets = (env.contacts ?? []).map((pet) => `${Math.round(pet.x / 16)}:${Math.round(pet.y / 16)}`).join(',');
+  const pets = (env.contacts ?? []).map((pet) => `${Math.round(pet.x / 32)}:${Math.round(pet.y / 32)}`).join(',');
   return [scene.id, color, Math.round(cover * 10), f.season, Math.round(f.lush * 10), bleed, env.reduced ? 1 : 0, pets].join('|');
 }
 
@@ -169,11 +169,16 @@ function drawGrass(c: SkCanvas, scene: Scene, env: Env): void {
   const step = motionStep(env);
   const key = grassKey(scene, env, color, cover);
   let slot = grassSlots.get(scene);
-  if (!slot || slot.key !== key || slot.step !== step) {
+  const dirty = !slot || slot.key !== key || slot.step !== step;
+  if (dirty && takeMotionRecord(env.t)) {
     slot = { key, step, picture: record(bleed, (pc) => drawGrassTufts(pc, scene, env, color, cover)) };
     grassSlots.set(scene, slot);
   }
-  c.drawPicture(slot.picture);
+  if (slot) {
+    c.drawPicture(slot.picture);
+  } else {
+    drawGrassTufts(c, scene, env, color, cover);
+  }
 }
 
 function skyKey(env: Env, bleed: number, horizon: number): string {
@@ -203,7 +208,8 @@ function drawOutdoorSky(c: SkCanvas, scene: Scene, env: Env, left: number, span:
   const step = motionStep(env);
   const key = skyKey(env, bleed, horizon);
   let slot = skySlots.get(scene);
-  if (!slot || slot.key !== key || slot.step !== step) {
+  const dirty = !slot || slot.key !== key || slot.step !== step;
+  if (dirty && takeMotionRecord(env.t)) {
     slot = {
       key,
       step,
@@ -211,7 +217,11 @@ function drawOutdoorSky(c: SkCanvas, scene: Scene, env: Env, left: number, span:
     };
     skySlots.set(scene, slot);
   }
-  c.drawPicture(slot.picture);
+  if (slot) {
+    c.drawPicture(slot.picture);
+  } else {
+    drawSkyPane(c, left, 0, span, horizon, env, { x: 0, w: stageWidth });
+  }
 }
 
 /**

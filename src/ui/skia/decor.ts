@@ -5,7 +5,7 @@ import type { Scene } from '../../actor';
 import { stageHeight, stageWidth } from '../../actor/geometry';
 import type { DecorTheme } from '../../actor/sky';
 import type { Env, Glow } from './env';
-import { motionStep, snowOn } from './env';
+import { motionStep, snowOn, takeMotionRecord } from './env';
 import { activeTintKey, circle, clamp01, darken, ellipse, fill, glow, hash, lighten, line, makePath, ov, poly, rect, rrect, stroke } from './ink';
 import { footprint, windowDims } from './layout';
 import { castShadow } from './light';
@@ -49,18 +49,24 @@ function slotDraw(draw: (c: SkCanvas) => void): (c: SkCanvas) => void {
     const live = decorNow();
     const step = motionStep(live);
     const key = decorSlotKey(live);
-    if (!slot || slot.step !== step || slot.key !== key) {
+    const dirty = !slot || slot.step !== step || slot.key !== key;
+    if (dirty && takeMotionRecord(live.t)) {
       const before = live.glows.length;
       const recorder = Skia.PictureRecorder();
       const canvas = recorder.beginRecording(decorBounds);
       draw(canvas);
       slot = { picture: recorder.finishRecordingAsPicture(), step, key, glows: live.glows.slice(before) };
-    } else {
+      c.drawPicture(slot.picture);
+      return;
+    }
+    if (slot) {
       for (const bit of slot.glows) {
         live.glows.push(bit);
       }
+      c.drawPicture(slot.picture);
+      return;
     }
-    c.drawPicture(slot.picture);
+    draw(c);
   };
 }
 

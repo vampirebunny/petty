@@ -89,7 +89,7 @@ import { applyFurniture, furnitureAt, movePiece, showPiece, syncFurniture } from
 import { askHouseLeave, houseInside } from '../actor/conservatory';
 import { askFurnitureOff, furnitureClaims } from '../actor/furnitureUse';
 import { skyAt, solarHour } from '../actor/sky';
-import { drawWorld } from './skia/world';
+import { drawWorld, roomPlateKey } from './skia/world';
 import { propsForTrick, type TrickPropType } from '../sim/trickProps';
 import type { TrickOutcome } from '../actor/data/trickScripts';
 
@@ -316,17 +316,22 @@ export function PetView({
     hourRef.current = hour;
     reducedRef.current = reducedMotion;
   }, [hour, reducedMotion]);
-  const picture = useSharedValue<SkPicture>(
-    useMemo(() => {
-      const recorder = Skia.PictureRecorder();
-      recorder.beginRecording(Skia.XYWHRect(0, 0, viewWidth, viewHeight));
-      return recorder.finishRecordingAsPicture();
-    }, [viewHeight, viewWidth]),
-  );
-  const pictureSink = useRef(picture);
+  const blank = useMemo(() => {
+    const recorder = Skia.PictureRecorder();
+    recorder.beginRecording(Skia.XYWHRect(0, 0, viewWidth, viewHeight));
+    return recorder.finishRecordingAsPicture();
+  }, [viewHeight, viewWidth]);
+  // Furniture behind the pet, the pet and the ball, furniture in front. The room pictures
+  // stay put until the pet or the ball crosses a piece, or the slow scenery step ticks.
+  const backPicture = useSharedValue<SkPicture>(blank);
+  const livePicture = useSharedValue<SkPicture>(blank);
+  const frontPicture = useSharedValue<SkPicture>(blank);
+  const plates = useRef({ back: backPicture, live: livePicture, front: frontPicture, key: '' });
   useLayoutEffect(() => {
-    pictureSink.current = picture;
-  }, [picture]);
+    plates.current.back = backPicture;
+    plates.current.live = livePicture;
+    plates.current.front = frontPicture;
+  }, [backPicture, frontPicture, livePicture]);
   const travelRef = useRef<{
     dest: Scene | null;
     phase: 'exit' | 'fade' | 'enter';
@@ -343,9 +348,9 @@ export function PetView({
   }, [onSceneCut, onTraveling, onWalkIn]);
 
   const redraw = useCallback(() => {
-    const recorder = Skia.PictureRecorder();
-    const bounds = Skia.XYWHRect(0, 0, widthRef.current, heightRef.current);
-    const canvas = recorder.beginRecording(bounds);
+    const width = widthRef.current;
+    const height = heightRef.current;
+    const bounds = Skia.XYWHRect(0, 0, width, height);
     const now = Date.now();
     if (now - todAtMs.current > 1000) {
       // Sunrise maps to 06:00 and sunset to 18:00, so the sky gradient follows the real day.
@@ -354,18 +359,29 @@ export function PetView({
       todRef.current = todAt(hourRef.current == null ? live : hourRef.current);
       todAtMs.current = now;
     }
-    worldRef.current.reducedMotion = reducedRef.current;
-    drawWorld(canvas, worldRef.current, widthRef.current, heightRef.current, todRef.current, reducedRef.current);
+    const world = worldRef.current;
+    world.reducedMotion = reducedRef.current;
     const fade = travelRef.current?.fade ?? 0;
-    if (fade > 0.001) {
-      const paint = Skia.Paint();
-      paint.setColor(Skia.Color(`rgba(8,10,16,${fade})`));
-      canvas.drawRect(bounds, paint);
-    }
-    const next = recorder.finishRecordingAsPicture();
+    const key = `${roomPlateKey(world, width, height, todRef.current)}|${Math.round(fade * 16)}`;
+    const record = (layer: 'back' | 'live' | 'front', veil: boolean) => {
+      const recorder = Skia.PictureRecorder();
+      const canvas = recorder.beginRecording(bounds);
+      drawWorld(canvas, world, width, height, todRef.current, reducedRef.current, undefined, undefined, undefined, undefined, layer);
+      if (veil && fade > 0.001) {
+        const paint = Skia.Paint();
+        paint.setColor(Skia.Color(`rgba(8,10,16,${fade})`));
+        canvas.drawRect(bounds, paint);
+      }
+      return recorder.finishRecordingAsPicture();
+    };
     // Leave the previous picture for GC. dispose() marks the host object dead while Fabric
     // and the Skia recorder can still read it, which throws and wedges the React scheduler.
-    pictureSink.current.value = next;
+    if (key !== plates.current.key) {
+      plates.current.back.value = record('back', false);
+      plates.current.front.value = record('front', true);
+      plates.current.key = key;
+    }
+    plates.current.live.value = record('live', false);
   }, []);
   const redrawRef = useRef(redraw);
   useEffect(() => {
@@ -1268,7 +1284,9 @@ export function PetView({
 
   return (
     <Canvas pointerEvents="none" style={[styles.canvas, { width: viewWidth, height: viewHeight }]}>
-      <Picture picture={picture} />
+      <Picture picture={backPicture} />
+      <Picture picture={livePicture} />
+      <Picture picture={frontPicture} />
     </Canvas>
   );
 }
