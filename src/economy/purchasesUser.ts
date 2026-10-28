@@ -1,4 +1,4 @@
-import Constants from 'expo-constants';
+import { isRunningInExpoGo } from 'expo';
 import { Platform } from 'react-native';
 import Purchases from 'react-native-purchases';
 
@@ -6,6 +6,7 @@ let configuredUserId: string | null = null;
 let pending: Promise<void> = Promise.resolve();
 let warnedMissingKey = false;
 let warnedConfigure = false;
+let unconfiguredReason = 'RevenueCat is not configured.';
 
 /** Expo Go has no App Store or Play Billing, so RevenueCat stays unconfigured there. */
 function runningInExpoGo(): boolean {
@@ -13,7 +14,7 @@ function runningInExpoGo(): boolean {
     return false;
   }
   try {
-    return Constants.expoGoConfig != null;
+    return isRunningInExpoGo();
   } catch {
     return false;
   }
@@ -51,17 +52,23 @@ export function whenPurchasesConfigured(): Promise<boolean> {
   );
 }
 
+/** Why the last configure attempt did not finish. The sheet logs this when prices cannot load. */
+export function revenueCatUnconfiguredReason(): string {
+  return unconfiguredReason;
+}
+
 async function applyPurchasesUser(userId: string | null): Promise<void> {
   if (!userId) {
     return;
   }
   const apiKey = publicSdkKey();
   if (!apiKey) {
+    unconfiguredReason = runningInExpoGo()
+      ? 'RevenueCat is not configured because this is Expo Go.'
+      : 'RevenueCat is not configured because the public SDK key is missing. Set EXPO_PUBLIC_REVENUECAT_IOS_KEY and EXPO_PUBLIC_REVENUECAT_ANDROID_KEY.';
     if (__DEV__ && !warnedMissingKey && !runningInExpoGo() && (Platform.OS === 'ios' || Platform.OS === 'android')) {
       warnedMissingKey = true;
-      console.warn(
-        'RevenueCat public SDK key is missing. Set EXPO_PUBLIC_REVENUECAT_IOS_KEY and EXPO_PUBLIC_REVENUECAT_ANDROID_KEY.',
-      );
+      console.warn(unconfiguredReason);
     }
     return;
   }
@@ -71,14 +78,19 @@ async function applyPurchasesUser(userId: string | null): Promise<void> {
   const alreadyConfigured = configuredUserId != null || (await Purchases.isConfigured());
   if (!alreadyConfigured) {
     try {
+      if (__DEV__) {
+        await Purchases.setLogLevel(Purchases.LOG_LEVEL.DEBUG);
+      }
       Purchases.configure({ apiKey, appUserID: userId });
     } catch (error) {
+      unconfiguredReason = `RevenueCat could not be configured. ${errorDetail(error)}`;
       if (__DEV__ && !warnedConfigure) {
         warnedConfigure = true;
-        console.warn('RevenueCat could not be configured.', error);
+        console.warn(unconfiguredReason);
       }
       return;
     }
+    unconfiguredReason = 'RevenueCat is not configured.';
     configuredUserId = userId;
     return;
   }
@@ -91,9 +103,22 @@ async function applyPurchasesUser(userId: string | null): Promise<void> {
   configuredUserId = userId;
 }
 
+function errorDetail(error: unknown): string {
+  if (error && typeof error === 'object' && 'message' in error) {
+    const message = String(error.message);
+    const underlying =
+      'underlyingErrorMessage' in error && error.underlyingErrorMessage
+        ? String(error.underlyingErrorMessage)
+        : '';
+    return underlying && underlying !== message ? `${message} ${underlying}` : message;
+  }
+  return String(error);
+}
+
 export function resetPurchasesUserForTests(): void {
   configuredUserId = null;
   pending = Promise.resolve();
   warnedMissingKey = false;
   warnedConfigure = false;
+  unconfiguredReason = 'RevenueCat is not configured.';
 }

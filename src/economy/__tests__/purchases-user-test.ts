@@ -1,20 +1,19 @@
-import Constants from 'expo-constants';
+import { isRunningInExpoGo } from 'expo';
 import { Platform } from 'react-native';
 import Purchases from 'react-native-purchases';
 
 import { resetPurchasesUserForTests, syncPurchasesUser } from '../purchasesUser';
 
-jest.mock('expo-constants', () => ({
-  __esModule: true,
-  default: {
-    expoGoConfig: null,
-  },
+jest.mock('expo', () => ({
+  isRunningInExpoGo: jest.fn(() => false),
 }));
 
 jest.mock('react-native-purchases', () => ({
   __esModule: true,
   default: {
     configure: jest.fn(),
+    setLogLevel: jest.fn(async () => undefined),
+    LOG_LEVEL: { DEBUG: 'DEBUG' },
     isConfigured: jest.fn(async () => false),
     getAppUserID: jest.fn(async () => 'user-a'),
     logIn: jest.fn(async () => ({ customerInfo: {}, created: false })),
@@ -40,7 +39,7 @@ beforeEach(() => {
   jest.mocked(Purchases.getAppUserID).mockResolvedValue('user-a');
   delete process.env[iosKey];
   delete process.env[androidKey];
-  (Constants as { expoGoConfig: object | null }).expoGoConfig = null;
+  jest.mocked(isRunningInExpoGo).mockReturnValue(false);
 });
 
 it('does not configure without an id', async () => {
@@ -79,7 +78,7 @@ it('lets a guest buy under the install id, then follows a later account id', asy
 });
 
 it('does not configure in Expo Go', async () => {
-  (Constants as { expoGoConfig: object | null }).expoGoConfig = { debuggerHost: 'localhost' };
+  jest.mocked(isRunningInExpoGo).mockReturnValue(true);
   process.env[keyName()] = 'public_key';
   await syncPurchasesUser('user-a');
   expect(Purchases.configure).not.toHaveBeenCalled();

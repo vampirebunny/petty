@@ -1,7 +1,7 @@
 import Purchases from 'react-native-purchases';
 
 import { boopsPacks } from './boopsPacks';
-import { whenPurchasesConfigured } from './purchasesUser';
+import { revenueCatUnconfiguredReason, whenPurchasesConfigured } from './purchasesUser';
 
 /**
  * Prices from the current RevenueCat Offering. That is the Offering marked current
@@ -11,6 +11,7 @@ import { whenPurchasesConfigured } from './purchasesUser';
  */
 export async function loadBoopsPrices(): Promise<ReadonlyMap<string, string> | null> {
   if (!(await whenPurchasesConfigured())) {
+    console.warn(revenueCatUnconfiguredReason());
     return null;
   }
   let packages;
@@ -18,26 +19,35 @@ export async function loadBoopsPrices(): Promise<ReadonlyMap<string, string> | n
     const offerings = await Purchases.getOfferings();
     packages = offerings.current?.availablePackages;
   } catch (error) {
-    if (__DEV__) {
-      console.warn('RevenueCat offerings could not be loaded.', error);
-    }
+    console.warn(`RevenueCat offerings could not be loaded. ${offeringErrorDetail(error)}`);
     return null;
   }
   if (!packages) {
-    if (__DEV__) {
-      console.warn('RevenueCat has no current offering.');
-    }
+    console.warn('RevenueCat has no current offering.');
     return null;
   }
   const byProductId = new Map(packages.map((pack) => [pack.product.identifier, pack.product.priceString]));
+  const returned = [...byProductId.keys()].sort().join(', ') || 'none';
   const prices = new Map<string, string>();
   for (const pack of boopsPacks) {
     const priceString = byProductId.get(pack.productId)?.trim();
     if (!priceString) {
-      console.warn(`Boops pack ${pack.productId} is missing from the current offering.`);
+      console.warn(`Boops pack ${pack.productId} is missing from the current offering. Store products: ${returned}.`);
       continue;
     }
     prices.set(pack.productId, priceString);
   }
   return prices;
+}
+
+function offeringErrorDetail(error: unknown): string {
+  if (error && typeof error === 'object' && 'message' in error) {
+    const message = String(error.message);
+    const underlying =
+      'underlyingErrorMessage' in error && error.underlyingErrorMessage
+        ? String(error.underlyingErrorMessage)
+        : '';
+    return underlying && underlying !== message ? `${message} ${underlying}` : message;
+  }
+  return String(error);
 }
