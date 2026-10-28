@@ -21,6 +21,8 @@ Applied by the owner through `20261024250000_ledger_source_ambiguity.sql`, inclu
 
 `20261028120000_colorway_shape_prices.sql` is applied. Colorway rows cost the same Boops as the hand-made item of that shape. Gold Star Shades are 900. Gold High-Tops are 2000.
 
+`20261028153000_background_music_bucket.sql` creates the public `background-music` bucket, or marks the existing one public, and adds `background_music_public_read` so anon and signed-in clients can read objects. Hosted Storage rejects `DELETE` on `storage.objects` and `storage.buckets`, so this migration does not remove the bucket or its files. Upload the scene tracks that are not bundled in the app after it is applied. The app downloads those files by public URL and does not read a table.
+
 New files in this folder are applied only by the project owner. Do not run `supabase db push`, the Supabase CLI against the hosted project, or the SQL in the dashboard from an agent or an automated script. After the CLI is linked, the owner applies new migrations with:
 
 ```bash

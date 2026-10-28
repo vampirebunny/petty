@@ -2,8 +2,8 @@ import * as Network from 'expo-network';
 
 import { remoteTracks, syncRemoteMusic } from '../remoteMusic';
 
-const saved = new Map<string, number>();
-const downloaded: string[] = [];
+const mockSaved = new Map<string, number>();
+const mockDownloaded: string[] = [];
 
 jest.mock('expo-network', () => ({
   getNetworkStateAsync: jest.fn(),
@@ -19,25 +19,27 @@ jest.mock('expo-file-system', () => {
   }
   class File {
     uri: string;
-    constructor(_dir: Directory, public name: string) {
-      this.uri = `file:///music/${name}`;
+    label: string;
+    constructor(_dir: Directory, label: string) {
+      this.label = label;
+      this.uri = `file:///music/${label}`;
     }
     get exists(): boolean {
-      return saved.has(this.name);
+      return mockSaved.has(this.label);
     }
     get size(): number {
-      return saved.get(this.name) ?? 0;
+      return mockSaved.get(this.label) ?? 0;
     }
     delete(): void {
-      saved.delete(this.name);
+      mockSaved.delete(this.label);
     }
     moveSync(dest: File): void {
-      saved.set(dest.name, this.size);
-      saved.delete(this.name);
+      mockSaved.set(dest.label, this.size);
+      mockSaved.delete(this.label);
     }
     static async downloadFileAsync(_url: string, dest: File): Promise<File> {
-      downloaded.push(dest.name);
-      saved.set(dest.name, 128);
+      mockDownloaded.push(dest.label);
+      mockSaved.set(dest.label, 128);
       return dest;
     }
   }
@@ -45,8 +47,8 @@ jest.mock('expo-file-system', () => {
 });
 
 beforeEach(() => {
-  saved.clear();
-  downloaded.length = 0;
+  mockSaved.clear();
+  mockDownloaded.length = 0;
   process.env.EXPO_PUBLIC_SUPABASE_URL = 'https://example.supabase.co';
   jest.mocked(Network.getNetworkStateAsync).mockResolvedValue({
     isConnected: true,
@@ -55,17 +57,17 @@ beforeEach(() => {
 });
 
 it('plays tracks already saved and downloads only the missing ones', async () => {
-  saved.set(remoteTracks[0], 400);
+  mockSaved.set(remoteTracks[0], 400);
   const ready: string[] = [];
   await syncRemoteMusic((uri) => ready.push(uri));
   expect(ready[0]).toBe(`file:///music/${remoteTracks[0]}`);
-  expect(downloaded.some((name) => name.startsWith(remoteTracks[0]))).toBe(false);
-  expect(downloaded).toHaveLength(remoteTracks.length - 1);
+  expect(mockDownloaded.some((name) => name.startsWith(remoteTracks[0]))).toBe(false);
+  expect(mockDownloaded).toHaveLength(remoteTracks.length - 1);
   expect(ready).toHaveLength(remoteTracks.length);
 });
 
 it('keeps saved tracks and skips the download while offline', async () => {
-  saved.set(remoteTracks[1], 400);
+  mockSaved.set(remoteTracks[1], 400);
   jest.mocked(Network.getNetworkStateAsync).mockResolvedValue({
     isConnected: false,
     isInternetReachable: false,
@@ -73,5 +75,5 @@ it('keeps saved tracks and skips the download while offline', async () => {
   const ready: string[] = [];
   await syncRemoteMusic((uri) => ready.push(uri));
   expect(ready).toEqual([`file:///music/${remoteTracks[1]}`]);
-  expect(downloaded).toHaveLength(0);
+  expect(mockDownloaded).toHaveLength(0);
 });
