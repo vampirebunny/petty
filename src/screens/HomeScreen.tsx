@@ -2,7 +2,8 @@ import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useSta
 import type { ReactNode } from 'react';
 import { AccessibilityInfo, AppState, Image, Linking, Platform, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Gesture, GestureDetector, Pressable, ScrollView } from 'react-native-gesture-handler';
-import { runOnJS } from 'react-native-reanimated';
+import { runOnJS, useSharedValue } from 'react-native-reanimated';
+import type { SharedValue } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
 import {
@@ -187,6 +188,33 @@ const traitLabel: Record<Trait, string> = {
 let playCatalogLatest: (trackId: string, learned: boolean) => void = () => {};
 let playLearnedTrick: (trackId: string) => void = () => {};
 
+function queueMove(
+  kindValue: SharedValue<number>,
+  xValue: SharedValue<number>,
+  yValue: SharedValue<number>,
+  vxValue: SharedValue<number>,
+  vyValue: SharedValue<number>,
+  scheduled: SharedValue<boolean>,
+  flush: () => void,
+  kind: number,
+  x: number,
+  y: number,
+  vx = 0,
+  vy = 0,
+) {
+  'worklet';
+  kindValue.value = kind;
+  xValue.value = x;
+  yValue.value = y;
+  vxValue.value = vx;
+  vyValue.value = vy;
+  if (scheduled.value) {
+    return;
+  }
+  scheduled.value = true;
+  runOnJS(flush)();
+}
+
 function StageTouch({
   cuddleOn,
   onCuddleTap,
@@ -216,6 +244,35 @@ function StageTouch({
   onFlickFinish: (x: number, y: number) => void;
   children: ReactNode;
 }) {
+  const moveX = useSharedValue(0);
+  const moveY = useSharedValue(0);
+  const moveVx = useSharedValue(0);
+  const moveVy = useSharedValue(0);
+  const moveKind = useSharedValue(0);
+  const moveScheduled = useSharedValue(false);
+  const cuddleMoveRef = useRef(onCuddleMove);
+  const holdMoveRef = useRef(onHoldMove);
+  const flickMoveRef = useRef(onFlickMove);
+  useEffect(() => {
+    cuddleMoveRef.current = onCuddleMove;
+    holdMoveRef.current = onHoldMove;
+    flickMoveRef.current = onFlickMove;
+  }, [onCuddleMove, onFlickMove, onHoldMove]);
+  const flushMove = useCallback(() => {
+    requestAnimationFrame(() => {
+      moveScheduled.value = false;
+      const x = moveX.value;
+      const y = moveY.value;
+      const kind = moveKind.value;
+      if (kind === 1) {
+        cuddleMoveRef.current(x, y);
+      } else if (kind === 2) {
+        holdMoveRef.current(x, y);
+      } else if (kind === 3) {
+        flickMoveRef.current(x, y, moveVx.value, moveVy.value);
+      }
+    });
+  }, [moveKind, moveScheduled, moveVx, moveVy, moveX, moveY]);
   const gesture = useMemo(() => {
     if (cuddleOn) {
       const boop = Gesture.Tap()
@@ -227,8 +284,10 @@ function StageTouch({
         });
       const drag = Gesture.Pan()
         .minDistance(4)
+        // The callback runs on the UI thread, after render. The shared values only hold the latest point.
+        // eslint-disable-next-line react-hooks/refs
         .onUpdate((event) => {
-          runOnJS(onCuddleMove)(event.x, event.y);
+          queueMove(moveKind, moveX, moveY, moveVx, moveVy, moveScheduled, flushMove, 1, event.x, event.y);
         })
         .onFinalize(() => {
           runOnJS(onCuddleEnd)();
@@ -248,8 +307,10 @@ function StageTouch({
       .onStart((event) => {
         runOnJS(onHoldStart)(event.x, event.y);
       })
+      // The callback runs on the UI thread, after render. The shared values only hold the latest point.
+      // eslint-disable-next-line react-hooks/refs
       .onUpdate((event) => {
-        runOnJS(onHoldMove)(event.x, event.y);
+        queueMove(moveKind, moveX, moveY, moveVx, moveVy, moveScheduled, flushMove, 2, event.x, event.y);
       })
       .onFinalize((event) => {
         runOnJS(onHoldEnd)(event.x, event.y);
@@ -259,8 +320,10 @@ function StageTouch({
       .onStart((event) => {
         runOnJS(onFlickStart)(event.x, event.y);
       })
+      // The callback runs on the UI thread, after render. The shared values only hold the latest point.
+      // eslint-disable-next-line react-hooks/refs
       .onUpdate((event) => {
-        runOnJS(onFlickMove)(event.x, event.y, event.velocityX, event.velocityY);
+        queueMove(moveKind, moveX, moveY, moveVx, moveVy, moveScheduled, flushMove, 3, event.x, event.y, event.velocityX, event.velocityY);
       })
       .onEnd((event) => {
         runOnJS(onFlickEnd)(event.x, event.y, event.velocityX, event.velocityY);
@@ -271,15 +334,19 @@ function StageTouch({
     return Gesture.Exclusive(tap, hold, flick);
   }, [
     cuddleOn,
+    flushMove,
+    moveKind,
+    moveScheduled,
+    moveVx,
+    moveVy,
+    moveX,
+    moveY,
     onCuddleEnd,
-    onCuddleMove,
     onCuddleTap,
     onFlickEnd,
     onFlickFinish,
-    onFlickMove,
     onFlickStart,
     onHoldEnd,
-    onHoldMove,
     onHoldStart,
     onTap,
   ]);
@@ -342,6 +409,7 @@ export default function HomeScreen({ petApi }: Props) {
   const homeSpecies = state ? (breedById(state.breedId)?.species === 'cat' ? 'cat' : 'dog') : 'dog';
   const home = usePlayerHome(currentOwner(), homeSpecies);
   const economyApi = useEconomy(state != null);
+  const clockRef = useRef(0);
   const [clock, setClock] = useState(() => Date.now());
   const [pantryOpen, setPantryOpen] = useState(false);
   const [shopOpen, setShopOpen] = useState(false);
@@ -1264,8 +1332,40 @@ export default function HomeScreen({ petApi }: Props) {
 
   const inventory = economyApi.inventory;
 
+  const clockPetRef = useRef(state);
+  const atSchoolRef = useRef(atSchool);
+  const breakOpenRef = useRef(dialog?.kind === 'break');
+  const countdownWasOn = useRef(false);
+  const schoolMinuteRef = useRef<number | null>(null);
   useEffect(() => {
-    const id = setInterval(() => setClock(Date.now()), 1000);
+    clockRef.current = Date.now();
+  }, []);
+  useEffect(() => {
+    clockPetRef.current = state;
+    atSchoolRef.current = atSchool;
+    breakOpenRef.current = dialog?.kind === 'break';
+  }, [atSchool, dialog, state]);
+  useEffect(() => {
+    const id = setInterval(() => {
+      const now = Date.now();
+      clockRef.current = now;
+      const pet = clockPetRef.current;
+      const resting =
+        breakOpenRef.current ||
+        (pet != null && Object.values(pet.training).some((track) => !track.mastered && isResting(track, now)));
+      let minuteChanged = false;
+      if (atSchoolRef.current) {
+        const minute = Math.floor(now / 60000);
+        minuteChanged = minute !== schoolMinuteRef.current;
+        schoolMinuteRef.current = minute;
+      } else {
+        schoolMinuteRef.current = null;
+      }
+      if (resting || countdownWasOn.current || minuteChanged) {
+        countdownWasOn.current = resting;
+        setClock(now);
+      }
+    }, 1000);
     return () => clearInterval(id);
   }, []);
 
@@ -1522,7 +1622,7 @@ export default function HomeScreen({ petApi }: Props) {
       let outcome: 'success' | 'early' | 'mid' | 'almost' = 'success';
       let pending: 'good' | 'miss' | null = null;
       if (!mastered) {
-        if (isResting(track, clock)) {
+        if (isResting(track, clockRef.current)) {
           if (sheetTimer.current) {
             clearTimeout(sheetTimer.current);
             sheetTimer.current = null;
@@ -1557,7 +1657,7 @@ export default function HomeScreen({ petApi }: Props) {
         setSheetWait(true);
       }
     },
-    [attemptTrick, clock, setDialog, setSheetWait, state],
+    [attemptTrick, setDialog, setSheetWait, state],
   );
   useLayoutEffect(() => {
     playCatalogLatest = playCatalog;
@@ -1890,7 +1990,7 @@ export default function HomeScreen({ petApi }: Props) {
   const afterPayout = (trackId: string, before: typeof state, after: typeof state, deferMood = false) => {
     noteGain(trackId, before, after, deferMood);
     const track = after.training[trackId];
-    if (track && !track.mastered && isResting(track, clock)) {
+    if (track && !track.mastered && isResting(track, clockRef.current)) {
       openBreak(trackId);
     } else {
       setDialog(null);
@@ -1972,7 +2072,7 @@ export default function HomeScreen({ petApi }: Props) {
       setTrickTip(null);
     }
     const resting = state.training[trackId];
-    if (resting && !resting.mastered && isResting(resting, clock)) {
+    if (resting && !resting.mastered && isResting(resting, clockRef.current)) {
       if (biteWaiting) {
         return;
       }
@@ -2278,7 +2378,7 @@ export default function HomeScreen({ petApi }: Props) {
           label: 'OK',
           onPress: () => {
             const track = state.training[trackId];
-            if (track && !track.mastered && isResting(track, clock)) {
+            if (track && !track.mastered && isResting(track, clockRef.current)) {
               openBreak(trackId);
             } else {
               setDialog(null);

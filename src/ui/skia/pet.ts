@@ -1,5 +1,5 @@
 import { BlendMode, Skia, StrokeCap } from '@shopify/react-native-skia';
-import type { SkCanvas } from '@shopify/react-native-skia';
+import type { SkCanvas, SkPaint } from '@shopify/react-native-skia';
 
 import { blendedFoot, bodyFrame, isDarkCoat, solveKnee, wearItem } from '../../actor';
 import type { Actor, Breed, Geom } from '../../actor';
@@ -65,7 +65,13 @@ import { shadeOval } from './shade';
 // A layer paint that draws a tinted, dilated copy of the layer behind it: one outline for the whole pet.
 // The radius is in the pet's local units, so it stays the same thickness relative to the pet when the
 // stage is zoomed (wardrobe tiles, playdate camera).
+const outlinePaints = new Map<string, SkPaint>();
+
 function outlineLayerPaint(baseColor: string) {
+  const hit = outlinePaints.get(baseColor);
+  if (hit) {
+    return hit;
+  }
   const { width, ink, inkMix } = petStyle.outline;
   const color = Skia.Color(mix(baseColor, ink, inkMix));
   const grown = Skia.ImageFilter.MakeDilate(width, width, null);
@@ -73,6 +79,7 @@ function outlineLayerPaint(baseColor: string) {
   const paint = Skia.Paint();
   // `null` in the merge list is the layer itself, drawn on top of the outline.
   paint.setImageFilter(Skia.ImageFilter.MakeMerge([tinted, null]));
+  outlinePaints.set(baseColor, paint);
   return paint;
 }
 

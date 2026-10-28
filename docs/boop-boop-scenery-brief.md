@@ -69,8 +69,10 @@ The `previews/` PNGs were rendered from this exact code through CanvasKit, using
   - The cat-tree pom swings and cat grass gets nibbled.
 - **Performance**
   - Every prop used to get its own offscreen layer per frame. Now the room tint is mixed into cached paints, so props draw with no layer at all; only pets keep a layer (for tint and rim light).
-  - The static backdrop is recorded once into an `SkPicture` and replayed each frame.
-  - Shape paths are built once.
+  - The static backdrop (wall, back layers, floor) is recorded once into an `SkPicture` and replayed each frame. It is recorded again when the tint bucket, the bleed, or the grass tone changes.
+  - Pets, toys, furniture, and weather stay live. They are y-sorted every frame, and many of them move, so they are not baked into that picture.
+  - The pet outline filter is built once per coat color. `paintOf` reuses paints by color, alpha, stroke, cap, and dash. The night pet light reuses its radial gradient for a coarse position and brightness.
+  - Seasonal decor is planned once per scene and theme (including whether the snow-pup is out). Fireflies, bats, balloon bob, and pumpkin glow still read the live clock when they draw.
 
 ## 1. Drop in the files
 

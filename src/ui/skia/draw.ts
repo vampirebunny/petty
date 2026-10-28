@@ -34,12 +34,26 @@ export function deg(radians: number): number {
   return (radians * 180) / Math.PI;
 }
 
+const paints = new Map<string, SkPaint>();
+const round3 = (value: number) => Math.round(value * 1000) / 1000;
+
+// Shared paints. Callers must not mutate the result; a dash or cap is part of the key.
 export function paintOf(
   color: string,
   alpha = 1,
   stroke = 0,
   cap: StrokeCap = StrokeCap.Round,
+  dash?: readonly [number, number],
 ): SkPaint {
+  const dashKey = dash ? `${round3(dash[0])},${round3(dash[1])}` : '';
+  const key = `${color}|${round3(alpha)}|${round3(stroke)}|${cap}|${dashKey}`;
+  const hit = paints.get(key);
+  if (hit) {
+    return hit;
+  }
+  if (paints.size > 1500) {
+    paints.clear();
+  }
   const paint = Skia.Paint();
   paint.setAntiAlias(true);
   paint.setStyle(stroke > 0 ? PaintStyle.Stroke : PaintStyle.Fill);
@@ -50,6 +64,10 @@ export function paintOf(
     paint.setStrokeCap(cap);
     paint.setStrokeJoin(StrokeJoin.Round);
   }
+  if (dash) {
+    paint.setPathEffect(Skia.PathEffect.MakeDash([dash[0], dash[1]], 0));
+  }
+  paints.set(key, paint);
   return paint;
 }
 
@@ -112,7 +130,8 @@ export function clipOval(c: SkCanvas, cx: number, cy: number, rx: number, ry: nu
 }
 
 export function fillGradient(c: SkCanvas, x: number, y: number, w: number, h: number, top: string, bottom: string): void {
-  const paint = paintOf('#ffffff');
+  const paint = Skia.Paint();
+  paint.setAntiAlias(true);
   paint.setShader(
     Skia.Shader.MakeLinearGradient(
       Skia.Point(x, y),

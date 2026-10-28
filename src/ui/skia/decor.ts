@@ -25,6 +25,16 @@ function themes(env: Env): DecorTheme[] {
   return env.sky?.season.decor ?? [];
 }
 
+// Placement is stable for a scene and theme. Draw callbacks read this so a cached plan still
+// follows the live clock (fireflies, balloon bob, pumpkin glow).
+let decorEnv: Env | undefined;
+
+function decorNow(): Env {
+  return decorEnv as Env;
+}
+
+const decorPlans = new WeakMap<Scene, { key: string; plan: DecorPlan }>();
+
 // ---- pieces ----
 
 export function drawPumpkin(c: SkCanvas, x: number, y: number, s: number, env: Env, face = false): void {
@@ -369,7 +379,14 @@ function freeSlot(scene: Scene, used: number[], x: number, y: number, pad: numbe
 }
 
 export function buildDecor(scene: Scene, env: Env): DecorPlan {
+  decorEnv = env;
   const set = themes(env);
+  const snowPup = snowOn(env) > 0.3;
+  const key = `${set.join(',')}|${snowPup ? 1 : 0}`;
+  const cached = decorPlans.get(scene);
+  if (cached?.key === key) {
+    return cached.plan;
+  }
   const plan: DecorPlan = { wall: () => {}, floor: [], ambient: () => {} };
   const outdoor = scene.time === 'outdoor';
   const roofed = scene.shelter === 'roofed';
@@ -392,10 +409,11 @@ export function buildDecor(scene: Scene, env: Env): DecorPlan {
       plan.floor.push({
         y: backY,
         draw: (c) => {
-          const saved = env.anchor;
-          env.anchor = { x: 0, y: 0 };
+          const live = decorNow();
+          const saved = live.anchor;
+          live.anchor = { x: 0, y: 0 };
           draw(c, x, backY);
-          env.anchor = saved;
+          live.anchor = saved;
         },
       });
     }
@@ -405,100 +423,115 @@ export function buildDecor(scene: Scene, env: Env): DecorPlan {
   const garlandTheme = set.find((t) => t !== 'easter') ?? set[0];
   const wallOk = !outdoor && floor.horizon > 140;
   const fence = outdoor ? scene.props.find((p) => p.kind === 'fence') : undefined;
+  const stockingXs: number[] = [];
+  const stockingY = floor.horizon * 0.42;
+  if (set.includes('winterHolidays') && wallOk) {
+    // Two stockings on bare wall, clear of windows. Wall art in the scene layers (small rects) is avoided too.
+    const art = scene.layers.filter((l) => l.t === 'rect' && l.w != null && l.h != null && l.w < stageWidth * 0.6 && l.h < floor.horizon * 0.6);
+    const clear = (x: number) =>
+      !art.some((l) => x > (l.x ?? 0) - 24 && x < (l.x ?? 0) + (l.w ?? 0) + 24 && stockingY + 36 > (l.y ?? 0) && stockingY < (l.y ?? 0) + (l.h ?? 0)) &&
+      !scene.props.some((p) => {
+        if (p.kind !== 'window') {
+          return false;
+        }
+        const { w, h } = windowDims(p);
+        const s = p.scale ?? 1;
+        return Math.abs(p.x - x) < (w * s) / 2 + 44 && stockingY + 36 > p.y - h * s - 20 && stockingY < p.y + 20;
+      });
+    for (let k = 0.08; k <= 0.93 && stockingXs.length < 2; k += 0.04) {
+      const x = stageWidth * k;
+      if (clear(x) && stockingXs.every((h) => Math.abs(h - x) > 60)) {
+        stockingXs.push(x);
+      }
+    }
+  }
   plan.wall = (c) => {
+    const live = decorNow();
     if (garlandTheme && wallOk) {
-      drawGarland(c, garlandTheme, floor.horizon * 0.09, 9, env);
+      drawGarland(c, garlandTheme, floor.horizon * 0.09, 9, live);
     }
     if (garlandTheme && roofed) {
-      drawGarland(c, garlandTheme, scene.roofY ?? floor.horizon * 0.16, 7, env);
+      drawGarland(c, garlandTheme, scene.roofY ?? floor.horizon * 0.16, 7, live);
     }
-    if (set.includes('winterHolidays') && wallOk) {
-      // Two stockings on bare wall, clear of windows.
-      const sy = floor.horizon * 0.42;
-      // Wall art in the scene layers (small rects) is avoided too.
-      const art = scene.layers.filter((l) => l.t === 'rect' && l.w != null && l.h != null && l.w < stageWidth * 0.6 && l.h < floor.horizon * 0.6);
-      const clear = (x: number) =>
-        !art.some((l) => x > (l.x ?? 0) - 24 && x < (l.x ?? 0) + (l.w ?? 0) + 24 && sy + 36 > (l.y ?? 0) && sy < (l.y ?? 0) + (l.h ?? 0)) &&
-        !scene.props.some((p) => {
-          if (p.kind !== 'window') {
-            return false;
-          }
-          const { w, h } = windowDims(p);
-          const s = p.scale ?? 1;
-          return Math.abs(p.x - x) < (w * s) / 2 + 44 && sy + 36 > p.y - h * s - 20 && sy < p.y + 20;
-        });
-      const hung: number[] = [];
-      for (let k = 0.08; k <= 0.93 && hung.length < 2; k += 0.04) {
-        const x = stageWidth * k;
-        if (clear(x) && hung.every((h) => Math.abs(h - x) > 60)) {
-          hung.push(x);
-          drawStocking(c, x, sy);
-        }
-      }
+    for (const x of stockingXs) {
+      drawStocking(c, x, stockingY);
     }
   };
   if (fence && garlandTheme === 'winterHolidays') {
     const fw = fence.w ?? 300;
-    plan.floor.push({ y: fence.y - 0.5, draw: (c) => drawGarland(c, 'winterHolidays', fence.y - 30, 3, env, fence.x - fw / 2, fence.x + fw / 2) });
+    plan.floor.push({
+      y: fence.y - 0.5,
+      draw: (c) => drawGarland(c, 'winterHolidays', fence.y - 30, 3, decorNow(), fence.x - fw / 2, fence.x + fw / 2),
+    });
   }
 
   if (set.includes('halloween')) {
     addFloor(18, (c, x, y) => {
-      castShadow(c, env, x, y + 1, 18, 4, 18);
-      drawPumpkin(c, x - 7, y, 1.1, env, true);
-      drawPumpkin(c, x + 10, y + 3, 0.75, env);
+      const live = decorNow();
+      castShadow(c, live, x, y + 1, 18, 4, 18);
+      drawPumpkin(c, x - 7, y, 1.1, live, true);
+      drawPumpkin(c, x + 10, y + 3, 0.75, live);
     });
   }
   if (set.includes('harvest')) {
-    addFloor(26, (c, x, y) => (outdoor ? drawHayBale(c, x, y, env) : drawGourds(c, x, y, env)));
+    addFloor(26, (c, x, y) => {
+      const live = decorNow();
+      if (outdoor) {
+        drawHayBale(c, x, y, live);
+      } else {
+        drawGourds(c, x, y, live);
+      }
+    });
   }
   if (set.includes('winterHolidays')) {
     if (outdoor && !roofed) {
-      if (snowOn(env) > 0.3) {
+      if (snowPup) {
         addFloor(24, (c, x, y) => drawSnowPup(c, x, y));
       }
     } else {
-      addFloor(32, (c, x, y) => drawPetTree(c, x, y, env));
+      addFloor(32, (c, x, y) => drawPetTree(c, x, y, decorNow()));
     }
   }
   if (set.includes('valentines')) {
-    addFloor(14, (c, x, y) => drawHeartBalloon(c, x, y, env));
+    addFloor(14, (c, x, y) => drawHeartBalloon(c, x, y, decorNow()));
   }
   if (set.includes('easter')) {
     addFloor(20, (c, x, y) => drawEggBasket(c, x, y));
   }
   if (set.includes('spring') && !set.includes('easter')) {
-    addFloor(14, (c, x, y) => drawFlowerPot(c, x, y, env, 'tulips'));
+    addFloor(14, (c, x, y) => drawFlowerPot(c, x, y, decorNow(), 'tulips'));
   }
   if (set.includes('summer')) {
-    addFloor(14, (c, x, y) => drawFlowerPot(c, x, y, env, 'sunflower'));
+    addFloor(14, (c, x, y) => drawFlowerPot(c, x, y, decorNow(), 'sunflower'));
   }
 
   plan.ambient = (c) => {
-    const dark = env.tod.dark;
-    const season = env.sky?.season.season;
-    if (outdoor && season === 'summer' && dark > 0.45 && !env.reduced) {
+    const live = decorNow();
+    const dark = live.tod.dark;
+    const season = live.sky?.season.season;
+    if (outdoor && season === 'summer' && dark > 0.45 && !live.reduced) {
       // Fireflies over the lawn on summer nights.
       for (let i = 0; i < 10; i += 1) {
-        const fx = (hash(i, 201) * stageWidth + Math.sin(env.t * 0.3 + i) * 30 + stageWidth) % stageWidth;
-        const fy = floor.horizon + 10 + hash(i, 202) * (floor.yMax - floor.horizon) * 0.8 + Math.sin(env.t * 0.5 + i * 2) * 12;
-        const blink = Math.max(0, Math.sin(env.t * (0.8 + hash(i, 203)) + i * 3)) ** 3;
+        const fx = (hash(i, 201) * stageWidth + Math.sin(live.t * 0.3 + i) * 30 + stageWidth) % stageWidth;
+        const fy = floor.horizon + 10 + hash(i, 202) * (floor.yMax - floor.horizon) * 0.8 + Math.sin(live.t * 0.5 + i * 2) * 12;
+        const blink = Math.max(0, Math.sin(live.t * (0.8 + hash(i, 203)) + i * 3)) ** 3;
         glow(c, fx, fy, 9, '#e8ff8a', 0.8 * blink * dark);
         circle(c, fx, fy, 1.2, '#f6ffc8', blink);
       }
     }
-    if (outdoor && set.includes('halloween') && dark > 0.5 && !env.reduced) {
+    if (outdoor && set.includes('halloween') && dark > 0.5 && !live.reduced) {
       // Two bats crossing the night sky now and then.
       for (let i = 0; i < 2; i += 1) {
         const period = 14 + i * 5;
-        const k = ((env.t + i * 7) % period) / 6;
+        const k = ((live.t + i * 7) % period) / 6;
         if (k < 1) {
           const bx = -30 + k * (stageWidth + 60);
           const by = floor.horizon * (0.25 + i * 0.15) + Math.sin(k * 12) * 10;
-          bat(c, bx, by, 0.9, '#15111c', Math.sin(env.t * 18));
+          bat(c, bx, by, 0.9, '#15111c', Math.sin(live.t * 18));
         }
       }
     }
   };
+  decorPlans.set(scene, { key, plan });
   return plan;
 }

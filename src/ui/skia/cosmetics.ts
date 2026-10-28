@@ -1,4 +1,4 @@
-import { ClipOp, PathOp, Skia, StrokeCap, StrokeJoin } from '@shopify/react-native-skia';
+import { ClipOp, PathOp, Skia, StrokeCap } from '@shopify/react-native-skia';
 import type { SkCanvas, SkPath } from '@shopify/react-native-skia';
 
 import { isDarkCoat, type Geom } from '../../actor';
@@ -137,11 +137,8 @@ function textureAlpha(pattern: PatternPaint | null, alpha = 1): number {
   return pattern ? alpha * 0.45 : alpha;
 }
 
-function edgePaint(color: string, alpha: number, width: number) {
-  const paint = paintOf(color, alpha, width);
-  paint.setStrokeJoin(StrokeJoin.Round);
-  paint.setStrokeCap(StrokeCap.Round);
-  return paint;
+function edgePaint(color: string, alpha: number, width: number, cap: StrokeCap = StrokeCap.Round) {
+  return paintOf(color, alpha, width, cap);
 }
 
 const warnedShapes = new Set<string>();
@@ -197,9 +194,7 @@ function outlinedLine(
   cap: StrokeCap = StrokeCap.Round,
 ): void {
   const stroke = (strokeColor: string, strokeWidth: number) => {
-    const paint = edgePaint(strokeColor, alpha, strokeWidth);
-    paint.setStrokeCap(cap);
-    c.drawLine(x1, y1, x2, y2, paint);
+    c.drawLine(x1, y1, x2, y2, edgePaint(strokeColor, alpha, strokeWidth, cap));
   };
   if (fur && isDarkCoat(fur)) {
     stroke('#FFF4FA', width + 4);
@@ -268,10 +263,15 @@ function unionOf(paths: SkPath[]): SkPath {
   return out;
 }
 
-function dashed(color: string, width: number, on: number, off: number, alpha = 1) {
-  const paint = paintOf(color, alpha, width);
-  paint.setPathEffect(Skia.PathEffect.MakeDash([on, off], 0));
-  return paint;
+function dashed(
+  color: string,
+  width: number,
+  on: number,
+  off: number,
+  alpha = 1,
+  cap: StrokeCap = StrokeCap.Round,
+) {
+  return paintOf(color, alpha, width, cap, [on, off]);
 }
 
 function ovalArc(cx: number, cy: number, rx: number, ry: number, start: number, sweep: number): SkPath {
@@ -281,9 +281,7 @@ function ovalArc(cx: number, cy: number, rx: number, ry: number, start: number, 
 }
 
 function roundStroke(color: string, alpha: number, width: number) {
-  const paint = paintOf(color, alpha, width);
-  paint.setStrokeCap(StrokeCap.Round);
-  return paint;
+  return paintOf(color, alpha, width);
 }
 
 // How flat the neck is (0 upright, 1 horizontal). Sleep and lie put the head on the floor.
@@ -669,9 +667,7 @@ function addLine(path: ReturnType<typeof Skia.PathBuilder.Make>, pts: Pt[]): voi
 }
 
 function ribDash(color: string, width: number, r: number, alpha: number) {
-  const paint = dashed(shade(color, 0.16), width, r * 0.04, r * 0.08, alpha);
-  paint.setStrokeCap(StrokeCap.Butt);
-  return paint;
+  return dashed(shade(color, 0.16), width, r * 0.04, r * 0.08, alpha, StrokeCap.Butt);
 }
 
 function cableColumn(x: number, y0: number, y1: number, r: number, sign: number): SkPath {
@@ -1733,11 +1729,8 @@ function hatPath(d: string, r: number): SkPath {
 }
 
 function hatStroke(c: SkCanvas, d: string, r: number, color: string, width: number, alpha = 1, dash?: [number, number], cap = StrokeCap.Round): void {
-  const paint = paintOf(color, alpha, width * (r / 30));
-  paint.setStrokeCap(cap);
-  if (dash) {
-    paint.setPathEffect(Skia.PathEffect.MakeDash([dash[0] * (r / 30), dash[1] * (r / 30)], 0));
-  }
+  const scale = r / 30;
+  const paint = paintOf(color, alpha, width * scale, cap, dash ? [dash[0] * scale, dash[1] * scale] : undefined);
   c.drawPath(hatPath(d, r), paint);
 }
 

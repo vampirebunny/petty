@@ -1,5 +1,5 @@
 import { BlendMode, Skia, TileMode } from '@shopify/react-native-skia';
-import type { SkCanvas } from '@shopify/react-native-skia';
+import type { SkCanvas, SkPaint } from '@shopify/react-native-skia';
 
 import { applyVariant, depthScale, dogBreeds, resolveBreedById, spawnActor } from '../../actor';
 import { furnitureClaims } from '../../actor/furnitureUse';
@@ -75,24 +75,38 @@ function shownNight(target: number, reduced: boolean): number {
   return cozyShown;
 }
 
+const petLights = new Map<string, SkPaint>();
+
 function drawPetLight(canvas: SkCanvas, x: number, y: number, amount: number): void {
   const { radius, color } = lighting.petLight;
-  const paint = Skia.Paint();
-  paint.setAntiAlias(true);
-  paint.setBlendMode(BlendMode.Screen);
-  paint.setShader(
-    Skia.Shader.MakeRadialGradient(
-      Skia.Point(x, y),
-      radius,
-      [
-        Skia.Color(`rgba(${color[0]},${color[1]},${color[2]},${amount})`),
-        Skia.Color(`rgba(${color[0]},${color[1]},${color[2]},0)`),
-      ],
-      null,
-      TileMode.Clamp,
-    ),
-  );
-  canvas.drawCircle(x, y, radius, paint);
+  // The gradient is centered on the pet, so the key includes a coarse position as well as brightness.
+  const qx = Math.round(x / 8) * 8;
+  const qy = Math.round(y / 8) * 8;
+  const qa = Math.round(amount * 20) / 20;
+  const key = `${qx}|${qy}|${qa}`;
+  let paint = petLights.get(key);
+  if (!paint) {
+    if (petLights.size > 48) {
+      petLights.clear();
+    }
+    paint = Skia.Paint();
+    paint.setAntiAlias(true);
+    paint.setBlendMode(BlendMode.Screen);
+    paint.setShader(
+      Skia.Shader.MakeRadialGradient(
+        Skia.Point(qx, qy),
+        radius,
+        [
+          Skia.Color(`rgba(${color[0]},${color[1]},${color[2]},${qa})`),
+          Skia.Color(`rgba(${color[0]},${color[1]},${color[2]},0)`),
+        ],
+        null,
+        TileMode.Clamp,
+      ),
+    );
+    petLights.set(key, paint);
+  }
+  canvas.drawCircle(qx, qy, radius, paint);
 }
 
 // How fast each pet is moving, from its position last frame. Props use it to react (bush rustles).

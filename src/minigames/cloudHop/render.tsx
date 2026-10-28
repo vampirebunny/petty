@@ -237,7 +237,8 @@ export function drawCloudHop(
   c.scale(scale, scale);
   const altitude = run.startY - run.camY;
   const [top, bottom] = skyAt(altitude);
-  const sky = paintOf('#ffffff');
+  const sky = Skia.Paint();
+  sky.setAntiAlias(true);
   sky.setShader(
     Skia.Shader.MakeLinearGradient(
       Skia.Point(0, 0),
@@ -331,7 +332,8 @@ export function drawCloudHop(
   }
   const fy = run.fogY - run.camY;
   if (fy < run.H + 10) {
-    const fog = paintOf('#ffffff');
+    const fog = Skia.Paint();
+    fog.setAntiAlias(true);
     fog.setShader(
       Skia.Shader.MakeLinearGradient(
         Skia.Point(0, fy - 90),
