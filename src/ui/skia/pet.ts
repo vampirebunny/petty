@@ -1,8 +1,8 @@
 import { BlendMode, Skia, StrokeCap } from '@shopify/react-native-skia';
-import type { SkCanvas, SkPaint } from '@shopify/react-native-skia';
+import type { SkCanvas, SkPaint, SkPicture } from '@shopify/react-native-skia';
 
 import { blendedFoot, bodyFrame, isDarkCoat, solveKnee, wearItem } from '../../actor';
-import type { Actor, Breed, Geom } from '../../actor';
+import type { Actor, Breed, Geom, Pose } from '../../actor';
 import { blendedTheta, facingFit, projectLocal } from '../../actor/facing';
 import { facingConfig } from '../../actor/data/facing';
 import { carriedMouth, headFaceOf, headShift, noseOf, torsoPoint } from '../../actor/geometry';
@@ -199,6 +199,183 @@ export function toyMouthStage(
   };
 }
 
+// A still pet is recorded with its feet at the origin and replayed at actor.x / actor.y.
+// The outline lives inside that picture. Drop the oldest entry and leave it for GC:
+// dispose() while the canvas may still be reading a picture throws.
+const IDLE_CAP = 24;
+const CYCLE = Math.PI * 2;
+let placing: { x: number; y: number } | null = null;
+let placedHeadLift = 0;
+
+type IdleShot = { picture: SkPicture; headDx: number; headDy: number; headLift: number };
+const idleShots = new Map<string, IdleShot>();
+
+function phaseStep(ph: number, steps: number): number {
+  const u = ((ph % CYCLE) + CYCLE) % CYCLE;
+  return Math.round((u / CYCLE) * steps) % steps;
+}
+
+function poseInFlight(pose: Pose): boolean {
+  if (pose.walk > 0.05 || pose.shake > 0.01 || pose.swim > 0.5 || pose.rubSway > 0.05) {
+    return true;
+  }
+  if (pose.stand > 0.2 || pose.pant > 0.2 || pose.knead > 0.05 || pose.paddle > 0.05 || pose.kick > 0.05 || pose.wiggle > 0.05) {
+    return true;
+  }
+  if (Math.abs(pose.torsoShift) > 0.5 || Math.abs(pose.headDx) > 1 || Math.abs(pose.headDy) > 1 || Math.abs(pose.headRot) > 0.05) {
+    return true;
+  }
+  const settling = [
+    pose.sit, pose.lie, pose.paw, pose.crouch, pose.belly, pose.bow, pose.stalk, pose.side, pose.rearUp,
+    pose.stream, pose.tuck, pose.land, pose.skid, pose.stretch, pose.faceFront, pose.headFront, pose.pawHigh,
+    pose.spineArch, pose.closeUp, pose.headUp, pose.headPush, pose.headDown, pose.legPedal, pose.faceCam,
+  ];
+  return settling.some((v) => v > 0.04 && v < 0.96);
+}
+
+const LIVE_TASKS = new Set(['walk', 'jump', 'fetch', 'travel', 'cuddle', 'greet', 'trick', 'held', 'pounce', 'groom']);
+
+function idleCacheable(actor: Actor, silhouette: boolean): boolean {
+  if (silhouette || placing || actor.debugTheta != null || actor.spin || actor.jump || actor.turning) {
+    return false;
+  }
+  if (actor.hearts.length > 0 || actor.z > 2 || LIVE_TASKS.has(actor.task.type)) {
+    return false;
+  }
+  if (actor.octantFrom !== actor.octant && actor.octantBlend > 0.02 && actor.octantBlend < 0.98) {
+    return false;
+  }
+  if (actor.furniture && actor.furniture.phase !== 'perch') {
+    return false;
+  }
+  if (actor.house && actor.house.phase !== 'rest' && actor.house.phase !== 'in' && actor.house.phase !== 'done') {
+    return false;
+  }
+  if (actor.bark.open > 0.05 && actor.bark.open < 0.95) {
+    return false;
+  }
+  return !poseInFlight(actor.pose);
+}
+
+function idleKey(actor: Actor, breed: Breed, floor: { yMin: number; yMax: number }, carrying: string | null, reduced: boolean): string {
+  const pose = actor.pose;
+  const look = actor.look;
+  const variant = actor.variant;
+  const worn = Object.keys(actor.equipped)
+    .sort()
+    .map((slot) => `${slot}:${actor.equipped[slot as keyof typeof actor.equipped] ?? ''}`)
+    .join(',');
+  const defs = actor.wearDefs;
+  const cuts = defs
+    ? Object.keys(defs)
+        .sort()
+        .map((slot) => `${slot}:${defs[slot as keyof typeof defs]?.id ?? ''}`)
+        .join(',')
+    : '';
+  const poseBits = (Object.keys(pose) as (keyof Pose)[]).map((key) => {
+    const value = pose[key];
+    return typeof value === 'number' ? Math.round(value * 100) : value;
+  });
+  const furn = actor.furniture;
+  return [
+    breed.id,
+    look ? `${look.coat}|${look.pattern ?? ''}|${look.accent ?? ''}|${look.eyeColor ?? ''}` : '',
+    Math.round(variant.earSize * 100),
+    Math.round(variant.tailFluff * 100),
+    Math.round(variant.markingIntensity * 100),
+    variant.oneEarFlop ? 1 : 0,
+    worn,
+    cuts,
+    actor.octant,
+    actor.octantFrom,
+    actor.face,
+    Math.round(actor.octantBlend),
+    poseBits.join(','),
+    pose.wagAmp > 0.02 ? phaseStep(actor.wagPh, 4) : 0,
+    pose.breathAmp > 0.002 ? phaseStep(actor.breathPh, 3) : 0,
+    actor.task.type === 'eat' || pose.headDown > 0.2 ? phaseStep(actor.chewPh, 4) : 0,
+    actor.blinkT < 0.12 ? 1 : 0,
+    Math.round(actor.bark.open * 4),
+    actor.task.type,
+    actor.task.stage,
+    actor.asleep ? 1 : 0,
+    Math.round(actor.y / 8),
+    Math.round(actor.z),
+    floor.yMin,
+    floor.yMax,
+    Math.round(actor.displayAgeDays),
+    Math.round(actor.displayWeight * 10),
+    Math.round(actor.vitality * 20),
+    carrying ?? '',
+    reduced ? 1 : 0,
+    furn ? `${furn.phase}|${furn.perch}|${Math.round(furn.rig.rear * 20)}` : '',
+    actor.house?.phase ?? '',
+  ].join(';');
+}
+
+function drawSleepMarks(c: SkCanvas, actor: Actor, pose: Pose, t: number, headLift: number): void {
+  const sleepy = pose.lie * pose.eyes;
+  const mark = actor.headMark;
+  if (sleepy < 0.5 || !mark) {
+    return;
+  }
+  for (let i = 0; i < 3; i += 1) {
+    const k = (t * 0.5 + i / 3) % 1;
+    const size = (10 + k * 8) * 0.55;
+    const zx = mark.x + 10 + k * 18;
+    const zy = mark.y - headLift - 6 - k * 26;
+    const path = Skia.PathBuilder.Make();
+    path.moveTo(zx, zy - size);
+    path.lineTo(zx + size, zy - size);
+    path.lineTo(zx, zy);
+    path.lineTo(zx + size, zy);
+    c.drawPath(path.build(), paintOf('#5C6B80', (1 - k) * 0.9 * sleepy, 1.6, StrokeCap.Round));
+  }
+}
+
+function replayIdlePet(
+  c: SkCanvas,
+  actor: Actor,
+  breed: Breed,
+  floor: { yMin: number; yMax: number },
+  t: number,
+  carrying: string | null,
+  reduced: boolean,
+): void {
+  const key = idleKey(actor, breed, floor, carrying, reduced);
+  let shot = idleShots.get(key);
+  if (!shot) {
+    if (idleShots.size >= IDLE_CAP) {
+      const oldest = idleShots.keys().next().value;
+      if (oldest !== undefined) {
+        idleShots.delete(oldest);
+      }
+    }
+    const recorder = Skia.PictureRecorder();
+    const canvas = recorder.beginRecording(Skia.XYWHRect(-520, -640, 1040, 860));
+    placing = { x: 0, y: 0 };
+    try {
+      drawActor(canvas, actor, breed, floor, t, carrying, false, reduced);
+    } finally {
+      placing = null;
+    }
+    const head = actor.headMark;
+    shot = {
+      picture: recorder.finishRecordingAsPicture(),
+      headDx: (head?.x ?? actor.x) - actor.x,
+      headDy: (head?.y ?? actor.y) - actor.y,
+      headLift: placedHeadLift,
+    };
+    idleShots.set(key, shot);
+  }
+  c.save();
+  c.translate(actor.x, actor.y);
+  c.drawPicture(shot.picture);
+  c.restore();
+  actor.headMark = { x: actor.x + shot.headDx, y: actor.y + shot.headDy };
+  drawSleepMarks(c, actor, actor.pose, t, shot.headLift);
+}
+
 export function drawActor(
   c: SkCanvas,
   actor: Actor,
@@ -209,6 +386,10 @@ export function drawActor(
   silhouette = false,
   reduced = false,
 ): void {
+  if (idleCacheable(actor, silhouette)) {
+    replayIdlePet(c, actor, breed, floor, t, carrying, reduced);
+    return;
+  }
   const posed = actor.jump && actor.jump.phase !== 'turn' ? actor.jump.visual : null;
   if (actor.jump) {
     for (const puff of actor.jump.dust) {
@@ -328,7 +509,8 @@ export function drawActor(
     c.saveLayer(flat);
   }
   c.save();
-  c.translate(actor.x, actor.y + 18 * pose.closeUp);
+  const foot = placing ?? actor;
+  c.translate(foot.x, foot.y + 18 * pose.closeUp);
   c.scale((actor.debugTheta == null ? rig.dir : 1) * scale, scale);
   // Cuddle: the torso leans with the finger, and a shake-off wobbles the whole body about its feet.
   c.translate(pose.torsoShift, 0);
@@ -1363,22 +1545,9 @@ export function drawActor(
     y: actor.y - actor.z + scale * head.y,
   };
 
-  // sleep marks float up from the head in screen space, so they never mirror
-  const sleepy = pose.lie * pose.eyes;
-  if (sleepy >= 0.5) {
-    const hx = actor.x + rig.dir * scale * (head.x + rearShift.x);
-    const hy = actor.y - actor.z + scale * head.y;
-    for (let i = 0; i < 3; i += 1) {
-      const k = (t * 0.5 + i / 3) % 1;
-      const size = (10 + k * 8) * 0.55;
-      const zx = hx + 10 + k * 18;
-      const zy = hy - R * scale - 6 - k * 26;
-      const mark = Skia.PathBuilder.Make();
-      mark.moveTo(zx, zy - size);
-      mark.lineTo(zx + size, zy - size);
-      mark.lineTo(zx, zy);
-      mark.lineTo(zx + size, zy);
-      c.drawPath(mark.build(), paintOf('#5C6B80', (1 - k) * 0.9 * sleepy, 1.6, StrokeCap.Round));
-    }
+  // Sleep marks float in screen space. A recorded picture skips them so a replay can draw them live.
+  placedHeadLift = R * scale;
+  if (!placing) {
+    drawSleepMarks(c, actor, pose, t, placedHeadLift);
   }
 }

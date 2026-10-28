@@ -1,5 +1,5 @@
 import { StrokeCap, Skia } from '@shopify/react-native-skia';
-import type { SkCanvas } from '@shopify/react-native-skia';
+import type { SkCanvas, SkPicture } from '@shopify/react-native-skia';
 
 import type { Scene, World } from '../../actor';
 import { depthScale, stageHeight, stageWidth } from '../../actor/geometry';
@@ -7,8 +7,10 @@ import type { Prop } from '../../actor/scenes';
 import { drawBackdropLayers } from './backdrop';
 import { fillCircle, fillOval, oval, paintOf } from './draw';
 import type { Env } from './env';
-import { glow } from './ink';
-import { extras, drawPropBody } from './props';
+import { snowOn, weatherOf } from './env';
+import { activeTintKey, glow } from './ink';
+import { lampGlow } from './light';
+import { extras, drawPropBody, petNear } from './props';
 import { overcastWash } from './sky';
 import { drawPrecip } from './weatherFx';
 import { drawFeatherBundle, drawLaserPointer, laserTip } from './itemShapes';
@@ -30,6 +32,77 @@ export { registerProp } from './props';
 export { BOX_PER_RADIUS, drawBallShape, drawFeatherBundle, drawLaserPointer, drawToyShape, drawTreatShape, treatArt } from './itemShapes';
 export type { ArtDetail, TreatArt } from './itemShapes';
 
+// Windows, ponds, goal nets, trees, bushes, and catio pieces that sway or host a bird keep moving.
+const LIVE_PROPS = new Set(['window', 'pond', 'goalPost', 'tree', 'bush', 'garden', 'catTree', 'planter', 'scratcher']);
+const PROP_CAP = 24;
+const propShots = new Map<string, SkPicture>();
+
+function stillPropKey(prop: Prop, env: Env, lifted: boolean, squishing: boolean): string | null {
+  if (LIVE_PROPS.has(prop.kind) || lifted || squishing) {
+    return null;
+  }
+  if (prop.kind === 'bowl' && env.feeding.some((bite) => bite.x === prop.x && bite.y === prop.y)) {
+    return null;
+  }
+  if (prop.kind === 'litterbox') {
+    const kick = petNear(env, prop, 0.8, 26);
+    if (kick.near > 0.5 && kick.speed > 10 && !env.reduced) {
+      return null;
+    }
+  }
+  if (prop.kind === 'catioScreen' && weatherOf(env).precip === 'rain' && !env.reduced) {
+    return null;
+  }
+  const occupied =
+    prop.kind === 'bed' || prop.kind === 'hammock'
+      ? Math.round(petNear(env, prop, prop.kind === 'bed' ? 0.7 : 0.8, 30).near * 4)
+      : '';
+  const light = env.light;
+  const extra = extras(prop);
+  return [
+    prop.id ?? '',
+    prop.kind,
+    prop.x,
+    prop.y,
+    prop.w ?? '',
+    prop.h ?? '',
+    prop.color ?? '',
+    prop.scale ?? '',
+    prop.contents ?? '',
+    prop.glow ? 1 : 0,
+    prop.bedStyle ?? '',
+    extra.flip ? 1 : 0,
+    extra.foliage ?? '',
+    String(extra.curtain ?? ''),
+    extra.plant ?? '',
+    prop.kind === 'shape' ? JSON.stringify(prop.shapes ?? []) : '',
+    occupied,
+    Math.round(env.bowlFill * 20),
+    Math.round(env.waterLevel * 20),
+    Math.round(snowOn(env) * 10),
+    Math.round(weatherOf(env).wetness * 10),
+    Math.round(env.tod.dark * 20),
+    Math.round((light?.length ?? 0) * 4),
+    Math.round((light?.direct ?? 0) * 4),
+    Math.round((light?.contact ?? 0) * 20),
+    light?.key ? `${Math.round(light.key.x / 40)}:${Math.round(light.key.y / 40)}` : '',
+    activeTintKey(),
+    env.reduced ? 1 : 0,
+    Math.round(env.bleed ?? 0),
+  ].join('|');
+}
+
+function noteLampGlow(prop: Prop, env: Env): void {
+  if (prop.kind !== 'lamp') {
+    return;
+  }
+  const scale = prop.scale ?? 1;
+  const on = lampGlow(prop.glow, env.tod.dark);
+  if (on > 0.01) {
+    env.glows.push({ x: prop.x, y: prop.y - 74 * scale, r: 84 * scale, a: on });
+  }
+}
+
 export function drawProp(c: SkCanvas, prop: Prop, env: Env): void {
   const saved = env.anchor;
   env.anchor = { x: prop.x, y: prop.y };
@@ -37,8 +110,9 @@ export function drawProp(c: SkCanvas, prop: Prop, env: Env): void {
   c.translate(prop.x, prop.y);
   const lifted = env.liftedId === prop.id;
   const squishAge = env.squishId === prop.id ? env.t - (env.squishAt ?? env.t) : -1;
+  const squishing = squishAge >= 0 && squishAge < 0.18;
   let pop = lifted ? 1.08 : 1;
-  if (squishAge >= 0 && squishAge < 0.18) {
+  if (squishing) {
     pop *= 1 - 0.06 * Math.sin((squishAge / 0.18) * Math.PI);
   }
   if (lifted) {
@@ -53,7 +127,28 @@ export function drawProp(c: SkCanvas, prop: Prop, env: Env): void {
   if (extras(prop).flip) {
     c.scale(-1, 1);
   }
-  drawPropBody(c, prop, env);
+  const key = stillPropKey(prop, env, lifted, squishing);
+  if (key) {
+    let picture = propShots.get(key);
+    if (!picture) {
+      if (propShots.size >= PROP_CAP) {
+        const oldest = propShots.keys().next().value;
+        if (oldest !== undefined) {
+          propShots.delete(oldest);
+        }
+      }
+      const recorder = Skia.PictureRecorder();
+      const canvas = recorder.beginRecording(Skia.XYWHRect(-800, -900, 2200, 1800));
+      drawPropBody(canvas, prop, env);
+      picture = recorder.finishRecordingAsPicture();
+      propShots.set(key, picture);
+    } else {
+      noteLampGlow(prop, env);
+    }
+    c.drawPicture(picture);
+  } else {
+    drawPropBody(c, prop, env);
+  }
   c.restore();
   env.anchor = saved;
 }

@@ -70,7 +70,8 @@ The `previews/` PNGs were rendered from this exact code through CanvasKit, using
 - **Performance**
   - Every prop used to get its own offscreen layer per frame. Now the room tint is mixed into cached paints, so props draw with no layer at all; only pets keep a layer (for tint and rim light).
   - The static backdrop (wall, back layers, floor) is recorded once into an `SkPicture` and replayed each frame. It is recorded again when the tint bucket, the bleed, or the grass tone changes.
-  - Pets, toys, furniture, and weather stay live. They are y-sorted every frame, and many of them move, so they are not baked into that picture.
+  - Toys and weather stay live, and pets are still y-sorted with the furniture every frame. A pet that is standing, sitting, or sleeping is recorded into its own picture (feet at the origin) and replayed at its position. The outline is inside that picture, so it is not rebuilt every frame. Walking, jumps, shakes, turns, and a silhouette are still drawn live.
+  - Still furniture is recorded the same way: beds, rugs, couches, lamps, benches, fences, and field lines. The bed picture includes whether a pet is on it. A prop is drawn live while it is lifted or squishing, while a bowl is being eaten or drunk, and while litter is being kicked. Windows, ponds, goal nets, trees, bushes, and the catio pieces that sway or host a bird stay live.
   - The pet outline filter is built once per coat color. `paintOf` reuses paints by color, alpha, stroke, cap, and dash. The night pet light reuses its radial gradient for a coarse position and brightness.
   - Seasonal decor is planned once per scene and theme (including whether the snow-pup is out). Fireflies, bats, balloon bob, and pumpkin glow still read the live clock when they draw.
 
