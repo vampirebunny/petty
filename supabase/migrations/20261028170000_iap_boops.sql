@@ -46,6 +46,9 @@ alter table public.iap_events enable row level security;
 revoke all on public.webhook_events, public.iap_events from anon, authenticated;
 revoke all on public.boops_packs from anon, authenticated;
 grant select on public.boops_packs to authenticated;
+-- This project's service_role does not receive table DML by default. The webhook writes through PostgREST.
+grant select, insert, update on public.webhook_events to service_role;
+grant select on public.boops_packs to service_role;
 
 drop policy if exists boops_packs_select on public.boops_packs;
 create policy boops_packs_select on public.boops_packs
