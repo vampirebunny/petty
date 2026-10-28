@@ -382,6 +382,10 @@ export function otherBedInRoom(
   sceneId: string,
   pieceId: string,
 ): FurniturePlacement | null {
+  const piece = pieces.find((item) => item.id === pieceId);
+  if (!piece || !countsAsBed(piece)) {
+    return null;
+  }
   for (const place of placed) {
     if (place.sceneId !== sceneId || place.pieceId === pieceId) {
       continue;

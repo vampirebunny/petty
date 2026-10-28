@@ -409,6 +409,14 @@ it('keeps a room to one food bowl and one water bowl', () => {
   expect(bowlRoomMessage('water')).toBe("There's already a water bowl in this room.");
 });
 
+it('lets a bowl into a room that already has a bed', () => {
+  const bed = { id: 'livingroom-bed', kind: 'bed' as const };
+  const spare = { id: 'spare-food', kind: 'bowl' as const, contents: 'kibble' };
+  const placed = [{ pieceId: 'livingroom-bed', sceneId: 'bedroom', x: 110, y: 540 }];
+  expect(otherBedInRoom([bed, spare], placed, 'bedroom', 'spare-food')).toBeNull();
+  expect(bowlAlreadyInRoom([bed, spare], placed, 'bedroom', 'spare-food')).toBeNull();
+});
+
 it('leaves the scratch pole out of the catio until it is owned', () => {
   const home = starterFurniture('cat');
   expect(home.pieces.some((piece) => piece.kind === 'scratcher')).toBe(false);

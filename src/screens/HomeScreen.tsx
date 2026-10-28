@@ -19,7 +19,7 @@ import { prepareRemoteMusic, releaseMusic, setMusicEnabled, suspendMusic, switch
 import { setSoundEnabled } from '../audio/voice';
 import type { CuddleOut } from '../actor';
 import { stageHeight, stageWidth } from '../actor/geometry';
-import { applyFurniture, bowlAlreadyInRoom, bowlRoomMessage, bowlUse, buySpot, canPlaceFurniture, countsAsBed, otherBedInRoom, pieceLabel, roomRestBadge, shopSku, stowWarning } from '../actor/furniture';
+import { applyFurniture, bowlAlreadyInRoom, bowlRoomMessage, buySpot, canPlaceFurniture, countsAsBed, otherBedInRoom, pieceLabel, roomRestBadge, shopSku, stowWarning } from '../actor/furniture';
 import type { FurniturePiece } from '../actor/furniture';
 import { flickSpeedThreshold } from '../input/flick';
 import { CuddleGesture } from '../input/cuddleGesture';
@@ -2598,8 +2598,7 @@ export default function HomeScreen({ petApi }: Props) {
                 if (placed) {
                   stageHandle.current?.stowFurniture(piece.id);
                 }
-                const use = bowlUse(piece);
-                refuse(use ? bowlRoomMessage(use) : "Couldn't place that here.");
+                refuse("Couldn't place that here.");
                 return;
               }
             }
