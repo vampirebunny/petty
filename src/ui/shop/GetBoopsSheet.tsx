@@ -86,7 +86,7 @@ export function GetBoopsSheet({ balance, reducedMotion, onClose }: Props) {
           <View>
             <View style={styles.grabber} />
             <View style={styles.header}>
-              <Text style={styles.title}>Get Boops</Text>
+              <Text style={styles.title}>Buy Boops</Text>
               <View style={styles.headerEnd}>
                 <View style={styles.pill}>
                   <PawCoin size={22} spinAngle={spin} shine={false} />

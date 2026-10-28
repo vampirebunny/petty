@@ -470,14 +470,14 @@ export function PetShopScreen({
             />
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Get Boops"
+              accessibilityLabel="Buy Boops"
               onPress={() => setBoopsOpen(true)}
               style={styles.getBoops}
             >
               {({ pressed }) => (
                 <LilacFace pressed={pressed} radius={22} height={56}>
                   <StillCoin size={26} />
-                  <Text style={styles.getBoopsText}>Get Boops</Text>
+                  <Text style={styles.getBoopsText}>Buy Boops</Text>
                 </LilacFace>
               )}
             </Pressable>
