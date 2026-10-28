@@ -1,43 +1,43 @@
 import { createAudioPlayer } from 'expo-audio';
 import type { AudioPlayer } from 'expo-audio';
 
+import { syncRemoteMusic } from './remoteMusic';
 import { configurePlayback } from './session';
 
-// Metro needs static requires, so the track list is explicit.
-const tracks: number[] = [
+type Track = number | string;
+
+// Metro needs static requires. These stay in the binary. The rest download into `downloaded`.
+const bundled: Track[] = [
   require('../../assets/background music/bransboynd-night-summer-lounge-473222.mp3'),
   require('../../assets/background music/grumpynora-lay-back-619255.mp3'),
-  require('../../assets/background music/ikoliks_aj-background-music-320427.mp3'),
-  require('../../assets/background music/ilyatruhanov-for-p-453681.mp3'),
   require('../../assets/background music/kontraa-water-afro-pop-music-445661.mp3'),
-  require('../../assets/background music/kornevmusic-upbeat-happy-corporate-487426.mp3'),
   require('../../assets/background music/mfcc-background-music-274290.mp3'),
-  require('../../assets/background music/mickeyscat-moment-of-peace-mickeyscat-554494.mp3'),
   require('../../assets/background music/penguinmusic-lazy-day-stylish-futuristic-chill-239287.mp3'),
   require('../../assets/background music/sonican-lo-fi-music-loop-sentimental-jazzy-love-473154.mp3'),
-  require('../../assets/background music/twisterium-beautiful-uplifting-music-618490.mp3'),
-  require('../../assets/background music/34910776-for-her-chill-upbeat-summel-travel-vlog-and-ig-music-royalty-free-use-202298.mp3'),
-  require('../../assets/background music/alexgrohl-no-copyright-music-bounce-on-it-184234.mp3'),
-  require('../../assets/background music/alexgrohl-sad-soul-hip-hop-185750.mp3'),
-  require('../../assets/background music/denys_brodovskyi-ethereal-vistas-191254.mp3'),
-  require('../../assets/background music/good_b_music-perfect-beauty-191271.mp3'),
-  require('../../assets/background music/lexin_music-science-documentary-169621.mp3'),
   require('../../assets/background music/penguinmusic-better-day-186374.mp3'),
-  require('../../assets/background music/soulprodmusic-movement-200697.mp3'),
-  require('../../assets/background music/syouki_takahashi-midnight-forest-184304.mp3'),
-  require('../../assets/background music/andriig-happy-happy-guitar-music-618748.mp3'),
-  require('../../assets/background music/atlasaudio-background-happy-562628.mp3'),
-  require('../../assets/background music/gr0za-happy-happy-music-569345.mp3'),
   require('../../assets/background music/jonasblakewood-background-music-618629.mp3'),
   require('../../assets/background music/kiravale-happy-music-593649.mp3'),
   require('../../assets/background music/nastelbom-happy-happy-music-481659.mp3'),
   require('../../assets/background music/nastelbom-happy-happy-piano-513420.mp3'),
-  require('../../assets/background music/paulyudin-happy-happy-music-477929.mp3'),
   require('../../assets/background music/paulyudin-happy-happy-music-513014.mp3'),
-  require('../../assets/background music/sigmamusicart-happy-happy-kids-music-537737.mp3'),
-  require('../../assets/background music/tatamusic-happy-happy-music-595647.mp3'),
-  require('../../assets/background music/the_mountain-happy-happy-music-496549.mp3'),
 ];
+
+const downloaded: string[] = [];
+
+function playlist(): Track[] {
+  return downloaded.length === 0 ? bundled : bundled.concat(downloaded);
+}
+
+export function addDownloadedTrack(uri: string): void {
+  if (!downloaded.includes(uri)) {
+    downloaded.push(uri);
+  }
+}
+
+// Fills the playlist from disk, then downloads anything still missing.
+export function prepareRemoteMusic(): void {
+  syncRemoteMusic(addDownloadedTrack);
+}
 
 const volume = 0.075;
 
@@ -77,8 +77,9 @@ function playNext(): void {
   }
   try {
     dispose();
-    last = pickNext(tracks.length, last);
-    const next = createAudioPlayer(tracks[last], { keepAudioSessionActive: true });
+    const list = playlist();
+    last = pickNext(list.length, last);
+    const next = createAudioPlayer(list[last], { keepAudioSessionActive: true });
     next.volume = volume;
     subscription = next.addListener('playbackStatusUpdate', (status) => {
       if (status.didJustFinish) {
