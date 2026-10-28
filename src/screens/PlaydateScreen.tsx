@@ -10,7 +10,7 @@ import { offerGroupActivities } from '../playdate/group';
 import { formatFriendNames, toggleFriend } from '../playdate/party';
 import { formatCooldown } from '../playdate/cooldown';
 import { localDateKey, personalityHint } from '../playdate/hint';
-import { dailyCast } from '../playdate/npcs';
+import { dailyCast, withPlayerAge } from '../playdate/npcs';
 import { createGroupPlaydateRecord, createPlaydateRecord } from '../playdate/record';
 import { attributeGains, bondHint, rareEventLine } from '../playdate/rewards';
 import type { AttributeGain } from '../playdate/rewards';
@@ -71,7 +71,10 @@ type Props = {
 export function PlaydateScreen({ pet, save, now, remaining, reducedMotion, onSave, onRewarded, onClose, owned, linked, accountHandle }: Props) {
   const ownerId = pet.ownerId ?? '';
   const date = localDateKey(now);
-  const partners = useMemo(() => dailyCast(save.cast, ownerId, date), [date, ownerId, save.cast]);
+  const partners = useMemo(
+    () => withPlayerAge(dailyCast(save.cast, ownerId, date), pet.ageDays),
+    [date, ownerId, pet.ageDays, save.cast],
+  );
   const [step, setStep] = useState<Step>('partner');
   const [picked, setPicked] = useState<string[]>([]);
   const [guests, setGuests] = useState<PetSnapshot[] | null>(null);

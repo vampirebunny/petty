@@ -165,6 +165,11 @@ export function dailyCast(cast: readonly PetSnapshot[], ownerId: string, date: s
   return withSpecies(withSpecies(picked, cast, 'dog'), cast, 'cat');
 }
 
+// Playdate regulars share the player's age. Friend pets keep the age on their card.
+export function withPlayerAge(pets: readonly PetSnapshot[], ageDays: number): PetSnapshot[] {
+  return pets.map((pet) => (pet.source === 'npc' && pet.ageDays !== ageDays ? { ...pet, ageDays } : pet));
+}
+
 export function parkOfferFromSnapshot(snapshot: PetSnapshot): ParkOffer {
   return {
     id: snapshot.snapshotId,

@@ -10,7 +10,7 @@ import { beatAt, directionFor, playdateEndMs, poseFor, replayBeats, targetFor } 
 import { addReactions, favoriteChance, generatePlaydate, slotTimes } from '../generate';
 import { burstFor } from '../overlay';
 import { propAt } from '../props';
-import { dailyCast, generateCast } from '../npcs';
+import { dailyCast, generateCast, withPlayerAge } from '../npcs';
 import { createPlaydateRecord } from '../record';
 import { applyPlaydateRewards, attributeGains } from '../rewards';
 import { clearPet, emptyPlaydateSave, recentPlaydateTags, settlePlaydate } from '../save';
@@ -470,6 +470,15 @@ describe('playdate roster and activities', () => {
       (day) => dailyCast(cast, 'owner-1', `2026-10-${day}`).map((pet) => pet.snapshotId).join() !== today.map((pet) => pet.snapshotId).join(),
     );
     expect(changed).toBe(true);
+  });
+
+  it('sets playdate npcs to the player pet age and leaves friends alone', () => {
+    const cast = generateCast('owner-age');
+    const matched = withPlayerAge(cast, 7);
+    expect(matched.every((pet) => pet.ageDays === 7)).toBe(true);
+    expect(matched.map((pet) => pet.snapshotId)).toEqual(cast.map((pet) => pet.snapshotId));
+    const friend = { ...cast[0], source: 'friend' as const, ageDays: 3 };
+    expect(withPlayerAge([friend], 7)[0]).toBe(friend);
   });
 
   it('hides a race from a senior and splash from anywhere but the park', () => {

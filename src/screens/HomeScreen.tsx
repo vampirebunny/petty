@@ -96,7 +96,7 @@ import { handlePromptIsStrict, onHandlePrompt } from '../compliance/handlePrompt
 import { openPathSuppressed } from '../state/sessionGate';
 import { FacingLab } from './FacingLab';
 import { WardrobeScreen } from './WardrobeScreen';
-import { parkOfferFromSnapshot, parkStrangerOffer } from '../playdate/npcs';
+import { parkOfferFromSnapshot, parkStrangerOffer, withPlayerAge } from '../playdate/npcs';
 import { usePlaydates } from '../state/usePlaydates';
 import { formatCooldown } from '../playdate/cooldown';
 import { DebugPanel } from '../ui/DebugPanel';
@@ -421,8 +421,8 @@ export default function HomeScreen({ petApi }: Props) {
   const [playdateOpen, setPlaydateOpen] = useState(false);
   const playdates = usePlaydates(state?.ownerId);
   const parkOffers = useMemo(
-    () => playdates.save.cast.map(parkOfferFromSnapshot),
-    [playdates.save.cast],
+    () => withPlayerAge(playdates.save.cast, state?.ageDays ?? 0).map(parkOfferFromSnapshot),
+    [playdates.save.cast, state?.ageDays],
   );
   const parkStranger = useCallback(
     (nonce: number) => parkStrangerOffer(state?.ownerId || 'guest', nonce),
