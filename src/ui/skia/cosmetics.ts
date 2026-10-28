@@ -402,15 +402,19 @@ export function drawSleeve(c: SkCanvas, hip: Pt, knee: Pt, geom: Geom, item: Wea
   const body = resolvePart(item, 'body', uFill);
   const color = tone(body.color);
   const k = sizes.sleeveUpper;
-  const end = { x: hip.x + (knee.x - hip.x) * k, y: hip.y + (knee.y - hip.y) * k };
-  const r = geom.legWidth / 2 + sizes.sleeveExtra / 2;
-  paintShape(c, polygon(capsulePts(hip, end, r)), color, fur, undefined, 1, body.pattern);
-  const len = Math.hypot(end.x - hip.x, end.y - hip.y) || 1;
-  const axis = { x: (end.x - hip.x) / len, y: (end.y - hip.y) / len };
+  const dx = knee.x - hip.x;
+  const dy = knee.y - hip.y;
+  // Start inside the coat, then run down the upper bone. Width follows this pet's leg.
+  const start = { x: hip.x - dx * sizes.sleeveTuck, y: hip.y - dy * sizes.sleeveTuck };
+  const end = { x: hip.x + dx * k, y: hip.y + dy * k };
+  const r = geom.legWidth * sizes.sleeveWidth;
+  paintShape(c, polygon(capsulePts(start, end, r)), color, fur, undefined, 1, body.pattern);
+  const len = Math.hypot(end.x - start.x, end.y - start.y) || 1;
+  const axis = { x: (end.x - start.x) / len, y: (end.y - start.y) / len };
   const cuffStart = { x: end.x - axis.x * r * 0.9, y: end.y - axis.y * r * 0.9 };
   const ribbed = item.shape === 'sweater' || item.shape === 'hoodie';
   const cuff = ribbed ? resolvePart(item, 'rib', uFill).color : shadowTone(body.color);
-  paintShape(c, polygon(capsulePts(cuffStart, end, r + 0.6)), tone(cuff), fur);
+  paintShape(c, polygon(capsulePts(cuffStart, end, r * 1.12)), tone(cuff), fur);
   if (ribbed) {
     const across = { x: -axis.y, y: axis.x };
     const mid = { x: (cuffStart.x + end.x) / 2, y: (cuffStart.y + end.y) / 2 };
@@ -606,14 +610,6 @@ function ovalPath(cx: number, cy: number, rx: number, ry: number): SkPath {
   return path.detach();
 }
 
-function clipTo(path: SkPath, mask: SkPath): SkPath {
-  return Skia.Path.MakeFromOp(path, mask, PathOp.Intersect) ?? path;
-}
-
-function rectPath(x: number, y: number, w: number, h: number): SkPath {
-  return Skia.Path.Rect(Skia.XYWHRect(x, y, w, h));
-}
-
 type JFrame = {
   a: number;
   b: number;
@@ -627,7 +623,8 @@ type JFrame = {
 function jacketFrame(geom: Geom, breath: number): JFrame {
   const a = geom.bodyLen / 2;
   const b = (geom.bodyH / 2) * breath;
-  const o = 0.1 * b;
+  // Outside the body oval by a fraction of this pet, so a long dog and a round cat both stay covered.
+  const o = Math.min(a, b) * sizes.coatPad;
   const cy = geom.bodyY;
   const at = (u: number, off: number, sign: number): Pt => {
     const s = Math.sqrt(Math.max(0, 1 - u * u));
@@ -715,9 +712,16 @@ function baffleColor(item: WearItem, index: number, fallback: string): string {
 
 // A loop around each front leg. The arch sits just above the hip and the oval runs
 // down through the hem, so the leg leaves the coat instead of showing as a window on the body.
+function foreArmholes(geom: Geom, pass: 'side' | 'front' | 'back'): SkPath[] {
+  if (pass === 'side') {
+    return rainForeLoops([geom.foreX], geom);
+  }
+  return rainForeLoops([-geom.bodyH * 0.3, geom.bodyH * 0.3], geom);
+}
+
 function rainForeLoops(xs: number[], geom: Geom): SkPath[] {
-  const rx = Math.max(geom.legWidth * 1.05, 6);
-  const ry = Math.max(geom.legWidth * 1.15, 7);
+  const rx = geom.legWidth * sizes.armhole;
+  const ry = rx * 1.2;
   const y = geom.hipY + ry * 0.15;
   return xs.map((x) => ovalPath(x, y, rx, ry));
 }
@@ -741,9 +745,9 @@ function sideSilhouette(geom: Geom, item: WearItem, breath: number, pose: Jacket
   const ry = f.b + f.o;
   const path = Skia.PathBuilder.Make();
   if (item.shape === 'puffer') {
-    const ur = -0.86;
-    const uf = 0.92;
-    const ub = 0.84;
+    const ur = -1;
+    const uf = 1;
+    const ub = 1;
     const n = baffleCount(f.a, f.r);
     const ut = Array.from({ length: n + 1 }, (_, i) => ur + ((uf - ur) * i) / n);
     const ubt = Array.from({ length: n + 1 }, (_, i) => ur + ((ub - ur) * i) / n);
@@ -768,28 +772,28 @@ function sideSilhouette(geom: Geom, item: WearItem, breath: number, pose: Jacket
     return path.detach();
   }
   if (item.shape === 'vest') {
-    const p0 = f.top(-0.18);
+    const p0 = f.top(-1);
     path.moveTo(p0.x, p0.y);
-    addLine(path, arcPts(topAng(-0.18), topAng(0.93), rx, ry, f.cy));
-    addLine(path, arcPts(topAng(0.93), botAng(0.72), rx, ry, f.cy, 8));
-    addLine(path, arcPts(botAng(0.72), botAng(-0.18), rx, ry, f.cy));
-    const back = f.bot(-0.18);
-    path.quadTo(back.x - 0.17 * f.b, f.cy, p0.x, p0.y);
+    addLine(path, arcPts(topAng(-1), topAng(1), rx, ry, f.cy));
+    addLine(path, arcPts(topAng(1), botAng(1), rx, ry, f.cy, 8));
+    addLine(path, arcPts(botAng(1), botAng(-1), rx, ry, f.cy));
+    path.quadTo(p0.x - 0.12 * f.b, f.cy, p0.x, p0.y);
     path.close();
-    return path.detach();
+    return punchHoles(path.detach(), foreArmholes(geom, 'side'));
   }
   if (item.shape === 'raincoat') {
     const o2 = 0.125 * f.b;
     const rear = { x: -f.a - 0.25 * f.b, y: f.cy - 0.1 * f.b };
-    const t0 = f.top(-0.82, o2);
-    const hemA = foreHem({ x: 0.97 * f.a, y: f.cy + 0.35 * f.b }, geom, pose);
-    const hemB = foreHem({ x: 0.3 * f.a, y: f.cy + 0.5 * f.b }, geom, pose);
-    const hemC = poolHem({ x: -0.3 * f.a, y: f.cy + 0.58 * f.b }, geom, pose);
-    const hemD = poolHem({ x: rear.x - 0.17 * f.b, y: f.cy + 0.66 * f.b }, geom, pose);
-    const hemE = poolHem({ x: rear.x - 0.25 * f.b, y: f.cy + 0.4 * f.b }, geom, pose);
+    const t0 = f.top(-1, o2);
+    const hemY = f.cy + f.b + f.o;
+    const hemA = foreHem({ x: 0.97 * f.a, y: hemY }, geom, pose);
+    const hemB = foreHem({ x: 0.3 * f.a, y: hemY }, geom, pose);
+    const hemC = poolHem({ x: -0.3 * f.a, y: hemY }, geom, pose);
+    const hemD = poolHem({ x: rear.x - 0.17 * f.b, y: hemY }, geom, pose);
+    const hemE = poolHem({ x: rear.x - 0.25 * f.b, y: hemY * 0.15 + rear.y * 0.85 }, geom, pose);
     path.moveTo(rear.x, rear.y);
     path.quadTo(rear.x - 0.04 * f.b, t0.y - 0.08 * f.b, t0.x, t0.y);
-    addLine(path, arcPts(topAng(-0.82), topAng(0.84), f.a + o2, f.b + o2, f.cy));
+    addLine(path, arcPts(topAng(-1), topAng(1), rx, ry, f.cy));
     path.quadTo(f.a + 0.33 * f.b, f.cy - 0.25 * f.b, hemA.x, hemA.y);
     path.quadTo(hemB.x, hemB.y, hemC.x, hemC.y);
     path.quadTo(hemD.x, hemD.y, hemE.x, hemE.y);
@@ -798,29 +802,25 @@ function sideSilhouette(geom: Geom, item: WearItem, breath: number, pose: Jacket
     // One loop at the fore hip. The coat is drawn after the legs, so both front legs pass through it.
     return punchHoles(path.detach(), rainForeLoops([geom.foreX], geom));
   }
-  const ur = item.shape === 'hoodie' ? -0.82 : -0.7;
+  const ur = -1;
   const p0 = f.top(ur);
   path.moveTo(p0.x, p0.y);
-  addLine(path, arcPts(topAng(ur), topAng(0.93), rx, ry, f.cy));
-  addLine(path, arcPts(topAng(0.93), botAng(0.82), rx, ry, f.cy, 8));
-  if (item.shape === 'hoodie') {
-    path.quadTo(0.3 * f.a, f.cy + f.b + f.o + 0.04 * f.b, -0.2 * f.a, f.cy + 0.92 * f.b);
-    path.quadTo(-0.62 * f.a, f.cy + 0.82 * f.b, p0.x + 0.04 * f.b, f.cy + 0.42 * f.b);
-  } else {
-    path.quadTo(0.35 * f.a, f.cy + f.b + f.o, -0.15 * f.a, f.cy + 0.72 * f.b);
-    path.quadTo(-0.5 * f.a, f.cy + 0.6 * f.b, p0.x + 0.04 * f.b, f.cy + 0.3 * f.b);
-  }
-  path.quadTo(p0.x - 0.12 * f.b, f.cy - 0.2 * f.b, p0.x, p0.y);
+  addLine(path, arcPts(topAng(ur), topAng(1), rx, ry, f.cy));
+  addLine(path, arcPts(topAng(1), botAng(1), rx, ry, f.cy, 8));
+  addLine(path, arcPts(botAng(1), botAng(ur), rx, ry, f.cy));
+  path.quadTo(p0.x - 0.12 * f.b, f.cy, p0.x, p0.y);
   path.close();
-  return path.detach();
+  // Sweater and hoodie sleeves are drawn with the leg. The hole lets that sleeve out.
+  return punchHoles(path.detach(), foreArmholes(geom, 'side'));
 }
 
 function panelOval(geom: Geom, pass: 'front' | 'back'): { cx: number; cy: number; rx: number; ry: number } {
+  const pad = geom.bodyH * sizes.coatPad * 0.5;
   if (pass === 'front') {
     const chestH = geom.bodyH;
-    return { cx: 0, cy: geom.bodyY + chestH * 0.08, rx: geom.bodyH * 0.55, ry: chestH / 2 };
+    return { cx: 0, cy: geom.bodyY + chestH * 0.08, rx: geom.bodyH * 0.55 + pad, ry: chestH / 2 + pad };
   }
-  return { cx: 0, cy: geom.bodyY, rx: geom.bodyH * 0.52, ry: geom.bodyH * 0.48 };
+  return { cx: 0, cy: geom.bodyY, rx: geom.bodyH * 0.52 + pad, ry: geom.bodyH * 0.48 + pad };
 }
 
 function panelPath(geom: Geom, item: WearItem, pass: 'front' | 'back', pose: JacketPose): SkPath {
@@ -830,18 +830,13 @@ function panelPath(geom: Geom, item: WearItem, pass: 'front' | 'back', pose: Jac
   if (shape === 'puffer') {
     rx += 0.12 * geom.bodyH;
   }
-  if (shape === 'vest' && pass === 'back') {
-    const strip = ry * 0.28;
-    return ovalPath(cx, cy - ry + strip, rx * 0.9, strip);
-  }
   if (shape === 'raincoat') {
-    ry *= 0.6;
-    const hem = pass === 'front' ? Math.max(cy + ry, geom.hipY + geom.legWidth * 0.6) : cy + ry;
+    const hem = cy + ry;
     const left = poolHem({ x: cx - rx * 1.1, y: hem }, geom, pose);
     const right = poolHem({ x: cx + rx * 1.1, y: hem }, geom, pose);
     const flared = Skia.PathBuilder.Make();
-    flared.moveTo(cx - rx * 0.7, cy - ry);
-    flared.lineTo(cx + rx * 0.7, cy - ry);
+    flared.moveTo(cx - rx, cy - ry);
+    flared.lineTo(cx + rx, cy - ry);
     flared.lineTo(right.x, right.y);
     flared.lineTo(left.x, left.y);
     flared.close();
@@ -852,9 +847,9 @@ function panelPath(geom: Geom, item: WearItem, pass: 'front' | 'back', pose: Jac
     const reach = geom.bodyH * 0.3;
     return punchHoles(flared.detach(), rainForeLoops([-reach, reach], geom));
   }
-  let path = ovalPath(cx, cy, rx, ry);
-  if (shape === 'sweater' || shape === 'hoodie') {
-    path = clipTo(path, rectPath(cx - rx * 2, cy - ry, rx * 4, ry * 1.7));
+  const path = ovalPath(cx, cy, rx, ry);
+  if (shape === 'vest' || shape === 'sweater' || shape === 'hoodie') {
+    return punchHoles(path, foreArmholes(geom, pass));
   }
   return path;
 }
@@ -910,15 +905,13 @@ function drawJacketDetails(c: SkCanvas, geom: Geom, item: WearItem, path: SkPath
   if (item.shape === 'sweater' || item.shape === 'hoodie') {
     const rib = resolvePart(item, 'rib', u);
     if (pass === 'side') {
-      const rear = item.shape === 'hoodie' ? -0.82 : -0.7;
-      const p0 = f.top(rear);
-      drawCables(c, p0.x + r * 0.4, f.top(0.93).x, f.cy - f.b - r * 0.2, f.cy + f.b, r, shade(body.color, 0.2), tex);
+      drawCables(c, f.top(-0.85).x, f.top(0.9).x, f.cy - f.b, f.cy + f.b, r, shade(body.color, 0.2), tex);
     } else {
-      drawCables(c, -f.b, f.b, f.cy - f.b, f.cy + f.b * 0.7, r, shade(body.color, 0.2), tex);
+      drawCables(c, -f.b, f.b, f.cy - f.b, f.cy + f.b, r, shade(body.color, 0.2), tex);
     }
     const hem = Skia.PathBuilder.Make();
-    const b1 = pass === 'side' ? f.bot(0.82) : { x: f.b, y: f.cy + f.b * 0.7 };
-    const h1 = pass === 'side' ? { x: -0.15 * f.a, y: f.cy + (item.shape === 'hoodie' ? 0.92 : 0.72) * f.b } : { x: -f.b, y: f.cy + f.b * 0.7 };
+    const b1 = pass === 'side' ? f.bot(0.95) : { x: f.b, y: f.cy + f.b };
+    const h1 = pass === 'side' ? f.bot(-0.7) : { x: -f.b, y: f.cy + f.b };
     hem.moveTo(b1.x, b1.y);
     hem.quadTo(0, f.cy + f.b, h1.x, h1.y);
     const hemPath = hem.detach();
@@ -1777,7 +1770,13 @@ export function drawHatShape(
 ): void {
   c.save();
   c.translate(0, r * sizes.hatSeat);
-  const tilt = icon ? sizes.hatIconTilt : view === 'front' || view === 'back' ? 0 : sizes.hatTilt;
+  // A bucket brim is wide enough that the shared hat cock lifts it off the forehead.
+  let tilt = 0;
+  if (icon) {
+    tilt = sizes.hatIconTilt;
+  } else if (item.shape !== 'bucket' && view !== 'front' && view !== 'back') {
+    tilt = sizes.hatTilt;
+  }
   c.rotate(tilt, 0, 0);
   if (item.shape === 'beret' && view !== 'front') {
     c.rotate(sizes.beretTilt, 0, 0);
@@ -1889,12 +1888,14 @@ function drawBucket(c: SkCanvas, item: WearItem, r: number, fur: string, u: numb
   const crown = resolvePart(item, 'crown', u);
   const band = resolvePart(item, 'band', u);
   const brim = resolvePart(item, 'brim', u);
-  paintShape(c, hatPath('M-12.5 -3 C-13 -20 13 -20 12.5 -3 Z', r), crown.color, fur, () => {
-    hatStroke(c, 'M-8 -14 Q-2 -18 5 -17', r, light(crown.color, 0.4), 2, 0.75 * textureAlpha(crown.pattern));
+  // Crown is 1.5 head radii wide and its base sits on the skull, not on the peak.
+  // The brim is 2.5 head radii across and droops from that base. Hat units are headR / 30.
+  paintShape(c, hatPath('M-22.5 2 C-24 -15 24 -15 22.5 2 Z', r), crown.color, fur, () => {
+    hatStroke(c, 'M-12 -6 Q-3 -11 8 -9', r, light(crown.color, 0.4), 2, 0.75 * textureAlpha(crown.pattern));
   }, 1, crown.pattern);
-  paintShape(c, hatPath('M-13 -7 Q0 -9 13 -7 L13 -2 Q0 0 -13 -2 Z', r), band.color, fur);
-  paintShape(c, hatPath('M-25 3 C-21 -4 21 -4 25 3 C27 7 21 9 14 6.5 C6 4.5 -6 4.5 -14 6.5 C-21 9 -27 7 -25 3 Z', r), brim.color, fur, () => {
-    hatStroke(c, 'M-21 3.5 C-12 -0.5 12 -0.5 21 3.5', r, shade(brim.color, 0.25), 1.2, 1, [2, 1.8]);
+  paintShape(c, hatPath('M-22.5 -1 Q0 -3 22.5 -1 L22.5 5 Q0 7 -22.5 5 Z', r), band.color, fur);
+  paintShape(c, hatPath('M-37.5 8 C-31.5 0 31.5 0 37.5 8 C40.5 13 31.5 15 21 12.5 C9 10.5 -9 10.5 -21 12.5 C-31.5 15 -40.5 13 -37.5 8 Z', r), brim.color, fur, () => {
+    hatStroke(c, 'M-31 7 C-18 3 18 3 31 7', r, shade(brim.color, 0.25), 1.2, 1, [2, 1.8]);
   });
 }
 

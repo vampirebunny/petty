@@ -75,7 +75,7 @@ Sizes are in `headR` unless marked as eye radii.
 | Shape | Side (and 3/4) | Front | Back |
 |---|---|---|---|
 | **Cap** | Dome ~1.7 headR wide, tilted −6°. Brim ~0.9 headR long over the snout, a seam, a band line at the base. **In 3/4,** the brim length is `0.9 × (1 − 0.3 × turn)` headR (0.63 headR at a full 3/4 turn). If its lower edge would still cross the near eye's top (`eyeY − eyeR − 0.05 × headR`), **tilt the brim up** about its base, up to +15°, rather than shortening it further. `d` = brim and top button. | Dome, brim as a flat ellipse below it, above the eyes | Dome and a strap arc, no brim |
-| **Bucket** | Crown ~1.5 headR wide, band in `d`, drooping brim ~2.5 headR across with a dashed stitch line | Same, brim as a wide ellipse | Same |
+| **Bucket** | Crown ~1.5 headR wide, band in `d`, drooping brim ~2.5 headR across with a dashed stitch line. On the pet the brim stays level. The shelf icon keeps the small hat tilt. | Same, brim as a wide ellipse | Same |
 | **Beret** | Tilted disc (rx 0.95, ry 0.35 headR) at −12°, a rolled band underneath, a curled stem on top | Flatter disc | Mirrored tilt |
 | **Crown** | Gold band (`c`), 3 points tipped with balls. Center tip gem and band gems use `d` (pink) alternating with fixed `#5AA9E6`. Tilted −8°. | Points centered | Points, no gems |
 
@@ -86,7 +86,7 @@ Sizes are in `headR` unless marked as eye radii.
 | Shape | Lens | `w`, `h` (half-sizes, eye radii) | Lens color | Glares |
 |---|---|---|---|---|
 | `heart` | Heart | 1.15, 1.05 | **From `d`** at `lensAlpha` **0.45**, within the range of today's lenses, so the eyes stay visible (new styles only; existing styles keep their hardcoded lenses) | 1 short arc |
-| `star` | 5-point star, inner radius 45% | 1.25, 1.25 | From `d` at 0.45 | none, plus the sparkle beside the near lens |
+| `star` | 5-point star, inner radius 45% | 2.05, 2.05 | From `d` at 0.45 | none, plus the sparkle beside the near lens |
 
 ### Neckwear: bow tie
 

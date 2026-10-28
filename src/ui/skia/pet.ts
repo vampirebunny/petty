@@ -730,31 +730,6 @@ export function drawActor(
       }
       c.drawPath(ribs.build(), paintOf('#000000', ((-actor.displayWeight - 0.35) / 0.65) * 0.38 * rig.foreshorten, 1.4));
     }
-    if (jacket && jacket.shape !== 'raincoat' && jacketAnchor && coats.side > 0.01) {
-      const placed = { sit: pose.sit, theta, dy, foreshorten: rig.foreshorten, belly: pose.belly };
-      c.save();
-      c.translate(jacketAnchor.x * geom.bodyLen, jacketAnchor.y * geom.bodyH);
-      drawJacket(c, geom, jacket, breath, baseColor, { ...placed, pass: 'side', alpha: coats.side });
-      c.restore();
-    }
-    if (jacket && jacket.shape !== 'raincoat' && coats.front > 0.01) {
-      c.save();
-      if (!axial) {
-        c.translate(geom.Px, geom.Py);
-        c.scale(1 / Math.max(rig.foreshorten, 0.001), 1);
-        c.translate(-geom.Px, -geom.Py);
-      }
-      drawJacket(c, geom, jacket, breath, baseColor, {
-        pass: 'front',
-        sit: pose.sit,
-        theta,
-        dy,
-        foreshorten: 1,
-        belly: pose.belly,
-        alpha: coats.front,
-      });
-      c.restore();
-    }
   });
   if (!axial) {
     paintRolled(geom.bodyY, 'body', () => {
@@ -768,69 +743,61 @@ export function drawActor(
   c.restore();
   c.restore();
 
-  if (!coats.legsInBackPass) {
-    for (const spec of ahead) {
-      drawnPaws.push(paintLeg(spec, pose.belly > 0.001));
+  const paintCoat = (): void => {
+    if (!jacket) {
+      return;
     }
-    // The raincoat follows the legs. A loop at the front hips lets the forelegs pass through.
-    if (jacket?.shape === 'raincoat') {
-      c.save();
-      c.translate(0, dy);
+    c.save();
+    c.translate(0, dy);
+    c.translate(geom.Px, geom.Py);
+    c.rotate(deg(theta), 0, 0);
+    c.translate(-geom.Px, -geom.Py);
+    c.save();
+    if (!axial) {
       c.translate(geom.Px, geom.Py);
-      c.rotate(deg(theta), 0, 0);
+      c.scale(Math.max(rig.foreshorten, 0.001), 1);
       c.translate(-geom.Px, -geom.Py);
-      c.save();
-      if (!axial) {
-        c.translate(geom.Px, geom.Py);
-        c.scale(Math.max(rig.foreshorten, 0.001), 1);
-        c.translate(-geom.Px, -geom.Py);
+    }
+    c.translate(0, geom.bodyY);
+    c.scale(posed?.scaleX ?? 1, posed?.scaleY ?? 1);
+    c.translate(0, -geom.bodyY);
+    paintRolled(geom.bodyY, 'detail', () => {
+      if (jacketAnchor && coats.side > 0.01) {
+        c.save();
+        c.translate(jacketAnchor.x * geom.bodyLen, jacketAnchor.y * geom.bodyH);
+        drawJacket(c, geom, jacket, breath, baseColor, {
+          sit: pose.sit,
+          theta,
+          dy,
+          foreshorten: rig.foreshorten,
+          belly: pose.belly,
+          pass: 'side',
+          alpha: coats.side,
+        });
+        c.restore();
       }
-      c.translate(0, geom.bodyY);
-      c.scale(posed?.scaleX ?? 1, posed?.scaleY ?? 1);
-      c.translate(0, -geom.bodyY);
-      paintRolled(geom.bodyY, 'detail', () => {
-        if (jacketAnchor && coats.side > 0.01) {
-          c.save();
-          c.translate(jacketAnchor.x * geom.bodyLen, jacketAnchor.y * geom.bodyH);
-          drawJacket(c, geom, jacket, breath, baseColor, {
-            sit: pose.sit,
-            theta,
-            dy,
-            foreshorten: rig.foreshorten,
-            belly: pose.belly,
-            pass: 'side',
-            alpha: coats.side,
-          });
-          c.restore();
+      if (coats.front > 0.01) {
+        c.save();
+        if (!axial) {
+          c.translate(geom.Px, geom.Py);
+          c.scale(1 / Math.max(rig.foreshorten, 0.001), 1);
+          c.translate(-geom.Px, -geom.Py);
         }
-        if (coats.front > 0.01) {
-          c.save();
-          if (!axial) {
-            c.translate(geom.Px, geom.Py);
-            c.scale(1 / Math.max(rig.foreshorten, 0.001), 1);
-            c.translate(-geom.Px, -geom.Py);
-          }
-          drawJacket(c, geom, jacket, breath, baseColor, {
-            pass: 'front',
-            sit: pose.sit,
-            theta,
-            dy,
-            foreshorten: 1,
-            belly: pose.belly,
-            alpha: coats.front,
-          });
-          c.restore();
-        }
-      });
-      c.restore();
-      c.restore();
-    }
-    if (jacket && coats.side + coats.front > 0.01) {
-      drawChestDetails(c, geom, jacket, baseColor, theta, dy, actor.swing, rig.dir, pose.belly, coats.side + coats.front);
-    }
-  }
-  actor.anchors.paws = drawnPaws.map((paw) => ({ x: paw.x, y: paw.y, shin: paw.shin }));
-  c.restore();
+        drawJacket(c, geom, jacket, breath, baseColor, {
+          pass: 'front',
+          sit: pose.sit,
+          theta,
+          dy,
+          foreshorten: 1,
+          belly: pose.belly,
+          alpha: coats.front,
+        });
+        c.restore();
+      }
+    });
+    c.restore();
+    c.restore();
+  };
 
   // neck, bandana, collar
   const shift = headShift(geom, frame.head.y, pose);
@@ -873,7 +840,19 @@ export function drawActor(
   if (pose.belly > 0.001) {
     base.y = bodyCenterY + (base.y - bodyCenterY) * bellyScale;
   }
+  // The hip and belly scale are still on the canvas. The neck is drawn outside them,
+  // with the chest end already moved, so a rolled pet still meets the head.
+  c.save();
+  if (pose.belly > 0.001) {
+    c.translate(0, bodyCenterY);
+    c.scale(1, 1 / bellyScale);
+    c.translate(0, -bodyCenterY);
+  }
+  if (posed && posed.hip !== 0) {
+    c.translate(-posed.hip, 0);
+  }
   strokeLine(c, base.x, base.y, head.x - 2, head.y + 3, baseColor, neckWidth);
+  c.restore();
   const nx = head.x - 2 - base.x;
   const ny = head.y + 3 - base.y;
   const along = neckAxis(head, base, geom.headR);
@@ -881,6 +860,27 @@ export function drawActor(
   const perp = along.x >= 0 ? { x: -along.y, y: along.x } : { x: along.y, y: -along.x };
   const neck = { x: base.x + nx * 0.62, y: base.y + ny * 0.62 };
   actor.anchors.neck = neck;
+  // Armhole coats are painted after the legs so the hip loop stays open.
+  // A puffer has no armhole, so it goes on before the legs and the legs stay on top.
+  const armhole = jacket?.shape === 'vest' || jacket?.shape === 'sweater' || jacket?.shape === 'hoodie' || jacket?.shape === 'raincoat';
+  if (jacket && !armhole) {
+    paintCoat();
+  }
+  if (!coats.legsInBackPass) {
+    for (const spec of ahead) {
+      drawnPaws.push(paintLeg(spec, pose.belly > 0.001));
+    }
+    if (armhole) {
+      paintCoat();
+    }
+    if (jacket && coats.side + coats.front > 0.01) {
+      drawChestDetails(c, geom, jacket, baseColor, theta, dy, actor.swing, rig.dir, pose.belly, coats.side + coats.front);
+    }
+  } else if (armhole) {
+    paintCoat();
+  }
+  actor.anchors.paws = drawnPaws.map((paw) => ({ x: paw.x, y: paw.y, shin: paw.shin }));
+  c.restore();
   if (jacket?.shape === 'hoodie' && jacketAnchor && coats.side > 0.01 && pose.belly < 0.45) {
     drawHood(c, base, perp, along, jacket, geom.headR, neckWidth, baseColor, coats.side);
   }

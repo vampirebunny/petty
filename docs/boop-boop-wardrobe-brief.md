@@ -100,10 +100,10 @@ const chin = {
 Draw order inside `drawActor`. The ground shadow, jump dust, hearts, and sleep marks stay outside the sticker-outline layer. Everything from the legs through the carried toy is inside it.
 
 1. Far legs (with boots and sleeves)
-2. Torso: tail, body, markings, cel shade, **jacket** (coat body only; no collar yet)
-3. Near legs (with boots and sleeves)
-4. Neck stroke
-5. Rain hood (if raincoat), then **jacket roll collar** (`drawJacketCollar`)
+2. Torso: tail, body, markings, cel shade. The jacket body is not in this pass.
+3. Neck stroke, outside the hip and belly scale, so a rolled pet still meets the head.
+4. Puffer, if that is the jacket, then the near legs. Vest, sweater, hoodie, and raincoat paint after the near legs so their foreleg holes stay open.
+5. Hood (hoodie or raincoat), then **jacket collar** (`drawJacketCollar`)
 6. When the neck is flat, or the head is turned (`face.turn` or `face.front` above 0): **neckwear at `chin`**, then the head. The face covers any neckwear that would cross the muzzle. The tag or triangle that hangs below the chin stays visible.
 7. Otherwise: head first, then **neckwear at `chin`**, so a side-view collar sits on the neck.
 8. Head contents, whenever they draw: far ear, ruff, skull, face, eyes, markings
@@ -126,17 +126,17 @@ When the neck is nearly horizontal (sleep and lie, especially with `headRest`), 
 
 Jacket silhouettes, the hoodie, front and back panels, the sitting hem clamp, and the turn crossfade live in `docs/boop-boop-cosmetics-v2-brief.md`. Where this section disagrees with that spec, cosmetics v2 wins.
 
-- Shaped like a dog coat from the body oval (puff `0.05 * bodyH`, vest/puffer `0.09 * bodyH`): follows the back, stops before the rump (`jacketRear`), front edge behind the shoulder (`jacketFront`), belly line rising toward the hind legs. Never a full-body slab. Outlined.
+- The coat is that pet's body oval plus `coatPad`. Sweater, hoodie, vest, puffer, and raincoat each cover the torso. The vest has no sleeves. Sweater and hoodie do.
 - Draw it inside the same torso transforms as the body, including the `posed.scaleX/scaleY` block.
-- Clip **details** to the jacket shape. Signature details: puffer baffles with soft highlights; sweater ribbing and wide stripes; vest diamond quilting, piping, and zip; raincoat gloss, piping, and toggles. No heavy dark band around the whole oval.
-- **Roll collar:** drawn after the neck stroke via `drawJacketCollar`, so the neck comes out of the coat. Raincoat also gets a folded hood along the back of the neck (`drawHood`) before the collar.
-- **Sleeves (raincoat and sweater only):** cover the upper leg bone (hip to knee, `sleeveUpper`), with a cuff. Far sleeve darkened like far legs. Follows every leg pose because it uses the computed knee.
+- Signature details: puffer baffles with soft highlights; sweater and hoodie ribbing and cables; vest quilting and zip; raincoat gloss, piping, and toggles.
+- **Collar:** drawn after the coat via `drawJacketCollar`, on top of the neck stroke. The hoodie hood and the raincoat hood draw there too.
+- **Sleeves (sweater and hoodie only):** wider than `legWidth`, tucked into the coat, with a cuff. The armhole is smaller than the sleeve. Far sleeve darkened like far legs. Follows every leg pose because it uses the computed knee.
 
 ## 6. Glasses
 
 Each id in `glassesStyles` has its own shape. `classic` is a wayfarer (flat brow, rounded bottom, dark lens, two glare streaks). `square` is a thin round gold wire with a light blue lens. `red-rim` is a soft square with a pale lens. A saved `round` id still resolves to `square`.
 
-- Lenses are sized from `eyeR` (`w` and `h` in the style row) and shrink at the 3/4 and front views when the eyes are close-set, so they do not overlap.
+- Lenses are sized from `eyeR` (`w` and `h` in the style row) and shrink at the 3/4 and front views when the eyes are close-set, so they do not overlap. Heart and star shades keep a floor of 0.88 so a narrow face cannot shrink the lens off the pupil. Star half-size is 2.05.
 - Every lens is translucent and gets at least one white glare streak, so the eye still shows through shades.
 - Temple arms draw before the near ear (`drawGlassesBack`) and tuck under hanging and erect ears. In side view the arm runs back toward the ear and a short nose pad leaves the front of the lens. Nothing extends onto the muzzle.
 - Lenses and the bridge draw after the near ear (`drawGlassesFront`). In the 3/4 and front views the far lens uses the far eye's scale and fade, and the bridge arches over the snout. Full front adds short stubs from the outer edges.

@@ -120,7 +120,13 @@ export const wardrobeSizes = {
   // Same offset as the bare paw oval in drawLeg.
   pawOffsetX: 3,
   pawOffsetY: -3,
-  // Sleeves cover this much of the upper leg bone.
-  sleeveUpper: 0.9,
-  sleeveExtra: 2,
+  // Sleeves cover this much of the upper leg bone, starting this far back into the coat.
+  sleeveUpper: 0.92,
+  sleeveTuck: 0.2,
+  // Radius as a fraction of leg width. The leg stroke's own radius is 0.5.
+  // The armhole is inside the sleeve so the coat overlaps it and the sleeve reads as attached.
+  sleeveWidth: 0.78,
+  armhole: 0.42,
+  // How far a coat sits outside the body oval, as a fraction of the smaller body radius.
+  coatPad: 0.16,
 };

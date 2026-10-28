@@ -26,7 +26,7 @@ Where this section disagrees with the rest of the brief, this section wins. Dogs
 - **No white dots as decoration.** Replace any round dot detail (sneaker laces, hoodie string ends, collar studs, the crown sparkle) with a line, a capsule or a diamond.
 - **Add constants to `wardrobeSizes`.** Every new number in this brief becomes a named constant there, next to the ones it replaces.
 
-Notation used below. In the jacket side pass, the torso is the ellipse centred at `(0, bodyY)` with `a = bodyLen / 2` and `b = (bodyH / 2) × breath`. Front is +x. `o = 0.1 b` is the garment's offset outside the body. The two edge points are:
+Notation used below. In the jacket side pass, the torso is the ellipse centred at `(0, bodyY)` with `a = bodyLen / 2` and `b = (bodyH / 2) × breath`. Front is +x. The fit that shipped uses `o = coatPad × min(a, b)` from `wardrobeSizes`, not `0.1 b`, and the sweater, hoodie, vest, puffer, and raincoat wrap that oval. See `docs/boop-boop-cosmetics-v2-brief.md`. The two edge points are:
 
 ```
 top(u, o) = ( u (a + o), bodyY − (b + o) √(1 − u²) )
