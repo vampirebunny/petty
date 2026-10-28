@@ -17,6 +17,8 @@ export type TrackDef = {
   species: SpeciesId[];
   hideWhenMastered: boolean;
   prerequisites: Partial<Record<SpeciesId, string[]>>;
+  // When true, mastering any listed prerequisite unlocks the track.
+  anyPrerequisite?: boolean;
   unlock: Partial<Record<SpeciesId, UnlockRule>>;
   tier?: TrickTier;
   linked: Trait[];
@@ -53,6 +55,7 @@ export const trackDefs: TrackDef[] = [
     species: ['dog', 'cat'],
     hideWhenMastered: false,
     prerequisites: { dog: ['sit', 'speak'], cat: ['sit', 'speak'] },
+    anyPrerequisite: true,
     unlock: {},
     tier: 2,
     linked: ['affection'],
@@ -137,7 +140,11 @@ function ruleMet(state: PetState, rule: UnlockRule | undefined): boolean {
 
 function prereqsMet(state: PetState, def: TrackDef, species: SpeciesId): boolean {
   const ids = def.prerequisites[species] ?? [];
-  return ids.every((id) => state.training[id]?.mastered === true);
+  if (ids.length === 0) {
+    return true;
+  }
+  const learned = (id: string) => state.training[id]?.mastered === true;
+  return def.anyPrerequisite ? ids.some(learned) : ids.every(learned);
 }
 
 export function isUnlocked(state: PetState, def: TrackDef): boolean {
@@ -172,10 +179,11 @@ export function lockHint(state: PetState, def: TrackDef): string | null {
   if (!track || track.unlocked) {
     return null;
   }
-  const missing = (def.prerequisites[species] ?? []).find((id) => !state.training[id]?.mastered);
-  if (missing) {
-    const name = trackDef(missing)?.name ?? missing;
-    return `Keep practicing ${name} to unlock.`;
+  const needed = def.prerequisites[species] ?? [];
+  const missing = needed.filter((id) => !state.training[id]?.mastered);
+  if (def.anyPrerequisite ? missing.length === needed.length && needed.length > 0 : missing.length > 0) {
+    const names = (def.anyPrerequisite ? needed : missing.slice(0, 1)).map((id) => trackDef(id)?.name ?? id);
+    return `Keep practicing ${names.join(' or ')} to unlock.`;
   }
   const rule = def.unlock[species];
   if (rule?.minAgeDays != null && state.ageDays < rule.minAgeDays) {

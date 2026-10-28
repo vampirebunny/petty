@@ -1,7 +1,8 @@
 import { createElement, useEffect, useState } from 'react';
 import { Check, Clock, Cookie, Lock } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { Pressable } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
@@ -185,17 +186,19 @@ export function InTrainingList({
                       pressed={pressed}
                       style={styles.row}
                     >
-                      <ProgressRing progress={100} color={family.ring[1]}>
-                        {createElement(glyph, { size: 22, strokeWidth: iconStroke + 0.4, color: family.ring[1] })}
-                      </ProgressRing>
-                      <View style={styles.copy}>
-                        <Text style={[styles.name, { color: family.name }]} numberOfLines={1}>
-                          {name}
-                        </Text>
-                        <Text style={styles.sub}>Learned</Text>
-                      </View>
-                      <View style={styles.restPill}>
-                        <Check size={16} strokeWidth={iconStroke + 0.6} color={family.ring[1]} />
+                      <View pointerEvents="none" style={styles.learnedHit}>
+                        <ProgressRing progress={100} color={family.ring[1]}>
+                          {createElement(glyph, { size: 22, strokeWidth: iconStroke + 0.4, color: family.ring[1] })}
+                        </ProgressRing>
+                        <View style={styles.copy}>
+                          <Text style={[styles.name, { color: family.name }]} numberOfLines={1}>
+                            {name}
+                          </Text>
+                          <Text style={styles.sub}>Learned</Text>
+                        </View>
+                        <View style={styles.restPill}>
+                          <Check size={16} strokeWidth={iconStroke + 0.6} color={family.ring[1]} />
+                        </View>
                       </View>
                     </GlossyFace>
                   )}
@@ -366,6 +369,12 @@ const styles = StyleSheet.create({
   row: {
     minHeight: 84,
     padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  learnedHit: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,

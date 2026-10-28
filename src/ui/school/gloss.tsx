@@ -93,7 +93,7 @@ export function GlossyFace({ colors, lip, shadow, radius, pressed = false, soft,
         { shadowColor: soft ?? shadow, shadowOpacity: soft ? 1 : 0.18, shadowRadius: 9, shadowOffset: { width: 0, height: 4 } },
       ]}
     >
-      <View style={[styles.lip, { top: drop, backgroundColor: pressed ? lip : shadow, borderRadius: corner }]} />
+      <View pointerEvents="none" style={[styles.lip, { top: drop, backgroundColor: pressed ? lip : shadow, borderRadius: corner }]} />
       <View
         onLayout={(event) => {
           const next = Math.min(radius, event.nativeEvent.layout.height / 2);

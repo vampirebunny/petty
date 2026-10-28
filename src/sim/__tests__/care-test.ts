@@ -137,13 +137,13 @@ it('keeps the training bar still until a chosen treat is resolved', () => {
   expect(paid.care.pendingReward).toBeNull();
 });
 
-it('unlocks Paw after Sit and Speak are mastered, and calls it High five for cats', () => {
+it('unlocks Paw after Sit or Speak is mastered, and calls it High five for cats', () => {
   const young = pet();
   const paw = trackDef('paw');
   expect(paw).not.toBeNull();
   expect(paw?.species).toEqual(['dog', 'cat']);
   expect(young.training.paw?.unlocked).toBe(false);
-  expect(lockHint(young, paw!)).toMatch(/Sit/);
+  expect(lockHint(young, paw!)).toMatch(/Sit or Speak/);
 
   const mastered = (state: PetState, id: string, progress = 100): PetState => ({
     ...state,
@@ -153,21 +153,23 @@ it('unlocks Paw after Sit and Speak are mastered, and calls it High five for cat
     },
   });
   const sitDone = mastered(young, 'sit');
-  expect(lockHint(sitDone, paw!)).toMatch(/Speak/);
-  expect(refreshUnlocks(sitDone).unlocked).toEqual([]);
+  expect(lockHint(sitDone, paw!)).toBeNull();
+  const fromSit = refreshUnlocks(sitDone);
+  expect(fromSit.unlocked).toEqual(['paw']);
+  expect(fromSit.state.training.paw?.unlocked).toBe(true);
 
-  const both = mastered(sitDone, 'speak');
-  const unlocked = refreshUnlocks(both);
-  expect(unlocked.unlocked).toEqual(['paw']);
-  expect(unlocked.state.training.paw?.unlocked).toBe(true);
+  const fromSpeak = refreshUnlocks(mastered(young, 'speak'));
+  expect(fromSpeak.unlocked).toEqual(['paw']);
+  expect(fromSpeak.state.training.paw?.unlocked).toBe(true);
   expect(trackName('paw', 'dog')).toBe('Paw');
   expect(trackName('paw', 'cat')).toBe('High five');
 
   const cat = trainedPet('domesticShorthair');
   expect(cat.training.paw?.unlocked).toBe(false);
-  const ready = mastered(mastered(cat, 'sit'), 'speak', 99);
+  const ready = mastered(cat, 'speak', 99);
   const learned = payRep(ready, 'speak', 'treat', ready.lastUpdatedAt);
   expect(learned.training.speak?.mastered).toBe(true);
+  expect(learned.training.sit?.mastered).toBe(false);
   expect(learned.training.paw?.unlocked).toBe(true);
 
   const saved = { ...cat, training: { sit: cat.training.sit! }, milestones: ['house_trained', 'sit'] };
