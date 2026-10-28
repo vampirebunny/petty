@@ -219,19 +219,6 @@ function actorsRushing(world: World): boolean {
   });
 }
 
-function stageInMotion(world: World): boolean {
-  if (world.held || actorsRushing(world)) {
-    return true;
-  }
-  return world.items.some(
-    (item) => item.state === 'free' && (item.z > 0.5 || Math.abs(item.vx) + Math.abs(item.vy) + Math.abs(item.vz) > 4),
-  );
-}
-
-// Each stat flush re-renders Home, saves the pet, and reschedules reminders. While the
-// pet runs or a toy flies they wait, and go out together when the stage settles.
-const motionFlushMs = 5000;
-
 function sourceOf(pet: PetState) {
   return {
     id: pet.id,
@@ -944,7 +931,6 @@ export function PetView({
     }
   }, [cuddleActive]);
 
-  const statsFlushedAt = useRef(0);
   const pendingWeight = useRef(0);
   const pendingEnergy = useRef(0);
   const pendingHunger = useRef(0);
@@ -1232,17 +1218,13 @@ export function PetView({
           onCuddleRef.current?.({ type: 'interrupted' });
         }
         pendingWeight.current += takeWeightDelta(actor);
+        flushWeight(false);
         pendingEnergy.current += takeEnergyDelta(actor);
+        flushEnergy(false);
         pendingHunger.current += takeHungerDelta(actor);
+        flushHunger(false);
         pendingHydration.current += takeHydrationDelta(actor);
-        const clock = Date.now();
-        if (!stageInMotion(world) || clock - statsFlushedAt.current >= motionFlushMs) {
-          statsFlushedAt.current = clock;
-          flushWeight(false);
-          flushEnergy(false);
-          flushHunger(false);
-          flushHydration(false);
-        }
+        flushHydration(false);
         const pops = takeEnergyPops(actor);
         const moodPops = takeMoodPops(actor);
         if (pops.length > 0 || moodPops.length > 0) {

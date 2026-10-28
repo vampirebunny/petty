@@ -1,4 +1,4 @@
-import { createElement, useEffect, useId, useState } from 'react';
+import { createElement, memo, useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Pressable } from 'react-native-gesture-handler';
@@ -49,18 +49,87 @@ const headerIcon = {
   trick: Medal,
 } as const;
 
-export function HomeActionPanel({ species, reducedMotion, care, bond, style: styleActions, tricks, onProps }: PanelProps) {
+type Group = 'care' | 'bond' | 'style' | 'tricks';
+type Run = (group: Group | 'props', id: string, long?: boolean) => void;
+
+// Home rebuilds every action and handler on each render, and redrawing ~20 candy tiles
+// was most of a Home commit. The panel redraws only when what it shows changes; a press
+// runs the newest handler.
+export function HomeActionPanel(props: PanelProps) {
+  const latest = useRef(props);
+  useLayoutEffect(() => {
+    latest.current = props;
+  });
+  const run = useCallback<Run>((group, id, long = false) => {
+    const current = latest.current;
+    if (group === 'props') {
+      current.onProps?.();
+      return;
+    }
+    const list: (CandyAction | PanelProps['tricks'][number])[] = group === 'style' ? current.style : current[group];
+    const action = list.find((item) => item.id === id);
+    if (!action) {
+      return;
+    }
+    if (long) {
+      (action as CandyAction).onLongPress?.();
+    } else {
+      action.onPress();
+    }
+  }, []);
+  return <PanelBody {...props} run={run} />;
+}
+
+function sameAction(a: CandyAction, b: CandyAction): boolean {
+  return (
+    a.id === b.id &&
+    a.label === b.label &&
+    !!a.blocked === !!b.blocked &&
+    !!a.sunk === !!b.sunk &&
+    (a.need ?? null) === (b.need ?? null) &&
+    !!a.switch === !!b.switch &&
+    !!a.checked === !!b.checked &&
+    !a.onLongPress === !b.onLongPress
+  );
+}
+
+function sameList<T>(a: T[], b: T[], same: (x: T, y: T) => boolean): boolean {
+  return a.length === b.length && a.every((item, index) => same(item, b[index]));
+}
+
+function sameLook(a: PanelProps & { run: Run }, b: PanelProps & { run: Run }): boolean {
+  return (
+    a.species === b.species &&
+    a.reducedMotion === b.reducedMotion &&
+    !a.onProps === !b.onProps &&
+    sameList(a.care, b.care, sameAction) &&
+    sameList(a.bond, b.bond, sameAction) &&
+    sameList(a.style, b.style, sameAction) &&
+    sameList(a.tricks, b.tricks, (x, y) => x.id === y.id && x.label === y.label && x.fresh === y.fresh)
+  );
+}
+
+const PanelBody = memo(function PanelBody({
+  species,
+  reducedMotion,
+  care,
+  bond,
+  style: styleActions,
+  tricks,
+  onProps,
+  run,
+}: PanelProps & { run: Run }) {
   return (
     <View style={styles.panel}>
       <PanelWash />
       <Section flavor="care" title="Care" columns={4}>
         {care.map((action) => (
-          <Tile key={action.id} action={action} flavor="care" species={species} reducedMotion={reducedMotion} />
+          <Tile key={action.id} action={action} flavor="care" species={species} reducedMotion={reducedMotion} run={run} group="care" />
         ))}
       </Section>
       <Section flavor="bond" title="Bond" columns={3}>
         {bond.map((action) => (
-          <Tile key={action.id} action={action} flavor="bond" species={species} reducedMotion={reducedMotion} />
+          <Tile key={action.id} action={action} flavor="bond" species={species} reducedMotion={reducedMotion} run={run} group="bond" />
         ))}
       </Section>
       {tricks.length > 0 ? (
@@ -71,7 +140,7 @@ export function HomeActionPanel({ species, reducedMotion, care, bond, style: sty
           fixed
           extra={
             onProps ? (
-              <Pressable accessibilityRole="button" accessibilityLabel="Prop" onPress={onProps} style={styles.propButton}>
+              <Pressable accessibilityRole="button" accessibilityLabel="Prop" onPress={() => run('props', '')} style={styles.propButton}>
                 <Text style={[styles.headerText, { color: candyFlavors.trick.header }]}>Prop</Text>
               </Pressable>
             ) : null
@@ -84,6 +153,8 @@ export function HomeActionPanel({ species, reducedMotion, care, bond, style: sty
                 flavor="trick"
                 species={species}
                 reducedMotion={reducedMotion}
+                run={run}
+                group="tricks"
               />
             </Pop>
           ))}
@@ -91,12 +162,12 @@ export function HomeActionPanel({ species, reducedMotion, care, bond, style: sty
       ) : null}
       <Section flavor="style" title="Style & sound" columns={2} pill>
         {styleActions.map((action) => (
-          <Pill key={action.id} action={action} species={species} />
+          <Pill key={action.id} action={action} species={species} run={run} />
         ))}
       </Section>
     </View>
   );
-}
+}, sameLook);
 
 function PanelWash() {
   const uid = useId().replace(/:/g, '');
@@ -183,11 +254,15 @@ function Tile({
   flavor,
   species,
   reducedMotion,
+  run,
+  group,
 }: {
   action: CandyAction;
   flavor: CandyFlavorName;
   species: ActionSpecies;
   reducedMotion: boolean;
+  run: Run;
+  group: Group;
 }) {
   const [pressed, setPressed] = useState(false);
   const tone = action.blocked ? 'muted' : flavor;
@@ -213,10 +288,10 @@ function Tile({
       accessibilityState={{ disabled: !!action.blocked, selected: !!action.sunk }}
       onPressIn={() => setPressed(true)}
       onPressOut={() => setPressed(false)}
-      onLongPress={action.onLongPress}
+      onLongPress={action.onLongPress ? () => run(group, action.id, true) : undefined}
       onPress={() => {
         void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        action.onPress();
+        run(group, action.id);
       }}
     >
       {action.need && !action.blocked ? (
@@ -230,7 +305,7 @@ function Tile({
   );
 }
 
-function Pill({ action, species }: { action: CandyAction; species: ActionSpecies }) {
+function Pill({ action, species, run }: { action: CandyAction; species: ActionSpecies; run: Run }) {
   const [pressed, setPressed] = useState(false);
   const tone = candyFlavors.style;
   const isSwitch = !!action.switch;
@@ -243,7 +318,7 @@ function Pill({ action, species }: { action: CandyAction; species: ActionSpecies
       onPressOut={() => setPressed(false)}
       onPress={() => {
         void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        action.onPress();
+        run('style', action.id);
       }}
     >
       <CandyPlate flavor="style" height={candyLayout.pillHeight} radius={candyLayout.pillHeight / 2} pill pressed={pressed}>

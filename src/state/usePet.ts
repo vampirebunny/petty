@@ -222,7 +222,16 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
     storageRef.current = storage;
   }, [storage]);
 
+  // The stage reports weight and need changes several times a second while the pet moves.
+  // Publishing each one re-rendered Home and saved, so they wait in stateRef for the next open tick.
+  const stagedRef = useRef(false);
+  const stage = useCallback((next: PetState) => {
+    stateRef.current = next;
+    stagedRef.current = true;
+  }, []);
+
   const publish = useCallback((next: PetState, nextCue?: Cue, sync = true) => {
+    stagedRef.current = false;
     stateRef.current = next;
     setState(next);
     if (nextCue) {
@@ -435,7 +444,7 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
       if (!current || !activeRef.current || authTransition() !== 'idle' || readStandby()) {
         return;
       }
-      publish(tickForeground(current, Date.now()), undefined, false);
+      publish(tickForeground(current, Date.now()), undefined, stagedRef.current);
       const paid = payoutTimeAccrual('live');
       if (paid > 0) {
         pushBurst({ label: 'Boops', amount: paid, coinCount: 1 });
@@ -874,9 +883,9 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
       if (!current) {
         return;
       }
-      publish(applyWeightDelta(current, delta));
+      stage(applyWeightDelta(current, delta));
     },
-    [publish],
+    [stage],
   );
 
   const applyActorEnergy = useCallback(
@@ -887,10 +896,10 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
       }
       const next = applyEnergyDelta(current, delta);
       if (next !== current) {
-        publish(next);
+        stage(next);
       }
     },
-    [publish],
+    [stage],
   );
 
   const applyActorHunger = useCallback(
@@ -901,10 +910,10 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
       }
       const next = applyHungerDelta(current, delta);
       if (next !== current) {
-        publish(next);
+        stage(next);
       }
     },
-    [publish],
+    [stage],
   );
 
   const applyActorHydration = useCallback(
@@ -915,10 +924,10 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
       }
       const next = applyHydrationDelta(current, delta);
       if (next !== current) {
-        publish(next);
+        stage(next);
       }
     },
-    [publish],
+    [stage],
   );
 
   const applyActorHappiness = useCallback(
