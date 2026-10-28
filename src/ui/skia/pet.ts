@@ -1,11 +1,11 @@
 import { BlendMode, Skia, StrokeCap } from '@shopify/react-native-skia';
 import type { SkCanvas, SkPaint, SkPicture } from '@shopify/react-native-skia';
 
-import { blendedFoot, bodyFrame, isDarkCoat, solveKnee, wearItem } from '../../actor';
+import { blendedFoot, bodyFrame, isDarkCoat, placeLeg, wearItem } from '../../actor';
 import type { Actor, Breed, Geom, Pose } from '../../actor';
 import { blendedTheta, facingFit, projectLocal } from '../../actor/facing';
 import { facingConfig } from '../../actor/data/facing';
-import { carriedMouth, headFaceOf, headShift, noseOf, torsoPoint } from '../../actor/geometry';
+import { carriedMouth, headFaceOf, headShift, noseOf, reachOf, rearOf, torsoPoint } from '../../actor/geometry';
 import { liftScaleOf } from '../../actor/locomotion';
 import { jumpConfig } from '../../actor/jump';
 import { frostColorOf } from '../../actor/color';
@@ -87,7 +87,8 @@ type Pt = { x: number; y: number };
 
 type Paw = { x: number; y: number; shin: number; knee: Pt };
 
-// Two-bone leg: the knee bends toward `side`, the paw stays on the bone length even when the target is out of reach.
+// Two-bone leg: the knee bends toward `side`. A long stride stretches the bones so the paw
+// keeps moving with the step instead of locking straight and waiting.
 function drawLeg(
   c: SkCanvas,
   hip: Pt,
@@ -106,12 +107,9 @@ function drawLeg(
   pawScale = 1,
   claws = 0,
 ): Paw {
-  const bone = geom.L / 2;
-  const knee = solveKnee(hip, target, bone, side);
-  const ex = target.x - knee.x;
-  const ey = target.y - knee.y;
-  const length = Math.hypot(ex, ey) || 1;
-  const paw = { x: knee.x + (ex / length) * bone, y: knee.y + (ey / length) * bone };
+  const posed = placeLeg(hip, target, geom.L, side);
+  const knee = posed.knee;
+  const paw = posed.paw;
   const leg = Skia.PathBuilder.Make();
   leg.moveTo(hip.x, hip.y);
   leg.lineTo(knee.x, knee.y);
@@ -547,7 +545,12 @@ export function drawActor(
 
   const outlined = petStyle.outline.enabled && !silhouette;
   if (outlined) {
-    c.saveLayer(outlineLayerPaint(baseColor));
+    // The dilate runs on this layer. Keep it on the pet, or a run rasterizes the whole stage every frame.
+    const pad = petStyle.outline.width + 10;
+    const span = rearOf(geom) + reachOf(geom) + geom.headR + 40 + pad;
+    const lift = actor.z / Math.max(scale, 0.001);
+    const top = geom.bodyH + geom.headR * 2.4 + geom.L + 80 + lift + pad;
+    c.saveLayer(outlineLayerPaint(baseColor), Skia.XYWHRect(-span, -top, span * 2, top + 36 + pad));
   }
 
   // A furniture paw target for this leg, if the current furniture phase poses it.

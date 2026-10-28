@@ -203,26 +203,44 @@ function staticBand(y: number, late: boolean, night: boolean, span: { minY: numb
   return 'live';
 }
 
-export function roomPlateKey(world: World, width: number, height: number, tod: TimeOfDay): string {
+// A piece in hand stays in the picture that redraws every frame. The room behind and in
+// front of the pet can stay frozen while he runs, and a new bowl would never show up there.
+function heldBand(
+  lifted: boolean,
+  y: number,
+  late: boolean,
+  night: boolean,
+  span: { minY: number; maxY: number },
+): 'back' | 'live' | 'front' {
+  if (lifted) {
+    return 'live';
+  }
+  return staticBand(y, late, night, span);
+}
+
+export function roomPlateKey(world: World, width: number, height: number, tod: TimeOfDay, step?: number): string {
   const night = world.scene.time === 'indoor' && tod.dark > 0.02;
   const span = moverSpan(world);
   const props = world.scene.props
     .map((prop) => {
       const late = night && propEngaged(world, prop.id);
-      const band = staticBand(prop.y, late, night, span);
+      const band = heldBand(world.liftedId === prop.id, prop.y, late, night, span);
       return `${prop.id ?? ''}:${prop.kind}:${Math.round(prop.x)}:${Math.round(prop.y)}:${band}`;
     })
     .join(',');
   const tricks = (world.trickProps ?? [])
-    .map((prop) => `${prop.instanceId}:${Math.round(prop.x)}:${Math.round(prop.y)}:${staticBand(prop.y, false, night, span)}`)
+    .map((prop) => {
+      const band = heldBand(world.liftedPropId === prop.instanceId, prop.y, false, night, span);
+      return `${prop.instanceId}:${Math.round(prop.x)}:${Math.round(prop.y)}:${band}`;
+    })
     .join(',');
   const decorBand = staticBand(world.scene.floor.yMin + 4, false, night, span);
-  const step = world.reducedMotion ? 0 : Math.round(world.t * 10);
+  const sway = step ?? (world.reducedMotion ? 0 : Math.round(world.t * 10));
   return [
     world.scene.id,
     Math.round(width),
     Math.round(height),
-    step,
+    sway,
     night ? 1 : 0,
     Math.round(tod.dark * 20),
     world.liftedId ?? '',
@@ -355,17 +373,18 @@ export function drawWorld(
   for (const prop of scene.props) {
     if ((prop.layer ?? 'sorted') === 'sorted') {
       if (isStyledBed(prop)) {
+        const late = night && engaged(prop.id);
         items.push({
           y: prop.y,
-          late: night && engaged(prop.id),
-          band: staticBand(prop.y, night && engaged(prop.id), night, movers),
+          late,
+          band: heldBand(world.liftedId === prop.id, prop.y, late, night, movers),
           draw: () => withTint(roomTint, () => drawStyledBed(canvas, prop)),
         });
         continue;
       }
       if (prop.kind === 'dogHouse') {
         const late = night && engaged(prop.id);
-        const band = staticBand(prop.y, late, night, movers);
+        const band = heldBand(world.liftedId === prop.id, prop.y, late, night, movers);
         items.push({
           y: prop.y,
           late,
@@ -382,10 +401,11 @@ export function drawWorld(
         }
         continue;
       }
+      const late = night && engaged(prop.id);
       items.push({
         y: prop.y,
-        late: night && engaged(prop.id),
-        band: staticBand(prop.y, night && engaged(prop.id), night, movers),
+        late,
+        band: heldBand(world.liftedId === prop.id, prop.y, late, night, movers),
         draw: () => withTint(roomTint, () => drawProp(canvas, prop, env)),
       });
     }
@@ -401,11 +421,12 @@ export function drawWorld(
   const span = { x: -bleed - 400, y: -600, w: stageWidth + bleed * 2 + 800, h: stageHeight + 1200 };
   for (const prop of world.trickProps ?? []) {
     const liftedProp = world.liftedPropId === prop.instanceId;
+    const trickBand = heldBand(liftedProp, prop.y, night && liftedProp, night, movers);
     if (!splitsAroundActors(prop)) {
       items.push({
         y: prop.y,
         late: liftedProp,
-        band: staticBand(prop.y, night && liftedProp, night, movers),
+        band: trickBand,
         draw: () => drawTrickProp(canvas, prop, 'whole'),
       });
       continue;
@@ -414,13 +435,13 @@ export function drawWorld(
     items.push({
       y: petInFront ? prop.y - 4 : prop.y - 1,
       late: liftedProp,
-      band: staticBand(prop.y, night && liftedProp, night, movers),
+      band: trickBand,
       draw: () => drawTrickProp(canvas, prop, 'back'),
     });
     items.push({
       y: petInFront ? prop.y - 3 : prop.y + 1,
       late: liftedProp,
-      band: staticBand(prop.y, night && liftedProp, night, movers),
+      band: trickBand,
       draw: () => drawTrickProp(canvas, prop, 'front'),
     });
   }

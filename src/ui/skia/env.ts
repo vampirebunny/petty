@@ -77,8 +77,17 @@ export function motionStep(env: { t: number; reduced: boolean }): number {
 // tick stalls the ball and a running pet.
 let recordStamp = Number.NaN;
 let recordLeft = 0;
+let motionHeld = false;
+
+/** While held, swaying slots replay the picture they already have. A run uses this so the lawn and the trees are not rebuilt on the same frames as the pet. */
+export function holdMotionRecords(hold: boolean): void {
+  motionHeld = hold;
+}
 
 export function takeMotionRecord(t: number): boolean {
+  if (motionHeld) {
+    return false;
+  }
   if (t !== recordStamp) {
     recordStamp = t;
     recordLeft = 1;

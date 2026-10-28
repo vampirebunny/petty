@@ -2,7 +2,7 @@ import { useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, 
 import type { Ref } from 'react';
 import { AppState, StyleSheet } from 'react-native';
 import { useSharedValue } from 'react-native-reanimated';
-import { Canvas, Picture, Skia } from '@shopify/react-native-skia';
+import { Canvas, Picture, Rect, Skia } from '@shopify/react-native-skia';
 import type { SkPicture } from '@shopify/react-native-skia';
 
 import {
@@ -89,6 +89,7 @@ import { applyFurniture, furnitureAt, movePiece, showPiece, syncFurniture } from
 import { askHouseLeave, houseInside } from '../actor/conservatory';
 import { askFurnitureOff, furnitureClaims } from '../actor/furnitureUse';
 import { skyAt, solarHour } from '../actor/sky';
+import { holdMotionRecords } from './skia/env';
 import { drawWorld, roomPlateKey } from './skia/world';
 import { propsForTrick, type TrickPropType } from '../sim/trickProps';
 import type { TrickOutcome } from '../actor/data/trickScripts';
@@ -322,16 +323,20 @@ export function PetView({
     return recorder.finishRecordingAsPicture();
   }, [viewHeight, viewWidth]);
   // Furniture behind the pet, the pet and the ball, furniture in front. The room pictures
-  // stay put until the pet or the ball crosses a piece, or the slow scenery step ticks.
+  // stay put until the pet or the ball crosses a piece. Scenery refreshes on its slow step
+  // only while the pet is still, so a run does not rebuild the room.
   const backPicture = useSharedValue<SkPicture>(blank);
   const livePicture = useSharedValue<SkPicture>(blank);
   const frontPicture = useSharedValue<SkPicture>(blank);
-  const plates = useRef({ back: backPicture, live: livePicture, front: frontPicture, key: '' });
+  const fadeOpacity = useSharedValue(0);
+  const fadeSink = useRef(fadeOpacity);
+  const plates = useRef({ back: backPicture, live: livePicture, front: frontPicture, key: '', step: 0 });
   useLayoutEffect(() => {
     plates.current.back = backPicture;
     plates.current.live = livePicture;
     plates.current.front = frontPicture;
-  }, [backPicture, frontPicture, livePicture]);
+    fadeSink.current = fadeOpacity;
+  }, [backPicture, fadeOpacity, frontPicture, livePicture]);
   const travelRef = useRef<{
     dest: Scene | null;
     phase: 'exit' | 'fade' | 'enter';
@@ -361,27 +366,51 @@ export function PetView({
     }
     const world = worldRef.current;
     world.reducedMotion = reducedRef.current;
-    const fade = travelRef.current?.fade ?? 0;
-    const key = `${roomPlateKey(world, width, height, todRef.current)}|${Math.round(fade * 16)}`;
-    const record = (layer: 'back' | 'live' | 'front', veil: boolean) => {
+    const travel = travelRef.current;
+    const fade = travel?.fade ?? 0;
+    fadeSink.current.value = fade;
+    const stepNow = world.reducedMotion ? 0 : Math.round(world.t * 10);
+    // Moving the pet already spends the frame. Rebuilding the lawn and the trees then, or on
+    // each step of the fade, is what makes a run and the fade stutter.
+    const rushing =
+      fade > 0.001 ||
+      travel?.phase === 'fade' ||
+      world.actors.some((actor) => {
+        const gait = actor.gait.current;
+        return (
+          actor.speed > 12 ||
+          actor.pose.walk > 0.35 ||
+          actor.task.type === 'travel' ||
+          actor.task.type === 'fetch' ||
+          gait === 'trot' ||
+          gait === 'canter' ||
+          gait === 'gallop'
+        );
+      });
+    const step = rushing ? plates.current.step : stepNow;
+    const key = roomPlateKey(world, width, height, todRef.current, step);
+    const record = (layer: 'back' | 'live' | 'front') => {
       const recorder = Skia.PictureRecorder();
       const canvas = recorder.beginRecording(bounds);
       drawWorld(canvas, world, width, height, todRef.current, reducedRef.current, undefined, undefined, undefined, undefined, layer);
-      if (veil && fade > 0.001) {
-        const paint = Skia.Paint();
-        paint.setColor(Skia.Color(`rgba(8,10,16,${fade})`));
-        canvas.drawRect(bounds, paint);
-      }
       return recorder.finishRecordingAsPicture();
     };
     // Leave the previous picture for GC. dispose() marks the host object dead while Fabric
     // and the Skia recorder can still read it, which throws and wedges the React scheduler.
-    if (key !== plates.current.key) {
-      plates.current.back.value = record('back', false);
-      plates.current.front.value = record('front', true);
-      plates.current.key = key;
+    if (rushing) {
+      holdMotionRecords(true);
     }
-    plates.current.live.value = record('live', false);
+    try {
+      if (key !== plates.current.key) {
+        plates.current.back.value = record('back');
+        plates.current.front.value = record('front');
+        plates.current.key = key;
+        plates.current.step = step;
+      }
+      plates.current.live.value = record('live');
+    } finally {
+      holdMotionRecords(false);
+    }
   }, []);
   const redrawRef = useRef(redraw);
   useEffect(() => {
@@ -579,6 +608,7 @@ export function PetView({
         for (const id of removed) {
           releaseStoredPiece(world, id);
         }
+        redraw();
       }
     }
     // Already showing this room (open, snap, or reduced motion). A walk-off waits for the cut.
@@ -745,9 +775,6 @@ export function PetView({
         return movePiece(world.scene, pieceId, x, y);
       },
       showStoredFurniture: (piece) => {
-        if (travelRef.current) {
-          return null;
-        }
         const world = worldRef.current;
         const actor = world.actors[0];
         if (!actor) {
@@ -1287,6 +1314,7 @@ export function PetView({
       <Picture picture={backPicture} />
       <Picture picture={livePicture} />
       <Picture picture={frontPicture} />
+      <Rect x={0} y={0} width={viewWidth} height={viewHeight} color="rgb(8, 10, 16)" opacity={fadeOpacity} />
     </Canvas>
   );
 }
