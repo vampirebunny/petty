@@ -4,7 +4,7 @@ import { useSharedValue } from 'react-native-reanimated';
 import { Canvas, Picture, Skia } from '@shopify/react-native-skia';
 import type { SkPicture } from '@shopify/react-native-skia';
 
-import { breedById, createWorld, geomOf, spawnActor, todAt } from '../../actor';
+import { breedById, createWorld, frameDt, geomOf, spawnActor, takeSounds, todAt, update } from '../../actor';
 import { PET_SIZE, reachOf, rearOf, stageHeight, stageWidth } from '../../actor/geometry';
 import type { Equipped, PetState } from '../../sim/types';
 import { drawPetOnly } from '../skia/world';
@@ -20,16 +20,7 @@ type Props = {
 
 const noon = todAt(14);
 const hopMs = 700;
-const hopFrameMs = 32;
-const cycle = Math.PI * 2;
-const idleWag = 0.28;
-const idleLift = 0.18;
-const idleBreath = 0.02;
-
-function phaseStep(phase: number, steps: number): number {
-  const turn = ((phase % cycle) + cycle) % cycle;
-  return Math.round((turn / cycle) * steps) % steps;
-}
+const frameMs = 1000 / 24;
 
 // Body height on the 196px stage, and how much of the card width the pet may use.
 const bodyTarget = 164 / 196;
@@ -101,24 +92,30 @@ export function ShopPet({ pet, equipped, reducedMotion, width, height }: Props) 
       return;
     }
     actor.equipped = { ...equippedRef.current };
+    // The counter is one line. Idle pacing stays on it; the sim still owns the pose.
     actor.y = shopAnchor.y;
     actor.vy = 0;
+    if (actor.idle.target) {
+      actor.idle.target.y = shopAnchor.y;
+    }
     const now = Date.now();
-    const hopping = !reducedRef.current && now < hopUntil.current;
-    if (hopping) {
+    if (!reducedRef.current && now < hopUntil.current) {
       const along = 1 - (hopUntil.current - now) / hopMs;
       actor.z = Math.sin(along * Math.PI) * 26;
       actor.pose.wagAmp = 1;
       actor.pose.tailLift = 0.7;
-    } else {
-      actor.z = 0;
-      actor.pose.wagAmp = reducedRef.current ? 0 : idleWag;
-      actor.pose.tailLift = reducedRef.current ? 0 : idleLift;
-      actor.pose.breathAmp = reducedRef.current ? 0 : idleBreath;
     }
     const recorder = Skia.PictureRecorder();
     const canvas = recorder.beginRecording(Skia.XYWHRect(0, 0, box.width, box.height));
-    drawPetOnly(canvas, world, box.width, box.height, noon, cameraFor(box.width, box.height, petRef.current));
+    // A resting pet is normally replayed from four tail poses. That stutter shows on this
+    // close-up, so the preview draws the live pose. turning is only a cache bypass.
+    const turning = actor.turning;
+    actor.turning = true;
+    try {
+      drawPetOnly(canvas, world, box.width, box.height, noon, cameraFor(box.width, box.height, petRef.current));
+    } finally {
+      actor.turning = turning;
+    }
     // Leave the previous picture for GC. dispose() marks the host object dead while Fabric
     // and the Skia recorder can still read it.
     pictureSink.current.value = recorder.finishRecordingAsPicture();
@@ -182,36 +179,22 @@ export function ShopPet({ pet, equipped, reducedMotion, width, height }: Props) 
     let last = Date.now();
     let lastDraw = 0;
     let active = AppState.currentState === 'active';
-    let wagStep = -1;
-    let breathStep = -1;
-    let blinking = false;
 
     const loop = () => {
       if (!running) {
         return;
       }
       const now = Date.now();
-      const dt = Math.min(0.05, (now - last) / 1000);
-      last = now;
-      const actor = worldRef.current?.actors[0];
-      let dirty = false;
-      const hopping = now < hopUntil.current;
-      if (actor) {
-        actor.wagPh += dt * (hopping ? 9 : 4.2);
-        actor.breathPh += dt * 1.8;
-        actor.blinkT -= dt;
-        if (actor.blinkT <= 0) {
-          actor.blinkT = 1.8 + Math.random() * 2.2;
-        }
-        const nextWag = phaseStep(actor.wagPh, 4);
-        const nextBreath = phaseStep(actor.breathPh, 3);
-        const nextBlink = actor.blinkT < 0.12;
-        dirty = hopping || nextWag !== wagStep || nextBreath !== breathStep || nextBlink !== blinking;
-        wagStep = nextWag;
-        breathStep = nextBreath;
-        blinking = nextBlink;
+      const world = worldRef.current;
+      const actor = world?.actors[0];
+      if (world && actor) {
+        world.reducedMotion = reducedRef.current;
+        actor.equipped = { ...equippedRef.current };
+        update(world, frameDt(now - last, active));
+        takeSounds(world);
       }
-      if (dirty && (!hopping || now - lastDraw >= hopFrameMs)) {
+      last = now;
+      if (now - lastDraw >= frameMs) {
         lastDraw = now;
         draw();
       }
