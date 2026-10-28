@@ -5,6 +5,8 @@ import Animated, { FadeIn, SlideInDown, runOnJS, useAnimatedStyle, useSharedValu
 import { X } from 'lucide-react-native';
 
 import { PawCoin } from '../../components/currency/PawCoin';
+import { buyBoopsPack } from '../../economy/buyBoops';
+import { onIapBoops } from '../../economy/iapApply';
 import { loadBoopsPrices } from '../../economy/boopsOffering';
 import { boopsPacks } from '../../economy/boopsPacks';
 import { requestAgeGateRefresh } from '../../state/ageGateRefresh';
@@ -39,6 +41,8 @@ export function GetBoopsSheet({ balance, reducedMotion, onClose }: Props) {
   const spin = useSharedValue(0);
   const [reload, setReload] = useState(0);
   const [prices, setPrices] = useState<ReadonlyMap<string, string> | 'pending' | 'missing'>('pending');
+  const [buying, setBuying] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const packs = [...boopsPacks].sort((a, b) => a.sortOrder - b.sortOrder);
   const storeMissing = phase === 'unavailable' || (phase === 'ready' && prices === 'missing');
   const showPacks = !storeMissing;
@@ -60,6 +64,40 @@ export function GetBoopsSheet({ balance, reducedMotion, onClose }: Props) {
       cancelled = true;
     };
   }, [phase, reload]);
+
+  useEffect(() => onIapBoops(() => setNotice(null)), []);
+
+  const buy = (productId: string) => {
+    if (buying) {
+      return;
+    }
+    setBuying(productId);
+    setNotice(null);
+    void buyBoopsPack(productId, () => setNotice('Adding your Boops…')).then((result) => {
+      setBuying(null);
+      if (result.status === 'cancelled') {
+        setNotice(null);
+        return;
+      }
+      if (result.status === 'pending') {
+        setNotice("Waiting for approval. Your Boops will arrive once it's approved.");
+        return;
+      }
+      if (result.status === 'credited') {
+        setNotice(null);
+        return;
+      }
+      if (result.status === 'on_the_way') {
+        setNotice("Your Boops are on the way. They'll appear shortly.");
+        return;
+      }
+      if (result.status === 'unavailable') {
+        setNotice("Can't reach the store right now");
+        return;
+      }
+      setNotice(result.notCharged ? `${result.message} You weren't charged.` : result.message);
+    });
+  };
 
   const pan = Gesture.Pan()
     .onUpdate((event) => {
@@ -121,19 +159,24 @@ export function GetBoopsSheet({ balance, reducedMotion, onClose }: Props) {
                       </View>
                       <Text style={styles.amount}>{money(pack.boops)}</Text>
                       <Text style={styles.unit}>Boops</Text>
-                      <View
-                        accessibilityElementsHidden={!price}
-                        importantForAccessibility={price ? 'auto' : 'no-hide-descendants'}
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={price ? `Buy ${money(pack.boops)} Boops for ${price}` : undefined}
+                        accessibilityState={{ disabled: !price || buying != null }}
+                        disabled={!price || buying != null}
+                        onPress={() => buy(pack.productId)}
                         style={styles.price}
                       >
-                        <LilacFace>
-                          {price ? (
-                            <Text style={styles.priceText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
-                              {price}
-                            </Text>
-                          ) : null}
-                        </LilacFace>
-                      </View>
+                        {({ pressed }) => (
+                          <LilacFace pressed={pressed && Boolean(price) && buying == null}>
+                            {price ? (
+                              <Text style={styles.priceText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+                                {buying === pack.productId ? '…' : price}
+                              </Text>
+                            ) : null}
+                          </LilacFace>
+                        )}
+                      </Pressable>
                     </LedgeCard>
                   </View>
                 );
@@ -159,6 +202,7 @@ export function GetBoopsSheet({ balance, reducedMotion, onClose }: Props) {
               </Pressable>
             </View>
           )}
+          {notice ? <Text style={styles.notice}>{notice}</Text> : null}
           <Text style={styles.footer}>
             {`Prices shown in your local currency and charged to your ${storeName}. Boops have no cash value.`}
           </Text>
@@ -243,6 +287,13 @@ const styles = StyleSheet.create({
   },
   retry: { paddingHorizontal: 22 },
   retryText: { fontFamily: fontFamily.fredokaBold, fontSize: 18, color: '#2E1A5E' },
+  notice: {
+    fontFamily: fontFamily.fredokaSemibold,
+    fontSize: 16,
+    lineHeight: 22,
+    color: '#2A1E26',
+    textAlign: 'center',
+  },
   footer: {
     fontFamily: fontFamily.semibold,
     fontSize: 12,

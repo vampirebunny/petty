@@ -28,10 +28,10 @@ export function writeLedgerEntry(
   key: string,
   sourceRef: string | null,
   lines: LedgerLine[],
-  options?: { outbox?: boolean },
+  options?: { outbox?: boolean; kind?: string },
 ): void {
   const database = getDb();
-  const kind = ledgerKind(source);
+  const kind = options?.kind ?? ledgerKind(source);
   const deviceTime = new Date().toISOString();
   const catalogVersion = activeCatalogVersion();
   database.runSync(

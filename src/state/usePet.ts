@@ -62,6 +62,7 @@ import {
   type Burst,
   type OpenRewards,
 } from '../economy/service';
+import { onIapBoops } from '../economy/iapApply';
 import { queuePet, queuePlayer, queueRetire, kick } from '../sync/queue';
 import type { PetStorage } from '../storage/PetStorage';
 import {
@@ -305,6 +306,16 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
     }
     showBursts(tagged);
   }, [showBursts, stamp]);
+
+  useEffect(
+    () =>
+      onIapBoops((credits) => {
+        for (const credit of credits) {
+          pushBurst({ label: 'Boops', amount: credit.amount, coinCount: 5 });
+        }
+      }),
+    [pushBurst],
+  );
 
   const enqueueOpen = useCallback((rewards: OpenRewards): boolean => {
     const bursts = rewards.bursts.filter((item) => item.amount > 0);

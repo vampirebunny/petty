@@ -9,7 +9,7 @@ import {
   Nunito_800ExtraBold,
   Nunito_900Black,
 } from '@expo-google-fonts/nunito';
-import { Image, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { AppState, Image, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { AdoptScreen } from './src/screens/AdoptScreen';
@@ -36,6 +36,7 @@ import { FinishSignIn } from './src/ui/FinishSignIn';
 import { CandyShell, candyInk, tints } from './src/ui/candy';
 import { fontFamily } from './src/ui/font';
 import { PhoneColumn } from './src/ui/PhoneColumn';
+import { pullIapCredits } from './src/economy/iapApply';
 import { useDeviceOrientation } from './src/ui/useDeviceOrientation';
 
 export default function App() {
@@ -64,6 +65,18 @@ export default function App() {
       void clearLeftoverGuestSession();
     }
   }, [identity.ready, restoreInProgress]);
+  useEffect(() => {
+    if (!identity.ready || !identity.ownerId) {
+      return;
+    }
+    void pullIapCredits();
+    const subscription = AppState.addEventListener('change', (status) => {
+      if (status === 'active') {
+        void pullIapCredits();
+      }
+    });
+    return () => subscription.remove();
+  }, [identity.ready, identity.ownerId]);
   useEffect(() => {
     if (!identity.ready || !petReady || petState || readRestoreInProgress()) {
       return;

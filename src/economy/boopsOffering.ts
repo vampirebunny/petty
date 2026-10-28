@@ -1,4 +1,4 @@
-import Purchases from 'react-native-purchases';
+import Purchases, { type PurchasesPackage } from 'react-native-purchases';
 
 import { boopsPacks } from './boopsPacks';
 import { revenueCatUnconfiguredReason, whenPurchasesConfigured } from './purchasesUser';
@@ -38,6 +38,22 @@ export async function loadBoopsPrices(): Promise<ReadonlyMap<string, string> | n
     prices.set(pack.productId, priceString);
   }
   return prices;
+}
+
+/** The current Offering package for one pack, used to start a purchase. */
+export async function loadBoopsPackage(productId: string): Promise<PurchasesPackage | null> {
+  if (!(await whenPurchasesConfigured())) {
+    return null;
+  }
+  try {
+    const offerings = await Purchases.getOfferings();
+    return (
+      offerings.current?.availablePackages.find((pack) => pack.product.identifier === productId) ?? null
+    );
+  } catch (error) {
+    console.warn(`RevenueCat offerings could not be loaded. ${offeringErrorDetail(error)}`);
+    return null;
+  }
 }
 
 function offeringErrorDetail(error: unknown): string {
