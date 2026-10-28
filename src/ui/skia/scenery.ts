@@ -7,7 +7,7 @@ import type { Prop } from '../../actor/scenes';
 import { drawBackdropLayers } from './backdrop';
 import { fillCircle, fillOval, oval, paintOf } from './draw';
 import type { Env } from './env';
-import { snowOn, weatherOf } from './env';
+import { motionStep, snowOn, weatherOf } from './env';
 import { activeTintKey, glow } from './ink';
 import { lampGlow } from './light';
 import { extras, drawPropBody, petNear } from './props';
@@ -32,13 +32,15 @@ export { registerProp } from './props';
 export { BOX_PER_RADIUS, drawBallShape, drawFeatherBundle, drawLaserPointer, drawToyShape, drawTreatShape, treatArt } from './itemShapes';
 export type { ArtDetail, TreatArt } from './itemShapes';
 
-// Windows, ponds, goal nets, trees, bushes, and catio pieces that sway or host a bird keep moving.
+// These sway, host a bird, or show the sky. One picture each, replaced on the motion step,
+// so the time step is not part of the key (that would blow the cap and re-record every frame).
 const LIVE_PROPS = new Set(['window', 'pond', 'goalPost', 'tree', 'bush', 'garden', 'catTree', 'planter', 'scratcher']);
 const PROP_CAP = 24;
-const propShots = new Map<string, SkPicture>();
+type PropSlot = { picture: SkPicture; step: number };
+const propShots = new Map<string, PropSlot>();
 
 function stillPropKey(prop: Prop, env: Env, lifted: boolean, squishing: boolean): string | null {
-  if (LIVE_PROPS.has(prop.kind) || lifted || squishing) {
+  if (lifted || squishing) {
     return null;
   }
   if (prop.kind === 'bowl' && env.feeding.some((bite) => bite.x === prop.x && bite.y === prop.y)) {
@@ -128,10 +130,12 @@ export function drawProp(c: SkCanvas, prop: Prop, env: Env): void {
     c.scale(-1, 1);
   }
   const key = stillPropKey(prop, env, lifted, squishing);
+  const live = LIVE_PROPS.has(prop.kind);
   if (key) {
-    let picture = propShots.get(key);
-    if (!picture) {
-      if (propShots.size >= PROP_CAP) {
+    const step = live ? motionStep(env) : 0;
+    let slot = propShots.get(key);
+    if (!slot || slot.step !== step) {
+      if (!slot && propShots.size >= PROP_CAP) {
         const oldest = propShots.keys().next().value;
         if (oldest !== undefined) {
           propShots.delete(oldest);
@@ -140,12 +144,12 @@ export function drawProp(c: SkCanvas, prop: Prop, env: Env): void {
       const recorder = Skia.PictureRecorder();
       const canvas = recorder.beginRecording(Skia.XYWHRect(-800, -900, 2200, 1800));
       drawPropBody(canvas, prop, env);
-      picture = recorder.finishRecordingAsPicture();
-      propShots.set(key, picture);
-    } else {
+      slot = { picture: recorder.finishRecordingAsPicture(), step };
+      propShots.set(key, slot);
+    } else if (!live) {
       noteLampGlow(prop, env);
     }
-    c.drawPicture(picture);
+    c.drawPicture(slot.picture);
   } else {
     drawPropBody(c, prop, env);
   }

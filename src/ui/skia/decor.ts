@@ -1,11 +1,12 @@
-import type { SkCanvas } from '@shopify/react-native-skia';
+import { Skia } from '@shopify/react-native-skia';
+import type { SkCanvas, SkPicture } from '@shopify/react-native-skia';
 
 import type { Scene } from '../../actor';
-import { stageWidth } from '../../actor/geometry';
+import { stageHeight, stageWidth } from '../../actor/geometry';
 import type { DecorTheme } from '../../actor/sky';
-import type { Env } from './env';
-import { snowOn } from './env';
-import { circle, clamp01, darken, ellipse, fill, glow, hash, lighten, line, makePath, ov, poly, rect, rrect, stroke } from './ink';
+import type { Env, Glow } from './env';
+import { motionStep, snowOn } from './env';
+import { activeTintKey, circle, clamp01, darken, ellipse, fill, glow, hash, lighten, line, makePath, ov, poly, rect, rrect, stroke } from './ink';
 import { footprint, windowDims } from './layout';
 import { castShadow } from './light';
 
@@ -26,11 +27,41 @@ function themes(env: Env): DecorTheme[] {
 }
 
 // Placement is stable for a scene and theme. Draw callbacks read this so a cached plan still
-// follows the live clock (fireflies, balloon bob, pumpkin glow).
+// follows the clock. Each draw is recorded into one picture and replaced on the motion step.
 let decorEnv: Env | undefined;
 
 function decorNow(): Env {
   return decorEnv as Env;
+}
+
+const decorBounds = Skia.XYWHRect(-120, -120, stageWidth + 240, stageHeight + 240);
+
+type DecorSlot = { picture: SkPicture; step: number; key: string; glows: Glow[] };
+
+function decorSlotKey(env: Env): string {
+  return `${activeTintKey()}|${Math.round(env.tod.dark * 10)}|${Math.round(env.tod.hour)}|${Math.round((env.wind ?? 0) * 5)}`;
+}
+
+/** Records a decor draw. Pumpkin glows are pushed again on replay so the night pools stay lit. */
+function slotDraw(draw: (c: SkCanvas) => void): (c: SkCanvas) => void {
+  let slot: DecorSlot | null = null;
+  return (c) => {
+    const live = decorNow();
+    const step = motionStep(live);
+    const key = decorSlotKey(live);
+    if (!slot || slot.step !== step || slot.key !== key) {
+      const before = live.glows.length;
+      const recorder = Skia.PictureRecorder();
+      const canvas = recorder.beginRecording(decorBounds);
+      draw(canvas);
+      slot = { picture: recorder.finishRecordingAsPicture(), step, key, glows: live.glows.slice(before) };
+    } else {
+      for (const bit of slot.glows) {
+        live.glows.push(bit);
+      }
+    }
+    c.drawPicture(slot.picture);
+  };
 }
 
 const decorPlans = new WeakMap<Scene, { key: string; plan: DecorPlan }>();
@@ -408,13 +439,13 @@ export function buildDecor(scene: Scene, env: Env): DecorPlan {
     if (x !== null) {
       plan.floor.push({
         y: backY,
-        draw: (c) => {
+        draw: slotDraw((c) => {
           const live = decorNow();
           const saved = live.anchor;
           live.anchor = { x: 0, y: 0 };
           draw(c, x, backY);
           live.anchor = saved;
-        },
+        }),
       });
     }
   };
@@ -445,7 +476,7 @@ export function buildDecor(scene: Scene, env: Env): DecorPlan {
       }
     }
   }
-  plan.wall = (c) => {
+  plan.wall = slotDraw((c) => {
     const live = decorNow();
     if (garlandTheme && wallOk) {
       drawGarland(c, garlandTheme, floor.horizon * 0.09, 9, live);
@@ -456,12 +487,12 @@ export function buildDecor(scene: Scene, env: Env): DecorPlan {
     for (const x of stockingXs) {
       drawStocking(c, x, stockingY);
     }
-  };
+  });
   if (fence && garlandTheme === 'winterHolidays') {
     const fw = fence.w ?? 300;
     plan.floor.push({
       y: fence.y - 0.5,
-      draw: (c) => drawGarland(c, 'winterHolidays', fence.y - 30, 3, decorNow(), fence.x - fw / 2, fence.x + fw / 2),
+      draw: slotDraw((c) => drawGarland(c, 'winterHolidays', fence.y - 30, 3, decorNow(), fence.x - fw / 2, fence.x + fw / 2)),
     });
   }
 
@@ -505,7 +536,7 @@ export function buildDecor(scene: Scene, env: Env): DecorPlan {
     addFloor(14, (c, x, y) => drawFlowerPot(c, x, y, decorNow(), 'sunflower'));
   }
 
-  plan.ambient = (c) => {
+  plan.ambient = slotDraw((c) => {
     const live = decorNow();
     const dark = live.tod.dark;
     const season = live.sky?.season.season;
@@ -531,7 +562,7 @@ export function buildDecor(scene: Scene, env: Env): DecorPlan {
         }
       }
     }
-  };
+  });
   decorPlans.set(scene, { key, plan });
   return plan;
 }

@@ -68,6 +68,11 @@ export function weatherOf(env: Env): WeatherState {
   return env.sky?.weather ?? CLEAR_WEATHER;
 }
 
+/** Ambient sway, clouds, and grass refresh about ten times a second. Reduced motion records once. */
+export function motionStep(env: { t: number; reduced: boolean }): number {
+  return env.reduced ? 0 : Math.round(env.t * 10);
+}
+
 /** Snow on things: only where it can fall (outdoor scenes and the view through windows). */
 export function snowOn(env: Env): number {
   return weatherOf(env).snowCover;

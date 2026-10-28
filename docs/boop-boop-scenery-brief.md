@@ -69,11 +69,11 @@ The `previews/` PNGs were rendered from this exact code through CanvasKit, using
   - The cat-tree pom swings and cat grass gets nibbled.
 - **Performance**
   - Every prop used to get its own offscreen layer per frame. Now the room tint is mixed into cached paints, so props draw with no layer at all; only pets keep a layer (for tint and rim light).
-  - The static backdrop (wall, back layers, floor) is recorded once into an `SkPicture` and replayed each frame. It is recorded again when the tint bucket, the bleed, or the grass tone changes.
-  - Toys and weather stay live, and pets are still y-sorted with the furniture every frame. A pet that is standing, sitting, or sleeping is recorded into its own picture (feet at the origin) and replayed at its position. The outline is inside that picture, so it is not rebuilt every frame. Walking, jumps, shakes, turns, and a silhouette are still drawn live.
-  - Still furniture is recorded the same way: beds, rugs, couches, lamps, benches, fences, and field lines. The bed picture includes whether a pet is on it. A prop is drawn live while it is lifted or squishing, while a bowl is being eaten or drunk, and while litter is being kicked. Windows, ponds, goal nets, trees, bushes, and the catio pieces that sway or host a bird stay live.
+  - The static backdrop (wall, back layers, floor) is recorded once into an `SkPicture` and replayed each frame. It is recorded again when the tint bucket, the bleed, or the grass tone changes. The outdoor sky and the grass each keep one picture per scene.
+  - Toys, weather, birds, falling leaves, and the night veil stay on the frame clock, and pets are still y-sorted with the furniture every frame. A pet that is standing, sitting, or sleeping is recorded into its own picture (feet at the origin) and replayed at its position. A pet that is walking replays eight cycle frames, scaled to its current depth. The outline is inside that picture, so it is not rebuilt every frame. Fetch, jumps, shakes, turns, blinks, barks, and a silhouette are still drawn live.
+  - Still furniture is recorded the same way: beds, rugs, couches, lamps, benches, fences, and field lines. The bed picture includes whether a pet is on it. A prop is drawn live while it is lifted or squishing, while a bowl is being eaten or drunk, and while litter is being kicked. Windows, ponds, goal nets, trees, bushes, and the catio pieces that sway or host a bird keep one picture and replace it about ten times a second. A catio screen in the rain is drawn live.
   - The pet outline filter is built once per coat color. `paintOf` reuses paints by color, alpha, stroke, cap, and dash. The night pet light reuses its radial gradient for a coarse position and brightness.
-  - Seasonal decor is planned once per scene and theme (including whether the snow-pup is out). Fireflies, bats, balloon bob, and pumpkin glow still read the live clock when they draw.
+  - Seasonal decor is planned once per scene and theme (including whether the snow-pup is out). Garland, lights, floor pieces, fireflies, and bats are recorded into pictures and replaced about ten times a second.
 
 ## 1. Drop in the files
 

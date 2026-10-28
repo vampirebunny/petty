@@ -6,7 +6,7 @@ import type { Scene } from '../../actor';
 import { stageHeight, stageWidth } from '../../actor/geometry';
 import type { Shape } from '../../actor/scenes';
 import type { Env } from './env';
-import { weatherOf } from './env';
+import { motionStep, weatherOf } from './env';
 import { activeTintKey, clamp01, css, gradRect, linear, mixc, rect, rgba, stroke } from './ink';
 import { grassTone, foliageOf } from './nature';
 import { drawShape } from './shapes';
@@ -15,12 +15,16 @@ import { drawGroundSnow, drawPrecip, drawPuddles, drawSplashes } from './weather
 
 // The static part of a backdrop (wall, back layers, floor, floor pattern) is recorded once into an
 // SkPicture and replayed every frame. It is re-recorded only when what it bakes in changes: the
-// tint bucket, the bleed, or the season's grass tone. Skies inside the layers stay live.
+// tint bucket, the bleed, or the season's grass tone. The outdoor sky and the grass each keep one
+// picture per scene and replace it on the motion step. Skies inside indoor wall layers stay live.
 
 type Segment = { sky: Shape } | { shapes: Shape[] };
 
 const segmentsByScene = new WeakMap<Scene, Segment[]>();
 const pictures = new WeakMap<Scene, { key: string; wall: SkPicture | null; layers: (SkPicture | null)[]; floor: SkPicture }>();
+type MotionSlot = { key: string; step: number; picture: SkPicture };
+const grassSlots = new WeakMap<Scene, MotionSlot>();
+const skySlots = new WeakMap<Scene, MotionSlot>();
 
 function segmentsOf(scene: Scene): Segment[] {
   const hit = segmentsByScene.get(scene);
@@ -111,17 +115,8 @@ function drawFloorPattern(c: SkCanvas, scene: Scene, bleed: number): void {
   c.drawPath(path.build(), stroke(color, 1, 1));
 }
 
-/** Grass tufts, live: they lean with the wind and part around a pet's paws. */
-function drawGrass(c: SkCanvas, scene: Scene, env: Env): void {
-  if (scene.floor.pattern !== 'grass') {
-    return;
-  }
-  const cover = weatherOf(env).snowCover;
-  if (cover > 0.85) {
-    return;
-  }
-  const f = foliageOf(env);
-  const color = mixc(scene.floor.lineColor ?? 'rgba(0,0,0,0.12)', 'rgba(120,100,50,0.25)', (1 - f.lush) * 0.6);
+/** Grass tufts. They lean with the wind and part around a pet's paws. */
+function drawGrassTufts(c: SkCanvas, scene: Scene, env: Env, color: string, cover: number): void {
   const wind = env.reduced ? 0 : env.wind ?? 0.2;
   const pets = env.contacts ?? [];
   const path = Skia.PathBuilder.Make();
@@ -151,6 +146,72 @@ function drawGrass(c: SkCanvas, scene: Scene, env: Env): void {
     path.lineTo(tuft.x + s * 0.7 + tip * 0.8, tuft.y - s);
   }
   c.drawPath(path.build(), stroke(color, 1.3, 1 - cover));
+}
+
+function grassKey(scene: Scene, env: Env, color: string, cover: number): string {
+  const f = foliageOf(env);
+  const bleed = Math.round(env.bleed ?? 0);
+  const pets = (env.contacts ?? []).map((pet) => `${Math.round(pet.x / 16)}:${Math.round(pet.y / 16)}`).join(',');
+  return [scene.id, color, Math.round(cover * 10), f.season, Math.round(f.lush * 10), bleed, env.reduced ? 1 : 0, pets].join('|');
+}
+
+function drawGrass(c: SkCanvas, scene: Scene, env: Env): void {
+  if (scene.floor.pattern !== 'grass') {
+    return;
+  }
+  const cover = weatherOf(env).snowCover;
+  if (cover > 0.85) {
+    return;
+  }
+  const f = foliageOf(env);
+  const color = mixc(scene.floor.lineColor ?? 'rgba(0,0,0,0.12)', 'rgba(120,100,50,0.25)', (1 - f.lush) * 0.6);
+  const bleed = env.bleed ?? 0;
+  const step = motionStep(env);
+  const key = grassKey(scene, env, color, cover);
+  let slot = grassSlots.get(scene);
+  if (!slot || slot.key !== key || slot.step !== step) {
+    slot = { key, step, picture: record(bleed, (pc) => drawGrassTufts(pc, scene, env, color, cover)) };
+    grassSlots.set(scene, slot);
+  }
+  c.drawPicture(slot.picture);
+}
+
+function skyKey(env: Env, bleed: number, horizon: number): string {
+  const weather = weatherOf(env);
+  const tod = env.tod;
+  const moon = env.sky?.moon;
+  return [
+    tod.top,
+    tod.bot,
+    Math.round(tod.dark * 20),
+    Math.round(tod.hour * 20),
+    weather.precip ?? '',
+    Math.round(weather.intensity * 10),
+    Math.round(weather.overcast * 10),
+    Math.round(weather.clouds * 10),
+    Math.round(weather.rainbow * 10),
+    Math.round(weather.wind * 10),
+    moon ? `${Math.round(moon.phase * 20)}:${moon.waxing ? 1 : 0}` : '',
+    Math.round(bleed),
+    horizon,
+    env.reduced ? 1 : 0,
+    activeTintKey(),
+  ].join('|');
+}
+
+function drawOutdoorSky(c: SkCanvas, scene: Scene, env: Env, left: number, span: number, horizon: number, bleed: number): void {
+  const step = motionStep(env);
+  const key = skyKey(env, bleed, horizon);
+  let slot = skySlots.get(scene);
+  if (!slot || slot.key !== key || slot.step !== step) {
+    slot = {
+      key,
+      step,
+      picture: record(bleed, (pc) => drawSkyPane(pc, left, 0, span, horizon, env, { x: 0, w: stageWidth })),
+    };
+    skySlots.set(scene, slot);
+  }
+  c.drawPicture(slot.picture);
 }
 
 /**
@@ -187,7 +248,7 @@ export function drawBackdropLayers(c: SkCanvas, scene: Scene, env: Env, bleed: n
   }
   if (scene.time === 'outdoor') {
     // One sky across the whole width; the sun and moon still cross the stage itself.
-    drawSkyPane(c, left, 0, span, floor.horizon, env, { x: 0, w: stageWidth });
+    drawOutdoorSky(c, scene, env, left, span, floor.horizon, bleed);
   } else if (cache.wall) {
     c.drawPicture(cache.wall);
   }
