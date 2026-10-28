@@ -251,6 +251,12 @@ export function tabItems(catalog: ShopCatalog, category: ShopCategory, species: 
       if (soon !== 0) {
         return soon;
       }
+      if (category === 'home') {
+        const price = (a.price ?? Number.POSITIVE_INFINITY) - (b.price ?? Number.POSITIVE_INFINITY);
+        if (price !== 0) {
+          return price;
+        }
+      }
       return a.sort - b.sort || a.id.localeCompare(b.id);
     });
 }

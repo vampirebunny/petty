@@ -208,6 +208,25 @@ it('rejects a negative price, a fractional price, and an empty bundle', () => {
   expect(priceCart(empty, [{ id: 'bag', kind: 'bundle', qty: 1 }], null, new Set(), 'dog', 100).ok).toBe(false);
 });
 
+it('lists furniture from cheapest to most expensive', () => {
+  const catalog = shop([
+    item({ id: 'catTree', category: 'home', price: 10000, sort: 1, species: ['cat'] }),
+    item({ id: 'scratcher', category: 'home', price: 5000, sort: 2, species: ['cat'] }),
+    item({ id: 'bowl_food', category: 'home', price: 700, sort: 10 }),
+    item({ id: 'bed_standard', category: 'home', price: 3000, sort: 20 }),
+    item({ id: 'bed_kitty_cave', category: 'home', price: 5500, sort: 23, species: ['cat'] }),
+    item({ id: 'vitamins', category: 'home', shop: 'coming_soon', price: null, sort: 0 }),
+  ]);
+  expect(tabItems(catalog, 'home', 'cat').map((entry) => entry.id)).toEqual([
+    'bowl_food',
+    'bed_standard',
+    'scratcher',
+    'bed_kitty_cave',
+    'catTree',
+    'vitamins',
+  ]);
+});
+
 it('keeps exclusives off the always shelf and out of the always pick pool', () => {
   const catalog = shop([
     item({ id: 'glasses:star', tier: 'exclusive', shop: 'always' }),
