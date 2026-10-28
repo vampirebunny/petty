@@ -123,7 +123,15 @@
           "barcodeScannerEnabled": true
         }
       ],
-      "./plugins/withPhonePortrait.js"
+      "./plugins/withPhonePortrait.js",
+      [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://sentry.io/",
+          "organization": "listo-xc",
+          "project": "boop-boop"
+        }
+      ]
     ],
     "extra": {
       "eas": {

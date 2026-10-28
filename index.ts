@@ -1,5 +1,6 @@
 // Before gesture-handler, which pulls in Text. Text locks its default face on first load.
 import './src/ui/installDefaultFont';
+import { Sentry } from './src/monitoring/sentry';
 import 'react-native-gesture-handler';
 import { registerRootComponent } from 'expo';
 
@@ -8,4 +9,4 @@ import App from './App';
 // registerRootComponent calls AppRegistry.registerComponent('main', () => App);
 // It also ensures that whether you load the app in Expo Go or in a native build,
 // the environment is set up appropriately
-registerRootComponent(App);
+registerRootComponent(Sentry.wrap(App));

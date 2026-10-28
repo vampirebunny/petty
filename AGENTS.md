@@ -34,6 +34,10 @@ Run lint and typecheck before declaring any task done.
 Use EAS to build, sign, and submit the app in the cloud (`eas build`, `eas submit`) and to ship over-the-air updates (`eas update`) — no local Xcode or Android Studio required. Run EAS CLI as `bunx eas-cli <command>` in Bun projects, or `npx eas-cli@latest <command>` otherwise; substitute that for bare `eas` in docs examples.
 Docs: https://docs.expo.dev/eas/index.md
 
+## Sentry
+
+Errors and tracing use `@sentry/react-native`. Init lives in `src/monitoring/sentry.ts` and is loaded from `index.ts`. Org/project and upload wiring are documented in `docs/sentry.md`. Preview and production EAS builds need the sensitive `SENTRY_AUTH_TOKEN` env var so source maps and debug symbols upload. Do not enable Session Replay or `sendDefaultPii` without an explicit product decision — the audience includes children.
+
 ## Rules
 
 - If `ios/` and `android/` directories do not exist, they are generated (Continuous Native Generation). Never create or edit them by hand — configure native behavior in `app.json` and config plugins.
