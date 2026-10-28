@@ -1,6 +1,7 @@
 import { toyAllows } from '../../items/playRules';
 import { gaitDefs, stageProfiles } from '../data/locomotion';
 import { geomOf } from '../geometry';
+import { placeLeg } from '../legs';
 import {
   blendedFoot,
   chooseGait,
@@ -70,6 +71,42 @@ describe('gaits', () => {
     expect(new Set(gaitDefs.gallop.offsets).size).toBe(4);
     const planted = gaitFootFor('trot', 0, 0, 40, 10);
     expect(planted.y).toBe(0);
+  });
+
+  it('keeps the paw moving through liftoff and landing', () => {
+    for (const gait of ['walk', 'trot', 'canter', 'gallop'] as const) {
+      const offset = gaitDefs[gait].offsets[0];
+      const count = 80;
+      const points = Array.from({ length: count }, (_, index) =>
+        gaitFootFor(gait, 0, (index / count - offset) * Math.PI * 2, 40, 8),
+      );
+      const speeds = points.map((point, index) => {
+        const next = points[(index + 1) % count];
+        return Math.hypot(next.x - point.x, next.y - point.y);
+      });
+      const ordered = [...speeds].sort((a, b) => a - b);
+      expect(ordered[0]).toBeGreaterThan(ordered[count / 2] * 0.2);
+    }
+  });
+
+  it('keeps the paw moving through a stride that is longer than the leg', () => {
+    const L = 70;
+    const hip = { x: 0, y: -0.93 * L };
+    const stride = L * gaitDefs.gallop.stride;
+    const samples = [0, 0.08, 0.16, 0.24, 0.3, 0.5, 0.75, 0.92];
+    let previous: { x: number; y: number } | null = null;
+    for (const u of samples) {
+      const duty = gaitDefs.gallop.duty;
+      const x = u < duty ? stride * (0.5 - u / duty) : stride * ((u - duty) / (1 - duty) - 0.5);
+      const swing = u < duty ? 0 : (u - duty) / (1 - duty);
+      const target = { x, y: swing === 0 ? 0 : -L * gaitDefs.gallop.lift * Math.sin(Math.PI * swing) };
+      const paw = placeLeg(hip, target, L, 1).paw;
+      expect(Math.hypot(paw.x - target.x, paw.y - target.y)).toBeLessThan(0.05);
+      if (previous) {
+        expect(Math.hypot(paw.x - previous.x, paw.y - previous.y)).toBeGreaterThan(1);
+      }
+      previous = paw;
+    }
   });
 
   it('turns the legs faster for a short-legged breed at the same ground speed', () => {
