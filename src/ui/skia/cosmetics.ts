@@ -1571,10 +1571,10 @@ function glassesLayout(face: HeadFace, item: WearItem): GlassesLayout | null {
   const eyeR = face.eyeR;
   const view = Math.max(face.turn, face.front);
   // Close-set eyes (husky) shrink the lenses at the 3/4 and front views so they never overlap.
-  // Hearts keep a higher floor so the lens still wraps the pupil when the face is narrow.
-  const heart = st.shape === 'heart';
+  // Hearts and stars keep a higher floor so the lens still wraps the pupil when the face is narrow.
+  const wrapsEye = st.shape === 'heart' || st.shape === 'star';
   const need = 2 * st.w * eyeR + st.frame * eyeR + eyeR * 0.4;
-  const fit = clamp(face.gap3 / need, heart ? 0.88 : 0.6, 1);
+  const fit = clamp(face.gap3 / need, wrapsEye ? 0.88 : 0.6, 1);
   const k = 1 + (fit - 1) * view;
   const y = face.nearEye.y - eyeR * 0.05;
   return {
