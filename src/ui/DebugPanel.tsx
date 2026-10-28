@@ -1,4 +1,4 @@
-import Constants from 'expo-constants';
+import { isRunningInExpoGo } from 'expo';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -32,6 +32,7 @@ type Props = {
   greetingLabel?: () => string;
   onFacing?: () => void;
   onClothing?: () => void;
+  onColorways?: () => void;
   onGrant?: (id: string) => void;
   onGrantBoops?: () => void;
 };
@@ -112,10 +113,10 @@ export function RangeControl({
   );
 }
 
-/** Expo Go sets this. Dev clients, store builds, and web leave it null. */
+/** Expo Go includes the ExpoGo native module. A development build does not. */
 function runningInExpoGo(): boolean {
   try {
-    return Constants.expoGoConfig != null;
+    return isRunningInExpoGo();
   } catch {
     return false;
   }
@@ -147,6 +148,7 @@ function DebugPanelBody({
   greetingLabel,
   onFacing,
   onClothing,
+  onColorways,
   onGrant,
   onGrantBoops,
 }: Props) {
@@ -190,6 +192,11 @@ function DebugPanelBody({
         {typeof __DEV__ !== 'undefined' && __DEV__ && onClothing ? (
           <Pressable style={styles.button} onPress={onClothing}>
             <Text style={styles.buttonLabel}>Clothing</Text>
+          </Pressable>
+        ) : null}
+        {typeof __DEV__ !== 'undefined' && __DEV__ && onColorways ? (
+          <Pressable style={styles.button} onPress={onColorways}>
+            <Text style={styles.buttonLabel}>Colorways</Text>
           </Pressable>
         ) : null}
         {[1, 0.5, 0.2].map((scale) => (

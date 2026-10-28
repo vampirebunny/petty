@@ -43,6 +43,37 @@ function starPath(cx: number, cy: number, outer: number, inner: number): SkPath 
   return path.detach();
 }
 
+function heartPath(cx: number, cy: number, s: number): SkPath {
+  const path = Skia.PathBuilder.Make();
+  path.moveTo(cx, cy + s * 0.4);
+  path.cubicTo(cx - s * 1.1, cy - s * 0.2, cx - s * 0.45, cy - s * 1.05, cx, cy - s * 0.35);
+  path.cubicTo(cx + s * 0.45, cy - s * 1.05, cx + s * 1.1, cy - s * 0.2, cx, cy + s * 0.4);
+  path.close();
+  return path.detach();
+}
+
+function pawTurn(index: number): number {
+  const n = Math.imul(index + 1, 0x9e3779b1);
+  return ((((n >>> 0) % 1000) / 1000) - 0.5) * 0.5;
+}
+
+function paw(canvas: SkCanvas, x: number, y: number, u: number, turn: number, color: string): void {
+  canvas.save();
+  canvas.translate(x, y);
+  canvas.rotate((turn * 180) / Math.PI, 0, 0);
+  const toe = u * 0.28;
+  for (const spot of [
+    { x: -u * 0.55, y: -u * 0.55 },
+    { x: -u * 0.18, y: -u * 0.78 },
+    { x: u * 0.18, y: -u * 0.78 },
+    { x: u * 0.55, y: -u * 0.55 },
+  ]) {
+    canvas.drawCircle(spot.x, spot.y, toe, paintOf(color));
+  }
+  canvas.drawOval(Skia.XYWHRect(-u * 0.55, -u * 0.15, u * 1.1, u * 0.85), paintOf(color));
+  canvas.restore();
+}
+
 function daisy(canvas: SkCanvas, x: number, y: number, u: number, turn: number, petal: string): void {
   canvas.save();
   canvas.translate(x, y);
@@ -114,6 +145,63 @@ function tileFor(paint: PatternPaint): Tile {
         daisy(canvas, w / 2, u * 2, u, 0.35, motif);
         daisy(canvas, 0, u * 6, u, -0.5, motif);
         daisy(canvas, w, u * 6, u, -0.5, motif);
+      }),
+    };
+  } else if (paint.id === 'hearts') {
+    const w = u * 4;
+    const h = u * 8;
+    tile = {
+      w,
+      h,
+      picture: record(w, h, (canvas) => {
+        canvas.drawPath(heartPath(w / 2, u * 2, u * 0.7), paintOf(motif));
+        canvas.drawPath(heartPath(0, u * 6, u * 0.7), paintOf(motif));
+        canvas.drawPath(heartPath(w, u * 6, u * 0.7), paintOf(motif));
+      }),
+    };
+  } else if (paint.id === 'checker') {
+    const size = u * 2;
+    tile = {
+      w: size,
+      h: size,
+      picture: record(size, size, (canvas) => {
+        canvas.drawRect(Skia.XYWHRect(0, 0, u, u), paintOf(motif));
+        canvas.drawRect(Skia.XYWHRect(u, u, u, u), paintOf(motif));
+      }),
+    };
+  } else if (paint.id === 'paws') {
+    const w = u * 4;
+    const h = u * 8;
+    tile = {
+      w,
+      h,
+      picture: record(w, h, (canvas) => {
+        paw(canvas, w / 2, u * 2, u, pawTurn(0), motif);
+        paw(canvas, 0, u * 6, u, pawTurn(1), motif);
+        paw(canvas, w, u * 6, u, pawTurn(2), motif);
+      }),
+    };
+  } else if (paint.id === 'chevron') {
+    const w = u * 4;
+    const h = u * 4;
+    const band = u * 1.15;
+    tile = {
+      w,
+      h,
+      picture: record(w, h, (canvas) => {
+        const zig = (y: number) => {
+          const path = Skia.PathBuilder.Make();
+          path.moveTo(0, y);
+          path.lineTo(w / 2, y + band * 0.7);
+          path.lineTo(w, y);
+          path.lineTo(w, y + band * 0.45);
+          path.lineTo(w / 2, y + band * 1.15);
+          path.lineTo(0, y + band * 0.45);
+          path.close();
+          canvas.drawPath(path.detach(), paintOf(motif));
+        };
+        zig(u * 0.2);
+        zig(u * 2.2);
       }),
     };
   } else {

@@ -244,8 +244,9 @@ function acceptOutfit(id: string, def: object, _rowSpecies: SpeciesId[] | null |
   if (colorway.pattern != null && (typeof colorway.pattern !== 'string' || !KNOWN_PATTERNS.includes(colorway.pattern as (typeof KNOWN_PATTERNS)[number]))) {
     return null;
   }
-  const parts = PATTERN_PARTS[row.shape] ?? [];
-  if (colorway.pattern != null && parts.length === 0) {
+  const named = PART_NAMES[row.shape] ?? [];
+  const patternDefaults = PATTERN_PARTS[row.shape] ?? [];
+  if (colorway.pattern != null && row.patternParts == null && patternDefaults.length === 0) {
     return null;
   }
   if (colorway.accent != null && (row.shape !== 'collar' || typeof colorway.accent !== 'string' || !accents.has(colorway.accent as CollarAccent))) {
@@ -256,7 +257,7 @@ function acceptOutfit(id: string, def: object, _rowSpecies: SpeciesId[] | null |
     if (!Array.isArray(row.patternParts) || colorway.pattern == null) {
       return null;
     }
-    if (!row.patternParts.every((part) => typeof part === 'string' && parts.includes(part))) {
+    if (!row.patternParts.every((part) => typeof part === 'string' && named.includes(part))) {
       return null;
     }
     patternParts = row.patternParts as string[];
@@ -264,7 +265,6 @@ function acceptOutfit(id: string, def: object, _rowSpecies: SpeciesId[] | null |
   if (row.lensTint != null && (slot !== 'glasses' || typeof row.lensTint !== 'string' || !hex.test(row.lensTint))) {
     return null;
   }
-  const named = PART_NAMES[row.shape] ?? [];
   const partFills = readPartFills(colorway.parts, named);
   const baffles = row.shape === 'puffer' ? readBaffles(colorway.baffles) : undefined;
   const wear: WearItem = {

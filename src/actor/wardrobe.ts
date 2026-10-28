@@ -1,6 +1,6 @@
 import type { OutfitSlot } from '../sim/types';
 
-export type PatternId = 'stripes' | 'gingham' | 'plaid' | 'daisies' | 'stars' | 'rainbow';
+export type PatternId = 'stripes' | 'gingham' | 'plaid' | 'daisies' | 'stars' | 'rainbow' | 'hearts' | 'checker' | 'paws' | 'chevron';
 
 export type CollarAccent = 'tag' | 'bell' | 'studs';
 
@@ -164,7 +164,7 @@ export function jacketHasSleeves(item: { shape: string } | string): boolean {
 
 export const DEF_SCHEMA_MAX = 2;
 
-export const KNOWN_PATTERNS: readonly PatternId[] = ['stripes', 'gingham', 'plaid', 'daisies', 'stars', 'rainbow'];
+export const KNOWN_PATTERNS: readonly PatternId[] = ['stripes', 'gingham', 'plaid', 'daisies', 'stars', 'rainbow', 'hearts', 'checker', 'paws', 'chevron'];
 
 export const KNOWN_SHAPES: Record<OutfitSlot, readonly string[]> = {
   hat: ['beanie', 'party', 'top', 'cap', 'bucket', 'beret', 'crown'],

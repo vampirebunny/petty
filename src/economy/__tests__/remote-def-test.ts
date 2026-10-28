@@ -183,6 +183,52 @@ it('accepts schema v2 parts and baffles, and drops unknown or bad fills', () => 
   expect(wearItem('jacket', 'sweater-baffle')?.colorway.baffles).toBeUndefined();
 });
 
+it('accepts a pattern on a part named in PART_NAMES when PATTERN_PARTS is empty', () => {
+  const items = [
+    row({
+      id: 'boots:red.gingham',
+      def: {
+        v: 2,
+        kind: 'outfit',
+        slot: 'boots',
+        shape: 'red',
+        label: 'Gingham Boots',
+        colorway: { c: '#5AA9E6', d: '#F7F7FA', pattern: 'gingham', parts: { cuff: '#2B3A6B' } },
+        patternParts: ['shaft'],
+      },
+    }),
+    row({
+      id: 'neckwear:bow.stripes',
+      def: {
+        v: 2,
+        kind: 'outfit',
+        slot: 'neckwear',
+        shape: 'bow',
+        label: 'Stripe Bow',
+        colorway: { c: '#FF8CC4', d: '#F7F7FA', pattern: 'stripes' },
+        patternParts: ['loop'],
+      },
+    }),
+    row({
+      id: 'boots:red.bad',
+      def: {
+        v: 2,
+        kind: 'outfit',
+        slot: 'boots',
+        shape: 'red',
+        label: 'Bad Boots',
+        colorway: { c: '#5AA9E6', d: '#F7F7FA', pattern: 'gingham' },
+        patternParts: ['toe'],
+      },
+    }),
+  ];
+  rememberActiveDefs({ version: 5, items }, () => {});
+  const catalog = build(items);
+  expect(catalog.items.map((entry) => entry.id)).toEqual(['boots:red.gingham', 'neckwear:bow.stripes']);
+  expect(wearItem('boots', 'red.gingham')?.patternParts).toEqual(['shaft']);
+  expect(wearItem('neckwear', 'bow.stripes')?.patternParts).toEqual(['loop']);
+});
+
 it('ignores a remote def for a bundled id', () => {
   const journal: string[] = [];
   rememberActiveDefs(

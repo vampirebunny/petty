@@ -1,0 +1,4135 @@
+[
+  {
+    "id": "beanie.strawberry-milk",
+    "slot": "hat",
+    "label": "Strawberry Milk Beanie",
+    "shape": "beanie",
+    "colorway": {
+      "c": "#FF8CC4",
+      "d": "#FFF6E6",
+      "parts": {
+        "cuff": "#C2407A",
+        "pom": "#7FE3BA"
+      }
+    },
+    "theme": "strawberry-milk",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "party.strawberry-milk",
+    "slot": "hat",
+    "label": "Strawberry Milk Party Hat",
+    "shape": "party",
+    "colorway": {
+      "c": "#FF8CC4",
+      "d": "#FFF6E6",
+      "parts": {
+        "trim": "#FFF6E6",
+        "pom": "#7FE3BA"
+      }
+    },
+    "theme": "strawberry-milk",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "cap.strawberry-milk",
+    "slot": "hat",
+    "label": "Strawberry Milk Ball Cap",
+    "shape": "cap",
+    "colorway": {
+      "c": "#FF8CC4",
+      "d": "#FFF6E6",
+      "parts": {
+        "brim": "#C2407A"
+      }
+    },
+    "theme": "strawberry-milk",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "bucket.strawberry-milk",
+    "slot": "hat",
+    "label": "Strawberry Milk Bucket Hat",
+    "shape": "bucket",
+    "colorway": {
+      "c": "#FF8CC4",
+      "d": "#FFF6E6",
+      "parts": {
+        "band": "#C2407A",
+        "brim": "#FF8CC4"
+      }
+    },
+    "theme": "strawberry-milk",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "beret.strawberry-milk",
+    "slot": "hat",
+    "label": "Strawberry Milk Beret",
+    "shape": "beret",
+    "colorway": {
+      "c": "#FF8CC4",
+      "d": "#FFF6E6"
+    },
+    "theme": "strawberry-milk",
+    "tier": "common",
+    "collection": "evergreen"
+  },
+  {
+    "id": "square.strawberry-milk",
+    "slot": "glasses",
+    "label": "Strawberry Milk Round Specs",
+    "shape": "square",
+    "colorway": {
+      "c": "#C2407A",
+      "d": "#FFF6E6"
+    },
+    "theme": "strawberry-milk",
+    "tier": "common",
+    "collection": "evergreen"
+  },
+  {
+    "id": "red-rim.strawberry-milk",
+    "slot": "glasses",
+    "label": "Strawberry Milk Rims",
+    "shape": "red-rim",
+    "colorway": {
+      "c": "#C2407A",
+      "d": "#FFF6E6"
+    },
+    "theme": "strawberry-milk",
+    "tier": "common",
+    "collection": "evergreen"
+  },
+  {
+    "id": "heart.strawberry-milk",
+    "slot": "glasses",
+    "label": "Strawberry Milk Heart Shades",
+    "shape": "heart",
+    "colorway": {
+      "c": "#FF8CC4",
+      "d": "#FFF6E6"
+    },
+    "theme": "strawberry-milk",
+    "tier": "common",
+    "collection": "evergreen"
+  },
+  {
+    "id": "star.strawberry-milk",
+    "slot": "glasses",
+    "label": "Strawberry Milk Star Shades",
+    "shape": "star",
+    "colorway": {
+      "c": "#FF8CC4",
+      "d": "#FFF6E6"
+    },
+    "theme": "strawberry-milk",
+    "tier": "common",
+    "collection": "evergreen"
+  },
+  {
+    "id": "collar.strawberry-milk",
+    "slot": "neckwear",
+    "label": "Strawberry Milk Collar",
+    "shape": "collar",
+    "colorway": {
+      "c": "#FF8CC4",
+      "d": "#FFF6E6",
+      "parts": {
+        "band": "#FF8CC4",
+        "charm": "#7FE3BA"
+      },
+      "accent": "tag"
+    },
+    "theme": "strawberry-milk",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "bandana.strawberry-milk",
+    "slot": "neckwear",
+    "label": "Strawberry Milk Bandana",
+    "shape": "bandana",
+    "colorway": {
+      "c": "#FF8CC4",
+      "d": "#FFF6E6"
+    },
+    "theme": "strawberry-milk",
+    "tier": "common",
+    "collection": "evergreen"
+  },
+  {
+    "id": "scarf.strawberry-milk",
+    "slot": "neckwear",
+    "label": "Strawberry Milk Scarf",
+    "shape": "scarf",
+    "colorway": {
+      "c": "#FF8CC4",
+      "d": "#FFF6E6"
+    },
+    "theme": "strawberry-milk",
+    "tier": "common",
+    "collection": "evergreen"
+  },
+  {
+    "id": "bow.strawberry-milk",
+    "slot": "neckwear",
+    "label": "Strawberry Milk Bow",
+    "shape": "bow",
+    "colorway": {
+      "c": "#FF8CC4",
+      "d": "#FFF6E6"
+    },
+    "theme": "strawberry-milk",
+    "tier": "common",
+    "collection": "evergreen"
+  },
+  {
+    "id": "bowtie.strawberry-milk",
+    "slot": "neckwear",
+    "label": "Strawberry Milk Bow Tie",
+    "shape": "bowtie",
+    "colorway": {
+      "c": "#FF8CC4",
+      "d": "#FFF6E6",
+      "parts": {
+        "knot": "#C2407A"
+      }
+    },
+    "theme": "strawberry-milk",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "sweater.strawberry-milk",
+    "slot": "jacket",
+    "label": "Strawberry Milk Sweater",
+    "shape": "sweater",
+    "colorway": {
+      "c": "#FF8CC4",
+      "d": "#FFF6E6",
+      "parts": {
+        "rib": "#C2407A"
+      }
+    },
+    "theme": "strawberry-milk",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "hoodie.strawberry-milk",
+    "slot": "jacket",
+    "label": "Strawberry Milk Hoodie",
+    "shape": "hoodie",
+    "colorway": {
+      "c": "#FF8CC4",
+      "d": "#FFF6E6",
+      "parts": {
+        "rib": "#C2407A",
+        "pocket": "#FFF6E6",
+        "lining": "#7FE3BA"
+      }
+    },
+    "theme": "strawberry-milk",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "puffer.strawberry-milk",
+    "slot": "jacket",
+    "label": "Strawberry Milk Puffer",
+    "shape": "puffer",
+    "colorway": {
+      "c": "#FF8CC4",
+      "d": "#FFF6E6",
+      "parts": {
+        "collar": "#FFF6E6"
+      },
+      "baffles": [
+        "#FF8CC4",
+        "#FFF6E6"
+      ]
+    },
+    "theme": "strawberry-milk",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "vest.strawberry-milk",
+    "slot": "jacket",
+    "label": "Strawberry Milk Vest",
+    "shape": "vest",
+    "colorway": {
+      "c": "#FF8CC4",
+      "d": "#FFF6E6",
+      "parts": {
+        "collar": "#C2407A"
+      }
+    },
+    "theme": "strawberry-milk",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "raincoat.strawberry-milk",
+    "slot": "jacket",
+    "label": "Strawberry Milk Raincoat",
+    "shape": "raincoat",
+    "colorway": {
+      "c": "#FF8CC4",
+      "d": "#FFF6E6",
+      "parts": {
+        "lining": "#C2407A"
+      }
+    },
+    "theme": "strawberry-milk",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "red.strawberry-milk",
+    "slot": "boots",
+    "label": "Strawberry Milk Boots",
+    "shape": "red",
+    "colorway": {
+      "c": "#FF8CC4",
+      "d": "#FFF6E6",
+      "parts": {
+        "cuff": "#C2407A"
+      }
+    },
+    "theme": "strawberry-milk",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "rain.strawberry-milk",
+    "slot": "boots",
+    "label": "Strawberry Milk Rain Boots",
+    "shape": "rain",
+    "colorway": {
+      "c": "#FF8CC4",
+      "d": "#FFF6E6",
+      "parts": {
+        "sole": "#C2407A"
+      }
+    },
+    "theme": "strawberry-milk",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "sneaker.strawberry-milk",
+    "slot": "boots",
+    "label": "Strawberry Milk Sneakers",
+    "shape": "sneaker",
+    "colorway": {
+      "c": "#FF8CC4",
+      "d": "#FFF6E6",
+      "parts": {
+        "upper": "#FF8CC4",
+        "stripe": "#FFF6E6",
+        "laces": "#7FE3BA"
+      }
+    },
+    "theme": "strawberry-milk",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "hightop.strawberry-milk",
+    "slot": "boots",
+    "label": "Strawberry Milk High-Tops",
+    "shape": "hightop",
+    "colorway": {
+      "c": "#FF8CC4",
+      "d": "#FFF6E6",
+      "parts": {
+        "upper": "#FF8CC4",
+        "stripe": "#FFF6E6",
+        "laces": "#7FE3BA"
+      }
+    },
+    "theme": "strawberry-milk",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "beanie.mint-choc",
+    "slot": "hat",
+    "label": "Mint Choc Beanie",
+    "shape": "beanie",
+    "colorway": {
+      "c": "#7FE3BA",
+      "d": "#6B4532",
+      "parts": {
+        "cuff": "#6B4532",
+        "pom": "#FFF6E6"
+      }
+    },
+    "theme": "mint-choc",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "party.mint-choc",
+    "slot": "hat",
+    "label": "Mint Choc Party Hat",
+    "shape": "party",
+    "colorway": {
+      "c": "#7FE3BA",
+      "d": "#6B4532",
+      "parts": {
+        "trim": "#6B4532",
+        "pom": "#FFF6E6"
+      }
+    },
+    "theme": "mint-choc",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "top.mint-choc",
+    "slot": "hat",
+    "label": "Mint Choc Top Hat",
+    "shape": "top",
+    "colorway": {
+      "c": "#7FE3BA",
+      "d": "#6B4532",
+      "parts": {
+        "crown": "#7FE3BA",
+        "brim": "#7FE3BA"
+      }
+    },
+    "theme": "mint-choc",
+    "tier": "common",
+    "collection": "evergreen"
+  },
+  {
+    "id": "cap.mint-choc",
+    "slot": "hat",
+    "label": "Mint Choc Ball Cap",
+    "shape": "cap",
+    "colorway": {
+      "c": "#7FE3BA",
+      "d": "#6B4532",
+      "parts": {
+        "brim": "#6B4532"
+      }
+    },
+    "theme": "mint-choc",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "bucket.mint-choc",
+    "slot": "hat",
+    "label": "Mint Choc Bucket Hat",
+    "shape": "bucket",
+    "colorway": {
+      "c": "#7FE3BA",
+      "d": "#6B4532",
+      "parts": {
+        "band": "#6B4532",
+        "brim": "#7FE3BA"
+      }
+    },
+    "theme": "mint-choc",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "beret.mint-choc",
+    "slot": "hat",
+    "label": "Mint Choc Beret",
+    "shape": "beret",
+    "colorway": {
+      "c": "#7FE3BA",
+      "d": "#6B4532"
+    },
+    "theme": "mint-choc",
+    "tier": "common",
+    "collection": "evergreen"
+  },
+  {
+    "id": "square.mint-choc",
+    "slot": "glasses",
+    "label": "Mint Choc Round Specs",
+    "shape": "square",
+    "colorway": {
+      "c": "#7FE3BA",
+      "d": "#6B4532"
+    },
+    "theme": "mint-choc",
+    "tier": "common",
+    "collection": "evergreen"
+  },
+  {
+    "id": "red-rim.mint-choc",
+    "slot": "glasses",
+    "label": "Mint Choc Rims",
+    "shape": "red-rim",
+    "colorway": {
+      "c": "#7FE3BA",
+      "d": "#6B4532"
+    },
+    "theme": "mint-choc",
+    "tier": "common",
+    "collection": "evergreen"
+  },
+  {
+    "id": "heart.mint-choc",
+    "slot": "glasses",
+    "label": "Mint Choc Heart Shades",
+    "shape": "heart",
+    "colorway": {
+      "c": "#7FE3BA",
+      "d": "#6B4532"
+    },
+    "theme": "mint-choc",
+    "tier": "common",
+    "collection": "evergreen"
+  },
+  {
+    "id": "star.mint-choc",
+    "slot": "glasses",
+    "label": "Mint Choc Star Shades",
+    "shape": "star",
+    "colorway": {
+      "c": "#7FE3BA",
+      "d": "#6B4532"
+    },
+    "theme": "mint-choc",
+    "tier": "common",
+    "collection": "evergreen"
+  },
+  {
+    "id": "collar.mint-choc",
+    "slot": "neckwear",
+    "label": "Mint Choc Collar",
+    "shape": "collar",
+    "colorway": {
+      "c": "#7FE3BA",
+      "d": "#6B4532",
+      "parts": {
+        "band": "#7FE3BA",
+        "charm": "#FFF6E6"
+      },
+      "accent": "bell"
+    },
+    "theme": "mint-choc",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "bandana.mint-choc",
+    "slot": "neckwear",
+    "label": "Mint Choc Bandana",
+    "shape": "bandana",
+    "colorway": {
+      "c": "#7FE3BA",
+      "d": "#6B4532"
+    },
+    "theme": "mint-choc",
+    "tier": "common",
+    "collection": "evergreen"
+  },
+  {
+    "id": "scarf.mint-choc",
+    "slot": "neckwear",
+    "label": "Mint Choc Scarf",
+    "shape": "scarf",
+    "colorway": {
+      "c": "#7FE3BA",
+      "d": "#6B4532"
+    },
+    "theme": "mint-choc",
+    "tier": "common",
+    "collection": "evergreen"
+  },
+  {
+    "id": "bow.mint-choc",
+    "slot": "neckwear",
+    "label": "Mint Choc Bow",
+    "shape": "bow",
+    "colorway": {
+      "c": "#7FE3BA",
+      "d": "#6B4532"
+    },
+    "theme": "mint-choc",
+    "tier": "common",
+    "collection": "evergreen"
+  },
+  {
+    "id": "bowtie.mint-choc",
+    "slot": "neckwear",
+    "label": "Mint Choc Bow Tie",
+    "shape": "bowtie",
+    "colorway": {
+      "c": "#7FE3BA",
+      "d": "#6B4532",
+      "parts": {
+        "knot": "#6B4532"
+      }
+    },
+    "theme": "mint-choc",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "sweater.mint-choc",
+    "slot": "jacket",
+    "label": "Mint Choc Sweater",
+    "shape": "sweater",
+    "colorway": {
+      "c": "#7FE3BA",
+      "d": "#6B4532",
+      "parts": {
+        "rib": "#6B4532"
+      }
+    },
+    "theme": "mint-choc",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "hoodie.mint-choc",
+    "slot": "jacket",
+    "label": "Mint Choc Hoodie",
+    "shape": "hoodie",
+    "colorway": {
+      "c": "#7FE3BA",
+      "d": "#6B4532",
+      "parts": {
+        "rib": "#6B4532",
+        "pocket": "#6B4532",
+        "lining": "#FFF6E6"
+      }
+    },
+    "theme": "mint-choc",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "puffer.mint-choc",
+    "slot": "jacket",
+    "label": "Mint Choc Puffer",
+    "shape": "puffer",
+    "colorway": {
+      "c": "#7FE3BA",
+      "d": "#6B4532",
+      "parts": {
+        "collar": "#6B4532"
+      }
+    },
+    "theme": "mint-choc",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "vest.mint-choc",
+    "slot": "jacket",
+    "label": "Mint Choc Vest",
+    "shape": "vest",
+    "colorway": {
+      "c": "#7FE3BA",
+      "d": "#6B4532",
+      "parts": {
+        "collar": "#6B4532"
+      }
+    },
+    "theme": "mint-choc",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "raincoat.mint-choc",
+    "slot": "jacket",
+    "label": "Mint Choc Raincoat",
+    "shape": "raincoat",
+    "colorway": {
+      "c": "#7FE3BA",
+      "d": "#6B4532",
+      "parts": {
+        "lining": "#6B4532"
+      }
+    },
+    "theme": "mint-choc",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "red.mint-choc",
+    "slot": "boots",
+    "label": "Mint Choc Boots",
+    "shape": "red",
+    "colorway": {
+      "c": "#7FE3BA",
+      "d": "#6B4532",
+      "parts": {
+        "cuff": "#6B4532"
+      }
+    },
+    "theme": "mint-choc",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "rain.mint-choc",
+    "slot": "boots",
+    "label": "Mint Choc Rain Boots",
+    "shape": "rain",
+    "colorway": {
+      "c": "#7FE3BA",
+      "d": "#6B4532",
+      "parts": {
+        "sole": "#6B4532"
+      }
+    },
+    "theme": "mint-choc",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "sneaker.mint-choc",
+    "slot": "boots",
+    "label": "Mint Choc Sneakers",
+    "shape": "sneaker",
+    "colorway": {
+      "c": "#7FE3BA",
+      "d": "#6B4532",
+      "parts": {
+        "upper": "#7FE3BA",
+        "stripe": "#6B4532",
+        "laces": "#FFF6E6"
+      }
+    },
+    "theme": "mint-choc",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "hightop.mint-choc",
+    "slot": "boots",
+    "label": "Mint Choc High-Tops",
+    "shape": "hightop",
+    "colorway": {
+      "c": "#7FE3BA",
+      "d": "#6B4532",
+      "parts": {
+        "upper": "#7FE3BA",
+        "stripe": "#6B4532",
+        "laces": "#FFF6E6"
+      }
+    },
+    "theme": "mint-choc",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "beanie.lemon-drop",
+    "slot": "hat",
+    "label": "Lemon Drop Beanie",
+    "shape": "beanie",
+    "colorway": {
+      "c": "#FFE16B",
+      "d": "#7EC8F5",
+      "parts": {
+        "cuff": "#FFC93C",
+        "pom": "#5AA9E6"
+      }
+    },
+    "theme": "lemon-drop",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "party.lemon-drop",
+    "slot": "hat",
+    "label": "Lemon Drop Party Hat",
+    "shape": "party",
+    "colorway": {
+      "c": "#FFE16B",
+      "d": "#7EC8F5",
+      "parts": {
+        "trim": "#7EC8F5",
+        "pom": "#5AA9E6"
+      }
+    },
+    "theme": "lemon-drop",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "cap.lemon-drop",
+    "slot": "hat",
+    "label": "Lemon Drop Ball Cap",
+    "shape": "cap",
+    "colorway": {
+      "c": "#FFE16B",
+      "d": "#7EC8F5",
+      "parts": {
+        "brim": "#FFC93C"
+      }
+    },
+    "theme": "lemon-drop",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "bucket.lemon-drop",
+    "slot": "hat",
+    "label": "Lemon Drop Bucket Hat",
+    "shape": "bucket",
+    "colorway": {
+      "c": "#FFE16B",
+      "d": "#7EC8F5",
+      "parts": {
+        "band": "#FFC93C",
+        "brim": "#FFE16B"
+      }
+    },
+    "theme": "lemon-drop",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "beret.lemon-drop",
+    "slot": "hat",
+    "label": "Lemon Drop Beret",
+    "shape": "beret",
+    "colorway": {
+      "c": "#FFE16B",
+      "d": "#7EC8F5"
+    },
+    "theme": "lemon-drop",
+    "tier": "common",
+    "collection": "evergreen"
+  },
+  {
+    "id": "square.lemon-drop",
+    "slot": "glasses",
+    "label": "Lemon Drop Round Specs",
+    "shape": "square",
+    "colorway": {
+      "c": "#FFC93C",
+      "d": "#7EC8F5"
+    },
+    "theme": "lemon-drop",
+    "tier": "common",
+    "collection": "evergreen"
+  },
+  {
+    "id": "red-rim.lemon-drop",
+    "slot": "glasses",
+    "label": "Lemon Drop Rims",
+    "shape": "red-rim",
+    "colorway": {
+      "c": "#FFC93C",
+      "d": "#7EC8F5"
+    },
+    "theme": "lemon-drop",
+    "tier": "common",
+    "collection": "evergreen"
+  },
+  {
+    "id": "heart.lemon-drop",
+    "slot": "glasses",
+    "label": "Lemon Drop Heart Shades",
+    "shape": "heart",
+    "colorway": {
+      "c": "#FFE16B",
+      "d": "#7EC8F5"
+    },
+    "theme": "lemon-drop",
+    "tier": "common",
+    "collection": "evergreen"
+  },
+  {
+    "id": "star.lemon-drop",
+    "slot": "glasses",
+    "label": "Lemon Drop Star Shades",
+    "shape": "star",
+    "colorway": {
+      "c": "#FFE16B",
+      "d": "#7EC8F5"
+    },
+    "theme": "lemon-drop",
+    "tier": "common",
+    "collection": "evergreen"
+  },
+  {
+    "id": "collar.lemon-drop",
+    "slot": "neckwear",
+    "label": "Lemon Drop Collar",
+    "shape": "collar",
+    "colorway": {
+      "c": "#FFE16B",
+      "d": "#7EC8F5",
+      "parts": {
+        "band": "#FFE16B",
+        "charm": "#5AA9E6"
+      },
+      "accent": "tag"
+    },
+    "theme": "lemon-drop",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "bandana.lemon-drop",
+    "slot": "neckwear",
+    "label": "Lemon Drop Bandana",
+    "shape": "bandana",
+    "colorway": {
+      "c": "#FFE16B",
+      "d": "#7EC8F5"
+    },
+    "theme": "lemon-drop",
+    "tier": "common",
+    "collection": "evergreen"
+  },
+  {
+    "id": "scarf.lemon-drop",
+    "slot": "neckwear",
+    "label": "Lemon Drop Scarf",
+    "shape": "scarf",
+    "colorway": {
+      "c": "#FFE16B",
+      "d": "#7EC8F5"
+    },
+    "theme": "lemon-drop",
+    "tier": "common",
+    "collection": "evergreen"
+  },
+  {
+    "id": "bow.lemon-drop",
+    "slot": "neckwear",
+    "label": "Lemon Drop Bow",
+    "shape": "bow",
+    "colorway": {
+      "c": "#FFE16B",
+      "d": "#7EC8F5"
+    },
+    "theme": "lemon-drop",
+    "tier": "common",
+    "collection": "evergreen"
+  },
+  {
+    "id": "bowtie.lemon-drop",
+    "slot": "neckwear",
+    "label": "Lemon Drop Bow Tie",
+    "shape": "bowtie",
+    "colorway": {
+      "c": "#FFE16B",
+      "d": "#7EC8F5",
+      "parts": {
+        "knot": "#FFC93C"
+      }
+    },
+    "theme": "lemon-drop",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "sweater.lemon-drop",
+    "slot": "jacket",
+    "label": "Lemon Drop Sweater",
+    "shape": "sweater",
+    "colorway": {
+      "c": "#FFE16B",
+      "d": "#7EC8F5",
+      "parts": {
+        "rib": "#FFC93C"
+      }
+    },
+    "theme": "lemon-drop",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "hoodie.lemon-drop",
+    "slot": "jacket",
+    "label": "Lemon Drop Hoodie",
+    "shape": "hoodie",
+    "colorway": {
+      "c": "#FFE16B",
+      "d": "#7EC8F5",
+      "parts": {
+        "rib": "#FFC93C",
+        "pocket": "#7EC8F5",
+        "lining": "#5AA9E6"
+      }
+    },
+    "theme": "lemon-drop",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "puffer.lemon-drop",
+    "slot": "jacket",
+    "label": "Lemon Drop Puffer",
+    "shape": "puffer",
+    "colorway": {
+      "c": "#FFE16B",
+      "d": "#7EC8F5",
+      "parts": {
+        "collar": "#7EC8F5"
+      }
+    },
+    "theme": "lemon-drop",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "vest.lemon-drop",
+    "slot": "jacket",
+    "label": "Lemon Drop Vest",
+    "shape": "vest",
+    "colorway": {
+      "c": "#FFE16B",
+      "d": "#7EC8F5",
+      "parts": {
+        "collar": "#FFC93C"
+      }
+    },
+    "theme": "lemon-drop",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "raincoat.lemon-drop",
+    "slot": "jacket",
+    "label": "Lemon Drop Raincoat",
+    "shape": "raincoat",
+    "colorway": {
+      "c": "#FFE16B",
+      "d": "#7EC8F5",
+      "parts": {
+        "lining": "#FFC93C"
+      }
+    },
+    "theme": "lemon-drop",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "red.lemon-drop",
+    "slot": "boots",
+    "label": "Lemon Drop Boots",
+    "shape": "red",
+    "colorway": {
+      "c": "#FFE16B",
+      "d": "#7EC8F5",
+      "parts": {
+        "cuff": "#FFC93C"
+      }
+    },
+    "theme": "lemon-drop",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "rain.lemon-drop",
+    "slot": "boots",
+    "label": "Lemon Drop Rain Boots",
+    "shape": "rain",
+    "colorway": {
+      "c": "#FFE16B",
+      "d": "#7EC8F5",
+      "parts": {
+        "sole": "#FFC93C"
+      }
+    },
+    "theme": "lemon-drop",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "sneaker.lemon-drop",
+    "slot": "boots",
+    "label": "Lemon Drop Sneakers",
+    "shape": "sneaker",
+    "colorway": {
+      "c": "#FFE16B",
+      "d": "#7EC8F5",
+      "parts": {
+        "upper": "#FFE16B",
+        "stripe": "#7EC8F5",
+        "laces": "#5AA9E6"
+      }
+    },
+    "theme": "lemon-drop",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "hightop.lemon-drop",
+    "slot": "boots",
+    "label": "Lemon Drop High-Tops",
+    "shape": "hightop",
+    "colorway": {
+      "c": "#FFE16B",
+      "d": "#7EC8F5",
+      "parts": {
+        "upper": "#FFE16B",
+        "stripe": "#7EC8F5",
+        "laces": "#5AA9E6"
+      }
+    },
+    "theme": "lemon-drop",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "beanie.lavender-fog",
+    "slot": "hat",
+    "label": "Lavender Fog Beanie",
+    "shape": "beanie",
+    "colorway": {
+      "c": "#B9A2F5",
+      "d": "#D9CCFF",
+      "parts": {
+        "cuff": "#7A4FC4",
+        "pom": "#FFE16B"
+      }
+    },
+    "theme": "lavender-fog",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "party.lavender-fog",
+    "slot": "hat",
+    "label": "Lavender Fog Party Hat",
+    "shape": "party",
+    "colorway": {
+      "c": "#B9A2F5",
+      "d": "#D9CCFF",
+      "parts": {
+        "trim": "#D9CCFF",
+        "pom": "#FFE16B"
+      }
+    },
+    "theme": "lavender-fog",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "top.lavender-fog",
+    "slot": "hat",
+    "label": "Lavender Fog Top Hat",
+    "shape": "top",
+    "colorway": {
+      "c": "#B9A2F5",
+      "d": "#D9CCFF",
+      "parts": {
+        "crown": "#B9A2F5",
+        "brim": "#B9A2F5"
+      }
+    },
+    "theme": "lavender-fog",
+    "tier": "common",
+    "collection": "evergreen"
+  },
+  {
+    "id": "cap.lavender-fog",
+    "slot": "hat",
+    "label": "Lavender Fog Ball Cap",
+    "shape": "cap",
+    "colorway": {
+      "c": "#B9A2F5",
+      "d": "#D9CCFF",
+      "parts": {
+        "brim": "#7A4FC4"
+      }
+    },
+    "theme": "lavender-fog",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "bucket.lavender-fog",
+    "slot": "hat",
+    "label": "Lavender Fog Bucket Hat",
+    "shape": "bucket",
+    "colorway": {
+      "c": "#B9A2F5",
+      "d": "#D9CCFF",
+      "parts": {
+        "band": "#7A4FC4",
+        "brim": "#B9A2F5"
+      }
+    },
+    "theme": "lavender-fog",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "beret.lavender-fog",
+    "slot": "hat",
+    "label": "Lavender Fog Beret",
+    "shape": "beret",
+    "colorway": {
+      "c": "#B9A2F5",
+      "d": "#D9CCFF"
+    },
+    "theme": "lavender-fog",
+    "tier": "common",
+    "collection": "evergreen"
+  },
+  {
+    "id": "square.lavender-fog",
+    "slot": "glasses",
+    "label": "Lavender Fog Round Specs",
+    "shape": "square",
+    "colorway": {
+      "c": "#B9A2F5",
+      "d": "#D9CCFF"
+    },
+    "theme": "lavender-fog",
+    "tier": "common",
+    "collection": "evergreen"
+  },
+  {
+    "id": "red-rim.lavender-fog",
+    "slot": "glasses",
+    "label": "Lavender Fog Rims",
+    "shape": "red-rim",
+    "colorway": {
+      "c": "#B9A2F5",
+      "d": "#D9CCFF"
+    },
+    "theme": "lavender-fog",
+    "tier": "common",
+    "collection": "evergreen"
+  },
+  {
+    "id": "heart.lavender-fog",
+    "slot": "glasses",
+    "label": "Lavender Fog Heart Shades",
+    "shape": "heart",
+    "colorway": {
+      "c": "#B9A2F5",
+      "d": "#D9CCFF"
+    },
+    "theme": "lavender-fog",
+    "tier": "common",
+    "collection": "evergreen"
+  },
+  {
+    "id": "star.lavender-fog",
+    "slot": "glasses",
+    "label": "Lavender Fog Star Shades",
+    "shape": "star",
+    "colorway": {
+      "c": "#B9A2F5",
+      "d": "#D9CCFF"
+    },
+    "theme": "lavender-fog",
+    "tier": "common",
+    "collection": "evergreen"
+  },
+  {
+    "id": "collar.lavender-fog",
+    "slot": "neckwear",
+    "label": "Lavender Fog Collar",
+    "shape": "collar",
+    "colorway": {
+      "c": "#B9A2F5",
+      "d": "#D9CCFF",
+      "parts": {
+        "band": "#B9A2F5",
+        "charm": "#FFE16B"
+      },
+      "accent": "studs"
+    },
+    "theme": "lavender-fog",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "bandana.lavender-fog",
+    "slot": "neckwear",
+    "label": "Lavender Fog Bandana",
+    "shape": "bandana",
+    "colorway": {
+      "c": "#B9A2F5",
+      "d": "#D9CCFF"
+    },
+    "theme": "lavender-fog",
+    "tier": "common",
+    "collection": "evergreen"
+  },
+  {
+    "id": "scarf.lavender-fog",
+    "slot": "neckwear",
+    "label": "Lavender Fog Scarf",
+    "shape": "scarf",
+    "colorway": {
+      "c": "#B9A2F5",
+      "d": "#D9CCFF"
+    },
+    "theme": "lavender-fog",
+    "tier": "common",
+    "collection": "evergreen"
+  },
+  {
+    "id": "bow.lavender-fog",
+    "slot": "neckwear",
+    "label": "Lavender Fog Bow",
+    "shape": "bow",
+    "colorway": {
+      "c": "#B9A2F5",
+      "d": "#D9CCFF"
+    },
+    "theme": "lavender-fog",
+    "tier": "common",
+    "collection": "evergreen"
+  },
+  {
+    "id": "bowtie.lavender-fog",
+    "slot": "neckwear",
+    "label": "Lavender Fog Bow Tie",
+    "shape": "bowtie",
+    "colorway": {
+      "c": "#B9A2F5",
+      "d": "#D9CCFF",
+      "parts": {
+        "knot": "#7A4FC4"
+      }
+    },
+    "theme": "lavender-fog",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "sweater.lavender-fog",
+    "slot": "jacket",
+    "label": "Lavender Fog Sweater",
+    "shape": "sweater",
+    "colorway": {
+      "c": "#B9A2F5",
+      "d": "#D9CCFF",
+      "parts": {
+        "rib": "#7A4FC4"
+      }
+    },
+    "theme": "lavender-fog",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "hoodie.lavender-fog",
+    "slot": "jacket",
+    "label": "Lavender Fog Hoodie",
+    "shape": "hoodie",
+    "colorway": {
+      "c": "#B9A2F5",
+      "d": "#D9CCFF",
+      "parts": {
+        "rib": "#7A4FC4",
+        "pocket": "#D9CCFF",
+        "lining": "#FFE16B"
+      }
+    },
+    "theme": "lavender-fog",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "puffer.lavender-fog",
+    "slot": "jacket",
+    "label": "Lavender Fog Puffer",
+    "shape": "puffer",
+    "colorway": {
+      "c": "#B9A2F5",
+      "d": "#D9CCFF",
+      "parts": {
+        "collar": "#D9CCFF"
+      },
+      "baffles": [
+        "#B9A2F5",
+        "#9AA8F5",
+        "#D9CCFF"
+      ]
+    },
+    "theme": "lavender-fog",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "vest.lavender-fog",
+    "slot": "jacket",
+    "label": "Lavender Fog Vest",
+    "shape": "vest",
+    "colorway": {
+      "c": "#B9A2F5",
+      "d": "#D9CCFF",
+      "parts": {
+        "collar": "#7A4FC4"
+      }
+    },
+    "theme": "lavender-fog",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "raincoat.lavender-fog",
+    "slot": "jacket",
+    "label": "Lavender Fog Raincoat",
+    "shape": "raincoat",
+    "colorway": {
+      "c": "#B9A2F5",
+      "d": "#D9CCFF",
+      "parts": {
+        "lining": "#7A4FC4"
+      }
+    },
+    "theme": "lavender-fog",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "red.lavender-fog",
+    "slot": "boots",
+    "label": "Lavender Fog Boots",
+    "shape": "red",
+    "colorway": {
+      "c": "#B9A2F5",
+      "d": "#D9CCFF",
+      "parts": {
+        "cuff": "#7A4FC4"
+      }
+    },
+    "theme": "lavender-fog",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "rain.lavender-fog",
+    "slot": "boots",
+    "label": "Lavender Fog Rain Boots",
+    "shape": "rain",
+    "colorway": {
+      "c": "#B9A2F5",
+      "d": "#D9CCFF",
+      "parts": {
+        "sole": "#7A4FC4"
+      }
+    },
+    "theme": "lavender-fog",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "sneaker.lavender-fog",
+    "slot": "boots",
+    "label": "Lavender Fog Sneakers",
+    "shape": "sneaker",
+    "colorway": {
+      "c": "#B9A2F5",
+      "d": "#D9CCFF",
+      "parts": {
+        "upper": "#B9A2F5",
+        "stripe": "#D9CCFF",
+        "laces": "#FFE16B"
+      }
+    },
+    "theme": "lavender-fog",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "hightop.lavender-fog",
+    "slot": "boots",
+    "label": "Lavender Fog High-Tops",
+    "shape": "hightop",
+    "colorway": {
+      "c": "#B9A2F5",
+      "d": "#D9CCFF",
+      "parts": {
+        "upper": "#B9A2F5",
+        "stripe": "#D9CCFF",
+        "laces": "#FFE16B"
+      }
+    },
+    "theme": "lavender-fog",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "beanie.blueberry-gingham",
+    "slot": "hat",
+    "label": "Blueberry Gingham Beanie",
+    "shape": "beanie",
+    "colorway": {
+      "c": "#5AA9E6",
+      "d": "#F7F7FA",
+      "pattern": "gingham",
+      "parts": {
+        "cuff": "#2B3A6B",
+        "pom": "#FFC93C"
+      }
+    },
+    "theme": "blueberry-gingham",
+    "tier": "rare",
+    "patternParts": [
+      "crown"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "party.blueberry-gingham",
+    "slot": "hat",
+    "label": "Blueberry Gingham Party Hat",
+    "shape": "party",
+    "colorway": {
+      "c": "#5AA9E6",
+      "d": "#F7F7FA",
+      "parts": {
+        "trim": "#F7F7FA",
+        "pom": "#FFC93C"
+      }
+    },
+    "theme": "blueberry-gingham",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "top.blueberry-gingham",
+    "slot": "hat",
+    "label": "Blueberry Gingham Top Hat",
+    "shape": "top",
+    "colorway": {
+      "c": "#5AA9E6",
+      "d": "#F7F7FA",
+      "pattern": "gingham",
+      "parts": {
+        "crown": "#5AA9E6",
+        "brim": "#5AA9E6"
+      }
+    },
+    "theme": "blueberry-gingham",
+    "tier": "rare",
+    "patternParts": [
+      "band"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "cap.blueberry-gingham",
+    "slot": "hat",
+    "label": "Blueberry Gingham Ball Cap",
+    "shape": "cap",
+    "colorway": {
+      "c": "#5AA9E6",
+      "d": "#F7F7FA",
+      "pattern": "gingham",
+      "parts": {
+        "brim": "#2B3A6B"
+      }
+    },
+    "theme": "blueberry-gingham",
+    "tier": "rare",
+    "patternParts": [
+      "crown"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "bucket.blueberry-gingham",
+    "slot": "hat",
+    "label": "Blueberry Gingham Bucket Hat",
+    "shape": "bucket",
+    "colorway": {
+      "c": "#5AA9E6",
+      "d": "#F7F7FA",
+      "pattern": "gingham",
+      "parts": {
+        "band": "#2B3A6B",
+        "brim": "#5AA9E6"
+      }
+    },
+    "theme": "blueberry-gingham",
+    "tier": "rare",
+    "patternParts": [
+      "crown"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "beret.blueberry-gingham",
+    "slot": "hat",
+    "label": "Blueberry Gingham Beret",
+    "shape": "beret",
+    "colorway": {
+      "c": "#5AA9E6",
+      "d": "#F7F7FA",
+      "pattern": "gingham"
+    },
+    "theme": "blueberry-gingham",
+    "tier": "rare",
+    "patternParts": [
+      "crown"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "square.blueberry-gingham",
+    "slot": "glasses",
+    "label": "Blueberry Gingham Round Specs",
+    "shape": "square",
+    "colorway": {
+      "c": "#FFC93C",
+      "d": "#F7F7FA"
+    },
+    "theme": "blueberry-gingham",
+    "tier": "common",
+    "collection": "evergreen"
+  },
+  {
+    "id": "red-rim.blueberry-gingham",
+    "slot": "glasses",
+    "label": "Blueberry Gingham Rims",
+    "shape": "red-rim",
+    "colorway": {
+      "c": "#FFC93C",
+      "d": "#F7F7FA"
+    },
+    "theme": "blueberry-gingham",
+    "tier": "common",
+    "collection": "evergreen"
+  },
+  {
+    "id": "heart.blueberry-gingham",
+    "slot": "glasses",
+    "label": "Blueberry Gingham Heart Shades",
+    "shape": "heart",
+    "colorway": {
+      "c": "#FFC93C",
+      "d": "#F7F7FA"
+    },
+    "theme": "blueberry-gingham",
+    "tier": "common",
+    "collection": "evergreen"
+  },
+  {
+    "id": "star.blueberry-gingham",
+    "slot": "glasses",
+    "label": "Blueberry Gingham Star Shades",
+    "shape": "star",
+    "colorway": {
+      "c": "#FFC93C",
+      "d": "#F7F7FA"
+    },
+    "theme": "blueberry-gingham",
+    "tier": "common",
+    "collection": "evergreen"
+  },
+  {
+    "id": "collar.blueberry-gingham",
+    "slot": "neckwear",
+    "label": "Blueberry Gingham Collar",
+    "shape": "collar",
+    "colorway": {
+      "c": "#5AA9E6",
+      "d": "#F7F7FA",
+      "parts": {
+        "band": "#5AA9E6",
+        "charm": "#FFC93C"
+      },
+      "accent": "tag"
+    },
+    "theme": "blueberry-gingham",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "bandana.blueberry-gingham",
+    "slot": "neckwear",
+    "label": "Blueberry Gingham Bandana",
+    "shape": "bandana",
+    "colorway": {
+      "c": "#5AA9E6",
+      "d": "#F7F7FA",
+      "pattern": "gingham"
+    },
+    "theme": "blueberry-gingham",
+    "tier": "rare",
+    "patternParts": [
+      "cloth"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "scarf.blueberry-gingham",
+    "slot": "neckwear",
+    "label": "Blueberry Gingham Scarf",
+    "shape": "scarf",
+    "colorway": {
+      "c": "#5AA9E6",
+      "d": "#F7F7FA",
+      "pattern": "gingham"
+    },
+    "theme": "blueberry-gingham",
+    "tier": "rare",
+    "patternParts": [
+      "band",
+      "tail"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "bow.blueberry-gingham",
+    "slot": "neckwear",
+    "label": "Blueberry Gingham Bow",
+    "shape": "bow",
+    "colorway": {
+      "c": "#5AA9E6",
+      "d": "#F7F7FA",
+      "pattern": "gingham"
+    },
+    "theme": "blueberry-gingham",
+    "tier": "rare",
+    "patternParts": [
+      "loop"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "bowtie.blueberry-gingham",
+    "slot": "neckwear",
+    "label": "Blueberry Gingham Bow Tie",
+    "shape": "bowtie",
+    "colorway": {
+      "c": "#5AA9E6",
+      "d": "#F7F7FA",
+      "pattern": "gingham",
+      "parts": {
+        "knot": "#2B3A6B"
+      }
+    },
+    "theme": "blueberry-gingham",
+    "tier": "rare",
+    "patternParts": [
+      "wing"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "sweater.blueberry-gingham",
+    "slot": "jacket",
+    "label": "Blueberry Gingham Sweater",
+    "shape": "sweater",
+    "colorway": {
+      "c": "#5AA9E6",
+      "d": "#F7F7FA",
+      "pattern": "gingham",
+      "parts": {
+        "rib": "#2B3A6B"
+      }
+    },
+    "theme": "blueberry-gingham",
+    "tier": "rare",
+    "patternParts": [
+      "body"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "hoodie.blueberry-gingham",
+    "slot": "jacket",
+    "label": "Blueberry Gingham Hoodie",
+    "shape": "hoodie",
+    "colorway": {
+      "c": "#5AA9E6",
+      "d": "#F7F7FA",
+      "pattern": "gingham",
+      "parts": {
+        "rib": "#2B3A6B",
+        "pocket": "#F7F7FA",
+        "lining": "#FFC93C"
+      }
+    },
+    "theme": "blueberry-gingham",
+    "tier": "rare",
+    "patternParts": [
+      "body"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "puffer.blueberry-gingham",
+    "slot": "jacket",
+    "label": "Blueberry Gingham Puffer",
+    "shape": "puffer",
+    "colorway": {
+      "c": "#5AA9E6",
+      "d": "#F7F7FA",
+      "pattern": "gingham",
+      "parts": {
+        "collar": "#F7F7FA"
+      }
+    },
+    "theme": "blueberry-gingham",
+    "tier": "rare",
+    "patternParts": [
+      "body"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "vest.blueberry-gingham",
+    "slot": "jacket",
+    "label": "Blueberry Gingham Vest",
+    "shape": "vest",
+    "colorway": {
+      "c": "#5AA9E6",
+      "d": "#F7F7FA",
+      "pattern": "gingham",
+      "parts": {
+        "collar": "#2B3A6B"
+      }
+    },
+    "theme": "blueberry-gingham",
+    "tier": "rare",
+    "patternParts": [
+      "body"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "raincoat.blueberry-gingham",
+    "slot": "jacket",
+    "label": "Blueberry Gingham Raincoat",
+    "shape": "raincoat",
+    "colorway": {
+      "c": "#5AA9E6",
+      "d": "#F7F7FA",
+      "pattern": "gingham",
+      "parts": {
+        "lining": "#2B3A6B"
+      }
+    },
+    "theme": "blueberry-gingham",
+    "tier": "rare",
+    "patternParts": [
+      "body"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "red.blueberry-gingham",
+    "slot": "boots",
+    "label": "Blueberry Gingham Boots",
+    "shape": "red",
+    "colorway": {
+      "c": "#5AA9E6",
+      "d": "#F7F7FA",
+      "pattern": "gingham",
+      "parts": {
+        "cuff": "#2B3A6B"
+      }
+    },
+    "theme": "blueberry-gingham",
+    "tier": "rare",
+    "patternParts": [
+      "shaft"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "rain.blueberry-gingham",
+    "slot": "boots",
+    "label": "Blueberry Gingham Rain Boots",
+    "shape": "rain",
+    "colorway": {
+      "c": "#5AA9E6",
+      "d": "#F7F7FA",
+      "pattern": "gingham",
+      "parts": {
+        "sole": "#2B3A6B"
+      }
+    },
+    "theme": "blueberry-gingham",
+    "tier": "rare",
+    "patternParts": [
+      "shaft"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "sneaker.blueberry-gingham",
+    "slot": "boots",
+    "label": "Blueberry Gingham Sneakers",
+    "shape": "sneaker",
+    "colorway": {
+      "c": "#5AA9E6",
+      "d": "#F7F7FA",
+      "parts": {
+        "upper": "#5AA9E6",
+        "stripe": "#F7F7FA",
+        "laces": "#FFC93C"
+      }
+    },
+    "theme": "blueberry-gingham",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "hightop.blueberry-gingham",
+    "slot": "boots",
+    "label": "Blueberry Gingham High-Tops",
+    "shape": "hightop",
+    "colorway": {
+      "c": "#5AA9E6",
+      "d": "#F7F7FA",
+      "parts": {
+        "upper": "#5AA9E6",
+        "stripe": "#F7F7FA",
+        "laces": "#FFC93C"
+      }
+    },
+    "theme": "blueberry-gingham",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "beanie.candy-stripe",
+    "slot": "hat",
+    "label": "Candy Stripe Beanie",
+    "shape": "beanie",
+    "colorway": {
+      "c": "#FF8CC4",
+      "d": "#F7F7FA",
+      "pattern": "stripes",
+      "parts": {
+        "cuff": "#C2407A",
+        "pom": "#FFE16B"
+      }
+    },
+    "theme": "candy-stripe",
+    "tier": "rare",
+    "patternParts": [
+      "crown"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "party.candy-stripe",
+    "slot": "hat",
+    "label": "Candy Stripe Party Hat",
+    "shape": "party",
+    "colorway": {
+      "c": "#FF8CC4",
+      "d": "#F7F7FA",
+      "parts": {
+        "trim": "#F7F7FA",
+        "pom": "#FFE16B"
+      }
+    },
+    "theme": "candy-stripe",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "top.candy-stripe",
+    "slot": "hat",
+    "label": "Candy Stripe Top Hat",
+    "shape": "top",
+    "colorway": {
+      "c": "#FF8CC4",
+      "d": "#F7F7FA",
+      "pattern": "stripes",
+      "parts": {
+        "crown": "#FF8CC4",
+        "brim": "#FF8CC4"
+      }
+    },
+    "theme": "candy-stripe",
+    "tier": "rare",
+    "patternParts": [
+      "band"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "cap.candy-stripe",
+    "slot": "hat",
+    "label": "Candy Stripe Ball Cap",
+    "shape": "cap",
+    "colorway": {
+      "c": "#FF8CC4",
+      "d": "#F7F7FA",
+      "pattern": "stripes",
+      "parts": {
+        "brim": "#C2407A"
+      }
+    },
+    "theme": "candy-stripe",
+    "tier": "rare",
+    "patternParts": [
+      "crown"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "bucket.candy-stripe",
+    "slot": "hat",
+    "label": "Candy Stripe Bucket Hat",
+    "shape": "bucket",
+    "colorway": {
+      "c": "#FF8CC4",
+      "d": "#F7F7FA",
+      "pattern": "stripes",
+      "parts": {
+        "band": "#C2407A",
+        "brim": "#FF8CC4"
+      }
+    },
+    "theme": "candy-stripe",
+    "tier": "rare",
+    "patternParts": [
+      "crown"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "beret.candy-stripe",
+    "slot": "hat",
+    "label": "Candy Stripe Beret",
+    "shape": "beret",
+    "colorway": {
+      "c": "#FF8CC4",
+      "d": "#F7F7FA",
+      "pattern": "stripes"
+    },
+    "theme": "candy-stripe",
+    "tier": "rare",
+    "patternParts": [
+      "crown"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "square.candy-stripe",
+    "slot": "glasses",
+    "label": "Candy Stripe Round Specs",
+    "shape": "square",
+    "colorway": {
+      "c": "#C2407A",
+      "d": "#F7F7FA"
+    },
+    "theme": "candy-stripe",
+    "tier": "common",
+    "collection": "evergreen"
+  },
+  {
+    "id": "red-rim.candy-stripe",
+    "slot": "glasses",
+    "label": "Candy Stripe Rims",
+    "shape": "red-rim",
+    "colorway": {
+      "c": "#C2407A",
+      "d": "#F7F7FA"
+    },
+    "theme": "candy-stripe",
+    "tier": "common",
+    "collection": "evergreen"
+  },
+  {
+    "id": "heart.candy-stripe",
+    "slot": "glasses",
+    "label": "Candy Stripe Heart Shades",
+    "shape": "heart",
+    "colorway": {
+      "c": "#FF8CC4",
+      "d": "#F7F7FA"
+    },
+    "theme": "candy-stripe",
+    "tier": "common",
+    "collection": "evergreen"
+  },
+  {
+    "id": "star.candy-stripe",
+    "slot": "glasses",
+    "label": "Candy Stripe Star Shades",
+    "shape": "star",
+    "colorway": {
+      "c": "#FF8CC4",
+      "d": "#F7F7FA"
+    },
+    "theme": "candy-stripe",
+    "tier": "common",
+    "collection": "evergreen"
+  },
+  {
+    "id": "collar.candy-stripe",
+    "slot": "neckwear",
+    "label": "Candy Stripe Collar",
+    "shape": "collar",
+    "colorway": {
+      "c": "#FF8CC4",
+      "d": "#F7F7FA",
+      "parts": {
+        "band": "#FF8CC4",
+        "charm": "#FFE16B"
+      },
+      "accent": "bell"
+    },
+    "theme": "candy-stripe",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "bandana.candy-stripe",
+    "slot": "neckwear",
+    "label": "Candy Stripe Bandana",
+    "shape": "bandana",
+    "colorway": {
+      "c": "#FF8CC4",
+      "d": "#F7F7FA",
+      "pattern": "stripes"
+    },
+    "theme": "candy-stripe",
+    "tier": "rare",
+    "patternParts": [
+      "cloth"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "scarf.candy-stripe",
+    "slot": "neckwear",
+    "label": "Candy Stripe Scarf",
+    "shape": "scarf",
+    "colorway": {
+      "c": "#FF8CC4",
+      "d": "#F7F7FA",
+      "pattern": "stripes"
+    },
+    "theme": "candy-stripe",
+    "tier": "rare",
+    "patternParts": [
+      "band",
+      "tail"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "bow.candy-stripe",
+    "slot": "neckwear",
+    "label": "Candy Stripe Bow",
+    "shape": "bow",
+    "colorway": {
+      "c": "#FF8CC4",
+      "d": "#F7F7FA",
+      "pattern": "stripes"
+    },
+    "theme": "candy-stripe",
+    "tier": "rare",
+    "patternParts": [
+      "loop"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "bowtie.candy-stripe",
+    "slot": "neckwear",
+    "label": "Candy Stripe Bow Tie",
+    "shape": "bowtie",
+    "colorway": {
+      "c": "#FF8CC4",
+      "d": "#F7F7FA",
+      "pattern": "stripes",
+      "parts": {
+        "knot": "#C2407A"
+      }
+    },
+    "theme": "candy-stripe",
+    "tier": "rare",
+    "patternParts": [
+      "wing"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "sweater.candy-stripe",
+    "slot": "jacket",
+    "label": "Candy Stripe Sweater",
+    "shape": "sweater",
+    "colorway": {
+      "c": "#FF8CC4",
+      "d": "#F7F7FA",
+      "pattern": "stripes",
+      "parts": {
+        "rib": "#C2407A"
+      }
+    },
+    "theme": "candy-stripe",
+    "tier": "rare",
+    "patternParts": [
+      "body"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "hoodie.candy-stripe",
+    "slot": "jacket",
+    "label": "Candy Stripe Hoodie",
+    "shape": "hoodie",
+    "colorway": {
+      "c": "#FF8CC4",
+      "d": "#F7F7FA",
+      "pattern": "stripes",
+      "parts": {
+        "rib": "#C2407A",
+        "pocket": "#F7F7FA",
+        "lining": "#FFE16B"
+      }
+    },
+    "theme": "candy-stripe",
+    "tier": "rare",
+    "patternParts": [
+      "body"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "puffer.candy-stripe",
+    "slot": "jacket",
+    "label": "Candy Stripe Puffer",
+    "shape": "puffer",
+    "colorway": {
+      "c": "#FF8CC4",
+      "d": "#F7F7FA",
+      "pattern": "stripes",
+      "parts": {
+        "collar": "#F7F7FA"
+      }
+    },
+    "theme": "candy-stripe",
+    "tier": "rare",
+    "patternParts": [
+      "body"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "vest.candy-stripe",
+    "slot": "jacket",
+    "label": "Candy Stripe Vest",
+    "shape": "vest",
+    "colorway": {
+      "c": "#FF8CC4",
+      "d": "#F7F7FA",
+      "pattern": "stripes",
+      "parts": {
+        "collar": "#C2407A"
+      }
+    },
+    "theme": "candy-stripe",
+    "tier": "rare",
+    "patternParts": [
+      "body"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "raincoat.candy-stripe",
+    "slot": "jacket",
+    "label": "Candy Stripe Raincoat",
+    "shape": "raincoat",
+    "colorway": {
+      "c": "#FF8CC4",
+      "d": "#F7F7FA",
+      "pattern": "stripes",
+      "parts": {
+        "lining": "#C2407A"
+      }
+    },
+    "theme": "candy-stripe",
+    "tier": "rare",
+    "patternParts": [
+      "body"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "red.candy-stripe",
+    "slot": "boots",
+    "label": "Candy Stripe Boots",
+    "shape": "red",
+    "colorway": {
+      "c": "#FF8CC4",
+      "d": "#F7F7FA",
+      "pattern": "stripes",
+      "parts": {
+        "cuff": "#C2407A"
+      }
+    },
+    "theme": "candy-stripe",
+    "tier": "rare",
+    "patternParts": [
+      "shaft"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "rain.candy-stripe",
+    "slot": "boots",
+    "label": "Candy Stripe Rain Boots",
+    "shape": "rain",
+    "colorway": {
+      "c": "#FF8CC4",
+      "d": "#F7F7FA",
+      "pattern": "stripes",
+      "parts": {
+        "sole": "#C2407A"
+      }
+    },
+    "theme": "candy-stripe",
+    "tier": "rare",
+    "patternParts": [
+      "shaft"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "sneaker.candy-stripe",
+    "slot": "boots",
+    "label": "Candy Stripe Sneakers",
+    "shape": "sneaker",
+    "colorway": {
+      "c": "#FF8CC4",
+      "d": "#F7F7FA",
+      "parts": {
+        "upper": "#FF8CC4",
+        "stripe": "#F7F7FA",
+        "laces": "#FFE16B"
+      }
+    },
+    "theme": "candy-stripe",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "hightop.candy-stripe",
+    "slot": "boots",
+    "label": "Candy Stripe High-Tops",
+    "shape": "hightop",
+    "colorway": {
+      "c": "#FF8CC4",
+      "d": "#F7F7FA",
+      "parts": {
+        "upper": "#FF8CC4",
+        "stripe": "#F7F7FA",
+        "laces": "#FFE16B"
+      }
+    },
+    "theme": "candy-stripe",
+    "tier": "uncommon",
+    "collection": "evergreen"
+  },
+  {
+    "id": "beanie.daisy-meadow",
+    "slot": "hat",
+    "label": "Daisy Meadow Beanie",
+    "shape": "beanie",
+    "colorway": {
+      "c": "#A8DB8F",
+      "d": "#F7F7FA",
+      "pattern": "daisies",
+      "parts": {
+        "cuff": "#2F7A5A",
+        "pom": "#FFC93C"
+      }
+    },
+    "theme": "daisy-meadow",
+    "tier": "rare",
+    "patternParts": [
+      "crown"
+    ],
+    "collection": "evergreen",
+    "season": "spring"
+  },
+  {
+    "id": "party.daisy-meadow",
+    "slot": "hat",
+    "label": "Daisy Meadow Party Hat",
+    "shape": "party",
+    "colorway": {
+      "c": "#A8DB8F",
+      "d": "#F7F7FA",
+      "parts": {
+        "trim": "#F7F7FA",
+        "pom": "#FFC93C"
+      }
+    },
+    "theme": "daisy-meadow",
+    "tier": "uncommon",
+    "collection": "evergreen",
+    "season": "spring"
+  },
+  {
+    "id": "top.daisy-meadow",
+    "slot": "hat",
+    "label": "Daisy Meadow Top Hat",
+    "shape": "top",
+    "colorway": {
+      "c": "#A8DB8F",
+      "d": "#F7F7FA",
+      "pattern": "daisies",
+      "parts": {
+        "crown": "#A8DB8F",
+        "brim": "#A8DB8F"
+      }
+    },
+    "theme": "daisy-meadow",
+    "tier": "rare",
+    "patternParts": [
+      "band"
+    ],
+    "collection": "evergreen",
+    "season": "spring"
+  },
+  {
+    "id": "cap.daisy-meadow",
+    "slot": "hat",
+    "label": "Daisy Meadow Ball Cap",
+    "shape": "cap",
+    "colorway": {
+      "c": "#A8DB8F",
+      "d": "#F7F7FA",
+      "pattern": "daisies",
+      "parts": {
+        "brim": "#2F7A5A"
+      }
+    },
+    "theme": "daisy-meadow",
+    "tier": "rare",
+    "patternParts": [
+      "crown"
+    ],
+    "collection": "evergreen",
+    "season": "spring"
+  },
+  {
+    "id": "bucket.daisy-meadow",
+    "slot": "hat",
+    "label": "Daisy Meadow Bucket Hat",
+    "shape": "bucket",
+    "colorway": {
+      "c": "#A8DB8F",
+      "d": "#F7F7FA",
+      "pattern": "daisies",
+      "parts": {
+        "band": "#2F7A5A",
+        "brim": "#A8DB8F"
+      }
+    },
+    "theme": "daisy-meadow",
+    "tier": "rare",
+    "patternParts": [
+      "crown"
+    ],
+    "collection": "evergreen",
+    "season": "spring"
+  },
+  {
+    "id": "beret.daisy-meadow",
+    "slot": "hat",
+    "label": "Daisy Meadow Beret",
+    "shape": "beret",
+    "colorway": {
+      "c": "#A8DB8F",
+      "d": "#F7F7FA",
+      "pattern": "daisies"
+    },
+    "theme": "daisy-meadow",
+    "tier": "rare",
+    "patternParts": [
+      "crown"
+    ],
+    "collection": "evergreen",
+    "season": "spring"
+  },
+  {
+    "id": "square.daisy-meadow",
+    "slot": "glasses",
+    "label": "Daisy Meadow Round Specs",
+    "shape": "square",
+    "colorway": {
+      "c": "#2F7A5A",
+      "d": "#F7F7FA"
+    },
+    "theme": "daisy-meadow",
+    "tier": "common",
+    "collection": "evergreen",
+    "season": "spring"
+  },
+  {
+    "id": "red-rim.daisy-meadow",
+    "slot": "glasses",
+    "label": "Daisy Meadow Rims",
+    "shape": "red-rim",
+    "colorway": {
+      "c": "#2F7A5A",
+      "d": "#F7F7FA"
+    },
+    "theme": "daisy-meadow",
+    "tier": "common",
+    "collection": "evergreen",
+    "season": "spring"
+  },
+  {
+    "id": "heart.daisy-meadow",
+    "slot": "glasses",
+    "label": "Daisy Meadow Heart Shades",
+    "shape": "heart",
+    "colorway": {
+      "c": "#A8DB8F",
+      "d": "#F7F7FA"
+    },
+    "theme": "daisy-meadow",
+    "tier": "common",
+    "collection": "evergreen",
+    "season": "spring"
+  },
+  {
+    "id": "star.daisy-meadow",
+    "slot": "glasses",
+    "label": "Daisy Meadow Star Shades",
+    "shape": "star",
+    "colorway": {
+      "c": "#A8DB8F",
+      "d": "#F7F7FA"
+    },
+    "theme": "daisy-meadow",
+    "tier": "common",
+    "collection": "evergreen",
+    "season": "spring"
+  },
+  {
+    "id": "collar.daisy-meadow",
+    "slot": "neckwear",
+    "label": "Daisy Meadow Collar",
+    "shape": "collar",
+    "colorway": {
+      "c": "#A8DB8F",
+      "d": "#F7F7FA",
+      "parts": {
+        "band": "#A8DB8F",
+        "charm": "#FFC93C"
+      },
+      "accent": "tag"
+    },
+    "theme": "daisy-meadow",
+    "tier": "uncommon",
+    "collection": "evergreen",
+    "season": "spring"
+  },
+  {
+    "id": "bandana.daisy-meadow",
+    "slot": "neckwear",
+    "label": "Daisy Meadow Bandana",
+    "shape": "bandana",
+    "colorway": {
+      "c": "#A8DB8F",
+      "d": "#F7F7FA",
+      "pattern": "daisies"
+    },
+    "theme": "daisy-meadow",
+    "tier": "rare",
+    "patternParts": [
+      "cloth"
+    ],
+    "collection": "evergreen",
+    "season": "spring"
+  },
+  {
+    "id": "scarf.daisy-meadow",
+    "slot": "neckwear",
+    "label": "Daisy Meadow Scarf",
+    "shape": "scarf",
+    "colorway": {
+      "c": "#A8DB8F",
+      "d": "#F7F7FA",
+      "pattern": "daisies"
+    },
+    "theme": "daisy-meadow",
+    "tier": "rare",
+    "patternParts": [
+      "band",
+      "tail"
+    ],
+    "collection": "evergreen",
+    "season": "spring"
+  },
+  {
+    "id": "bow.daisy-meadow",
+    "slot": "neckwear",
+    "label": "Daisy Meadow Bow",
+    "shape": "bow",
+    "colorway": {
+      "c": "#A8DB8F",
+      "d": "#F7F7FA",
+      "pattern": "daisies"
+    },
+    "theme": "daisy-meadow",
+    "tier": "rare",
+    "patternParts": [
+      "loop"
+    ],
+    "collection": "evergreen",
+    "season": "spring"
+  },
+  {
+    "id": "bowtie.daisy-meadow",
+    "slot": "neckwear",
+    "label": "Daisy Meadow Bow Tie",
+    "shape": "bowtie",
+    "colorway": {
+      "c": "#A8DB8F",
+      "d": "#F7F7FA",
+      "pattern": "daisies",
+      "parts": {
+        "knot": "#2F7A5A"
+      }
+    },
+    "theme": "daisy-meadow",
+    "tier": "rare",
+    "patternParts": [
+      "wing"
+    ],
+    "collection": "evergreen",
+    "season": "spring"
+  },
+  {
+    "id": "sweater.daisy-meadow",
+    "slot": "jacket",
+    "label": "Daisy Meadow Sweater",
+    "shape": "sweater",
+    "colorway": {
+      "c": "#A8DB8F",
+      "d": "#F7F7FA",
+      "pattern": "daisies",
+      "parts": {
+        "rib": "#2F7A5A"
+      }
+    },
+    "theme": "daisy-meadow",
+    "tier": "rare",
+    "patternParts": [
+      "body"
+    ],
+    "collection": "evergreen",
+    "season": "spring"
+  },
+  {
+    "id": "hoodie.daisy-meadow",
+    "slot": "jacket",
+    "label": "Daisy Meadow Hoodie",
+    "shape": "hoodie",
+    "colorway": {
+      "c": "#A8DB8F",
+      "d": "#F7F7FA",
+      "pattern": "daisies",
+      "parts": {
+        "rib": "#2F7A5A",
+        "pocket": "#F7F7FA",
+        "lining": "#FFC93C"
+      }
+    },
+    "theme": "daisy-meadow",
+    "tier": "rare",
+    "patternParts": [
+      "body"
+    ],
+    "collection": "evergreen",
+    "season": "spring"
+  },
+  {
+    "id": "puffer.daisy-meadow",
+    "slot": "jacket",
+    "label": "Daisy Meadow Puffer",
+    "shape": "puffer",
+    "colorway": {
+      "c": "#A8DB8F",
+      "d": "#F7F7FA",
+      "pattern": "daisies",
+      "parts": {
+        "collar": "#F7F7FA"
+      }
+    },
+    "theme": "daisy-meadow",
+    "tier": "rare",
+    "patternParts": [
+      "body"
+    ],
+    "collection": "evergreen",
+    "season": "spring"
+  },
+  {
+    "id": "vest.daisy-meadow",
+    "slot": "jacket",
+    "label": "Daisy Meadow Vest",
+    "shape": "vest",
+    "colorway": {
+      "c": "#A8DB8F",
+      "d": "#F7F7FA",
+      "pattern": "daisies",
+      "parts": {
+        "collar": "#2F7A5A"
+      }
+    },
+    "theme": "daisy-meadow",
+    "tier": "rare",
+    "patternParts": [
+      "body"
+    ],
+    "collection": "evergreen",
+    "season": "spring"
+  },
+  {
+    "id": "raincoat.daisy-meadow",
+    "slot": "jacket",
+    "label": "Daisy Meadow Raincoat",
+    "shape": "raincoat",
+    "colorway": {
+      "c": "#A8DB8F",
+      "d": "#F7F7FA",
+      "pattern": "daisies",
+      "parts": {
+        "lining": "#2F7A5A"
+      }
+    },
+    "theme": "daisy-meadow",
+    "tier": "rare",
+    "patternParts": [
+      "body"
+    ],
+    "collection": "evergreen",
+    "season": "spring"
+  },
+  {
+    "id": "red.daisy-meadow",
+    "slot": "boots",
+    "label": "Daisy Meadow Boots",
+    "shape": "red",
+    "colorway": {
+      "c": "#A8DB8F",
+      "d": "#F7F7FA",
+      "pattern": "daisies",
+      "parts": {
+        "cuff": "#2F7A5A"
+      }
+    },
+    "theme": "daisy-meadow",
+    "tier": "rare",
+    "patternParts": [
+      "shaft"
+    ],
+    "collection": "evergreen",
+    "season": "spring"
+  },
+  {
+    "id": "rain.daisy-meadow",
+    "slot": "boots",
+    "label": "Daisy Meadow Rain Boots",
+    "shape": "rain",
+    "colorway": {
+      "c": "#A8DB8F",
+      "d": "#F7F7FA",
+      "pattern": "daisies",
+      "parts": {
+        "sole": "#2F7A5A"
+      }
+    },
+    "theme": "daisy-meadow",
+    "tier": "rare",
+    "patternParts": [
+      "shaft"
+    ],
+    "collection": "evergreen",
+    "season": "spring"
+  },
+  {
+    "id": "sneaker.daisy-meadow",
+    "slot": "boots",
+    "label": "Daisy Meadow Sneakers",
+    "shape": "sneaker",
+    "colorway": {
+      "c": "#A8DB8F",
+      "d": "#F7F7FA",
+      "parts": {
+        "upper": "#A8DB8F",
+        "stripe": "#F7F7FA",
+        "laces": "#FFC93C"
+      }
+    },
+    "theme": "daisy-meadow",
+    "tier": "uncommon",
+    "collection": "evergreen",
+    "season": "spring"
+  },
+  {
+    "id": "hightop.daisy-meadow",
+    "slot": "boots",
+    "label": "Daisy Meadow High-Tops",
+    "shape": "hightop",
+    "colorway": {
+      "c": "#A8DB8F",
+      "d": "#F7F7FA",
+      "parts": {
+        "upper": "#A8DB8F",
+        "stripe": "#F7F7FA",
+        "laces": "#FFC93C"
+      }
+    },
+    "theme": "daisy-meadow",
+    "tier": "uncommon",
+    "collection": "evergreen",
+    "season": "spring"
+  },
+  {
+    "id": "beanie.autumn-plaid",
+    "slot": "hat",
+    "label": "Autumn Plaid Beanie",
+    "shape": "beanie",
+    "colorway": {
+      "c": "#C4643A",
+      "d": "#D9A43A",
+      "pattern": "plaid",
+      "parts": {
+        "cuff": "#6B4532",
+        "pom": "#FFF6E6"
+      }
+    },
+    "theme": "autumn-plaid",
+    "tier": "rare",
+    "patternParts": [
+      "crown"
+    ],
+    "collection": "evergreen",
+    "season": "autumn"
+  },
+  {
+    "id": "party.autumn-plaid",
+    "slot": "hat",
+    "label": "Autumn Plaid Party Hat",
+    "shape": "party",
+    "colorway": {
+      "c": "#2F7A5A",
+      "d": "#D9A43A",
+      "parts": {
+        "trim": "#D9A43A",
+        "pom": "#FFF6E6"
+      }
+    },
+    "theme": "autumn-plaid",
+    "tier": "uncommon",
+    "collection": "evergreen",
+    "season": "autumn"
+  },
+  {
+    "id": "top.autumn-plaid",
+    "slot": "hat",
+    "label": "Autumn Plaid Top Hat",
+    "shape": "top",
+    "colorway": {
+      "c": "#C4643A",
+      "d": "#D9A43A",
+      "pattern": "plaid",
+      "parts": {
+        "crown": "#2F7A5A",
+        "brim": "#2F7A5A"
+      }
+    },
+    "theme": "autumn-plaid",
+    "tier": "rare",
+    "patternParts": [
+      "band"
+    ],
+    "collection": "evergreen",
+    "season": "autumn"
+  },
+  {
+    "id": "cap.autumn-plaid",
+    "slot": "hat",
+    "label": "Autumn Plaid Ball Cap",
+    "shape": "cap",
+    "colorway": {
+      "c": "#C4643A",
+      "d": "#D9A43A",
+      "pattern": "plaid",
+      "parts": {
+        "brim": "#6B4532"
+      }
+    },
+    "theme": "autumn-plaid",
+    "tier": "rare",
+    "patternParts": [
+      "crown"
+    ],
+    "collection": "evergreen",
+    "season": "autumn"
+  },
+  {
+    "id": "bucket.autumn-plaid",
+    "slot": "hat",
+    "label": "Autumn Plaid Bucket Hat",
+    "shape": "bucket",
+    "colorway": {
+      "c": "#C4643A",
+      "d": "#D9A43A",
+      "pattern": "plaid",
+      "parts": {
+        "band": "#6B4532",
+        "brim": "#2F7A5A"
+      }
+    },
+    "theme": "autumn-plaid",
+    "tier": "rare",
+    "patternParts": [
+      "crown"
+    ],
+    "collection": "evergreen",
+    "season": "autumn"
+  },
+  {
+    "id": "beret.autumn-plaid",
+    "slot": "hat",
+    "label": "Autumn Plaid Beret",
+    "shape": "beret",
+    "colorway": {
+      "c": "#C4643A",
+      "d": "#D9A43A",
+      "pattern": "plaid"
+    },
+    "theme": "autumn-plaid",
+    "tier": "rare",
+    "patternParts": [
+      "crown"
+    ],
+    "collection": "evergreen",
+    "season": "autumn"
+  },
+  {
+    "id": "square.autumn-plaid",
+    "slot": "glasses",
+    "label": "Autumn Plaid Round Specs",
+    "shape": "square",
+    "colorway": {
+      "c": "#2F7A5A",
+      "d": "#D9A43A"
+    },
+    "theme": "autumn-plaid",
+    "tier": "common",
+    "collection": "evergreen",
+    "season": "autumn"
+  },
+  {
+    "id": "red-rim.autumn-plaid",
+    "slot": "glasses",
+    "label": "Autumn Plaid Rims",
+    "shape": "red-rim",
+    "colorway": {
+      "c": "#2F7A5A",
+      "d": "#D9A43A"
+    },
+    "theme": "autumn-plaid",
+    "tier": "common",
+    "collection": "evergreen",
+    "season": "autumn"
+  },
+  {
+    "id": "heart.autumn-plaid",
+    "slot": "glasses",
+    "label": "Autumn Plaid Heart Shades",
+    "shape": "heart",
+    "colorway": {
+      "c": "#2F7A5A",
+      "d": "#D9A43A"
+    },
+    "theme": "autumn-plaid",
+    "tier": "common",
+    "collection": "evergreen",
+    "season": "autumn"
+  },
+  {
+    "id": "star.autumn-plaid",
+    "slot": "glasses",
+    "label": "Autumn Plaid Star Shades",
+    "shape": "star",
+    "colorway": {
+      "c": "#2F7A5A",
+      "d": "#D9A43A"
+    },
+    "theme": "autumn-plaid",
+    "tier": "common",
+    "collection": "evergreen",
+    "season": "autumn"
+  },
+  {
+    "id": "collar.autumn-plaid",
+    "slot": "neckwear",
+    "label": "Autumn Plaid Collar",
+    "shape": "collar",
+    "colorway": {
+      "c": "#2F7A5A",
+      "d": "#D9A43A",
+      "parts": {
+        "band": "#2F7A5A",
+        "charm": "#FFF6E6"
+      },
+      "accent": "studs"
+    },
+    "theme": "autumn-plaid",
+    "tier": "uncommon",
+    "collection": "evergreen",
+    "season": "autumn"
+  },
+  {
+    "id": "bandana.autumn-plaid",
+    "slot": "neckwear",
+    "label": "Autumn Plaid Bandana",
+    "shape": "bandana",
+    "colorway": {
+      "c": "#C4643A",
+      "d": "#D9A43A",
+      "pattern": "plaid"
+    },
+    "theme": "autumn-plaid",
+    "tier": "rare",
+    "patternParts": [
+      "cloth"
+    ],
+    "collection": "evergreen",
+    "season": "autumn"
+  },
+  {
+    "id": "scarf.autumn-plaid",
+    "slot": "neckwear",
+    "label": "Autumn Plaid Scarf",
+    "shape": "scarf",
+    "colorway": {
+      "c": "#C4643A",
+      "d": "#D9A43A",
+      "pattern": "plaid"
+    },
+    "theme": "autumn-plaid",
+    "tier": "rare",
+    "patternParts": [
+      "band",
+      "tail"
+    ],
+    "collection": "evergreen",
+    "season": "autumn"
+  },
+  {
+    "id": "bow.autumn-plaid",
+    "slot": "neckwear",
+    "label": "Autumn Plaid Bow",
+    "shape": "bow",
+    "colorway": {
+      "c": "#C4643A",
+      "d": "#D9A43A",
+      "pattern": "plaid"
+    },
+    "theme": "autumn-plaid",
+    "tier": "rare",
+    "patternParts": [
+      "loop"
+    ],
+    "collection": "evergreen",
+    "season": "autumn"
+  },
+  {
+    "id": "bowtie.autumn-plaid",
+    "slot": "neckwear",
+    "label": "Autumn Plaid Bow Tie",
+    "shape": "bowtie",
+    "colorway": {
+      "c": "#C4643A",
+      "d": "#D9A43A",
+      "pattern": "plaid",
+      "parts": {
+        "knot": "#6B4532"
+      }
+    },
+    "theme": "autumn-plaid",
+    "tier": "rare",
+    "patternParts": [
+      "wing"
+    ],
+    "collection": "evergreen",
+    "season": "autumn"
+  },
+  {
+    "id": "sweater.autumn-plaid",
+    "slot": "jacket",
+    "label": "Autumn Plaid Sweater",
+    "shape": "sweater",
+    "colorway": {
+      "c": "#C4643A",
+      "d": "#D9A43A",
+      "pattern": "plaid",
+      "parts": {
+        "rib": "#6B4532"
+      }
+    },
+    "theme": "autumn-plaid",
+    "tier": "rare",
+    "patternParts": [
+      "body"
+    ],
+    "collection": "evergreen",
+    "season": "autumn"
+  },
+  {
+    "id": "hoodie.autumn-plaid",
+    "slot": "jacket",
+    "label": "Autumn Plaid Hoodie",
+    "shape": "hoodie",
+    "colorway": {
+      "c": "#C4643A",
+      "d": "#D9A43A",
+      "pattern": "plaid",
+      "parts": {
+        "rib": "#6B4532",
+        "pocket": "#D9A43A",
+        "lining": "#FFF6E6"
+      }
+    },
+    "theme": "autumn-plaid",
+    "tier": "rare",
+    "patternParts": [
+      "body"
+    ],
+    "collection": "evergreen",
+    "season": "autumn"
+  },
+  {
+    "id": "puffer.autumn-plaid",
+    "slot": "jacket",
+    "label": "Autumn Plaid Puffer",
+    "shape": "puffer",
+    "colorway": {
+      "c": "#C4643A",
+      "d": "#D9A43A",
+      "pattern": "plaid",
+      "parts": {
+        "collar": "#D9A43A"
+      }
+    },
+    "theme": "autumn-plaid",
+    "tier": "rare",
+    "patternParts": [
+      "body"
+    ],
+    "collection": "evergreen",
+    "season": "autumn"
+  },
+  {
+    "id": "vest.autumn-plaid",
+    "slot": "jacket",
+    "label": "Autumn Plaid Vest",
+    "shape": "vest",
+    "colorway": {
+      "c": "#C4643A",
+      "d": "#D9A43A",
+      "pattern": "plaid",
+      "parts": {
+        "collar": "#6B4532"
+      }
+    },
+    "theme": "autumn-plaid",
+    "tier": "rare",
+    "patternParts": [
+      "body"
+    ],
+    "collection": "evergreen",
+    "season": "autumn"
+  },
+  {
+    "id": "raincoat.autumn-plaid",
+    "slot": "jacket",
+    "label": "Autumn Plaid Raincoat",
+    "shape": "raincoat",
+    "colorway": {
+      "c": "#C4643A",
+      "d": "#D9A43A",
+      "pattern": "plaid",
+      "parts": {
+        "lining": "#6B4532"
+      }
+    },
+    "theme": "autumn-plaid",
+    "tier": "rare",
+    "patternParts": [
+      "body"
+    ],
+    "collection": "evergreen",
+    "season": "autumn"
+  },
+  {
+    "id": "red.autumn-plaid",
+    "slot": "boots",
+    "label": "Autumn Plaid Boots",
+    "shape": "red",
+    "colorway": {
+      "c": "#C4643A",
+      "d": "#D9A43A",
+      "pattern": "plaid",
+      "parts": {
+        "cuff": "#6B4532"
+      }
+    },
+    "theme": "autumn-plaid",
+    "tier": "rare",
+    "patternParts": [
+      "shaft"
+    ],
+    "collection": "evergreen",
+    "season": "autumn"
+  },
+  {
+    "id": "rain.autumn-plaid",
+    "slot": "boots",
+    "label": "Autumn Plaid Rain Boots",
+    "shape": "rain",
+    "colorway": {
+      "c": "#C4643A",
+      "d": "#D9A43A",
+      "pattern": "plaid",
+      "parts": {
+        "sole": "#6B4532"
+      }
+    },
+    "theme": "autumn-plaid",
+    "tier": "rare",
+    "patternParts": [
+      "shaft"
+    ],
+    "collection": "evergreen",
+    "season": "autumn"
+  },
+  {
+    "id": "sneaker.autumn-plaid",
+    "slot": "boots",
+    "label": "Autumn Plaid Sneakers",
+    "shape": "sneaker",
+    "colorway": {
+      "c": "#2F7A5A",
+      "d": "#D9A43A",
+      "parts": {
+        "upper": "#2F7A5A",
+        "stripe": "#D9A43A",
+        "laces": "#FFF6E6"
+      }
+    },
+    "theme": "autumn-plaid",
+    "tier": "uncommon",
+    "collection": "evergreen",
+    "season": "autumn"
+  },
+  {
+    "id": "hightop.autumn-plaid",
+    "slot": "boots",
+    "label": "Autumn Plaid High-Tops",
+    "shape": "hightop",
+    "colorway": {
+      "c": "#2F7A5A",
+      "d": "#D9A43A",
+      "parts": {
+        "upper": "#2F7A5A",
+        "stripe": "#D9A43A",
+        "laces": "#FFF6E6"
+      }
+    },
+    "theme": "autumn-plaid",
+    "tier": "uncommon",
+    "collection": "evergreen",
+    "season": "autumn"
+  },
+  {
+    "id": "beanie.midnight-stars",
+    "slot": "hat",
+    "label": "Midnight Stars Beanie",
+    "shape": "beanie",
+    "colorway": {
+      "c": "#2B1F4A",
+      "d": "#FFC93C",
+      "pattern": "stars",
+      "parts": {
+        "cuff": "#B9A2F5",
+        "pom": "#FFC93C"
+      }
+    },
+    "theme": "midnight-stars",
+    "tier": "limited",
+    "patternParts": [
+      "crown"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "party.midnight-stars",
+    "slot": "hat",
+    "label": "Midnight Stars Party Hat",
+    "shape": "party",
+    "colorway": {
+      "c": "#2B1F4A",
+      "d": "#FFC93C",
+      "parts": {
+        "trim": "#FFC93C",
+        "pom": "#FFC93C"
+      }
+    },
+    "theme": "midnight-stars",
+    "tier": "limited",
+    "collection": "evergreen"
+  },
+  {
+    "id": "top.midnight-stars",
+    "slot": "hat",
+    "label": "Midnight Stars Top Hat",
+    "shape": "top",
+    "colorway": {
+      "c": "#2B1F4A",
+      "d": "#FFC93C",
+      "pattern": "stars",
+      "parts": {
+        "crown": "#2B1F4A",
+        "brim": "#2B1F4A"
+      }
+    },
+    "theme": "midnight-stars",
+    "tier": "limited",
+    "patternParts": [
+      "band"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "cap.midnight-stars",
+    "slot": "hat",
+    "label": "Midnight Stars Ball Cap",
+    "shape": "cap",
+    "colorway": {
+      "c": "#2B1F4A",
+      "d": "#FFC93C",
+      "pattern": "stars",
+      "parts": {
+        "brim": "#B9A2F5"
+      }
+    },
+    "theme": "midnight-stars",
+    "tier": "limited",
+    "patternParts": [
+      "crown"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "bucket.midnight-stars",
+    "slot": "hat",
+    "label": "Midnight Stars Bucket Hat",
+    "shape": "bucket",
+    "colorway": {
+      "c": "#2B1F4A",
+      "d": "#FFC93C",
+      "pattern": "stars",
+      "parts": {
+        "band": "#B9A2F5",
+        "brim": "#2B1F4A"
+      }
+    },
+    "theme": "midnight-stars",
+    "tier": "limited",
+    "patternParts": [
+      "crown"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "beret.midnight-stars",
+    "slot": "hat",
+    "label": "Midnight Stars Beret",
+    "shape": "beret",
+    "colorway": {
+      "c": "#2B1F4A",
+      "d": "#FFC93C",
+      "pattern": "stars"
+    },
+    "theme": "midnight-stars",
+    "tier": "limited",
+    "patternParts": [
+      "crown"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "square.midnight-stars",
+    "slot": "glasses",
+    "label": "Midnight Stars Round Specs",
+    "shape": "square",
+    "colorway": {
+      "c": "#B9A2F5",
+      "d": "#FFC93C"
+    },
+    "theme": "midnight-stars",
+    "tier": "limited",
+    "collection": "evergreen"
+  },
+  {
+    "id": "red-rim.midnight-stars",
+    "slot": "glasses",
+    "label": "Midnight Stars Rims",
+    "shape": "red-rim",
+    "colorway": {
+      "c": "#B9A2F5",
+      "d": "#FFC93C"
+    },
+    "theme": "midnight-stars",
+    "tier": "limited",
+    "collection": "evergreen"
+  },
+  {
+    "id": "heart.midnight-stars",
+    "slot": "glasses",
+    "label": "Midnight Stars Heart Shades",
+    "shape": "heart",
+    "colorway": {
+      "c": "#2B1F4A",
+      "d": "#FFC93C"
+    },
+    "theme": "midnight-stars",
+    "tier": "limited",
+    "collection": "evergreen"
+  },
+  {
+    "id": "star.midnight-stars",
+    "slot": "glasses",
+    "label": "Midnight Stars Star Shades",
+    "shape": "star",
+    "colorway": {
+      "c": "#2B1F4A",
+      "d": "#FFC93C"
+    },
+    "theme": "midnight-stars",
+    "tier": "limited",
+    "collection": "evergreen"
+  },
+  {
+    "id": "collar.midnight-stars",
+    "slot": "neckwear",
+    "label": "Midnight Stars Collar",
+    "shape": "collar",
+    "colorway": {
+      "c": "#2B1F4A",
+      "d": "#FFC93C",
+      "parts": {
+        "band": "#2B1F4A",
+        "charm": "#FFC93C"
+      },
+      "accent": "studs"
+    },
+    "theme": "midnight-stars",
+    "tier": "limited",
+    "collection": "evergreen"
+  },
+  {
+    "id": "bandana.midnight-stars",
+    "slot": "neckwear",
+    "label": "Midnight Stars Bandana",
+    "shape": "bandana",
+    "colorway": {
+      "c": "#2B1F4A",
+      "d": "#FFC93C",
+      "pattern": "stars"
+    },
+    "theme": "midnight-stars",
+    "tier": "limited",
+    "patternParts": [
+      "cloth"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "scarf.midnight-stars",
+    "slot": "neckwear",
+    "label": "Midnight Stars Scarf",
+    "shape": "scarf",
+    "colorway": {
+      "c": "#2B1F4A",
+      "d": "#FFC93C",
+      "pattern": "stars"
+    },
+    "theme": "midnight-stars",
+    "tier": "limited",
+    "patternParts": [
+      "band",
+      "tail"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "bow.midnight-stars",
+    "slot": "neckwear",
+    "label": "Midnight Stars Bow",
+    "shape": "bow",
+    "colorway": {
+      "c": "#2B1F4A",
+      "d": "#FFC93C",
+      "pattern": "stars"
+    },
+    "theme": "midnight-stars",
+    "tier": "limited",
+    "patternParts": [
+      "loop"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "bowtie.midnight-stars",
+    "slot": "neckwear",
+    "label": "Midnight Stars Bow Tie",
+    "shape": "bowtie",
+    "colorway": {
+      "c": "#2B1F4A",
+      "d": "#FFC93C",
+      "pattern": "stars",
+      "parts": {
+        "knot": "#B9A2F5"
+      }
+    },
+    "theme": "midnight-stars",
+    "tier": "limited",
+    "patternParts": [
+      "wing"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "sweater.midnight-stars",
+    "slot": "jacket",
+    "label": "Midnight Stars Sweater",
+    "shape": "sweater",
+    "colorway": {
+      "c": "#2B1F4A",
+      "d": "#FFC93C",
+      "pattern": "stars",
+      "parts": {
+        "rib": "#B9A2F5"
+      }
+    },
+    "theme": "midnight-stars",
+    "tier": "limited",
+    "patternParts": [
+      "body"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "hoodie.midnight-stars",
+    "slot": "jacket",
+    "label": "Midnight Stars Hoodie",
+    "shape": "hoodie",
+    "colorway": {
+      "c": "#2B1F4A",
+      "d": "#FFC93C",
+      "pattern": "stars",
+      "parts": {
+        "rib": "#B9A2F5",
+        "pocket": "#FFC93C",
+        "lining": "#FFC93C"
+      }
+    },
+    "theme": "midnight-stars",
+    "tier": "limited",
+    "patternParts": [
+      "body"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "puffer.midnight-stars",
+    "slot": "jacket",
+    "label": "Midnight Stars Puffer",
+    "shape": "puffer",
+    "colorway": {
+      "c": "#2B1F4A",
+      "d": "#FFC93C",
+      "pattern": "stars",
+      "parts": {
+        "collar": "#FFC93C"
+      }
+    },
+    "theme": "midnight-stars",
+    "tier": "limited",
+    "patternParts": [
+      "body"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "vest.midnight-stars",
+    "slot": "jacket",
+    "label": "Midnight Stars Vest",
+    "shape": "vest",
+    "colorway": {
+      "c": "#2B1F4A",
+      "d": "#FFC93C",
+      "pattern": "stars",
+      "parts": {
+        "collar": "#B9A2F5"
+      }
+    },
+    "theme": "midnight-stars",
+    "tier": "limited",
+    "patternParts": [
+      "body"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "raincoat.midnight-stars",
+    "slot": "jacket",
+    "label": "Midnight Stars Raincoat",
+    "shape": "raincoat",
+    "colorway": {
+      "c": "#2B1F4A",
+      "d": "#FFC93C",
+      "pattern": "stars",
+      "parts": {
+        "lining": "#B9A2F5"
+      }
+    },
+    "theme": "midnight-stars",
+    "tier": "limited",
+    "patternParts": [
+      "body"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "red.midnight-stars",
+    "slot": "boots",
+    "label": "Midnight Stars Boots",
+    "shape": "red",
+    "colorway": {
+      "c": "#2B1F4A",
+      "d": "#FFC93C",
+      "pattern": "stars",
+      "parts": {
+        "cuff": "#B9A2F5"
+      }
+    },
+    "theme": "midnight-stars",
+    "tier": "limited",
+    "patternParts": [
+      "shaft"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "rain.midnight-stars",
+    "slot": "boots",
+    "label": "Midnight Stars Rain Boots",
+    "shape": "rain",
+    "colorway": {
+      "c": "#2B1F4A",
+      "d": "#FFC93C",
+      "pattern": "stars",
+      "parts": {
+        "sole": "#B9A2F5"
+      }
+    },
+    "theme": "midnight-stars",
+    "tier": "limited",
+    "patternParts": [
+      "shaft"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "sneaker.midnight-stars",
+    "slot": "boots",
+    "label": "Midnight Stars Sneakers",
+    "shape": "sneaker",
+    "colorway": {
+      "c": "#2B1F4A",
+      "d": "#FFC93C",
+      "parts": {
+        "upper": "#2B1F4A",
+        "stripe": "#FFC93C",
+        "laces": "#FFC93C"
+      }
+    },
+    "theme": "midnight-stars",
+    "tier": "limited",
+    "collection": "evergreen"
+  },
+  {
+    "id": "hightop.midnight-stars",
+    "slot": "boots",
+    "label": "Midnight Stars High-Tops",
+    "shape": "hightop",
+    "colorway": {
+      "c": "#2B1F4A",
+      "d": "#FFC93C",
+      "parts": {
+        "upper": "#2B1F4A",
+        "stripe": "#FFC93C",
+        "laces": "#FFC93C"
+      }
+    },
+    "theme": "midnight-stars",
+    "tier": "limited",
+    "collection": "evergreen"
+  },
+  {
+    "id": "beanie.rainbow-sherbet",
+    "slot": "hat",
+    "label": "Rainbow Sherbet Beanie",
+    "shape": "beanie",
+    "colorway": {
+      "c": "#FFB3D6",
+      "d": "#F7F7FA",
+      "pattern": "rainbow",
+      "parts": {
+        "cuff": "#9AA8F5",
+        "pom": "#FFE16B"
+      }
+    },
+    "theme": "rainbow-sherbet",
+    "tier": "exclusive",
+    "patternParts": [
+      "crown"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "party.rainbow-sherbet",
+    "slot": "hat",
+    "label": "Rainbow Sherbet Party Hat",
+    "shape": "party",
+    "colorway": {
+      "c": "#FFB3D6",
+      "d": "#F7F7FA",
+      "parts": {
+        "trim": "#F7F7FA",
+        "pom": "#FFE16B"
+      }
+    },
+    "theme": "rainbow-sherbet",
+    "tier": "exclusive",
+    "collection": "evergreen"
+  },
+  {
+    "id": "top.rainbow-sherbet",
+    "slot": "hat",
+    "label": "Rainbow Sherbet Top Hat",
+    "shape": "top",
+    "colorway": {
+      "c": "#FFB3D6",
+      "d": "#F7F7FA",
+      "pattern": "rainbow",
+      "parts": {
+        "crown": "#FFB3D6",
+        "brim": "#FFB3D6"
+      }
+    },
+    "theme": "rainbow-sherbet",
+    "tier": "exclusive",
+    "patternParts": [
+      "band"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "cap.rainbow-sherbet",
+    "slot": "hat",
+    "label": "Rainbow Sherbet Ball Cap",
+    "shape": "cap",
+    "colorway": {
+      "c": "#FFB3D6",
+      "d": "#F7F7FA",
+      "pattern": "rainbow",
+      "parts": {
+        "brim": "#9AA8F5"
+      }
+    },
+    "theme": "rainbow-sherbet",
+    "tier": "exclusive",
+    "patternParts": [
+      "crown"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "bucket.rainbow-sherbet",
+    "slot": "hat",
+    "label": "Rainbow Sherbet Bucket Hat",
+    "shape": "bucket",
+    "colorway": {
+      "c": "#FFB3D6",
+      "d": "#F7F7FA",
+      "pattern": "rainbow",
+      "parts": {
+        "band": "#9AA8F5",
+        "brim": "#FFB3D6"
+      }
+    },
+    "theme": "rainbow-sherbet",
+    "tier": "exclusive",
+    "patternParts": [
+      "crown"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "beret.rainbow-sherbet",
+    "slot": "hat",
+    "label": "Rainbow Sherbet Beret",
+    "shape": "beret",
+    "colorway": {
+      "c": "#FFB3D6",
+      "d": "#F7F7FA",
+      "pattern": "rainbow"
+    },
+    "theme": "rainbow-sherbet",
+    "tier": "exclusive",
+    "patternParts": [
+      "crown"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "square.rainbow-sherbet",
+    "slot": "glasses",
+    "label": "Rainbow Sherbet Round Specs",
+    "shape": "square",
+    "colorway": {
+      "c": "#9AA8F5",
+      "d": "#F7F7FA"
+    },
+    "theme": "rainbow-sherbet",
+    "tier": "exclusive",
+    "collection": "evergreen"
+  },
+  {
+    "id": "red-rim.rainbow-sherbet",
+    "slot": "glasses",
+    "label": "Rainbow Sherbet Rims",
+    "shape": "red-rim",
+    "colorway": {
+      "c": "#9AA8F5",
+      "d": "#F7F7FA"
+    },
+    "theme": "rainbow-sherbet",
+    "tier": "exclusive",
+    "collection": "evergreen"
+  },
+  {
+    "id": "heart.rainbow-sherbet",
+    "slot": "glasses",
+    "label": "Rainbow Sherbet Heart Shades",
+    "shape": "heart",
+    "colorway": {
+      "c": "#9AA8F5",
+      "d": "#F7F7FA"
+    },
+    "theme": "rainbow-sherbet",
+    "tier": "exclusive",
+    "collection": "evergreen"
+  },
+  {
+    "id": "star.rainbow-sherbet",
+    "slot": "glasses",
+    "label": "Rainbow Sherbet Star Shades",
+    "shape": "star",
+    "colorway": {
+      "c": "#9AA8F5",
+      "d": "#F7F7FA"
+    },
+    "theme": "rainbow-sherbet",
+    "tier": "exclusive",
+    "collection": "evergreen"
+  },
+  {
+    "id": "collar.rainbow-sherbet",
+    "slot": "neckwear",
+    "label": "Rainbow Sherbet Collar",
+    "shape": "collar",
+    "colorway": {
+      "c": "#FFB3D6",
+      "d": "#F7F7FA",
+      "parts": {
+        "band": "#FFB3D6",
+        "charm": "#FFE16B"
+      },
+      "accent": "tag"
+    },
+    "theme": "rainbow-sherbet",
+    "tier": "exclusive",
+    "collection": "evergreen"
+  },
+  {
+    "id": "bandana.rainbow-sherbet",
+    "slot": "neckwear",
+    "label": "Rainbow Sherbet Bandana",
+    "shape": "bandana",
+    "colorway": {
+      "c": "#FFB3D6",
+      "d": "#F7F7FA",
+      "pattern": "rainbow"
+    },
+    "theme": "rainbow-sherbet",
+    "tier": "exclusive",
+    "patternParts": [
+      "cloth"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "scarf.rainbow-sherbet",
+    "slot": "neckwear",
+    "label": "Rainbow Sherbet Scarf",
+    "shape": "scarf",
+    "colorway": {
+      "c": "#FFB3D6",
+      "d": "#F7F7FA",
+      "pattern": "rainbow"
+    },
+    "theme": "rainbow-sherbet",
+    "tier": "exclusive",
+    "patternParts": [
+      "band",
+      "tail"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "bow.rainbow-sherbet",
+    "slot": "neckwear",
+    "label": "Rainbow Sherbet Bow",
+    "shape": "bow",
+    "colorway": {
+      "c": "#FFB3D6",
+      "d": "#F7F7FA",
+      "pattern": "rainbow"
+    },
+    "theme": "rainbow-sherbet",
+    "tier": "exclusive",
+    "patternParts": [
+      "loop"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "bowtie.rainbow-sherbet",
+    "slot": "neckwear",
+    "label": "Rainbow Sherbet Bow Tie",
+    "shape": "bowtie",
+    "colorway": {
+      "c": "#FFB3D6",
+      "d": "#F7F7FA",
+      "pattern": "rainbow",
+      "parts": {
+        "knot": "#9AA8F5"
+      }
+    },
+    "theme": "rainbow-sherbet",
+    "tier": "exclusive",
+    "patternParts": [
+      "wing"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "sweater.rainbow-sherbet",
+    "slot": "jacket",
+    "label": "Rainbow Sherbet Sweater",
+    "shape": "sweater",
+    "colorway": {
+      "c": "#FFB3D6",
+      "d": "#F7F7FA",
+      "pattern": "rainbow",
+      "parts": {
+        "rib": "#9AA8F5"
+      }
+    },
+    "theme": "rainbow-sherbet",
+    "tier": "exclusive",
+    "patternParts": [
+      "body"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "hoodie.rainbow-sherbet",
+    "slot": "jacket",
+    "label": "Rainbow Sherbet Hoodie",
+    "shape": "hoodie",
+    "colorway": {
+      "c": "#FFB3D6",
+      "d": "#F7F7FA",
+      "pattern": "rainbow",
+      "parts": {
+        "rib": "#9AA8F5",
+        "pocket": "#F7F7FA",
+        "lining": "#FFE16B"
+      }
+    },
+    "theme": "rainbow-sherbet",
+    "tier": "exclusive",
+    "patternParts": [
+      "body"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "puffer.rainbow-sherbet",
+    "slot": "jacket",
+    "label": "Rainbow Sherbet Puffer",
+    "shape": "puffer",
+    "colorway": {
+      "c": "#FFB3D6",
+      "d": "#F7F7FA",
+      "pattern": "rainbow",
+      "parts": {
+        "collar": "#F7F7FA"
+      }
+    },
+    "theme": "rainbow-sherbet",
+    "tier": "exclusive",
+    "patternParts": [
+      "body"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "vest.rainbow-sherbet",
+    "slot": "jacket",
+    "label": "Rainbow Sherbet Vest",
+    "shape": "vest",
+    "colorway": {
+      "c": "#FFB3D6",
+      "d": "#F7F7FA",
+      "pattern": "rainbow",
+      "parts": {
+        "collar": "#9AA8F5"
+      }
+    },
+    "theme": "rainbow-sherbet",
+    "tier": "exclusive",
+    "patternParts": [
+      "body"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "raincoat.rainbow-sherbet",
+    "slot": "jacket",
+    "label": "Rainbow Sherbet Raincoat",
+    "shape": "raincoat",
+    "colorway": {
+      "c": "#FFB3D6",
+      "d": "#F7F7FA",
+      "pattern": "rainbow",
+      "parts": {
+        "lining": "#9AA8F5"
+      }
+    },
+    "theme": "rainbow-sherbet",
+    "tier": "exclusive",
+    "patternParts": [
+      "body"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "red.rainbow-sherbet",
+    "slot": "boots",
+    "label": "Rainbow Sherbet Boots",
+    "shape": "red",
+    "colorway": {
+      "c": "#FFB3D6",
+      "d": "#F7F7FA",
+      "pattern": "rainbow",
+      "parts": {
+        "cuff": "#9AA8F5"
+      }
+    },
+    "theme": "rainbow-sherbet",
+    "tier": "exclusive",
+    "patternParts": [
+      "shaft"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "rain.rainbow-sherbet",
+    "slot": "boots",
+    "label": "Rainbow Sherbet Rain Boots",
+    "shape": "rain",
+    "colorway": {
+      "c": "#FFB3D6",
+      "d": "#F7F7FA",
+      "pattern": "rainbow",
+      "parts": {
+        "sole": "#9AA8F5"
+      }
+    },
+    "theme": "rainbow-sherbet",
+    "tier": "exclusive",
+    "patternParts": [
+      "shaft"
+    ],
+    "collection": "evergreen"
+  },
+  {
+    "id": "sneaker.rainbow-sherbet",
+    "slot": "boots",
+    "label": "Rainbow Sherbet Sneakers",
+    "shape": "sneaker",
+    "colorway": {
+      "c": "#FFB3D6",
+      "d": "#F7F7FA",
+      "parts": {
+        "upper": "#FFB3D6",
+        "stripe": "#F7F7FA",
+        "laces": "#FFE16B"
+      }
+    },
+    "theme": "rainbow-sherbet",
+    "tier": "exclusive",
+    "collection": "evergreen"
+  },
+  {
+    "id": "hightop.rainbow-sherbet",
+    "slot": "boots",
+    "label": "Rainbow Sherbet High-Tops",
+    "shape": "hightop",
+    "colorway": {
+      "c": "#FFB3D6",
+      "d": "#F7F7FA",
+      "parts": {
+        "upper": "#FFB3D6",
+        "stripe": "#F7F7FA",
+        "laces": "#FFE16B"
+      }
+    },
+    "theme": "rainbow-sherbet",
+    "tier": "exclusive",
+    "collection": "evergreen"
+  }
+]

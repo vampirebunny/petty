@@ -37,6 +37,34 @@ Outfit. The shop id is `${slot}:${wearId}`.
 
 `colorway.accent` is `tag` (default), `bell`, or `studs`, and only on the `collar` shape. It changes the drawing. It does not add a sound. `lensTint` is an optional hex on glasses and replaces the shape's lens color. Alpha and glare stay on the shape.
 
+## Schema `v: 2`
+
+Same outfit fields as v1, plus per-part fills. `DEF_SCHEMA_MAX` is 2. `theme`, `collection`, `season`, and `rarity` are columns on `shop_items`, not keys inside `def`. `rarity` is `common`, `uncommon`, `rare`, `limited`, or `exclusive`. `shop_items.tier` stays `standard`, `exclusive`, or `limited`.
+
+```json
+{
+  "id": "hat:beanie.strawberry-milk",
+  "name": "Strawberry Milk Beanie",
+  "def": {
+    "v": 2,
+    "kind": "outfit",
+    "slot": "hat",
+    "shape": "beanie",
+    "label": "Strawberry Milk Beanie",
+    "colorway": {
+      "c": "#FF8CC4",
+      "d": "#FFF6E6",
+      "parts": { "cuff": "#C2407A", "pom": "#7FE3BA" }
+    },
+    "patternParts": ["crown"]
+  }
+}
+```
+
+`colorway.parts` maps a name in `PART_NAMES[shape]` to a hex or `{ "pattern", "c"?, "d"? }`. A name that is not in `PART_NAMES`, or a fill that is not a hex, is dropped. The rest of the item is kept. `colorway.baffles` is a list of hexes and is read only for `puffer`. `patternParts` lists which parts receive `colorway.pattern`. Each entry must be in `PART_NAMES[shape]`. When `patternParts` is omitted, the default is `PATTERN_PARTS[shape]`, and a pattern on a shape whose default list is empty is rejected.
+
+The launch colorways are already rows on the hosted shop. Generator ids look like `beanie.strawberry-milk`. Shop ids look like `hat:beanie.strawberry-milk`. Common, uncommon, and rare are `shop always` and `tier standard`. Exclusive is `shop rotation` and `tier exclusive`, so it joins Today's picks. Limited is `shop featured`, `tier limited`, cap 500. `rarity` stores the generator tier. NPCs only roll bundled wardrobe ids, so these rows never land on an NPC.
+
 Treat. The shop id is a plain id.
 
 ```json
@@ -68,9 +96,9 @@ Shapes (`KNOWN_SHAPES` in `src/actor/wardrobe.ts`):
 - glasses: `classic`, `square`, `red-rim`, `heart`, `star`
 - neckwear: `collar`, `bandana`, `scarf`, `bow`, `bowtie`
 - jacket: `puffer`, `sweater`, `hoodie`, `raincoat`, `vest`
-- boots: `red`, `rain`, `sneaker`
+- boots: `red`, `rain`, `sneaker`, `hightop`
 
-Patterns: `stripes`, `gingham`, `plaid`, `daisies`, `stars`, `rainbow`. Parts are listed in `PATTERN_PARTS`. A shape with no parts cannot take a pattern.
+Patterns: `stripes`, `gingham`, `plaid`, `daisies`, `stars`, `rainbow`, `hearts`, `checker`, `paws`, `chevron`. An unknown pattern drops the row, so an older build hides the item instead of drawing it wrong. `patternParts` may name any part in `PART_NAMES`. `PATTERN_PARTS` is only the default when `patternParts` is omitted. A pattern with no `patternParts` on a shape whose default list is empty is dropped.
 
 Reactions: `wag_burst`, `hop`, `spin`, `purr_headbump` (`KNOWN_REACTIONS` in `src/economy/treatArt.ts`).
 

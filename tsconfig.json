@@ -4,5 +4,5 @@
     "strict": true,
     "types": ["jest"]
   },
-  "exclude": ["supabase/functions"]
+  "exclude": ["supabase/functions", "tools"]
 }

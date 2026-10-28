@@ -1,6 +1,6 @@
 import type { WearItem } from '../../actor/wardrobe';
 
-export type PatternId = 'stripes' | 'gingham' | 'plaid' | 'daisies' | 'stars' | 'rainbow';
+export type PatternId = 'stripes' | 'gingham' | 'plaid' | 'daisies' | 'stars' | 'rainbow' | 'hearts' | 'checker' | 'paws' | 'chevron';
 
 export type PatternPaint = {
   id: PatternId;
@@ -10,7 +10,7 @@ export type PatternPaint = {
   angle: number;
 };
 
-const known: readonly PatternId[] = ['stripes', 'gingham', 'plaid', 'daisies', 'stars', 'rainbow'];
+const known: readonly PatternId[] = ['stripes', 'gingham', 'plaid', 'daisies', 'stars', 'rainbow', 'hearts', 'checker', 'paws', 'chevron'];
 
 const warned = new Set<string>();
 

@@ -409,7 +409,7 @@ export function drawSleeve(c: SkCanvas, hip: Pt, knee: Pt, geom: Geom, item: Wea
   const axis = { x: (end.x - hip.x) / len, y: (end.y - hip.y) / len };
   const cuffStart = { x: end.x - axis.x * r * 0.9, y: end.y - axis.y * r * 0.9 };
   const ribbed = item.shape === 'sweater' || item.shape === 'hoodie';
-  const cuff = ribbed ? resolvePart(item, 'rib', uFill).color : shadowTone(item.colorway.c);
+  const cuff = ribbed ? resolvePart(item, 'rib', uFill).color : shadowTone(body.color);
   paintShape(c, polygon(capsulePts(cuffStart, end, r + 0.6)), tone(cuff), fur);
   if (ribbed) {
     const across = { x: -axis.y, y: axis.x };
@@ -516,7 +516,7 @@ export function drawBoot(c: SkCanvas, knee: Pt, paw: Pt, geom: Geom, boot: WearI
 
   if (!far && !sneaker) {
     const shine = at(toeLx + toeRx * 0.2, toeLy - toeRy * 0.35);
-    c.drawPath(ovalArc(shine.x, shine.y, toeRx * 0.35, toeRy * 0.22, 210, 80), roundStroke(highlightTone(boot.colorway.c), 0.85, Math.max(0.7, toeRy * 0.18)));
+    c.drawPath(ovalArc(shine.x, shine.y, toeRx * 0.35, toeRy * 0.22, 210, 80), roundStroke(highlightTone(shaftPart.color), 0.85, Math.max(0.7, toeRy * 0.18)));
   }
 
   if (rain) {
@@ -1264,10 +1264,12 @@ function drawScarf(
   const flat = neckFlat(along);
   const knotAt = flat > 0.45 ? offset(chin, perp, r * sizes.collarFlatDrop) : chin;
   const { a, b, mid } = bandEnds(chin, perp, along, r, r * 0.55, flat > 0.45 ? 0 : view, pitch);
-  const color = item.colorway.c;
+  const band = resolvePart(item, 'band', r * 0.1);
+  const tailPart = resolvePart(item, 'tail', r * 0.1);
+  const color = band.color;
   const stripe = stripeTint(color);
   const shadow = shadowTone(color);
-  const bandPattern = patternPaint(item, 'band', r * 0.1);
+  const bandPattern = band.pattern;
   if (bandPattern) {
     paintShape(c, polygon(capsulePts(a, b, r * 0.16)), color, fur, undefined, 1, bandPattern);
   } else {
@@ -1305,17 +1307,20 @@ function drawScarf(
     const length = r * sizes.scarfTailLen;
     const width = r * sizes.scarfTailHalf;
     const end = { x: start.x + dir.x * length, y: start.y + dir.y * length };
-    paintShape(c, polygon(capsulePts(start, end, width)), color, fur, () => {
-      if (item.colorway.pattern) {
+    const tailColor = tailPart.color;
+    const tailStripe = stripeTint(tailColor);
+    const tailShadow = shadowTone(tailColor);
+    paintShape(c, polygon(capsulePts(start, end, width)), tailColor, fur, () => {
+      if (tailPart.pattern) {
         return;
       }
-      const band = { x: start.x + dir.x * length * 0.45, y: start.y + dir.y * length * 0.45 };
-      strokeLine(c, band.x - side.x * width, band.y - side.y * width, band.x + side.x * width, band.y + side.y * width, stripe, 1.6);
+      const stripeAt = { x: start.x + dir.x * length * 0.45, y: start.y + dir.y * length * 0.45 };
+      strokeLine(c, stripeAt.x - side.x * width, stripeAt.y - side.y * width, stripeAt.x + side.x * width, stripeAt.y + side.y * width, tailStripe, 1.6);
       for (let i = -1; i <= 1; i += 1) {
         const tip = { x: end.x + side.x * i * width * 0.7, y: end.y + side.y * i * width * 0.7 };
-        strokeLine(c, tip.x, tip.y, tip.x + dir.x * r * 0.08, tip.y + dir.y * r * 0.08, shadow, 1.1);
+        strokeLine(c, tip.x, tip.y, tip.x + dir.x * r * 0.08, tip.y + dir.y * r * 0.08, tailShadow, 1.1);
       }
-    }, 1, patternPaint(item, 'tail', r * 0.1));
+    }, 1, tailPart.pattern);
   };
   tail(-r * 0.08);
   tail(r * 0.1);
@@ -1459,8 +1464,10 @@ function drawBandana(
 ): void {
   const flat = neckFlat(along);
   const hangK = lying ? Math.max(1 - sizes.neckFlatHang * flat, sizes.neckLieHang) : 1 - sizes.neckFlatHang * flat;
-  const deep = mix(item.colorway.c, '#000000', 0.2);
-  const bandColor = mix(item.colorway.c, '#000000', 0.12);
+  const clothPart = resolvePart(item, 'cloth', r * 0.1);
+  const band = resolvePart(item, 'band', r * 0.1);
+  const deep = mix(clothPart.color, '#000000', 0.2);
+  const bandColor = band.color;
 
   // Band ends. Lying down: a short strap under the jaw. The muzzle end stays short so the
   // cloth hangs onto the chest instead of pointing out through the whiskers.
@@ -1488,14 +1495,14 @@ function drawBandana(
         x: a.x - along.x * back * r + perp.x * down * r,
         y: a.y - along.y * back * r + perp.y * down * r,
       };
-      paintShape(c, polygon(capsulePts(a, end, r * 0.07)), item.colorway.c, fur, undefined, knotK);
+      paintShape(c, polygon(capsulePts(a, end, r * 0.07)), clothPart.color, fur, undefined, knotK);
     };
     if (lying) {
       tail(sizes.bandanaKnot, sizes.bandanaKnot * 0.35);
       tail(sizes.bandanaKnot * 0.45, sizes.bandanaKnot * 0.9);
     } else {
       const stand = (dx: number, dy: number) =>
-        paintShape(c, polygon(capsulePts(a, { x: a.x + dx * r, y: a.y + dy * r }, r * 0.07)), item.colorway.c, fur, undefined, knotK);
+        paintShape(c, polygon(capsulePts(a, { x: a.x + dx * r, y: a.y + dy * r }, r * 0.07)), clothPart.color, fur, undefined, knotK);
       stand(-sizes.bandanaKnot, sizes.bandanaKnot * 0.6);
       stand(-sizes.bandanaKnot * 0.4, sizes.bandanaKnot * 1.1);
     }
@@ -1527,7 +1534,7 @@ function drawBandana(
   cloth.quadTo((top2.x + tip.x) / 2 + bow, (top2.y + tip.y) / 2, tip.x, tip.y);
   cloth.quadTo((top1.x + tip.x) / 2 - bow, (top1.y + tip.y) / 2, top1.x, top1.y);
   cloth.close();
-  paintShape(c, cloth.build(), item.colorway.c, fur, () => {
+  paintShape(c, cloth.build(), clothPart.color, fur, () => {
     // A darker hem along the two lower edges, and a soft fold shadow just under the band.
     const hem = Skia.PathBuilder.Make();
     hem.moveTo(top1.x, top1.y);
@@ -1538,8 +1545,8 @@ function drawBandana(
     const fold = Skia.PathBuilder.Make();
     fold.moveTo(topMid.x - r * 0.2, topMid.y + r * 0.25);
     fold.quadTo(topMid.x, topMid.y + r * 0.12, tip.x - r * 0.05, tip.y - r * 0.2);
-    c.drawPath(fold.detach(), paintOf(light(item.colorway.c, 0.4), 0.7, r * 0.06));
-  }, 1, patternPaint(item, 'cloth', r * 0.1));
+    c.drawPath(fold.detach(), paintOf(light(clothPart.color, 0.4), 0.7, r * 0.06));
+  }, 1, clothPart.pattern);
 
   // The band goes on top, so the cloth tucks under it.
   outlinedQuad(c, a, mid, b, bandColor, r * sizes.bandanaBandWidth, fur);
@@ -1809,7 +1816,7 @@ function drawBeanie(c: SkCanvas, item: WearItem, r: number, fur: string, u: numb
     hatStroke(c, 'M-12 -22 Q-4 -28 6 -26', r, light(crown.color, 0.4), 2.2, 0.75 * alpha);
   }, 1, crown.pattern);
   paintShape(c, hatPath('M-21 -9 Q0 -12 21 -9 L21 0 Q0 3 -21 0 Z', r), cuff.color, fur, () => {
-    hatStroke(c, 'M-21 -4.5 Q0 -6 21 -4.5', r, shade(item.colorway.c, 0.3), 9, textureAlpha(cuff.pattern), [1.3, 2.4], StrokeCap.Butt);
+    hatStroke(c, 'M-21 -4.5 Q0 -6 21 -4.5', r, shade(cuff.color, 0.3), 9, textureAlpha(cuff.pattern), [1.3, 2.4], StrokeCap.Butt);
   }, 1, cuff.pattern);
   paintShape(c, circlePath((-2 * r) / 30, (-33 * r) / 30, (7.5 * r) / 30), pom.color, fur, () => {
     hatStroke(c, 'M-6 -35 Q-2 -39 2 -36 M-3 -30 Q1 -32 4 -29', r, shade(pom.color, 0.15), 1.1, 0.8);
@@ -1887,7 +1894,7 @@ function drawBucket(c: SkCanvas, item: WearItem, r: number, fur: string, u: numb
   }, 1, crown.pattern);
   paintShape(c, hatPath('M-13 -7 Q0 -9 13 -7 L13 -2 Q0 0 -13 -2 Z', r), band.color, fur);
   paintShape(c, hatPath('M-25 3 C-21 -4 21 -4 25 3 C27 7 21 9 14 6.5 C6 4.5 -6 4.5 -14 6.5 C-21 9 -27 7 -25 3 Z', r), brim.color, fur, () => {
-    hatStroke(c, 'M-21 3.5 C-12 -0.5 12 -0.5 21 3.5', r, shade(item.colorway.c, 0.25), 1.2, 1, [2, 1.8]);
+    hatStroke(c, 'M-21 3.5 C-12 -0.5 12 -0.5 21 3.5', r, shade(brim.color, 0.25), 1.2, 1, [2, 1.8]);
   });
 }
 

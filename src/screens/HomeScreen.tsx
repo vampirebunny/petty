@@ -77,6 +77,7 @@ import { CandyTooltip } from '../ui/tips/CandyTooltip';
 import { useCandyTips } from '../ui/tips/useCandyTips';
 import { PlaydateScreen } from './PlaydateScreen';
 import { ClothingLab } from './ClothingLab';
+import { ColorwaySheet } from './ColorwaySheet';
 import { SettingsScreen } from './SettingsScreen';
 import { AccountSheet } from '../ui/AccountSheet';
 import { FindFriendsHost } from '../ui/FindFriendsHost';
@@ -440,6 +441,7 @@ export default function HomeScreen({ petApi }: Props) {
   const whereUid = useId().replace(/:/g, '');
   const [facingOpen, setFacingOpen] = useState(false);
   const [clothingOpen, setClothingOpen] = useState(false);
+  const [colorwaysOpen, setColorwaysOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [incomingFriends, setIncomingFriends] = useState<FriendRow[]>([]);
   const [friendTick, setFriendTick] = useState(0);
@@ -1622,6 +1624,14 @@ export default function HomeScreen({ petApi }: Props) {
     );
   }
 
+  if (colorwaysOpen && typeof __DEV__ !== 'undefined' && __DEV__) {
+    return hosted(
+      <PhoneColumn>
+        <ColorwaySheet onClose={() => setColorwaysOpen(false)} />
+      </PhoneColumn>
+    );
+  }
+
   if (arcadeOpen) {
     return hosted(
       <ArcadeScreen
@@ -2774,6 +2784,7 @@ export default function HomeScreen({ petApi }: Props) {
           greetingLabel={() => stageHandle.current?.label() ?? ''}
           onFacing={() => setFacingOpen(true)}
           onClothing={() => setClothingOpen(true)}
+          onColorways={() => setColorwaysOpen(true)}
           onGrant={(id) => {
             if (!state.ownerId) {
               return;

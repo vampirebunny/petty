@@ -17,6 +17,8 @@ Applied by the owner through `20261024250000_ledger_source_ambiguity.sql`, inclu
 
 `apple_store_token`, `delete_account`, and `supersede_guest` are deployed on that project.
 
+`20261027120000_colorway_columns.sql` is applied. It adds `theme`, `collection`, `season`, and `rarity` on `shop_items`. The 238 launch colorways were inserted from `tools/colorways/generated/seed.sql`, which is not a migration: 190 `always`/`standard`, 24 `rotation`/`exclusive`, and 24 `featured`/`limited` with cap 500. A later drop is another insert-only file from `npm run colorways:seed`.
+
 New files in this folder are applied only by the project owner. Do not run `supabase db push`, the Supabase CLI against the hosted project, or the SQL in the dashboard from an agent or an automated script. After the CLI is linked, the owner applies new migrations with:
 
 ```bash
