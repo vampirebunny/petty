@@ -15,11 +15,11 @@ import {
 } from '../actor';
 import { preloadBloops, releaseBloops, silenceBloops, unmuteBloops } from '../audio/bloop';
 import { stopArcadeRound, suspendArcade } from '../audio/arcadeMusic';
-import { releaseMusic, setMusicEnabled, suspendMusic, switchMusic } from '../audio/music';
+import { prepareRemoteMusic, releaseMusic, setMusicEnabled, suspendMusic, switchMusic } from '../audio/music';
 import { setSoundEnabled } from '../audio/voice';
 import type { CuddleOut } from '../actor';
 import { stageHeight, stageWidth } from '../actor/geometry';
-import { applyFurniture, bowlAlreadyInRoom, bowlRoomMessage, canPlaceFurniture, countsAsBed, otherBedInRoom, pieceLabel, roomRestBadge, shopSku, stowWarning } from '../actor/furniture';
+import { applyFurniture, bowlAlreadyInRoom, bowlRoomMessage, bowlUse, buySpot, canPlaceFurniture, countsAsBed, otherBedInRoom, pieceLabel, roomRestBadge, shopSku, stowWarning } from '../actor/furniture';
 import type { FurniturePiece } from '../actor/furniture';
 import { flickSpeedThreshold } from '../input/flick';
 import { CuddleGesture } from '../input/cuddleGesture';
@@ -590,6 +590,7 @@ export default function HomeScreen({ petApi }: Props) {
       }
     });
     preloadBloops();
+    prepareRemoteMusic();
     const pullShop = () => {
       void refreshShopCatalog().then((ok) => {
         if (ok) {
@@ -609,6 +610,7 @@ export default function HomeScreen({ petApi }: Props) {
         cancelBurstsRef.current();
       } else {
         unmuteBloops();
+        prepareRemoteMusic();
         pullShop();
         void flushCloudHopScore();
         void flushStayTime();
@@ -2549,16 +2551,21 @@ export default function HomeScreen({ petApi }: Props) {
             } else {
               const saved = savedHome();
               const piece = saved.pieces.find((owned) => owned.id === item.id);
-              if (!piece || !canPlaceFurniture(piece, controlsScene.id, homeSpecies)) {
+              const refuse = (message: string) => {
+                setStorageOpen(false);
+                setBowlNotice(message);
+              };
+              if (!piece || item.inactive || !canPlaceFurniture(piece, controlsScene.id, homeSpecies)) {
+                refuse("This room can't hold that.");
                 return;
               }
               const blocked = bowlAlreadyInRoom(saved.pieces, saved.placements, controlsScene.id, piece.id);
               if (blocked) {
-                setBowlNotice(bowlRoomMessage(blocked));
+                refuse(bowlRoomMessage(blocked));
                 return;
               }
               const occupant = countsAsBed(piece) ? otherBedInRoom(saved.pieces, saved.placements, controlsScene.id, piece.id) : null;
-              if (piece && occupant) {
+              if (occupant) {
                 const current = saved.pieces.find((owned) => owned.id === occupant.pieceId);
                 setBedSwap({
                   piece,
@@ -2571,18 +2578,29 @@ export default function HomeScreen({ petApi }: Props) {
                 return;
               }
               const placed = stageHandle.current?.showStoredFurniture(piece) ?? null;
-              const blockedThere = placed
-                ? bowlAlreadyInRoom(saved.pieces, saved.placements, placed.sceneId, piece.id)
-                : null;
-              if (placed && blockedThere) {
-                stageHandle.current?.stowFurniture(piece.id);
-                setBowlNotice(bowlRoomMessage(blockedThere));
+              const sceneId = placed?.sceneId ?? controlsScene.id;
+              const blockedThere = bowlAlreadyInRoom(saved.pieces, saved.placements, sceneId, piece.id);
+              if (blockedThere) {
+                if (placed) {
+                  stageHandle.current?.stowFurniture(piece.id);
+                }
+                refuse(bowlRoomMessage(blockedThere));
                 return;
               }
-              if (placed && moveFurniture(piece.id, placed.sceneId, placed.x, placed.y)) {
+              const sku = shopSku(piece);
+              const spot = sku ? buySpot(sku, sceneId) : null;
+              const floor = sceneById(sceneId).floor;
+              const x = placed?.x ?? spot?.x ?? (floor.xMin + floor.xMax) / 2;
+              const y = placed?.y ?? spot?.y ?? (floor.yMin + floor.yMax) / 2;
+              if (moveFurniture(piece.id, sceneId, x, y)) {
                 armedMove.current = { id: piece.id, prop: false };
-              } else if (placed) {
-                stageHandle.current?.stowFurniture(piece.id);
+              } else {
+                if (placed) {
+                  stageHandle.current?.stowFurniture(piece.id);
+                }
+                const use = bowlUse(piece);
+                refuse(use ? bowlRoomMessage(use) : "Couldn't place that here.");
+                return;
               }
             }
             setStorageOpen(false);

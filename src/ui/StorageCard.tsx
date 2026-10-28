@@ -1,5 +1,7 @@
 import { useMemo } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { Gesture, GestureDetector, ScrollView } from 'react-native-gesture-handler';
+import { runOnJS } from 'react-native-reanimated';
 import { Canvas, Picture, Skia } from '@shopify/react-native-skia';
 
 import { PROP_SCALE, type TrickPropType } from '../sim/trickProps';
@@ -53,25 +55,44 @@ export function StorageCard({ items, empty, top, onClose, onPick }: Props) {
             nestedScrollEnabled
           >
             {items.map((item) => (
-              <Pressable
-                key={`${item.kind}:${item.id}`}
-                accessibilityRole="button"
-                accessibilityLabel={item.inactive ? `${item.label}, not for this room` : item.label}
-                accessibilityState={{ disabled: item.inactive === true }}
-                disabled={item.inactive === true}
-                onPress={() => onPick(item)}
-                style={[styles.choice, item.inactive ? styles.choiceInactive : null]}
-              >
-                <StorageGlyph item={item} />
-                <Text style={[styles.label, item.inactive ? styles.labelInactive : null]} numberOfLines={2}>
-                  {item.label}
-                </Text>
-              </Pressable>
+              <StorageTile key={`${item.kind}:${item.id}`} item={item} onPick={onPick} />
             ))}
           </ScrollView>
         )}
       </View>
     </SheetDismiss>
+  );
+}
+
+function StorageTile({ item, onPick }: { item: StorageChoice; onPick: (item: StorageChoice) => void }) {
+  const tap = useMemo(
+    () =>
+      Gesture.Tap()
+        .maxDistance(18)
+        .onEnd((_event, success) => {
+          if (success) {
+            runOnJS(onPick)(item);
+          }
+        }),
+    [item, onPick],
+  );
+  return (
+    <GestureDetector gesture={tap}>
+      <View
+        accessible
+        accessibilityRole="button"
+        accessibilityLabel={item.inactive ? `${item.label}, not for this room` : item.label}
+        collapsable={false}
+        style={[styles.choice, item.inactive ? styles.choiceInactive : null]}
+      >
+        <View pointerEvents="none" style={styles.tileBody}>
+          <StorageGlyph item={item} />
+          <Text style={[styles.label, item.inactive ? styles.labelInactive : null]} numberOfLines={2}>
+            {item.label}
+          </Text>
+        </View>
+      </View>
+    </GestureDetector>
   );
 }
 
@@ -130,11 +151,11 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     padding: 16,
     gap: 12,
-    maxHeight: '100%',
   },
   scroller: {
     flexGrow: 0,
     flexShrink: 1,
+    maxHeight: 320,
   },
   title: {
     fontFamily: fontFamily.fredokaBold,
@@ -154,9 +175,12 @@ const styles = StyleSheet.create({
   choice: {
     width: 96,
     alignItems: 'center',
-    gap: 4,
     borderRadius: 16,
     paddingVertical: 4,
+  },
+  tileBody: {
+    alignItems: 'center',
+    gap: 4,
   },
   choiceInactive: {
     opacity: 0.38,

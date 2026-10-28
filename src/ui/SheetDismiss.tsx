@@ -1,8 +1,5 @@
-import { useMemo } from 'react';
 import type { ReactNode } from 'react';
-import { StyleSheet, View } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { runOnJS } from 'react-native-reanimated';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 type Props = {
   top: number;
@@ -13,19 +10,12 @@ type Props = {
 };
 
 // Backdrop for the area around the card. The pet scene stays tappable and closes from its own tap.
+// A native tap on this layer was winning over the tiles, so a press on a bowl closed the sheet
+// without choosing it. The card sits above this pressable and takes its own taps.
 export function SheetDismiss({ top, label, onClose, zIndex = 50, children }: Props) {
-  const tap = useMemo(
-    () =>
-      Gesture.Tap().onEnd(() => {
-        runOnJS(onClose)();
-      }),
-    [onClose],
-  );
   return (
     <View style={[styles.layer, { top, zIndex }]} pointerEvents="box-none">
-      <GestureDetector gesture={tap}>
-        <View accessible accessibilityRole="button" accessibilityLabel={label} collapsable={false} style={styles.dim} />
-      </GestureDetector>
+      <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onClose} style={styles.dim} />
       <View pointerEvents="box-none" style={styles.dock}>
         {children}
       </View>
@@ -47,5 +37,7 @@ const styles = StyleSheet.create({
   dock: {
     maxHeight: '100%',
     paddingHorizontal: 20,
+    zIndex: 2,
+    elevation: 8,
   },
 });
