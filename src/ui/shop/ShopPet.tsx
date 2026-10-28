@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { StyleSheet } from 'react-native';
+import { AppState, StyleSheet } from 'react-native';
 import { useSharedValue } from 'react-native-reanimated';
 import { Canvas, Picture, Skia } from '@shopify/react-native-skia';
 import type { SkPicture } from '@shopify/react-native-skia';
@@ -20,6 +20,16 @@ type Props = {
 
 const noon = todAt(14);
 const hopMs = 700;
+const hopFrameMs = 32;
+const cycle = Math.PI * 2;
+const idleWag = 0.28;
+const idleLift = 0.18;
+const idleBreath = 0.02;
+
+function phaseStep(phase: number, steps: number): number {
+  const turn = ((phase % cycle) + cycle) % cycle;
+  return Math.round((turn / cycle) * steps) % steps;
+}
 
 // Body height on the 196px stage, and how much of the card width the pet may use.
 const bodyTarget = 164 / 196;
@@ -78,7 +88,6 @@ export function ShopPet({ pet, equipped, reducedMotion, width, height }: Props) 
   const petRef = useRef(pet);
   const hopUntil = useRef(0);
   const wornSeen = useRef(wornKey(equipped));
-  const rafRef = useRef(0);
 
   useEffect(() => {
     pictureSink.current = picture;
@@ -95,15 +104,17 @@ export function ShopPet({ pet, equipped, reducedMotion, width, height }: Props) 
     actor.y = shopAnchor.y;
     actor.vy = 0;
     const now = Date.now();
-    if (!reducedRef.current && now < hopUntil.current) {
+    const hopping = !reducedRef.current && now < hopUntil.current;
+    if (hopping) {
       const along = 1 - (hopUntil.current - now) / hopMs;
       actor.z = Math.sin(along * Math.PI) * 26;
       actor.pose.wagAmp = 1;
       actor.pose.tailLift = 0.7;
     } else {
       actor.z = 0;
-      actor.pose.wagAmp = 0;
-      actor.pose.tailLift = 0;
+      actor.pose.wagAmp = reducedRef.current ? 0 : idleWag;
+      actor.pose.tailLift = reducedRef.current ? 0 : idleLift;
+      actor.pose.breathAmp = reducedRef.current ? 0 : idleBreath;
     }
     const recorder = Skia.PictureRecorder();
     const canvas = recorder.beginRecording(Skia.XYWHRect(0, 0, box.width, box.height));
@@ -159,22 +170,71 @@ export function ShopPet({ pet, equipped, reducedMotion, width, height }: Props) 
     if (added.length > 0 && !reducedMotion) {
       hopUntil.current = Date.now() + hopMs;
     }
-    cancelAnimationFrame(rafRef.current);
-    if (!reducedMotion && Date.now() < hopUntil.current) {
-      const loop = () => {
-        if (Date.now() >= hopUntil.current) {
-          draw();
-          return;
-        }
-        draw();
-        rafRef.current = requestAnimationFrame(loop);
-      };
-      rafRef.current = requestAnimationFrame(loop);
-    } else {
-      draw();
-    }
-    return () => cancelAnimationFrame(rafRef.current);
+    draw();
   }, [draw, equipped, height, pet, reducedMotion, width]);
+
+  useEffect(() => {
+    if (reducedMotion) {
+      return;
+    }
+    let running = true;
+    let raf = 0;
+    let last = Date.now();
+    let lastDraw = 0;
+    let active = AppState.currentState === 'active';
+    let wagStep = -1;
+    let breathStep = -1;
+    let blinking = false;
+
+    const loop = () => {
+      if (!running) {
+        return;
+      }
+      const now = Date.now();
+      const dt = Math.min(0.05, (now - last) / 1000);
+      last = now;
+      const actor = worldRef.current?.actors[0];
+      let dirty = false;
+      const hopping = now < hopUntil.current;
+      if (actor) {
+        actor.wagPh += dt * (hopping ? 9 : 4.2);
+        actor.breathPh += dt * 1.8;
+        actor.blinkT -= dt;
+        if (actor.blinkT <= 0) {
+          actor.blinkT = 1.8 + Math.random() * 2.2;
+        }
+        const nextWag = phaseStep(actor.wagPh, 4);
+        const nextBreath = phaseStep(actor.breathPh, 3);
+        const nextBlink = actor.blinkT < 0.12;
+        dirty = hopping || nextWag !== wagStep || nextBreath !== breathStep || nextBlink !== blinking;
+        wagStep = nextWag;
+        breathStep = nextBreath;
+        blinking = nextBlink;
+      }
+      if (dirty && (!hopping || now - lastDraw >= hopFrameMs)) {
+        lastDraw = now;
+        draw();
+      }
+      if (active) {
+        raf = requestAnimationFrame(loop);
+      }
+    };
+
+    raf = requestAnimationFrame(loop);
+    const subscription = AppState.addEventListener('change', (status) => {
+      const wasActive = active;
+      active = status === 'active';
+      if (active && !wasActive) {
+        last = Date.now();
+        raf = requestAnimationFrame(loop);
+      }
+    });
+    return () => {
+      running = false;
+      cancelAnimationFrame(raf);
+      subscription.remove();
+    };
+  }, [draw, reducedMotion]);
 
   return (
     <Canvas style={styles.canvas} pointerEvents="none">
