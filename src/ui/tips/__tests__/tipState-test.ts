@@ -18,7 +18,8 @@ describe('tip phases', () => {
     expect(tutorialBlocksTip('tip.water', ['water'])).toBe(true);
     expect(tutorialBlocksTip('tip.food', ['feed'])).toBe(true);
     expect(tutorialBlocksTip('tip.sleep', ['nap'])).toBe(true);
-    expect(tutorialBlocksTip('tip.cuddle', ['pat'])).toBe(true);
+    expect(tutorialBlocksTip('tip.cuddle', ['cuddle'])).toBe(true);
+    expect(tutorialBlocksTip('tip.cuddle', ['pat'])).toBe(false);
     expect(tutorialBlocksTip('tip.water', ['feed'])).toBe(false);
     expect(tutorialBlocksTip('tip.move', ['water', 'feed', 'nap', 'pat'])).toBe(false);
   });

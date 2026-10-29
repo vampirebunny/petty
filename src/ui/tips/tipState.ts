@@ -6,7 +6,7 @@ const tutorialTipAction: Partial<Record<TipId, TutorialAction>> = {
   'tip.food': 'feed',
   'tip.water': 'water',
   'tip.sleep': 'nap',
-  'tip.cuddle': 'pat',
+  'tip.cuddle': 'cuddle',
 };
 
 // A tutorial bubble is for an action the player has not done yet.

@@ -102,6 +102,7 @@ import {
   noteParkFindInput,
 } from '../parkFinds/visit';
 import type { FindVariant } from '../parkFinds/types';
+import { isParkFindsUnlocked } from '../sim/parkFindsConfig';
 
 // What the home screen can ask of the pet while Cuddle is on. Points are stage coordinates.
 export type StageHandle = {
@@ -154,8 +155,6 @@ export type StageHandle = {
   parkFindTakeModal: () => { itemId: string } | null;
   parkFindNoteInput: () => void;
   parkFindForceNotice: (species: 'dog' | 'cat', variant: 'dig' | 'grass' | 'bush') => void;
-  parkFindBootVisit: (species: 'dog' | 'cat', firstVisit: boolean) => void;
-  parkFindClearVisit: () => void;
   cheer: () => void;
 };
 
@@ -332,6 +331,7 @@ export function PetView({
   const parkOnRef = useRef(parkVisitors);
   const onParkFindUiRef = useRef(onParkFindUi);
   const parkFindUiSent = useRef({ prompting: false, modalItemId: null as string | null, revealedId: null as string | null });
+  const parkVisitOn = useRef(false);
   const activeRef = useRef(AppState.currentState === 'active');
   const hourRef = useRef(hour);
   const reducedRef = useRef(reducedMotion);
@@ -964,21 +964,6 @@ export function PetView({
         forceParkFindNoticeNow(world, actor, species, variant as FindVariant);
         redrawRef.current();
       },
-      parkFindBootVisit: (species, firstVisit) => {
-        const world = worldRef.current;
-        const actor = world.actors[0];
-        if (!actor || world.scene.id !== 'park') {
-          world.parkFindVisit = null;
-          return;
-        }
-        world.parkFindVisit = createParkFindVisit(world, actor, species, firstVisit);
-        parkFindUiSent.current = { prompting: false, modalItemId: null, revealedId: null };
-        redrawRef.current();
-      },
-      parkFindClearVisit: () => {
-        worldRef.current.parkFindVisit = null;
-        parkFindUiSent.current = { prompting: false, modalItemId: null, revealedId: null };
-      },
       cheer: () => {
         const world = worldRef.current;
         const actor = world.actors[0];
@@ -1265,6 +1250,25 @@ export function PetView({
           }
         }
         onAteRef.current?.();
+      }
+      // A park visit runs from the walk-in finishing until the pet leaves, and arms at most one find.
+      const inPark = world.scene.id === 'park' && travelRef.current == null;
+      if (!inPark) {
+        parkVisitOn.current = false;
+        if (world.parkFindVisit) {
+          world.parkFindVisit = null;
+          if (parkFindUiSent.current.prompting) {
+            onParkFindUiRef.current?.({ prompting: false, modalItemId: null, revealed: null });
+          }
+          parkFindUiSent.current = { prompting: false, modalItemId: null, revealedId: null };
+        }
+      } else if (!parkVisitOn.current && actor && player && isParkFindsUnlocked(current)) {
+        parkVisitOn.current = true;
+        if (!world.parkFindVisit) {
+          const findSpecies = breedById(current.breedId)?.species === 'cat' ? 'cat' : 'dog';
+          world.parkFindVisit = createParkFindVisit(world, actor, findSpecies, !current.parkFinds.firstFindVisitDone);
+          parkFindUiSent.current = { prompting: false, modalItemId: null, revealedId: null };
+        }
       }
       const visit = world.parkFindVisit;
       if (visit) {

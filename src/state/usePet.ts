@@ -48,8 +48,11 @@ import {
   setPlayHereRequest,
   setSettleRequest,
 } from './sessionGate';
+import { awardedBadgeIds, syncBadges } from '../sim/badges';
 import { speciesOf } from '../sim/tracks';
 import { sqlitePetStorage } from '../db/sqlitePetStorage';
+import { emptyPlaydateSave, petHasCompletedPlaydate } from '../playdate/save';
+import { loadPlaydateSave } from '../playdate/storage';
 import { getDb } from '../db/database';
 import { catalogItem } from '../economy/catalog';
 import { resumeLimitedPurchases } from '../economy/limited';
@@ -209,6 +212,8 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
   const burstQueue = useRef<Burst[]>([]);
   const burstSeq = useRef(0);
   const greetAfter = useRef<{ elapsedH: number } | null>(null);
+  const [awardedBadges, setAwardedBadges] = useState<string[]>([]);
+  const clearAwardedBadges = useCallback(() => setAwardedBadges([]), []);
   const stateRef = useRef<PetState | null>(null);
   const tokenRef = useRef(0);
   const storageRef = useRef(storage);
@@ -232,9 +237,15 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
   }, []);
 
   const publish = useCallback((next: PetState, nextCue?: Cue, sync = true) => {
+    const synced = syncBadges(next, Date.now());
+    const had = new Set(next.badges ?? []);
+    const fresh = synced.badges.filter((id) => !had.has(id));
+    if (fresh.length > 0) {
+      setAwardedBadges((prev) => [...prev, ...fresh.filter((id) => !prev.includes(id))]);
+    }
     stagedRef.current = false;
-    stateRef.current = next;
-    setState(next);
+    stateRef.current = synced;
+    setState(synced);
     if (nextCue) {
       tokenRef.current += 1;
       setCue({
@@ -247,7 +258,7 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
         moodGain: nextCue.moodGain,
       });
     }
-    const snapshot = next;
+    const snapshot = synced;
     const generation = saveGeneration();
     saveQueue.current = saveQueue.current
       .catch(() => undefined)
@@ -384,10 +395,10 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
           setHomeSnapToken((token) => token + 1);
         }
         const settled = settleProgress(resumed, now);
-        const bursts = [...opened.bursts];
-        if (settled.boops > 0 && settled.label) {
-          bursts.push({ label: settled.label, amount: settled.boops, coinCount: 5 });
-        }
+        const bursts = [
+          ...opened.bursts,
+          ...settled.payouts.map((payout) => ({ label: payout.label, amount: payout.amount, coinCount: 5 as const })),
+        ];
         if (elapsedH >= AWAY_DECAY.welcomeBackThresholdH) {
           setWelcomeBack(true);
         }
@@ -704,8 +715,9 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
       }
       const result = applyEvent(current, event);
       const settled = settleProgress(result.state, Date.now(), extra);
-      if (settled.boops > 0 && settled.label) {
-        pushBurst({ label: settled.label, amount: settled.boops, coinCount: extra?.find ? 1 : 5 });
+      const coinCount = extra?.find ? 1 : 5;
+      for (const payout of settled.payouts) {
+        pushBurst({ label: payout.label, amount: payout.amount, coinCount });
       }
       publish(settled.pet, result.cue);
       return { ...result, state: settled.pet };
@@ -734,8 +746,8 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
       const aged = stateRef.current;
       if (aged) {
         const settled = settleProgress(aged, Date.now());
-        if (settled.boops > 0 && settled.label) {
-          pushBurst({ label: settled.label, amount: settled.boops, coinCount: 5 });
+        for (const payout of settled.payouts) {
+          pushBurst({ label: payout.label, amount: payout.amount, coinCount: 5 });
         }
         if (settled.pet !== aged) {
           publish(settled.pet);
@@ -1011,8 +1023,8 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
       const picked = next.care.pendingReward?.choice ?? choice;
       const resolved = applyEvent(next, { type: 'rewardTreat', choice: picked, now: Date.now() });
       const settled = settleProgress(resolved.state, Date.now());
-      if (settled.boops > 0 && settled.label) {
-        pushBurst({ label: settled.label, amount: settled.boops, coinCount: 5 });
+      for (const payout of settled.payouts) {
+        pushBurst({ label: payout.label, amount: payout.amount, coinCount: 5 });
       }
       const moodGain = Math.round(settled.pet.needs.happiness - beforeHappiness);
       const showTreat = choice === 'treat' && !alreadyWaiting;
@@ -1160,8 +1172,8 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
         return;
       }
       const settled = settleProgress(current, Date.now(), { find: kind });
-      if (settled.boops > 0 && settled.label) {
-        pushBurst({ label: settled.label, amount: settled.boops, coinCount: 1, origin: at });
+      for (const payout of settled.payouts) {
+        pushBurst({ label: payout.label, amount: payout.amount, coinCount: 1, origin: at });
       }
       publish(settled.pet);
     },

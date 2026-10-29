@@ -44,10 +44,13 @@ function Line({ text, color, size }: { text: string; color: string; size: number
 // Rises from the bottom of the scene to the top, then fades out. Never takes taps.
 export function LevelUpFloat({ level, boops, reducedMotion, onDone }: Props) {
   const done = useRef(onDone);
-  done.current = onDone;
+  useEffect(() => {
+    done.current = onDone;
+  }, [onDone]);
   const progress = useSharedValue(0);
   const travel = useSharedValue(320);
   useEffect(() => {
+    progress.value = 0;
     progress.value = withTiming(
       1,
       { duration: reducedMotion ? 420 : riseMs, easing: Easing.linear },

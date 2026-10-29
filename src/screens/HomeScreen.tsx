@@ -579,7 +579,6 @@ export default function HomeScreen({ petApi }: Props) {
   const [chestIntroOpen, setChestIntroOpen] = useState(false);
   const [chestTip, setChestTip] = useState(false);
   const [chestTipTarget, setChestTipTarget] = useState<{ x: number; y: number } | null>(null);
-  const parkBooted = useRef<string | null>(null);
   const [bowlNotice, setBowlNotice] = useState<string | null>(null);
   const [holdTarget, setHoldTarget] = useState<{ id: string; prop: boolean; warning: string | null } | null>(null);
   const [holdConfirm, setHoldConfirm] = useState(false);
@@ -600,8 +599,21 @@ export default function HomeScreen({ petApi }: Props) {
   const [coachTarget, setCoachTarget] = useState<{ x: number; y: number } | null>(null);
   const cuddleHandle = useRef<CuddleHandle>(null);
   const stageHandle = useRef<StageHandle>(null);
-  const [levelShow, setLevelShow] = useState<{ from: number; to: number } | null>(null);
+  const [levelShow, setLevelShow] = useState<number | null>(null);
   const levelSeen = useRef<number | null>(null);
+  const levelQueue = useRef<number[]>([]);
+  const levelPlaying = useRef(false);
+  const playNextLevel = useCallback(() => {
+    const level = levelQueue.current.shift();
+    if (level == null) {
+      levelPlaying.current = false;
+      setLevelShow(null);
+      return;
+    }
+    levelPlaying.current = true;
+    setLevelShow(level);
+    stageHandle.current?.cheer();
+  }, []);
   useEffect(() => {
     if (!state) {
       return;
@@ -610,14 +622,17 @@ export default function HomeScreen({ petApi }: Props) {
       levelSeen.current = state.level;
       return;
     }
-    if (state.level > levelSeen.current) {
-      const from = levelSeen.current;
-      const to = state.level;
-      levelSeen.current = to;
-      setLevelShow({ from, to });
-      stageHandle.current?.cheer();
+    if (state.level <= levelSeen.current) {
+      return;
     }
-  }, [state]);
+    for (let level = levelSeen.current + 1; level <= state.level; level += 1) {
+      levelQueue.current.push(level);
+    }
+    levelSeen.current = state.level;
+    if (!levelPlaying.current) {
+      playNextLevel();
+    }
+  }, [playNextLevel, state]);
   const stateNow = useRef(state);
   const feedback = useRef<FeedbackHandle>(null);
   const tracker = useRef(new CuddleGesture());
@@ -836,28 +851,6 @@ export default function HomeScreen({ petApi }: Props) {
     setSilentHintSeen(true);
     void saveHasSeenSilentModeHint();
   }, []);
-
-  // Boot / clear park-find visit when entering or leaving the park.
-  useEffect(() => {
-    if (!state || !isParkFindsUnlocked(state)) {
-      return;
-    }
-    const speciesNow = breedById(state.breedId)?.species === 'cat' ? 'cat' : 'dog';
-    if (state.sceneId === 'park') {
-      const key = `${state.id}:park`;
-      if (parkBooted.current !== key) {
-        parkBooted.current = key;
-        const timer = setTimeout(() => {
-          stageHandle.current?.parkFindBootVisit(speciesNow, !state.parkFinds.firstFindVisitDone);
-        }, 400);
-        return () => clearTimeout(timer);
-      }
-    } else if (parkBooted.current) {
-      parkBooted.current = null;
-      stageHandle.current?.parkFindClearVisit();
-      setParkPrompt(false);
-    }
-  }, [state]);
 
   // Deferred find modal on the park exit destination.
   useEffect(() => {
@@ -3386,12 +3379,13 @@ export default function HomeScreen({ petApi }: Props) {
                 reducedMotion={reducedMotion}
               />
             ) : null}
-            {levelShow ? (
+            {levelShow != null ? (
               <LevelUpFloat
-                level={levelShow.to}
-                boops={(levelShow.to - levelShow.from) * economyConfig.levelUp.boops}
+                key={levelShow}
+                level={levelShow}
+                boops={economyConfig.levelUp.boops}
                 reducedMotion={reducedMotion}
-                onDone={() => setLevelShow(null)}
+                onDone={playNextLevel}
               />
             ) : null}
           </View>

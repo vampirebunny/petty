@@ -1,6 +1,16 @@
 import type { ParkFindRarity } from './parkFindsConfig';
 
-export type TutorialAction = 'feed' | 'water' | 'school' | 'play' | 'nap' | 'parkFind' | 'pat' | 'closet' | 'sit';
+export type TutorialAction =
+  | 'feed'
+  | 'water'
+  | 'school'
+  | 'play'
+  | 'nap'
+  | 'parkFind'
+  | 'pat'
+  | 'closet'
+  | 'sit'
+  | 'cuddle';
 
 export type TutorialGoal = {
   action: TutorialAction;
@@ -15,7 +25,8 @@ export type XpBand = {
 };
 
 // Defaults from the gameplay brief. Level 11 is the first level that costs XP.
-// The nine tutorial actions each raise the level by one, in any order.
+// Each tutorial action raises the level by one, in any order. There are more
+// actions than the steps from level 1 to level 10.
 export const gameplayConfig = {
   maxLevel: 100,
   tutorialLevel: 10,
@@ -36,6 +47,7 @@ export const gameplayConfig = {
     { action: 'nap', label: 'Nap in the bed' },
     { action: 'parkFind', label: 'Make a park find' },
     { action: 'pat', label: 'Pat' },
+    { action: 'cuddle', label: 'Cuddle' },
     { action: 'closet', label: 'Put on something from the Closet' },
     { action: 'sit', label: 'Learn Sit' },
   ] as const satisfies readonly TutorialGoal[],

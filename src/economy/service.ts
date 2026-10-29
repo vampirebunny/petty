@@ -11,6 +11,7 @@ import { buySpot, furnitureDefinition, grantPieces, nextFurnitureId } from '../a
 import { writeLedgerEntry, type LedgerLine } from '../db/ledgerWrite';
 import { furnitureOf, markBedStorageTip, moveOwnedPiece, touchPlayerHome, trickPropsOf } from '../db/playerHome';
 import { masteredTrickIds, speciesOf } from '../sim/tracks';
+import { awardedBadgeIds, syncBadges } from '../sim/badges';
 import { prepareTrickPurchase, trickMilestoneKey } from '../sim/tricks';
 import { listedPrice, quoteCart } from './shopState';
 import type { CartInput, PricedLine, SpeciesId } from './shop';
@@ -33,7 +34,7 @@ export type Burst = {
   origin?: { x: number; y: number };
   id?: number;
 };
-export type OpenRewards = { pet: PetState; bursts: Burst[]; login: LoginOffer };
+export type OpenRewards = { pet: PetState; bursts: Burst[]; login: LoginOffer; awardedBadges: string[] };
 
 const listeners = new Set<(snapshot: WalletSnapshot) => void>();
 
@@ -955,15 +956,26 @@ export function claimDailyLogin(now = Date.now()): Check & { amount?: number; st
   }
 }
 
-function payLevelsAndStages(pet: PetState): { pet: PetState; boops: number; label: string | null } {
+function payLevelsAndStages(pet: PetState): {
+  pet: PetState;
+  boops: number;
+  label: string | null;
+  payouts: { label: string; amount: number }[];
+} {
   let boops = 0;
+  const payouts: { label: string; amount: number }[] = [];
   const levels = levelsToPay(pet);
   for (const level of levels) {
-    boops += grantBoops('level_up', `level:${pet.id}:${level}`, pet.id, economyConfig.levelUp.boops);
+    const paid = grantBoops('level_up', `level:${pet.id}:${level}`, pet.id, economyConfig.levelUp.boops);
+    boops += paid;
+    if (paid > 0) {
+      payouts.push({ label: `Level ${level}!`, amount: paid });
+    }
   }
   const stages = stagesToPay(pet);
+  let rest = 0;
   for (const stage of stages) {
-    boops += grantBoops('milestone', `stage:${pet.id}:${stage}`, pet.id, economyConfig.milestones.lifeStage);
+    rest += grantBoops('milestone', `stage:${pet.id}:${stage}`, pet.id, economyConfig.milestones.lifeStage);
   }
   const tricks = masteredTrickIds(pet);
   let trickLabel: string | null = null;
@@ -974,10 +986,14 @@ function payLevelsAndStages(pet: PetState): { pet: PetState; boops: number; labe
       pet.id,
       economyConfig.milestones.trickMastered,
     );
-    boops += paid;
+    rest += paid;
     if (paid > 0 && !trickLabel) {
       trickLabel = trickId;
     }
+  }
+  boops += rest;
+  if (rest > 0) {
+    payouts.push({ label: trickLabel ? `${trickLabel}!` : 'Boops', amount: rest });
   }
   const next = {
     ...pet,
@@ -985,14 +1001,14 @@ function payLevelsAndStages(pet: PetState): { pet: PetState; boops: number; labe
     lastPaidStage: stages.length > 0 ? stages[stages.length - 1] : (pet.lastPaidStage ?? 'puppy'),
   };
   const label = levels.length > 0 ? `Level ${levels[levels.length - 1]}!` : trickLabel ? `${trickLabel}!` : boops > 0 ? 'Boops' : null;
-  return { pet: next, boops, label };
+  return { pet: next, boops, label, payouts };
 }
 
 export function settleProgress(
   pet: PetState,
   now = Date.now(),
   extra?: { playdateId?: string; find?: PlayFindKind },
-): { pet: PetState; boops: number; label: string | null } {
+): { pet: PetState; boops: number; label: string | null; payouts: { label: string; amount: number }[] } {
   const result = transaction(() => {
     ensureOwnerRows(now);
     let boops = 0;
@@ -1001,11 +1017,15 @@ export function settleProgress(
     let next = progressed.pet;
     boops += progressed.boops;
     label = progressed.label;
+    const payouts = [...progressed.payouts];
     if (extra?.playdateId) {
       const paid = grantBoops('playdate', `playdate:${extra.playdateId}`, extra.playdateId, economyConfig.playdate.boops);
       boops += paid;
-      if (paid > 0 && !label) {
-        label = 'Boops';
+      if (paid > 0) {
+        payouts.push({ label: 'Boops', amount: paid });
+        if (!label) {
+          label = 'Boops';
+        }
       }
     }
     if (extra?.find) {
@@ -1020,6 +1040,7 @@ export function settleProgress(
         if (paid > 0) {
           setDaily(day, '', 'play_finds', dailyCount(day, '', 'play_finds') + paid);
           boops += paid;
+          payouts.push({ label: 'Boops', amount: paid });
           if (!label) {
             label = 'Boops';
           }
@@ -1029,7 +1050,7 @@ export function settleProgress(
     if (next !== pet) {
       writePetNow(next);
     }
-    return { pet: next, boops, label };
+    return { pet: next, boops, label, payouts };
   });
   if (result.boops > 0) {
     emit();
@@ -1095,16 +1116,19 @@ export function onAppOpen(pet: PetState, now = Date.now()): OpenRewards {
       }
     }
     const progressed = payLevelsAndStages(pet);
-    if (progressed.boops > 0 && progressed.label) {
-      bursts.push({ label: progressed.label, amount: progressed.boops, coinCount: 5 });
+    for (const payout of progressed.payouts) {
+      bursts.push({ label: payout.label, amount: payout.amount, coinCount: 5 });
     }
+    const synced = syncBadges(progressed.pet, now);
+    const awardedBadges = awardedBadgeIds(progressed.pet, synced);
     owner.last_open_at = now;
     writeOwner(owner);
-    writePetNow(progressed.pet);
+    writePetNow(synced);
     return {
-      pet: progressed.pet,
+      pet: synced,
       bursts,
       login: loginOffer(owner.login_last_claimed_day, owner.login_streak, localDay(now)),
+      awardedBadges,
     };
   });
   emit();

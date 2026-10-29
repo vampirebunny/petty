@@ -275,12 +275,16 @@ export function applyEvent(state: PetState, event: PetEvent): EventResult {
   }
 
   // A finished cuddle with real petting in it. Longer cuddles count for more, up to double a quick stroke.
+  // The first one also raises a tutorial level. Later cuddles do not.
   if (event.type === 'cuddled') {
-    const next = copyState(state);
+    let next = copyState(state);
     const weight = 1 + Math.min(1, Math.max(0, event.seconds) / 20);
     addHappiness(next, petHappinessGain * weight * (1 - next.needs.happiness / clampMax));
     next.drift.affection = clampDrift(next.drift.affection + petAffectionDrift * weight);
     next.careWindow = bumpAttention(next.careWindow);
+    if (event.seconds > 0) {
+      next = noteTutorialAction(next, 'cuddle');
+    }
     return { state: withDerived(next), cue: { kind: 'none' } };
   }
 

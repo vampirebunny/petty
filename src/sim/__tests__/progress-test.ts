@@ -70,6 +70,21 @@ it('counts a park find as one level whenever it happens', () => {
   expect(saved.xpTotal).toBe(0);
 });
 
+it('counts one finished cuddle as a tutorial level', () => {
+  let pet = pup();
+  pet = applyEvent(pet, { type: 'cuddled', seconds: 2 }).state;
+  expect(pet.level).toBe(2);
+  expect(pet.tutorialSeen).toContain('cuddle');
+  expect(pet.xpTotal).toBe(0);
+
+  pet = applyEvent(pet, { type: 'cuddled', seconds: 5 }).state;
+  expect(pet.level).toBe(2);
+
+  const skipped = applyEvent(pup(), { type: 'cuddled', seconds: 0 }).state;
+  expect(skipped.level).toBe(1);
+  expect(skipped.tutorialSeen ?? []).not.toContain('cuddle');
+});
+
 it('pays first-find XP only from level 10 and only once', () => {
   let early = pup();
   const first = applyReveal(early.parkFinds, 'perfect-stick', 1);
