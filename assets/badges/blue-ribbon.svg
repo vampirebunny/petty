@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+<defs>
+  <linearGradient id="rim" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#DDF1FF"/><stop offset="0.45" stop-color="#5DB8FF"/><stop offset="1" stop-color="#2A7FD1"/></linearGradient>
+  <radialGradient id="disc" cx="0.4" cy="0.32" r="0.8"><stop offset="0" stop-color="#DDF1FF"/><stop offset="0.75" stop-color="#5DB8FF"/><stop offset="1" stop-color="#2A7FD1"/></radialGradient>
+  <linearGradient id="tail" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5DB8FF"/><stop offset="1" stop-color="#2A7FD1"/></linearGradient>
+  <clipPath id="discClip"><circle cx="128" cy="110" r="76"/></clipPath>
+</defs>
+<!-- ribbon tails -->
+<path d="M100 170 L78 240 L94 230 L104 246 L126 178 Z" fill="url(#tail)" stroke="#2A7FD1" stroke-width="4" stroke-linejoin="round"/>
+<path d="M156 170 L178 240 L162 230 L152 246 L130 178 Z" fill="url(#tail)" stroke="#2A7FD1" stroke-width="4" stroke-linejoin="round"/>
+<!-- soft shadow + puffy rim -->
+<circle cx="128" cy="116" r="96" fill="#2A7FD1" opacity="0.35"/>
+<circle cx="128" cy="110" r="96" fill="url(#rim)"/>
+<ellipse cx="128" cy="40" rx="58" ry="14" fill="#fff" opacity="0.45"/>
+<!-- inner disc -->
+<circle cx="128" cy="110" r="78" fill="#2A7FD1" opacity="0.5"/>
+<circle cx="128" cy="110" r="76" fill="url(#disc)"/>
+<!-- icon: outline layer then white fill layer -->
+<g fill="#2A7FD1" stroke="#2A7FD1" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"><path d="M96 76 L104 52 L117 66 L128 46 L139 66 L152 52 L160 76 Z"/><path d="M112 96 L136 84 L146 84 L146 150 L124 150 L124 108 L114 112 Z"/></g>
+<g fill="#ffffff"><path d="M96 76 L104 52 L117 66 L128 46 L139 66 L152 52 L160 76 Z"/><path d="M112 96 L136 84 L146 84 L146 150 L124 150 L124 108 L114 112 Z"/></g>
+<circle cx="128" cy="62" r="5" fill="#5DB8FF"/>
+<!-- gloss -->
+<g clip-path="url(#discClip)"><ellipse cx="118" cy="62" rx="62" ry="30" fill="#fff" opacity="0.32"/></g>
+
+</svg>

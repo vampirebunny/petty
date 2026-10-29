@@ -168,6 +168,7 @@ import type { PointPop } from '../ui/AttributePops';
 import { careConfig } from '../sim/careConfig';
 import { formatRest, isResting, restRemainingMs, treatProgressPreview } from '../sim/training';
 import { BadgeCelebration } from '../ui/BadgeCelebration';
+import { badgeLabel } from '../sim/badges';
 import { Archive, ChevronRight, Cookie, Droplet, HandHeart, Moon, PawPrint, Settings, Sparkles } from 'lucide-react-native';
 import { playBadgeChime } from '../audio/badge';
 import { GREET } from '../actor/greetings';
@@ -448,6 +449,8 @@ export default function HomeScreen({ petApi }: Props) {
     pendingBoops,
     dismissBurst,
     cancelBursts,
+    awardedBadges,
+    clearAwardedBadges,
   } = petApi;
   const homeSpecies = state ? (breedById(state.breedId)?.species === 'cat' ? 'cat' : 'dog') : 'dog';
   const home = usePlayerHome(currentOwner(), homeSpecies);
@@ -603,6 +606,10 @@ export default function HomeScreen({ petApi }: Props) {
   const levelSeen = useRef<number | null>(null);
   const levelQueue = useRef<number[]>([]);
   const levelPlaying = useRef(false);
+  const [badgeShow, setBadgeShow] = useState<string | null>(null);
+  const [badgeQueue, setBadgeQueue] = useState<string[]>([]);
+  const badgeReady = useRef(false);
+  const badgeSeen = useRef(new Set<string>());
   const playNextLevel = useCallback(() => {
     const level = levelQueue.current.shift();
     if (level == null) {
@@ -633,6 +640,40 @@ export default function HomeScreen({ petApi }: Props) {
       playNextLevel();
     }
   }, [playNextLevel, state]);
+  const enqueueBadges = useCallback((ids: string[]) => {
+    const fresh = ids.filter((id) => id && !badgeSeen.current.has(id));
+    if (fresh.length === 0) {
+      return;
+    }
+    for (const id of fresh) {
+      badgeSeen.current.add(id);
+    }
+    setBadgeQueue((queue) => [...queue, ...fresh]);
+  }, []);
+  useEffect(() => {
+    if (!state) {
+      return;
+    }
+    const ids = state.badges ?? [];
+    if (!badgeReady.current) {
+      badgeReady.current = true;
+      const pending = new Set(awardedBadges);
+      for (const id of ids) {
+        if (!pending.has(id)) {
+          badgeSeen.current.add(id);
+        }
+      }
+      enqueueBadges(awardedBadges);
+      if (awardedBadges.length > 0) {
+        clearAwardedBadges();
+      }
+      return;
+    }
+    enqueueBadges(awardedBadges);
+    if (awardedBadges.length > 0) {
+      clearAwardedBadges();
+    }
+  }, [awardedBadges, clearAwardedBadges, enqueueBadges, state]);
   const stateNow = useRef(state);
   const feedback = useRef<FeedbackHandle>(null);
   const tracker = useRef(new CuddleGesture());
@@ -1550,6 +1591,13 @@ export default function HomeScreen({ petApi }: Props) {
 
   const [knownUnlockKey, setKnownUnlockKey] = useState<string | null>(null);
   const [unlocking, setUnlocking] = useState<string | null>(null);
+  useEffect(() => {
+    if (badgeShow || unlocking || badgeQueue.length === 0) {
+      return;
+    }
+    setBadgeShow(badgeQueue[0]);
+    setBadgeQueue((queue) => queue.slice(1));
+  }, [badgeQueue, badgeShow, unlocking]);
   const [unlockQueue, setUnlockQueue] = useState<string[]>([]);
   const openTrickKey = state
     ? Object.values(state.training)
@@ -1581,6 +1629,7 @@ export default function HomeScreen({ petApi }: Props) {
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   }, [unlocking]);
   const finishUnlock = useCallback(() => setUnlocking(null), []);
+  const finishBadge = useCallback(() => setBadgeShow(null), []);
 
   const preset = sceneById(state?.sceneId ?? 'livingroom');
   const scene = preset;
@@ -1702,10 +1751,28 @@ export default function HomeScreen({ petApi }: Props) {
       : null;
   const tipPiece = tipSpot ? home.pieces.find((piece) => piece.id === tipSpot.pieceId) : null;
   const propTip = tipSpot ? stageToView(markerPoint(tipPiece?.kind, tipSpot)) : null;
+  const species = breedById(state?.breedId ?? '')?.species ?? 'dog';
 
   const hosted = (screen: ReactNode) => (
     <FindFriendsHost accountHandle={accountHandle} onChanged={() => setFriendTick((value) => value + 1)}>
       {screen}
+      {unlocking ? (
+        <BadgeCelebration
+          title={trackName(unlocking, species)}
+          caption="New trick learned!"
+          Icon={PawPrint}
+          reducedMotion={reducedMotion}
+          onDone={finishUnlock}
+        />
+      ) : badgeShow ? (
+        <BadgeCelebration
+          title={badgeLabel(badgeShow)}
+          caption="Badge earned!"
+          badgeId={badgeShow}
+          reducedMotion={reducedMotion}
+          onDone={finishBadge}
+        />
+      ) : null}
       {addGate ? (
         <AccountSheet
           reason="friends"
@@ -1997,7 +2064,6 @@ export default function HomeScreen({ petApi }: Props) {
     );
   }
 
-  const species = breedById(state.breedId)?.species ?? 'dog';
   const playableToys = home.toys.filter((id) => playRuleFor(species, id));
   const savedToy = state.activeToyId;
   const activeToy =
@@ -3153,15 +3219,6 @@ export default function HomeScreen({ petApi }: Props) {
       <View
         style={[styles.root, { paddingTop: 64 + duoTop }]}
       >
-      {unlocking ? (
-        <BadgeCelebration
-          title={trackName(unlocking, species)}
-          caption="New trick learned!"
-          Icon={PawPrint}
-          reducedMotion={reducedMotion}
-          onDone={finishUnlock}
-        />
-      ) : null}
       <View style={styles.layout}>
         {split ? <View style={styles.headerRule}>{homeHeader}</View> : null}
         <View style={split ? styles.splitBody : styles.layout}>

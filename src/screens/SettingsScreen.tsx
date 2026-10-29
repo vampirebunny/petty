@@ -11,6 +11,7 @@ import { setAuthTransition } from '../state/sessionGate';
 import type { PetState } from '../sim/types';
 import { AccountSheet } from '../ui/AccountSheet';
 import { FriendsManage } from '../ui/FriendsManage';
+import { BadgeShelf } from '../ui/badges/BadgeShelf';
 import { CandyShell, GRAY, candyInk, tints } from '../ui/candy';
 import { fontFamily } from '../ui/font';
 import { HandleScreen } from '../ui/HandleScreen';
@@ -247,6 +248,7 @@ export function SettingsScreen({ pet, petName, onClose, pendingFriends, careRemi
             </CandyShell>
           )}
         </Pressable>
+        <BadgeShelf badges={pet.badges ?? []} />
         {linked ? (
           <Pressable
             accessibilityRole="button"

@@ -315,7 +315,7 @@ parkFind.found { petId, itemId, rarity, isNew, foundAt }
 Listeners:
 - First-find XP is wired: 10 / 25 / 75 / 150, paid only from level 10.
 - During levels 1–10, a recorded find is one tutorial action and can raise the level at any time. A find already in the collection counts.
-- Treasure Hunter and Finder badges are not built yet.
+- Treasure Hunter and Finder are awarded from the collection. Ribbon Rack waits for the Stadium.
 - The "find something new" suggested activity is not built yet.
 
 ## 9. Debug menu
@@ -360,4 +360,4 @@ Listeners:
 
 ## Status
 
-**Slice 1 and Slice 2 are shipped.** First-find XP and the tutorial level-up are wired. Still later: Treasure Hunter and Finder badges, and the "find something new" suggestion. Debug still has force-notice / reset collection / reset chest; force-rarity and force-item hooks exist in roll code but are not exposed as dedicated DebugPanel buttons yet.
+**Slice 1 and Slice 2 are shipped.** First-find XP, the tutorial level-up, Treasure Hunter, and Finder are wired. Still later: race badges and the "find something new" suggestion. Debug still has force-notice / reset collection / reset chest; force-rarity and force-item hooks exist in roll code but are not exposed as dedicated DebugPanel buttons yet.

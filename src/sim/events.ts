@@ -61,6 +61,8 @@ function copyState(state: PetState): PetState {
     care: copyCare(state.care),
     training: copyTraining(state.training),
     milestones: [...state.milestones],
+    badges: [...(state.badges ?? [])],
+    badgeXpSkipped: [...(state.badgeXpSkipped ?? [])],
     seenCoachMarks: [...state.seenCoachMarks],
     careWindow: state.careWindow.map((sample) => ({ ...sample })),
     equipped: { ...state.equipped },
@@ -290,6 +292,7 @@ export function applyEvent(state: PetState, event: PetEvent): EventResult {
 
   if (event.type === 'playdate') {
     const next = copyState(state);
+    next.hadPlaydate = true;
     addHappiness(next, event.happiness);
     return { state: withDerived(addFlatTrained(next, event.attributes)), cue: { kind: 'none' } };
   }

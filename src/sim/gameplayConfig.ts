@@ -39,6 +39,13 @@ export const gameplayConfig = {
     { from: 41, to: 60, start: 300, end: 1000 },
     { from: 61, to: 100, start: 1000, end: 4000 },
   ] as const satisfies readonly XpBand[],
+  badges: {
+    xp: { once: 50, bronze: 50, silver: 100, gold: 200 },
+    streak: [3, 7, 30],
+    devoted: [10, 50, 100],
+    tricks: [5, 10, 20],
+    finds: [10, 25, 50],
+  },
   goals: [
     { action: 'feed', label: 'Feed' },
     { action: 'water', label: 'Fill the water bowl' },

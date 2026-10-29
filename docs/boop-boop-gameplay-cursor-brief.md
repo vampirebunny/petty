@@ -33,7 +33,7 @@ Turn Boop Boop from a toy into a game. Add pet levels driven by XP, badges, sugg
 6. Stadium with solo races against NPCs
 7. Live races with friends
 
-Each phase should ship working on its own. Park finds landed ahead of levels. Levels, the tutorial, and first-find XP are shipped. Finds stay available from level 1. Badges still wait for the badges phase.
+Each phase should ship working on its own. Park finds landed ahead of levels. Levels, the tutorial, first-find XP, and the non-race badges are shipped. Finds stay available from level 1. Race badges wait for the Stadium.
 
 ---
 
@@ -83,7 +83,9 @@ No XP from mini-games, practice races, repeat park finds or time passing. After 
 
 ## 2. Badges
 
-Badges are achievements, separate from ribbons and trophies. Extend the existing trick badges in HomeScreen.tsx (`badgeLabels`, `BadgeCelebration`) into a full badges section covering every badge below. Badge names are placeholders; keep them in config.
+Badges are achievements, separate from ribbons and trophies. Earned medals show on Settings, under Friends and above Log out. The trick-learned popup stays separate; there is no `badgeLabels` map. Badge names live next to the art in `src/sim/badges.ts`.
+
+**Shipped**, except the four race badges (Off to the Races, Blue Ribbon, Moving Up, Ribbon Rack), which wait for the Stadium. Day counts start the first time the check runs, not from the adoption date. Badge XP is skipped before level 10 and is not paid later.
 
 **Retroactive awards:** when a badge's condition is already met by stored state (e.g. tricks learned, current outfit), award it on the next check. Don't backfill badges that need history the app never stored (total days opened, a past next-day visit, first item ever worn); start tracking those now.
 

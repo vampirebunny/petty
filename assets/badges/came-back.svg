@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+<defs>
+  <linearGradient id="rim" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE0EE"/><stop offset="0.45" stop-color="#FF8FC1"/><stop offset="1" stop-color="#D9488B"/></linearGradient>
+  <radialGradient id="disc" cx="0.4" cy="0.32" r="0.8"><stop offset="0" stop-color="#FFE0EE"/><stop offset="0.75" stop-color="#FF8FC1"/><stop offset="1" stop-color="#D9488B"/></radialGradient>
+  <linearGradient id="tail" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FF8FC1"/><stop offset="1" stop-color="#D9488B"/></linearGradient>
+  <clipPath id="discClip"><circle cx="128" cy="110" r="76"/></clipPath>
+</defs>
+<!-- ribbon tails -->
+<path d="M100 170 L78 240 L94 230 L104 246 L126 178 Z" fill="url(#tail)" stroke="#D9488B" stroke-width="4" stroke-linejoin="round"/>
+<path d="M156 170 L178 240 L162 230 L152 246 L130 178 Z" fill="url(#tail)" stroke="#D9488B" stroke-width="4" stroke-linejoin="round"/>
+<!-- soft shadow + puffy rim -->
+<circle cx="128" cy="116" r="96" fill="#D9488B" opacity="0.35"/>
+<circle cx="128" cy="110" r="96" fill="url(#rim)"/>
+<ellipse cx="128" cy="40" rx="58" ry="14" fill="#fff" opacity="0.45"/>
+<!-- inner disc -->
+<circle cx="128" cy="110" r="78" fill="#D9488B" opacity="0.5"/>
+<circle cx="128" cy="110" r="76" fill="url(#disc)"/>
+<!-- icon: outline layer then white fill layer -->
+<g fill="#D9488B" stroke="#D9488B" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"><path d="M88 134 A40 40 0 0 1 168 134 Z"/><rect x="70" y="132" width="116" height="18" rx="9"/></g>
+<g fill="#ffffff"><path d="M88 134 A40 40 0 0 1 168 134 Z"/><rect x="70" y="132" width="116" height="18" rx="9"/></g>
+<line x1="175.0" y1="114.9" x2="188.1" y2="110.1" stroke="#D9488B" stroke-width="9" stroke-linecap="round"/><line x1="156.7" y1="91.0" x2="164.7" y2="79.6" stroke="#D9488B" stroke-width="9" stroke-linecap="round"/><line x1="128.0" y1="82.0" x2="128.0" y2="68.0" stroke="#D9488B" stroke-width="9" stroke-linecap="round"/><line x1="99.3" y1="91.0" x2="91.3" y2="79.6" stroke="#D9488B" stroke-width="9" stroke-linecap="round"/><line x1="81.0" y1="114.9" x2="67.9" y2="110.1" stroke="#D9488B" stroke-width="9" stroke-linecap="round"/><path d="M98 134 A30 30 0 0 1 158 134 Z" fill="#FF8FC1"/>
+<!-- gloss -->
+<g clip-path="url(#discClip)"><ellipse cx="118" cy="62" rx="62" ry="30" fill="#fff" opacity="0.32"/></g>
+
+</svg>

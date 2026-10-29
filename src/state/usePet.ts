@@ -48,8 +48,8 @@ import {
   setPlayHereRequest,
   setSettleRequest,
 } from './sessionGate';
-import { awardedBadgeIds, syncBadges } from '../sim/badges';
 import { speciesOf } from '../sim/tracks';
+import { syncBadges } from '../sim/badges';
 import { sqlitePetStorage } from '../db/sqlitePetStorage';
 import { emptyPlaydateSave, petHasCompletedPlaydate } from '../playdate/save';
 import { loadPlaydateSave } from '../playdate/storage';
@@ -149,6 +149,8 @@ type PetApi = {
   pendingBoops: number;
   dismissBurst: () => void;
   cancelBursts: () => void;
+  awardedBadges: string[];
+  clearAwardedBadges: () => void;
 };
 
 function caughtUpCopy(discarded: boolean, petName: string): string {
@@ -208,12 +210,12 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
   const [homeSnapToken, setHomeSnapToken] = useState(0);
   const [burst, setBurst] = useState<Burst | null>(null);
   const [pendingBoops, setPendingBoops] = useState(0);
+  const [awardedBadges, setAwardedBadges] = useState<string[]>([]);
+  const clearAwardedBadges = useCallback(() => setAwardedBadges([]), []);
   const burstRef = useRef<Burst | null>(null);
   const burstQueue = useRef<Burst[]>([]);
   const burstSeq = useRef(0);
   const greetAfter = useRef<{ elapsedH: number } | null>(null);
-  const [awardedBadges, setAwardedBadges] = useState<string[]>([]);
-  const clearAwardedBadges = useCallback(() => setAwardedBadges([]), []);
   const stateRef = useRef<PetState | null>(null);
   const tokenRef = useRef(0);
   const storageRef = useRef(storage);
@@ -236,10 +238,22 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
     stagedRef.current = true;
   }, []);
 
+  const knownBadgePet = useRef<string | null>(null);
+  const knownBadges = useRef<string[]>([]);
   const publish = useCallback((next: PetState, nextCue?: Cue, sync = true) => {
+    if (knownBadgePet.current !== next.id) {
+      knownBadgePet.current = next.id;
+      knownBadges.current = [];
+    }
+    const previous = new Set(knownBadges.current);
+    if (stateRef.current?.id === next.id) {
+      for (const id of stateRef.current.badges ?? []) {
+        previous.add(id);
+      }
+    }
     const synced = syncBadges(next, Date.now());
-    const had = new Set(next.badges ?? []);
-    const fresh = synced.badges.filter((id) => !had.has(id));
+    const fresh = synced.badges.filter((id) => !previous.has(id));
+    knownBadges.current = synced.badges;
     if (fresh.length > 0) {
       setAwardedBadges((prev) => [...prev, ...fresh.filter((id) => !prev.includes(id))]);
     }
@@ -387,35 +401,43 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
         return;
       }
       returningRef.current = true;
-      try {
-        const opened = onAppOpen(current, now);
-        const elapsedH = awayElapsedHours(opened.pet.lastUpdatedAt, now);
-        const resumed = resume(opened.pet, now);
-        if (resumed.sceneId !== opened.pet.sceneId) {
-          setHomeSnapToken((token) => token + 1);
+      void (async () => {
+        try {
+          if (!stateRef.current || stateRef.current.id !== current.id) {
+            stateRef.current = current;
+          }
+          const save = current.ownerId ? await loadPlaydateSave(current.ownerId) : emptyPlaydateSave();
+          const marked =
+            current.hadPlaydate || petHasCompletedPlaydate(save, current.id) ? { ...current, hadPlaydate: true } : current;
+          const opened = onAppOpen(marked, now);
+          const elapsedH = awayElapsedHours(opened.pet.lastUpdatedAt, now);
+          const resumed = resume(opened.pet, now);
+          if (resumed.sceneId !== opened.pet.sceneId) {
+            setHomeSnapToken((token) => token + 1);
+          }
+          const settled = settleProgress(resumed, now);
+          const bursts = [
+            ...opened.bursts,
+            ...settled.payouts.map((payout) => ({ label: payout.label, amount: payout.amount, coinCount: 5 as const })),
+          ];
+          if (elapsedH >= AWAY_DECAY.welcomeBackThresholdH) {
+            setWelcomeBack(true);
+          }
+          const awayMin = elapsedH * 60;
+          const greet = awayMin >= 2;
+          const playing = enqueueOpen({ ...opened, pet: settled.pet, bursts });
+          if (playing && greet) {
+            greetAfter.current = { elapsedH };
+            publish(settled.pet);
+          } else if (greet) {
+            publish(settled.pet, { kind: 'greet', elapsedH });
+          } else {
+            publish(settled.pet);
+          }
+        } finally {
+          returningRef.current = false;
         }
-        const settled = settleProgress(resumed, now);
-        const bursts = [
-          ...opened.bursts,
-          ...settled.payouts.map((payout) => ({ label: payout.label, amount: payout.amount, coinCount: 5 as const })),
-        ];
-        if (elapsedH >= AWAY_DECAY.welcomeBackThresholdH) {
-          setWelcomeBack(true);
-        }
-        const awayMin = elapsedH * 60;
-        const greet = awayMin >= 2;
-        const playing = enqueueOpen({ ...opened, pet: settled.pet, bursts });
-        if (playing && greet) {
-          greetAfter.current = { elapsedH };
-          publish(settled.pet);
-        } else if (greet) {
-          publish(settled.pet, { kind: 'greet', elapsedH });
-        } else {
-          publish(settled.pet);
-        }
-      } finally {
-        returningRef.current = false;
-      }
+      })();
     },
     [enqueueOpen, publish],
   );
@@ -1239,5 +1261,7 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
     pendingBoops,
     dismissBurst,
     cancelBursts,
+    awardedBadges,
+    clearAwardedBadges,
   };
 }

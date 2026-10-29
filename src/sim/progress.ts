@@ -108,6 +108,10 @@ export function grantTrickXp(state: PetState, category: 'basic' | 'advanced'): P
   return addXp(state, gameplayConfig.trickXp[category]);
 }
 
+export function grantBadgeXp(state: PetState, amount: number): PetState {
+  return addXp(state, amount);
+}
+
 export function grantFindXp(state: PetState, rarity: ParkFindRarity): PetState {
   return addXp(state, gameplayConfig.findXp[rarity]);
 }
@@ -157,6 +161,12 @@ export function ensureProgress(state: PetState): PetState {
         xpDailyDay: '',
         tutorialSeen: [],
         parkFindGoalAt: null,
+        badges: [],
+        badgeXpSkipped: [],
+        openedDays: 0,
+        openedStreak: 0,
+        lastOpenedDay: '',
+        hadPlaydate: false,
         lastPaidLevel: 1,
       }
     : {
@@ -167,6 +177,12 @@ export function ensureProgress(state: PetState): PetState {
         xpDailyDay: rest.xpDailyDay ?? '',
         tutorialSeen: rest.tutorialSeen ?? [],
         parkFindGoalAt: rest.parkFindGoalAt ?? null,
+        badges: rest.badges ?? [],
+        badgeXpSkipped: rest.badgeXpSkipped ?? [],
+        openedDays: rest.openedDays ?? 0,
+        openedStreak: rest.openedStreak ?? 0,
+        lastOpenedDay: rest.lastOpenedDay ?? '',
+        hadPlaydate: rest.hadPlaydate ?? false,
       };
   return withParkFindSeen(base);
 }

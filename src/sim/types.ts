@@ -136,6 +136,13 @@ export type PetState = {
   tutorialSeen: string[];
   /** Unused. Kept so older saves still load. Park finds are not gated on a watermark. */
   parkFindGoalAt: number | null;
+  badges: string[];
+  /** Badge ids awarded before level 10. Their XP is not paid later. */
+  badgeXpSkipped: string[];
+  openedDays: number;
+  openedStreak: number;
+  lastOpenedDay: string;
+  hadPlaydate: boolean;
   bond: number;
   needs: Needs;
   asleep: boolean;

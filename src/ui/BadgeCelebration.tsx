@@ -1,4 +1,4 @@
-import { useEffect, useId } from 'react';
+import { useEffect, useId, useRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
@@ -10,6 +10,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
+import { BadgeMedal } from './badges/BadgeMedal';
 import Svg, { Circle, Defs, Ellipse, G, LinearGradient, Path, RadialGradient, Stop } from 'react-native-svg';
 import { PawPrint } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
@@ -18,6 +19,7 @@ type Props = {
   title: string;
   caption?: string;
   Icon?: LucideIcon;
+  badgeId?: string;
   reducedMotion: boolean;
   onDone: () => void;
 };
@@ -178,12 +180,14 @@ function Confetti({ angle, distance, spin, color, wide }: Omit<(typeof confetti)
   return <Animated.View style={[medalStyles.confetti, wide ? medalStyles.confettiWide : null, { backgroundColor: color }, style]} />;
 }
 
-export function BadgeCelebration({ title, caption = 'New trick learned!', Icon = PawPrint, reducedMotion, onDone }: Props) {
+export function BadgeCelebration({ title, caption = 'New trick learned!', Icon = PawPrint, badgeId, reducedMotion, onDone }: Props) {
   const pop = useSharedValue(reducedMotion ? 1 : 0);
   const wobble = useSharedValue(0);
   const textIn = useSharedValue(reducedMotion ? 1 : 0);
   const fade = useSharedValue(1);
 
+  const onDoneRef = useRef(onDone);
+  onDoneRef.current = onDone;
   useEffect(() => {
     if (!reducedMotion) {
       pop.value = withSpring(1, { damping: 7, stiffness: 140 });
@@ -194,9 +198,9 @@ export function BadgeCelebration({ title, caption = 'New trick learned!', Icon =
       textIn.value = withDelay(300, withSpring(1, { damping: 12, stiffness: 160 }));
     }
     fade.value = withDelay(2400, withTiming(0, { duration: 350 }));
-    const timer = setTimeout(onDone, 2800);
+    const timer = setTimeout(() => onDoneRef.current(), 2800);
     return () => clearTimeout(timer);
-  }, [fade, onDone, pop, reducedMotion, textIn, wobble]);
+  }, [fade, pop, reducedMotion, textIn, wobble]);
 
   const popStyle = useAnimatedStyle(() => ({
     transform: [{ scale: pop.value }],
@@ -223,14 +227,20 @@ export function BadgeCelebration({ title, caption = 'New trick learned!', Icon =
           <Glow still={reducedMotion} />
           {!reducedMotion && confetti.map(({ key, ...piece }) => <Confetti key={key} {...piece} />)}
           <Animated.View style={[medalStyles.medal, popStyle]}>
-            <Animated.View style={[medalStyles.rosette, medalStyle]}>
-              <Medal />
-            </Animated.View>
-            <View style={medalStyles.iconSlot}>
-              <View style={medalStyles.paw}>
-                <Icon size={44} strokeWidth={2.4} color="#9A4A12" />
-              </View>
-            </View>
+            {badgeId ? (
+              <BadgeMedal id={badgeId} size={168} />
+            ) : (
+              <>
+                <Animated.View style={[medalStyles.rosette, medalStyle]}>
+                  <Medal />
+                </Animated.View>
+                <View style={medalStyles.iconSlot}>
+                  <View style={medalStyles.paw}>
+                    <Icon size={44} strokeWidth={2.4} color="#9A4A12" />
+                  </View>
+                </View>
+              </>
+            )}
           </Animated.View>
         </View>
 

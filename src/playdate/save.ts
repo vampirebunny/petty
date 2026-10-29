@@ -57,6 +57,14 @@ export function rememberPlaydate(
   };
 }
 
+export function petHasCompletedPlaydate(save: PlaydateSave, petId: string): boolean {
+  const book = save.relationships[petId];
+  if (!book) {
+    return false;
+  }
+  return Object.values(book).some((row) => row.playdateCount > 0);
+}
+
 export function settlePlaydate(
   save: PlaydateSave,
   pet: PetState,
@@ -73,7 +81,7 @@ export function settlePlaydate(
   }
   return {
     save: remembered.save,
-    pet: applyPlaydateRewards(pet, record.outcome),
+    pet: { ...applyPlaydateRewards(pet, record.outcome), hadPlaydate: true },
     applied: true,
   };
 }
