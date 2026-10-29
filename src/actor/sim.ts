@@ -1791,6 +1791,13 @@ function setStage(actor: Actor, stage: string, hold?: number): void {
 }
 
 // Leaves the ground. A jump is a vertical offset: the shadow stays down, the legs tuck, and the landing squashes.
+export function happyHop(world: World, actor: Actor): void {
+  actor.bark = { active: true, t: 0, fired: [false, false], open: 0, sound: true };
+  if (!world.reducedMotion && actor.z <= 0 && !actor.jump) {
+    launch(actor, 'hop', 160);
+  }
+}
+
 function launch(actor: Actor, kind: JumpKind, vz: number, vx?: number, vy?: number): void {
   actor.vz = vz;
   actor.z = Math.max(actor.z, 0.01);
@@ -3389,12 +3396,21 @@ function updateActor(world: World, actor: Actor, dt: number): void {
       goIdle(world, actor);
     }
   } else if (actor.task.type === 'parkFind') {
-    const result = updateParkFindTask(world, actor, targets, dt, (point, speed) => {
-      move = point;
-      if (speed != null) {
-        vmax = speed;
-      }
-    });
+    // Age top sprint as if energy were full — finds always run in, even when tired.
+    const parkSprint = topSpeed * gaitSpeedCap[maxGait] * energySpeedScale(1);
+    const result = updateParkFindTask(
+      world,
+      actor,
+      targets,
+      dt,
+      (point, speed) => {
+        move = point;
+        if (speed != null) {
+          vmax = speed;
+        }
+      },
+      parkSprint,
+    );
     const visit = world.parkFindVisit;
     const run = actor.task.parkFind;
     if (visit && run) {

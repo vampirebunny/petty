@@ -129,13 +129,15 @@ function dropPoint(world: World): { x: number; y: number } {
   };
 }
 
-/** Drive park-find poses and movement for one frame. Returns true when the run finished. */
+/** Drive park-find poses and movement for one frame. Returns true when the run finished.
+ *  `sprintVmax` is the pet's age top sprint (energy ignored) for the run-to-spot. */
 export function updateParkFindTask(
   world: World,
   actor: Actor,
   targets: Pose,
   dt: number,
   setMove: (point: { x: number; y: number } | null, vmax?: number) => void,
+  sprintVmax: number,
 ): { done: boolean; justRevealed: boolean; goldFlash: boolean } {
   const run = actor.task.parkFind;
   if (!run || actor.task.type !== 'parkFind') {
@@ -172,7 +174,8 @@ export function updateParkFindTask(
     }
     case 'trot': {
       faceSpot();
-      setMove(spot, 90);
+      // After "Let's see!", sprint to the dig spot at the age's top speed (ignore energy).
+      setMove(spot, sprintVmax);
       if (distTo(spot) < 18) {
         setMove(null);
         advance(run, 'sniff');
@@ -180,17 +183,11 @@ export function updateParkFindTask(
       break;
     }
     case 'stalk': {
-      targets.stalk = 1;
-      targets.crouch = 0.6;
-      targets.headDown = 0.35;
+      // Run in at full age speed; crouch/stalk wait for the short wiggle at the spot.
       targets.tailLift = -0.2;
       faceSpot();
       const stopShort = run.variant === 'bush' ? 28 : 110;
-      const goal = {
-        x: spot.x - actor.face * Math.min(stopShort, Math.max(20, distTo(spot) - 4)),
-        y: spot.y,
-      };
-      // Walk toward a point stopShort units short of the spot.
+      // Run toward a point stopShort units short of the spot.
       const dx = spot.x - actor.x;
       const dy = spot.y - actor.y;
       const len = Math.hypot(dx, dy) || 1;
@@ -198,12 +195,11 @@ export function updateParkFindTask(
         x: spot.x - (dx / len) * stopShort,
         y: spot.y - (dy / len) * Math.min(stopShort * 0.2, Math.abs(dy)),
       };
-      setMove(approach, 42);
+      setMove(approach, sprintVmax);
       if (distTo(spot) <= stopShort + 8) {
         setMove(null);
         advance(run, 'wiggle');
       }
-      void goal;
       break;
     }
     case 'sniff': {
