@@ -72,7 +72,7 @@ insert into public.shop_items (id, name, category, price, shop, species, descrip
   ('food_gourmet', 'Gourmet Bowl', 'treats', 300, 'always', null, 'A full tummy, and a healthier diet. Fed for a few days, older pets look and move younger.', 4, true, 'standard', null),
   ('food_steak', 'Steak Dinner', 'treats', 300, 'always', array['dog'], 'A full tummy, and a healthier diet. Fed for a few days, older pets look and move younger.', 5, true, 'standard', null),
   ('food_fish', 'Fish Feast', 'treats', 300, 'always', array['cat'], 'A full tummy, and a healthier diet. Fed for a few days, older pets look and move younger.', 6, true, 'standard', null),
-  ('second_wind', 'Second Wind', 'boosts', 150, 'always', null, 'Ends a trick''s rest early', 0, true, 'standard', null),
+  ('second_wind', 'Second Wind', 'boosts', 500, 'always', null, 'Ends a trick''s rest early', 0, true, 'standard', null),
   ('vitamins', 'Vitamins', 'boosts', null, 'coming_soon', null, 'Coming soon', 1, true, 'standard', null)
 on conflict (id) do update set
   name = excluded.name,

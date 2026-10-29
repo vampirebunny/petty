@@ -41,7 +41,7 @@ Add bundles to `shopConfig.ts`: `{ id, name, price, contents: [{ itemId, qty }],
 | Treats | `biscuit` (30), `special` (60, casual only, see below), `food_gourmet` (50), Treat Bag ×10 bundle |
 | Clothes | The paid `slot:wearId` outfits at their live prices (500–1600) |
 | Toys | `frisbee` (400, dog), `squeaky` (300, dog), `yarn` (300, cat). Add them to `catalog.ts` as toy rows with these placeholder prices. |
-| Boosts | `second_wind` (120); a `vitamins` entry in `shopConfig.ts` only, with `shop: coming_soon` and no price, so the card is data, not hardcoded |
+| Boosts | `second_wind` (500); a `vitamins` entry in `shopConfig.ts` only, with `shop: coming_soon` and no price, so the card is data, not hardcoded |
 
 - **Starter items stay free grants and are not in the shop:** the 10 starting biscuits, the ball, and the starter wardrobe (including `hat:beanie`). Keep them `hidden`, as today. Biscuits are still sold; only the free starting 10 are a grant.
 - **`special`:** set it available. It's casual only this round (training effect stays null), per the currency doc.

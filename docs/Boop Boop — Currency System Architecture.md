@@ -386,7 +386,7 @@ Prices, effects and availability live in the catalog, not in the economy config.
 | Other designed outfits, none of the seven starter items (paid neckwear: bell, bow, gold collar; paid jackets and boots: all but the puffer and red boots) | By slot: neckwear 500, eyewear 700, hats 1,000, boots 1,200, jackets 1,600 | Yes |
 | Basic treat | 30 | Yes |
 | Premium food (1–2 kinds) | 50 | Yes |
-| Second Wind | 120 | Yes |
+| Second Wind | 500 | Yes |
 | Vitamins | 150 | Later round |
 | Toys | — | Later: needs a toy box inventory |
 

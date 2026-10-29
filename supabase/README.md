@@ -27,6 +27,8 @@ Applied by the owner through `20261024250000_ledger_source_ambiguity.sql`, inclu
 
 `20261028180000_iap_service_grants.sql` is applied. `service_role` can insert and update `webhook_events` and read `boops_packs`. Without that, the webhook returns `{"error":"unavailable"}`. After the grant, a RevenueCat test event returned `{"ok":true}`.
 
+`20261029120000_second_wind_price.sql` is applied. Second Wind costs 500 Boops. The app also pins that price in `priceAdjustments`, so a catalog saved before the download charges 500 too.
+
 New files in this folder are applied only by the project owner. Do not run `supabase db push`, the Supabase CLI against the hosted project, or the SQL in the dashboard from an agent or an automated script. After the CLI is linked, the owner applies new migrations with:
 
 ```bash

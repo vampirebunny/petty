@@ -773,6 +773,7 @@ const priceAdjustments: Record<string, number> = {
   food_gourmet: 300,
   food_steak: 300,
   food_fish: 300,
+  second_wind: 500,
 };
 
 const homeShelf: ShopListing[] = [

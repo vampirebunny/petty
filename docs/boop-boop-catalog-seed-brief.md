@@ -102,7 +102,7 @@ Upsert these `shop_items` rows. Species is shown as the array value. Starter ite
 | `food_gourmet` | Gourmet Bowl | treats | null | standard | — | always | 60 |
 | `food_steak` | Steak Dinner | treats | {dog} | standard | — | always | 60 |
 | `food_fish` | Fish Feast | treats | {cat} | standard | — | always | 60 |
-| `second_wind` | Second Wind | boosts | null | standard | — | always | 150 |
+| `second_wind` | Second Wind | boosts | null | standard | — | always | 500 |
 | `vitamins` | Vitamins | boosts | null | standard | — | coming_soon | — |
 **Sort:** the upsert sets `sort` for every row: number each category from 0 in the table's order above (the price ladder).
 
