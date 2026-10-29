@@ -12,7 +12,6 @@ export const remoteTracks = [
   'mickeyscat-moment-of-peace-mickeyscat-554494.mp3',
   'ikoliks_aj-background-music-320427.mp3',
   'andriig-happy-happy-guitar-music-618748.mp3',
-  '34910776-for-her-chill-upbeat-summel-travel-vlog-and-ig-music-royalty-free-use-202298.mp3',
   'alexgrohl-no-copyright-music-bounce-on-it-184234.mp3',
   'lexin_music-science-documentary-169621.mp3',
   'kornevmusic-upbeat-happy-corporate-487426.mp3',
