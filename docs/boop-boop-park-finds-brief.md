@@ -14,7 +14,6 @@ Build on existing systems (park scene, pet pose channels in `pet.ts`, scene prop
 | `assets/park-finds/silhouette-2x/`, `silhouette-3x/` | Runtime silhouettes, color `#54467A` |
 | `assets/park-finds/chest/`, `cube/` | Chest and cube PNGs (+ SVG sources beside them) |
 | `assets/park-finds/svg/` | Find SVG sources for future edits. Don't render these at runtime |
-| `docs/park-finds-reference/*.html` | Timing references and early screen mocks. Pets in them are stand-ins: copy **timing and motion**, draw with the real pet rig |
 
 ## Global rules
 
@@ -52,7 +51,7 @@ Finds only happen **in the park**, only when unlocked, and only when the pet not
 **The notice and the prompt**
 1. Pick the spot (see "Where").
 2. The pet stops, perks its ears, turns its head toward the spot and wags. A dog sniffs the air toward it. For a cat, the grass tuft grows in and rustles, or the bush shakes softly.
-3. The pet makes one bark or meow, and the prompt slides down from the top of the scene (see `docs/park-finds-reference/ScreenPrompt.html`):
+3. The pet makes one bark or meow, and the prompt slides down from the top of the scene:
    - It's a glossy cotton-candy card just under the header. It must never cover the pet.
    - Text: **"[Pet name] seems to have found something!"**
    - One button: **"Let's see!"**
@@ -78,16 +77,11 @@ Finds only happen **in the park**, only when unlocked, and only when the pet not
 
 ## 3. Animations
 
-Open the references and match the beats and timing:
-- `docs/park-finds-reference/AnimDog.html`: dog digs
-- `docs/park-finds-reference/AnimCatGrass.html`: cat pounces into grass
-- `docs/park-finds-reference/AnimCatBush.html`: cat bats at a bush
+Walking and stalking legs run as long as the distance needs (use the existing walk task and gait); the other beats have fixed durations.
 
-Each reference has a timeline bar with a playhead. Walking and stalking legs run as long as the distance needs (use the existing walk task and gait); the other beats have fixed durations.
+The **Notice** and **Cue** beats below happen before the prompt (section 2). After "Let's see!", the animation picks up at **Trot** (dog) or **Stalk** (cat).
 
-The **Notice** and **Cue** beats below happen before the prompt (section 2). After "Let's see!", the animation picks up at **Trot** (dog) or **Stalk** (cat). The references show the whole sequence without the pause for the prompt.
-
-**Both dogs and cats carry the find back.** The cat references end with the cat sniffing the item where it landed; follow the tables below instead, which add the grab, the carry to the front and the drop.
+**Both dogs and cats carry the find back:** grab, carry to the front, and drop.
 
 **New pose channels** (add to `Pose`, blended like the others):
 - `dig`: the fore paws alternate a reach-forward (+0.45 L ahead of the hip, lifted) and a pull-back (−0.3 L) at 4 Hz. Near and far paws are half a cycle apart.
@@ -153,8 +147,6 @@ Existing channels used below: `headUp`, `headDown`, `earBack`, `wagAmp`, `tailLi
 
 ## 4. The find modal
 
-See `docs/park-finds-reference/ScreenFound.html`.
-
 - **Title:** "[Pet name] found a [Item]!". Use "an" before a vowel sound: "Biscuit found an Old compass!"
 - **Item art:** large, on a warm glow disc, floating gently.
 - **New! tag:** shown the first time this pet finds the item.
@@ -169,7 +161,7 @@ See `docs/park-finds-reference/ScreenFound.html`.
 
 **Art:** `art/chest/chest-closed`. The lid always stays closed. Draw it about 110 stage units wide, on the `sorted` layer like other furniture.
 
-### First time home (see `docs/park-finds-reference/ScreenChestIntro.html`)
+### First time home
 
 1. **Trigger:** the player enters any **player-owned room** (`scene.playerOwned`) while:
    - the pet has at least one find,
@@ -191,13 +183,11 @@ See `docs/park-finds-reference/ScreenFound.html`.
 - **Put away** sends it to Storage. From Storage the player can take it out into any player-owned room, through the existing flow.
 ### Collection button on Home
 
-- Add a glossy **"Collection"** button right next to **Storage**, with the small closed-chest art as its icon (see the right phone in `docs/park-finds-reference/ScreenChestIntro.html`).
+- Add a glossy **"Collection"** button right next to **Storage**, with the small closed-chest art as its icon.
 - It opens the Treasure Chest page from anywhere, even when the chest is in Storage or not placed yet.
 - Show it whenever park finds are unlocked.
 
 ## 6. Treasure Chest page
-
-`docs/park-finds-reference/ScreenCollection.html` is an early mock (2-column glass cubes). **Ship the layout below**, not the mock.
 
 **Layout**
 - Dark background `#1E1630`.
