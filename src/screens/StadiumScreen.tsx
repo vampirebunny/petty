@@ -3,16 +3,19 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ChevronLeft, Flag, WifiOff } from 'lucide-react-native';
 
 import { serverNow } from '../db/accountMeta';
+import { pushPetBeforeRead } from '../sync/queue';
 import { askRaceReminderPermission, cancelRaceCall } from '../reminders/notifications';
 import { fetchBoard, signUpFor, withdrawEntry, type RaceView, type StadiumBoard, type StadiumCard, type StadiumSlot } from '../stadium/api';
 import { gameplayConfig } from '../sim/gameplayConfig';
-import { classForLevel, dropEndedSignup, eventLabel, racesOf, skillBlock, withSignup, type RaceSignup, type SkillBlock } from '../sim/stadium';
+import { applyRaceRewards } from '../sim/raceRewards';
+import { classForLevel, dropEndedSignup, eventLabel, isPlayableEvent, racesOf, skillBlock, withSignup, type RaceSignup, type SkillBlock } from '../sim/stadium';
 import type { PetState } from '../sim/types';
 import { fontFamily } from '../ui/font';
 import { FunModal } from '../ui/FunModal';
 import { CandyButton } from '../ui/stadium/CandyButton';
 import { Lobby } from '../ui/stadium/Lobby';
 import { PetChip, ReadyBars, Toast, ink, pageFill, shared, softInk } from '../ui/stadium/parts';
+import { FunRunScreen } from '../ui/stadium/FunRunScreen';
 import { RacePlaceholder } from '../ui/stadium/RacePlaceholder';
 import { SignUpSheet } from '../ui/stadium/SignUpSheet';
 import { StadiumHeader } from '../ui/stadium/StadiumHeader';
@@ -41,12 +44,19 @@ type Status = 'ok' | 'offline' | 'error';
 const statusTop = 48;
 
 function failureCopy(reason: string, name: string): string {
-  if (reason.includes('busy')) return 'One race at a time.';
-  if (reason.includes('resting')) return `${name} is resting after the last race.`;
+  if (reason.includes('busy')) return `${name} is already in a race.`;
+  if (reason.includes('resting')) return `${name} needs a short rest before this race.`;
   if (reason.includes('closed')) return 'That race just closed. Try the next one.';
   if (reason.includes('missing_trick')) return `${name} needs a new trick for this race.`;
   if (reason.includes('locked')) return 'The line-up is locked now.';
-  if (reason.includes('pet not synced')) return `${name} is still checking in. Try again in a moment.`;
+  if (reason.includes('pet not synced')) return `${name} hasn't reached the Stadium yet. Try again in a moment.`;
+  if (reason.includes('not authenticated')) return 'Sign in to race at the Stadium.';
+  if (reason.includes('not_active')) return `${name} is active on another device.`;
+  if (reason === 'name') return "The Stadium can't use that name.";
+  if (reason.includes('owner mismatch')) return `${name} hasn't reached the Stadium yet. Try again in a moment.`;
+  if (reason.includes('retired')) return `${name} has already been retired.`;
+  const short = reason.replace(/\s+/g, ' ').trim();
+  if (short.length > 0 && short.length <= 160) return short;
   return 'Something went wrong. Try again in a moment.';
 }
 
@@ -61,6 +71,7 @@ export function StadiumScreen({ pet, reducedMotion, openGate, moodTreats, onClos
   const [block, setBlock] = useState<SkillBlock | null>(null);
   const [race, setRace] = useState<RaceView | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [boardReason, setBoardReason] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [width, setWidth] = useState(0);
   const petRef = useRef(pet);
@@ -80,14 +91,26 @@ export function StadiumScreen({ pet, reducedMotion, openGate, moodTreats, onClos
   const signup = racesOf(pet).signup;
 
   const load = useCallback(async () => {
-    const result = await fetchBoard(petRef.current.id);
+    let result = await fetchBoard(petRef.current.id);
+    if (!result.ok && result.reason.includes('pet not synced')) {
+      const pushed = await pushPetBeforeRead(petRef.current);
+      if (pushed.pet !== petRef.current) {
+        petRef.current = pushed.pet;
+        commitRef.current(pushed.pet);
+      }
+      result = pushed.reason
+        ? { ok: false, offline: false, reason: pushed.reason }
+        : await fetchBoard(pushed.pet.id);
+    }
     if (!result.ok) {
+      setBoardReason(result.reason);
       setStatus(result.offline ? 'offline' : 'error');
       if (screenRef.current === 'loading') {
         setScreen('lobby');
       }
       return;
     }
+    setBoardReason(null);
     const next = result.data;
     setStatus('ok');
     setBoard(next);
@@ -238,6 +261,30 @@ export function StadiumScreen({ pet, reducedMotion, openGate, moodTreats, onClos
   const offline = status === 'offline' && screen !== 'gate' && screen !== 'race';
   const activeGate = screen === 'gate' ? (gateSignup ?? signup) : null;
 
+  if (screen === 'race' && race && isPlayableEvent(race.event)) {
+    return (
+      <FunRunScreen
+        race={race}
+        pet={pet}
+        reducedMotion={reducedMotion}
+        onFinish={(place) => {
+          commitRef.current(
+            applyRaceRewards(
+              petRef.current,
+              { raceId: race.raceId, event: race.event, classId: race.classId, place, at: serverNow() },
+              serverNow(),
+            ),
+          );
+        }}
+        onExit={() => {
+          setRace(null);
+          setScreen('lobby');
+          void load();
+        }}
+      />
+    );
+  }
+
   return (
     <View style={styles.root} onLayout={(event) => setWidth(Math.round(event.nativeEvent.layout.width))}>
       <ScrollView contentContainerStyle={styles.scroll} bounces={false}>
@@ -293,6 +340,7 @@ export function StadiumScreen({ pet, reducedMotion, openGate, moodTreats, onClos
               withdrawing={busy}
               onGate={goGate}
               onPlay={onPlay}
+              onWaitElsewhere={onClose}
               onMoodTreat={onMoodTreat}
               onShop={onShop}
               onWithdraw={() => void withdraw(signup)}
@@ -315,7 +363,7 @@ export function StadiumScreen({ pet, reducedMotion, openGate, moodTreats, onClos
             </>
           ) : (
             <View style={[shared.card, styles.offline]}>
-              <Text style={[shared.copy, styles.center]}>{pet.name} is still checking in at the Stadium.</Text>
+              <Text style={[shared.copy, styles.center]}>{failureCopy(boardReason ?? 'pet not synced', pet.name)}</Text>
               <CandyButton role="go" label="Try again" onPress={() => void load()} />
             </View>
           )}

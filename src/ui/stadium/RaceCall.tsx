@@ -85,7 +85,7 @@ export function RaceCall({ pet, atGate, reducedMotion, onGo, onCommit }: Props) 
           tint="mint"
           sparkle
           reducedMotion={reducedMotion}
-          primary={{ label: 'Go to the Stadium', onPress: onGo, closeFirst: true }}
+          primary={{ label: 'Go to the starting gate', onPress: onGo, closeFirst: true }}
           secondary={{ label: 'Skip this race', onPress: () => void skip() }}
         />
       ) : null}

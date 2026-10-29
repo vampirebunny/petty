@@ -7,7 +7,7 @@ Alongside open scheduled races, a player can create a private race just for frie
 ## Creating a game
 
 1. In the Stadium, the player taps **Invite friends**.
-2. Picks the event: Fun Run, Agility, Trick Show, or Fetch/Swat (same species rules as open races). For Agility, also picks the course: Hurdles only, Hurdles + tunnel, Hurdles + tunnel + weave, or Full course.
+2. Picks the event: Fun Run, Dock Dive, Sniff Out, Trick Show, Hurdles, Weave, or Obstacle Course (same trick rules as open races).
 3. Selects up to 5 friends:
    - **Recent** at the top: the 5 friends this player invited most recently (stored per player, not per pet), newest first.
    - **All friends** below.
@@ -34,7 +34,7 @@ Alongside open scheduled races, a player can create a private race just for frie
 
 ## Race rules
 
-- Starts when the initiator taps Start, not on the 15-minute schedule.
+- Starts when the initiator taps Start, not on the 5-minute schedule.
 - No classes: every friend game runs at a single **Friendly pace (1.15×)**, so pets of any level can race. Attributes, tricks and player skill still decide the result.
 - Same events, controls, scoring, skill check and energy/mood effects as open races.
 

@@ -1,0 +1,638 @@
+<title>Boop Boop Race Demo</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
+<style>
+/* Layout: one phone-shaped column — race header, canvas track, big action pad; menu and results sit over it. Single cotton-candy look by design. */
+:root{
+  --page:#F6D9EA; --bg:#FFF4FA; --ink:#3A1D4F; --ink-2:#6B4A80;
+  --pink:#FF8FC0; --pink-deep:#F0609F; --mint:#4CC496; --mint-deep:#2FA77A;
+  --lav:#B79BFF; --butter:#FFD84D; --white:#FFFFFF; --line:#D8C9E3;
+  --display:'Fredoka', 'Baloo 2', system-ui, sans-serif;
+  --body:'Nunito', system-ui, -apple-system, sans-serif;
+  color-scheme: light;
+}
+html,body{height:100%}
+body{background:var(--page);color:var(--ink);font-family:var(--body);overscroll-behavior:none}
+.app{position:relative;max-width:440px;height:100%;margin:0 auto;display:flex;flex-direction:column;overflow:hidden;background:var(--bg)}
+@media (min-width:480px){.app{border-left:3px solid var(--ink);border-right:3px solid var(--ink)}}
+
+.bar{flex-shrink:0;background:#FF9CC8;border-bottom:3px solid var(--ink);padding-block:12px 8px;padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));display:flex;flex-direction:column;gap:8px}
+.bar-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.title{margin:0;font-family:var(--display);font-weight:700;font-size:26px;color:var(--white);-webkit-text-stroke:1.5px var(--ink);paint-order:stroke fill;text-shadow:0 2px 0 var(--ink)}
+.pills{display:flex;gap:8px}
+.pill{display:flex;align-items:center;gap:6px;background:var(--white);border:2.5px solid var(--ink);border-radius:18px;padding:3px 11px;box-shadow:0 3px 0 var(--ink);font-family:var(--display);font-weight:700;font-size:18px;font-variant-numeric:tabular-nums}
+.mini{position:relative;height:30px}
+.mini .track{position:absolute;left:4px;right:22px;top:12px;height:6px;border-radius:3px;background:var(--white);border:2px solid var(--ink)}
+.mini svg{position:absolute;right:0;top:0}
+.dot{position:absolute;top:3px;width:24px;height:24px;box-sizing:border-box;border-radius:12px;border:2.5px solid var(--ink);display:flex;align-items:center;justify-content:center;font-family:var(--display);font-weight:600;font-size:12px;transform:translateX(0)}
+.dot.me{top:1px;width:28px;height:28px;border-radius:14px;box-shadow:0 0 0 3px var(--white);z-index:2}
+
+.stage{position:relative;flex:0 0 auto;height:clamp(280px, 48vh, 420px);border-bottom:3px solid var(--ink)}
+.stage canvas{display:block;width:100%;height:100%}
+
+.controls{flex:1;min-height:180px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding-block:12px 18px;padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));touch-action:none;user-select:none;-webkit-user-select:none;cursor:pointer}
+.meter{display:flex;align-items:center;gap:10px;width:100%;max-width:320px}
+.meter-label{font-size:12px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--ink-2)}
+.bars{flex:1;display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:4px}
+.bars i{height:13px;border-radius:4px;border:2px solid var(--ink);background:var(--white)}
+.big{border:4px solid var(--ink);color:var(--white);font-family:var(--display);font-weight:700;display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer;-webkit-text-stroke:1.5px var(--ink);paint-order:stroke fill;text-shadow:0 3px 0 var(--ink);transition:transform .05s, box-shadow .05s;pointer-events:none}
+.big.tap{width:190px;height:190px;border-radius:50%;flex-direction:column;gap:2px;font-size:34px;background:radial-gradient(circle at 50% 30%, #FFC2DC 0%, var(--pink) 45%, #E9579A 100%);box-shadow:inset 0 8px 0 rgba(255,255,255,.55), inset 0 -8px 0 rgba(58,29,79,.15), 0 7px 0 var(--ink)}
+.big.jump{width:min(290px, 100%);height:112px;border-radius:56px;font-size:38px;background:linear-gradient(180deg,#A6EBCF 0%,var(--mint) 55%,var(--mint-deep) 100%);box-shadow:inset 0 7px 0 rgba(255,255,255,.55), inset 0 -7px 0 rgba(58,29,79,.15), 0 7px 0 var(--ink)}
+.big.down{transform:translateY(5px);box-shadow:inset 0 6px 0 rgba(255,255,255,.5), 0 2px 0 var(--ink)}
+.big.idle{filter:saturate(.55) brightness(1.05)}
+.hint{margin:0;font-size:14px;font-weight:800;color:var(--ink-2);text-align:center;min-height:20px}
+
+.overlay{position:absolute;inset:0;z-index:5;background:var(--bg);overflow-y:auto;padding-block:28px 24px;padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));display:flex;flex-direction:column;gap:16px}
+.eyebrow{font-size:12px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:var(--ink-2);text-align:center}
+.h1{margin:0;font-family:var(--display);font-weight:700;font-size:34px;text-align:center;color:var(--white);-webkit-text-stroke:2px var(--ink);paint-order:stroke fill;text-shadow:0 3px 0 var(--ink);text-wrap:balance}
+.race-pick{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.card{display:flex;flex-direction:column;align-items:flex-start;gap:6px;text-align:left;padding:14px;border-radius:20px;border:2.5px solid var(--ink);background:var(--white);box-shadow:0 4px 0 var(--ink);color:var(--ink);font-family:var(--body);cursor:pointer}
+.card .ico{width:46px;height:46px;border-radius:16px;border:2.5px solid var(--ink);display:flex;align-items:center;justify-content:center}
+.card b{font-family:var(--display);font-weight:600;font-size:18px}
+.card span{font-size:13px;font-weight:700;color:var(--ink-2)}
+.card[aria-pressed="true"]{background:#FFE6F2;outline:3px solid var(--pink-deep);outline-offset:2px}
+.seg-label{font-size:13px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-2)}
+.seg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.seg button{min-height:44px;border-radius:16px;border:2.5px solid var(--ink);background:var(--white);box-shadow:0 3px 0 var(--ink);font-family:var(--body);font-weight:800;font-size:13px;color:var(--ink);cursor:pointer}
+.seg button[aria-pressed="true"]{background:linear-gradient(180deg,#7FDDB9 0%,var(--mint-deep) 100%);color:var(--white);text-shadow:0 1px 0 rgba(58,29,79,.45);box-shadow:inset 0 3px 0 rgba(255,255,255,.5),0 3px 0 var(--ink)}
+.go{min-height:56px;border-radius:28px;border:3px solid var(--ink);background:linear-gradient(180deg,#FF9CCB 0%,var(--pink-deep) 100%);box-shadow:inset 0 4px 0 rgba(255,255,255,.55),0 4px 0 var(--ink);color:var(--white);font-family:var(--display);font-weight:600;font-size:19px;text-shadow:0 1px 0 rgba(58,29,79,.5);cursor:pointer}
+.ghost{min-height:48px;border-radius:24px;border:2.5px solid var(--ink);background:var(--white);box-shadow:0 3px 0 var(--ink);color:var(--ink);font-family:var(--body);font-weight:800;font-size:15px;cursor:pointer}
+.note{margin:0;font-size:13px;font-weight:700;color:var(--ink-2);text-align:center}
+button:focus-visible,.card:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
+
+.podium{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;align-items:end}
+.pod{display:flex;flex-direction:column;align-items:center;gap:6px}
+.pod .av{width:52px;height:52px;box-sizing:border-box;border-radius:26px;border:2.5px solid var(--ink);display:flex;align-items:center;justify-content:center;font-family:var(--display);font-weight:600;font-size:20px}
+.pod .nm{font-size:13px;font-weight:800}
+.pod .blk{width:100%;box-sizing:border-box;border-radius:16px 16px 0 0;border:2.5px solid var(--ink);border-bottom:none;background:#E7DCFF;display:flex;flex-direction:column;align-items:center;gap:2px;padding-top:8px;font-family:var(--display);font-weight:700;font-size:20px}
+.pod.me .av{border:3px solid var(--pink-deep)} .pod.me .nm{color:#B4236A} .pod.me .blk{background:#FFC2DC}
+.rewards{background:var(--white);border:2.5px solid var(--ink);border-radius:20px;box-shadow:0 4px 0 var(--ink);padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.rewards .row{display:flex;gap:10px}
+.chip{flex:1;display:flex;align-items:center;gap:10px;background:var(--bg);border:2px solid var(--ink);border-radius:14px;padding:8px 10px;min-width:0}
+.chip strong{display:block;font-size:14px} .chip small{display:block;font-size:12px;font-weight:700;color:var(--ink-2)}
+.stand{display:flex;flex-direction:column;gap:6px}
+.stand div{display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:14px;border:2px solid var(--line);background:var(--white);font-weight:800;font-size:14px}
+.stand div.me{border-color:var(--pink-deep)}
+.stand .pl{width:22px;font-family:var(--display);font-size:16px} .stand .nm{flex:1} .stand .tm{font-variant-numeric:tabular-nums}
+.actions{display:flex;flex-direction:column;gap:10px;margin-top:auto}
+@media (prefers-reduced-motion: reduce){.big{transition:none}}
+</style>
+
+<div class="app" id="app">
+  <header class="bar">
+    <div class="bar-top">
+      <h1 class="title" id="raceName">Fun Run</h1>
+      <div class="pills">
+        <div class="pill" id="hurdlePill" hidden>
+          <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3A1D4F" stroke-width="2.6" stroke-linecap="round"><path d="M4 20V8M20 20V8M3 8h18M3 12h18"/></svg>
+          <span id="hurdleCount">0/8</span>
+        </div>
+        <div class="pill">
+          <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3A1D4F" stroke-width="2.6" stroke-linecap="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9 2h6"/></svg>
+          <span id="timer">0:00.0</span>
+        </div>
+      </div>
+    </div>
+    <div class="mini" aria-hidden="true">
+      <div class="track"></div>
+      <svg width="22" height="28" viewBox="0 0 22 30"><line x1="4" y1="2" x2="4" y2="30" stroke="#3A1D4F" stroke-width="2.5"/><rect x="4" y="2" width="16" height="12" fill="#fff" stroke="#3A1D4F" stroke-width="2"/><rect x="4" y="2" width="5.3" height="6" fill="#3A1D4F"/><rect x="14.6" y="2" width="5.4" height="6" fill="#3A1D4F"/><rect x="9.3" y="8" width="5.3" height="6" fill="#3A1D4F"/></svg>
+      <div class="dot" id="dot0" style="background:#E8C39A">B</div>
+      <div class="dot" id="dot1" style="background:#C9CDE0">L</div>
+      <div class="dot me" id="dot2" style="background:#FFE0B8">M</div>
+    </div>
+  </header>
+
+  <div class="stage"><canvas id="cv" aria-label="Race track" role="img"></canvas></div>
+
+  <div class="controls" id="controls">
+    <div class="meter" id="meter">
+      <span class="meter-label">Speed</span>
+      <div class="bars" id="bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    </div>
+    <div class="big tap idle" id="action" aria-hidden="true">
+      <svg width="56" height="56" viewBox="0 0 24 24" fill="#fff" stroke="#3A1D4F" stroke-width="1.2"><ellipse cx="12" cy="16" rx="5" ry="4.2"/><circle cx="6" cy="10" r="2.3"/><circle cx="10" cy="6.5" r="2.3"/><circle cx="14" cy="6.5" r="2.3"/><circle cx="18" cy="10" r="2.3"/></svg>
+      <span id="actionText">TAP!</span>
+    </div>
+    <p class="hint" id="hint">Get ready…</p>
+  </div>
+
+  <section class="overlay" id="menu">
+    <div class="eyebrow">Stadium · race demo</div>
+    <h2 class="h1">Pick a race</h2>
+    <div class="race-pick" role="group" aria-label="Race">
+      <button class="card" id="pickFun" aria-pressed="true" type="button">
+        <span class="ico" style="background:#8FE3C6"><svg aria-hidden="true" width="26" height="26" viewBox="0 0 24 24" fill="#3A1D4F"><ellipse cx="12" cy="16" rx="5" ry="4.2"/><circle cx="6" cy="10" r="2.3"/><circle cx="10" cy="6.5" r="2.3"/><circle cx="14" cy="6.5" r="2.3"/><circle cx="18" cy="10" r="2.3"/></svg></span>
+        <b>Fun Run</b>
+        <span>Tap as fast as you can. Two thumbs help.</span>
+      </button>
+      <button class="card" id="pickHurdles" aria-pressed="false" type="button">
+        <span class="ico" style="background:#FFB6D5"><svg aria-hidden="true" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#3A1D4F" stroke-width="2.4" stroke-linecap="round"><path d="M4 20V8M20 20V8M3 8h18M3 12h18"/></svg></span>
+        <b>Hurdles</b>
+        <span>Tap once when Maple reaches the green zone.</span>
+      </button>
+    </div>
+    <span class="seg-label">Class</span>
+    <div class="seg" role="group" aria-label="Class">
+      <button type="button" data-cls="beginner" aria-pressed="true">Beginner</button>
+      <button type="button" data-cls="intermediate" aria-pressed="false">Intermediate</button>
+      <button type="button" data-cls="championship" aria-pressed="false">Champion</button>
+    </div>
+    <p class="note">You race Maple against Biscuit and Luna (NPC pets). Higher classes are faster, with a tighter jump zone. On a computer, the space bar works too.</p>
+    <div class="actions"><button class="go" id="start" type="button">Start race</button></div>
+  </section>
+
+  <section class="overlay" id="results" hidden>
+    <div class="eyebrow" id="resEyebrow">Fun Run · Beginner class</div>
+    <h2 class="h1" id="resTitle">Maple placed 2nd!</h2>
+    <div class="podium" id="podium"></div>
+    <div class="rewards">
+      <strong style="font-family:var(--display);font-weight:600;font-size:16px">Maple won</strong>
+      <div class="row">
+        <div class="chip"><svg id="resRibbon" aria-hidden="true" width="24" height="32" viewBox="0 0 34 46"></svg><div><strong id="resRibbonName">Red ribbon</strong><small id="resRibbonSub">Fun Run · 2nd</small></div></div>
+        <div class="chip"><div style="width:30px;height:30px;flex-shrink:0;border-radius:15px;background:var(--butter);border:2.4px solid var(--ink);display:flex;align-items:center;justify-content:center;font-family:var(--display);font-weight:700;font-size:11px">XP</div><div><strong id="resXp">+60 XP</strong><small id="resStat">Top speed 12 taps/s</small></div></div>
+      </div>
+    </div>
+    <div class="stand" id="standings"></div>
+    <div class="actions">
+      <button class="go" id="again" type="button">Race again</button>
+      <button class="ghost" id="back" type="button">Pick another race</button>
+    </div>
+  </section>
+</div>
+
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var cv = $('cv'), ctx = cv.getContext('2d');
+  var W = 390, H = 380, DPR = 1;
+  var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var INK = '#3A1D4F';
+
+  var CLASSES = {
+    beginner:     { label:'Beginner',     npc:[5.3,6.1], hv:6.0, zone:1.0, clip:0.30 },
+    intermediate: { label:'Intermediate', npc:[6.9,7.6], hv:7.5, zone:0.8, clip:0.18 },
+    championship: { label:'Championship', npc:[8.4,9.1], hv:9.0, zone:0.6, clip:0.08 }
+  };
+  var BASE = [
+    { name:'Biscuit', type:'dog', fur:'#E8C39A', ear:'#B9865A', lane:0 },
+    { name:'Luna',    type:'cat', fur:'#C9CDE0', ear:'#C9CDE0', lane:1 },
+    { name:'Maple',   type:'dog', fur:'#FFE0B8', ear:'#E8B98A', lane:2, me:true }
+  ];
+  var RIBBON = ['#4F8DF5','#F0506E','#FFD84D'];
+  var RIBBON_NAME = ['Blue ribbon','Red ribbon','Yellow ribbon'];
+  var XP = [100,60,40];
+  var PLACE = ['1st','2nd','3rd'];
+
+  var mode = 'fun', clsKey = 'beginner', cls = CLASSES.beginner;
+  var phase = 'menu', tCount = 0, goT = 0, elapsed = 0, meFinishT = 0, endT = 0;
+  var racers = [], hurdles = [], tipped = [], pops = [], L = 70;
+  var tapTimes = [], peakTps = 0, lastBeep = 4, clock = 0;
+
+  function rand(a,b){ return a + Math.random()*(b-a); }
+  function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+  function fmt(t){ var m = Math.floor(t/60), s = t - m*60; return m + ':' + (s < 10 ? '0' : '') + s.toFixed(1); }
+
+  /* ---------- audio (starts after first tap) ---------- */
+  var ac = null;
+  function beep(freq, dur, type, vol){
+    try {
+      if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)();
+      var o = ac.createOscillator(), g = ac.createGain();
+      o.type = type || 'sine'; o.frequency.value = freq;
+      g.gain.setValueAtTime(vol || 0.12, ac.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + dur);
+      o.connect(g); g.connect(ac.destination); o.start(); o.stop(ac.currentTime + dur);
+    } catch(e) {}
+  }
+
+  /* ---------- sizing ---------- */
+  function resize(){
+    var r = cv.getBoundingClientRect();
+    DPR = Math.min(2, window.devicePixelRatio || 1);
+    W = Math.max(200, r.width); H = Math.max(200, r.height);
+    cv.width = Math.round(W*DPR); cv.height = Math.round(H*DPR);
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  window.addEventListener('resize', resize);
+
+  var LANE_Y = [0.55, 0.71, 0.93], LANE_S = [0.70, 0.84, 1.10];
+  function laneY(l){ return H*LANE_Y[l]; }
+  function laneK(l){ return (H/380)*LANE_S[l]*1.1; }
+  function ppm(){ return 38*(W/390); }
+  function sx(x, camX){ return W*0.32 + (x - camX)*ppm(); }
+
+  /* ---------- race setup ---------- */
+  function newRace(){
+    L = mode === 'fun' ? 70 : 80;
+    hurdles = [];
+    if (mode === 'hurdles') for (var i = 0; i < 8; i++) hurdles.push(12 + i*9);
+    tipped = [{},{},{}];
+    racers = BASE.map(function(b){
+      var r = { name:b.name, type:b.type, fur:b.fur, ear:b.ear, lane:b.lane, me:!!b.me,
+        x:0, v:0, done:false, ft:0, air:0, airT:0, jump:null, slowT:0, hi:0,
+        legs:Math.random()*6, clean:0, perfect:0,
+        vt:rand(cls.npc[0], cls.npc[1]), vmul:rand(0.97,1.03), plan:[], offs:[] };
+      for (var j = 0; j < 8; j++){ r.plan.push(Math.random() < cls.clip); r.offs.push(rand(-0.5,0.5)*cls.zone); }
+      return r;
+    });
+    pops = []; tapTimes = []; peakTps = 0; elapsed = 0; meFinishT = 0; endT = 0;
+    phase = 'countdown'; tCount = 3; goT = 0; lastBeep = 4;
+
+    $('raceName').textContent = mode === 'fun' ? 'Fun Run' : 'Hurdles';
+    $('hurdlePill').hidden = mode !== 'hurdles';
+    $('meter').style.visibility = mode === 'fun' ? 'visible' : 'hidden';
+    var a = $('action');
+    a.className = 'big idle ' + (mode === 'fun' ? 'tap' : 'jump');
+    a.querySelector('svg').style.display = mode === 'fun' ? '' : 'none';
+    $('actionText').textContent = mode === 'fun' ? 'TAP!' : 'JUMP!';
+    $('hint').textContent = 'Get ready…';
+    updateHud();
+  }
+
+  function me(){ return racers[2]; }
+
+  /* ---------- input ---------- */
+  function press(){
+    var a = $('action');
+    a.classList.add('down');
+    setTimeout(function(){ a.classList.remove('down'); }, 70);
+  }
+  function onAction(){
+    if (!ac) beep(1, 0.01, 'sine', 0.0001);
+    if (phase !== 'race') return;
+    var m = me(); if (m.done) return;
+    press();
+    if (mode === 'fun'){
+      var now = performance.now();
+      tapTimes = tapTimes.filter(function(t){ return now - t < 1000; });
+      if (tapTimes.length >= 20) return;          // tap cap: 20 per second
+      tapTimes.push(now);
+      peakTps = Math.max(peakTps, tapTimes.length);
+      var fade = 1 - 0.15*clamp((m.x/L - 0.6)/0.4, 0, 1);   // stamina fade late in the race
+      m.v = Math.min(11, m.v + 0.9*fade);
+    } else {
+      if (m.air > 0) return;
+      doJump(m);
+      beep(520, 0.12, 'triangle', 0.08);
+    }
+  }
+  $('controls').addEventListener('pointerdown', function(e){ e.preventDefault(); onAction(); });
+  window.addEventListener('keydown', function(e){
+    if ((e.code === 'Space' || e.key === ' ') && phase !== 'menu' && $('results').hidden){ e.preventDefault(); if (!e.repeat) onAction(); }
+  });
+
+  function doJump(r){
+    r.airT = 3 / cls.hv; r.air = r.airT;
+    if (r.hi < hurdles.length){
+      var d = r.x - (hurdles[r.hi] - 1.5);
+      r.jump = { target:r.hi, inZone:Math.abs(d) <= cls.zone, perfect:Math.abs(d) <= cls.zone*0.35 };
+    } else r.jump = null;
+  }
+
+  function pop(text, r){ pops.push({ text:text, x:r.x, lane:r.lane, t:0 }); }
+
+  /* ---------- simulation ---------- */
+  function step(dt){
+    clock += dt;
+    if (phase === 'countdown'){
+      tCount -= dt;
+      var n = Math.ceil(tCount);
+      if (n < lastBeep && n > 0){ lastBeep = n; beep(440, 0.15, 'sine', 0.1); }
+      if (tCount <= 0){
+        phase = 'race'; goT = 0.8; beep(880, 0.25, 'sine', 0.12);
+        $('action').classList.remove('idle');
+        $('hint').textContent = mode === 'fun' ? 'Tap as fast as you can' : 'Jump when Maple reaches the green zone';
+      }
+      return;
+    }
+    if (phase !== 'race' && phase !== 'finishing') return;
+    if (goT > 0) goT -= dt;
+    elapsed += dt;
+
+    racers.forEach(function(r){
+      if (mode === 'fun'){
+        if (r.me) r.v *= Math.exp(-1.3*dt);
+        else {
+          var target = r.done ? 0 : r.vt*(1 + 0.05*Math.sin(elapsed*1.6 + r.lane*2));
+          r.v += (target - r.v)*Math.min(1, dt*(r.done ? 1.5 : 2.2));
+        }
+      } else {
+        var base = r.done ? 0 : cls.hv*(r.me ? 1 : r.vmul);
+        if (r.slowT > 0){ r.slowT -= dt; base *= 0.5; }
+        r.v += (base - r.v)*Math.min(1, dt*(r.done ? 1.5 : 4));
+        if (!r.me && !r.done && r.air <= 0 && r.hi < hurdles.length && !r.plan[r.hi] && r.x >= hurdles[r.hi] - 1.5 + r.offs[r.hi]) doJump(r);
+      }
+      if (r.air > 0) r.air = Math.max(0, r.air - dt);
+      var prev = r.x;
+      r.x += r.v*dt;
+      r.legs += r.v*dt*2.4;
+
+      if (mode === 'hurdles' && r.hi < hurdles.length && prev < hurdles[r.hi] && r.x >= hurdles[r.hi]){
+        var i = r.hi;
+        if (r.jump && r.jump.target === i && r.jump.inZone){
+          r.clean++;
+          if (r.jump.perfect) r.perfect++;
+          if (r.me){ pop(r.jump.perfect ? 'Perfect!' : 'Nice!', r); beep(r.jump.perfect ? 990 : 760, 0.12, 'sine', 0.08); }
+        } else {
+          tipped[r.lane][i] = true; r.slowT = 0.7;
+          if (r.me){ pop('Oops!', r); beep(140, 0.2, 'square', 0.06); }
+        }
+        if (r.jump && r.jump.target === i) r.jump = null;
+        r.hi++;
+      }
+      if (!r.done && r.x >= L){
+        r.done = true;
+        r.ft = elapsed - (r.x - L)/Math.max(r.v, 0.5);
+        if (r.me){ meFinishT = elapsed; phase = 'finishing'; $('action').classList.add('idle'); $('hint').textContent = 'Finish!'; beep(660,0.12,'sine',0.1); setTimeout(function(){ beep(990,0.25,'sine',0.1); }, 120); }
+      }
+    });
+
+    pops.forEach(function(p){ p.t += dt; });
+    pops = pops.filter(function(p){ return p.t < 0.9; });
+
+    var m = me();
+    var allDone = racers.every(function(r){ return r.done; });
+    if (phase === 'finishing' && (allDone || elapsed - meFinishT > 3)){
+      racers.forEach(function(r){ if (!r.done){ r.done = true; r.ft = elapsed + (L - r.x)/Math.max(r.v, 3); } });
+      phase = 'done'; setTimeout(showResults, 900);
+    }
+    if (phase === 'race' && mode === 'fun' && !m.done){
+      var npcsDone = racers.filter(function(r){ return !r.me && r.done; }).length === 2;
+      $('hint').textContent = (npcsDone && m.v < 2) ? 'Keep tapping to finish!' : 'Tap as fast as you can';
+    }
+    if (phase === 'race' && elapsed > 60){   // gave up
+      racers.forEach(function(r){ if (!r.done){ r.done = true; r.ft = elapsed + (L - r.x)/Math.max(r.v, 1); } });
+      phase = 'done'; setTimeout(showResults, 400);
+    }
+  }
+
+  /* ---------- HUD ---------- */
+  function updateHud(){
+    $('timer').textContent = fmt(phase === 'countdown' ? 0 : (me() && me().done ? me().ft : elapsed));
+    racers.forEach(function(r, i){
+      var p = clamp(r.x / L, 0, 1);
+      $('dot' + i).style.left = 'calc((100% - 52px) * ' + p.toFixed(4) + ')';
+    });
+    if (mode === 'hurdles' && me()) $('hurdleCount').textContent = Math.min(me().hi, hurdles.length) + '/' + hurdles.length;
+    if (mode === 'fun' && me()){
+      var now = performance.now();
+      var tps = tapTimes.filter(function(t){ return now - t < 1000; }).length;
+      var lit = Math.round(clamp(me().v / 11, 0, 1)*8);
+      var colors = ['#8FE3C6','#8FE3C6','#8FE3C6','#FFD84D','#FFD84D','#FFD84D','#FF8FC0','#FF8FC0'];
+      var bars = $('bars').children;
+      for (var i = 0; i < 8; i++) bars[i].style.background = i < lit ? colors[i] : '#FFFFFF';
+    }
+  }
+
+  /* ---------- drawing ---------- */
+  function rr(x,y,w,h,r){
+    ctx.beginPath();
+    ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+    ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
+  }
+  var CROWD = ['#FFE0B8','#C9B6FF','#FFD84D','#8FE3C6','#FFB6D5','#BFE8FF'];
+
+  function drawScene(camX){
+    var trackTop = H*0.40;
+    // sky
+    var g = ctx.createLinearGradient(0,0,0,trackTop);
+    g.addColorStop(0,'#9FDBFF'); g.addColorStop(1,'#E4F6FF');
+    ctx.fillStyle = g; ctx.fillRect(0,0,W,trackTop);
+    // stands
+    var standTop = H*0.13, standBot = H*0.32;
+    ctx.fillStyle = '#E7DCFF'; ctx.strokeStyle = INK; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(0, standTop+14); ctx.quadraticCurveTo(W/2, standTop-10, W, standTop+14); ctx.lineTo(W, standBot); ctx.lineTo(0, standBot); ctx.closePath(); ctx.fill(); ctx.stroke();
+    // crowd (parallax + bob)
+    var sp = 22, off = -((camX*ppm()*0.15) % sp);
+    var cheer = (phase === 'race' || phase === 'finishing') ? 1 : 0.4;
+    for (var row = 0; row < 3; row++){
+      var baseY = standTop + 22 + row*((standBot - standTop - 26)/2.4);
+      for (var x = off - sp + (row%2)*sp/2, i = 0; x < W + sp; x += sp, i++){
+        var idx = Math.floor((x - off)/sp) + row*7;
+        var bob = reduce ? 0 : Math.sin(clock*(6 + (idx%5)) + idx*1.7)*2.2*cheer;
+        var cy = baseY + bob + (Math.abs(x - W/2)/W)*10;
+        ctx.fillStyle = CROWD[((idx%6)+6)%6];
+        ctx.beginPath(); ctx.arc(x, cy, 6.5*(H/380), 0, Math.PI*2); ctx.fill(); ctx.lineWidth = 1.6; ctx.stroke();
+      }
+    }
+    // wall band
+    var wallTop = H*0.32;
+    ctx.fillStyle = '#FF9CC8'; ctx.fillRect(0, wallTop, W, trackTop - wallTop);
+    ctx.fillStyle = 'rgba(255,255,255,.7)';
+    var sw = 120, so = -((camX*ppm()*0.5) % sw);
+    for (var bx = so - sw; bx < W + sw; bx += sw){ rr(bx+20, wallTop + (trackTop-wallTop)/2 - 5, 44, 10, 5); ctx.fill(); }
+    ctx.strokeStyle = INK; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(0, wallTop); ctx.lineTo(W, wallTop); ctx.stroke();
+    // track
+    ctx.fillStyle = '#FFC9A3'; ctx.fillRect(0, trackTop, W, H - trackTop);
+    ctx.beginPath(); ctx.moveTo(0, trackTop); ctx.lineTo(W, trackTop); ctx.stroke();
+    // lane lines
+    ctx.save();
+    ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = 3; ctx.setLineDash([18,14]); ctx.lineDashOffset = camX*ppm();
+    [0.62, 0.79].forEach(function(f){ ctx.beginPath(); ctx.moveTo(0, H*f); ctx.lineTo(W, H*f); ctx.stroke(); });
+    ctx.restore();
+    // distance marks
+    ctx.fillStyle = 'rgba(58,29,79,.35)'; ctx.font = '800 ' + Math.round(11*(H/380)) + 'px Nunito, sans-serif'; ctx.textAlign = 'center';
+    for (var d = 10; d < L; d += 10){
+      var mx = sx(d, camX); if (mx < -40 || mx > W + 40) continue;
+      ctx.fillRect(mx - 1, trackTop + 4, 2, H - trackTop - 8);
+      ctx.fillText(d + 'm', mx + 16, H - 6);
+    }
+    // finish line
+    var fx = sx(L, camX);
+    if (fx > -30 && fx < W + 30){
+      var cell = 8*(H/380);
+      for (var yy = trackTop, rI = 0; yy < H; yy += cell, rI++){
+        for (var c = 0; c < 2; c++){ ctx.fillStyle = (rI + c) % 2 ? INK : '#FFFFFF'; ctx.fillRect(fx + c*cell, yy, cell, cell); }
+      }
+    }
+  }
+
+  function drawZone(camX){
+    var m = me(); var l = 2, gy = laneY(l), k = laneK(l);
+    for (var i = m.hi; i < hurdles.length; i++){
+      var a = sx(hurdles[i] - 1.5 - cls.zone, camX), b = sx(hurdles[i] - 1.5 + cls.zone, camX);
+      if (b < -10 || a > W + 10) continue;
+      ctx.save();
+      ctx.fillStyle = 'rgba(143,227,198,.6)'; ctx.strokeStyle = '#2FA77A'; ctx.lineWidth = 2.5; ctx.setLineDash([6,4]);
+      rr(a, gy - 10*k, b - a, 20*k, 8*k); ctx.fill(); ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  function drawHurdle(x, lane, isTipped, camX){
+    var s = sx(x, camX); if (s < -60 || s > W + 60) return;
+    var gy = laneY(lane), k = laneK(lane);
+    var w = 30*k, h = 30*k;
+    ctx.save(); ctx.strokeStyle = INK; ctx.lineWidth = 2.5*Math.max(.7, k); ctx.lineCap = 'round';
+    if (!isTipped){
+      ctx.beginPath(); ctx.moveTo(s - w/2 + 4, gy); ctx.lineTo(s - w/2 + 4, gy - h); ctx.moveTo(s + w/2 - 4, gy); ctx.lineTo(s + w/2 - 4, gy - h); ctx.stroke();
+      ctx.fillStyle = '#FF8FC0'; rr(s - w/2, gy - h - 4*k, w, 8*k, 3*k); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#FFFFFF'; rr(s - w/2, gy - h*0.55, w, 6*k, 3*k); ctx.fill(); ctx.stroke();
+    } else {
+      ctx.translate(s + 6*k, gy - 4*k); ctx.rotate(0.12);
+      ctx.fillStyle = '#FF8FC0'; rr(-w/2, -4*k, w, 8*k, 3*k); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#FFFFFF'; rr(-w/2 + 6*k, -10*k, w*0.8, 6*k, 3*k); ctx.fill(); ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function leg(x, y, ang, w, fur){
+    ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
+    rr(-w/2, -2, w, 15, w/2); ctx.fillStyle = fur; ctx.fill(); ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawPet(r, camX){
+    var l = r.lane, gy = laneY(l), k = laneK(l), s = sx(r.x, camX);
+    if (s < -120 || s > W + 120) return;
+    var airH = r.air > 0 ? Math.sin(Math.PI*(1 - r.air/r.airT))*46*k : 0;
+    var moving = r.v > 0.4;
+    var bob = (r.air > 0 || !moving || reduce) ? 0 : Math.abs(Math.sin(r.legs))*2.5*k;
+    // shadow
+    ctx.fillStyle = 'rgba(58,29,79,.18)';
+    ctx.beginPath(); ctx.ellipse(s - 32*k, gy, 24*k*(1 - airH/(140*k)), 3.5*k, 0, 0, Math.PI*2); ctx.fill();
+    ctx.save();
+    ctx.translate(s - 70*k, gy - 56*k - airH - bob); ctx.scale(k, k);
+    if (r.air > 0){ ctx.translate(38, 34); ctx.rotate(-0.12*Math.cos(Math.PI*(1 - r.air/r.airT))); ctx.translate(-38, -34); }
+    ctx.strokeStyle = INK; ctx.lineWidth = 2.4; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    var a = r.air > 0 ? 0 : (moving ? Math.sin(r.legs)*0.7 : 0);
+    var tuckF = r.air > 0 ? -0.9 : 0, tuckB = r.air > 0 ? 0.9 : 0;
+    var wag = reduce ? 0 : Math.sin(clock*12)*3;
+    // tail
+    ctx.beginPath();
+    if (r.type === 'cat'){ ctx.moveTo(18,30); ctx.quadraticCurveTo(4, 24 + wag*0.3, 8, 8 + wag); }
+    else { ctx.moveTo(17,30); ctx.quadraticCurveTo(7, 26, 5, 16 + wag); }
+    ctx.lineWidth = 7; ctx.strokeStyle = INK; ctx.stroke(); ctx.lineWidth = 4; ctx.strokeStyle = r.fur; ctx.stroke();
+    ctx.strokeStyle = INK; ctx.lineWidth = 2.2;
+    var lw = r.type === 'cat' ? 7 : 8;
+    // far legs
+    leg(25, 40, -a + tuckB, lw, r.ear); leg(48, 40, a + tuckF, lw, r.ear);
+    // body
+    ctx.fillStyle = r.fur; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.ellipse(36, r.type === 'cat' ? 36 : 35, r.type === 'cat' ? 19 : 20, r.type === 'cat' ? 10 : 11, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+    ctx.lineWidth = 2.2;
+    // near legs
+    leg(29, 41, a + tuckB, lw, r.fur); leg(44, 41, -a + tuckF, lw, r.fur);
+    // head
+    ctx.lineWidth = 2.5; ctx.fillStyle = r.fur;
+    if (r.type === 'cat'){
+      ctx.beginPath(); ctx.moveTo(50,14); ctx.lineTo(53,5); ctx.lineTo(59,12); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(62,13); ctx.lineTo(68,6); ctx.lineTo(69,16); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.arc(58, 22, 11, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = INK; ctx.beginPath(); ctx.arc(62, 21, 2.3, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#F0609F'; ctx.beginPath(); ctx.arc(68, 25, 1.7, 0, Math.PI*2); ctx.fill();
+    } else {
+      ctx.beginPath(); ctx.arc(58, 21, 12, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(67, 25, 7, 5, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = r.ear; ctx.lineWidth = 2.2;
+      ctx.beginPath(); ctx.moveTo(50,12); ctx.quadraticCurveTo(44, 20, 48, 28); ctx.quadraticCurveTo(53, 26, 55, 18); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = INK;
+      ctx.beginPath(); ctx.arc(61, 18, 2.3, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(73, 23, 2.4, 0, Math.PI*2); ctx.fill();
+      if (moving){ ctx.fillStyle = '#F0609F'; ctx.beginPath(); ctx.moveTo(64,30); ctx.quadraticCurveTo(67, 36, 70, 31); ctx.closePath(); ctx.fill(); ctx.lineWidth = 1.6; ctx.stroke(); }
+    }
+    ctx.restore();
+    // name tag
+    var fs = Math.max(10, Math.round(11*Math.min(1.1, k)));
+    ctx.font = '800 ' + fs + 'px Nunito, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    var tw = ctx.measureText(r.name).width + 14, tx = s - 30*k, ty = gy - 66*k - airH - bob;
+    ctx.fillStyle = r.me ? '#F0609F' : '#FFFFFF'; ctx.strokeStyle = INK; ctx.lineWidth = 2;
+    rr(tx - tw/2, ty - fs*0.8, tw, fs*1.6, fs*0.8); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = r.me ? '#FFFFFF' : INK; ctx.fillText(r.name, tx, ty + 1);
+    ctx.textBaseline = 'alphabetic';
+  }
+
+  function bigText(text, x, y, size, alpha){
+    ctx.save(); ctx.globalAlpha = alpha;
+    ctx.font = '700 ' + size + 'px Fredoka, sans-serif'; ctx.textAlign = 'center';
+    ctx.lineJoin = 'round'; ctx.lineWidth = Math.max(4, size*0.12); ctx.strokeStyle = INK;
+    ctx.fillStyle = INK; ctx.fillText(text, x, y + size*0.09);
+    ctx.strokeText(text, x, y); ctx.fillStyle = '#FFE38A'; ctx.fillText(text, x, y);
+    ctx.restore();
+  }
+
+  function draw(){
+    var m = me(); var camX = m ? m.x : 0;
+    ctx.clearRect(0,0,W,H);
+    drawScene(camX);
+    if (mode === 'hurdles' && m) drawZone(camX);
+    if (!racers.length) return;
+    [0,1,2].forEach(function(l){
+      if (mode === 'hurdles') hurdles.forEach(function(h, i){ drawHurdle(h, l, !!tipped[l][i], camX); });
+      racers.filter(function(r){ return r.lane === l; }).forEach(function(r){ drawPet(r, camX); });
+    });
+    pops.forEach(function(p){
+      var k = laneK(p.lane);
+      bigText(p.text, sx(p.x, camX) - 10*k, laneY(p.lane) - 92*k - p.t*34, Math.round(26*(H/380)), 1 - p.t/0.9);
+    });
+    if (phase === 'countdown'){
+      var n = Math.max(1, Math.ceil(tCount)), f = tCount - Math.floor(tCount);
+      bigText(String(n), W/2, H*0.36, Math.round((70 + f*20)*(H/380)), 1);
+    } else if (goT > 0){
+      bigText('GO!', W/2, H*0.36, Math.round(80*(H/380)), Math.min(1, goT/0.4));
+    } else if (phase === 'finishing' || phase === 'done'){
+      bigText('Finish!', W/2, H*0.30, Math.round(52*(H/380)), 1);
+    }
+  }
+
+  /* ---------- results ---------- */
+  function ribbonSvg(color){
+    return '<path d="M10 26 L4 44 L11 40 L15 46 L17 28 Z" fill="' + color + '" stroke="#3A1D4F" stroke-width="2.4" stroke-linejoin="round"/>' +
+      '<path d="M24 26 L30 44 L23 40 L19 46 L17 28 Z" fill="' + color + '" stroke="#3A1D4F" stroke-width="2.4" stroke-linejoin="round"/>' +
+      '<circle cx="17" cy="16" r="14" fill="' + color + '" stroke="#3A1D4F" stroke-width="2.6"/><circle cx="17" cy="16" r="8.5" fill="#fff" stroke="#3A1D4F" stroke-width="2.2"/>';
+  }
+  function showResults(){
+    var order = racers.slice().sort(function(a,b){ return a.ft - b.ft; });
+    var place = order.indexOf(me());
+    var raceLabel = mode === 'fun' ? 'Fun Run' : 'Hurdles';
+    $('resEyebrow').textContent = raceLabel + ' · ' + cls.label + ' class';
+    $('resTitle').textContent = place === 0 ? 'Maple won!' : 'Maple placed ' + PLACE[place] + '!';
+    var heights = [128, 96, 72], podOrder = [1, 0, 2];
+    $('podium').innerHTML = podOrder.map(function(p){
+      var r = order[p];
+      return '<div class="pod' + (r.me ? ' me' : '') + '"><div class="av" style="background:' + r.fur + '">' + r.name.charAt(0) + '</div><span class="nm">' + r.name + '</span>' +
+        '<div class="blk" style="height:' + heights[p] + 'px"><svg aria-hidden="true" width="30" height="40" viewBox="0 0 34 46">' + ribbonSvg(RIBBON[p]) + '</svg>' + PLACE[p] + '</div></div>';
+    }).join('');
+    $('resRibbon').innerHTML = ribbonSvg(RIBBON[place]);
+    $('resRibbonName').textContent = RIBBON_NAME[place];
+    $('resRibbonSub').textContent = raceLabel + ' · ' + PLACE[place];
+    $('resXp').textContent = '+' + XP[place] + ' XP';
+    $('resStat').textContent = mode === 'fun' ? 'Top speed ' + peakTps + ' taps/s' : 'Clean jumps ' + me().clean + '/' + hurdles.length + ' · Perfect ' + me().perfect;
+    $('standings').innerHTML = order.map(function(r, i){
+      return '<div class="' + (r.me ? 'me' : '') + '"><span class="pl">' + (i + 1) + '</span><span class="nm">' + r.name + (r.me ? ' · you' : ' · NPC') + '</span><span class="tm">' + r.ft.toFixed(2) + 's</span></div>';
+    }).join('');
+    $('results').hidden = false;
+  }
+
+  /* ---------- menu ---------- */
+  function setMode(m){ mode = m; $('pickFun').setAttribute('aria-pressed', m === 'fun'); $('pickHurdles').setAttribute('aria-pressed', m === 'hurdles'); }
+  $('pickFun').addEventListener('click', function(){ setMode('fun'); });
+  $('pickHurdles').addEventListener('click', function(){ setMode('hurdles'); });
+  Array.prototype.forEach.call(document.querySelectorAll('.seg button'), function(b){
+    b.addEventListener('click', function(){
+      clsKey = b.getAttribute('data-cls'); cls = CLASSES[clsKey];
+      Array.prototype.forEach.call(document.querySelectorAll('.seg button'), function(o){ o.setAttribute('aria-pressed', o === b); });
+    });
+  });
+  function start(){ $('menu').hidden = true; $('results').hidden = true; beep(1,0.01,'sine',0.0001); newRace(); }
+  $('start').addEventListener('click', start);
+  $('again').addEventListener('click', start);
+  $('back').addEventListener('click', function(){ $('results').hidden = true; $('menu').hidden = false; phase = 'menu'; });
+
+  /* ---------- loop ---------- */
+  var last = performance.now();
+  function frame(now){
+    var dt = Math.min(0.05, (now - last)/1000); last = now;
+    step(dt);
+    if (racers.length) updateHud();
+    draw();
+    requestAnimationFrame(frame);
+  }
+  resize();
+  // idle preview behind the menu
+  racers = BASE.map(function(b){ return { name:b.name, type:b.type, fur:b.fur, ear:b.ear, lane:b.lane, me:!!b.me, x:0, v:0, air:0, airT:1, legs:0, hi:0 }; });
+  requestAnimationFrame(frame);
+})();
+</script>

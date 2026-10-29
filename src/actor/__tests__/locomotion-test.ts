@@ -1,10 +1,12 @@
 import { toyAllows } from '../../items/playRules';
-import { gaitDefs, stageProfiles } from '../data/locomotion';
+import { gaitDefs, setGallopStyle, stageProfiles } from '../data/locomotion';
 import { geomOf } from '../geometry';
 import {
   blendedFoot,
   chooseGait,
   energySpeedScale,
+  flightBump,
+  flightExtend,
   gaitFootFor,
   isGaitAllowed,
   landImpact,
@@ -66,8 +68,29 @@ describe('gaits', () => {
     expect(new Set(gaitDefs.walk.offsets).size).toBe(4);
     // Canter: three beats (a diagonal pair shares one).
     expect(new Set(gaitDefs.canter.offsets).size).toBe(3);
-    // Gallop: rotary, with the hinds ahead of the fores.
+    // Gallop: rotary, with the hinds ahead of the fores, and a flight from 0.40 to 0.56.
     expect(new Set(gaitDefs.gallop.offsets).size).toBe(4);
+    const airborne = (uc: number): boolean =>
+      ([0, 1, 2, 3] as const).every((leg) => {
+        const offset = gaitDefs.gallop.offsets[leg];
+        const u = (((uc + offset) % 1) + 1) % 1;
+        return u >= gaitDefs.gallop.duty;
+      });
+    expect(airborne(0.48)).toBe(true);
+    expect(airborne(0.39)).toBe(false);
+    expect(airborne(0.57)).toBe(false);
+    expect(flightBump(0.48)).toBe(1);
+    expect(flightBump(0.3)).toBe(0);
+    expect(flightBump(0.56)).toBe(0);
+    const galloping = newGaitState();
+    galloping.current = 'gallop';
+    galloping.from = 'gallop';
+    galloping.blend = 1;
+    expect(flightExtend(galloping, 0.48 * Math.PI * 2, 16)).toBeCloseTo(1, 5);
+    expect(flightExtend(galloping, 0.48 * Math.PI * 2, 22)).toBeCloseTo(0.7, 5);
+    setGallopStyle('classic');
+    expect([...gaitDefs.gallop.offsets]).toEqual([0.12, 0.5, 0, 0.62]);
+    setGallopStyle('flying');
     const planted = gaitFootFor('trot', 0, 0, 40, 10);
     expect(planted.y).toBe(0);
   });

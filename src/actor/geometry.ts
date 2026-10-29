@@ -7,7 +7,8 @@ import { petStyle } from './data/petStyle';
 import type { GrayAmounts } from './data/graying';
 import { growthFor, smoothstep, visualProgress } from './growth';
 import { stageHeight, stageWidth } from './scenes';
-import { bounceOf } from './locomotion';
+import { racePoses, gaitDefs } from './data/locomotion';
+import { blendedGait, bounceOf } from './locomotion';
 import type { Breed, GaitState, Pose, Vec } from './types';
 
 export { stageHeight, stageWidth };
@@ -457,10 +458,12 @@ export function bodyFrame(
   const scale = PET_SIZE * geom.sc * depthScale(y, floor.yMin, floor.yMax);
   // Spine flex at canter and gallop, a play bow (chest down, rump up), a stalking crouch, and a hard skid
   // (weight back) all tilt the torso about the hind legs.
+  const flightAt = gait ? blendedGait(gait, (name) => gaitDefs[name].flightAt) : 0;
+  const spineAmp = breed.species === 'cat' ? racePoses.spineAmp.cat : racePoses.spineAmp.dog;
   const theta =
     -geom.aSit * pose.sit +
     0.12 * pose.headDown +
-    0.07 * (pose.stretch ?? 0) * Math.sin(phase + 0.8) +
+    spineAmp * (pose.stretch ?? 0) * Math.sin(phase + Math.PI / 2 - Math.PI * 2 * flightAt) +
     0.34 * (pose.bow ?? 0) +
     0.1 * (pose.stalk ?? 0) -
     0.16 * (pose.skid ?? 0);

@@ -27,19 +27,19 @@ function signup(): RaceSignup {
   return { entryId: 'e1', raceId: 'r1', eventId: 'ev1', event: 'funRun', startsAt: start, classId: 'beginner', lane: 1 };
 }
 
-it('lets a new pet into the Fun Run and Fetch & Swat and locks the trick races', () => {
+it('lets a new pet into the open races and locks the trick races', () => {
   const puppy = pet();
   expect(skillBlock(puppy, 'funRun')).toBeNull();
-  expect(skillBlock(puppy, 'fetchSwat')).toBeNull();
-  expect(skillBlock(puppy, 'hoopHop')?.trickId).toBe('dog_hoop');
-  expect(skillBlock(puppy, 'tunnelRun')?.reason).toBe('age');
+  expect(skillBlock(puppy, 'dockDive')).toBeNull();
+  expect(skillBlock(puppy, 'hurdles')?.trickId).toBe('dog_hurdle');
+  expect(skillBlock(puppy, 'hurdles')?.reason).toBe('age');
   const trained = {
     ...puppy,
     ageDays: 12,
-    training: { ...puppy.training, dog_hoop: { ...puppy.training.sit, mastered: true } },
+    training: { ...puppy.training, dog_hurdle: { ...puppy.training.sit, mastered: true } },
   };
-  expect(skillBlock(trained, 'hoopHop')).toBeNull();
-  expect(skillBlock(trained, 'tunnelRun')?.reason).toBe('now');
+  expect(skillBlock(trained, 'hurdles')).toBeNull();
+  expect(skillBlock(trained, 'obstacle')?.trickId).toBe('dog_tunnel');
 });
 
 it('picks the class from level', () => {
@@ -58,16 +58,16 @@ it('moves through the gate phases on server time', () => {
   expect(formatCountdown(125_400)).toBe('2:06');
 });
 
-it('keeps the sign-up for the reminder and completes the race suggestion', () => {
+it('keeps the sign-up for the reminder until the race is finished', () => {
   const entered = withSignup(pet(), signup(), now);
   expect(racesOf(entered).signup?.entryId).toBe('e1');
-  expect(racesOf(entered).entered).toBe(true);
+  expect(racesOf(entered).entered).toBe(false);
   expect(raceReminderAt(entered, now)).toBe(start - 60_000);
   expect(raceReminderAt(entered, start - 30_000)).toBeNull();
   expect(withSignup(entered, signup(), now)).toBe(entered);
   const withdrawn = withSignup(entered, null, now);
   expect(racesOf(withdrawn).signup).toBeNull();
-  expect(racesOf(withdrawn).entered).toBe(true);
+  expect(racesOf(withdrawn).entered).toBe(false);
   expect(dropEndedSignup(entered, start + 1000)).toBe(entered);
   expect(racesOf(dropEndedSignup(entered, start + 5 * 60_000)).signup).toBeNull();
 });
@@ -84,8 +84,8 @@ it('reads the server board, entry, and race line-up', () => {
         id: 7,
         starts_at: '2026-01-01T00:55:00Z',
         events: [
-          { id: 'a', event_type: 'fetchSwat', species_allowed: 'both', state: 'open', signed_up: 2 },
-          { id: 'b', event_type: 'hoopHop', species_allowed: 'both', required_trick: 'cat_hoop', state: 'missing_trick' },
+          { id: 'a', event_type: 'funRun', species_allowed: 'both', cup: 'open', state: 'open', signed_up: 2 },
+          { id: 'b', event_type: 'hurdles', species_allowed: 'both', required_trick: 'cat_hurdle', state: 'missing_trick' },
           { id: 'c', event_type: 'paris', state: 'open' },
         ],
       },

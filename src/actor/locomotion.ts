@@ -1,5 +1,6 @@
 import { stepItem } from '../items/physics';
 import type { Item } from '../items/types';
+import { daysToSenior } from '../sim/config';
 import type { Scene } from './scenes';
 import {
   burstEvery,
@@ -10,6 +11,7 @@ import {
   gaitHysteresis,
   gaitOrder,
   gravity,
+  racePoses,
   restedAbove,
   seniorAnchors,
   staminaDrainPerSec,
@@ -202,8 +204,37 @@ export function phaseRate(state: GaitState, localSpeed: number, L: number, share
 export function bounceOf(state: GaitState, phase: number, speedShare: number): number {
   const amp = blendedGait(state, (g) => gaitDefs[g].bounce);
   const air = blendedGait(state, (g) => (g === 'gallop' ? 1 : g === 'canter' ? 0.6 : 0));
-  const wave = (1 - air) * Math.abs(Math.sin(phase)) + air * (0.5 + 0.5 * Math.sin(phase * 1 + 0.9));
+  const flightAt = blendedGait(state, (g) => gaitDefs[g].flightAt);
+  const airWave = 0.5 + 0.5 * Math.sin(phase + Math.PI / 2 - Math.PI * 2 * flightAt);
+  const wave = (1 - air) * Math.abs(Math.sin(phase)) + air * airWave;
   return -amp * wave * (0.55 + 0.45 * clamp(speedShare, 0, 1));
+}
+
+// 0..1 bump for the outstretched gallop. It stays inside the airborne window.
+export function flightBump(uc: number): number {
+  const band = racePoses.flightBump;
+  const u = ((uc % 1) + 1) % 1;
+  if (u < band.rise0 || u > band.fall) {
+    return 0;
+  }
+  if (u < band.rise1) {
+    return smooth((u - band.rise0) / (band.rise1 - band.rise0));
+  }
+  if (u <= band.hold) {
+    return 1;
+  }
+  return 1 - smooth((u - band.hold) / (band.fall - band.hold));
+}
+
+export function gallopWeight(state: GaitState): number {
+  return blendedGait(state, (gait) => (gait === 'gallop' ? 1 : 0));
+}
+
+// How far the flying-gallop legs reach. Seniors keep about 70% of that reach.
+export function flightExtend(state: GaitState, phase: number, ageDays: number): number {
+  const uc = (((phase / (Math.PI * 2)) % 1) + 1) % 1;
+  const senior = ageDays >= daysToSenior ? racePoses.seniorExtend : 1;
+  return gallopWeight(state) * flightBump(uc) * senior;
 }
 
 export function streamOf(state: GaitState): { stretch: number; stream: number } {

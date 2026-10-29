@@ -52,7 +52,8 @@ export function Lobby({ board, now, selected, onSelect, onCard, onFriends }: Pro
 
 function RaceCard({ card, board, now, onPress }: { card: StadiumCard; board: StadiumBoard; now: number; onPress: () => void }) {
   const trickName = card.requiredTrick ? (trickListing(card.requiredTrick)?.name ?? 'a new trick') : null;
-  const tag = card.isAway ? 'AWAY' : card.event === 'fetchSwat' ? 'OPEN' : null;
+  const openEvent = card.event === 'funRun' || card.event === 'dockDive' || card.event === 'sniffOut';
+  const tag = card.cup === 'veteran' ? 'VETERAN' : card.isAway ? 'AWAY' : openEvent ? 'OPEN' : null;
   return (
     <Pressable
       accessibilityRole="button"
@@ -78,31 +79,34 @@ function RaceCard({ card, board, now, onPress }: { card: StadiumCard; board: Sta
         {card.state === 'missing_trick' && trickName ? (
           <View style={styles.lockRow}>
             <Lock size={13} color={softInk} strokeWidth={2.2} />
-            <Text style={styles.lockText}>Needs {trickName}</Text>
+            <Text style={styles.lockText}>Requires skills in {trickName}</Text>
           </View>
         ) : null}
+        {card.state === 'resting' && card.restUntil != null ? (
+          <Text style={styles.lockText}>Again in {formatCountdown(card.restUntil - now)}</Text>
+        ) : null}
       </View>
-      <CardAction card={card} cooldownUntil={board.cooldownUntil} now={now} onPress={onPress} />
+      <CardAction card={card} onPress={onPress} />
     </Pressable>
   );
 }
 
-function CardAction({ card, cooldownUntil, now, onPress }: { card: StadiumCard; cooldownUntil: number | null; now: number; onPress: () => void }) {
+function CardAction({ card, onPress }: { card: StadiumCard; onPress: () => void }) {
   if (card.state === 'open') {
     return <CandyButton compact role="primary" label="Sign up" onPress={onPress} />;
   }
   if (card.state === 'entered') {
     return <CandyButton compact role="go" label="You're in" onPress={onPress} />;
   }
-  return <Text style={styles.pill}>{pillLabel(card, cooldownUntil, now)}</Text>;
+  return <Text style={styles.pill}>{pillLabel(card)}</Text>;
 }
 
-function pillLabel(card: StadiumCard, cooldownUntil: number | null, now: number): string {
-  if (card.state === 'busy') return 'One race at a time';
-  if (card.state === 'resting') return `Rest ${formatCountdown((cooldownUntil ?? now) - now)}`;
-  if (card.state === 'missing_trick') return 'Locked';
+function pillLabel(card: StadiumCard): string {
+  if (card.state === 'busy') return 'In a race';
+  if (card.state === 'resting') return 'Resting';
+  if (card.state === 'missing_trick') return 'Not qualified';
   if (card.state === 'wrong_species') return card.speciesAllowed === 'cat' ? 'Cats only' : 'Dogs only';
-  return 'Closed';
+  return 'Too late';
 }
 
 const styles = StyleSheet.create({
@@ -177,7 +181,7 @@ const styles = StyleSheet.create({
     color: softInk,
   },
   pill: {
-    maxWidth: 104,
+    maxWidth: 112,
     overflow: 'hidden',
     borderRadius: 14,
     paddingHorizontal: 10,

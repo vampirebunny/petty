@@ -10,7 +10,8 @@ export type TutorialAction =
   | 'pat'
   | 'closet'
   | 'sit'
-  | 'cuddle';
+  | 'cuddle'
+  | 'race';
 
 export type TutorialGoal = {
   action: TutorialAction;
@@ -46,6 +47,7 @@ export const gameplayConfig = {
     devoted: [10, 50, 100],
     tricks: [5, 10, 20],
     finds: [10, 25, 50],
+    ribbons: [5, 25, 100],
   },
   suggestions: {
     xp: 30,
@@ -57,14 +59,15 @@ export const gameplayConfig = {
     needAt: 30,
   },
   // Display defaults. The server's stadium_config row decides slots, sign-ups, and the gate.
+  // Testing: 1-minute slots and no rest. Restore to 5 min / 6 min when done.
   races: {
-    slotMs: 5 * 60 * 1000,
+    slotMs: 60 * 1000,
     eventsPerSlot: 3,
     slotsShown: 3,
     capacity: 6,
     gateOpenMs: 60 * 1000,
     lockMs: 10 * 1000,
-    cooldownMs: 15 * 60 * 1000,
+    cooldownMs: 0,
     npcFill: 5,
     heartbeatMs: 5000,
     boardRefreshMs: 15000,
@@ -75,6 +78,11 @@ export const gameplayConfig = {
       { id: 'expert', level: 35 },
       { id: 'championship', level: 50 },
     ],
+    // The race screen opens this early so "Get ready!" gets its full second before 3, 2, 1.
+    countdownMs: 5000,
+    xp: { entered: 20, third: 40, second: 60, first: 100 },
+    dailyXpRaces: 8,
+    energyCost: 8,
   },
   goals: [
     { action: 'feed', label: 'Feed' },
@@ -87,5 +95,6 @@ export const gameplayConfig = {
     { action: 'cuddle', label: 'Cuddle' },
     { action: 'closet', label: 'Put on something from the Closet' },
     { action: 'sit', label: 'Learn Sit' },
+    { action: 'race', label: 'Race in the Stadium' },
   ] as const satisfies readonly TutorialGoal[],
 };

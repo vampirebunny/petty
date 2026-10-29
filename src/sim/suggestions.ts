@@ -53,7 +53,7 @@ export function suggestionLabel(id: string, species: 'dog' | 'cat' = 'dog'): str
   if (action === 'hat') return 'Wear a hat';
   if (action === 'closet') return 'Try something new from the Closet';
   if (action === 'find') return 'Find something new at the park';
-  if (action === 'race') return 'Enter a race';
+  if (action === 'race') return 'Race in the Stadium';
   if (action.startsWith('toy:')) {
     const toyId = action.slice('toy:'.length);
     return `Play with the ${ITEM_KINDS[toyId]?.name ?? toyId}`;

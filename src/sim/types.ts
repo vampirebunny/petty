@@ -156,6 +156,12 @@ export type PetState = {
   suggestionDay: string;
   /** Local copy of the Stadium sign-up, for the race call and its notification. Missing on an older save. */
   races?: import('./stadium').RaceRecord;
+  /** Every finish. Ribbon counts and the Ribbon Rack badge come from places 1–3. */
+  ribbons?: { raceId: string; event: string; classId: string; place: number; at: number }[];
+  /** Race ids whose rewards were already applied on this pet. */
+  appliedRaceIds?: string[];
+  raceXpCount?: number;
+  raceXpDay?: string;
   bond: number;
   needs: Needs;
   asleep: boolean;

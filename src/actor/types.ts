@@ -5,7 +5,7 @@ import type { WearItem } from './wardrobe';
 import type { Bird } from './birds';
 import type { Scene } from './scenes';
 import type { CuddleParams } from './data/cuddle';
-import type { JumpOut, JumpState } from './jump';
+import type { JumpOut, JumpState, StumbleState } from './jump';
 import type { Variant } from './variation';
 
 export type Vec = { x: number; y: number };
@@ -583,6 +583,8 @@ export type Actor = {
   jumpKind: JumpKind | null;
   // Phase jump. Null while the pet is on the ground between jumps.
   jump: JumpState | null;
+  // A clipped-hurdle stumble. Legs, pitch, and eyes come from its visual.
+  stumble: StumbleState | null;
   // Landing events waiting for the screen that started the jump.
   jumpOut: JumpOut[];
   // Seconds the current gait has been at canter or faster.

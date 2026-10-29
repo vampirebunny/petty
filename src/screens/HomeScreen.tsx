@@ -2862,12 +2862,14 @@ export default function HomeScreen({ petApi }: Props) {
     (state.level === gameplayConfig.tutorialLevel && state.xpIntoLevel === 0 && state.xpTotal === tutorialSpan);
   const homeHeader = (
     <View style={[styles.header, accountHandle ? styles.headerWithHandle : null]}>
-      <Image
-        source={require('../../assets/icon.png')}
-        style={styles.logo}
-        accessibilityLabel="Boop Boop"
-        accessibilityIgnoresInvertColors
-      />
+      <View style={styles.logoSlot} pointerEvents="none">
+        <Image
+          source={require('../../assets/icon.png')}
+          style={styles.logo}
+          accessibilityLabel="Boop Boop"
+          accessibilityIgnoresInvertColors
+        />
+      </View>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Settings"
@@ -3905,7 +3907,7 @@ const styles = StyleSheet.create({
     paddingTop: 64,
   },
   sticky: {
-    gap: 12,
+    gap: 6,
     paddingBottom: 8,
     backgroundColor: '#F4F7FB',
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -3941,17 +3943,21 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   header: {
-    height: 78,
+    height: 64,
     justifyContent: 'center',
   },
   // The name stays on the same line as the logo and Boop pill. The handle hangs under it.
   headerWithHandle: {
-    height: 96,
+    height: 78,
   },
-  logo: {
+  logoSlot: {
     position: 'absolute',
     left: 20,
-    top: 2,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+  },
+  logo: {
     width: 48,
     height: 48,
     borderRadius: 12,
@@ -3959,7 +3965,9 @@ const styles = StyleSheet.create({
   settingsHit: {
     position: 'absolute',
     left: 76,
-    top: 4,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
     zIndex: 2,
   },
   settings: {
@@ -3990,7 +3998,7 @@ const styles = StyleSheet.create({
   },
   nameSlotWithHandle: {
     justifyContent: 'flex-start',
-    paddingTop: 9,
+    paddingTop: 4,
   },
   name: {
     textAlign: 'center',

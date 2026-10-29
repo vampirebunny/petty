@@ -1,12 +1,12 @@
 import { stageOf } from './attributes';
 import { gameplayConfig } from './gameplayConfig';
-import { completeSuggestion } from './suggestions';
 import { trickListing } from './tricks';
 import { speciesOf } from './tracks';
 import type { PetState, Stage } from './types';
 
-export type RaceEvent = 'fetchSwat' | 'funRun' | 'hoopHop' | 'tunnelRun';
-export type RaceClass = 'beginner' | 'novice' | 'open' | 'expert' | 'championship';
+export type RaceEvent = 'funRun' | 'dockDive' | 'sniffOut' | 'trickShow' | 'hurdles' | 'weave' | 'obstacle';
+export type RaceClass = 'beginner' | 'novice' | 'open' | 'expert' | 'championship' | 'veteran';
+export type RaceCup = 'open' | 'veteran';
 export type SpeciesAllowed = 'dog' | 'cat' | 'both';
 export type CardState = 'open' | 'entered' | 'busy' | 'resting' | 'missing_trick' | 'wrong_species' | 'closed';
 export type GatePhase = 'waiting' | 'gate' | 'locked' | 'started';
@@ -43,13 +43,33 @@ const stageLabels: Record<Stage, string> = {
   senior: 'senior',
 };
 
-const raceEvents: RaceEvent[] = ['fetchSwat', 'funRun', 'hoopHop', 'tunnelRun'];
-const raceClasses: RaceClass[] = ['beginner', 'novice', 'open', 'expert', 'championship'];
+const raceEvents: RaceEvent[] = ['funRun', 'dockDive', 'sniffOut', 'trickShow', 'hurdles', 'weave', 'obstacle'];
+const raceClasses: RaceClass[] = ['beginner', 'novice', 'open', 'expert', 'championship', 'veteran'];
 
-const eventTrick: Partial<Record<RaceEvent, { dog: string; cat: string; label: string }>> = {
-  hoopHop: { dog: 'dog_hoop', cat: 'cat_hoop', label: 'Jump Through Hoop' },
-  tunnelRun: { dog: 'dog_tunnel', cat: 'cat_tunnel', label: 'Through the Tunnel' },
+const trickKeys: Partial<Record<RaceEvent, string[]>> = {
+  trickShow: ['sit', 'speak', 'spin', 'stand_tall'],
+  hurdles: ['hurdle'],
+  weave: ['weave'],
+  obstacle: ['hurdle', 'tunnel'],
 };
+
+const trickLabels: Record<string, string> = {
+  sit: 'Sit',
+  speak: 'Speak',
+  spin: 'Spin',
+  stand_tall: 'Stand Tall',
+  hurdle: 'Jump the Hurdle',
+  weave: 'Weave',
+  tunnel: 'Through the Tunnel',
+};
+
+export function trickIdFor(species: 'dog' | 'cat', key: string): string {
+  return key === 'sit' || key === 'speak' ? key : `${species}_${key}`;
+}
+
+export function isPlayableEvent(event: RaceEvent): boolean {
+  return event === 'funRun';
+}
 
 export function isRaceEvent(value: unknown): value is RaceEvent {
   return typeof value === 'string' && (raceEvents as string[]).includes(value);
@@ -68,18 +88,23 @@ export function racesOf(state: PetState): RaceRecord {
   return { signup, entered: record.entered === true };
 }
 
+const eventLabels: Record<RaceEvent, string> = {
+  funRun: 'Fun Run',
+  dockDive: 'Dock Dive',
+  sniffOut: 'Sniff Out',
+  trickShow: 'Trick Show',
+  hurdles: 'Hurdles',
+  weave: 'Weave',
+  obstacle: 'Obstacle Course',
+};
+
 export function eventLabel(event: RaceEvent): string {
-  if (event === 'fetchSwat') return 'Fetch & Swat';
-  if (event === 'funRun') return 'Fun Run';
-  if (event === 'hoopHop') return 'Hoop Hop';
-  return 'Tunnel Run';
+  return eventLabels[event];
 }
 
 export function eventTip(event: RaceEvent, name: string): string {
-  if (event === 'fetchSwat') return `Aim each throw so ${name} can catch it.`;
-  if (event === 'funRun') return `Tap fast to help ${name} run.`;
-  if (event === 'hoopHop') return `Tap right as ${name} reaches each hoop.`;
-  return `Tap right as ${name} reaches each tunnel.`;
+  if (event === 'funRun') return `Tap as fast as you can to help ${name} run.`;
+  return `${eventLabel(event)} is almost ready.`;
 }
 
 export function whoCanEnter(allowed: SpeciesAllowed): string {
@@ -89,6 +114,7 @@ export function whoCanEnter(allowed: SpeciesAllowed): string {
 }
 
 export function classLabel(id: RaceClass): string {
+  if (id === 'veteran') return 'Veteran Cup';
   return id.charAt(0).toUpperCase() + id.slice(1);
 }
 
@@ -121,8 +147,8 @@ export function gatePhase(startsAt: number, now: number): GatePhase {
   return 'waiting';
 }
 
-export function requiredTrick(event: RaceEvent, species: 'dog' | 'cat'): string | null {
-  return eventTrick[event]?.[species] ?? null;
+export function requiredTricks(event: RaceEvent, species: 'dog' | 'cat'): string[] {
+  return (trickKeys[event] ?? []).map((key) => trickIdFor(species, key));
 }
 
 function stageReached(ageDays: number, need: Stage): boolean {
@@ -130,18 +156,22 @@ function stageReached(ageDays: number, need: Stage): boolean {
 }
 
 export function skillBlock(state: PetState, event: RaceEvent): SkillBlock | null {
-  const trickId = requiredTrick(event, speciesOf(state.breedId));
-  if (!trickId || state.training[trickId]?.mastered) {
-    return null;
+  const species = speciesOf(state.breedId);
+  for (const key of trickKeys[event] ?? []) {
+    const trickId = trickIdFor(species, key);
+    if (state.training[trickId]?.mastered) {
+      continue;
+    }
+    const listing = trickListing(trickId);
+    const need = listing?.minAgeStage ?? 'adolescent';
+    return {
+      trickId,
+      trickName: listing?.name ?? trickLabels[key] ?? eventLabel(event),
+      reason: stageReached(state.ageDays, need) ? 'now' : 'age',
+      stageLabel: stageLabels[need],
+    };
   }
-  const listing = trickListing(trickId);
-  const need = listing?.minAgeStage ?? 'adolescent';
-  return {
-    trickId,
-    trickName: listing?.name ?? eventTrick[event]?.label ?? eventLabel(event),
-    reason: stageReached(state.ageDays, need) ? 'now' : 'age',
-    stageLabel: stageLabels[need],
-  };
+  return null;
 }
 
 // The local notification fires when the gate opens.
@@ -154,7 +184,7 @@ export function raceReminderAt(state: PetState, now: number): number | null {
   return at > now ? at : null;
 }
 
-export function withSignup(state: PetState, signup: RaceSignup | null, now: number): PetState {
+export function withSignup(state: PetState, signup: RaceSignup | null, _now: number): PetState {
   const record = racesOf(state);
   if (signup == null) {
     return record.signup == null ? state : { ...state, races: { ...record, signup: null } };
@@ -162,8 +192,7 @@ export function withSignup(state: PetState, signup: RaceSignup | null, now: numb
   if (record.signup?.entryId === signup.entryId && record.signup.startsAt === signup.startsAt) {
     return state;
   }
-  const next: PetState = { ...state, races: { signup, entered: true } };
-  return completeSuggestion(next, 'race', now);
+  return { ...state, races: { signup, entered: record.entered } };
 }
 
 export function dropEndedSignup(state: PetState, now: number): PetState {

@@ -14,7 +14,12 @@ const labels: Record<string, string> = {
   'treasure-hunter': 'Treasure Hunter',
   'dressed-up': 'Dressed Up',
   'playmate': 'Playmate',
-  'off-to-the-races': 'Off to the Races',
+  'off-to-the-races': 'First Race',
+  'blue-ribbon': 'Blue Ribbon',
+  'moving-up': 'Moving Up',
+  'ribbon-rack-bronze': 'Ribbon Rack · Bronze',
+  'ribbon-rack-silver': 'Ribbon Rack · Silver',
+  'ribbon-rack-gold': 'Ribbon Rack · Gold',
   'best-friend-streak-bronze': 'Best Friend Streak · Bronze',
   'best-friend-streak-silver': 'Best Friend Streak · Silver',
   'best-friend-streak-gold': 'Best Friend Streak · Gold',
@@ -90,6 +95,15 @@ function earnedIds(state: PetState): string[] {
   if (state.races?.entered) {
     ids.push('off-to-the-races');
   }
+  const ribbons = state.ribbons ?? [];
+  if (ribbons.some((row) => row.place === 1)) {
+    ids.push('blue-ribbon');
+  }
+  if (ribbons.some((row) => row.classId !== 'beginner' && row.classId !== 'veteran')) {
+    ids.push('moving-up');
+  }
+  const won = ribbons.filter((row) => row.place >= 1 && row.place <= 3).length;
+  ids.push(...tiers('ribbon-rack', won, gameplayConfig.badges.ribbons));
   ids.push(...tiers('best-friend-streak', state.openedStreak ?? 0, gameplayConfig.badges.streak));
   ids.push(...tiers('devoted', state.openedDays ?? 0, gameplayConfig.badges.devoted));
   ids.push(...tiers('trick-collector', tricks.length, gameplayConfig.badges.tricks));

@@ -204,8 +204,9 @@ const styles = StyleSheet.create({
   hit: {
     position: 'absolute',
     right: 16,
-    // Home header is 52 tall and the pill is 30, so this sits on the same line as the name.
-    top: 11,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
   },
   pill: {
     flexDirection: 'row',

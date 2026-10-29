@@ -6,7 +6,8 @@ import type { Actor, Breed, Geom, Pose } from '../../actor';
 import { blendedTheta, facingFit, projectLocal } from '../../actor/facing';
 import { facingConfig } from '../../actor/data/facing';
 import { carriedMouth, headFaceOf, headShift, noseOf, reachOf, rearOf, torsoPoint } from '../../actor/geometry';
-import { liftScaleOf } from '../../actor/locomotion';
+import { racePoses } from '../../actor/data/locomotion';
+import { flightExtend, liftScaleOf } from '../../actor/locomotion';
 import { jumpConfig } from '../../actor/jump';
 import { frostColorOf } from '../../actor/color';
 import { baseColorOf, markingOf, resolveMarkings } from '../../actor/markings';
@@ -376,6 +377,20 @@ function replayIdlePet(
   drawSleepMarks(c, actor, actor.pose, t, shot.headLift);
 }
 
+function drawStar(c: SkCanvas, x: number, y: number, r: number): void {
+  const path = Skia.Path.Make();
+  for (let i = 0; i < 8; i += 1) {
+    const angle = (i / 8) * Math.PI * 2 - Math.PI / 2;
+    const rad = i % 2 === 0 ? r : r * 0.42;
+    const px = x + Math.cos(angle) * rad;
+    const py = y + Math.sin(angle) * rad;
+    if (i === 0) path.moveTo(px, py);
+    else path.lineTo(px, py);
+  }
+  path.close();
+  c.drawPath(path, paintOf('#F2C230'));
+}
+
 export function drawActor(
   c: SkCanvas,
   actor: Actor,
@@ -390,9 +405,11 @@ export function drawActor(
     replayIdlePet(c, actor, breed, floor, t, carrying, reduced);
     return;
   }
-  const posed = actor.jump && actor.jump.phase !== 'turn' ? actor.jump.visual : null;
-  if (actor.jump) {
-    for (const puff of actor.jump.dust) {
+  const posed =
+    actor.jump && actor.jump.phase !== 'turn' ? actor.jump.visual : (actor.stumble?.visual ?? null);
+  const puffs = [...(actor.jump?.dust ?? []), ...(actor.stumble?.dust ?? [])];
+  if (puffs.length > 0) {
+    for (const puff of puffs) {
       const k = 1 - puff.t / Math.max(puff.life, 0.01);
       fillCircle(c, puff.x, puff.y, puff.r * (1 + (1 - k) * 1.6), '#d8d0c6', 0.4 * k);
     }
@@ -465,7 +482,7 @@ export function drawActor(
   const floppy = earProfiles[breed.earType]?.stiff ? 0 : 0.4;
   const earBackNow = pose.earBack + 0.35 * pose.stream + floppy * pose.swim + (posed?.ear ?? 0);
   const wag = Math.sin(actor.wagPh) * (pose.wagAmp + 0.28 * pose.swim) * (1 - 0.7 * pose.stream);
-  let eyeClosed = Math.max(pose.eyes, pose.squint, actor.blinkT < 0.12 ? 1 : 0);
+  let eyeClosed = Math.max(pose.eyes, pose.squint, posed?.eyes ?? 0, posed?.squint ?? 0, actor.blinkT < 0.12 ? 1 : 0);
   if (barkOpen > 0.05) {
     eyeClosed = 0;
   }
@@ -566,6 +583,9 @@ export function drawActor(
     y: paw.ground ? paw.y : hip.y + paw.y,
   });
 
+  const extend = flightExtend(actor.gait, actor.phase, actor.displayAgeDays);
+  const bodyStretch = cat ? racePoses.bodyStretch.cat : racePoses.bodyStretch.dog;
+  const torsoScaleX = (posed?.scaleX ?? 1) * (1 + (bodyStretch - 1) * extend);
   const footAt = (hip: Pt, fore: boolean, leg: 0 | 1 | 2 | 3, nearFore: boolean, kicker = false): Pt => {
     const posedPaw = furnitureFoot(fore, nearFore);
     if (posedPaw) {
@@ -584,6 +604,13 @@ export function drawActor(
     const lie = fore ? { x: hip.x + lieReach, y: 0 } : { x: hip.x + 0.42 * geom.L, y: 0 };
     let x = stand.x + (sit.x - stand.x) * pose.sit + (lie.x - stand.x) * pose.lie;
     let y = stand.y + (sit.y - stand.y) * pose.sit + (lie.y - stand.y) * pose.lie;
+    if (extend > 0.001) {
+      const inset = nearFore ? 0 : racePoses.farInset;
+      const reach = fore ? racePoses.extendFore.x - inset : racePoses.extendHind.x + inset;
+      const drop = fore ? racePoses.extendFore.y : racePoses.extendHind.y;
+      x = x * (1 - extend) + (hip.x + reach * geom.L) * extend;
+      y = y * (1 - extend) + (hip.y + drop * geom.L) * extend;
+    }
     // Airborne: the legs tuck up and in under the body.
     if (pose.tuck > 0.001) {
       x = hip.x + (x - hip.x) * (1 - 0.45 * pose.tuck);
@@ -732,7 +759,7 @@ export function drawActor(
   const footTilt = (fore: boolean): number => {
     const spec = posed ? (fore ? posed.fore : posed.hind) : null;
     const jump = posed && spec && !spec.plant ? posed.blend : 0;
-    return Math.max(fore ? 0 : pose.sit, pose.lie, pose.belly, pose.side, pose.tuck, jump);
+    return Math.max(fore ? 0 : pose.sit, pose.lie, pose.belly, pose.side, pose.tuck, jump, extend);
   };
   const specs: { localX: number; localY: number; fore: boolean; leg: 0 | 1 | 2 | 3; l: number; kick: boolean }[] = [
     { localX: geom.hindX, localY: geom.hipY, fore: false, leg: 0, l: -half, kick: false },
@@ -744,7 +771,8 @@ export function drawActor(
     const hip = torsoPoint(geom, theta, dy, spec.localX, spec.localY);
     const foot = footAt(hip, spec.fore, spec.leg, spec.l > 0, spec.kick);
     const df = foot.x - hip.x;
-    const lift = foot.y < 0 ? -foot.y * liftScale : 0;
+    const rawReach = extend > 0.001 || actor.stumble != null || actor.jump?.style === 'leap';
+    const lift = foot.y < 0 ? -foot.y * (rawReach ? 1 : liftScale) : 0;
     // Hips collapse toward the body center with the facing angle. A front view keeps the
     // hind pair under the rump, a small step behind the chest, instead of out at the tail.
     const axialView = rig.view === 'front' || rig.view === 'back';
@@ -882,7 +910,7 @@ export function drawActor(
   const form = 1 + roll.bulk;
   c.save();
   c.translate(0, geom.bodyY);
-  c.scale(posed?.scaleX ?? 1, posed?.scaleY ?? 1);
+  c.scale(torsoScaleX, posed?.scaleY ?? 1);
   c.translate(0, -geom.bodyY);
   paintRolled(geom.bodyY, 'body', () => {
     if (rig.view === 'front') {
@@ -972,7 +1000,7 @@ export function drawActor(
       c.translate(-geom.Px, -geom.Py);
     }
     c.translate(0, geom.bodyY);
-    c.scale(posed?.scaleX ?? 1, posed?.scaleY ?? 1);
+    c.scale(torsoScaleX, posed?.scaleY ?? 1);
     c.translate(0, -geom.bodyY);
     paintRolled(geom.bodyY, 'detail', () => {
       if (jacketAnchor && coats.side > 0.01) {
@@ -1568,6 +1596,14 @@ export function drawActor(
     x: actor.x + rig.dir * scale * (head.x + rearShift.x),
     y: actor.y - actor.z + scale * head.y,
   };
+  const stumble = actor.stumble;
+  if (stumble && !reduced && stumble.t >= 0.15 && stumble.t <= 0.85) {
+    const lap = ((stumble.t - 0.15) / 0.7) * Math.PI * 2;
+    const orbit = 16 * scale;
+    const cy = actor.headMark.y - 8 * scale;
+    drawStar(c, actor.headMark.x + Math.cos(lap) * orbit, cy + Math.sin(lap) * orbit * 0.55, 5 * scale);
+    drawStar(c, actor.headMark.x + Math.cos(lap + Math.PI) * orbit, cy + Math.sin(lap + Math.PI) * orbit * 0.55, 4 * scale);
+  }
 
   // Sleep marks float in screen space. A recorded picture skips them so a replay can draw them live.
   placedHeadLift = R * scale;

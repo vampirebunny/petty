@@ -20,17 +20,86 @@ export type GaitDef = {
   // Spine flex and ears and tail streaming back, 0..1.
   stretch: number;
   stream: number;
+  // Cycle point (0..1) where the airborne body lift peaks. 0 keeps the old sine for walk and trot.
+  flightAt: number;
+};
+
+export type GallopStyle = 'classic' | 'flying';
+
+const classicGallop: GaitDef = {
+  enter: 0.9,
+  stride: 1.18,
+  duty: 0.3,
+  offsets: [0.12, 0.5, 0, 0.62],
+  lift: 0.26,
+  bounce: 5.6,
+  stretch: 1,
+  stream: 1,
+  // The old airborne wave peaked near cycle 0.11.
+  flightAt: 0.107,
+};
+
+const flyingGallop: GaitDef = {
+  enter: 0.9,
+  stride: 1.25,
+  duty: 0.28,
+  // gaitFootFor: u = 0 is touchdown, so a foot lands at (1 − offset).
+  offsets: [0.88, 0.44, 0, 0.32],
+  lift: 0.26,
+  bounce: 7.5,
+  stretch: 1,
+  stream: 1,
+  flightAt: 0.48,
 };
 
 export const gaitDefs: Record<Gait, GaitDef> = {
   // Four beats: LH, LF, RH, RF.
-  walk: { enter: 0, stride: 0.38, duty: 0.7, offsets: [0, 0.25, 0.5, 0.75], lift: 0.14, bounce: 1, stretch: 0, stream: 0 },
+  walk: { enter: 0, stride: 0.38, duty: 0.7, offsets: [0, 0.25, 0.5, 0.75], lift: 0.14, bounce: 1, stretch: 0, stream: 0, flightAt: 0 },
   // Diagonal pairs: LF+RH, then RF+LH.
-  trot: { enter: 0.56, stride: 0.62, duty: 0.55, offsets: [0, 0.5, 0.5, 0], lift: 0.18, bounce: 2.4, stretch: 0, stream: 0 },
+  trot: { enter: 0.56, stride: 0.62, duty: 0.55, offsets: [0, 0.5, 0.5, 0], lift: 0.18, bounce: 2.4, stretch: 0, stream: 0, flightAt: 0 },
   // Three beats: trailing hind, then the diagonal pair, then the leading fore.
-  canter: { enter: 0.74, stride: 0.86, duty: 0.42, offsets: [0, 0.3, 0.3, 0.62], lift: 0.22, bounce: 3.8, stretch: 0.45, stream: 0.35 },
-  // Rotary: both hinds, then both fores, with a flight phase between.
-  gallop: { enter: 0.9, stride: 1.18, duty: 0.3, offsets: [0.12, 0.5, 0, 0.62], lift: 0.26, bounce: 5.6, stretch: 1, stream: 1 },
+  canter: { enter: 0.74, stride: 0.86, duty: 0.42, offsets: [0, 0.3, 0.3, 0.62], lift: 0.22, bounce: 3.8, stretch: 0.45, stream: 0.35, flightAt: 0.45 },
+  // Rotary: both hinds, then both fores, with an outstretched flight between.
+  gallop: { ...flyingGallop },
+};
+
+let activeGallop: GallopStyle = 'flying';
+
+export function gallopStyle(): GallopStyle {
+  return activeGallop;
+}
+
+// Switches the shared gallop def. Home, park, and races all read gaitDefs.gallop.
+export function setGallopStyle(style: GallopStyle): void {
+  activeGallop = style;
+  gaitDefs.gallop = style === 'classic' ? { ...classicGallop } : { ...flyingGallop };
+}
+
+export const classicGallopDef = classicGallop;
+export const flyingGallopDef = flyingGallop;
+
+// Race pose numbers. Foot targets are fractions of leg length L.
+export const racePoses = {
+  // Ground covered per meter, in the pet's own leg lengths. The track scrolls at the same rate under the
+  // player's pet, so planted paws stay put. About 3.3 gallop strides a second at the 11 m/s cap.
+  legsPerMeter: 1.5,
+  topMps: 11,
+  bands: { walk: 1.5, trot: 3, canter: 4.5 },
+  stumbleMps: 5,
+  flightBump: { rise0: 0.42, rise1: 0.46, hold: 0.5, fall: 0.54 },
+  extendFore: { x: 0.9, y: 0.37 },
+  extendHind: { x: -0.9, y: 0.37 },
+  farInset: 0.04,
+  seniorExtend: 0.7,
+  seniorLeap: 0.8,
+  spineAmp: { dog: 0.07, cat: 0.11 },
+  bodyStretch: { dog: 1.05, cat: 1.09 },
+  leapPitchDeg: { dog: 18, cat: 16 },
+  happyEyes: { from: 0.38, to: 0.62, edge: 0.06 },
+  earAir: 0.2,
+  stumbleSeconds: 0.7,
+  leapAirSeconds: 0.55,
+  leapApexPx: 48,
 };
 
 export const gaitHysteresis = 0.05;

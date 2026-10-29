@@ -77,6 +77,10 @@ function withParkFindSeen(state: PetState): PetState {
   return noteTutorialAction(state, 'parkFind');
 }
 
+export function grantXp(state: PetState, amount: number): PetState {
+  return addXp(state, amount);
+}
+
 function addXp(state: PetState, amount: number): PetState {
   if (amount <= 0 || state.level < gameplayConfig.tutorialLevel) {
     return state;

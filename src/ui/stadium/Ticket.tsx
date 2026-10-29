@@ -18,12 +18,13 @@ type Props = {
   withdrawing: boolean;
   onGate: () => void;
   onPlay: () => void;
+  onWaitElsewhere: () => void;
   onMoodTreat: () => void;
   onShop: () => void;
   onWithdraw: () => void;
 };
 
-export function Ticket({ signup, petName, energy, mood, moodTreats, now, others, withdrawing, onGate, onPlay, onMoodTreat, onShop, onWithdraw }: Props) {
+export function Ticket({ signup, petName, energy, mood, moodTreats, now, others, withdrawing, onGate, onPlay, onWaitElsewhere, onMoodTreat, onShop, onWithdraw }: Props) {
   const phase = gatePhase(signup.startsAt, now);
   const gateAt = signup.startsAt - gameplayConfig.races.gateOpenMs;
   return (
@@ -37,7 +38,7 @@ export function Ticket({ signup, petName, energy, mood, moodTreats, now, others,
           <View style={styles.eventText}>
             <Text style={styles.event}>{eventLabel(signup.event)}</Text>
             <Text style={shared.copy}>
-              {formatSlot(signup.startsAt)} · {classLabel(signup.classId)} · Lane {signup.lane}
+              {formatSlot(signup.startsAt)} · {classLabel(signup.classId)}
             </Text>
           </View>
         </View>
@@ -62,13 +63,16 @@ export function Ticket({ signup, petName, energy, mood, moodTreats, now, others,
         <Text style={shared.strong}>Get {petName} ready</Text>
         <ReadyBars energy={energy} mood={mood} />
         <View style={styles.readyRow}>
-          <CandyButton compact role="go" label="Play" onPress={onPlay} style={styles.readyButton} />
+          {phase === 'waiting' ? null : (
+            <CandyButton compact role="go" label="Play" onPress={onPlay} style={styles.readyButton} />
+          )}
           {moodTreats > 0 ? (
             <CandyButton compact role="primary" label={`Mood treat (${moodTreats})`} onPress={onMoodTreat} style={styles.readyButton} />
           ) : (
             <CandyButton compact role="secondary" label="Visit Pet Shop" onPress={onShop} style={styles.readyButton} />
           )}
         </View>
+        {phase === 'waiting' ? <CandyButton role="secondary" label="Wait somewhere else" onPress={onWaitElsewhere} /> : null}
       </View>
 
       {others.length > 0 ? (
@@ -77,7 +81,7 @@ export function Ticket({ signup, petName, energy, mood, moodTreats, now, others,
             <View key={card.id} style={[shared.card, styles.other]}>
               <EventIcon event={card.event} size={20} />
               <Text style={[shared.strong, styles.otherName]}>{eventLabel(card.event)}</Text>
-              <Text style={styles.pill}>One race at a time</Text>
+              <Text style={styles.pill}>In a race</Text>
             </View>
           ))}
         </View>

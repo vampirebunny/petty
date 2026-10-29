@@ -398,6 +398,7 @@ export function spawnActor(source: ActorSource, at?: Vec): Actor {
     land: 0,
     jumpKind: null,
     jump: null,
+    stumble: null,
     jumpOut: [],
     topT: 0,
     share: 0,

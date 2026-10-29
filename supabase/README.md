@@ -29,7 +29,17 @@ Applied by the owner through `20261024250000_ledger_source_ambiguity.sql`, inclu
 
 `20261029120000_second_wind_price.sql` is applied. Second Wind costs 500 Boops. The app also pins that price in `priceAdjustments`, so a catalog saved before the download charges 500 too.
 
-`20261029200000_stadium.sql` is not applied yet. It adds the Stadium schedule (`competition_slots`, `competition_events`, `races`, `race_entries`, `pet_race_state`, `stadium_config`, `stadium_classes`) and the RPCs `get_upcoming_slots`, `sign_up`, `withdraw`, `gate_heartbeat`, and `race_state`. Each RPC creates upcoming slots and locks or starts due races first. A pg_cron job running `select public.stadium_tick();` every minute is an optional backstop. See [the Stadium brief](../docs/boop-boop-stadium-cursor-brief.md).
+`20261029200000_stadium.sql` is applied. It adds the Stadium schedule (`competition_slots`, `competition_events`, `races`, `race_entries`, `pet_race_state`, `stadium_config`, `stadium_classes`) and the RPCs `get_upcoming_slots`, `sign_up`, `withdraw`, `gate_heartbeat`, and `race_state`. Each RPC creates upcoming slots and locks or starts due races first. A pg_cron job running `select public.stadium_tick();` every minute is an optional backstop. See [the Stadium brief](../docs/boop-boop-stadium-cursor-brief.md).
+
+`20261029310000_race_foundation.sql` is applied. It switches the schedule to Fun Run plus the new events and the Veteran Cup, stores a race seed and config version, snapshots pet modifiers at lock, merges neighboring classes at gate open, and adds `submit_race_report`. See [the race foundation brief](../docs/boop-boop-race-foundation-cursor-brief.md).
+
+These race follow-ups are applied:
+
+- `20261029320000_abandon_unreported_races.sql`, `20261029330000_fix_finalize_status.sql`, `20261029340000_fix_cooldown_event_type.sql`: a running race nobody reports by start + 80 s is finalized with DNFs, so a closed app never leaves a stale sign-up. The rest counts from the race start.
+- `20261029350000_six_minute_race_rest.sql`: 6-minute rest per event, and each card returns `rest_until`.
+- `20261029360000_rest_by_race_start.sql`: a rest only blocks races that start before it ends.
+- `20261029370000_test_fast_slots.sql`: **testing only.** 1-minute slots and no rest. Before launch, set `slot_seconds = 300` and `cooldown_seconds = 360` again in a new migration, and restore `slotMs` and `cooldownMs` in `src/sim/gameplayConfig.ts`.
+- `20261029380000_fill_npcs_at_lock.sql`: a solo Fun Run gets its NPCs at line-up lock, so they stand at the start line during the countdown.
 
 New files in this folder are applied only by the project owner. Do not run `supabase db push`, the Supabase CLI against the hosted project, or the SQL in the dashboard from an agent or an automated script. After the CLI is linked, the owner applies new migrations with:
 

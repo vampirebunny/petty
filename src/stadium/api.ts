@@ -6,20 +6,32 @@ import {
   isRaceEvent,
   type CardState,
   type RaceClass,
+  type RaceCup,
   type RaceEvent,
   type RaceSignup,
   type SpeciesAllowed,
 } from '../sim/stadium';
 
+export type RaceModifiers = {
+  energy: number;
+  mood: number;
+  stamina: number;
+  agility: number;
+  intelligence: number;
+};
+
 export type StadiumCard = {
   id: string;
   event: RaceEvent;
+  cup: RaceCup;
   speciesAllowed: SpeciesAllowed;
   requiredTrick: string | null;
   isAway: boolean;
   awayLocation: string | null;
   state: CardState;
   signedUp: number;
+  /** When this event's rest ends. Null when the pet can enter. */
+  restUntil: number | null;
 };
 
 export type StadiumSlot = {
@@ -47,16 +59,25 @@ export type LineupRow = {
   checkedIn: boolean;
   mine: boolean;
   npc: boolean;
+  skill: number | null;
+  modifiers: RaceModifiers | null;
+  finishMs: number | null;
+  place: number | null;
+  coat: string | null;
+  breedId: string | null;
 };
 
-export type RaceStatus = 'open' | 'locked' | 'running' | 'finished' | 'cancelled';
+export type RaceStatus = 'open' | 'locked' | 'countdown' | 'running' | 'finished' | 'cancelled';
 
 export type RaceView = {
   raceId: string;
   status: RaceStatus;
   classId: RaceClass;
   event: RaceEvent;
+  cup: RaceCup;
   startsAt: number;
+  seed: string;
+  configVersion: string;
   players: LineupRow[];
   npcs: LineupRow[];
 };
@@ -126,11 +147,13 @@ function parseCard(value: unknown): StadiumCard | null {
     id,
     event: row.event_type,
     speciesAllowed: allowed,
+    cup: row.cup === 'veteran' ? 'veteran' : 'open',
     requiredTrick: text(row.required_trick),
     isAway: row.is_away === true,
     awayLocation: text(row.away_location),
     state,
     signedUp: num(row.signed_up) ?? 0,
+    restUntil: time(row.rest_until),
   };
 }
 
@@ -157,7 +180,45 @@ export function parseBoard(value: unknown): StadiumBoard {
   };
 }
 
-const raceStatuses: RaceStatus[] = ['open', 'locked', 'running', 'finished', 'cancelled'];
+const raceStatuses: RaceStatus[] = ['open', 'locked', 'countdown', 'running', 'finished', 'cancelled'];
+
+function modifiersOf(value: unknown): RaceModifiers | null {
+  const row = rowOf(value);
+  const energy = num(row.energy);
+  const mood = num(row.mood);
+  if (energy == null || mood == null) {
+    return null;
+  }
+  return {
+    energy,
+    mood,
+    stamina: num(row.stamina) ?? 0,
+    agility: num(row.agility) ?? 0,
+    intelligence: num(row.intelligence) ?? 0,
+  };
+}
+
+function lineupRow(value: unknown, index: number, npc: boolean): LineupRow {
+  const item = rowOf(value);
+  const coat = rowOf(item.coat);
+  return {
+    key: text(item.entry_id) ?? `${npc ? 'npc' : 'player'}-${index}`,
+    lane: num(item.lane) ?? index + 1,
+    petName: text(item.pet_name) ?? text(item.name) ?? 'Pet',
+    species: speciesOf(item.species),
+    level: num(item.pet_level),
+    handle: text(item.handle),
+    checkedIn: item.status === 'checked_in' || item.status === 'finished' || npc,
+    mine: item.mine === true,
+    npc,
+    skill: num(item.skill),
+    modifiers: modifiersOf(item.modifiers),
+    finishMs: num(item.finish_ms),
+    place: num(item.place),
+    coat: text(coat.coat),
+    breedId: text(item.breed_id),
+  };
+}
 
 export function parseRace(value: unknown): RaceView | null {
   const row = rowOf(value);
@@ -167,41 +228,20 @@ export function parseRace(value: unknown): RaceView | null {
     return null;
   }
   const entries = Array.isArray(row.entries) ? row.entries : [];
-  const npcs = Array.isArray(row.npcs) ? row.npcs : [];
+  const legacyNpcs = Array.isArray(row.npcs) ? row.npcs : [];
+  const rows = entries.map((entry, index) => lineupRow(entry, index, rowOf(entry).is_npc === true));
+  const npcRows = rows.filter((entry) => entry.npc);
   return {
     raceId,
     status: raceStatuses.includes(row.status as RaceStatus) ? (row.status as RaceStatus) : 'open',
     classId: isRaceClass(row.class) ? row.class : 'beginner',
     event: row.event_type,
+    cup: row.cup === 'veteran' ? 'veteran' : 'open',
     startsAt,
-    players: entries.map((entry, index) => {
-      const item = rowOf(entry);
-      return {
-        key: text(item.entry_id) ?? `player-${index}`,
-        lane: num(item.lane) ?? index + 1,
-        petName: text(item.pet_name) ?? 'Pet',
-        species: speciesOf(item.species),
-        level: num(item.pet_level),
-        handle: text(item.handle),
-        checkedIn: item.status === 'checked_in' || item.status === 'finished',
-        mine: item.mine === true,
-        npc: false,
-      };
-    }),
-    npcs: npcs.map((entry, index) => {
-      const item = rowOf(entry);
-      return {
-        key: `npc-${index}`,
-        lane: num(item.lane) ?? index + 2,
-        petName: text(item.name) ?? 'Pal',
-        species: speciesOf(item.species),
-        level: null,
-        handle: null,
-        checkedIn: true,
-        mine: false,
-        npc: true,
-      };
-    }),
+    seed: text(row.seed) ?? '',
+    configVersion: text(row.config_version) ?? 'funrun-1',
+    players: rows.filter((entry) => !entry.npc),
+    npcs: npcRows.length > 0 ? npcRows : legacyNpcs.map((entry, index) => lineupRow(entry, index, true)),
   };
 }
 
@@ -248,6 +288,26 @@ export async function withdrawEntry(entryId: string): Promise<StadiumResult<bool
 
 export async function gateHeartbeat(entryId: string): Promise<StadiumResult<RaceView>> {
   const result = await call('gate_heartbeat', { p_entry_id: entryId });
+  if (!result.ok) {
+    return result;
+  }
+  const race = parseRace(result.data);
+  return race ? { ok: true, data: race } : { ok: false, offline: false, reason: 'bad race' };
+}
+
+export async function submitRaceReport(
+  raceId: string,
+  finishMs: number | null,
+  npcFinishes: { entryId: string; finishMs: number | null }[],
+): Promise<StadiumResult<RaceView>> {
+  const result = await call('submit_race_report', {
+    p_race_id: raceId,
+    p_finish_ms: finishMs == null ? null : Math.round(finishMs),
+    p_npc_finishes: npcFinishes.map((row) => ({
+      entry_id: row.entryId,
+      finish_ms: row.finishMs == null ? null : Math.round(row.finishMs),
+    })),
+  });
   if (!result.ok) {
     return result;
   }

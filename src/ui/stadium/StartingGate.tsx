@@ -6,7 +6,7 @@ import { cancelRaceCall } from '../../reminders/notifications';
 import { fetchRace, gateHeartbeat, type LineupRow, type RaceView } from '../../stadium/api';
 import { useGatePresence } from '../../stadium/presence';
 import { gameplayConfig } from '../../sim/gameplayConfig';
-import { classLabel, eventLabel, eventTip, formatCountdown, gatePhase, type RaceSignup } from '../../sim/stadium';
+import { classLabel, eventLabel, eventTip, formatCountdown, gatePhase, isPlayableEvent, type RaceSignup } from '../../sim/stadium';
 import { fontFamily } from '../font';
 import { CandyButton } from './CandyButton';
 import { EventIcon, ink, shared, softInk } from './parts';
@@ -43,10 +43,30 @@ export function StartingGate({ signup, petName, now, withdrawing, onWithdraw, on
     let alive = true;
     let last = 0;
     let inFlight = false;
+    let latest: RaceView | null = null;
+    let handedOff = false;
+    // The hand-off runs on the clock, not on a network reply, so the race screen always opens
+    // countdownMs before the start with the latest line-up.
+    const handOff = () => {
+      const view = latest;
+      if (handedOff || !view || !view.players.some((row) => row.mine)) return;
+      const at = serverNow();
+      const playable = isPlayableEvent(view.event) && at >= signup.startsAt - gameplayConfig.races.countdownMs;
+      if (!playable && view.status !== 'finished' && view.status !== 'running') return;
+      handedOff = true;
+      if (at - signup.startsAt > lateMs) {
+        handlers.current.onExit('ended');
+      } else {
+        handlers.current.onRace(view);
+      }
+    };
     const tick = async () => {
+      handOff();
+      if (handedOff) return;
       const at = serverNow();
       const phase = gatePhase(signup.startsAt, at);
-      const every = phase === 'started' ? 1500 : gameplayConfig.races.heartbeatMs;
+      const soon = signup.startsAt - at <= gameplayConfig.races.countdownMs + 5000;
+      const every = phase === 'started' || soon ? 1000 : gameplayConfig.races.heartbeatMs;
       if (inFlight || at - last < every) {
         return;
       }
@@ -54,27 +74,23 @@ export function StartingGate({ signup, petName, now, withdrawing, onWithdraw, on
       last = at;
       const result = phase === 'gate' || phase === 'waiting' ? await gateHeartbeat(signup.entryId) : await fetchRace(signup.raceId);
       inFlight = false;
-      if (!alive || !result.ok) {
+      if (!alive || !result.ok || handedOff) {
         return;
       }
       const view = result.data;
+      latest = view;
       setRace(view);
       if (view.status === 'cancelled') {
+        handedOff = true;
         handlers.current.onExit('cancelled');
         return;
       }
-      const mine = view.players.some((row) => row.mine);
-      if (view.status !== 'open' && !mine) {
+      if (view.status !== 'open' && !view.players.some((row) => row.mine)) {
+        handedOff = true;
         handlers.current.onExit('noShow');
         return;
       }
-      if (view.status === 'finished' || view.status === 'running') {
-        if (serverNow() - signup.startsAt > lateMs) {
-          handlers.current.onExit('ended');
-        } else {
-          handlers.current.onRace(view);
-        }
-      }
+      handOff();
     };
     void tick();
     const timer = setInterval(() => void tick(), 500);
@@ -146,6 +162,12 @@ function lineup(players: LineupRow[], petName: string, signup: RaceSignup): Line
     checkedIn: true,
     mine: true,
     npc: false,
+    skill: null,
+    modifiers: null,
+    finishMs: null,
+    place: null,
+    coat: null,
+    breedId: null,
   };
   return [own, ...players.filter((row) => !row.mine).sort((a, b) => a.lane - b.lane)];
 }

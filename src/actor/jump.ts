@@ -1,5 +1,6 @@
-import { stageDayThresholds } from '../sim/config';
+import { daysToSenior, stageDayThresholds } from '../sim/config';
 import { breedById } from './breeds';
+import { racePoses } from './data/locomotion';
 import { geomOf, PET_SIZE } from './geometry';
 import { baseYaw } from './turn';
 import type { Actor, Species } from './types';
@@ -100,6 +101,13 @@ export const jumpConfig = {
     front: { fore: { x: 0.3, y: 0.93, plant: true }, hind: { x: -0.38, y: 0.4, plant: false } },
     absorb: { fore: { x: 0.12, y: 0.93, plant: true }, hind: { x: -0.08, y: 0.93, plant: true } },
   },
+  // Airborne keys for a hurdle leap. Crouch, front, and absorb stay on `legs`.
+  leapLegs: {
+    push: { fore: { x: 0.07, y: 0.69, plant: false }, hind: { x: -0.22, y: 0.93, plant: true } },
+    rise: { fore: { x: 0.3, y: 0.55, plant: false }, hind: { x: -0.84, y: 0.54, plant: false } },
+    apex: { fore: { x: 0.91, y: 0.31, plant: false }, hind: { x: -0.91, y: 0.33, plant: false } },
+    fall: { fore: { x: 0.7, y: 0.71, plant: false }, hind: { x: -0.69, y: 0.67, plant: false } },
+  },
 };
 
 export type JumpPhase =
@@ -127,6 +135,15 @@ export type JumpVisual = {
   head: number;
   hip: number;
   wobble: number;
+  eyes: number;
+  squint: number;
+};
+
+export type StumbleState = {
+  t: number;
+  visual: JumpVisual;
+  dust: JumpDust[];
+  dusted: boolean;
 };
 
 export type JumpOut = { type: 'land' };
@@ -169,6 +186,9 @@ export type JumpState = {
   visual: JumpVisual;
   z0: number;
   landZ: number;
+  style: 'tuck' | 'leap';
+  // 1 for a full leap reach. Seniors use the smaller config value.
+  reach: number;
 };
 
 export type JumpRequest = {
@@ -190,6 +210,7 @@ export type JumpRequest = {
   onLand?: (actor: Actor) => void;
   // Landing thud. Nothing plays until a caller passes this.
   onThud?: (actor: Actor) => void;
+  style?: 'tuck' | 'leap';
 };
 
 const landers = new WeakMap<Actor, (actor: Actor) => void>();
@@ -362,6 +383,8 @@ function blankVisual(): JumpVisual {
     head: 0,
     hip: 0,
     wobble: 0,
+    eyes: 0,
+    squint: 0,
   };
 }
 
@@ -380,8 +403,27 @@ function lerpLeg(a: JumpLeg, b: JumpLeg, t: number): JumpLeg {
   };
 }
 
+function legsOf(jump: JumpState): typeof jumpConfig.legs {
+  const base = jumpConfig.legs;
+  if (jump.style !== 'leap') {
+    return base;
+  }
+  const reach = jump.reach;
+  const scale = (leg: JumpLeg): JumpLeg => ({ ...leg, x: leg.x * reach });
+  const leap = jumpConfig.leapLegs;
+  return {
+    crouch: base.crouch,
+    push: { fore: scale(leap.push.fore), hind: scale(leap.push.hind) },
+    rise: { fore: scale(leap.rise.fore), hind: scale(leap.rise.hind) },
+    apex: { fore: scale(leap.apex.fore), hind: scale(leap.apex.hind) },
+    fall: { fore: scale(leap.fall.fore), hind: scale(leap.fall.hind) },
+    front: base.front,
+    absorb: base.absorb,
+  };
+}
+
 function poseLegs(jump: JumpState): { fore: JumpLeg; hind: JumpLeg; blend: number } {
-  const legs = jumpConfig.legs;
+  const legs = legsOf(jump);
   const u = jump.airTime > 0 ? clamp(jump.t / jump.airTime, 0, 1) : 0;
   if (jump.phase === 'wiggle' || jump.phase === 'turn') {
     return { fore: legs.crouch.fore, hind: legs.crouch.hind, blend: 0 };
@@ -464,6 +506,14 @@ function sampleVisual(jump: JumpState): JumpVisual {
     const vz = jump.v0 - jump.gravity * jump.t;
     const tilt = jump.v0 > 1 ? clamp(vz / jump.v0, -1, 1) : 0;
     visual.pitch = -jump.pitchPeak * tilt;
+    if (jump.style === 'leap') {
+      const u = jump.airTime > 0 ? clamp(jump.t / jump.airTime, 0, 1) : 0;
+      const band = racePoses.happyEyes;
+      const inn = smoothstep(band.from, band.from + band.edge, u);
+      const out = 1 - smoothstep(band.to - band.edge, band.to, u);
+      visual.eyes = inn * out;
+      visual.ear += racePoses.earAir;
+    }
     const stretch = jumpConfig.stretchMs / 1000;
     if (jump.phase === 'airborne' && jump.t < stretch) {
       const settled = 1 - jump.t / stretch;
@@ -631,6 +681,8 @@ export function jump(actor: Actor, request: JumpRequest = {}): boolean {
     visual: blankVisual(),
     z0: Math.max(0, actor.z),
     landZ: request.landZ ?? 0,
+    style: request.style ?? 'tuck',
+    reach: 1,
   };
   actor.jump = state;
   state.visual = sampleVisual(state);
@@ -734,6 +786,156 @@ export function stepJump(actor: Actor, dt: number): void {
   posing.visual = sampleVisual(posing);
   follow(posing, dt);
   posing.visual = sampleVisual(posing);
+}
+
+function leapClock(actor: Actor, phase: JumpPhase, t: number, airTime: number): JumpState {
+  const breed = breedById(actor.breedId);
+  const species: Species = breed?.species ?? 'dog';
+  const params = jumpConfig[species];
+  const senior = actor.displayAgeDays >= daysToSenior;
+  return {
+    phase,
+    t,
+    species,
+    fast: false,
+    reduced: false,
+    running: true,
+    quiet: false,
+    didBounce: true,
+    landX: null,
+    heightPx: racePoses.leapApexPx,
+    apex: racePoses.leapApexPx,
+    distancePx: 0,
+    gravity: 200,
+    v0: 100,
+    airTime,
+    vx: actor.vx,
+    x0: actor.x,
+    face: actor.face >= 0 ? 1 : -1,
+    bodyH: 1,
+    bodyLenPx: 40,
+    anticipation: 0,
+    takeoff: 0,
+    landing: params.landingMs / 1000,
+    recovery: params.recoveryMs / 1000,
+    wiggleDur: 0,
+    squash: 1,
+    landSquash: 1,
+    follow: params.follow,
+    headHold: params.headHold,
+    pitchPeak: (racePoses.leapPitchDeg[species] * Math.PI) / 180,
+    puppy: 0,
+    tailLag: 0,
+    earLag: 0,
+    dust: actor.jump?.dust ?? [],
+    visual: blankVisual(),
+    z0: 0,
+    landZ: 0,
+    style: 'leap',
+    reach: senior ? racePoses.seniorLeap : 1,
+  };
+}
+
+// A race leap, with no crouch and no gravity of its own. airU is 0 at take-off and 1 at touchdown.
+// afterLandS plays the landing and recovery, then returns null.
+export function raceLeapVisual(actor: Actor, airU: number, afterLandS: number): JumpVisual | null {
+  const breed = breedById(actor.breedId);
+  const species: Species = breed?.species ?? 'dog';
+  const landing = jumpConfig[species].landingMs / 1000;
+  const recovery = jumpConfig[species].recoveryMs / 1000;
+  if (afterLandS > 0) {
+    if (afterLandS >= landing + recovery) {
+      return null;
+    }
+    if (afterLandS < landing) {
+      return sampleVisual(leapClock(actor, 'landing', afterLandS, 1));
+    }
+    return sampleVisual(leapClock(actor, 'recovery', afterLandS - landing, 1));
+  }
+  const u = clamp(airU, 0, 1);
+  const state = leapClock(actor, 'airborne', u, 1);
+  const visual = sampleVisual(state);
+  if (u < 0.08) {
+    const at = sampleVisual(leapClock(actor, 'airborne', 0.08, 1));
+    const push = legsOf(state).push;
+    const k = u / 0.08;
+    visual.fore = lerpLeg(push.fore, at.fore, k);
+    visual.hind = lerpLeg(push.hind, at.hind, k);
+    visual.blend = 1;
+  }
+  return visual;
+}
+
+type StumbleKey = {
+  t: number;
+  blend: number;
+  pitch: number;
+  dy: number;
+  fore: JumpLeg;
+  hind: JumpLeg;
+  ear: number;
+  tail: number;
+  squint: number;
+};
+
+const stumbleKeys: readonly StumbleKey[] = [
+  { t: 0, blend: 0, pitch: 0, dy: 0, fore: { x: 0.1, y: 0.9, plant: true }, hind: { x: -0.1, y: 0.9, plant: true }, ear: 0, tail: 0, squint: 0 },
+  { t: 0.15, blend: 1, pitch: 0.28, dy: 0.19, fore: { x: -0.71, y: 0.28, plant: false }, hind: { x: 0.05, y: 0.97, plant: true }, ear: -0.7, tail: -0.2, squint: 1 },
+  { t: 0.35, blend: 1, pitch: 0.2, dy: 0.26, fore: { x: -0.59, y: 0.38, plant: false }, hind: { x: 0.34, y: 0.93, plant: true }, ear: -0.6, tail: -0.3, squint: 1 },
+  { t: 0.6, blend: 1, pitch: -0.12, dy: -0.26, fore: { x: 0, y: 0.83, plant: false }, hind: { x: -0.55, y: 0.72, plant: false }, ear: 0.2, tail: 0.3, squint: 0 },
+  { t: 1, blend: 0, pitch: 0, dy: 0, fore: { x: 0.1, y: 0.9, plant: true }, hind: { x: -0.1, y: 0.9, plant: true }, ear: 0, tail: 0, squint: 0 },
+];
+
+// t is 0..1 across the 0.7 s stumble. dy in the table is fractions of L.
+export function stumbleVisualAt(t: number, L: number): JumpVisual {
+  const u = clamp(t, 0, 1);
+  const visual = blankVisual();
+  let index = 0;
+  while (index < stumbleKeys.length - 1 && stumbleKeys[index + 1].t < u) {
+    index += 1;
+  }
+  const from = stumbleKeys[index];
+  const to = stumbleKeys[Math.min(index + 1, stumbleKeys.length - 1)];
+  const span = to.t - from.t;
+  const k = span <= 0 ? 1 : (u - from.t) / span;
+  visual.blend = lerp(from.blend, to.blend, k);
+  visual.pitch = lerp(from.pitch, to.pitch, k);
+  visual.dy = lerp(from.dy, to.dy, k) * L;
+  visual.fore = lerpLeg(from.fore, to.fore, k);
+  visual.hind = lerpLeg(from.hind, to.hind, k);
+  visual.ear = lerp(from.ear, to.ear, k);
+  visual.tail = lerp(from.tail, to.tail, k);
+  visual.squint = lerp(from.squint, to.squint, k);
+  const squash = u < 0.15 ? 0 : u < 0.35 ? 1 : u < 0.6 ? 1 - (u - 0.35) / 0.25 : 0;
+  visual.scaleX = 1 + 0.06 * squash;
+  visual.scaleY = 1 - 0.08 * squash;
+  return visual;
+}
+
+export function puffDust(actor: Actor, into: JumpDust[]): void {
+  const life = jumpConfig.dustMs / 1000;
+  const count = jumpConfig.dustCount;
+  for (let i = 0; i < count; i += 1) {
+    into.push({
+      x: actor.x + (actor.face >= 0 ? 1 : -1) * 12 + (i - (count - 1) / 2) * 7,
+      y: actor.y + 2,
+      t: 0,
+      life,
+      r: 3.5 + i * 1.6,
+    });
+  }
+}
+
+export function attachRaceVisual(actor: Actor, visual: JumpVisual, phase: 'airborne' | 'landing' | 'recovery', apex: number): void {
+  const state = leapClock(actor, phase, 0, 1);
+  state.visual = visual;
+  state.apex = apex;
+  state.dust = actor.jump?.dust ?? [];
+  actor.jump = state;
+}
+
+export function clearRaceVisual(actor: Actor): void {
+  actor.jump = null;
 }
 
 export function jumpOwnsMotion(actor: Actor): boolean {

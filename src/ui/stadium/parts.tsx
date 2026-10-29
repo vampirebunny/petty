@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withDelay, withTiming } from 'react-native-reanimated';
-import { CircleDashed, Disc, Footprints, Route } from 'lucide-react-native';
+import { Anchor, Fence, Footprints, Route, Search, Sparkles, Trophy } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
 
 import { classLabel, type RaceClass, type RaceEvent } from '../../sim/stadium';
@@ -14,17 +14,23 @@ export const cardFill = '#FFFFFF';
 export const pageFill = '#FBF4FF';
 
 const eventIcons: Record<RaceEvent, LucideIcon> = {
-  fetchSwat: Disc,
   funRun: Footprints,
-  hoopHop: CircleDashed,
-  tunnelRun: Route,
+  dockDive: Anchor,
+  sniffOut: Search,
+  trickShow: Sparkles,
+  hurdles: Fence,
+  weave: Route,
+  obstacle: Trophy,
 };
 
 const eventColors: Record<RaceEvent, string> = {
-  fetchSwat: '#EE5A8E',
   funRun: '#2DAA6C',
-  hoopHop: '#7853E6',
-  tunnelRun: '#3A8DDE',
+  dockDive: '#3A8DDE',
+  sniffOut: '#E0A030',
+  trickShow: '#7853E6',
+  hurdles: '#EE5A8E',
+  weave: '#2FA77A',
+  obstacle: '#C46B2C',
 };
 
 export function EventIcon({ event, size = 26 }: { event: RaceEvent; size?: number }) {

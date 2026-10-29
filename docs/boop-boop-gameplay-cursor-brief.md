@@ -33,7 +33,7 @@ Turn Boop Boop from a toy into a game. Add pet levels driven by XP, badges, sugg
 6. Stadium (now specified in `docs/boop-boop-stadium-cursor-brief.md`, which supersedes sections 8 and 9 below)
 7. Live races with friends (also in the stadium brief)
 
-Each phase should ship working on its own. Park finds landed ahead of levels. Levels, the tutorial, first-find XP, non-race badges and suggested activities are shipped. The Stadium lobby, sign-up, race call and starting gate are shipped on a Supabase schedule; the competitions themselves are still to come. Finds stay available from level 1. The Training School stays open from level 1.
+Each phase should ship working on its own. Park finds landed ahead of levels. Levels, the tutorial, first-find XP, non-race badges and suggested activities are shipped. The Stadium lobby through the starting gate is shipped. Fun Run is the first playable race (`docs/boop-boop-race-foundation-cursor-brief.md`). The other events are on the schedule and still end on a placeholder. Finds stay available from level 1. The Training School stays open from level 1.
 
 ---
 
@@ -74,9 +74,10 @@ All bands ramp linearly within the band (no flat bands, no jumps between bands).
 | Advanced trick learned | 200 |
 | One-time badge | 50 |
 | Tiered badge bronze / silver / gold | 50 / 100 / 200 |
+| Race entered / 3rd / 2nd / 1st | 20 / 40 / 60 / 100, first 8 races per day only |
 | First time finding a park item: common / uncommon / rare / legendary | 10 / 25 / 75 / 150 |
 
-No XP from mini-games, races, repeat park finds or time passing. Race rewards wait for the competitions in the stadium brief. Daily caps reset at local midnight.
+No XP from mini-games, repeat park finds, or time passing. Race XP is skipped below level 10. Daily caps reset at local midnight.
 
 **Level-up:** the pet does a happy hop with its bark or meow, and the level display under its name updates. No confetti overlay. Several level-ups at once play one after another.
 
@@ -102,7 +103,9 @@ Badges are achievements, separate from ribbons and trophies. Earned medals show 
 | Prop Pro | First advanced trick learned |
 | Treasure Hunter | First park find |
 | Dressed Up | First item worn from the Closet |
-| Off to the Races | First race entered |
+| First Race | First race finished (id stays `off-to-the-races`) |
+| Blue Ribbon | First 1st place |
+| Moving Up | First race in any class above Beginner |
 | Playmate | First playdate |
 
 **Tiered (bronze / silver / gold)**
@@ -113,8 +116,9 @@ Badges are achievements, separate from ribbons and trophies. Earned medals show 
 | Devoted | Total days opened | 10 / 50 / 100 |
 | Trick Collector | Tricks learned | 5 / 10 / 20 |
 | Finder | Unique park finds | 10 / 25 / 50 |
+| Ribbon Rack | Ribbons won | 5 / 25 / 100 |
 
-Race badges for placings (Blue Ribbon, Moving Up, Ribbon Rack) return with the competitions.
+Ribbons are a log on the pet (race, event, class, place, date). Counts come from that log. The ribbon board and trophy shelf wait for the trophies brief.
 
 A missed day resets the streak count but never removes a badge. Use the device's local date for day counting.
 
@@ -134,12 +138,13 @@ A missed day resets the streak count but never removes a badge. Use the device's
 | Cuddle | Finish a cuddle with real petting |
 | Closet | Put on any item |
 | Learn Sit | Master Sit |
+| Race in the Stadium | Finish a Stadium race |
 
 **What's open:** everything is available from the start (Home, Closet, Park, Pet Shop, Mini-games, Playdates, Training School, Stadium), including park finds. The Training School is not locked.
 
 ## 4. Suggested activities
 
-**Shipped.** The Training School is open from level 1; training suggestions still start at level 3. "Enter a race" is in the pool; it completes when the pet signs up for a Stadium race.
+**Shipped.** The Training School is open from level 1; training suggestions still start at level 3. "Race in the Stadium" is in the pool; it completes when the pet finishes a race.
 
 Small goals the game offers, not things the pet asks for. Ignoring one costs nothing.
 
@@ -163,7 +168,7 @@ Small goals the game offers, not things the pet asks for. Ignoring one costs not
 | Play | Play ball, play with a specific owned toy | 1 |
 | Style | Wear a hat, try something new from the Closet | 1 |
 | Outing | Visit the park | 1 |
-| Competition | Enter a race | 1 |
+| Competition | Race in the Stadium | 1 |
 | Training | Practice a trick 5 times, make progress on the trick in training | 3 |
 | Finds | Find something new at the park | 6 |
 
@@ -199,75 +204,7 @@ Small goals the game offers, not things the pet asks for. Ignoring one costs not
 
 ## 8. Stadium and competitions
 
-**Superseded** by `docs/boop-boop-stadium-cursor-brief.md` (with `docs/Boop Boop Stadium.html`). What's shipped from it:
-
-- **Schedule:** a 5-minute slot rotation on the server (`supabase/migrations/20261029200000_stadium.sql`). Each slot runs Fetch & Swat and the Fun Run, open to every pet, plus one trick race alternating Hoop Hop (needs the hoop trick) and Tunnel Run (needs the tunnel trick). Every event is open to dogs and cats. The lobby shows the next 3 slots.
-- **Sign-up:** one active entry per pet, friends placed together first, up to 6 lanes, class by level (Beginner 1, Novice 10, Open 20, Expert 35, Championship 50). A missing trick opens a fun modal with a button to the Training School. After a race the pet rests for 15 minutes.
-- **Race call:** a local notification 1 minute before the start, and an in-app card when the gate opens. Both lead to the starting gate.
-- **Starting gate:** live presence for the pets in the race, a heartbeat that checks the pet in, withdrawal until 10 seconds before the start, then the line-up and a "Race coming soon" placeholder. A pet not at the gate at the lock loses its spot.
-- **Header:** a Skia stadium scene sharing the town's sky, time of day and weather, with a reduced-motion mode.
-
-Still to come: the competitions themselves, scoring, ribbons, trophies and race XP. The old local 15-minute schedule, practice runs and the ribbon board and trophy shelf furniture were removed. The rest of this section is the earlier design, kept for reference.
-
-### Events
-
-| Event | Species | Player input | Attribute effects |
-| --- | --- | --- | --- |
-| Fun Run | Both | Tap rapidly to run | Agility: top speed. Stamina: how long it holds |
-| Agility | Both | Rapid taps to run; timed tap for hurdles and hoops; left/right rhythm taps for weave; tunnel is automatic | Agility: speed and timing window. Boldness: tunnel speed. Obedience: weave forgiveness |
-| Trick Show | Both | A judge calls tricks; tap the matching trick button before the timer | Obedience: more time per call |
-| Fetch | Dogs | Swipe up from the bottom of the screen to throw a frisbee; aim for the dog's catch zone. Score = catches in the round | Agility: bigger catch zone. Stamina: keeps up all round |
-| Swat | Cats | Swipe up from the bottom to throw a ping pong ball; aim for the cat's swat zone; the cat swats it away. Score = swats in the round | Agility: bigger swat zone. Stamina: keeps up all round |
-
-**Scoring rules**
-- Score = player input shaped by attributes. Effort gets the pet to its best; attributes set what its best is.
-- Rapid tapping counts up to ~7 taps per second; faster adds nothing.
-- Hurdle and hoop timing: perfect (speed boost), good (clean), miss (knocks it, slows, time penalty). Never a disqualification.
-- Trick Show calls come from the species' full trick list. An unlearned trick scores nothing; advanced tricks score more.
-- Energy or mood below 50 lowers top speed by up to 10%.
-- Racing lowers energy the way normal play does. No entry cost, no energy minimum.
-- Competitions ignore the pet's age for animation and gameplay, like mini-games.
-
-**Skill check:** players can try to enter any race. Each race card lists its obstacles. If the pet hasn't learned one, block entry with a fun modal naming the missing trick, worded by why it's missing:
-- **Trick available now:** "Your pet needs to learn Jump the Hurdle for this race," with a button to the Training School.
-- **Trick age-locked:** "Jump the Hurdle unlocks when your pet is older," with the stage it unlocks at (e.g. "at the adolescent stage"). No Training School button. Suggest an event the pet can enter now (e.g. Fun Run).
-
-The Training School is open from level 1, so there is no "opens at level 3" case.
-
-**Stacking XP:** a suggested activity and the matching everyday action both pay (e.g. feeding when "Feed" is suggested = 30 + 2). Keep it that way.
-
-### Classes
-
-Classes open by pet level. A pet can enter its highest open class or any below it.
-
-| Class | Opens at level | Pace | NPC skill | Agility course |
-| --- | --- | --- | --- | --- |
-| Beginner | 1 | 1.0× | Low | Hurdles only |
-| Novice | 10 | 1.15× | Fair | Hurdles, tunnel |
-| Open | 20 | 1.3× | Good | Hurdles, tunnel, weave |
-| Expert | 35 | 1.45× | Strong | Full course: hurdles, tunnel, weave, hoop, Jump Up |
-| Championship | 50 | 1.6× | Top | Full course |
-
-**Veteran Cup:** senior pets (day 22+) can also enter Veteran Cup races in every event, at 1.15× pace, with their own ribbons and trophy.
-
-Trained attributes should widen timing windows enough to partly offset faster pace.
-
-### Schedule and races
-
-- Races start on the clock every 15 minutes, anchored to UTC quarter hours so every player worldwide sees the same event in the same slot (needed for live races). Display start times in local time; every time zone offset is a multiple of 15 minutes, so they still land on :00, :15, :30 or :45 locally.
-- Rotation: :00 Fun Run, :15 Agility, :30 Trick Show, :45 Fetch (dogs) / Swat (cats).
-- Sign-up for a slot opens when the previous slot starts. One entry per pet per slot.
-- Up to 6 pets per race. Empty spots are filled by NPC pets at start.
-- A pet signed up but not in the app at start loses its spot to an NPC. No other penalty.
-- Push reminder 2 minutes before a race the player signed up for. If notification permission hasn't been asked yet, ask at the first sign-up using the existing permission flow.
-- **Practice runs:** anytime, solo against NPCs. No ribbons, no XP.
-- Phase 6 ships with solo races (player + NPCs) on the real schedule.
-
-### Prizes and display
-
-- Ribbons for 1st, 2nd and 3rd, plus XP.
-- Three 1st places in a class earn that class's trophy.
-- The first ribbon gives the player a free ribbon board and trophy shelf as room furniture, using the existing furniture, Move and Storage system.
+The lobby, sign-up, race call, and starting gate are in `docs/boop-boop-stadium-cursor-brief.md`. The races themselves are in `docs/boop-boop-race-foundation-cursor-brief.md`. Fun Run is playable for solo races. Dock Dive, Sniff Out, Trick Show, Hurdles, Weave, and Obstacle Course are on the schedule and still end on "Race coming soon." Live races and the server replay come after that. Trophies and the ribbon furniture wait for their own brief.
 
 ## 9. Live races (phase 7)
 
