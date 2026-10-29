@@ -1,24 +1,42 @@
+import { useEffect, useRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
 
 import { fontFamily } from './font';
 
 type Props = {
   level: number;
-  goal: string | null;
   into: number;
   need: number;
+  reducedMotion: boolean;
 };
 
-export function LevelBar({ level, goal, into, need }: Props) {
-  const fill = goal || need <= 0 ? (goal ? 0 : 1) : Math.max(0, Math.min(1, into / need));
+export function LevelBar({ level, into, need, reducedMotion }: Props) {
+  const fraction = need <= 0 ? 1 : Math.max(0, Math.min(1, into / need));
+  const fill = useSharedValue(fraction);
+  const seenLevel = useRef(level);
+  useEffect(() => {
+    const leveled = level > seenLevel.current;
+    seenLevel.current = level;
+    if (reducedMotion) {
+      fill.value = fraction;
+      return;
+    }
+    if (leveled) {
+      fill.value = withSequence(withTiming(1, { duration: 320 }), withTiming(fraction, { duration: 240 }));
+      return;
+    }
+    fill.value = withTiming(fraction, { duration: 280 });
+  }, [fill, fraction, level, reducedMotion]);
+  const fillStyle = useAnimatedStyle(() => ({ width: `${fill.value * 100}%` }));
   const caption = need <= 0 ? 'Level 100' : `${Math.floor(into)} / ${Math.round(need)}`;
   return (
-    <View style={styles.wrap} accessibilityRole="text" accessibilityLabel={goal ? `Level ${level}` : `Level ${level}. ${caption}`}>
+    <View style={styles.wrap} accessibilityRole="text" accessibilityLabel={`Level ${level}. ${caption}`}>
       <Text style={styles.level} numberOfLines={1}>
         Level {level}
       </Text>
       <View style={styles.track}>
-        <View style={[styles.fill, { width: `${fill * 100}%` }]} />
+        <Animated.View style={[styles.fill, fillStyle]} />
       </View>
     </View>
   );

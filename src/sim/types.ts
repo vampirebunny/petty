@@ -105,6 +105,11 @@ export type TrainingTrack = {
   source: 'starter' | 'purchase';
 };
 
+export type SuggestionSlot = {
+  id: string;
+  progress?: number;
+};
+
 export type PetState = {
   id: string;
   /** Guest or account user id that owns this pet. Missing on pre-identity saves. */
@@ -131,6 +136,8 @@ export type PetState = {
   level: number;
   xpTotal: number;
   xpIntoLevel: number;
+  /** XP amounts waiting for a burst. Stripped before the pet is shown or saved. */
+  xpPops?: number[];
   xpDailyEveryday: number;
   xpDailyDay: string;
   tutorialSeen: string[];
@@ -143,6 +150,10 @@ export type PetState = {
   openedStreak: number;
   lastOpenedDay: string;
   hadPlaydate: boolean;
+  /** Current "Try this" slots. Kept until completed or no longer a fit. */
+  suggestions: SuggestionSlot[];
+  suggestionCompletions: number;
+  suggestionDay: string;
   bond: number;
   needs: Needs;
   asleep: boolean;

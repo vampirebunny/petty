@@ -30,6 +30,7 @@ export type XpBand = {
 export const gameplayConfig = {
   maxLevel: 100,
   tutorialLevel: 10,
+  tutorialXp: 10,
   everyday: { xp: 2, dailyCap: 100 },
   trickXp: { basic: 50, advanced: 200 } as const,
   findXp: { common: 10, uncommon: 25, rare: 75, legendary: 150 } as Record<ParkFindRarity, number>,
@@ -45,6 +46,15 @@ export const gameplayConfig = {
     devoted: [10, 50, 100],
     tricks: [5, 10, 20],
     finds: [10, 25, 50],
+  },
+  suggestions: {
+    xp: 30,
+    dailyCap: 10,
+    practiceReps: 5,
+    trainingFromLevel: 3,
+    findsFromLevel: 6,
+    // Hunger at or above this, or energy below it, is when care suggestions fit.
+    needAt: 30,
   },
   goals: [
     { action: 'feed', label: 'Feed' },

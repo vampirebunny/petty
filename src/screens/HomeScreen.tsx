@@ -98,7 +98,10 @@ import { canGiveTreat, treatsInInventory } from '../treats';
 import { trackName } from '../sim/tracks';
 import { failBand, trickListing } from '../sim/tricks';
 import { gameplayConfig } from '../sim/gameplayConfig';
-import { onParkFindRecorded, xpCost } from '../sim/progress';
+import { xpCost } from '../sim/progress';
+import { recordParkFind, suggestionSignature, syncSuggestions } from '../sim/suggestions';
+import { catalogForSpecies } from '../parkFinds/catalog';
+import { SuggestionPill } from '../ui/SuggestionRow';
 import { economyConfig } from '../economy/economyConfig';
 import type { TrickPropType } from '../sim/trickProps';
 import { currentOwner } from '../db/currentOwner';
@@ -451,6 +454,8 @@ export default function HomeScreen({ petApi }: Props) {
     cancelBursts,
     awardedBadges,
     clearAwardedBadges,
+    xpBursts,
+    clearXpBursts,
   } = petApi;
   const homeSpecies = state ? (breedById(state.breedId)?.species === 'cat' ? 'cat' : 'dog') : 'dog';
   const home = usePlayerHome(currentOwner(), homeSpecies);
@@ -543,6 +548,25 @@ export default function HomeScreen({ petApi }: Props) {
     [state?.ownerId],
   );
   const owned = outfitsOwned();
+  const closetKey = owned.map((item) => `${item.slot}:${item.id}`).join(',');
+  const toyKey = home.toys.join(',');
+  useEffect(() => {
+    if (!state) {
+      return;
+    }
+    const speciesName = breedById(state.breedId)?.species === 'cat' ? 'cat' : 'dog';
+    let unfound = true;
+    try {
+      const found = new Set((state.parkFinds?.items ?? []).map((row) => row.itemId));
+      unfound = catalogForSpecies(speciesName).some((row) => !found.has(row.id));
+    } catch {
+      unfound = true;
+    }
+    const next = syncSuggestions(state, Date.now(), { toys: home.toys, closet: owned, unfound });
+    if (suggestionSignature(next) !== suggestionSignature(state)) {
+      commitPet(next);
+    }
+  }, [closetKey, commitPet, state, toyKey]);
   const [hour, setHour] = useState<number | null>(null);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [wardrobeOpen, setWardrobeOpen] = useState(false);
@@ -640,6 +664,14 @@ export default function HomeScreen({ petApi }: Props) {
       playNextLevel();
     }
   }, [playNextLevel, state]);
+  useEffect(() => {
+    if (xpBursts.length === 0) {
+      return;
+    }
+    const shown: PointPop[] = xpBursts.map((amount) => ({ color: '#FF7BA5', amount, label: 'XP' }));
+    setPops((current) => (current ? [...current, ...shown] : shown));
+    clearXpBursts();
+  }, [clearXpBursts, xpBursts]);
   const enqueueBadges = useCallback((ids: string[]) => {
     const fresh = ids.filter((id) => id && !badgeSeen.current.has(id));
     if (fresh.length === 0) {
@@ -2712,6 +2744,11 @@ export default function HomeScreen({ petApi }: Props) {
     dismissBurst();
   };
 
+  const suggestionSlots = state.suggestions ?? [];
+  const tutorialSpan = (gameplayConfig.tutorialLevel - 1) * gameplayConfig.tutorialXp;
+  const tutorialBar =
+    state.level < gameplayConfig.tutorialLevel ||
+    (state.level === gameplayConfig.tutorialLevel && state.xpIntoLevel === 0 && state.xpTotal === tutorialSpan);
   const homeHeader = (
     <View style={[styles.header, accountHandle ? styles.headerWithHandle : null]}>
       <Image
@@ -2741,7 +2778,7 @@ export default function HomeScreen({ petApi }: Props) {
             ? `${state.name}, level ${state.level}, @${accountHandle}`
             : `${state.name}, level ${state.level}`
         }
-        pointerEvents="none"
+        pointerEvents="box-none"
         style={[
           styles.nameSlot,
           accountHandle ? styles.nameSlotWithHandle : null,
@@ -2756,13 +2793,11 @@ export default function HomeScreen({ petApi }: Props) {
         </Text>
         <LevelBar
           level={state.level}
-          goal={state.level < gameplayConfig.tutorialLevel ? 'tutorial' : null}
-          into={state.xpIntoLevel}
+          into={tutorialBar ? Math.min(state.level - 1, gameplayConfig.tutorialLevel - 1) * gameplayConfig.tutorialXp : state.xpIntoLevel}
           need={
-            state.level >= gameplayConfig.tutorialLevel && state.level < gameplayConfig.maxLevel
-              ? xpCost(state.level + 1)
-              : 0
+            tutorialBar ? tutorialSpan : state.level < gameplayConfig.maxLevel ? xpCost(state.level + 1) : 0
           }
+          reducedMotion={reducedMotion}
         />
         {accountHandle ? (
           <Text style={styles.accountHandle} numberOfLines={1}>
@@ -3235,6 +3270,12 @@ export default function HomeScreen({ petApi }: Props) {
         }}
       >
         {split ? null : homeHeader}
+        <View
+          style={[
+            styles.sceneFrame,
+            split ? styles.sceneFrameSplit : { width: viewWidth, height: viewHeight },
+          ]}
+        >
         <StageTouch
           cuddleOn={cuddleOn}
           onCuddleTap={onCuddleTapStage}
@@ -3256,7 +3297,7 @@ export default function HomeScreen({ petApi }: Props) {
             style={
               split
                 ? { width: '100%', height: '100%', maxWidth: '100%', maxHeight: '100%' }
-                : { width: viewWidth, height: viewHeight, alignSelf: 'center', overflow: 'hidden' }
+                : { width: '100%', height: '100%', overflow: 'hidden' }
             }
           >
             <PetView
@@ -3372,7 +3413,7 @@ export default function HomeScreen({ petApi }: Props) {
                     isNew,
                     foundAt,
                   });
-                  commitPet(onParkFindRecorded({ ...state, parkFinds: next }, signal.revealed.itemId, isNew, rarity, foundAt));
+                  commitPet(recordParkFind({ ...state, parkFinds: next }, signal.revealed.itemId, isNew, rarity, foundAt));
                 }
                 if (signal.modalItemId) {
                   const rec = (state.parkFinds.items.find((row) => row.itemId === signal.modalItemId) ??
@@ -3447,6 +3488,14 @@ export default function HomeScreen({ petApi }: Props) {
             ) : null}
           </View>
         </StageTouch>
+        <View pointerEvents="box-none" style={styles.tipAnchor}>
+          <SuggestionPill
+            suggestions={suggestionSlots}
+            species={species === 'cat' ? 'cat' : 'dog'}
+            onCheer={() => stageHandle.current?.cheer()}
+          />
+        </View>
+        </View>
         {holdTarget ? (
           <HoldPieceSheet
             warning={holdTarget.warning}
@@ -3751,6 +3800,21 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#D0D8E3',
     zIndex: 1,
+  },
+  sceneFrame: {
+    alignSelf: 'center',
+  },
+  sceneFrameSplit: {
+    width: '100%',
+    height: '100%',
+  },
+  tipAnchor: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    right: 16,
+    zIndex: 20,
+    alignItems: 'flex-start',
   },
   stickyFront: {
     zIndex: 40,

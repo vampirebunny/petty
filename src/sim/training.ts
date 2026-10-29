@@ -2,6 +2,7 @@ import { attributeScore, trainingGain, zeroStats } from './attributes';
 import { careConfig } from './careConfig';
 import { gameplayConfig } from './gameplayConfig';
 import { grantEverydayXp, grantTrickXp, noteTutorialAction } from './progress';
+import { noteSuggestionRep } from './suggestions';
 import { nextRng } from './rng';
 import { refreshUnlocks, speciesOf, trackDef } from './tracks';
 import type { PetState, TrainingTrack, Trait } from './types';
@@ -161,7 +162,7 @@ export function payRep(state: PetState, trackId: string, choice: RewardChoice, n
     next = grantMastery(next, trackId, skipXp);
     next = refreshUnlocks(next).state;
   }
-  return next;
+  return noteSuggestionRep(next, trackId, track.progress, progress, now);
 }
 
 export function openReward(state: PetState, trackId: string, now: number): PetState {

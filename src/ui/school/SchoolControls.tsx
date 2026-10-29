@@ -34,6 +34,7 @@ type Props = {
   onBuy: (trick: TrickListing) => void;
   onShop: () => void;
   onLeave: () => void;
+  pulseLeave?: boolean;
 };
 
 export type SchoolControlsHandle = {
@@ -59,6 +60,7 @@ export const SchoolControls = forwardRef<SchoolControlsHandle, Props>(function S
     onBuy,
     onShop,
     onLeave,
+    pulseLeave,
   },
   ref,
 ) {
@@ -123,7 +125,7 @@ export const SchoolControls = forwardRef<SchoolControlsHandle, Props>(function S
 
   return (
     <View style={styles.panel}>
-      <LocationPill onLeave={onLeave} />
+      <LocationPill onLeave={onLeave} pulse={pulseLeave} reducedMotion={reducedMotion} />
       <View style={styles.track}>
         <SegmentButton label={`In Training · ${trainingCount}`} selected={segment === 'training'} onPress={() => show('training')} />
         <SegmentButton label="Trick Shop" selected={segment === 'shop'} onPress={() => show('shop')} />

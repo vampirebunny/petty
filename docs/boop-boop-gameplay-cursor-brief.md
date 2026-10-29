@@ -33,7 +33,7 @@ Turn Boop Boop from a toy into a game. Add pet levels driven by XP, badges, sugg
 6. Stadium with solo races against NPCs
 7. Live races with friends
 
-Each phase should ship working on its own. Park finds landed ahead of levels. Levels, the tutorial, first-find XP, and the non-race badges are shipped. Finds stay available from level 1. Race badges wait for the Stadium.
+Each phase should ship working on its own. Park finds landed ahead of levels. Levels, the tutorial, first-find XP, non-race badges, and suggested activities are shipped. Finds stay available from level 1. The Training School stays open from level 1. Race badges and race suggestions wait for the Stadium.
 
 ---
 
@@ -46,15 +46,17 @@ Each phase should ship working on its own. Park finds landed ahead of levels. Le
 **Leveling**
 - Levels 1–100.
 - `level` becomes stored state. `withDerived()` must no longer recompute level from total XP.
-- **Levels 1–10 (tutorial):** each tutorial action raises the level by one, in any order (see section 3). There are more actions than the nine steps from level 1 to level 10. Repeating an action does not level again. No source pays XP during the tutorial. That includes everyday actions, suggested activities, badges, races, tricks, and first park finds. Badges themselves are still awarded; only their XP is skipped. Skipped one-time XP is not paid at level 10. A find recorded before level 10 sets `firstFindRewarded` so it cannot pay later.
-- During the tutorial, the XP bar stays empty and the goal name is not shown next to the level. The pet hops. The level and Boop amount float up from the bottom of the scene (see Level-up moment).
-- **From level 10:** XP starts at 0 and counts toward level 11 using the curve below. Level 11+ advances by XP only. No milestone gates.
+- **Levels 1–10 (tutorial):** each tutorial action raises the level by one, in any order (see section 3). There are more actions than the nine steps from level 1 to level 10. Repeating an action does not level again. Each of those level-ups is worth 10 XP, and the bar fills by that much each time, across the 90 XP from level 1 to level 10. No other source pays XP during the tutorial. That includes everyday actions, suggested activities, badges, races, tricks, and first park finds. Badges themselves are still awarded; only their XP is skipped. Skipped one-time XP is not paid at level 10. A find recorded before level 10 sets `firstFindRewarded` so it cannot pay later.
+- During the tutorial, the XP bar shows those steps as one fill from empty at level 1 to full at level 10 (0 of 90, then 10, 20, and so on, full at 90). The goal name is not shown next to the level. The pet hops. The level and Boop amount float up from the bottom of the scene (see Level-up moment).
+- **From level 10:** the bar stays full until the next XP. That XP counts toward level 11 using the curve below, and the bar then shows progress into the next level. Tutorial XP stays in the total; it is not cleared. Level 11+ advances by XP only. No milestone gates.
 - Show the level and an XP bar under the pet's name on Home.
+- Each XP grant plays its own "+N XP" burst over the scene, one burst per grant. A feed that pays both the everyday 2 and a suggested 30 plays two bursts. Bursts are not saved with the pet.
 
 **Default XP per level**
 
 | Levels | XP per level |
 | --- | --- |
+| 1–10 | 10 |
 | 11–25 | 120 rising linearly to 250 |
 | 26–40 | 250 rising linearly to 300 |
 | 41–60 | 300 rising linearly to 1,000 |
@@ -135,22 +137,23 @@ A missed day resets the streak count but never removes a badge. Use the device's
 | Closet | Put on any item |
 | Learn Sit | Master Sit |
 
-**What's open:** everything is available from the start (Home, Closet, Park, Pet Shop, Mini-games, Playdates, Stadium), including park finds. The Training School opens at level 3. That lock ships with the map phase, not with levels.
+**What's open:** everything is available from the start (Home, Closet, Park, Pet Shop, Mini-games, Playdates, Training School, Stadium), including park finds. The Training School is not locked.
 
 ## 4. Suggested activities
+
+**Shipped.** Race suggestions (enter a race, place in a race) wait for the Stadium. The Training School is open from level 1; training suggestions still start at level 3.
 
 Small goals the game offers, not things the pet asks for. Ignoring one costs nothing.
 
 **UI**
-- A row of small round icons labeled "Try this," attached to the level bar under the pet's name. Never floating over the scene.
-- Tapping an icon shows a one-line label (e.g. "Fill the water bowl") and pulses the matching button or prop for a few seconds. Nothing pulses unless tapped.
-- On completion the icon pops and flies into the XP bar, and the pet barks or meows. A new suggestion fades in after a short delay.
+- A pill in the top left of the scene, labeled "Try this," showing the current tip (e.g. "Fill the water bowl").
+- One tip shows at a time. Tapping the pill dismisses it until the next tip. When more than one slot is filled, dismissing one reveals the next.
 - A new suggestion is announced with the pet's sound.
 
 **Rules**
 - Slots: 1 until level 10, 2 until level 20, then 3.
-- **During the tutorial (levels 1–10), the single slot shows one tutorial action the player has not done yet**, using the same icon, label and pulse. Those actions don't count toward the 10-per-day cap and award no XP (they award the level instead).
-- 30 XP each, max 10 completions per day. After the cap, hide the row until the next day.
+- **During the tutorial (levels 1–10), the single slot shows one tutorial action the player has not done yet**, in the same pill. Those actions don't count toward the 10-per-day cap and award no suggestion XP (they award the 10 XP level instead).
+- 30 XP each, max 10 completions per day. After the cap, hide the pill until the next day.
 - Only suggest what makes sense now (no "Feed" when tummy is full) and what's available at the pet's level.
 - Persist current suggestions across app restarts.
 
@@ -162,16 +165,15 @@ Small goals the game offers, not things the pet asks for. Ignoring one costs not
 | Play | Play ball, play with a specific owned toy | 1 |
 | Style | Wear a hat, try something new from the Closet | 1 |
 | Outing | Visit the park | 1 |
-| Competition | Enter a race, place in a race | 1 |
+| Competition | Enter a race, place in a race | 1, waits for the Stadium |
 | Training | Practice a trick 5 times, make progress on the trick in training | 3 |
 | Finds | Find something new at the park | 6 |
 
 ## 5. Map
 
-- Add a **Stadium** location to the map. All competitions, including future away competitions, are entered through it.
-- Until level 3, the Training School shows dimmed with its lights off and a small sign. Tapping it shows "Opens at level 3."
-- At level 3 it lights up, a fun modal names it, and the pet walks there the first time the player taps it.
-- Future places can use the same locked state with "Coming soon."
+- Add a **Stadium** location to the map. All competitions, including future away competitions, are entered through it. Not built yet.
+- The Training School stays open from level 1. It is not dimmed and does not wait for a level.
+- Future places can use a locked state with "Coming soon."
 
 ## 6. Park finds (shipped)
 
@@ -221,7 +223,8 @@ Small goals the game offers, not things the pet asks for. Ignoring one costs not
 **Skill check:** players can try to enter any race. Each race card lists its obstacles. If the pet hasn't learned one, block entry with a fun modal naming the missing trick, worded by why it's missing:
 - **Trick available now:** "Your pet needs to learn Jump the Hurdle for this race," with a button to the Training School.
 - **Trick age-locked:** "Jump the Hurdle unlocks when your pet is older," with the stage it unlocks at (e.g. "at the adolescent stage"). No Training School button. Suggest an event the pet can enter now (e.g. Fun Run).
-- **Training School still locked (below level 3):** "The Training School opens at level 3," plus the same suggestion.
+
+The Training School is open from level 1, so there is no "opens at level 3" case.
 
 **Stacking XP:** a suggested activity and the matching everyday action both pay (e.g. feeding when "Feed" is suggested = 30 + 2). Keep it that way.
 

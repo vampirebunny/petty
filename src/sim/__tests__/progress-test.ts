@@ -2,6 +2,7 @@ import { applyReveal } from '../../parkFinds/collection';
 import { testPet } from '../__fixtures__/pets';
 import { applyEvent } from '../events';
 import { ensureProgress, grantEverydayXp, noteTutorialAction, onParkFindRecorded, xpToReach } from '../progress';
+import { gameplayConfig } from '../gameplayConfig';
 import { trickListing } from '../tricks';
 import type { PetState } from '../types';
 
@@ -14,12 +15,12 @@ it('sums the level curve to the brief totals', () => {
   expect(xpToReach(60)).toBeCloseTo(19900, 4);
 });
 
-it('levels once for each tutorial action, in any order, and does not spend XP', () => {
+it('levels once for each tutorial action, in any order, and records 10 XP per level', () => {
   let pet = pup();
   pet = applyEvent(pet, { type: 'pet' }).state;
   pet = applyEvent(pet, { type: 'equip', slot: 'hat', itemId: 'hat:top' }).state;
   expect(pet.level).toBe(3);
-  expect(pet.xpTotal).toBe(0);
+  expect(pet.xpTotal).toBe(20);
 
   pet = applyEvent(pet, { type: 'pet' }).state;
   expect(pet.level).toBe(3);
@@ -30,7 +31,7 @@ it('levels once for each tutorial action, in any order, and does not spend XP', 
   pet = applyEvent(pet, { type: 'fetch' }).state;
   pet = applyEvent(pet, { type: 'beginRest' }).state;
   expect(pet.level).toBe(8);
-  expect(pet.xpTotal).toBe(0);
+  expect(pet.xpTotal).toBe(70);
 });
 
 it('counts a park find as one level whenever it happens', () => {
@@ -38,7 +39,7 @@ it('counts a park find as one level whenever it happens', () => {
   const first = applyReveal(early.parkFinds, 'perfect-stick', 1);
   early = onParkFindRecorded({ ...early, parkFinds: first.next }, 'perfect-stick', true, 'common', 1);
   expect(early.level).toBe(2);
-  expect(early.xpTotal).toBe(0);
+  expect(early.xpTotal).toBe(gameplayConfig.tutorialXp);
 
   const again = applyReveal(early.parkFinds, 'perfect-stick', 2);
   early = onParkFindRecorded({ ...early, parkFinds: again.next }, 'perfect-stick', false, 'common', 2);
@@ -67,7 +68,7 @@ it('counts a park find as one level whenever it happens', () => {
   saved = ensureProgress(saved);
   expect(saved.level).toBe(3);
   expect(saved.tutorialSeen).toContain('parkFind');
-  expect(saved.xpTotal).toBe(0);
+  expect(saved.xpTotal).toBe(gameplayConfig.tutorialXp * 2);
 });
 
 it('counts one finished cuddle as a tutorial level', () => {
@@ -75,7 +76,7 @@ it('counts one finished cuddle as a tutorial level', () => {
   pet = applyEvent(pet, { type: 'cuddled', seconds: 2 }).state;
   expect(pet.level).toBe(2);
   expect(pet.tutorialSeen).toContain('cuddle');
-  expect(pet.xpTotal).toBe(0);
+  expect(pet.xpTotal).toBe(gameplayConfig.tutorialXp);
 
   pet = applyEvent(pet, { type: 'cuddled', seconds: 5 }).state;
   expect(pet.level).toBe(2);
@@ -90,7 +91,7 @@ it('pays first-find XP only from level 10 and only once', () => {
   const first = applyReveal(early.parkFinds, 'perfect-stick', 1);
   early = onParkFindRecorded({ ...early, parkFinds: first.next }, 'perfect-stick', true, 'common', 1);
   expect(early.level).toBe(2);
-  expect(early.xpTotal).toBe(0);
+  expect(early.xpTotal).toBe(gameplayConfig.tutorialXp);
   expect(early.parkFinds.items[0]?.firstFindRewarded).toBe(true);
 
   let grown = { ...pup(), level: 10 };

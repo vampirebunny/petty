@@ -16,6 +16,7 @@ import {
   waterDrainPerDrink,
 } from './config';
 import { grantEverydayXp, noteTutorialAction } from './progress';
+import { completeSuggestion } from './suggestions';
 import { canRaiseMood } from './mood';
 import { nextRng } from './rng';
 import { rememberScene } from './game';
@@ -63,6 +64,7 @@ function copyState(state: PetState): PetState {
     milestones: [...state.milestones],
     badges: [...(state.badges ?? [])],
     badgeXpSkipped: [...(state.badgeXpSkipped ?? [])],
+    suggestions: (state.suggestions ?? []).map((slot) => ({ ...slot })),
     seenCoachMarks: [...state.seenCoachMarks],
     careWindow: state.careWindow.map((sample) => ({ ...sample })),
     equipped: { ...state.equipped },
@@ -121,9 +123,11 @@ export function applyEvent(state: PetState, event: PetEvent): EventResult {
     delete next.roadSpot;
     if (event.sceneId === 'school') {
       next = noteTutorialAction(next, 'school');
+      next = completeSuggestion(next, 'school', Date.now());
     }
     if (event.sceneId === 'park') {
       next = grantEverydayXp(next, Date.now());
+      next = completeSuggestion(next, 'park', Date.now());
     }
     if (next.care.pendingReward) {
       return { state: withDerived(resolveReward(next, state.lastUpdatedAt, 'none')), cue: { kind: 'none' } };
@@ -161,12 +165,17 @@ export function applyEvent(state: PetState, event: PetEvent): EventResult {
   }
 
   if (event.type === 'equip') {
-    const next = copyState(state);
+    let next = copyState(state);
     if (event.itemId == null || event.itemId === 'none') {
       delete next.equipped[event.slot];
     } else {
       next.equipped[event.slot] = event.itemId;
-      return { state: withDerived(noteTutorialAction(next, 'closet')), cue: { kind: 'none' } };
+      next = noteTutorialAction(next, 'closet');
+      next = completeSuggestion(next, 'closet', Date.now());
+      if (event.slot === 'hat') {
+        next = completeSuggestion(next, 'hat', Date.now());
+      }
+      return { state: withDerived(next), cue: { kind: 'none' } };
     }
     return { state: next, cue: { kind: 'none' } };
   }
@@ -194,6 +203,7 @@ export function applyEvent(state: PetState, event: PetEvent): EventResult {
     next.bowlItemId = null;
     next = noteTutorialAction(next, 'feed');
     next = grantEverydayXp(next, Date.now());
+    next = completeSuggestion(next, 'feed', Date.now());
     return { state: withDerived(next), cue: { kind: 'eat' } };
   }
 
@@ -227,6 +237,7 @@ export function applyEvent(state: PetState, event: PetEvent): EventResult {
     next.waterEmptySince = null;
     next = noteTutorialAction(next, 'water');
     next = grantEverydayXp(next, Date.now());
+    next = completeSuggestion(next, 'water', Date.now());
     return { state: withDerived(next), cue: { kind: 'none' } };
   }
 
@@ -254,6 +265,7 @@ export function applyEvent(state: PetState, event: PetEvent): EventResult {
     next.asleep = !state.asleep;
     if (next.asleep) {
       next = noteTutorialAction(next, 'nap');
+      next = completeSuggestion(next, 'nap', Date.now());
     }
     return { state: withDerived(next), cue: { kind: next.asleep ? 'yawn' : 'none' } };
   }
@@ -266,6 +278,7 @@ export function applyEvent(state: PetState, event: PetEvent): EventResult {
     let next = copyState(state);
     next.asleep = true;
     next = noteTutorialAction(next, 'nap');
+    next = completeSuggestion(next, 'nap', Date.now());
     return { state: withDerived(next), cue: { kind: 'none' } };
   }
 
@@ -286,6 +299,7 @@ export function applyEvent(state: PetState, event: PetEvent): EventResult {
     next.careWindow = bumpAttention(next.careWindow);
     if (event.seconds > 0) {
       next = noteTutorialAction(next, 'cuddle');
+      next = completeSuggestion(next, 'cuddle', Date.now());
     }
     return { state: withDerived(next), cue: { kind: 'none' } };
   }
@@ -302,6 +316,8 @@ export function applyEvent(state: PetState, event: PetEvent): EventResult {
     next.asleep = false;
     next = noteTutorialAction(next, 'play');
     next = grantEverydayXp(next, Date.now());
+    const toy = next.activeToyId;
+    next = completeSuggestion(next, toy && toy !== 'ball' ? `toy:${toy}` : 'play', Date.now());
     return { state: withDerived(next), cue: { kind: 'fetch', drop: event.drop, flick: event.flick } };
   }
 
@@ -312,6 +328,7 @@ export function applyEvent(state: PetState, event: PetEvent): EventResult {
   addHappiness(next, petHappinessGain * (1 - next.needs.happiness / clampMax));
   next = noteTutorialAction(next, 'pat');
   next = grantEverydayXp(next, Date.now());
+  next = completeSuggestion(next, 'pat', Date.now());
   next.drift.affection = clampDrift(next.drift.affection + petAffectionDrift);
   next.careWindow = bumpAttention(next.careWindow);
   return {

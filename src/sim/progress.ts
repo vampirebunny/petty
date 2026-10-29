@@ -8,6 +8,9 @@ export type { TutorialAction };
 
 // XP required to arrive at `level` from the level below. Endpoints of each band are exact.
 export function xpCost(level: number): number {
+  if (level >= 2 && level <= gameplayConfig.tutorialLevel) {
+    return gameplayConfig.tutorialXp;
+  }
   for (const band of gameplayConfig.bands) {
     if (level < band.from || level > band.to) {
       continue;
@@ -31,13 +34,24 @@ export function parkFindCount(state: PetState): number {
   return (state.parkFinds?.items ?? []).reduce((sum, row) => sum + row.count, 0);
 }
 
+function rememberXp(state: PetState, amount: number): PetState {
+  if (amount <= 0) {
+    return state;
+  }
+  return { ...state, xpPops: [...(state.xpPops ?? []), amount] };
+}
+
 function bumpTutorial(state: PetState): PetState {
-  const level = state.level + 1;
-  return {
-    ...state,
-    level,
-    ...(level === gameplayConfig.tutorialLevel ? { xpTotal: 0, xpIntoLevel: 0 } : {}),
-  };
+  const amount = gameplayConfig.tutorialXp;
+  return rememberXp(
+    {
+      ...state,
+      level: state.level + 1,
+      xpTotal: state.xpTotal + amount,
+      xpIntoLevel: 0,
+    },
+    amount,
+  );
 }
 
 // Each tutorial action levels the pet once, in any order. Repeats do not.
@@ -81,7 +95,7 @@ function addXp(state: PetState, amount: number): PetState {
   if (level >= gameplayConfig.maxLevel) {
     into = 0;
   }
-  return { ...state, level, xpIntoLevel: into, xpTotal: total };
+  return rememberXp({ ...state, level, xpIntoLevel: into, xpTotal: total }, amount);
 }
 
 export function grantEverydayXp(state: PetState, now: number): PetState {
@@ -114,6 +128,10 @@ export function grantBadgeXp(state: PetState, amount: number): PetState {
 
 export function grantFindXp(state: PetState, rarity: ParkFindRarity): PetState {
   return addXp(state, gameplayConfig.findXp[rarity]);
+}
+
+export function grantSuggestionXp(state: PetState): PetState {
+  return addXp(state, gameplayConfig.suggestions.xp);
 }
 
 // Marks a newly recorded find as rewarded. Pays rarity XP only from level 10.
@@ -167,6 +185,9 @@ export function ensureProgress(state: PetState): PetState {
         openedStreak: 0,
         lastOpenedDay: '',
         hadPlaydate: false,
+        suggestions: [],
+        suggestionCompletions: 0,
+        suggestionDay: '',
         lastPaidLevel: 1,
       }
     : {
@@ -183,6 +204,9 @@ export function ensureProgress(state: PetState): PetState {
         openedStreak: rest.openedStreak ?? 0,
         lastOpenedDay: rest.lastOpenedDay ?? '',
         hadPlaydate: rest.hadPlaydate ?? false,
+        suggestions: rest.suggestions ?? [],
+        suggestionCompletions: rest.suggestionCompletions ?? 0,
+        suggestionDay: rest.suggestionDay ?? '',
       };
   return withParkFindSeen(base);
 }

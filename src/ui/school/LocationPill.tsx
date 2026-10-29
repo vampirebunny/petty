@@ -3,14 +3,18 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { fontFamily } from '../font';
 import { iconStroke } from '../theme';
+import { PulseScale } from '../SuggestionRow';
 import { ink, white } from './gloss';
 
 type Props = {
   onLeave: () => void;
+  pulse?: boolean;
+  reducedMotion?: boolean;
 };
 
-export function LocationPill({ onLeave }: Props) {
+export function LocationPill({ onLeave, pulse = false, reducedMotion = false }: Props) {
   return (
+    <PulseScale on={pulse} reducedMotion={reducedMotion}>
     <View style={styles.pill}>
       <View style={styles.house}>
         <House size={18} strokeWidth={iconStroke + 0.4} color="#7A3A0E" />
@@ -23,6 +27,7 @@ export function LocationPill({ onLeave }: Props) {
         <ChevronRight size={16} strokeWidth={iconStroke + 0.4} color={ink} />
       </Pressable>
     </View>
+    </PulseScale>
   );
 }
 

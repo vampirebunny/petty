@@ -2,7 +2,7 @@ import { createElement, memo, useCallback, useEffect, useId, useLayoutEffect, us
 import type { ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Pressable } from 'react-native-gesture-handler';
-import Animated, { useAnimatedStyle, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { Heart, Medal, PawPrint, Sparkles } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
@@ -25,6 +25,7 @@ export type CandyAction = {
   need?: string | null;
   switch?: boolean;
   checked?: boolean;
+  pulse?: boolean;
 };
 
 type PanelProps = {
@@ -33,7 +34,7 @@ type PanelProps = {
   care: CandyAction[];
   bond: CandyAction[];
   style: CandyAction[];
-  tricks: { id: string; label: string; onPress: () => void; fresh: boolean }[];
+  tricks: { id: string; label: string; onPress: () => void; fresh: boolean; pulse?: boolean }[];
   onProps?: () => void;
 };
 
@@ -89,6 +90,7 @@ function sameAction(a: CandyAction, b: CandyAction): boolean {
     (a.need ?? null) === (b.need ?? null) &&
     !!a.switch === !!b.switch &&
     !!a.checked === !!b.checked &&
+    !!a.pulse === !!b.pulse &&
     !a.onLongPress === !b.onLongPress
   );
 }
@@ -105,7 +107,7 @@ function sameLook(a: PanelProps & { run: Run }, b: PanelProps & { run: Run }): b
     sameList(a.care, b.care, sameAction) &&
     sameList(a.bond, b.bond, sameAction) &&
     sameList(a.style, b.style, sameAction) &&
-    sameList(a.tricks, b.tricks, (x, y) => x.id === y.id && x.label === y.label && x.fresh === y.fresh)
+    sameList(a.tricks, b.tricks, (x, y) => x.id === y.id && x.label === y.label && x.fresh === y.fresh && !!x.pulse === !!y.pulse)
   );
 }
 
@@ -149,7 +151,7 @@ const PanelBody = memo(function PanelBody({
           {tricks.map((trick) => (
             <Pop key={trick.id} fresh={trick.fresh && !reducedMotion}>
               <Tile
-                action={{ id: trick.id, label: trick.label, onPress: trick.onPress }}
+                action={{ id: trick.id, label: trick.label, onPress: trick.onPress, pulse: trick.pulse }}
                 flavor="trick"
                 species={species}
                 reducedMotion={reducedMotion}
@@ -162,7 +164,7 @@ const PanelBody = memo(function PanelBody({
       ) : null}
       <Section flavor="style" title="Style & sound" columns={2} pill>
         {styleActions.map((action) => (
-          <Pill key={action.id} action={action} species={species} run={run} />
+          <Pill key={action.id} action={action} species={species} reducedMotion={reducedMotion} run={run} />
         ))}
       </Section>
     </View>
@@ -249,6 +251,19 @@ function Section({
   );
 }
 
+function PulseOn({ on, reducedMotion, children }: { on: boolean; reducedMotion: boolean; children: ReactNode }) {
+  const scale = useSharedValue(1);
+  useEffect(() => {
+    if (!on || reducedMotion) {
+      scale.value = withTiming(1, { duration: 120 });
+      return;
+    }
+    scale.value = withRepeat(withSequence(withTiming(1.08, { duration: 280 }), withTiming(1, { duration: 280 })), 6, false);
+  }, [on, reducedMotion, scale]);
+  const style = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  return <Animated.View style={style}>{children}</Animated.View>;
+}
+
 function Tile({
   action,
   flavor,
@@ -295,17 +310,31 @@ function Tile({
       }}
     >
       {action.need && !action.blocked ? (
-        <NeedFrame label={action.need} reducedMotion={reducedMotion}>
-          {body}
-        </NeedFrame>
+        <PulseOn on={!!action.pulse} reducedMotion={reducedMotion}>
+          <NeedFrame label={action.need} reducedMotion={reducedMotion}>
+            {body}
+          </NeedFrame>
+        </PulseOn>
       ) : (
-        body
+        <PulseOn on={!!action.pulse} reducedMotion={reducedMotion}>
+          {body}
+        </PulseOn>
       )}
     </Pressable>
   );
 }
 
-function Pill({ action, species, run }: { action: CandyAction; species: ActionSpecies; run: Run }) {
+function Pill({
+  action,
+  species,
+  reducedMotion,
+  run,
+}: {
+  action: CandyAction;
+  species: ActionSpecies;
+  reducedMotion: boolean;
+  run: Run;
+}) {
   const [pressed, setPressed] = useState(false);
   const tone = candyFlavors.style;
   const isSwitch = !!action.switch;
@@ -321,17 +350,19 @@ function Pill({ action, species, run }: { action: CandyAction; species: ActionSp
         run('style', action.id);
       }}
     >
-      <CandyPlate flavor="style" height={candyLayout.pillHeight} radius={candyLayout.pillHeight / 2} pill pressed={pressed}>
-        <View style={styles.pillBody}>
-          <PearlBubble flavor="style" size={candyLayout.pillBubble}>
-            {candyIcon(action.id, species, candyLayout.pillIcon, tone.icon)}
-          </PearlBubble>
-          <Text style={[styles.pillLabel, { color: tone.label }]} numberOfLines={1}>
-            {action.label}
-          </Text>
-          {isSwitch ? <CandySwitch on={!!action.checked} /> : null}
-        </View>
-      </CandyPlate>
+      <PulseOn on={!!action.pulse} reducedMotion={reducedMotion}>
+        <CandyPlate flavor="style" height={candyLayout.pillHeight} radius={candyLayout.pillHeight / 2} pill pressed={pressed}>
+          <View style={styles.pillBody}>
+            <PearlBubble flavor="style" size={candyLayout.pillBubble}>
+              {candyIcon(action.id, species, candyLayout.pillIcon, tone.icon)}
+            </PearlBubble>
+            <Text style={[styles.pillLabel, { color: tone.label }]} numberOfLines={1}>
+              {action.label}
+            </Text>
+            {isSwitch ? <CandySwitch on={!!action.checked} /> : null}
+          </View>
+        </CandyPlate>
+      </PulseOn>
     </Pressable>
   );
 }

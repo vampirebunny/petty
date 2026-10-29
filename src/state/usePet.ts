@@ -151,6 +151,8 @@ type PetApi = {
   cancelBursts: () => void;
   awardedBadges: string[];
   clearAwardedBadges: () => void;
+  xpBursts: number[];
+  clearXpBursts: () => void;
 };
 
 function caughtUpCopy(discarded: boolean, petName: string): string {
@@ -212,6 +214,8 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
   const [pendingBoops, setPendingBoops] = useState(0);
   const [awardedBadges, setAwardedBadges] = useState<string[]>([]);
   const clearAwardedBadges = useCallback(() => setAwardedBadges([]), []);
+  const [xpBursts, setXpBursts] = useState<number[]>([]);
+  const clearXpBursts = useCallback(() => setXpBursts([]), []);
   const burstRef = useRef<Burst | null>(null);
   const burstQueue = useRef<Burst[]>([]);
   const burstSeq = useRef(0);
@@ -257,9 +261,14 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
     if (fresh.length > 0) {
       setAwardedBadges((prev) => [...prev, ...fresh.filter((id) => !prev.includes(id))]);
     }
+    const gained = synced.xpPops ?? [];
+    const clean = gained.length > 0 ? { ...synced, xpPops: undefined } : synced;
+    if (gained.length > 0) {
+      setXpBursts((prev) => [...prev, ...gained]);
+    }
     stagedRef.current = false;
-    stateRef.current = synced;
-    setState(synced);
+    stateRef.current = clean;
+    setState(clean);
     if (nextCue) {
       tokenRef.current += 1;
       setCue({
@@ -272,7 +281,7 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
         moodGain: nextCue.moodGain,
       });
     }
-    const snapshot = synced;
+    const snapshot = clean;
     const generation = saveGeneration();
     saveQueue.current = saveQueue.current
       .catch(() => undefined)
@@ -1263,5 +1272,7 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
     cancelBursts,
     awardedBadges,
     clearAwardedBadges,
+    xpBursts,
+    clearXpBursts,
   };
 }
