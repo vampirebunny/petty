@@ -19,7 +19,7 @@ export function BadgeShelf({ badges }: Props) {
       <View style={styles.grid}>
         {badges.map((id) => (
           <View key={id} style={styles.cell}>
-            <BadgeMedal id={id} size={56} />
+            <BadgeMedal id={id} size={104} />
             <Text style={styles.name} numberOfLines={2}>
               {badgeLabel(id)}
             </Text>
@@ -44,18 +44,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
-    gap: 8,
+    gap: 12,
   },
   cell: {
-    width: 84,
+    width: 112,
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
   },
   name: {
     textAlign: 'center',
     fontFamily: fontFamily.bold,
-    fontSize: 11,
-    lineHeight: 14,
+    fontSize: 13,
+    lineHeight: 16,
     color: theme.ink,
   },
 });
