@@ -93,6 +93,23 @@ describe('playdate opening', () => {
     expect(span.height * dachshund.zoom).toBeLessThanOrEqual(stageHeight * 0.84 + 0.01);
   });
 
+  it('faces the pet right and the playdate left in the close-ups', () => {
+    const scene = sceneById('park');
+    const floor = scene.floor;
+    const y = (floor.yMin + floor.yMax) / 2;
+    const left = spawnActor(actorSourceOf(pet('a')), { x: homeA, y });
+    const right = spawnActor(actorSourceOf(pet('b')), { x: homeB, y });
+    const world = createWorld([left, right], 1, scene);
+    placeOpening('portraitA', left, right, floor, y);
+    update(world, 1 / 30);
+    expect(left.face).toBe(1);
+    expect(left.octant).toBe('E');
+    placeOpening('portraitB', left, right, floor, y);
+    update(world, 1 / 30);
+    expect(right.face).toBe(-1);
+    expect(right.octant).toBe('W');
+  });
+
   it('parks a pet fully off-screen and walks the other in from the left', () => {
     const scene = sceneById('park');
     const floor = scene.floor;

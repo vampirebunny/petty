@@ -1,5 +1,6 @@
 import { breedById, geomOf, setDirection } from '../actor';
 import type { Actor } from '../actor';
+import { snapFacing } from '../actor/facing';
 import { depthScale, PET_SIZE, stageWidth, travelGateX } from '../actor/geometry';
 
 // Wall-clock opening, before the stored beats. The interaction after this runs at playSpeed.
@@ -56,7 +57,7 @@ function still(actor: Actor): void {
   actor.speed = 0;
 }
 
-export function showPortrait(actor: Actor, x: number, y: number): void {
+export function showPortrait(actor: Actor, x: number, y: number, face: 1 | -1 = 1): void {
   actor.x = x;
   actor.y = y;
   still(actor);
@@ -66,6 +67,8 @@ export function showPortrait(actor: Actor, x: number, y: number): void {
   actor.pose.walk = 0;
   actor.pose.faceCam = 1;
   setDirection(actor, { target: { x, y }, pace: 0, pose: 'sit', token: 0 });
+  // The octant owns face. Setting face alone is overwritten before the ring can turn.
+  snapFacing(actor, face);
 }
 
 // Travel keeps the sim from pulling an off-screen pet back onto the floor.
@@ -104,13 +107,13 @@ export function closeEnough(actor: Actor, x: number, y: number): boolean {
 
 export function placeOpening(phase: OpeningPhase, left: Actor, right: Actor, floor: Floor, y: number): void {
   if (phase === 'portraitA') {
-    showPortrait(left, homeA, y);
+    showPortrait(left, homeA, y, 1);
     parkOffstage(right, floor, 1, y);
     return;
   }
   if (phase === 'portraitB') {
     parkOffstage(left, floor, -1, y);
-    showPortrait(right, homeB, y);
+    showPortrait(right, homeB, y, -1);
     return;
   }
   if (phase === 'empty') {
