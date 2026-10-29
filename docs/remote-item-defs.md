@@ -11,7 +11,7 @@ A def for an id that already exists in `src/economy/catalog.ts` or `src/actor/wa
 - `price` is null or `>= 0`.
 - Bundle `contents` is a non-empty JSON array.
 - `tier = 'exclusive'` only with `shop` in `rotation`, `hidden`, or `coming_soon`.
-- `min_app_version` is `major.minor.patch`. A binary older than that omits the row. Null means every version.
+- `min_app_version` is `major.minor.patch`. A binary older than that omits the row. Null means every version. This hides one shop row. The app-wide block is `app_config.min_app_version`, documented in `docs/forced-update.md`.
 - `def_locked` is set when a non-null def is inserted or updated into `always`, `rotation`, or `featured`. Later updates to `def` are rejected. Other columns stay editable.
 
 `shop_items.species` filters the shelf. A treat def's `species` says who can eat it. If both are set and they differ, the row is dropped.

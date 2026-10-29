@@ -9,15 +9,17 @@ import {
   Nunito_800ExtraBold,
   Nunito_900Black,
 } from '@expo-google-fonts/nunito';
-import { AppState, Image, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { AppState, Image, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
+import { fetchUpdateRequired } from './src/appUpdate/check';
 import { AdoptScreen } from './src/screens/AdoptScreen';
 import { MeetScreen } from './src/screens/adopt/MeetScreen';
 import { ConsentScreen } from './src/screens/ConsentScreen';
 import { NotAvailableScreen } from './src/screens/NotAvailableScreen';
 import { WelcomeScreen } from './src/screens/WelcomeScreen';
 import HomeScreen from './src/screens/HomeScreen';
+import { UpdateRequiredScreen } from './src/screens/UpdateRequiredScreen';
 import { useAgeGate } from './src/state/useAgeGate';
 import { useIdentity } from './src/state/useIdentity';
 import { usePet } from './src/state/usePet';
@@ -59,6 +61,30 @@ export default function App() {
   const [entry, setEntry] = useState<'checking' | 'offline' | 'welcome' | 'started'>('checking');
   const [entryAttempt, setEntryAttempt] = useState(0);
   const [signInBusy, setSignInBusy] = useState(false);
+  const [updateRequired, setUpdateRequired] = useState(false);
+  useEffect(() => {
+    if (__DEV__ || Platform.OS === 'web') {
+      return;
+    }
+    let cancelled = false;
+    const run = () => {
+      void fetchUpdateRequired().then((required) => {
+        if (!cancelled && required) {
+          setUpdateRequired(true);
+        }
+      });
+    };
+    run();
+    const subscription = AppState.addEventListener('change', (status) => {
+      if (status === 'active') {
+        run();
+      }
+    });
+    return () => {
+      cancelled = true;
+      subscription.remove();
+    };
+  }, []);
   useEffect(() => {
     if (identity.ready && !restoreInProgress) {
       void supersedePendingGuest();
@@ -233,10 +259,18 @@ export default function App() {
     }
   }
 
+  if (updateRequired) {
+    screen = (
+      <PhoneColumn>
+        <UpdateRequiredScreen />
+      </PhoneColumn>
+    );
+  }
+
   return (
     <GestureHandlerRootView style={styles.root}>
       {screen}
-      <StandbyOverlay pet={petState} />
+      {updateRequired ? null : <StandbyOverlay pet={petState} />}
       <StatusBar style="auto" />
     </GestureHandlerRootView>
   );
