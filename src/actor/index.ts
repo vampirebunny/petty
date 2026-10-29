@@ -92,6 +92,7 @@ export {
   stagePoint,
   startTreat,
   startUserTask,
+  happyHop,
   inviteCare,
   takePendingRest,
   syncActor,

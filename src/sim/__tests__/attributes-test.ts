@@ -1,5 +1,5 @@
 import { testPet } from '../__fixtures__/pets';
-import { attributeScore, naturalGrowth, shownLevel, trainingGain, withDerived, zeroStats } from '../attributes';
+import { attributeScore, naturalGrowth, trainingGain, withDerived, zeroStats } from '../attributes';
 import { applyCareTime } from '../care';
 import { GEN, dayMs, daysToSenior } from '../config';
 import { debugJump } from '../clock';
@@ -59,16 +59,15 @@ it('adds the trained bonus on top of natural growth and never exceeds potential'
   expect(attributeScore(overshoot, 'intelligence')).toBeLessThanOrEqual(potential);
 });
 
-it('pulls drift toward 0 on a capped absence and respects the level ceiling', () => {
+it('pulls drift toward 0 on a capped absence and keeps the stored level', () => {
   const before = pet();
   before.drift.affection = 2;
   const after = applyCareTime(before, 10 * dayMs, true, true);
   expect(after.drift.affection).toBeLessThan(2);
   expect(after.drift.affection).toBeGreaterThanOrEqual(0);
 
-  const experienced = debugJump({ ...pet(), xp: 1000 }, 0);
-  expect(shownLevel(1000, 'puppy')).toBe(6);
-  expect(experienced.level).toBe(6);
-  const senior = debugJump({ ...pet(), xp: 1000, ageDays: daysToSenior }, 0);
-  expect(senior.level).toBe(shownLevel(1000, 'senior'));
+  const experienced = debugJump({ ...pet(), level: 4 }, 0);
+  expect(experienced.level).toBe(4);
+  const senior = debugJump({ ...pet(), level: 4, ageDays: daysToSenior }, 0);
+  expect(senior.level).toBe(4);
 });

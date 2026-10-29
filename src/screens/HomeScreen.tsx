@@ -76,6 +76,8 @@ import {
 } from '../parkFinds/playerFlags';
 import { setParkFindDebug } from '../parkFinds/visit';
 import { CandyShell, candyInk, tints } from '../ui/candy';
+import { LevelBar } from '../ui/LevelBar';
+import { LevelUpFloat } from '../ui/LevelUpFloat';
 import { BoopsPayout } from '../components/currency/BoopsPayout';
 import { acceptStageOrigin } from '../components/currency/windowSample';
 import { BoopCounter } from '../ui/BoopCounter';
@@ -95,6 +97,9 @@ import { playRuleFor } from '../items/playRules';
 import { canGiveTreat, treatsInInventory } from '../treats';
 import { trackName } from '../sim/tracks';
 import { failBand, trickListing } from '../sim/tricks';
+import { gameplayConfig } from '../sim/gameplayConfig';
+import { onParkFindRecorded, xpCost } from '../sim/progress';
+import { economyConfig } from '../economy/economyConfig';
 import type { TrickPropType } from '../sim/trickProps';
 import { currentOwner } from '../db/currentOwner';
 import {
@@ -117,6 +122,7 @@ import { StorageCard } from '../ui/StorageCard';
 import type { StorageChoice } from '../ui/StorageCard';
 import { needThreshold } from '../ui/candyTokens';
 import { CandyTooltip } from '../ui/tips/CandyTooltip';
+import { tutorialBlocksTip } from '../ui/tips/tipState';
 import { useCandyTips } from '../ui/tips/useCandyTips';
 import { PlaydateScreen } from './PlaydateScreen';
 import { ClothingLab } from './ClothingLab';
@@ -600,6 +606,24 @@ export default function HomeScreen({ petApi }: Props) {
   const [coachTarget, setCoachTarget] = useState<{ x: number; y: number } | null>(null);
   const cuddleHandle = useRef<CuddleHandle>(null);
   const stageHandle = useRef<StageHandle>(null);
+  const [levelShow, setLevelShow] = useState<{ from: number; to: number } | null>(null);
+  const levelSeen = useRef<number | null>(null);
+  useEffect(() => {
+    if (!state) {
+      return;
+    }
+    if (levelSeen.current == null) {
+      levelSeen.current = state.level;
+      return;
+    }
+    if (state.level > levelSeen.current) {
+      const from = levelSeen.current;
+      const to = state.level;
+      levelSeen.current = to;
+      setLevelShow({ from, to });
+      stageHandle.current?.cheer();
+    }
+  }, [state]);
   const stateNow = useRef(state);
   const feedback = useRef<FeedbackHandle>(null);
   const tracker = useRef(new CuddleGesture());
@@ -618,6 +642,12 @@ export default function HomeScreen({ petApi }: Props) {
   useEffect(() => {
     tipsRef.current = tips;
   }, [tips]);
+  useEffect(() => {
+    const id = tips.current;
+    if (id && tutorialBlocksTip(id, state?.tutorialSeen ?? [])) {
+      tips.performed(id);
+    }
+  }, [state?.tutorialSeen, tips]);
   useEffect(() => {
     stateNow.current = state;
   }, [state]);
@@ -1378,7 +1408,9 @@ export default function HomeScreen({ petApi }: Props) {
     tracker.current.reset();
     touchedRef.current = false;
     touchActive.current = false;
-    tipsRef.current.offer('tip.cuddle');
+    if (!tutorialBlocksTip('tip.cuddle', stateNow.current?.tutorialSeen ?? [])) {
+      tipsRef.current.offer('tip.cuddle');
+    }
     void startCuddleSession().then((session) => {
       if (cuddleOnRef.current) {
         setSessionNumber(session);
@@ -1595,10 +1627,11 @@ export default function HomeScreen({ petApi }: Props) {
     if (!prev) {
       return;
     }
-    if (prev.h >= needThreshold && next.h < needThreshold) {
+    const seen = state.tutorialSeen ?? [];
+    if (prev.h >= needThreshold && next.h < needThreshold && !tutorialBlocksTip('tip.water', seen)) {
       tips.offer('tip.water');
     }
-    if (prev.e >= needThreshold && next.e < needThreshold) {
+    if (prev.e >= needThreshold && next.e < needThreshold && !tutorialBlocksTip('tip.sleep', seen)) {
       tips.offer('tip.sleep');
     }
   }, [state, tips]);
@@ -2377,12 +2410,13 @@ export default function HomeScreen({ petApi }: Props) {
     },
   ];
 
+  const seenTutorial = state?.tutorialSeen ?? [];
   const tipBubble =
-    tips.current === 'tip.cuddle' && coachTarget
+    tips.current === 'tip.cuddle' && coachTarget && !tutorialBlocksTip('tip.cuddle', seenTutorial)
       ? { flavor: 'bond' as const, icon: HandHeart, text: 'Stroke his back or head', bold: 'Stroke', target: coachTarget }
-      : tips.current === 'tip.water' && propTip
+      : tips.current === 'tip.water' && propTip && !tutorialBlocksTip('tip.water', seenTutorial)
         ? { flavor: 'care' as const, icon: Droplet, text: `Press Water to give ${petName} a drink`, bold: 'Water', target: propTip }
-        : tips.current === 'tip.sleep' && propTip
+        : tips.current === 'tip.sleep' && propTip && !tutorialBlocksTip('tip.sleep', seenTutorial)
           ? { flavor: 'care' as const, icon: Moon, text: `Press Sleep so ${petName} can nap`, bold: 'Sleep', target: propTip }
           : tips.current === 'tip.move' && propTip
             ? { flavor: 'style' as const, icon: Sparkles, text: 'Hold to move or store', bold: 'Hold', target: propTip }
@@ -2667,7 +2701,11 @@ export default function HomeScreen({ petApi }: Props) {
       <View
         accessible
         accessibilityRole="header"
-        accessibilityLabel={accountHandle ? `${state.name}, @${accountHandle}` : state.name}
+        accessibilityLabel={
+          accountHandle
+            ? `${state.name}, level ${state.level}, @${accountHandle}`
+            : `${state.name}, level ${state.level}`
+        }
         pointerEvents="none"
         style={[
           styles.nameSlot,
@@ -2681,6 +2719,16 @@ export default function HomeScreen({ petApi }: Props) {
         <Text style={styles.name} numberOfLines={1}>
           {state.name}
         </Text>
+        <LevelBar
+          level={state.level}
+          goal={state.level < gameplayConfig.tutorialLevel ? 'tutorial' : null}
+          into={state.xpIntoLevel}
+          need={
+            state.level >= gameplayConfig.tutorialLevel && state.level < gameplayConfig.maxLevel
+              ? xpCost(state.level + 1)
+              : 0
+          }
+        />
         {accountHandle ? (
           <Text style={styles.accountHandle} numberOfLines={1}>
             @{accountHandle}
@@ -3297,14 +3345,15 @@ export default function HomeScreen({ petApi }: Props) {
                 if (signal.revealed) {
                   const foundAt = Date.now();
                   const { next, isNew } = applyReveal(state.parkFinds, signal.revealed.itemId, foundAt);
+                  const rarity = signal.revealed.rarity as 'common' | 'uncommon' | 'rare' | 'legendary';
                   emitParkFindFound({
                     petId: state.id,
                     itemId: signal.revealed.itemId,
-                    rarity: signal.revealed.rarity as 'common' | 'uncommon' | 'rare' | 'legendary',
+                    rarity,
                     isNew,
                     foundAt,
                   });
-                  commitPet({ ...state, parkFinds: next });
+                  commitPet(onParkFindRecorded({ ...state, parkFinds: next }, signal.revealed.itemId, isNew, rarity, foundAt));
                 }
                 if (signal.modalItemId) {
                   const rec = (state.parkFinds.items.find((row) => row.itemId === signal.modalItemId) ??
@@ -3366,6 +3415,14 @@ export default function HomeScreen({ petApi }: Props) {
                 target={chestTipAnchor}
                 bounds={{ width: viewWidth, height: viewHeight }}
                 reducedMotion={reducedMotion}
+              />
+            ) : null}
+            {levelShow ? (
+              <LevelUpFloat
+                level={levelShow.to}
+                boops={(levelShow.to - levelShow.from) * economyConfig.levelUp.boops}
+                reducedMotion={reducedMotion}
+                onDone={() => setLevelShow(null)}
               />
             ) : null}
           </View>
@@ -3689,12 +3746,12 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   header: {
-    height: 52,
+    height: 78,
     justifyContent: 'center',
   },
   // The name stays on the same line as the logo and Boop pill. The handle hangs under it.
   headerWithHandle: {
-    height: 68,
+    height: 96,
   },
   logo: {
     position: 'absolute',
@@ -3743,8 +3800,8 @@ const styles = StyleSheet.create({
   name: {
     textAlign: 'center',
     fontFamily: fontFamily.fredokaBold,
-    fontSize: 28,
-    lineHeight: 34,
+    fontSize: 22,
+    lineHeight: 26,
     color: '#243044',
   },
   accountHandle: {

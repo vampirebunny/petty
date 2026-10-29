@@ -31,6 +31,7 @@ import {
   releaseHeldFinger,
   stopHeld,
   startUserTask,
+  happyHop,
   startTrick,
   startSpook,
   startSpookReturn,
@@ -155,6 +156,7 @@ export type StageHandle = {
   parkFindForceNotice: (species: 'dog' | 'cat', variant: 'dig' | 'grass' | 'bush') => void;
   parkFindBootVisit: (species: 'dog' | 'cat', firstVisit: boolean) => void;
   parkFindClearVisit: () => void;
+  cheer: () => void;
 };
 
 export type CuddleHandle = {
@@ -976,6 +978,15 @@ export function PetView({
       parkFindClearVisit: () => {
         worldRef.current.parkFindVisit = null;
         parkFindUiSent.current = { prompting: false, modalItemId: null, revealedId: null };
+      },
+      cheer: () => {
+        const world = worldRef.current;
+        const actor = world.actors[0];
+        if (!actor) {
+          return;
+        }
+        happyHop(world, actor);
+        redrawRef.current();
       },
     }),
     [],

@@ -21,6 +21,7 @@ export type TrackDef = {
   anyPrerequisite?: boolean;
   unlock: Partial<Record<SpeciesId, UnlockRule>>;
   tier?: TrickTier;
+  category: 'basic' | 'advanced';
   linked: Trait[];
   button: 'main' | 'panel';
 };
@@ -35,6 +36,7 @@ export const trackDefs: TrackDef[] = [
     prerequisites: {},
     unlock: {},
     tier: 1,
+    category: 'basic',
     linked: ['obedience'],
     button: 'main',
   },
@@ -46,6 +48,7 @@ export const trackDefs: TrackDef[] = [
     prerequisites: {},
     unlock: {},
     tier: 1,
+    category: 'basic',
     linked: ['boldness'],
     button: 'main',
   },
@@ -58,6 +61,7 @@ export const trackDefs: TrackDef[] = [
     anyPrerequisite: true,
     unlock: {},
     tier: 2,
+    category: 'basic',
     linked: ['affection'],
     button: 'main',
   },
@@ -82,6 +86,7 @@ export function trackDef(id: string): TrackDef | null {
     prerequisites: {},
     unlock: {},
     tier: 1,
+    category: listing.category,
     linked: listing.attributesRaised,
     button: 'panel',
   };

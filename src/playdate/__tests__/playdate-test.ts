@@ -544,7 +544,7 @@ describe('playdate rewards, cooldown, and history', () => {
       ...(pet.attributes.trained ?? { stamina: 0, agility: 0, intelligence: 0, boldness: 0, affection: 0, obedience: 0 }),
       agility: pet.attributes.potential.agility,
     };
-    const xp = pet.xp;
+    const xp = pet.xpTotal;
     const bond = pet.bond;
     const equipped = { ...pet.equipped };
     const next = applyPlaydateRewards(pet, {
@@ -556,7 +556,7 @@ describe('playdate rewards, cooldown, and history', () => {
     expect(next.needs.happiness).toBe(100);
     expect(attributeScore(next, 'agility')).toBeLessThanOrEqual(pet.attributes.potential.agility);
     expect(next.attributes.current.agility).toBe(pet.attributes.current.agility);
-    expect(next.xp).toBe(xp);
+    expect(next.xpTotal).toBe(xp);
     expect(next.bond).toBe(bond);
     expect(next.equipped).toEqual(equipped);
   });

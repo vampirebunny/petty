@@ -180,7 +180,7 @@ it('playdate raises the attributes the activity trains', () => {
   expect(attributeScore(result.state, 'agility')).toBeGreaterThan(agility);
   expect(attributeScore(result.state, 'affection')).toBeCloseTo(affection);
   expect(result.state.needs.happiness).toBe(before.needs.happiness + 12);
-  expect(result.state.xp).toBe(before.xp);
+  expect(result.state.xpTotal).toBe(before.xpTotal);
 });
 
 it('rewards a finished cuddle, more for a longer one, with no cue', () => {

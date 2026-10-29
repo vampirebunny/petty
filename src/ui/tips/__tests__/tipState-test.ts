@@ -1,4 +1,4 @@
-import { phaseAfter, canShowTip, canOffer, phaseOnShow } from '../tipState';
+import { phaseAfter, canShowTip, canOffer, phaseOnShow, tutorialBlocksTip } from '../tipState';
 
 describe('tip phases', () => {
   it('lets a dismissed tip show once more, then never again', () => {
@@ -12,6 +12,15 @@ describe('tip phases', () => {
     expect(phaseAfter(undefined, 'act')).toBe('done');
     expect(phaseAfter('snoozed', 'act')).toBe('done');
     expect(phaseAfter('done', 'dismiss')).toBe('done');
+  });
+
+  it('hides a tutorial once that action is already done', () => {
+    expect(tutorialBlocksTip('tip.water', ['water'])).toBe(true);
+    expect(tutorialBlocksTip('tip.food', ['feed'])).toBe(true);
+    expect(tutorialBlocksTip('tip.sleep', ['nap'])).toBe(true);
+    expect(tutorialBlocksTip('tip.cuddle', ['pat'])).toBe(true);
+    expect(tutorialBlocksTip('tip.water', ['feed'])).toBe(false);
+    expect(tutorialBlocksTip('tip.move', ['water', 'feed', 'nap', 'pat'])).toBe(false);
   });
 
   it('retires the move tip the first time it is shown', () => {

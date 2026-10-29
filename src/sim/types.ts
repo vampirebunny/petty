@@ -129,7 +129,13 @@ export type PetState = {
   drift: Stats;
   seniorBand?: SeniorBand;
   level: number;
-  xp: number;
+  xpTotal: number;
+  xpIntoLevel: number;
+  xpDailyEveryday: number;
+  xpDailyDay: string;
+  tutorialSeen: string[];
+  /** Unused. Kept so older saves still load. Park finds are not gated on a watermark. */
+  parkFindGoalAt: number | null;
   bond: number;
   needs: Needs;
   asleep: boolean;

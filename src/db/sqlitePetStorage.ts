@@ -1,4 +1,4 @@
-import { shownLevel, stageOf, withDerived } from '../sim/attributes';
+import { stageOf, withDerived } from '../sim/attributes';
 import { ensureGame } from '../sim/game';
 import { readRoadSpot } from '../sim/road';
 import type { PetState } from '../sim/types';
@@ -24,7 +24,7 @@ function revive(json: string): PetState {
   }
   return {
     ...pet,
-    lastPaidLevel: pet.lastPaidLevel ?? shownLevel(pet.xp, stageOf(pet.ageDays)),
+    lastPaidLevel: pet.lastPaidLevel ?? pet.level,
     lastPaidStage: pet.lastPaidStage ?? stageOf(pet.ageDays),
   };
 }

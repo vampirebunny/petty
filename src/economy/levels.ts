@@ -1,10 +1,10 @@
-import { shownLevel, stageOf } from '../sim/attributes';
+import { stageOf } from '../sim/attributes';
 import type { PetState, Stage } from '../sim/types';
 
 export const stageOrder: Stage[] = ['puppy', 'olderPuppy', 'adolescent', 'adult', 'senior'];
 
 export function levelsToPay(pet: PetState): number[] {
-  const current = shownLevel(pet.xp, stageOf(pet.ageDays));
+  const current = pet.level ?? 1;
   const last = pet.lastPaidLevel ?? 1;
   const levels: number[] = [];
   for (let level = last + 1; level <= current; level += 1) {

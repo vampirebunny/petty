@@ -95,7 +95,7 @@ it('pays a full-credit sit rep from the tier gain and the intelligence factor', 
   const after = payRep(before, 'sit', 'treat', before.lastUpdatedAt);
   expect(after.training.sit?.progress).toBeCloseTo(careConfig.tierGain[1] * factor, 5);
   expect(after.training.sit?.focusUsed).toBe(careConfig.focusCostTreat);
-  expect(after.xp).toBe(before.xp + careConfig.trainingRepXp);
+  expect(after.xpTotal).toBe(0);
   expect(after.attributes.trained?.obedience ?? 0).toBeGreaterThan(0);
   expect(after.attributes.trained?.boldness ?? 0).toBe(0);
 });

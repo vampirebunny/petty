@@ -33,7 +33,7 @@ Turn Boop Boop from a toy into a game. Add pet levels driven by XP, badges, sugg
 6. Stadium with solo races against NPCs
 7. Live races with friends
 
-Each phase should ship working on its own. Park finds landed ahead of levels; wire level-6 unlock, XP, and badges when those phases ship.
+Each phase should ship working on its own. Park finds landed ahead of levels. Levels, the tutorial, and first-find XP are shipped. Finds stay available from level 1. Badges still wait for the badges phase.
 
 ---
 
@@ -46,8 +46,8 @@ Each phase should ship working on its own. Park finds landed ahead of levels; wi
 **Leveling**
 - Levels 1–100.
 - `level` becomes stored state. `withDerived()` must no longer recompute level from total XP.
-- **Levels 1–10 (tutorial):** each level-up comes only from completing one tutorial goal (see section 3). No XP is awarded at all during the tutorial: everyday actions, suggested activities, badges and races earn 0 XP until the pet reaches level 10. Badges themselves are still awarded; only their XP is skipped.
-- During the tutorial, the XP bar shows the current goal instead of XP: empty until the goal is done, then it fills and the level-up burst plays.
+- **Levels 1–10 (tutorial):** each of the nine tutorial actions raises the level by one, in any order (see section 3). Repeating an action does not level again. No source pays XP during the tutorial. That includes everyday actions, suggested activities, badges, races, tricks, and first park finds. Badges themselves are still awarded; only their XP is skipped. Skipped one-time XP is not paid at level 10. A find recorded before level 10 sets `firstFindRewarded` so it cannot pay later.
+- During the tutorial, the XP bar stays empty and the goal name is not shown next to the level. The pet hops. The level and Boop amount float up from the bottom of the scene (see Level-up moment).
 - **From level 10:** XP starts at 0 and counts toward level 11 using the curve below. Level 11+ advances by XP only. No milestone gates.
 - Show the level and an XP bar under the pet's name on Home.
 
@@ -73,13 +73,13 @@ All bands ramp linearly within the band (no flat bands, no jumps between bands).
 | One-time badge | 50 |
 | Tiered badge bronze / silver / gold | 50 / 100 / 200 |
 | Race entered / 3rd / 2nd / 1st | 20 / 40 / 60 / 100, first 8 races per day only |
-| First time finding a park item: common / uncommon / rare | 10 / 25 / 75 |
+| First time finding a park item: common / uncommon / rare / legendary | 10 / 25 / 75 / 150 |
 
 No XP from mini-games, practice races, repeat park finds or time passing. After the 8th race of the day, pets still win ribbons and trophies but earn no race XP. Daily caps reset at local midnight.
 
-**Level-up burst:** every level-up plays a burst on the pet before anything else: the XP bar fills and flashes, a burst of cotton-candy-colored confetti and paw shapes pops out from the pet, the new level number pops up over the pet and settles into the level display under its name, and the pet does a happy hop with its bark or meow. Keep it about 1.5 seconds, never blocking taps for longer. Multiple level-ups at once play one burst with the final level.
+**Level-up:** the pet does a happy hop with its bark or meow, and the level display under its name updates. No confetti overlay. Multiple level-ups at once use the final level.
 
-**Level-up moment:** after the burst, a celebration modal shows the new level, the 50-Boop payout (using the existing Boops coin animation), and what it unlocked, or the next unlock and its level if nothing unlocked. Several level-ups at once show as one modal with the combined payout.
+**Level-up moment:** the new level and the combined 50-Boop payout float up from the bottom of the scene to the top, then fade out. No modal. The existing Boops coin animation still plays. Several level-ups at once show as one float with the final level.
 
 ## 2. Badges
 
@@ -118,23 +118,21 @@ A missed day resets the streak count but never removes a badge. Use the device's
 
 ## 3. Tutorial goals and unlocks
 
-**Tutorial (levels 1–10).** One goal per level. If the goal was already done before it came up, it completes immediately.
+**Tutorial (levels 1–10).** These nine actions each raise the level by one, in any order. Doing one again does not level again. A park find counts whenever it happens, including before the other actions. A find already in the collection counts as that action. A tutorial prompt is not shown for an action the player has already done.
 
-| Level up to | Goal |
+| Action | What counts |
 | --- | --- |
-| 2 | Feed (tap the food bowl) |
-| 3 | Fill the water bowl |
-| 4 | Visit the Training School |
-| 5 | Play ball |
-| 6 | Nap in the bed |
-| 7 | Make a park find |
-| 8 | Pat/Scratch |
-| 9 | Put on any item from the Closet |
-| 10 | Learn Sit |
+| Feed | Tap the food bowl |
+| Fill the water bowl | Refill water |
+| Visit the Training School | Enter the school |
+| Play ball | Play fetch |
+| Nap in the bed | Fall asleep in the bed |
+| Make a park find | Record a park find |
+| Pat/Scratch | Pat the pet |
+| Closet | Put on any item |
+| Learn Sit | Master Sit |
 
-**What's open:** everything is available from the start (Home, Closet, Park, Pet Shop, Mini-games, Playdates, Stadium) except:
-- **Training School:** opens at level 3.
-- **Park finds:** start at level 6. Before that, the park works as it does today.
+**What's open:** everything is available from the start (Home, Closet, Park, Pet Shop, Mini-games, Playdates, Stadium), including park finds. The Training School opens at level 3. That lock ships with the map phase, not with levels.
 
 ## 4. Suggested activities
 
@@ -148,7 +146,7 @@ Small goals the game offers, not things the pet asks for. Ignoring one costs not
 
 **Rules**
 - Slots: 1 until level 10, 2 until level 20, then 3.
-- **During the tutorial (levels 1–10), the single slot always shows the current tutorial goal**, using the same icon, label and pulse. Tutorial goals don't count toward the 10-per-day cap and award no XP (they award the level instead).
+- **During the tutorial (levels 1–10), the single slot shows one tutorial action the player has not done yet**, using the same icon, label and pulse. Those actions don't count toward the 10-per-day cap and award no XP (they award the level instead).
 - 30 XP each, max 10 completions per day. After the cap, hide the row until the next day.
 - Only suggest what makes sense now (no "Feed" when tummy is full) and what's available at the pet's level.
 - Persist current suggestions across app restarts.
@@ -169,7 +167,7 @@ Small goals the game offers, not things the pet asks for. Ignoring one costs not
 
 - Add a **Stadium** location to the map. All competitions, including future away competitions, are entered through it.
 - Until level 3, the Training School shows dimmed with its lights off and a small sign. Tapping it shows "Opens at level 3."
-- At level 3 it lights up, the level-up modal names it, and the pet walks there the first time the player taps it.
+- At level 3 it lights up, a fun modal names it, and the pet walks there the first time the player taps it.
 - Future places can use the same locked state with "Coming soon."
 
 ## 6. Park finds (shipped)
@@ -177,12 +175,12 @@ Small goals the game offers, not things the pet asks for. Ignoring one costs not
 **Source of truth:** [`docs/boop-boop-park-finds/BRIEF.md`](boop-boop-park-finds/BRIEF.md). The older tap-the-sparkle sketch in this doc was replaced by the pet-notice / "Let's see!" loop.
 
 **Shipped behavior (summary)**
-- At most one find chance per park visit. First visit always finds; later visits ~15%.
+- At most one find chance per park visit. The first completed find is guaranteed (`firstFindVisitDone` stays false until a find is recorded, so leaving early does not spend it). Later visits roll at 15%.
 - The pet notices on its own; the player taps **"Let's see!"** (or dismisses by doing something else).
-- Dogs dig; cats pounce grass or bat a bush. Both carry the find to the front, then the reveal modal.
+- Dogs dig; cats rustle grass or bat a bush. Both carry the find to the front, then the reveal modal.
 - Collection lives in the player's **Treasure Chest** furniture + Home **Collection** button. Page: 3-column floating art over light pools (no glass cubes).
-- Unlocked for everyone until the levels phase gates finds at level 6.
-- Emit `parkFind.found` at reveal; XP / Treasure Hunter / Finder / tutorial goal / suggested activity listen in later phases.
+- Park finds are not level-gated. During levels 1–10, a park find is one of the nine tutorial actions and can be the level-up at any time (see section 3).
+- First-find XP is paid only from level 10, by rarity (common 10, uncommon 25, rare 75, legendary 150). A find before level 10 sets `firstFindRewarded` and pays nothing, then or later.
 
 ## 7. Tricks
 

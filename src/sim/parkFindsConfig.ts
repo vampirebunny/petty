@@ -11,7 +11,7 @@ export const parkFinds = {
   bushChance: 0.4,
   rarityWeights: { common: 65, uncommon: 25, rare: 9, legendary: 1 } as const,
   unlockLevel: 6,
-  /** Until the levels phase gates finds, treat as unlocked for every pet. */
+  /** Park finds stay available from level 1. A find is one tutorial action and can level the pet at any time before level 10. */
   unlockGated: false,
   spotMinPetDist: 140,
   spotMinPropDist: 70,

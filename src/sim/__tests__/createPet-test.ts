@@ -23,6 +23,8 @@ it('starts at age 0, a balanced weight, and vitality near the care target', () =
   expect(pet.name).toBe('Maple');
   expect(pet.needs).toEqual(startingNeeds);
   expect(pet.hydration).toBe(startingHydration);
+  expect(pet.waterLevel).toBe(0);
+  expect(pet.waterEmptySince).toBe(now);
   expect(pet.asleep).toBe(false);
   expect(pet.lastUpdatedAt).toBe(now);
   expect(pet.bornAt).toBe(now);
@@ -30,7 +32,8 @@ it('starts at age 0, a balanced weight, and vitality near the care target', () =
   expect(pet.sceneId).toBe('livingroom');
   expect(pet.equipped).toEqual({});
   expect(pet.bond).toBe(0);
-  expect(pet.xp).toBe(0);
+  expect(pet.xpTotal).toBe(0);
+  expect(pet.xpIntoLevel).toBe(0);
   expect(pet.level).toBe(1);
 });
 

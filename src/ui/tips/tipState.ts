@@ -1,4 +1,19 @@
+import type { TutorialAction } from '../../sim/gameplayConfig';
+
 export type TipId = 'tip.water' | 'tip.food' | 'tip.sleep' | 'tip.cuddle' | 'tip.move';
+
+const tutorialTipAction: Partial<Record<TipId, TutorialAction>> = {
+  'tip.food': 'feed',
+  'tip.water': 'water',
+  'tip.sleep': 'nap',
+  'tip.cuddle': 'pat',
+};
+
+// A tutorial bubble is for an action the player has not done yet.
+export function tutorialBlocksTip(id: TipId, seen: readonly string[]): boolean {
+  const action = tutorialTipAction[id];
+  return action != null && seen.includes(action);
+}
 
 export type TipPhase = 'fresh' | 'snoozed' | 'done';
 

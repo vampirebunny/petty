@@ -7,16 +7,15 @@ import {
   feedEnergyGain,
   feedHungerDrop,
   feedStaminaDrift,
-  feedXp,
   petAffectionDrift,
   petAttentionGain,
   petHappinessGain,
   petPurrAtOrAbove,
-  petXp,
   drinkHydrationGain,
   startingWaterLevel,
   waterDrainPerDrink,
 } from './config';
+import { grantEverydayXp, noteTutorialAction } from './progress';
 import { canRaiseMood } from './mood';
 import { nextRng } from './rng';
 import { rememberScene } from './game';
@@ -114,14 +113,20 @@ function bumpAttention(samples: CareSample[]): CareSample[] {
 
 export function applyEvent(state: PetState, event: PetEvent): EventResult {
   if (event.type === 'setScene') {
-    const next = rememberScene(copyState(state), event.sceneId);
+    let next = rememberScene(copyState(state), event.sceneId);
     next.sceneId = event.sceneId;
     next.asleep = false;
     delete next.roadSpot;
+    if (event.sceneId === 'school') {
+      next = noteTutorialAction(next, 'school');
+    }
+    if (event.sceneId === 'park') {
+      next = grantEverydayXp(next, Date.now());
+    }
     if (next.care.pendingReward) {
       return { state: withDerived(resolveReward(next, state.lastUpdatedAt, 'none')), cue: { kind: 'none' } };
     }
-    return { state: next, cue: { kind: 'none' } };
+    return { state: withDerived(next), cue: { kind: 'none' } };
   }
 
   if (event.type === 'trickRep') {
@@ -159,6 +164,7 @@ export function applyEvent(state: PetState, event: PetEvent): EventResult {
       delete next.equipped[event.slot];
     } else {
       next.equipped[event.slot] = event.itemId;
+      return { state: withDerived(noteTutorialAction(next, 'closet')), cue: { kind: 'none' } };
     }
     return { state: next, cue: { kind: 'none' } };
   }
@@ -180,11 +186,13 @@ export function applyEvent(state: PetState, event: PetEvent): EventResult {
     if (state.foodInBowl) {
       return { state, cue: { kind: 'none' } };
     }
-    const next = copyState(state);
+    let next = copyState(state);
     next.asleep = false;
     next.foodInBowl = true;
     next.bowlItemId = null;
-    return { state: next, cue: { kind: 'eat' } };
+    next = noteTutorialAction(next, 'feed');
+    next = grantEverydayXp(next, Date.now());
+    return { state: withDerived(next), cue: { kind: 'eat' } };
   }
 
   // The pet finished the bowl: the meal lands now and the bowl is empty again.
@@ -202,7 +210,6 @@ export function applyEvent(state: PetState, event: PetEvent): EventResult {
       next.needs.hunger = clampNeed(next.needs.hunger - feedHungerDrop * (meal?.hunger ?? 1));
     }
     next.needs.energy = clampNeed(next.needs.energy + feedEnergyGain * (meal?.energy ?? 1));
-    next.xp += Math.round(feedXp * (meal?.xp ?? 1));
     next.drift.stamina = clampDrift(next.drift.stamina + feedStaminaDrift);
     next.careWindow = bumpDiet(next.careWindow, meal?.diet ?? feedDietGain);
     next.weight = applyMeal(next.weight, meal?.weight ?? 1);
@@ -213,10 +220,12 @@ export function applyEvent(state: PetState, event: PetEvent): EventResult {
   }
 
   if (event.type === 'refillWater') {
-    const next = copyState(state);
+    let next = copyState(state);
     next.waterLevel = startingWaterLevel;
     next.waterEmptySince = null;
-    return { state: next, cue: { kind: 'none' } };
+    next = noteTutorialAction(next, 'water');
+    next = grantEverydayXp(next, Date.now());
+    return { state: withDerived(next), cue: { kind: 'none' } };
   }
 
   if (event.type === 'drank') {
@@ -239,9 +248,12 @@ export function applyEvent(state: PetState, event: PetEvent): EventResult {
   }
 
   if (event.type === 'toggleRest') {
-    const next = copyState(state);
+    let next = copyState(state);
     next.asleep = !state.asleep;
-    return { state: next, cue: { kind: next.asleep ? 'yawn' : 'none' } };
+    if (next.asleep) {
+      next = noteTutorialAction(next, 'nap');
+    }
+    return { state: withDerived(next), cue: { kind: next.asleep ? 'yawn' : 'none' } };
   }
 
   // He has curled up. Asleep starts now, so energy ticks and the button can say Wake.
@@ -249,9 +261,10 @@ export function applyEvent(state: PetState, event: PetEvent): EventResult {
     if (state.asleep) {
       return { state, cue: { kind: 'none' } };
     }
-    const next = copyState(state);
+    let next = copyState(state);
     next.asleep = true;
-    return { state: next, cue: { kind: 'none' } };
+    next = noteTutorialAction(next, 'nap');
+    return { state: withDerived(next), cue: { kind: 'none' } };
   }
 
   // Cuddle mode starting only wakes the pet. The view runs the task itself, so there is no cue.
@@ -266,7 +279,6 @@ export function applyEvent(state: PetState, event: PetEvent): EventResult {
     const next = copyState(state);
     const weight = 1 + Math.min(1, Math.max(0, event.seconds) / 20);
     addHappiness(next, petHappinessGain * weight * (1 - next.needs.happiness / clampMax));
-    next.xp += petXp;
     next.drift.affection = clampDrift(next.drift.affection + petAffectionDrift * weight);
     next.careWindow = bumpAttention(next.careWindow);
     return { state: withDerived(next), cue: { kind: 'none' } };
@@ -279,17 +291,20 @@ export function applyEvent(state: PetState, event: PetEvent): EventResult {
   }
 
   if (event.type === 'fetch') {
-    const next = copyState(state);
+    let next = copyState(state);
     next.asleep = false;
+    next = noteTutorialAction(next, 'play');
+    next = grantEverydayXp(next, Date.now());
     return { state: withDerived(next), cue: { kind: 'fetch', drop: event.drop, flick: event.flick } };
   }
 
   const rng = nextRng(state.rngState);
-  const next = copyState(state);
+  let next = copyState(state);
   next.asleep = false;
   next.rngState = rng.state;
   addHappiness(next, petHappinessGain * (1 - next.needs.happiness / clampMax));
-  next.xp += petXp;
+  next = noteTutorialAction(next, 'pat');
+  next = grantEverydayXp(next, Date.now());
   next.drift.affection = clampDrift(next.drift.affection + petAffectionDrift);
   next.careWindow = bumpAttention(next.careWindow);
   return {

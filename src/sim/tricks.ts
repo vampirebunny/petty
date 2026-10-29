@@ -20,6 +20,7 @@ export type TrickListing = {
   sortOrder: number;
   propType: TrickPropType | null;
   propName: string | null;
+  category: 'basic' | 'advanced';
 };
 
 const stageOrder: Stage[] = ['puppy', 'olderPuppy', 'adolescent', 'adult', 'senior'];
@@ -53,6 +54,7 @@ function row(
     sortOrder,
     propType,
     propName,
+    category: propType ? 'advanced' : 'basic',
   };
 }
 

@@ -235,7 +235,7 @@ function DebugPanelBody({
         Care {care ? `${care.dietQuality.toFixed(2)} diet, ${care.attention.toFixed(2)} attention` : 'none'}
       </Text>
       <Text style={styles.line}>
-        Level {state.level} · xp {state.xp}
+        Level {state.level} · xp {Math.floor(state.xpIntoLevel)} / {state.xpTotal}
       </Text>
       {traits.map((trait) => (
         <Text key={trait} style={styles.line}>

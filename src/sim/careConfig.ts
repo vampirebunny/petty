@@ -22,8 +22,6 @@ export const careConfig = {
   rawAttrOnMastery: 5,
   trainingGainExponent: 1,
   masteryIntelligenceRaw: 2,
-  trainingRepXp: 2,
-  masteryXp: 20,
   stackCeiling: 99,
   rewardCalorieFraction: 0.25,
   notificationMax: 3,

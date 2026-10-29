@@ -21,11 +21,11 @@ Build on existing systems (park scene, pet pose channels in `pet.ts`, scene prop
 
 - **Every number is a default.** Put them in a `parkFinds` section of the gameplay config.
 - **Finds belong to the pet.** A new pet starts with an empty collection. The Treasure Chest is the **player's** furniture (it stays when a pet is retired) and always shows the current pet's collection.
-- **No Boops and no XP from finds yet.** Emit the hook event (see "Hooks") so later phases can add XP and badges.
+- **No Boops from finds.** First-find XP is paid from level 10 (common 10, uncommon 25, rare 75, legendary 150). A find before level 10 sets `firstFindRewarded` and pays nothing. Badges still listen later.
 - No speech balloons. Use the pet's existing bark, meow and purr sounds.
 - Cotton candy style for modals and buttons: glossy, puffy.
 - Works fully offline.
-- Unlock: keep `isParkFindsUnlocked(pet)` (default on until the levels phase gates it at level 6).
+- Unlock: finds stay available from level 1. `unlockGated` is false. Do not gate them at level 6.
 
 ---
 
@@ -45,7 +45,7 @@ Finds only happen **in the park**, only when unlocked, and only when the pet not
 
 **When the pet notices**
 - **Not every visit, and at most once per visit.** A visit runs from entering the park scene until leaving it.
-- **The pet's very first park visit with finds unlocked always has a find** (`firstVisitFindChance` = 1.0). Track this per pet with a `firstFindVisitDone` flag. For now finds are always unlocked, so this is the pet's first park visit; once the levels phase gates finds, it becomes the first visit after the unlock. Set the flag only when an item is actually revealed, so an ignored prompt or an early exit carries the guarantee to the next visit.
+- **The pet's first completed find is guaranteed** (`firstVisitFindChance` = 1.0). Track this per pet with a `firstFindVisitDone` flag. Finds are not level-gated, so this is the first park visit that records a find. Set the flag only when an item is actually revealed, so an ignored prompt or an early exit carries the guarantee to the next visit.
 - Every later visit: when the player enters the park, roll `visitFindChance` (0.15). If it fails, nothing happens this visit.
 - If it succeeds, pick a random notice time `noticeMinSec`–`noticeMaxSec` (20–90) of park time. When that time comes, wait until the pet is **idle** (no task, not carrying a toy, not mid-play, no player input for `idleSec` = 4), then the pet **notices** something.
 - After that one notice, whatever happens (found, ignored or left), there are no more finds until the next visit.
@@ -313,11 +313,11 @@ Emit once per find, at the reveal:
 parkFind.found { petId, itemId, rarity, isNew, foundAt }
 ```
 
-Later phases listen to it:
-- XP for first finds: 10 / 25 / 75, plus legendary (to be set in the levels phase).
-- Treasure Hunter and Finder badges.
-- The level-7 tutorial goal.
-- The "find something new" suggested activity.
+Listeners:
+- First-find XP is wired: 10 / 25 / 75 / 150, paid only from level 10.
+- During levels 1–10, a recorded find is one tutorial action and can raise the level at any time. A find already in the collection counts.
+- Treasure Hunter and Finder badges are not built yet.
+- The "find something new" suggested activity is not built yet.
 
 ## 9. Debug menu
 
@@ -361,4 +361,4 @@ Later phases listen to it:
 
 ## Status
 
-**Slice 1 and Slice 2 are shipped.** Remaining work from this brief is polish and later-phase listeners on `parkFind.found` (XP, badges, tutorial goal, suggested activity) — those land in the gameplay progression phases, not as more park-find slices. Debug still has force-notice / reset collection / reset chest; force-rarity and force-item hooks exist in roll code but are not exposed as dedicated DebugPanel buttons yet.
+**Slice 1 and Slice 2 are shipped.** First-find XP and the tutorial level-up are wired. Still later: Treasure Hunter and Finder badges, and the "find something new" suggestion. Debug still has force-notice / reset collection / reset chest; force-rarity and force-item hooks exist in roll code but are not exposed as dedicated DebugPanel buttons yet.

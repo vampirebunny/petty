@@ -193,18 +193,6 @@ export const petAffectionDrift = 0.05;
 export const feedStaminaDrift = 0.02;
 export const driftReturnPerDay = 0.05;
 
-export const feedXp = 5;
-export const petXp = 2;
-export const xpPerLevel = 25;
-
-export const levelCeilingByStage = {
-  puppy: 6,
-  olderPuppy: 12,
-  adolescent: 20,
-  adult: 32,
-  senior: 45,
-} as const;
-
 export const bandMargin = 0.05;
 export const elderlyBelow = 0.4;
 export const earlySeniorAbove = 0.7;

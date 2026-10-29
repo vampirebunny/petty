@@ -1,5 +1,6 @@
 import { breedAttributes } from '../actor/breedAttributes';
 import { maturityOf, naturalGrowth, zeroStats } from './attributes';
+import { ensureProgress } from './progress';
 import { trickListing } from './tricks';
 import { emptyTrack, refreshUnlocks, speciesOf, trackDef, tracksFor } from './tracks';
 import { refreshTraining, resolveReward } from './training';
@@ -141,5 +142,5 @@ export function ensureGame(state: PetState): PetState {
       pendingRevealModal: null,
     },
   };
-  return refreshUnlocks(next).state;
+  return refreshUnlocks(ensureProgress(next)).state;
 }

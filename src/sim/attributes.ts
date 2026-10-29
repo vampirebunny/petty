@@ -6,13 +6,11 @@ import {
   daysToSenior,
   driftLimit,
   stageDayThresholds,
-  levelCeilingByStage,
   healthyWeightBand,
   puppyGrowthFraction,
   traits,
   vitalityFloor,
   weightModifierAtExtreme,
-  xpPerLevel,
 } from './config';
 import { clampCurrent } from './offers';
 import type { Archetype, PetState, SeniorBand, Stage, Stats, Trait } from './types';
@@ -97,11 +95,6 @@ export function trainingGain(current: number, potential: number, raw: number, ex
   }
   const fraction = (potential - current) / potential;
   return raw * Math.pow(fraction, exponent);
-}
-
-export function shownLevel(xp: number, stage: Stage): number {
-  const earned = 1 + Math.floor(xp / xpPerLevel);
-  return Math.min(earned, levelCeilingByStage[stage]);
 }
 
 function weightModifier(weight: number): number {
@@ -224,7 +217,6 @@ export function withDerived(state: PetState): PetState {
   return {
     ...state,
     maturity,
-    level: shownLevel(state.xp, stageOf(state.ageDays)),
     seniorBand: reconcileBand({ ...state, maturity }),
     attributes: {
       ...state.attributes,

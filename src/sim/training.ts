@@ -1,5 +1,7 @@
 import { attributeScore, trainingGain, zeroStats } from './attributes';
 import { careConfig } from './careConfig';
+import { gameplayConfig } from './gameplayConfig';
+import { grantEverydayXp, grantTrickXp, noteTutorialAction } from './progress';
 import { nextRng } from './rng';
 import { refreshUnlocks, speciesOf, trackDef } from './tracks';
 import type { PetState, TrainingTrack, Trait } from './types';
@@ -84,7 +86,7 @@ function addAttribute(state: PetState, trait: Trait, raw: number): PetState {
   return { ...state, attributes: { ...state.attributes, trained } };
 }
 
-function grantMastery(state: PetState, trackId: string): PetState {
+function grantMastery(state: PetState, trackId: string, skipXp: boolean): PetState {
   const def = trackDef(trackId);
   if (!def) {
     return state;
@@ -96,7 +98,14 @@ function grantMastery(state: PetState, trackId: string): PetState {
   }
   next = addAttribute(next, 'intelligence', careConfig.masteryIntelligenceRaw);
   const milestones = next.milestones.includes(trackId) ? next.milestones : [...next.milestones, trackId];
-  return { ...next, xp: next.xp + careConfig.masteryXp, milestones };
+  next = { ...next, milestones };
+  if (trackId === 'sit') {
+    next = noteTutorialAction(next, 'sit');
+  }
+  if (skipXp) {
+    return next;
+  }
+  return grantTrickXp(next, def.category);
 }
 
 // Progress a treat would add right now, capped at the room left to 100.
@@ -122,6 +131,7 @@ export function payRep(state: PetState, trackId: string, choice: RewardChoice, n
   if (isResting(track, now)) {
     return awake;
   }
+  const skipXp = state.level < gameplayConfig.tutorialLevel;
   const credit = choice === 'treat' ? careConfig.creditTreat : careConfig.creditNoTreat;
   const gain = careConfig.tierGain[def.tier] * intelligenceFactor(awake) * credit;
   const progress = Math.min(100, track.progress + gain);
@@ -144,9 +154,11 @@ export function payRep(state: PetState, trackId: string, choice: RewardChoice, n
   for (const trait of def.linked) {
     next = addAttribute(next, trait, share);
   }
-  next = { ...next, xp: next.xp + careConfig.trainingRepXp };
+  if (!skipXp) {
+    next = grantEverydayXp(next, now);
+  }
   if (mastered) {
-    next = grantMastery(next, trackId);
+    next = grantMastery(next, trackId, skipXp);
     next = refreshUnlocks(next).state;
   }
   return next;
