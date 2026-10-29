@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 120 150" width="120" height="150"><defs><linearGradient xmlns="http://www.w3.org/2000/svg" id="kGold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFF0B0" /><stop offset="0.5" stop-color="#F5C242" /><stop offset="1" stop-color="#B5780E" /></linearGradient>
+      <radialGradient xmlns="http://www.w3.org/2000/svg" id="kGoldR" cx="0.35" cy="0.3" r="0.8"><stop offset="0" stop-color="#FFF4C2" /><stop offset="0.5" stop-color="#F5C242" /><stop offset="1" stop-color="#A86E0E" /></radialGradient>
+
+      <g xmlns="http://www.w3.org/2000/svg" id="aCrown">
+        <path d="M28 114 L24 68 L43 88 L60 60 L77 88 L96 68 L92 114 Z" fill="url(#kGold)" />
+        <path d="M30 108 L27 76 L42 92" stroke="#FFF4C2" stroke-width="2" fill="none" opacity="0.7" stroke-linejoin="round" />
+        <rect x="25" y="100" width="70" height="16" rx="5" fill="url(#kGoldR)" />
+        <circle cx="24" cy="66" r="5.5" fill="url(#kGoldR)" />
+        <circle cx="60" cy="58" r="6" fill="url(#kGoldR)" />
+        <circle cx="96" cy="66" r="5.5" fill="url(#kGoldR)" />
+        <circle cx="41" cy="108" r="4.5" fill="#FF7FAD" /><circle cx="40" cy="106.5" r="1.4" fill="#FFFFFF" opacity="0.8" />
+        <circle cx="60" cy="108" r="5.5" fill="#7EC8E3" /><circle cx="58.5" cy="106" r="1.6" fill="#FFFFFF" opacity="0.8" />
+        <circle cx="79" cy="108" r="4.5" fill="#FF7FAD" /><circle cx="78" cy="106.5" r="1.4" fill="#FFFFFF" opacity="0.8" />
+        <path d="M27 117 L93 117" stroke="#FFF2D2" stroke-width="2.4" opacity="0.7" stroke-linecap="round" />
+      </g>
+
+      </defs><use xlink:href="#aCrown"/></svg>

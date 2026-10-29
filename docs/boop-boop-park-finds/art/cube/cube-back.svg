@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 230 230" width="230" height="230"><defs><linearGradient xmlns="http://www.w3.org/2000/svg" id="cbWall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0.02" /><stop offset="1" stop-color="#FFE9C2" stop-opacity="0.2" /></linearGradient>
+      <radialGradient xmlns="http://www.w3.org/2000/svg" id="cbFloor" cx="0.5" cy="0.5" r="0.6"><stop offset="0" stop-color="#FFF6DE" stop-opacity="0.95" /><stop offset="0.55" stop-color="#FFE3A8" stop-opacity="0.55" /><stop offset="1" stop-color="#FFD98A" stop-opacity="0.2" /></radialGradient>
+      <radialGradient xmlns="http://www.w3.org/2000/svg" id="cbBeam" cx="0.5" cy="1" r="0.75"><stop offset="0" stop-color="#FFF3D4" stop-opacity="0.55" /><stop offset="0.6" stop-color="#FFE9B8" stop-opacity="0.12" /><stop offset="1" stop-color="#FFE9B8" stop-opacity="0" /></radialGradient>
+      <radialGradient xmlns="http://www.w3.org/2000/svg" id="cbHalo" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#FFE3A8" stop-opacity="0.35" /><stop offset="1" stop-color="#FFE3A8" stop-opacity="0" /></radialGradient>
+      <g xmlns="http://www.w3.org/2000/svg" id="cubeBack">
+        <ellipse cx="115" cy="210" rx="110" ry="22" fill="url(#cbHalo)" />
+        <rect x="60" y="30" width="140" height="140" fill="url(#cbWall)" />
+        <polygon points="30,60 60,30 60,170 30,200" fill="url(#cbWall)" />
+        <polygon points="30,200 170,200 200,170 60,170" fill="url(#cbFloor)" />
+        <path d="M60 30 L60 170 L200 170 M60 170 L30 200" stroke="#FFFFFF" stroke-width="1.2" fill="none" opacity="0.22" />
+        <rect x="30" y="40" width="170" height="160" fill="url(#cbBeam)" />
+      </g>
+      </defs><use xlink:href="#cubeBack"/></svg>

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 120 150" width="120" height="150"><defs><pattern xmlns="http://www.w3.org/2000/svg" id="dRopeStripe" width="12" height="12" patternUnits="userSpaceOnUse" patternTransform="rotate(35)"><rect width="6" height="12" fill="#FF8FB1" /><rect x="6" width="6" height="12" fill="#FFF3E2" /></pattern>
+      <linearGradient xmlns="http://www.w3.org/2000/svg" id="dRopeShade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0.3" /><stop offset="0.45" stop-color="#FFFFFF" stop-opacity="0" /><stop offset="1" stop-color="#3A1E2E" stop-opacity="0.4" /></linearGradient>
+      <radialGradient xmlns="http://www.w3.org/2000/svg" id="dKnot" cx="0.38" cy="0.32" r="0.8"><stop offset="0" stop-color="#B8EEFA" /><stop offset="0.5" stop-color="#4FB3D9" /><stop offset="1" stop-color="#22709A" /></radialGradient>
+      <g xmlns="http://www.w3.org/2000/svg" id="dRope">
+        <g transform="rotate(-20 60 88)">
+          <path d="M12 94 L2 106 M13 98 L6 112 M17 101 L14 114" stroke="#FF8FB1" stroke-width="3" stroke-linecap="round" />
+          <path d="M108 84 L118 72 M107 80 L114 66 M103 77 L106 64" stroke="#FFF3E2" stroke-width="3" stroke-linecap="round" />
+          <rect x="24" y="80" width="72" height="18" rx="9" fill="url(#dRopeStripe)" />
+          <rect x="24" y="80" width="72" height="18" rx="9" fill="url(#dRopeShade)" />
+          <circle cx="24" cy="89" r="15" fill="url(#dKnot)" />
+          <circle cx="96" cy="89" r="15" fill="url(#dKnot)" />
+          <path d="M14 82 Q24 92 34 82 M14 92 Q24 102 34 92 M86 82 Q96 92 106 82 M86 92 Q96 102 106 92" stroke="#22709A" stroke-width="1.6" fill="none" opacity="0.55" />
+          <ellipse cx="19" cy="81" rx="4.5" ry="2.6" fill="#FFFFFF" opacity="0.6" />
+          <ellipse cx="91" cy="81" rx="4.5" ry="2.6" fill="#FFFFFF" opacity="0.6" />
+          <path d="M12 96 Q24 108 36 96 M84 96 Q96 108 108 96" stroke="#FFF0C8" stroke-width="2.2" fill="none" opacity="0.6" />
+        </g>
+      </g>
+
+      </defs><use xlink:href="#dRope"/></svg>

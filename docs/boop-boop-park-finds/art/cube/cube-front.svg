@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 230 230" width="230" height="230"><defs><g xmlns="http://www.w3.org/2000/svg" id="cubeFront">
+        <polygon points="170,60 200,30 200,170 170,200" fill="#FFFFFF" opacity="0.04" />
+        <polygon points="30,60 60,30 200,30 170,60" fill="#FFFFFF" opacity="0.07" />
+        <rect x="30" y="60" width="140" height="140" fill="#FFFFFF" opacity="0.03" />
+        <polygon points="36,66 74,66 36,116" fill="#FFFFFF" opacity="0.1" />
+        <polygon points="88,66 95,66 36,146 36,137" fill="#FFFFFF" opacity="0.07" />
+        <path d="M30 60 L170 60 L170 200 M30 60 L30 200 M30 60 L60 30 L200 30 L170 60 M200 30 L200 170 L170 200" stroke="#FFFFFF" stroke-width="1.8" fill="none" opacity="0.5" stroke-linejoin="round" />
+        <path d="M30 200 L170 200 L200 170" stroke="#FFF0C8" stroke-width="2.2" fill="none" opacity="0.9" />
+        <rect x="26" y="201" width="148" height="14" rx="3" fill="#2C2143" />
+        <polygon points="174,201 204,171 204,185 174,215" fill="#231A37" />
+        <path d="M27 202 L173 202 L203 172" stroke="#FFE3A8" stroke-width="1.5" fill="none" opacity="0.7" />
+      </g>
+
+      </defs><use xlink:href="#cubeFront"/></svg>

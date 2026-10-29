@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 120 150" width="120" height="150"><defs><radialGradient xmlns="http://www.w3.org/2000/svg" id="sPineG" cx="0.4" cy="0.3" r="0.85"><stop offset="0" stop-color="#C08250" /><stop offset="0.55" stop-color="#7E4E28" /><stop offset="1" stop-color="#4A2C14" /></radialGradient>
+      <radialGradient xmlns="http://www.w3.org/2000/svg" id="sPineShade" cx="0.42" cy="0.4" r="0.62"><stop offset="0.55" stop-color="#2E1A0A" stop-opacity="0" /><stop offset="1" stop-color="#2E1A0A" stop-opacity="0.55" /></radialGradient>
+      <pattern xmlns="http://www.w3.org/2000/svg" id="sPineScale" width="14" height="16" patternUnits="userSpaceOnUse">
+        <path d="M0 0 Q7 14 14 0 Q7 5 0 0 Z" fill="#B47A48" /><path d="M2 4 Q7 12 12 4" stroke="#E8B07A" stroke-width="1.2" fill="none" opacity="0.8" />
+        <path d="M-7 8 Q0 22 7 8 Q0 13 -7 8 Z" fill="#A86E3E" /><path d="M-5 12 Q0 20 5 12" stroke="#E8B07A" stroke-width="1.2" fill="none" opacity="0.8" />
+        <path d="M7 8 Q14 22 21 8 Q14 13 7 8 Z" fill="#A86E3E" /><path d="M9 12 Q14 20 19 12" stroke="#E8B07A" stroke-width="1.2" fill="none" opacity="0.8" />
+      </pattern>
+      <clipPath xmlns="http://www.w3.org/2000/svg" id="sPineClip"><path d="M60 30 C82 40 88 80 78 110 C72 128 64 136 60 138 C56 136 48 128 42 110 C32 80 38 40 60 30 Z" /></clipPath>
+      <g xmlns="http://www.w3.org/2000/svg" id="sPine">
+        <path d="M58 32 C58 24 60 20 64 18" stroke="#5E3A1C" stroke-width="3.5" fill="none" stroke-linecap="round" />
+        <path d="M60 30 C82 40 88 80 78 110 C72 128 64 136 60 138 C56 136 48 128 42 110 C32 80 38 40 60 30 Z" fill="url(#sPineG)" />
+        <g clip-path="url(#sPineClip)">
+          <rect x="30" y="28" width="60" height="112" fill="url(#sPineScale)" />
+          <path d="M40 106 Q60 146 80 106" stroke="#FFF0C8" stroke-width="4" fill="none" opacity="0.45" />
+        </g>
+        <path d="M60 30 C82 40 88 80 78 110 C72 128 64 136 60 138 C56 136 48 128 42 110 C32 80 38 40 60 30 Z" fill="url(#sPineShade)" />
+        <ellipse cx="50" cy="62" rx="5" ry="12" fill="#FFFFFF" opacity="0.25" transform="rotate(14 50 62)" />
+      </g>
+
+      </defs><use xlink:href="#sPine"/></svg>

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 120 150" width="120" height="150"><defs><radialGradient xmlns="http://www.w3.org/2000/svg" id="dBallG" cx="0.36" cy="0.32" r="0.75"><stop offset="0" stop-color="#F7FFB0" /><stop offset="0.45" stop-color="#D6EA3E" /><stop offset="1" stop-color="#8FA318" /></radialGradient>
+      <clipPath xmlns="http://www.w3.org/2000/svg" id="dBallClip"><circle cx="60" cy="88" r="34" /></clipPath>
+      <g xmlns="http://www.w3.org/2000/svg" id="dBall">
+        <circle cx="60" cy="88" r="34" fill="url(#dBallG)" />
+        <g clip-path="url(#dBallClip)">
+          <path d="M28 68 Q54 88 28 110" stroke="#7C8C14" stroke-width="4.5" fill="none" opacity="0.35" transform="translate(0 1.5)" />
+          <path d="M92 68 Q66 88 92 110" stroke="#7C8C14" stroke-width="4.5" fill="none" opacity="0.35" transform="translate(0 1.5)" />
+          <path d="M28 68 Q54 88 28 110" stroke="#FFFFFF" stroke-width="4" fill="none" />
+          <path d="M92 68 Q66 88 92 110" stroke="#FFFFFF" stroke-width="4" fill="none" />
+          <path d="M32 106 Q60 128 88 106" stroke="#FFF6C8" stroke-width="4" fill="none" opacity="0.55" />
+        </g>
+        <ellipse cx="47" cy="70" rx="10" ry="5.5" fill="#FFFFFF" opacity="0.55" transform="rotate(-28 47 70)" />
+      </g>
+
+      </defs><use xlink:href="#dBall"/></svg>

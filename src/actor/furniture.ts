@@ -8,7 +8,9 @@ import { sceneById, scenes } from './scenes';
 import type { Vec } from './types';
 
 // Owned, movable pieces. Everything else in a room is scenery.
-export const furnitureKinds = ['bowl', 'bed', 'litterbox', 'catTree', 'planter', 'catioPost', 'dogHouse', 'scratcher'] as const;
+export const furnitureKinds = ['bowl', 'bed', 'litterbox', 'catTree', 'planter', 'catioPost', 'dogHouse', 'scratcher', 'treasureChest'] as const;
+
+export const TREASURE_CHEST_ID = 'treasure-chest';
 
 export type FurnitureKind = (typeof furnitureKinds)[number];
 
@@ -421,6 +423,9 @@ function pieceForSku(id: string, sku: string): FurniturePiece | null {
 }
 
 export function furnitureDefinition(id: string): FurniturePiece | null {
+  if (id === TREASURE_CHEST_ID || id === 'treasureChest') {
+    return { id: TREASURE_CHEST_ID, kind: 'treasureChest', w: 110, layer: 'sorted' };
+  }
   for (const scene of Object.values(scenes)) {
     for (const prop of scene.props) {
       if (prop.id === id) {
@@ -603,6 +608,9 @@ export function pieceLabel(piece: FurniturePiece): string {
   }
   if (piece.kind === 'scratcher') {
     return 'Scratcher';
+  }
+  if (piece.kind === 'treasureChest') {
+    return 'Treasure Chest';
   }
   if (piece.kind === 'planter') {
     return 'Planter';
@@ -1110,12 +1118,25 @@ function ellipseOf(prop: Prop): Obstacle | null {
 }
 
 // The bowl sprite sits above its floor point. A tap on the rim should still count.
+// The treasure chest draws upward from its floor anchor, so the tap box must cover the art.
 function tapEllipse(prop: Prop): Obstacle | null {
   const obstacle = ellipseOf(prop);
-  if (!obstacle || prop.kind !== 'bowl') {
-    return obstacle;
+  if (!obstacle) {
+    return null;
   }
-  return { ...obstacle, y: prop.y - 12, hw: Math.max(obstacle.hw, 40), hd: 36 };
+  if (prop.kind === 'bowl') {
+    return { ...obstacle, y: prop.y - 12, hw: Math.max(obstacle.hw, 40), hd: 36 };
+  }
+  if (prop.kind === 'treasureChest') {
+    const h = (prop.w ?? 110) * (240 / 260);
+    return {
+      ...obstacle,
+      y: prop.y - h * 0.45,
+      hw: Math.max(obstacle.hw, (prop.w ?? 110) * 0.55),
+      hd: Math.max(furnitureDepth, h * 0.55),
+    };
+  }
+  return obstacle;
 }
 
 // The bed drawing sits above the floor anchor. A press on the cushion has to count.

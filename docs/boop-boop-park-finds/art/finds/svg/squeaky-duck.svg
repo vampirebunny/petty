@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 120 150" width="120" height="150"><defs><radialGradient xmlns="http://www.w3.org/2000/svg" id="dDuckG" cx="0.38" cy="0.3" r="0.8"><stop offset="0" stop-color="#FFF8B8" /><stop offset="0.5" stop-color="#FFD93B" /><stop offset="1" stop-color="#D99A10" /></radialGradient>
+      <linearGradient xmlns="http://www.w3.org/2000/svg" id="dBeak" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFB56A" /><stop offset="1" stop-color="#F0761E" /></linearGradient>
+      <g xmlns="http://www.w3.org/2000/svg" id="dDuck">
+        <path d="M28 96 C28 78 46 72 64 76 C78 79 92 76 98 64 C106 80 102 104 84 114 C68 122 34 120 28 96 Z" fill="url(#dDuckG)" />
+        <circle cx="52" cy="58" r="22" fill="url(#dDuckG)" />
+        <path d="M33 56 C24 55 18 60 21 65 C25 70 33 68 37 64 Z" fill="url(#dBeak)" />
+        <path d="M23 61 Q29 63 36 61" stroke="#C85A12" stroke-width="1.2" fill="none" opacity="0.6" />
+        <circle cx="47" cy="52" r="3.6" fill="#2B1E1E" />
+        <circle cx="48.2" cy="50.8" r="1.2" fill="#FFFFFF" />
+        <ellipse cx="43" cy="62" rx="4" ry="2.4" fill="#FF9DB8" opacity="0.6" />
+        <path d="M60 92 C70 84 84 86 86 96 C80 102 68 102 60 92 Z" fill="#F0B81C" opacity="0.85" />
+        <ellipse cx="46" cy="45" rx="6" ry="3.4" fill="#FFFFFF" opacity="0.6" transform="rotate(-20 46 45)" />
+        <ellipse cx="46" cy="86" rx="10" ry="3.6" fill="#FFFFFF" opacity="0.4" transform="rotate(-10 46 86)" />
+        <path d="M34 106 Q58 124 86 112" stroke="#FFF6D0" stroke-width="3" fill="none" opacity="0.6" stroke-linecap="round" />
+      </g>
+
+      </defs><use xlink:href="#dDuck"/></svg>

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 120 150" width="120" height="150"><defs><radialGradient xmlns="http://www.w3.org/2000/svg" id="dFrisTop" cx="0.38" cy="0.3" r="0.8"><stop offset="0" stop-color="#B8E2FF" /><stop offset="0.5" stop-color="#4AA8EE" /><stop offset="1" stop-color="#2373BA" /></radialGradient>
+      <g xmlns="http://www.w3.org/2000/svg" id="dFris">
+        <g transform="rotate(-12 60 92)">
+          <ellipse cx="60" cy="98" rx="46" ry="17" fill="#1F5F9E" />
+          <ellipse cx="60" cy="91" rx="46" ry="17" fill="url(#dFrisTop)" />
+          <ellipse cx="60" cy="91" rx="44" ry="15.5" fill="none" stroke="#D2ECFF" stroke-width="2" opacity="0.65" />
+          <ellipse cx="60" cy="91" rx="30" ry="10" fill="none" stroke="#2373BA" stroke-width="2" opacity="0.6" />
+          <g transform="translate(60 91) scale(1 0.38)" fill="#FFFFFF" opacity="0.85">
+            <ellipse cx="0" cy="5" rx="7" ry="6" />
+            <circle cx="-8" cy="-5" r="3" /><circle cx="-3" cy="-10" r="3" /><circle cx="3" cy="-10" r="3" /><circle cx="8" cy="-5" r="3" />
+          </g>
+          <path d="M26 84 Q42 76 62 76" stroke="#FFFFFF" stroke-width="3" fill="none" opacity="0.6" stroke-linecap="round" />
+          <path d="M16 100 Q60 122 104 100" stroke="#FFF0C8" stroke-width="2.6" fill="none" opacity="0.7" />
+        </g>
+      </g>
+
+      </defs><use xlink:href="#dFris"/></svg>

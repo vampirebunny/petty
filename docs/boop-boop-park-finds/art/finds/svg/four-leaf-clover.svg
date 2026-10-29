@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 120 150" width="120" height="150"><defs><radialGradient xmlns="http://www.w3.org/2000/svg" id="sLeaf4G" cx="0.45" cy="0.35" r="0.8"><stop offset="0" stop-color="#D6FFAE" /><stop offset="0.55" stop-color="#5CC24A" /><stop offset="1" stop-color="#2A7E2A" /></radialGradient>
+      <g xmlns="http://www.w3.org/2000/svg" id="sLeaf4">
+        <path d="M60 80 C52 70 38 64 38 52 C38 43 47 39 54 44 C57 46 59 50 60 53 C61 50 63 46 66 44 C73 39 82 43 82 52 C82 64 68 70 60 80 Z" fill="url(#sLeaf4G)" />
+        <path d="M52 56 L60 64 L68 56" stroke="#EAFFD6" stroke-width="2" fill="none" opacity="0.75" stroke-linecap="round" stroke-linejoin="round" />
+        <ellipse cx="48" cy="50" rx="5" ry="3" fill="#FFFFFF" opacity="0.5" transform="rotate(-30 48 50)" />
+      </g>
+      <g xmlns="http://www.w3.org/2000/svg" id="sClover4">
+        <path d="M60 80 C62 100 56 118 66 140" stroke="#3E8E30" stroke-width="4.5" fill="none" stroke-linecap="round" />
+        <use xlink:href="#sLeaf4" transform="rotate(45 60 80) translate(60 80) scale(0.86) translate(-60 -80)" />
+        <use xlink:href="#sLeaf4" transform="rotate(135 60 80) translate(60 80) scale(0.86) translate(-60 -80)" />
+        <use xlink:href="#sLeaf4" transform="rotate(225 60 80) translate(60 80) scale(0.86) translate(-60 -80)" />
+        <use xlink:href="#sLeaf4" transform="rotate(315 60 80) translate(60 80) scale(0.86) translate(-60 -80)" />
+        <circle cx="60" cy="80" r="3.5" fill="#3E8E30" />
+      </g>
+
+      </defs><use xlink:href="#sClover4"/></svg>

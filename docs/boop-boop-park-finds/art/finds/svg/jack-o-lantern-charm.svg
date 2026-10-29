@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 120 150" width="120" height="150"><defs><linearGradient xmlns="http://www.w3.org/2000/svg" id="hGold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFF0B0" /><stop offset="0.5" stop-color="#F5C242" /><stop offset="1" stop-color="#B5780E" /></linearGradient>
+      <radialGradient xmlns="http://www.w3.org/2000/svg" id="hPumpG" cx="0.4" cy="0.3" r="0.8"><stop offset="0" stop-color="#FFC98A" /><stop offset="0.5" stop-color="#FF8A2A" /><stop offset="1" stop-color="#B9480C" /></radialGradient>
+      <g xmlns="http://www.w3.org/2000/svg" id="hJack">
+        <circle cx="60" cy="44" r="7" fill="none" stroke="url(#hGold)" stroke-width="3.5" />
+        <rect x="57" y="50" width="6" height="8" rx="2" fill="url(#hGold)" />
+        <path d="M58 70 C58 62 61 58 65 56 L67 60 C64 62 63 66 63 70 Z" fill="#5E7A2A" />
+        <ellipse cx="42" cy="94" rx="18" ry="24" fill="url(#hPumpG)" />
+        <ellipse cx="78" cy="94" rx="18" ry="24" fill="url(#hPumpG)" />
+        <ellipse cx="60" cy="94" rx="21" ry="26" fill="url(#hPumpG)" />
+        <path d="M46 72 Q38 94 46 116 M74 72 Q82 94 74 116" stroke="#D0601A" stroke-width="1.8" fill="none" opacity="0.7" />
+        <path d="M45 88 L52 80 L56 90 Z M75 88 L68 80 L64 90 Z" fill="#FFE08A" stroke="#8A3A0A" stroke-width="1.2" stroke-linejoin="round" />
+        <path d="M57 96 L60 92 L63 96 Z" fill="#FFE08A" />
+        <path d="M44 102 Q60 116 76 102 L72 104 L69 101 L66 106 L62 102 L58 106 L54 102 L51 106 L48 102 Z" fill="#FFE08A" stroke="#8A3A0A" stroke-width="1.2" stroke-linejoin="round" />
+        <ellipse cx="48" cy="78" rx="6" ry="3.5" fill="#FFFFFF" opacity="0.5" transform="rotate(-30 48 78)" />
+        <path d="M30 108 Q60 128 90 108" stroke="#FFF2D2" stroke-width="2.6" fill="none" opacity="0.6" />
+      </g>
+
+      </defs><use xlink:href="#hJack"/></svg>

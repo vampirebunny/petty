@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 120 150" width="120" height="150"><defs><radialGradient xmlns="http://www.w3.org/2000/svg" id="cJingleG" cx="0.38" cy="0.32" r="0.78"><stop offset="0" stop-color="#FFE0EE" /><stop offset="0.5" stop-color="#FF8FB8" /><stop offset="1" stop-color="#B94677" /></radialGradient>
+      <radialGradient xmlns="http://www.w3.org/2000/svg" id="cBellG" cx="0.35" cy="0.3" r="0.8"><stop offset="0" stop-color="#FFF4C2" /><stop offset="0.5" stop-color="#F5C242" /><stop offset="1" stop-color="#A86E0E" /></radialGradient>
+      <g xmlns="http://www.w3.org/2000/svg" id="cJingle">
+        <circle cx="60" cy="88" r="32" fill="url(#cJingleG)" />
+        <ellipse cx="45" cy="74" rx="7" ry="6" fill="#6E1E45" />
+        <ellipse cx="75" cy="70" rx="6.5" ry="5.5" fill="#6E1E45" />
+        <ellipse cx="36" cy="101" rx="4.5" ry="6" fill="#6E1E45" />
+        <ellipse cx="86" cy="98" rx="4.5" ry="6" fill="#6E1E45" />
+        <ellipse cx="60" cy="98" rx="9" ry="8" fill="#5A1838" />
+        <circle cx="60" cy="100" r="5.5" fill="url(#cBellG)" />
+        <path d="M57 102 L63 102" stroke="#7A4E08" stroke-width="1.2" />
+        <path d="M51 93 Q60 89 69 93 M38 70 Q45 67 52 70 M69 66 Q75 63 81 66" stroke="#FFD6E8" stroke-width="1.4" fill="none" opacity="0.7" />
+        <ellipse cx="47" cy="66" rx="9" ry="4.5" fill="#FFFFFF" opacity="0.55" transform="rotate(-28 47 66)" />
+        <path d="M34 108 Q60 128 86 108" stroke="#FFF2D8" stroke-width="3" fill="none" opacity="0.55" />
+      </g>
+
+      </defs><use xlink:href="#cJingle"/></svg>

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 120 150" width="120" height="150"><defs><radialGradient xmlns="http://www.w3.org/2000/svg" id="sPetalG" cx="0.45" cy="0.35" r="0.8"><stop offset="0" stop-color="#FFF4F8" /><stop offset="0.5" stop-color="#FFC1D6" /><stop offset="1" stop-color="#EE82AA" /></radialGradient>
+      <g xmlns="http://www.w3.org/2000/svg" id="sPetal">
+        <g transform="rotate(-18 60 92)">
+          <path d="M60 132 C36 116 28 84 40 60 C46 50 54 48 58 56 L60 62 L62 56 C66 48 74 50 80 60 C92 84 84 116 60 132 Z" fill="url(#sPetalG)" />
+          <path d="M60 128 L60 70 M60 120 L46 76 M60 120 L74 76 M60 124 L40 92 M60 124 L80 92" stroke="#F59ABD" stroke-width="1" opacity="0.6" />
+          <ellipse cx="46" cy="72" rx="5" ry="10" fill="#FFFFFF" opacity="0.5" transform="rotate(12 46 72)" />
+          <path d="M42 112 Q50 126 60 130 Q70 126 78 112" stroke="#FFF2D8" stroke-width="2.4" fill="none" opacity="0.65" stroke-linecap="round" />
+        </g>
+      </g>
+
+      </defs><use xlink:href="#sPetal"/></svg>

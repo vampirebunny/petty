@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 120 150" width="120" height="150"><defs><linearGradient xmlns="http://www.w3.org/2000/svg" id="aGlassG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#D8FFF4" stop-opacity="0.7" /><stop offset="0.6" stop-color="#8FD8C4" stop-opacity="0.45" /><stop offset="1" stop-color="#4FA890" stop-opacity="0.7" /></linearGradient>
+      <g xmlns="http://www.w3.org/2000/svg" id="aBottle">
+        <g transform="rotate(-30 62 88)">
+          <rect x="34" y="79" width="40" height="20" rx="10" fill="#FFF2D6" />
+          <path d="M40 83 L68 83 M40 89 L68 89 M40 95 L68 95" stroke="#E2CDA6" stroke-width="1.2" opacity="0.9" />
+          <rect x="52" y="78" width="5" height="22" fill="#E5533D" />
+          <rect x="26" y="72" width="58" height="34" rx="15" fill="url(#aGlassG)" stroke="#E2FFF8" stroke-width="1.6" stroke-opacity="0.75" />
+          <rect x="82" y="80" width="17" height="18" rx="4" fill="url(#aGlassG)" stroke="#E2FFF8" stroke-width="1.4" stroke-opacity="0.75" />
+          <rect x="97" y="78" width="6" height="22" rx="2" fill="#BFF2E4" opacity="0.8" />
+          <rect x="101" y="81" width="11" height="16" rx="3" fill="#C9955F" />
+          <path d="M104 83 L104 95 M108 83 L108 95" stroke="#A06A3E" stroke-width="1" opacity="0.7" />
+          <path d="M34 77 Q56 74 80 77" stroke="#FFFFFF" stroke-width="2.6" fill="none" opacity="0.75" stroke-linecap="round" />
+          <path d="M30 104 Q56 112 82 104" stroke="#FFF2D2" stroke-width="2.6" fill="none" opacity="0.7" stroke-linecap="round" />
+        </g>
+      </g>
+    </defs><use xlink:href="#aBottle"/></svg>

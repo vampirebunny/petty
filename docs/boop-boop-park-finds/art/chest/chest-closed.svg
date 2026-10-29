@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 260 240" width="260" height="240"><defs><linearGradient xmlns="http://www.w3.org/2000/svg" id="chBodyFront" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#D9A06B" /><stop offset="0.55" stop-color="#B87A45" /><stop offset="1" stop-color="#8F5A2E" /></linearGradient>
+      <linearGradient xmlns="http://www.w3.org/2000/svg" id="chBodySide" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#946036" /><stop offset="1" stop-color="#6E4223" /></linearGradient>
+      <radialGradient xmlns="http://www.w3.org/2000/svg" id="chLidFront" cx="0.32" cy="0.25" r="0.85"><stop offset="0" stop-color="#EDC296" /><stop offset="0.45" stop-color="#C88B55" /><stop offset="1" stop-color="#99602F" /></radialGradient>
+      <linearGradient xmlns="http://www.w3.org/2000/svg" id="chLidTop" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F0C9A0" /><stop offset="1" stop-color="#BE8350" /></linearGradient>
+      <linearGradient xmlns="http://www.w3.org/2000/svg" id="chGold" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#D99A22" /><stop offset="0.3" stop-color="#FFE08A" /><stop offset="0.6" stop-color="#F5C242" /><stop offset="1" stop-color="#C98A1C" /></linearGradient>
+      <linearGradient xmlns="http://www.w3.org/2000/svg" id="chGoldV" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE7A3" /><stop offset="0.5" stop-color="#F5C242" /><stop offset="1" stop-color="#C98A1C" /></linearGradient>
+      <radialGradient xmlns="http://www.w3.org/2000/svg" id="chFoot" cx="0.35" cy="0.3" r="0.8"><stop offset="0" stop-color="#FFF0B8" /><stop offset="0.5" stop-color="#F5C242" /><stop offset="1" stop-color="#B97A12" /></radialGradient>
+      <clipPath xmlns="http://www.w3.org/2000/svg" id="chLidClip"><path d="M30 118 L30 98 Q30 48 110 48 Q190 48 190 98 L190 118 Z" /></clipPath>
+
+      <g xmlns="http://www.w3.org/2000/svg" id="chestBody">
+        <ellipse cx="128" cy="206" rx="114" ry="14" fill="rgba(140,60,100,0.22)" />
+        <circle cx="42" cy="203" r="8" fill="url(#chFoot)" />
+        <circle cx="178" cy="203" r="8" fill="url(#chFoot)" />
+        <circle cx="222" cy="184" r="7" fill="url(#chFoot)" />
+        <path d="M190 118 L230 98 L230 176 Q230 184 223 188 L199 200 Q190 204 190 194 Z" fill="url(#chBodySide)" />
+        <path d="M190 146 L230 126 M190 174 L230 154" stroke="#5E3A1E" stroke-width="2" opacity="0.6" />
+        <path d="M205 110 L214 106 L214 186 L205 191 Z" fill="#DDA437" />
+        <rect x="30" y="118" width="160" height="84" rx="12" fill="url(#chBodyFront)" />
+        <path d="M34 146 L186 146 M34 174 L186 174" stroke="#7A4A26" stroke-width="2" opacity="0.55" />
+        <rect x="40" y="124" width="140" height="7" rx="3.5" fill="#FFFFFF" opacity="0.4" />
+        <rect x="56" y="118" width="14" height="84" fill="url(#chGold)" />
+        <rect x="150" y="118" width="14" height="84" fill="url(#chGold)" />
+        <rect x="30" y="194" width="160" height="8" rx="4" fill="url(#chGoldV)" />
+        <path d="M190 194 L230 174 L230 180 L190 202 Z" fill="#C98A1C" />
+      </g>
+
+      <g xmlns="http://www.w3.org/2000/svg" id="chestLid">
+        <path d="M190 118 L190 98 L230 78 L230 98 Z" fill="#845030" />
+        <path d="M30 98 Q30 48 110 48 Q190 48 190 98 L230 78 Q230 28 150 28 Q70 28 70 78 Z" fill="url(#chLidTop)" />
+        <path d="M56 57 L70 52 L110 32 L96 37 Z" fill="#E8B24A" />
+        <path d="M150 52 L164 57 L204 37 L190 32 Z" fill="#E8B24A" />
+        <path d="M30 118 L30 98 Q30 48 110 48 Q190 48 190 98 L190 118 Z" fill="url(#chLidFront)" />
+        <g clip-path="url(#chLidClip)">
+          <rect x="56" y="40" width="14" height="80" fill="url(#chGold)" />
+          <rect x="150" y="40" width="14" height="80" fill="url(#chGold)" />
+        </g>
+        <ellipse cx="74" cy="66" rx="28" ry="8" fill="#FFFFFF" opacity="0.5" transform="rotate(-20 74 66)" />
+        <ellipse cx="46" cy="86" rx="5" ry="3" fill="#FFFFFF" opacity="0.55" />
+        <rect x="27" y="112" width="166" height="9" rx="4.5" fill="url(#chGoldV)" />
+        <path d="M192 112 L230 93 L230 101 L192 121 Z" fill="#C98A1C" />
+      </g>
+
+      <g xmlns="http://www.w3.org/2000/svg" id="chestLock">
+        <rect x="95" y="104" width="30" height="36" rx="9" fill="url(#chGoldV)" stroke="#C98A1C" stroke-width="2" />
+        <rect x="99" y="107" width="14" height="4" rx="2" fill="#FFFFFF" opacity="0.55" />
+        <ellipse cx="110" cy="127" rx="5.5" ry="4.4" fill="#B97A12" />
+        <circle cx="104" cy="120.5" r="2.1" fill="#B97A12" />
+        <circle cx="108" cy="117.5" r="2.1" fill="#B97A12" />
+        <circle cx="112" cy="117.5" r="2.1" fill="#B97A12" />
+        <circle cx="116" cy="120.5" r="2.1" fill="#B97A12" />
+      </g>
+    </defs><use xlink:href="#chestBody"/><use xlink:href="#chestLid"/><use xlink:href="#chestLock"/></svg>

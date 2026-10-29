@@ -47,6 +47,7 @@ export const propKinds = [
   'scratcher',
   'goalPost',
   'fieldLines',
+  'treasureChest',
 ] as const;
 
 export const shapeTypes = ['rect', 'ellipse', 'circle', 'poly', 'line', 'sky'] as const;

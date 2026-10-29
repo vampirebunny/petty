@@ -86,5 +86,6 @@ export function createPet({ id, ownerId, name, breedId, look, attributes, now }:
     training: blankTraining(species),
     milestones: [],
     seenCoachMarks: [],
+    parkFinds: { firstFindVisitDone: false, items: [], pendingRevealModal: null },
   });
 }

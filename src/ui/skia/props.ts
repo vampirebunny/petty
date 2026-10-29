@@ -30,6 +30,8 @@ import { drawBush, drawTree } from './nature';
 import { drawOutsideView } from './outside';
 import { drawShapes } from './shapes';
 import { drawGlassWeather } from './weatherFx';
+import { chestSkia } from '../../parkFinds/imageCache';
+import { parkFinds } from '../../sim/parkFindsConfig';
 
 // Every prop kind is a renderer in this registry, drawn in local coordinates with the prop's base
 // at (0, 0). New kinds (catio pieces, decor, future furniture) register themselves the same way.
@@ -522,6 +524,24 @@ registerProp('bush', (c, prop, env) => {
   drawBush(c, env, prop.color ?? '#5aa65a', near * clamp01(speed / 60), Math.round(prop.x));
 });
 registerProp('fence', drawFence);
+registerProp('treasureChest', (c, prop, env) => {
+  const w = prop.w ?? parkFinds.chestWidth;
+  const h = w * (240 / 260);
+  castShadow(c, env, 0, 2, w * 0.42, 5, h * 0.4);
+  const image = chestSkia();
+  if (image) {
+    const paint = Skia.Paint();
+    c.drawImageRect(
+      image,
+      Skia.XYWHRect(0, 0, image.width(), image.height()),
+      Skia.XYWHRect(-w / 2, -h, w, h),
+      paint,
+    );
+  } else {
+    rect(c, -w / 2, -h * 0.55, w, h * 0.55, '#8B5A2B');
+    rect(c, -w / 2, -h, w, h * 0.48, '#A86B30');
+  }
+});
 
 // Goal posts at the far end of the training field. Snow settles on the crossbar, rain leaves a sheen,
 // and the little pennants on top flap with the wind.

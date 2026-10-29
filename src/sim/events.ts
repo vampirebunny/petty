@@ -74,6 +74,13 @@ function copyState(state: PetState): PetState {
     },
     drift: { ...state.drift },
     boosts: state.boosts.map((boost) => ({ ...boost })),
+    parkFinds: {
+      firstFindVisitDone: state.parkFinds?.firstFindVisitDone ?? false,
+      items: (state.parkFinds?.items ?? []).map((row) => ({ ...row })),
+      pendingRevealModal: state.parkFinds?.pendingRevealModal
+        ? { ...state.parkFinds.pendingRevealModal }
+        : null,
+    },
   };
 }
 

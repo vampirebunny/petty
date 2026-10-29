@@ -41,6 +41,7 @@ export function footprint(prop: Prop): number {
     dogHouse: 120, // half of the 240-wide cabana, used only when a prop has no width
     planter: 30,
     scratcher: 36,
+    treasureChest: 55,
     pumpkin: 14,
     catioPost: 16,
   };

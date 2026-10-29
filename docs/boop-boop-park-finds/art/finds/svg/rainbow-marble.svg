@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 120 150" width="120" height="150"><defs><radialGradient xmlns="http://www.w3.org/2000/svg" id="wMarbleG" cx="0.38" cy="0.32" r="0.8"><stop offset="0" stop-color="#F6FBFF" stop-opacity="0.9" /><stop offset="0.6" stop-color="#C9DDF5" stop-opacity="0.45" /><stop offset="1" stop-color="#6E7FB8" stop-opacity="0.8" /></radialGradient>
+      <clipPath xmlns="http://www.w3.org/2000/svg" id="wMarbleClip"><circle cx="60" cy="88" r="30" /></clipPath>
+      <g xmlns="http://www.w3.org/2000/svg" id="wRainbow">
+        <circle cx="60" cy="88" r="30" fill="#2A2350" opacity="0.4" />
+        <g clip-path="url(#wMarbleClip)" fill="none" stroke-width="6.5" opacity="0.9" stroke-linecap="round">
+          <path d="M26 64 C48 84 70 70 94 92" stroke="#FF6B6B" />
+          <path d="M26 72 C48 92 70 78 94 100" stroke="#FFA94D" />
+          <path d="M26 80 C48 100 70 86 94 108" stroke="#FFE066" />
+          <path d="M26 88 C48 108 70 94 94 116" stroke="#69DB7C" />
+          <path d="M26 96 C48 116 70 102 94 124" stroke="#4DABF7" />
+          <path d="M26 104 C48 124 70 110 94 132" stroke="#B197FC" />
+        </g>
+        <circle cx="60" cy="88" r="30" fill="url(#wMarbleG)" />
+        <ellipse cx="48" cy="71" rx="10" ry="6" fill="#FFFFFF" opacity="0.85" transform="rotate(-30 48 71)" />
+        <circle cx="75" cy="102" r="2.4" fill="#FFFFFF" opacity="0.6" />
+        <path d="M38 104 Q60 124 82 104" stroke="#FFF6D0" stroke-width="3.2" fill="none" opacity="0.75" />
+      </g>
+
+      </defs><use xlink:href="#wRainbow"/></svg>

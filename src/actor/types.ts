@@ -35,7 +35,8 @@ export type TaskType =
   | 'greet'
   | 'treat'
   | 'held'
-  | 'trick';
+  | 'trick'
+  | 'parkFind';
 
 // Silhouette vocabulary. Each breed picks one value per slot, and the renderer draws the matching shape.
 export type EarType =
@@ -234,6 +235,10 @@ export type Pose = {
   swim: number;
   // Hit pose. Replaces the pupils with X.
   xEyes: number;
+  // Park find dig: fore paws alternate reach/pull.
+  dig: number;
+  // Park find / Swat competition: near fore paw swipes.
+  swat: number;
 };
 
 export type IdleMode = 'still' | 'pant' | 'purr' | 'nap' | 'walk' | 'zoom' | 'stalk';
@@ -257,6 +262,8 @@ export type Task = {
   trickRates?: Partial<Record<keyof Pose, number>>;
   // Mood points to show once this treat is eaten.
   mood?: number;
+  // Park find run. Stages drive notice → approach → dig/pounce/bat → carry → drop.
+  parkFind?: import('../parkFinds/findTask').ParkFindRun;
 };
 
 export type HeartBit = { x: number; y: number; t: number; life: number };
@@ -732,6 +739,8 @@ export type World = {
   birdClimate: { dark: number; precip: 'rain' | 'snow' | null; month: number };
   // Chirps waiting for the view. Other bird events stay silent.
   birdChirps: number;
+  // Park finds visit runtime. Local only; cleared when leaving the park.
+  parkFindVisit?: import('../parkFinds/visit').ParkFindVisit | null;
 };
 
 export type ParkOffer = {

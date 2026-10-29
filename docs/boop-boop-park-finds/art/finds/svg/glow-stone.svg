@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 120 150" width="120" height="150"><defs><radialGradient xmlns="http://www.w3.org/2000/svg" id="wStoneG" cx="0.4" cy="0.3" r="0.85"><stop offset="0" stop-color="#7A7398" /><stop offset="0.55" stop-color="#433D5E" /><stop offset="1" stop-color="#25213A" /></radialGradient>
+      <radialGradient xmlns="http://www.w3.org/2000/svg" id="wTealHalo" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#3FE0C8" stop-opacity="0.4" /><stop offset="1" stop-color="#3FE0C8" stop-opacity="0" /></radialGradient>
+      <g xmlns="http://www.w3.org/2000/svg" id="wGlowStone">
+        <ellipse cx="60" cy="92" rx="56" ry="46" fill="url(#wTealHalo)" />
+        <path d="M30 100 C26 80 40 62 60 62 C80 60 96 76 92 96 C90 114 72 122 56 120 C40 118 32 112 30 100 Z" fill="url(#wStoneG)" />
+        <path d="M38 94 L50 87 L58 95 L71 84 L86 90 M56 70 L60 84 M64 110 L72 98 L80 102" stroke="#3FE0C8" stroke-width="6" fill="none" opacity="0.35" stroke-linecap="round" stroke-linejoin="round" />
+        <path d="M38 94 L50 87 L58 95 L71 84 L86 90 M56 70 L60 84 M64 110 L72 98 L80 102" stroke="#D2FFF6" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+        <ellipse cx="46" cy="72" rx="8" ry="3.5" fill="#FFFFFF" opacity="0.3" transform="rotate(-25 46 72)" />
+        <path d="M34 108 Q56 126 86 106" stroke="#BFFFF2" stroke-width="2.4" fill="none" opacity="0.5" stroke-linecap="round" />
+      </g>
+
+      </defs><use xlink:href="#wGlowStone"/></svg>

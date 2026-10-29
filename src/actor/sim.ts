@@ -76,6 +76,8 @@ import { nearestPoi, poiOf, sceneForSpecies, scenes, stageHeight } from './scene
 import type { Poi, Prop, Scene } from './scenes';
 import { variantFor } from './variation';
 import type { Actor, ActorSource, Anchors, CareInvite, Direction, HeldToy, Idle, IdleMode, JumpKind, PlayState, Pose, SoundEvent, Task, TaskType, Vec, World } from './types';
+import { updateParkFindTask } from '../parkFinds/findTask';
+import { ensureHole, spawnDirt, tickParkFindVisit, updateFindFx } from '../parkFinds/visit';
 
 const displayTau = 0.35;
 const idleWeight: Record<IdleMode, number> = { still: 3, pant: 2, purr: 2, nap: 1.5, walk: 2.5, zoom: 0, stalk: 0 };
@@ -502,6 +504,7 @@ export function createWorld(actors: Actor[], seed = 1, scene: Scene = scenes.liv
     stageBleed: 0,
     birdClimate: { dark: 0, precip: null, month: 5 },
     birdChirps: 0,
+    parkFindVisit: null,
   };
   seedParticles(world);
   return world;
@@ -919,7 +922,7 @@ function isBusy(actor: Actor): boolean {
 }
 
 function ownsLocomotion(actor: Actor): boolean {
-  if (actor.task.type === 'fetch' || actor.task.type === 'travel') {
+  if (actor.task.type === 'fetch' || actor.task.type === 'travel' || actor.task.type === 'parkFind') {
     return true;
   }
   if ((actor.task.type === 'eat' || actor.task.type === 'sleep') && (actor.task.stage === 'go' || actor.task.stage === 'house')) {
@@ -3385,6 +3388,59 @@ function updateActor(world: World, actor: Actor, dt: number): void {
     } else {
       goIdle(world, actor);
     }
+  } else if (actor.task.type === 'parkFind') {
+    const result = updateParkFindTask(world, actor, targets, dt, (point, speed) => {
+      move = point;
+      if (speed != null) {
+        vmax = speed;
+      }
+    });
+    const visit = world.parkFindVisit;
+    const run = actor.task.parkFind;
+    if (visit && run) {
+      if (run.stage === 'dig' && Math.floor(run.stageT * 8) !== Math.floor((run.stageT - dt) * 8)) {
+        spawnDirt(visit, actor.x - actor.face * 10, actor.y + 4, world.rng);
+        ensureHole(visit, run.spot.x, run.spot.y, world.t);
+      }
+      if (run.stage === 'paw' && Math.floor(run.stageT * 2.5) !== Math.floor((run.stageT - dt) * 2.5)) {
+        for (let i = 0; i < 4; i += 1) {
+          visit.particles.push({
+            kind: 'blade',
+            x: run.spot.x,
+            y: run.spot.y,
+            vx: (world.rng() - 0.5) * 80,
+            vy: -60 - world.rng() * 40,
+            life: 0,
+            maxLife: 0.4,
+            color: '#5B8F3A',
+            size: 3,
+          });
+        }
+        if (visit.grassTuft) {
+          visit.grassTuft.shake = 12;
+        }
+      }
+      if (run.stage === 'rear') {
+        visit.bushShake = Math.sin(world.t * Math.PI * 2 * 8) * 4;
+      }
+      if (result.justRevealed) {
+        visit.revealed = true;
+        if (result.goldFlash) {
+          visit.goldFlashUntil = world.t + 0.4;
+        }
+      }
+      if (result.done) {
+        visit.running = false;
+        visit.modalDueAt = world.t + 0.3;
+        if (visit.grassTuft) {
+          visit.grassTuft.shrinkAt = world.t + 1;
+        }
+        visit.bushShake = 0;
+        goIdle(world, actor);
+      }
+    } else if (result.done) {
+      goIdle(world, actor);
+    }
   }
 
   actor.bark.open = 0;
@@ -3773,6 +3829,14 @@ export function update(world: World, dt: number): void {
   world.t += step;
   updateItems(world, step);
   updateParticles(world, step);
+  if (world.parkFindVisit) {
+    updateFindFx(world.parkFindVisit, step, world.t);
+    const host = world.actors.find((actor) => !actor.guest);
+    if (host && world.scene.id === 'park') {
+      const species = breedById(host.breedId)?.species === 'cat' ? 'cat' : 'dog';
+      tickParkFindVisit(world, host, species, step);
+    }
+  }
   const eating = world.actors.some(
     (actor) => actor.task.type === 'eat' && actor.task.kind !== 'drink' && actor.task.stage === 'eating',
   );

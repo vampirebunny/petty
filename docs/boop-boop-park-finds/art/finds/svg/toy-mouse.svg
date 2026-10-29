@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 120 150" width="120" height="150"><defs><radialGradient xmlns="http://www.w3.org/2000/svg" id="cMouseG" cx="0.4" cy="0.3" r="0.8"><stop offset="0" stop-color="#EEEAF5" /><stop offset="0.5" stop-color="#B8B1C9" /><stop offset="1" stop-color="#787090" /></radialGradient>
+      <g xmlns="http://www.w3.org/2000/svg" id="cMouse">
+        <path d="M98 100 C112 104 114 118 104 126 C96 132 100 140 110 140" stroke="#FF8FB1" stroke-width="2.6" fill="none" stroke-linecap="round" />
+        <path d="M18 98 C30 80 50 70 70 72 C88 74 98 86 98 99 C98 110 86 114 66 114 C46 114 28 108 18 98 Z" fill="url(#cMouseG)" />
+        <path d="M50 112 C62 106 80 104 94 100" stroke="#8F87A6" stroke-width="1.6" stroke-dasharray="3 3" fill="none" />
+        <circle cx="52" cy="70" r="11" fill="url(#cMouseG)" />
+        <circle cx="52" cy="70" r="6" fill="#FFB3CF" />
+        <circle cx="67" cy="66" r="11" fill="url(#cMouseG)" />
+        <circle cx="67" cy="66" r="6" fill="#FFB3CF" />
+        <circle cx="34" cy="89" r="2.9" fill="#2B1E1E" />
+        <circle cx="35" cy="88" r="0.9" fill="#FFFFFF" />
+        <circle cx="18.5" cy="98" r="3.6" fill="#FF8FB1" />
+        <ellipse cx="54" cy="82" rx="14" ry="4" fill="#FFFFFF" opacity="0.45" transform="rotate(-8 54 82)" />
+        <path d="M24 104 C40 116 70 118 94 108" stroke="#FFF0C8" stroke-width="2.6" fill="none" opacity="0.6" stroke-linecap="round" />
+      </g>
+
+      </defs><use xlink:href="#cMouse"/></svg>

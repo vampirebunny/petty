@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 120 150" width="120" height="150"><defs><radialGradient xmlns="http://www.w3.org/2000/svg" id="aLeafG" cx="0.45" cy="0.35" r="0.8"><stop offset="0" stop-color="#C6F09E" /><stop offset="0.55" stop-color="#6FBF4A" /><stop offset="1" stop-color="#3E8A2C" /></radialGradient>
+      <g xmlns="http://www.w3.org/2000/svg" id="aLeaf">
+        <path d="M60 80 C52 70 38 64 38 52 C38 43 47 39 54 44 C57 46 59 50 60 53 C61 50 63 46 66 44 C73 39 82 43 82 52 C82 64 68 70 60 80 Z" fill="url(#aLeafG)" />
+        <path d="M52 56 L60 64 L68 56" stroke="#E2FBC9" stroke-width="2" fill="none" opacity="0.7" stroke-linecap="round" stroke-linejoin="round" />
+        <ellipse cx="48" cy="50" rx="5" ry="3" fill="#FFFFFF" opacity="0.45" transform="rotate(-30 48 50)" />
+      </g>
+      <g xmlns="http://www.w3.org/2000/svg" id="aClover">
+        <path d="M60 80 C62 100 56 118 66 138" stroke="#4E9A36" stroke-width="4.5" fill="none" stroke-linecap="round" />
+        <path d="M62 112 C61 122 62 130 66 138" stroke="#FFF0C8" stroke-width="1.6" fill="none" opacity="0.6" />
+        <use xlink:href="#aLeaf" />
+        <use xlink:href="#aLeaf" transform="rotate(120 60 80)" />
+        <use xlink:href="#aLeaf" transform="rotate(240 60 80)" />
+        <circle cx="60" cy="80" r="3.5" fill="#4E9A36" />
+      </g>
+
+      </defs><use xlink:href="#aClover"/></svg>

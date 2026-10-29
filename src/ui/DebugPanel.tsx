@@ -5,6 +5,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 
 import { phaseOf } from '../actor';
+import { setDecorOverride, setWeatherOverride } from '../actor/sky';
 import { catalog } from '../economy/catalog';
 import { applyCatalogNow } from '../economy/shopState';
 import { DefPreview } from '../dev/DefPreview';
@@ -35,6 +36,9 @@ type Props = {
   onColorways?: () => void;
   onGrant?: (id: string) => void;
   onGrantBoops?: () => void;
+  onParkFindForce?: (variant: 'dig' | 'grass' | 'bush') => void;
+  onParkFindResetCollection?: () => void;
+  onParkFindResetChest?: () => void;
 };
 
 const hourMs = 60 * 60 * 1000;
@@ -151,6 +155,9 @@ function DebugPanelBody({
   onColorways,
   onGrant,
   onGrantBoops,
+  onParkFindForce,
+  onParkFindResetCollection,
+  onParkFindResetChest,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [shownGreeting, setShownGreeting] = useState('');
@@ -289,6 +296,53 @@ function DebugPanelBody({
           <Text style={styles.buttonLabel}>Retire</Text>
         </Pressable>
       </View>
+      {onParkFindForce ? (
+        <View style={styles.actions}>
+          <Pressable style={styles.button} onPress={() => onParkFindForce('dig')}>
+            <Text style={styles.buttonLabel}>Find dig</Text>
+          </Pressable>
+          <Pressable style={styles.button} onPress={() => onParkFindForce('grass')}>
+            <Text style={styles.buttonLabel}>Find grass</Text>
+          </Pressable>
+          <Pressable style={styles.button} onPress={() => onParkFindForce('bush')}>
+            <Text style={styles.buttonLabel}>Find bush</Text>
+          </Pressable>
+          {onParkFindResetCollection ? (
+            <Pressable style={styles.button} onPress={onParkFindResetCollection}>
+              <Text style={styles.buttonLabel}>Reset finds</Text>
+            </Pressable>
+          ) : null}
+          {onParkFindResetChest ? (
+            <Pressable style={styles.button} onPress={onParkFindResetChest}>
+              <Text style={styles.buttonLabel}>Reset chest intro</Text>
+            </Pressable>
+          ) : null}
+          <Pressable
+            style={styles.button}
+            onPress={() => setWeatherOverride({ precip: 'rain', intensity: 0.8 })}
+          >
+            <Text style={styles.buttonLabel}>Rain</Text>
+          </Pressable>
+          <Pressable
+            style={styles.button}
+            onPress={() => setWeatherOverride({ precip: 'snow', intensity: 0.8 })}
+          >
+            <Text style={styles.buttonLabel}>Snow</Text>
+          </Pressable>
+          <Pressable style={styles.button} onPress={() => setWeatherOverride({ rainbow: 1 })}>
+            <Text style={styles.buttonLabel}>Rainbow</Text>
+          </Pressable>
+          <Pressable style={styles.button} onPress={() => setWeatherOverride(null)}>
+            <Text style={styles.buttonLabel}>Clear weather</Text>
+          </Pressable>
+          <Pressable style={styles.button} onPress={() => setDecorOverride(['halloween'])}>
+            <Text style={styles.buttonLabel}>Halloween decor</Text>
+          </Pressable>
+          <Pressable style={styles.button} onPress={() => setDecorOverride(null)}>
+            <Text style={styles.buttonLabel}>Clear decor</Text>
+          </Pressable>
+        </View>
+      ) : null}
         {typeof __DEV__ !== 'undefined' && __DEV__ ? <DefPreview /> : null}
         {typeof __DEV__ !== 'undefined' && __DEV__ && onGrant ? (
         <View style={styles.actions}>

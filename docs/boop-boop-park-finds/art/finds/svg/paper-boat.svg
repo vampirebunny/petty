@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 120 150" width="120" height="150"><defs><linearGradient xmlns="http://www.w3.org/2000/svg" id="wHullG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F4F9FF" /><stop offset="1" stop-color="#B8D3EE" /></linearGradient>
+      <g xmlns="http://www.w3.org/2000/svg" id="wBoat">
+        <g transform="rotate(-6 60 92)">
+          <path d="M60 44 L60 98 L34 98 Z" fill="#FFFFFF" />
+          <path d="M60 44 L86 98 L60 98 Z" fill="#D3E4F5" />
+          <path d="M60 46 L60 96" stroke="#9DB8D6" stroke-width="1.4" />
+          <path d="M18 96 L102 96 L88 120 L32 120 Z" fill="url(#wHullG)" />
+          <path d="M18 96 L46 110 L74 110 L102 96" stroke="#9DB8D6" stroke-width="1.4" fill="none" stroke-linejoin="round" />
+          <path d="M46 110 L32 120 M74 110 L88 120" stroke="#9DB8D6" stroke-width="1.2" />
+          <path d="M40 66 L56 52" stroke="#FFFFFF" stroke-width="2" opacity="0.8" stroke-linecap="round" />
+          <path d="M32 121 L88 121" stroke="#FFF2D2" stroke-width="2.6" opacity="0.8" stroke-linecap="round" />
+        </g>
+      </g>
+
+      </defs><use xlink:href="#wBoat"/></svg>

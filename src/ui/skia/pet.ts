@@ -219,7 +219,7 @@ function poseInFlight(pose: Pose): boolean {
   if (pose.walk > 0.05 || pose.shake > 0.01 || pose.swim > 0.5 || pose.rubSway > 0.05) {
     return true;
   }
-  if (pose.stand > 0.2 || pose.pant > 0.2 || pose.knead > 0.05 || pose.paddle > 0.05 || pose.kick > 0.05 || pose.wiggle > 0.05) {
+  if (pose.stand > 0.2 || pose.pant > 0.2 || pose.knead > 0.05 || pose.paddle > 0.05 || pose.kick > 0.05 || pose.wiggle > 0.05 || pose.dig > 0.05 || pose.swat > 0.05) {
     return true;
   }
   if (Math.abs(pose.torsoShift) > 0.5 || Math.abs(pose.headDx) > 1 || Math.abs(pose.headDy) > 1 || Math.abs(pose.headRot) > 0.05) {
@@ -227,13 +227,13 @@ function poseInFlight(pose: Pose): boolean {
   }
   const settling = [
     pose.sit, pose.lie, pose.paw, pose.crouch, pose.belly, pose.bow, pose.stalk, pose.side, pose.rearUp,
-    pose.stream, pose.tuck, pose.land, pose.skid, pose.stretch, pose.faceFront, pose.headFront, pose.pawHigh,
+    pose.stream, pose.tuck, pose.land, pose.skid, pose.stretch, pose.faceFront, pose.headFront, pose.pawHigh, pose.dig, pose.swat,
     pose.spineArch, pose.closeUp, pose.headUp, pose.headPush, pose.headDown, pose.legPedal, pose.faceCam,
   ];
   return settling.some((v) => v > 0.04 && v < 0.96);
 }
 
-const LIVE_TASKS = new Set(['walk', 'jump', 'fetch', 'travel', 'cuddle', 'greet', 'trick', 'held', 'pounce', 'groom']);
+const LIVE_TASKS = new Set(['walk', 'jump', 'fetch', 'travel', 'cuddle', 'greet', 'trick', 'held', 'pounce', 'groom', 'parkFind']);
 
 function idleCacheable(actor: Actor, silhouette: boolean): boolean {
   if (silhouette || placing || actor.debugTheta != null || actor.spin || actor.jump || actor.turning) {
@@ -633,6 +633,25 @@ export function drawActor(
     if (kicker && pose.kick > 0.001) {
       // A few quick small lifts of the near hind leg.
       y -= Math.abs(Math.sin(t * 16)) * geom.L * 0.35 * pose.kick;
+    }
+    if (fore && pose.dig > 0.001) {
+      // Dig: fore paws alternate reach-forward and pull-back at ~4 Hz; near/far half a cycle apart.
+      const phase = t * Math.PI * 2 * 4 + (nearFore ? 0 : Math.PI);
+      const cycle = Math.sin(phase);
+      x += (cycle > 0 ? 0.45 : -0.3) * geom.L * pose.dig * Math.abs(cycle);
+      y -= Math.max(0, cycle) * geom.L * 0.18 * pose.dig;
+    }
+    if (nearFore && pose.swat > 0.001) {
+      // Swat: near fore paw swipes ~3 Hz. High when reared, low when crouched.
+      const swipe = Math.sin(t * Math.PI * 2 * 3);
+      const high = pose.rearUp > 0.2 || pose.pawHigh > 0.2;
+      if (high) {
+        x += swipe * geom.L * 0.28 * pose.swat;
+        y += (hip.y - 0.45 * geom.L - y) * pose.swat;
+      } else {
+        x += swipe * geom.L * 0.32 * pose.swat;
+        y += (0 - y) * 0.7 * pose.swat;
+      }
     }
     if (fore && pose.stand > 0.001) {
       const px = hip.x + 0.24 * geom.L;

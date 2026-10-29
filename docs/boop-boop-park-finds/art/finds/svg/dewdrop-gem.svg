@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 120 150" width="120" height="150"><defs><radialGradient xmlns="http://www.w3.org/2000/svg" id="wDewG" cx="0.4" cy="0.4" r="0.75"><stop offset="0" stop-color="#F4FEFF" /><stop offset="0.55" stop-color="#A8E9F5" /><stop offset="1" stop-color="#3F9EC4" /></radialGradient>
+      <clipPath xmlns="http://www.w3.org/2000/svg" id="wDewClip"><path d="M60 32 C66 52 88 76 88 98 C88 116 76 128 60 128 C44 128 32 116 32 98 C32 76 54 52 60 32 Z" /></clipPath>
+      <g xmlns="http://www.w3.org/2000/svg" id="wDew">
+        <path d="M60 32 C66 52 88 76 88 98 C88 116 76 128 60 128 C44 128 32 116 32 98 C32 76 54 52 60 32 Z" fill="url(#wDewG)" />
+        <g clip-path="url(#wDewClip)">
+          <path d="M60 32 L46 96 L60 128 L74 96 Z" fill="#FFFFFF" opacity="0.18" />
+          <path d="M60 32 L46 96 M60 32 L74 96 M32 98 L46 96 L74 96 L88 98 M46 96 L60 128 L74 96" stroke="#FFFFFF" stroke-width="1.4" fill="none" opacity="0.6" stroke-linejoin="round" />
+          <path d="M36 110 Q60 134 84 110" stroke="#FFF8E0" stroke-width="6" fill="none" opacity="0.55" />
+        </g>
+        <ellipse cx="50" cy="74" rx="5" ry="11" fill="#FFFFFF" opacity="0.75" transform="rotate(20 50 74)" />
+        <circle cx="74" cy="104" r="2.4" fill="#FFFFFF" opacity="0.7" />
+      </g>
+
+      </defs><use xlink:href="#wDew"/></svg>

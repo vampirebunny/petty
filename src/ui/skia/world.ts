@@ -22,6 +22,7 @@ import { bedCushionPoint, bedCushionReach } from '../../actor/furniture';
 import { drawPupCabana } from './cabana';
 import { drawStyledBed, isStyledBed } from './beds';
 import { drawAmbient, drawBackdrop, drawHeldPlay, drawProp, drawToyShape, drawTreatShape } from './scenery';
+import { drawParkFindFx } from '../../parkFinds/draw';
 import { drawTrickProp, splitsAroundActors } from './trickPropArt';
 import type { Contact, Env } from './scenery';
 
@@ -616,6 +617,9 @@ export function drawWorld(
     });
     drawAmbient(canvas, world, env, bleed, cozy);
     untinted(() => decor.ambient(canvas));
+    if (world.parkFindVisit) {
+      withTint(roomTint, () => drawParkFindFx(canvas, world));
+    }
     if (overlay && (overlay.bursts.length > 0 || overlay.butterfly || (overlay.zzz?.length ?? 0) > 0)) {
       drawOverlay(canvas, overlay.bursts, { butterfly: overlay.butterfly, zzz: overlay.zzz, t: world.t });
     }

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 120 150" width="120" height="150"><defs><radialGradient xmlns="http://www.w3.org/2000/svg" id="aSnailG" cx="0.38" cy="0.32" r="0.8"><stop offset="0" stop-color="#FFEBD8" /><stop offset="0.5" stop-color="#F2B48A" /><stop offset="1" stop-color="#B0683F" /></radialGradient>
+      <g xmlns="http://www.w3.org/2000/svg" id="aSnail">
+        <path d="M80 104 C92 108 98 118 92 126 C84 132 70 126 66 116 Z" fill="#E9A57E" />
+        <path d="M82 110 C88 114 90 120 86 124" stroke="#FFE3CC" stroke-width="2" fill="none" opacity="0.8" />
+        <circle cx="60" cy="86" r="30" fill="url(#aSnailG)" />
+        <path d="M62 86 A2 2 0 0 1 58 86 A4 4 0 0 1 66 86 A6 6 0 0 1 54 86 A8 8 0 0 1 70 86 A10 10 0 0 1 50 86 A12 12 0 0 1 74 86 A14 14 0 0 1 46 86 A16 16 0 0 1 78 86 A18 18 0 0 1 42 86 A20 20 0 0 1 82 86 A22 22 0 0 1 38 86 A24 24 0 0 1 86 86" stroke="#8E4F2C" stroke-width="2.4" fill="none" opacity="0.8" stroke-linecap="round" />
+        <path d="M66 84 A6 6 0 0 0 54 84 M74 82 A12 12 0 0 0 48 80" stroke="#FFE6D2" stroke-width="1.6" fill="none" opacity="0.55" />
+        <ellipse cx="46" cy="68" rx="9" ry="4.5" fill="#FFFFFF" opacity="0.55" transform="rotate(-30 46 68)" />
+        <path d="M34 100 Q58 124 84 104" stroke="#FFF2D8" stroke-width="3" fill="none" opacity="0.55" />
+      </g>
+
+      </defs><use xlink:href="#aSnail"/></svg>

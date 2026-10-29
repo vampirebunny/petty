@@ -15,14 +15,17 @@ import {
   skuCount,
   stowPiece,
   starterFurniture,
+  TREASURE_CHEST_ID,
   type FurniturePiece,
   type FurniturePlacement,
   type ShopFurnitureId,
 } from '../actor/furniture';
+import { sceneById } from '../actor/scenes';
 import { catalogItem } from '../economy/catalog';
 import { startingToys } from '../sim/config';
 import { getDb } from './database';
 import { writeLedgerEntry } from './ledgerWrite';
+import { parkFindPlayerFlags } from '../parkFinds/playerFlags';
 
 export type SpeciesId = 'dog' | 'cat';
 
@@ -39,6 +42,7 @@ export type PlayerDoc = {
   shopDay: { date: string; picks: string; dealId: string | null } | null;
   shopPickHistory: { date: string; slot: string; itemId: string }[];
   dailyCounters: { day: string; petId: string; key: string; count: number }[];
+  parkFinds?: { chestIntroShown: boolean; chestTooltipDone: boolean };
 };
 
 const listeners = new Set<() => void>();
@@ -344,6 +348,54 @@ export function moveOwnedPiece(
   return true;
 }
 
+/** Grant the free Treasure Chest if missing, and optionally place it in a player-owned room. */
+export function ensureTreasureChest(
+  ownerId: string,
+  species: SpeciesId,
+  place?: { sceneId: string; x: number; y: number },
+): FurniturePiece {
+  const pieces = furnitureOf(ownerId);
+  let piece = pieces.find((row) => row.id === TREASURE_CHEST_ID);
+  if (!piece) {
+    piece = furnitureDefinition(TREASURE_CHEST_ID)!;
+    getDb().runSync(
+      'INSERT OR IGNORE INTO owned_furniture (owner_id, piece_id, json) VALUES (?, ?, ?)',
+      ownerId,
+      TREASURE_CHEST_ID,
+      JSON.stringify(piece),
+    );
+  }
+  if (place) {
+    moveOwnedPiece(ownerId, species, TREASURE_CHEST_ID, place.sceneId, place.x, place.y);
+  }
+  emit();
+  return piece;
+}
+
+export function treasureChestPlacement(
+  ownerId: string,
+  species: SpeciesId,
+): FurniturePlacement | null {
+  return layoutOf(ownerId, species).find((row) => row.pieceId === TREASURE_CHEST_ID) ?? null;
+}
+
+/** Pick a free-ish spot near the back of the room for the chest intro. */
+export function treasureChestIntroSpot(sceneId: string): { x: number; y: number } {
+  const scene = sceneById(sceneId);
+  const floor = scene.floor;
+  const y = floor.yMin + 24;
+  const center = (floor.xMin + floor.xMax) / 2;
+  const candidates = [center + 70, center - 70, center + 140, center - 140, center];
+  for (const x of candidates) {
+    const clamped = Math.max(floor.xMin + 40, Math.min(floor.xMax - 40, x));
+    const blocked = scene.props.some((prop) => Math.hypot(prop.x - clamped, prop.y - y) < 70);
+    if (!blocked) {
+      return { x: clamped, y };
+    }
+  }
+  return { x: center, y };
+}
+
 export function stowOwnedPiece(ownerId: string, species: SpeciesId, pieceId: string): void {
   if (!hasLayout(ownerId, species)) {
     return;
@@ -406,5 +458,6 @@ export function playerDoc(ownerId: string): PlayerDoc {
     shopDay: shop ? { date: shop.date, picks: shop.picks, dealId: shop.deal_id } : null,
     shopPickHistory: history.map((row) => ({ date: row.date, slot: row.slot, itemId: row.item_id })),
     dailyCounters: counters.map((row) => ({ day: row.day, petId: row.pet_id, key: row.key, count: row.count })),
+    parkFinds: parkFindPlayerFlags(),
   };
 }

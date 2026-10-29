@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Find prompt</title>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#B0457A}a:hover{color:#8A2F5E}
+.promptIn{animation:promptIn 0.5s cubic-bezier(.2,1.4,.4,1) both}
+.wag{transform-box:view-box;transform-origin:-38px -50px;animation:wag 0.3s ease-in-out infinite}
+.look{transform-box:view-box;transform-origin:30px -58px;animation:look 2.4s ease-in-out infinite}
+@keyframes promptIn{0%{transform:translateY(-120%);opacity:0}100%{transform:translateY(0);opacity:1}}
+@keyframes wag{0%,100%{transform:rotate(-16deg)}50%{transform:rotate(14deg)}}
+@keyframes look{0%,40%{transform:rotate(-8deg)}50%,90%{transform:rotate(6deg)}100%{transform:rotate(-8deg)}}
+@media (prefers-reduced-motion: reduce){.promptIn,.wag,.look{animation:none}}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; overflow: hidden; background: #FFF4F8; font-family: 'Fredoka', system-ui, sans-serif; color: #4A2F4F">
+  <div style="position: absolute; left: 16px; right: 16px; top: 44px; height: 44px; display: flex; align-items: center; justify-content: space-between">
+    <div style="font-size: 26px; font-weight: 700">Biscuit</div>
+    <div style="display: flex; align-items: center; gap: 6px; background: #FFFFFF; border-radius: 999px; padding: 6px 12px 6px 6px; box-shadow: 0 3px 0 #F2C6D8">
+      <svg width="24" height="24" viewBox="0 0 26 26" aria-hidden="true"><circle cx="13" cy="13" r="12" fill="#F5C242" stroke="#D99A22" stroke-width="2"></circle><ellipse cx="13" cy="16" rx="4.2" ry="3.4" fill="#B97A12"></ellipse><circle cx="8.2" cy="11" r="1.8" fill="#B97A12"></circle><circle cx="11.2" cy="8.4" r="1.8" fill="#B97A12"></circle><circle cx="14.8" cy="8.4" r="1.8" fill="#B97A12"></circle><circle cx="17.8" cy="11" r="1.8" fill="#B97A12"></circle></svg>
+      <div style="font-size: 16px; font-weight: 600">1,240</div>
+    </div>
+  </div>
+
+  <svg style="position: absolute; left: 12px; top: 96px; border-radius: 28px" width="366" height="560" viewBox="0 0 366 560" role="img" aria-label="Park scene. The dog has stopped, ears up and tail wagging, looking toward a spot on the grass">
+    <defs>
+      <linearGradient id="spSky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#A9D8F0"></stop><stop offset="1" stop-color="#E2F3F8"></stop></linearGradient>
+      <radialGradient id="spFur" cx="0.4" cy="0.3" r="0.8"><stop offset="0" stop-color="#F6CF92"></stop><stop offset="1" stop-color="#D9A055"></stop></radialGradient>
+    </defs>
+    <rect x="0" y="0" width="366" height="560" fill="url(#spSky)"></rect>
+    <ellipse cx="60" cy="176" rx="150" ry="36" fill="#9CCF91"></ellipse>
+    <ellipse cx="290" cy="180" rx="170" ry="42" fill="#8BC482"></ellipse>
+    <rect x="0" y="176" width="366" height="384" fill="#7DBB66"></rect>
+    <path d="M30 260 l3 -8 l3 8 M120 300 l3 -8 l3 8 M300 270 l3 -8 l3 8 M60 420 l3 -8 l3 8 M220 480 l3 -8 l3 8 M320 400 l3 -8 l3 8 M150 380 l3 -8 l3 8" stroke="#4F9440" stroke-width="1.8" fill="none" opacity="0.6"></path>
+    <rect x="40" y="132" width="16" height="64" rx="6" fill="#8A5A2B"></rect><circle cx="48" cy="112" r="44" fill="#5FA84C"></circle><circle cx="22" cy="132" r="28" fill="#6DB356"></circle><circle cx="74" cy="130" r="30" fill="#6DB356"></circle>
+    <g transform="translate(150 410) scale(1.25)">
+      <ellipse cx="0" cy="0" rx="46" ry="5" fill="rgba(40,80,30,0.22)"></ellipse>
+      <rect x="-29.5" y="-34" width="11" height="34" rx="5.5" fill="#C98C45"></rect><rect x="14.5" y="-34" width="11" height="34" rx="5.5" fill="#C98C45"></rect>
+      <g class="wag"><path d="M-38 -50 Q-54 -58 -54 -80" stroke="#E2AA5E" stroke-width="9" stroke-linecap="round" fill="none"></path></g>
+      <ellipse cx="0" cy="-46" rx="40" ry="20" fill="url(#spFur)"></ellipse>
+      <ellipse cx="4" cy="-33" rx="26" ry="7" fill="#F7DDB0" opacity="0.8"></ellipse>
+      <rect x="-36" y="-34" width="12" height="34" rx="6" fill="#E8B46B"></rect><rect x="20" y="-34" width="12" height="34" rx="6" fill="#E8B46B"></rect>
+      <g class="look">
+        <ellipse cx="32" cy="-54" rx="12" ry="14" fill="#E8B46B"></ellipse>
+        <ellipse cx="52" cy="-88" rx="6" ry="11" fill="#B97A3A" transform="rotate(-14 52 -88)"></ellipse>
+        <circle cx="44" cy="-72" r="22" fill="url(#spFur)"></circle>
+        <ellipse cx="62" cy="-63" rx="13" ry="10" fill="#F7DDB0"></ellipse>
+        <ellipse cx="74" cy="-67" rx="4.5" ry="3.5" fill="#3A2A2A"></ellipse>
+        <circle cx="53" cy="-77" r="4.4" fill="#2B1E1E"></circle><circle cx="54.6" cy="-78.6" r="1.5" fill="#FFFFFF"></circle>
+        <ellipse cx="47" cy="-64" rx="5" ry="3" fill="#FF9DB8" opacity="0.6"></ellipse>
+        <ellipse cx="34" cy="-80" rx="8" ry="14" fill="#C98C45" transform="rotate(-6 34 -80)"></ellipse>
+      </g>
+    </g>
+  </svg>
+
+  <div class="promptIn" style="position: absolute; left: 28px; right: 28px; top: 112px; background: #FFFFFF; border-radius: 24px; box-shadow: 0 5px 0 #F2C6D8, 0 12px 24px rgba(74,47,79,0.2); padding: 14px 14px 14px 16px; display: flex; align-items: center; gap: 12px">
+    <div style="width: 44px; height: 44px; flex-shrink: 0; border-radius: 50%; background: linear-gradient(180deg, #FFE7A3 0%, #FFCF5E 100%); box-shadow: inset 0 2px 0 rgba(255,255,255,0.6); display: flex; align-items: center; justify-content: center">
+      <svg width="24" height="24" viewBox="0 0 26 26" aria-hidden="true"><ellipse cx="13" cy="16" rx="5" ry="4" fill="#8A5A06"></ellipse><circle cx="7.4" cy="10.5" r="2.2" fill="#8A5A06"></circle><circle cx="11" cy="7.4" r="2.2" fill="#8A5A06"></circle><circle cx="15" cy="7.4" r="2.2" fill="#8A5A06"></circle><circle cx="18.6" cy="10.5" r="2.2" fill="#8A5A06"></circle></svg>
+    </div>
+    <div style="flex: 1; font-size: 16px; font-weight: 600; line-height: 1.25">Biscuit seems to have found something!</div>
+    <button style="height: 44px; padding: 0 16px; flex-shrink: 0; border: none; border-radius: 16px; background: linear-gradient(180deg, #FFC9DD 0%, #FF9EC2 100%); box-shadow: inset 0 3px 0 rgba(255,255,255,0.6), 0 4px 0 #E27FA6; font-family: 'Fredoka', system-ui, sans-serif; font-size: 16px; font-weight: 700; color: #6B2347; cursor: pointer">Let's see!</button>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

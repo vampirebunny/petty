@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 120 150" width="120" height="150"><defs><linearGradient xmlns="http://www.w3.org/2000/svg" id="hGold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFF0B0" /><stop offset="0.5" stop-color="#F5C242" /><stop offset="1" stop-color="#B5780E" /></linearGradient>
+      <radialGradient xmlns="http://www.w3.org/2000/svg" id="hGoldR" cx="0.36" cy="0.3" r="0.8"><stop offset="0" stop-color="#FFF6CC" /><stop offset="0.5" stop-color="#F5C242" /><stop offset="1" stop-color="#A86E0E" /></radialGradient>
+      <g xmlns="http://www.w3.org/2000/svg" id="hLocket">
+        <path d="M60 54 C40 44 36 24 52 18 C57 16 63 16 68 18 C84 24 80 44 60 54" stroke="#E0B24A" stroke-width="3" stroke-dasharray="3.5 2.5" fill="none" stroke-linecap="round" />
+        <circle cx="60" cy="58" r="4.5" fill="none" stroke="url(#hGold)" stroke-width="2.8" />
+        <path d="M60 128 C34 110 28 92 34 80 C40 68 54 68 60 80 C66 68 80 68 86 80 C92 92 86 110 60 128 Z" fill="url(#hGoldR)" />
+        <path d="M60 116 C44 104 40 94 44 86 C48 79 56 80 60 88 C64 80 72 79 76 86 C80 94 76 104 60 116 Z" fill="none" stroke="#B97A12" stroke-width="1.6" opacity="0.6" />
+        <circle cx="60" cy="96" r="5" fill="#FF7FAD" />
+        <circle cx="58.5" cy="94.5" r="1.6" fill="#FFFFFF" opacity="0.85" />
+        <ellipse cx="44" cy="80" rx="6" ry="3.4" fill="#FFFFFF" opacity="0.65" transform="rotate(-35 44 80)" />
+        <path d="M40 106 Q50 120 60 126 Q70 120 80 106" stroke="#FFF6D6" stroke-width="2.4" fill="none" opacity="0.75" stroke-linecap="round" />
+      </g>
+
+      </defs><use xlink:href="#hLocket"/></svg>

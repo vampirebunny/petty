@@ -93,6 +93,14 @@ import { holdMotionRecords } from './skia/env';
 import { drawWorld, roomPlateKey } from './skia/world';
 import { propsForTrick, type TrickPropType } from '../sim/trickProps';
 import type { TrickOutcome } from '../actor/data/trickScripts';
+import {
+  acceptParkFindPrompt,
+  createParkFindVisit,
+  dismissParkFindPrompt,
+  forceParkFindNoticeNow,
+  noteParkFindInput,
+} from '../parkFinds/visit';
+import type { FindVariant } from '../parkFinds/types';
 
 // What the home screen can ask of the pet while Cuddle is on. Points are stage coordinates.
 export type StageHandle = {
@@ -139,6 +147,14 @@ export type StageHandle = {
   propPoint: (pieceId: string) => { x: number; y: number } | null;
   // Walks off the right and fades the room, then calls back instead of entering a scene.
   depart: (onLeft: () => void) => void;
+  parkFindPrompting: () => boolean;
+  parkFindAccept: (species: 'dog' | 'cat') => { itemId: string; rarity: string } | null;
+  parkFindDismiss: () => void;
+  parkFindTakeModal: () => { itemId: string } | null;
+  parkFindNoteInput: () => void;
+  parkFindForceNotice: (species: 'dog' | 'cat', variant: 'dig' | 'grass' | 'bush') => void;
+  parkFindBootVisit: (species: 'dog' | 'cat', firstVisit: boolean) => void;
+  parkFindClearVisit: () => void;
 };
 
 export type CuddleHandle = {
@@ -202,6 +218,12 @@ type Props = {
   parkVisitors?: boolean;
   parkOffers?: ParkOffer[];
   parkStranger?: (nonce: number) => ParkOffer;
+  /** Park finds UI: prompt visibility, modal due after drop, reveal for persisting. */
+  onParkFindUi?: (signal: {
+    prompting: boolean;
+    modalItemId: string | null;
+    revealed: { itemId: string; rarity: string } | null;
+  }) => void;
 };
 
 function actorsRushing(world: World): boolean {
@@ -291,6 +313,7 @@ export function PetView({
   parkVisitors = false,
   parkOffers = [],
   parkStranger,
+  onParkFindUi,
 }: Props) {
   const { viewWidth, viewHeight } = useStageSize(frame, undefined, heightShare);
   const widthRef = useRef(viewWidth);
@@ -305,6 +328,8 @@ export function PetView({
   const parkOffersRef = useRef(parkOffers);
   const parkStrangerRef = useRef(parkStranger);
   const parkOnRef = useRef(parkVisitors);
+  const onParkFindUiRef = useRef(onParkFindUi);
+  const parkFindUiSent = useRef({ prompting: false, modalItemId: null as string | null, revealedId: null as string | null });
   const activeRef = useRef(AppState.currentState === 'active');
   const hourRef = useRef(hour);
   const reducedRef = useRef(reducedMotion);
@@ -321,6 +346,9 @@ export function PetView({
     parkStrangerRef.current = parkStranger;
     parkOnRef.current = parkVisitors;
   }, [parkOffers, parkStranger, parkVisitors]);
+  useLayoutEffect(() => {
+    onParkFindUiRef.current = onParkFindUi;
+  }, [onParkFindUi]);
   useLayoutEffect(() => {
     toysRef.current = toys;
     playToyRef.current = playToy;
@@ -898,6 +926,57 @@ export function PetView({
         }
         redrawRef.current();
       },
+      parkFindPrompting: () => worldRef.current.parkFindVisit?.prompting === true,
+      parkFindAccept: (species) => {
+        const world = worldRef.current;
+        const actor = world.actors[0];
+        if (!actor) return null;
+        const item = acceptParkFindPrompt(world, actor, species);
+        redrawRef.current();
+        return item ? { itemId: item.id, rarity: item.rarity } : null;
+      },
+      parkFindDismiss: () => {
+        dismissParkFindPrompt(worldRef.current);
+        redrawRef.current();
+      },
+      parkFindTakeModal: () => {
+        const visit = worldRef.current.parkFindVisit;
+        if (!visit?.modalDueAt || worldRef.current.t < visit.modalDueAt || !visit.item) {
+          return null;
+        }
+        const itemId = visit.item.id;
+        visit.modalDueAt = null;
+        return { itemId };
+      },
+      parkFindNoteInput: () => {
+        noteParkFindInput(worldRef.current);
+        if (worldRef.current.parkFindVisit?.prompting) {
+          dismissParkFindPrompt(worldRef.current);
+          redrawRef.current();
+        }
+      },
+      parkFindForceNotice: (species, variant) => {
+        const world = worldRef.current;
+        const actor = world.actors[0];
+        if (!actor) return;
+        forceParkFindNoticeNow(world, actor, species, variant as FindVariant);
+        redrawRef.current();
+      },
+      parkFindBootVisit: (species, firstVisit) => {
+        const world = worldRef.current;
+        const actor = world.actors[0];
+        if (!actor || world.scene.id !== 'park') {
+          world.parkFindVisit = null;
+          return;
+        }
+        world.parkFindVisit = createParkFindVisit(world, actor, species, firstVisit);
+        parkFindUiSent.current = { prompting: false, modalItemId: null, revealedId: null };
+        redrawRef.current();
+      },
+      parkFindClearVisit: () => {
+        worldRef.current.parkFindVisit = null;
+        parkFindUiSent.current = { prompting: false, modalItemId: null, revealedId: null };
+      },
     }),
     [],
   );
@@ -1175,6 +1254,28 @@ export function PetView({
           }
         }
         onAteRef.current?.();
+      }
+      const visit = world.parkFindVisit;
+      if (visit) {
+        const prompting = visit.prompting;
+        const modalItemId =
+          visit.modalDueAt != null && world.t >= visit.modalDueAt && visit.item ? visit.item.id : null;
+        const revealed =
+          visit.revealed && visit.item && parkFindUiSent.current.revealedId !== visit.item.id
+            ? { itemId: visit.item.id, rarity: visit.item.rarity }
+            : null;
+        if (
+          prompting !== parkFindUiSent.current.prompting ||
+          modalItemId !== parkFindUiSent.current.modalItemId ||
+          revealed
+        ) {
+          if (revealed) {
+            parkFindUiSent.current.revealedId = revealed.itemId;
+          }
+          parkFindUiSent.current.prompting = prompting;
+          parkFindUiSent.current.modalItemId = modalItemId;
+          onParkFindUiRef.current?.({ prompting, modalItemId, revealed });
+        }
       }
       for (const kind of takePlayFinds(world)) {
         const at = actor ? { x: actor.x, y: actor.y } : { x: 0, y: 0 };

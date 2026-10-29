@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 120 150" width="120" height="150"><defs><radialGradient xmlns="http://www.w3.org/2000/svg" id="goldHalo" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#FFD36E" stop-opacity="0.45" /><stop offset="1" stop-color="#FFD36E" stop-opacity="0" /></radialGradient>
+      <radialGradient xmlns="http://www.w3.org/2000/svg" id="acCapShade" cx="0.4" cy="0.35" r="0.65"><stop offset="0.55" stop-color="#2E1B0C" stop-opacity="0" /><stop offset="1" stop-color="#2E1B0C" stop-opacity="0.55" /></radialGradient>
+      <linearGradient xmlns="http://www.w3.org/2000/svg" id="acUnder" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFF0C8" stop-opacity="0" /><stop offset="1" stop-color="#FFF0C8" stop-opacity="0.6" /></linearGradient>
+      <!-- Compact acorn: matched to acorn.svg. -->
+      <path xmlns="http://www.w3.org/2000/svg" id="acBodyPath" d="M60 112 C48 109 30 98 29 84 C28 72 40 64 60 64 C80 64 92 72 91 84 C90 98 72 109 60 112 Z" />
+      <path xmlns="http://www.w3.org/2000/svg" id="acCapPath" d="M20 72 C18 44 38 26 60 26 C82 26 102 44 100 72 C100 79 20 79 20 72 Z" />
+      <clipPath xmlns="http://www.w3.org/2000/svg" id="acBodyClip"><use xlink:href="#acBodyPath" /></clipPath>
+      <clipPath xmlns="http://www.w3.org/2000/svg" id="acCapClip"><use xlink:href="#acCapPath" /></clipPath>
+      <radialGradient xmlns="http://www.w3.org/2000/svg" id="agBody" cx="0.36" cy="0.3" r="0.8"><stop offset="0" stop-color="#FFF6C8" /><stop offset="0.45" stop-color="#F5C242" /><stop offset="0.85" stop-color="#C98A1C" /><stop offset="1" stop-color="#8E5C0C" /></radialGradient>
+      <radialGradient xmlns="http://www.w3.org/2000/svg" id="agCap" cx="0.36" cy="0.28" r="0.85"><stop offset="0" stop-color="#F2CF6A" /><stop offset="0.55" stop-color="#B97A12" /><stop offset="1" stop-color="#6E4606" /></radialGradient>
+      <linearGradient xmlns="http://www.w3.org/2000/svg" id="agRim" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#D99A22" /><stop offset="1" stop-color="#7A4E08" /></linearGradient>
+      <pattern xmlns="http://www.w3.org/2000/svg" id="agScale" width="8" height="12" patternUnits="userSpaceOnUse">
+        <ellipse cx="4" cy="3" rx="3.7" ry="2.8" fill="#C08A22" /><ellipse cx="3.3" cy="2.1" rx="1.9" ry="0.9" fill="#FFE7A3" opacity="0.9" />
+        <ellipse cx="0" cy="9" rx="3.7" ry="2.8" fill="#C08A22" /><ellipse cx="-0.7" cy="8.1" rx="1.9" ry="0.9" fill="#FFE7A3" opacity="0.9" />
+        <ellipse cx="8" cy="9" rx="3.7" ry="2.8" fill="#C08A22" /><ellipse cx="7.3" cy="8.1" rx="1.9" ry="0.9" fill="#FFE7A3" opacity="0.9" />
+      </pattern>
+      <g xmlns="http://www.w3.org/2000/svg" id="acornGold" transform="translate(0 14)">
+        <ellipse cx="60" cy="72" rx="56" ry="50" fill="url(#goldHalo)" />
+        <path d="M57 111 L59 117 Q60 119 61 117 L63 111 Z" fill="#9A6A0E" />
+        <use xlink:href="#acBodyPath" fill="url(#agBody)" />
+        <g clip-path="url(#acBodyClip)">
+          <ellipse cx="60" cy="72" rx="36" ry="8" fill="#7A4E08" opacity="0.4" />
+          <rect x="18" y="82" width="84" height="34" fill="url(#acUnder)" />
+        </g>
+        <ellipse cx="46" cy="82" rx="5" ry="9" fill="#FFFFFF" opacity="0.6" transform="rotate(12 46 82)" />
+        <ellipse cx="50" cy="96" rx="2.4" ry="3.2" fill="#FFFFFF" opacity="0.45" />
+        <path d="M38 98 Q50 110 60 112 Q70 110 82 98" stroke="#FFF6D6" stroke-width="2.4" fill="none" opacity="0.8" stroke-linecap="round" />
+        <path d="M57 29 C56 18 61 10 69 7 C72 6 73 10 70 12 C65 15 63 21 64 29 Z" fill="#9A6A0E" />
+        <use xlink:href="#acCapPath" fill="url(#agCap)" />
+        <g clip-path="url(#acCapClip)"><rect x="16" y="24" width="88" height="56" fill="url(#agScale)" opacity="0.9" /></g>
+        <use xlink:href="#acCapPath" fill="url(#acCapShade)" opacity="0.6" />
+        <ellipse cx="46" cy="42" rx="10" ry="4.5" fill="#FFFFFF" opacity="0.4" transform="rotate(-22 46 42)" />
+        <ellipse cx="60" cy="74" rx="40" ry="6.5" fill="url(#agRim)" />
+        <path d="M22 75 Q60 83 98 75" stroke="#FFE7A3" stroke-width="2" fill="none" opacity="0.85" stroke-linecap="round" />
+      </g>
+
+      </defs><use xlink:href="#acornGold"/></svg>

@@ -135,6 +135,11 @@ export function ensureGame(state: PetState): PetState {
     training,
     milestones,
     seenCoachMarks: state.seenCoachMarks ?? [],
+    parkFinds: state.parkFinds ?? {
+      firstFindVisitDone: false,
+      items: [],
+      pendingRevealModal: null,
+    },
   };
   return refreshUnlocks(next).state;
 }

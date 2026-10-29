@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 120 150" width="120" height="150"><defs><radialGradient xmlns="http://www.w3.org/2000/svg" id="sMitG" cx="0.4" cy="0.3" r="0.85"><stop offset="0" stop-color="#FF9A9A" /><stop offset="0.5" stop-color="#E0434F" /><stop offset="1" stop-color="#951C2B" /></radialGradient>
+      <linearGradient xmlns="http://www.w3.org/2000/svg" id="sCuffG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFF8EE" /><stop offset="1" stop-color="#E6D3BC" /></linearGradient>
+      <g xmlns="http://www.w3.org/2000/svg" id="sMitten">
+        <g transform="rotate(-10 62 90)">
+          <path d="M42 120 L42 72 C42 50 56 40 68 44 C80 48 84 60 82 76 L86 72 C94 66 102 74 98 84 L84 104 L84 120 Z" fill="url(#sMitG)" />
+          <path d="M42 84 L48 90 L54 84 L60 90 L66 84 L72 90 L78 84 L84 90" stroke="#FFF3E2" stroke-width="3" fill="none" stroke-linejoin="round" opacity="0.9" />
+          <ellipse cx="54" cy="58" rx="6" ry="11" fill="#FFFFFF" opacity="0.35" transform="rotate(-12 54 58)" />
+          <rect x="38" y="114" width="50" height="22" rx="7" fill="url(#sCuffG)" />
+          <path d="M45 117 L45 133 M51 117 L51 133 M57 117 L57 133 M63 117 L63 133 M69 117 L69 133 M75 117 L75 133 M81 117 L81 133" stroke="#D9C3A6" stroke-width="1.6" />
+          <path d="M40 135 L86 135" stroke="#FFF2D2" stroke-width="2.4" opacity="0.8" stroke-linecap="round" />
+        </g>
+      </g>
+    </defs><use xlink:href="#sMitten"/></svg>

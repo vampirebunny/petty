@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 120 150" width="120" height="150"><defs><radialGradient xmlns="http://www.w3.org/2000/svg" id="goldHalo" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#FFD36E" stop-opacity="0.45" /><stop offset="1" stop-color="#FFD36E" stop-opacity="0" /></radialGradient>
+      <radialGradient xmlns="http://www.w3.org/2000/svg" id="dDinoG" gradientUnits="userSpaceOnUse" cx="50" cy="70" r="80"><stop offset="0" stop-color="#FFF1D2" /><stop offset="0.5" stop-color="#E2C08C" /><stop offset="1" stop-color="#9E7240" /></radialGradient>
+      <g xmlns="http://www.w3.org/2000/svg" id="dDino">
+        <ellipse cx="60" cy="88" rx="62" ry="46" fill="url(#goldHalo)" />
+        <g transform="rotate(-22 60 88)">
+          <g fill="url(#dDinoG)">
+            <circle cx="16" cy="76" r="15" /><circle cx="20" cy="102" r="13" />
+            <circle cx="102" cy="74" r="13" /><circle cx="106" cy="100" r="15" />
+            <path d="M18 78 C40 86 80 82 102 76 L104 98 C80 92 40 96 20 100 Z" />
+          </g>
+          <ellipse cx="44" cy="92" rx="5" ry="2.5" fill="#C9A06A" opacity="0.6" />
+          <ellipse cx="78" cy="86" rx="4" ry="2" fill="#C9A06A" opacity="0.6" />
+          <ellipse cx="14" cy="96" rx="3" ry="2" fill="#C9A06A" opacity="0.6" />
+          <path d="M50 84 l6 4 l-3 5 M74 82 l-4 6 l3 4 M100 86 l6 2 M18 84 l4 6" stroke="#8A6236" stroke-width="1.5" fill="none" opacity="0.75" stroke-linecap="round" stroke-linejoin="round" />
+          <path d="M22 79 C44 85 80 81 100 75 M6 70 Q10 62 20 62 M96 64 Q106 60 112 66" stroke="#FFE08A" stroke-width="2.2" fill="none" opacity="0.85" stroke-linecap="round" />
+          <path d="M24 99 C44 96 80 92 102 98 M10 110 Q20 118 30 110 M96 112 Q106 120 118 108" stroke="#FFF2D2" stroke-width="2.2" fill="none" opacity="0.7" stroke-linecap="round" />
+        </g>
+      </g>
+    </defs><use xlink:href="#dDino"/></svg>

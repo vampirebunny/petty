@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Cat bush animation</title>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#B0457A}a:hover{color:#8A2F5E}
+.vb{transform-box:view-box}
+.fb{transform-box:fill-box;transform-origin:50% 50%}
+.fbb{transform-box:fill-box;transform-origin:50% 100%}
+.bRoot{animation:bRoot 8s ease-in-out infinite,bFade 8s linear infinite}
+.bTilt{transform-origin:-26px 0px;animation:bTilt 8s ease-in-out infinite}
+.bTorso{animation:bTorso 8s ease-in-out infinite}
+.bHead{transform-origin:28px -46px;animation:bHead 8s ease-in-out infinite}
+.bFN{transform-origin:22px -30px;animation:bFN 8s ease-in-out infinite}
+.bFF{transform-origin:16px -30px;animation:bFF 8s ease-in-out infinite}
+.bHN{transform-origin:-26px -30px;animation:bHN 8s ease-in-out infinite}
+.bHF{transform-origin:-20px -30px;animation:bHF 8s ease-in-out infinite}
+.bTl{transform-origin:-33px -42px;animation:bTail 8s ease-in-out infinite}
+.bSoft{animation:bShakeSoftVis 8s linear infinite}
+.bHard{animation:bShakeHardVis 8s linear infinite}
+.bStill{animation:bStillVis 8s linear infinite}
+.softLoop{animation:softShake 0.5s ease-in-out infinite}
+.hardLoop{animation:hardShake 0.125s ease-in-out infinite}
+.bLeaves{animation:bLeavesVis 8s linear infinite}
+.leaf{animation:leafFall 0.5s ease-in infinite}
+.bItem{animation:bItem 8s ease-in-out infinite,bItemVis 8s linear infinite}
+.bRipple{animation:bRipple 8s ease-out infinite,bRippleVis 8s linear infinite}
+.bCard{animation:bCard 8s ease-out infinite,bCardVis 8s linear infinite}
+.playhead{animation:playhead 8s linear infinite}
+@keyframes softShake{0%,100%{transform:rotate(-1.5deg)}50%{transform:rotate(1.5deg)}}
+@keyframes hardShake{0%,100%{transform:rotate(-4deg) translateX(-2px)}50%{transform:rotate(4deg) translateX(2px)}}
+@keyframes leafFall{0%{transform:translate(0px,0px) rotate(0deg);opacity:1}100%{transform:translate(var(--lx),46px) rotate(var(--lr));opacity:0}}
+@keyframes bRoot{0%{transform:translate(60px,250px)}4%{transform:translate(60px,250px)}6.625%{transform:translate(95px,250px)}9.25%{transform:translate(130px,250px)}11.875%{transform:translate(165px,250px)}14.5%{transform:translate(200px,250px)}17.125%{transform:translate(235px,250px)}19.75%{transform:translate(270px,250px)}22.375%{transform:translate(305px,250px)}25%{transform:translate(340px,250px)}100%{transform:translate(340px,250px)}}
+@keyframes bFade{0%{opacity:0}3%{opacity:1}95%{opacity:1}99%{opacity:0}100%{opacity:0}}
+@keyframes bTorso{0%{transform:translate(0px,0px)}4%{transform:translate(0px,8px)}25%{transform:translate(0px,8px)}26.25%{transform:translate(-2px,8px)}27.5%{transform:translate(2px,8px)}28.75%{transform:translate(-2px,8px)}30%{transform:translate(2px,8px)}32%{transform:translate(0px,0px)}57.5%{transform:translate(0px,0px)}60%{transform:translate(0px,2px)}82.5%{transform:translate(0px,2px)}85%{transform:translate(0px,0px)}100%{transform:translate(0px,0px)}}
+@keyframes bTilt{0%{transform:rotate(0deg)}32%{transform:rotate(0deg)}35%{transform:rotate(-32deg)}57.5%{transform:rotate(-32deg)}60%{transform:rotate(0deg)}66%{transform:rotate(0deg)}68%{transform:rotate(12deg)}82.5%{transform:rotate(12deg)}85%{transform:rotate(0deg)}100%{transform:rotate(0deg)}}
+@keyframes bHead{0%{transform:rotate(0deg)}4%{transform:rotate(8deg)}25%{transform:rotate(8deg)}32%{transform:rotate(0deg)}35%{transform:rotate(-15deg)}57.5%{transform:rotate(-15deg)}59%{transform:rotate(-25deg)}62%{transform:rotate(-5deg)}66%{transform:rotate(20deg)}68%{transform:rotate(66deg)}71%{transform:rotate(56deg)}74%{transform:rotate(66deg)}77%{transform:rotate(56deg)}80%{transform:rotate(66deg)}82.5%{transform:rotate(60deg)}85%{transform:rotate(-10deg)}97%{transform:rotate(-10deg)}100%{transform:rotate(0deg)}}
+@keyframes bFN{0%{transform:rotate(0deg)}4%{transform:rotate(0deg)}5.312%{transform:rotate(14deg)}7.938%{transform:rotate(-14deg)}10.562%{transform:rotate(14deg)}13.188%{transform:rotate(-14deg)}15.812%{transform:rotate(14deg)}18.438%{transform:rotate(-14deg)}21.062%{transform:rotate(14deg)}23.688%{transform:rotate(-14deg)}25%{transform:rotate(0deg)}32%{transform:rotate(0deg)}35%{transform:rotate(-100deg)}36.5%{transform:rotate(-45deg)}38.062%{transform:rotate(-105deg)}39.625%{transform:rotate(-45deg)}41.188%{transform:rotate(-105deg)}42.75%{transform:rotate(-45deg)}44.312%{transform:rotate(-105deg)}45.875%{transform:rotate(-45deg)}47.438%{transform:rotate(-105deg)}49%{transform:rotate(-45deg)}50.562%{transform:rotate(-105deg)}52.125%{transform:rotate(-45deg)}53.688%{transform:rotate(-105deg)}55.25%{transform:rotate(-45deg)}57.5%{transform:rotate(-60deg)}60%{transform:rotate(0deg)}100%{transform:rotate(0deg)}}
+@keyframes bFF{0%{transform:rotate(0deg)}4%{transform:rotate(0deg)}5.312%{transform:rotate(-14deg)}7.938%{transform:rotate(14deg)}10.562%{transform:rotate(-14deg)}13.188%{transform:rotate(14deg)}15.812%{transform:rotate(-14deg)}18.438%{transform:rotate(14deg)}21.062%{transform:rotate(-14deg)}23.688%{transform:rotate(14deg)}25%{transform:rotate(0deg)}32%{transform:rotate(0deg)}35%{transform:rotate(-80deg)}57.5%{transform:rotate(-80deg)}60%{transform:rotate(0deg)}100%{transform:rotate(0deg)}}
+@keyframes bHN{0%{transform:rotate(0deg)}4%{transform:rotate(0deg)}5.312%{transform:rotate(-12deg)}7.938%{transform:rotate(12deg)}10.562%{transform:rotate(-12deg)}13.188%{transform:rotate(12deg)}15.812%{transform:rotate(-12deg)}18.438%{transform:rotate(12deg)}21.062%{transform:rotate(-12deg)}23.688%{transform:rotate(12deg)}25%{transform:rotate(0deg)}26.25%{transform:rotate(-6deg)}27.5%{transform:rotate(6deg)}28.75%{transform:rotate(-6deg)}30%{transform:rotate(6deg)}32%{transform:rotate(0deg)}100%{transform:rotate(0deg)}}
+@keyframes bHF{0%{transform:rotate(0deg)}4%{transform:rotate(0deg)}5.312%{transform:rotate(12deg)}7.938%{transform:rotate(-12deg)}10.562%{transform:rotate(12deg)}13.188%{transform:rotate(-12deg)}15.812%{transform:rotate(12deg)}18.438%{transform:rotate(-12deg)}21.062%{transform:rotate(12deg)}23.688%{transform:rotate(-12deg)}25%{transform:rotate(0deg)}26.25%{transform:rotate(6deg)}27.5%{transform:rotate(-6deg)}28.75%{transform:rotate(6deg)}30%{transform:rotate(-6deg)}32%{transform:rotate(0deg)}100%{transform:rotate(0deg)}}
+@keyframes bTail{0%{transform:rotate(-6deg)}3%{transform:rotate(6deg)}6%{transform:rotate(-6deg)}9%{transform:rotate(6deg)}12%{transform:rotate(-6deg)}15%{transform:rotate(6deg)}18%{transform:rotate(-6deg)}21%{transform:rotate(6deg)}24%{transform:rotate(-6deg)}25%{transform:rotate(-12deg)}25.75%{transform:rotate(4deg)}26.5%{transform:rotate(-12deg)}27.25%{transform:rotate(4deg)}28%{transform:rotate(-12deg)}28.75%{transform:rotate(4deg)}29.5%{transform:rotate(-12deg)}30.25%{transform:rotate(4deg)}31%{transform:rotate(-12deg)}31.75%{transform:rotate(4deg)}32.5%{transform:rotate(-12deg)}33.25%{transform:rotate(4deg)}34%{transform:rotate(-12deg)}34.75%{transform:rotate(4deg)}36%{transform:rotate(10deg)}57.5%{transform:rotate(-6deg)}65%{transform:rotate(-6deg)}66%{transform:rotate(-14deg)}68.5%{transform:rotate(4deg)}71%{transform:rotate(-14deg)}73.5%{transform:rotate(4deg)}76%{transform:rotate(-14deg)}78.5%{transform:rotate(4deg)}81%{transform:rotate(-14deg)}83.5%{transform:rotate(4deg)}86%{transform:rotate(-14deg)}88.5%{transform:rotate(4deg)}91%{transform:rotate(-14deg)}93.5%{transform:rotate(4deg)}96%{transform:rotate(-14deg)}100%{transform:rotate(0deg)}}
+@keyframes bCard{0%{transform:scale(0)}86%{transform:scale(0)}88%{transform:scale(1.08)}89%{transform:scale(1)}96%{transform:scale(1)}99%{transform:scale(0.9)}100%{transform:scale(0)}}
+@keyframes bCardVis{0%{opacity:0}85.9%{opacity:0}86%{opacity:1}96%{opacity:1}99%{opacity:0}100%{opacity:0}}
+@keyframes bRipple{0%{transform:scale(0.2)}5%{transform:scale(1.4)}100%{transform:scale(1.4)}}
+@keyframes bRippleVis{0%{opacity:0.9}5%{opacity:0}100%{opacity:0}}
+@keyframes bShakeSoftVis{0%{opacity:1}31.9%{opacity:1}32%{opacity:0}100%{opacity:0}}
+@keyframes bShakeHardVis{0%{opacity:0}34.9%{opacity:0}35%{opacity:1}57.5%{opacity:1}57.6%{opacity:0}100%{opacity:0}}
+@keyframes bStillVis{0%{opacity:0}31.9%{opacity:0}32%{opacity:1}34.9%{opacity:1}35%{opacity:0}57.5%{opacity:0}57.6%{opacity:1}100%{opacity:1}}
+@keyframes bLeavesVis{0%{opacity:0}36%{opacity:0}36.5%{opacity:1}60%{opacity:1}61%{opacity:0}100%{opacity:0}}
+@keyframes bItem{0%{transform:translate(430px,168px) rotate(-30deg)}57.5%{transform:translate(430px,168px) rotate(-30deg)}60%{transform:translate(414px,190px) rotate(20deg)}62.5%{transform:translate(424px,212px) rotate(-20deg)}65%{transform:translate(408px,234px) rotate(15deg)}66.5%{transform:translate(402px,246px) rotate(78deg)}100%{transform:translate(402px,246px) rotate(78deg)}}
+@keyframes bItemVis{0%{opacity:0}57.4%{opacity:0}57.5%{opacity:1}95%{opacity:1}99%{opacity:0}100%{opacity:0}}
+@keyframes playhead{0%{transform:translateX(0px)}100%{transform:translateX(704px)}}
+@media (prefers-reduced-motion: reduce){*{animation-play-state:paused !important}}
+</style>
+</helmet>
+<div style="width: 760px; height: 640px; box-sizing: border-box; background: #FFF4F8; font-family: 'Fredoka', system-ui, sans-serif; color: #4A2F4F; padding: 28px; display: flex; flex-direction: column; gap: 12px">
+  <div style="display: flex; align-items: baseline; gap: 12px">
+    <div style="font-size: 22px; font-weight: 700">Cat: shaking bush → rear up, bat, item falls</div>
+    <div style="font-size: 14px; font-weight: 500; color: #7A4E6E">8-second loop · stand-in cat</div>
+  </div>
+
+  <svg width="704" height="440" viewBox="0 0 480 300" role="img" aria-label="Animated cat creeps toward a shaking bush, wiggles, rears up and bats at it so leaves fall, a blue jay feather flutters down, the cat sniffs it and a reveal card appears" style="border-radius: 24px; display: block">
+    <defs>
+      <linearGradient id="bSky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#A9D8F0"></stop><stop offset="1" stop-color="#E2F3F8"></stop></linearGradient>
+      <linearGradient id="bGrass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#86C46F"></stop><stop offset="1" stop-color="#6FAE5B"></stop></linearGradient>
+      <radialGradient id="bFur" cx="0.4" cy="0.3" r="0.8"><stop offset="0" stop-color="#FFC07A"></stop><stop offset="0.6" stop-color="#F08A3C"></stop><stop offset="1" stop-color="#D9692A"></stop></radialGradient>
+      <radialGradient id="bBushR" cx="0.4" cy="0.3" r="0.8"><stop offset="0" stop-color="#8FD47C"></stop><stop offset="1" stop-color="#3E8A35"></stop></radialGradient>
+      <radialGradient id="bFeatherR" cx="0.4" cy="0.35" r="0.8"><stop offset="0" stop-color="#B8E2FF"></stop><stop offset="0.5" stop-color="#4C97E6"></stop><stop offset="1" stop-color="#1F5FB0"></stop></radialGradient>
+      <g id="bBushArt">
+        <circle cx="-30" cy="-26" r="26" fill="url(#bBushR)"></circle>
+        <circle cx="30" cy="-26" r="26" fill="url(#bBushR)"></circle>
+        <circle cx="0" cy="-42" r="34" fill="url(#bBushR)"></circle>
+        <circle cx="0" cy="-22" r="28" fill="url(#bBushR)"></circle>
+        <path d="M-20 -60 q6 -4 12 0 M8 -56 q6 -4 12 0 M-36 -34 q6 -4 12 0 M22 -30 q6 -4 12 0" stroke="#B6EBA4" stroke-width="2" fill="none" opacity="0.7" stroke-linecap="round"></path>
+      </g>
+      <g id="bFeatherArt">
+        <path d="M-2 14 C-6 4 -2 -8 8 -14 C10 -6 8 4 -2 14 Z" fill="url(#bFeatherR)"></path>
+        <path d="M-4 6 L4 9 M-2 0 L6 3 M1 -6 L8 -3" stroke="#1A2340" stroke-width="1.6"></path>
+        <path d="M-3 17 C0 6 3 -4 8 -14" stroke="#F2F6FF" stroke-width="1" fill="none"></path>
+      </g>
+    </defs>
+
+    <rect x="0" y="0" width="480" height="300" fill="url(#bSky)"></rect>
+    <ellipse cx="90" cy="214" rx="170" ry="34" fill="#9CCF91"></ellipse>
+    <ellipse cx="380" cy="216" rx="190" ry="40" fill="#8BC482"></ellipse>
+    <rect x="0" y="214" width="480" height="86" fill="url(#bGrass)"></rect>
+    <path d="M24 270 l3 -7 l3 7 M118 288 l3 -7 l3 7 M206 276 l3 -7 l3 7 M60 240 l2 -5 l2 5 M250 236 l2 -5 l2 5" stroke="#4F9440" stroke-width="1.6" fill="none" opacity="0.6"></path>
+
+    <g transform="translate(440 254)">
+      <ellipse cx="0" cy="0" rx="58" ry="6" fill="rgba(40,80,30,0.22)"></ellipse>
+      <g class="bSoft"><g class="softLoop fbb"><use href="#bBushArt"></use></g></g>
+      <g class="bHard"><g class="hardLoop fbb"><use href="#bBushArt"></use></g></g>
+      <g class="bStill"><use href="#bBushArt"></use></g>
+    </g>
+
+    <g class="bRoot">
+      <g transform="scale(1.25)">
+        <g class="bTilt vb">
+          <ellipse cx="0" cy="0" rx="40" ry="4.5" fill="rgba(40,80,30,0.22)"></ellipse>
+          <g class="bHF vb"><rect x="-24.5" y="-30" width="9" height="30" rx="4.5" fill="#D9692A"></rect><ellipse cx="-19.5" cy="-1" rx="5.5" ry="3" fill="#C25A1E"></ellipse></g>
+          <g class="bFF vb"><rect x="11.5" y="-30" width="9" height="30" rx="4.5" fill="#D9692A"></rect><ellipse cx="16.5" cy="-1" rx="5.5" ry="3" fill="#C25A1E"></ellipse></g>
+          <g class="bTorso">
+            <g class="bTl vb"><path d="M-33 -42 Q-64 -44 -64 -76" stroke="#F08A3C" stroke-width="8" stroke-linecap="round" fill="none"></path><path d="M-50 -46 l2 -6 M-60 -54 l5 -3 M-63 -66 l5 0" stroke="#C25A1E" stroke-width="3" stroke-linecap="round"></path></g>
+            <ellipse cx="0" cy="-38" rx="36" ry="15" fill="url(#bFur)"></ellipse>
+            <ellipse cx="6" cy="-28" rx="24" ry="6" fill="#FFF1E0" opacity="0.8"></ellipse>
+            <path d="M-22 -51 q3 6 0 11 M-10 -53 q3 6 0 11 M2 -53 q3 6 0 11" stroke="#C25A1E" stroke-width="3" fill="none" stroke-linecap="round"></path>
+            <ellipse cx="-8" cy="-49" rx="18" ry="3.5" fill="#FFFFFF" opacity="0.3"></ellipse>
+            <g class="bHead vb">
+              <ellipse cx="28" cy="-44" rx="10" ry="11" fill="#F08A3C"></ellipse>
+              <path d="M44 -71 L52 -88 L58 -67 Z" fill="#D9692A"></path>
+              <circle cx="40" cy="-58" r="17" fill="url(#bFur)"></circle>
+              <path d="M26 -66 L29 -87 L42 -73 Z" fill="#F08A3C"></path><path d="M29 -69 L30.5 -81 L38 -73 Z" fill="#FFB3CF"></path>
+              <path d="M34 -72 q2 4 0 7 M40 -74 q2 4 0 7" stroke="#C25A1E" stroke-width="2" fill="none" stroke-linecap="round"></path>
+              <ellipse cx="51" cy="-52" rx="8" ry="5.5" fill="#FFF1E0"></ellipse>
+              <path d="M55 -57 L59 -57 L57 -54 Z" fill="#FF8FB1"></path>
+              <ellipse cx="47" cy="-61" rx="3.4" ry="4.2" fill="#2B1E1E"></ellipse><circle cx="48.2" cy="-62.6" r="1.3" fill="#FFFFFF"></circle>
+              <ellipse cx="42" cy="-52" rx="4" ry="2.4" fill="#FF9DB8" opacity="0.6"></ellipse>
+              <path d="M55 -52 L68 -55 M55 -50 L68 -49" stroke="#FFFFFF" stroke-width="1" opacity="0.85"></path>
+            </g>
+          </g>
+          <g class="bHN vb"><rect x="-31" y="-30" width="10" height="30" rx="5" fill="#F08A3C"></rect><ellipse cx="-25.5" cy="-1" rx="6" ry="3.2" fill="#FFF1E0"></ellipse></g>
+          <g class="bFN vb"><rect x="17" y="-30" width="10" height="30" rx="5" fill="#F08A3C"></rect><ellipse cx="22.5" cy="-1" rx="6" ry="3.2" fill="#FFF1E0"></ellipse></g>
+        </g>
+      </g>
+    </g>
+
+    <g class="bLeaves">
+      <g transform="translate(420 196)">
+        <ellipse class="leaf fb" cx="0" cy="0" rx="4" ry="2.2" fill="#5FA84C" style="--lx: -18px; --lr: 200deg; animation-delay: 0s"></ellipse>
+        <ellipse class="leaf fb" cx="14" cy="-10" rx="4" ry="2.2" fill="#7CC25F" style="--lx: -8px; --lr: -160deg; animation-delay: -0.17s"></ellipse>
+        <ellipse class="leaf fb" cx="-6" cy="-18" rx="4" ry="2.2" fill="#5FA84C" style="--lx: -24px; --lr: 140deg; animation-delay: -0.33s"></ellipse>
+      </g>
+    </g>
+
+    <g class="bItem"><use href="#bFeatherArt"></use></g>
+
+    <g transform="translate(300 118)">
+      <g class="bCard fb">
+        <rect x="-82" y="-30" width="164" height="60" rx="16" fill="#FFFFFF" stroke="#F2C6D8" stroke-width="2.5"></rect>
+        <g transform="translate(-54 0) scale(1.4) rotate(30)"><use href="#bFeatherArt"></use></g>
+        <rect x="-32" y="-20" width="36" height="16" rx="8" fill="#D6336C"></rect>
+        <text x="-14" y="-8" text-anchor="middle" font-family="Fredoka, system-ui, sans-serif" font-size="11" font-weight="700" fill="#FFFFFF">New!</text>
+        <text x="-32" y="16" font-family="Fredoka, system-ui, sans-serif" font-size="15" font-weight="700" fill="#4A2F4F">Blue jay feather</text>
+      </g>
+    </g>
+  </svg>
+
+  <svg width="704" height="72" viewBox="0 0 704 72" role="img" aria-label="Timeline of the 8-second cat bush sequence with a moving playhead">
+    <g font-family="Fredoka, system-ui, sans-serif" font-size="12" font-weight="600">
+      <rect x="0" y="8" width="176" height="34" rx="8" fill="#FFE1EC"></rect><text x="88" y="30" text-anchor="middle" fill="#6B2347">Spots bush + stalks</text>
+      <rect x="176" y="8" width="105.6" height="34" rx="8" fill="#FFD0E2"></rect><text x="228.8" y="30" text-anchor="middle" fill="#6B2347">Wiggle + rear up</text>
+      <rect x="281.6" y="8" width="224.4" height="34" rx="8" fill="#FFE1EC"></rect><text x="393.8" y="30" text-anchor="middle" fill="#6B2347">Bat (bush shakes, leaves fall)</text>
+      <rect x="506" y="8" width="74.8" height="34" rx="8" fill="#FFF0C2"></rect><text x="543.4" y="30" text-anchor="middle" fill="#6A4508">Falls out</text>
+      <rect x="580.8" y="8" width="123.2" height="34" rx="8" fill="#FFD0E2"></rect><text x="642.4" y="30" text-anchor="middle" fill="#6B2347">Sniff + reveal</text>
+      <text x="0" y="62" fill="#7A4E6E" font-weight="500">0s</text><text x="176" y="62" fill="#7A4E6E" font-weight="500" text-anchor="middle">2s</text><text x="352" y="62" fill="#7A4E6E" font-weight="500" text-anchor="middle">4s</text><text x="528" y="62" fill="#7A4E6E" font-weight="500" text-anchor="middle">6s</text><text x="704" y="62" fill="#7A4E6E" font-weight="500" text-anchor="end">8s</text>
+    </g>
+    <g class="playhead"><rect x="-1.5" y="2" width="3" height="46" rx="1.5" fill="#4A2F4F"></rect></g>
+  </svg>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":760,"height":640}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

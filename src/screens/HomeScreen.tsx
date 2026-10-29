@@ -19,8 +19,21 @@ import { prepareRemoteMusic, releaseMusic, setMusicEnabled, suspendMusic, switch
 import { setSoundEnabled } from '../audio/voice';
 import type { CuddleOut } from '../actor';
 import { stageHeight, stageWidth } from '../actor/geometry';
-import { applyFurniture, bowlAlreadyInRoom, bowlRoomMessage, buySpot, canPlaceFurniture, countsAsBed, otherBedInRoom, pieceLabel, roomRestBadge, shopSku, stowWarning } from '../actor/furniture';
-import type { FurniturePiece } from '../actor/furniture';
+import {
+  applyFurniture,
+  bowlAlreadyInRoom,
+  bowlRoomMessage,
+  buySpot,
+  canPlaceFurniture,
+  countsAsBed,
+  otherBedInRoom,
+  pieceLabel,
+  roomRestBadge,
+  shopSku,
+  stowWarning,
+  TREASURE_CHEST_ID,
+  type FurniturePiece,
+} from '../actor/furniture';
 import { flickSpeedThreshold } from '../input/flick';
 import { CuddleGesture } from '../input/cuddleGesture';
 import type { GestureEvent } from '../input/cuddleGesture';
@@ -41,7 +54,27 @@ import { flushCloudHopScore } from '../minigames/cloudHop/scores';
 import { flushStayTime } from '../minigames/stay/scores';
 import { PantryScreen } from './PantryScreen';
 import { PetShopScreen } from './PetShopScreen';
+import { TreasureChestScreen } from './TreasureChestScreen';
 import { placeFlavors, placeIcons, speciesLabel } from '../ui/actionIcons';
+import { ParkFindPrompt } from '../ui/ParkFindPrompt';
+import { ParkFindModal } from '../ui/ParkFindModal';
+import {
+  applyReveal,
+  clearPendingModal,
+  isParkFindsUnlocked,
+  markCollectionSeen,
+  parkFindById,
+  resetCollection,
+  emitParkFindFound,
+} from '../parkFinds';
+import {
+  chestIntroShown,
+  chestTooltipDone,
+  setChestIntroShown,
+  setChestTooltipDone,
+  resetChestIntroFlags,
+} from '../parkFinds/playerFlags';
+import { setParkFindDebug } from '../parkFinds/visit';
 import { CandyShell, candyInk, tints } from '../ui/candy';
 import { BoopsPayout } from '../components/currency/BoopsPayout';
 import { acceptStageOrigin } from '../components/currency/windowSample';
@@ -64,7 +97,16 @@ import { trackName } from '../sim/tracks';
 import { failBand, trickListing } from '../sim/tricks';
 import type { TrickPropType } from '../sim/trickProps';
 import { currentOwner } from '../db/currentOwner';
-import { consumeBedStorageTip, furnitureOf, layoutOf, trickPropsOf } from '../db/playerHome';
+import {
+  consumeBedStorageTip,
+  ensureTreasureChest,
+  furnitureOf,
+  layoutOf,
+  trickPropsOf,
+  stowOwnedPiece,
+  treasureChestIntroSpot,
+  treasureChestPlacement,
+} from '../db/playerHome';
 import { ghostDelayMs, ghostEligible, startCuddleSession } from '../cuddle/guidance';
 import { HomeActionPanel } from '../ui/HomeActionPanel';
 import { ToyCard } from '../ui/ToyCard';
@@ -120,7 +162,7 @@ import type { PointPop } from '../ui/AttributePops';
 import { careConfig } from '../sim/careConfig';
 import { formatRest, isResting, restRemainingMs, treatProgressPreview } from '../sim/training';
 import { BadgeCelebration } from '../ui/BadgeCelebration';
-import { ChevronRight, Cookie, Droplet, HandHeart, Moon, Settings, Sparkles } from 'lucide-react-native';
+import { Archive, ChevronRight, Cookie, Droplet, HandHeart, Moon, Settings, Sparkles } from 'lucide-react-native';
 import { playBadgeChime } from '../audio/badge';
 import { GREET } from '../actor/greetings';
 import { PetView } from '../ui/PetView';
@@ -168,7 +210,8 @@ function placedInScene(
 
 // Pieces are anchored where they meet the floor. The drawing sits above that point.
 function markerPoint(pieceKind: string | undefined, spot: { x: number; y: number }) {
-  const lift = pieceKind === 'bed' ? 18 : pieceKind === 'bowl' ? 12 : 0;
+  const lift =
+    pieceKind === 'bed' ? 18 : pieceKind === 'bowl' ? 12 : pieceKind === 'treasureChest' ? 70 : 0;
   return { x: spot.x, y: spot.y - lift };
 }
 
@@ -526,6 +569,17 @@ export default function HomeScreen({ petApi }: Props) {
   const [storageOpen, setStorageOpen] = useState(false);
   const [storageItems, setStorageItems] = useState<StorageChoice[]>([]);
   const [storageEmpty, setStorageEmpty] = useState('Nothing in storage.');
+  const [collectionOpen, setCollectionOpen] = useState(false);
+  const [parkPrompt, setParkPrompt] = useState(false);
+  const [findModal, setFindModal] = useState<{
+    itemId: string;
+    isNew: boolean;
+    count: number;
+  } | null>(null);
+  const [chestIntroOpen, setChestIntroOpen] = useState(false);
+  const [chestTip, setChestTip] = useState(false);
+  const [chestTipTarget, setChestTipTarget] = useState<{ x: number; y: number } | null>(null);
+  const parkBooted = useRef<string | null>(null);
   const [bowlNotice, setBowlNotice] = useState<string | null>(null);
   const [holdTarget, setHoldTarget] = useState<{ id: string; prop: boolean; warning: string | null } | null>(null);
   const [holdConfirm, setHoldConfirm] = useState(false);
@@ -758,6 +812,67 @@ export default function HomeScreen({ petApi }: Props) {
     setSilentHintSeen(true);
     void saveHasSeenSilentModeHint();
   }, []);
+
+  // Boot / clear park-find visit when entering or leaving the park.
+  useEffect(() => {
+    if (!state || !isParkFindsUnlocked(state)) {
+      return;
+    }
+    const speciesNow = breedById(state.breedId)?.species === 'cat' ? 'cat' : 'dog';
+    if (state.sceneId === 'park') {
+      const key = `${state.id}:park`;
+      if (parkBooted.current !== key) {
+        parkBooted.current = key;
+        const timer = setTimeout(() => {
+          stageHandle.current?.parkFindBootVisit(speciesNow, !state.parkFinds.firstFindVisitDone);
+        }, 400);
+        return () => clearTimeout(timer);
+      }
+    } else if (parkBooted.current) {
+      parkBooted.current = null;
+      stageHandle.current?.parkFindClearVisit();
+      setParkPrompt(false);
+    }
+  }, [state]);
+
+  // Deferred find modal on the park exit destination.
+  useEffect(() => {
+    if (!state?.parkFinds.pendingRevealModal || findModal) {
+      return;
+    }
+    if (state.sceneId === 'park') {
+      return;
+    }
+    const pending = state.parkFinds.pendingRevealModal;
+    const rec = state.parkFinds.items.find((row) => row.itemId === pending.itemId);
+    const timer = setTimeout(() => {
+      setFindModal({
+        itemId: pending.itemId,
+        isNew: pending.isNew,
+        count: rec?.count ?? 1,
+      });
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [findModal, state]);
+
+  // Chest intro the first time home after a find.
+  useEffect(() => {
+    if (!state || findModal || chestIntroOpen || collectionOpen) {
+      return;
+    }
+    const sceneDef = sceneById(state.sceneId);
+    if (!sceneDef.playerOwned) {
+      return;
+    }
+    if (state.parkFinds.items.length < 1 || chestIntroShown()) {
+      return;
+    }
+    if (treasureChestPlacement(currentOwner(), breedById(state.breedId)?.species === 'cat' ? 'cat' : 'dog')) {
+      return;
+    }
+    const timer = setTimeout(() => setChestIntroOpen(true), 1200);
+    return () => clearTimeout(timer);
+  }, [chestIntroOpen, collectionOpen, findModal, state]);
 
   const toggleSound = useCallback(() => {
     offerSilentHint();
@@ -1047,6 +1162,13 @@ export default function HomeScreen({ petApi }: Props) {
         return;
       }
       tipsRef.current.dismiss();
+      stageHandle.current?.parkFindNoteInput();
+      setParkPrompt(false);
+      if (chestTip) {
+        setChestTip(false);
+        setChestTipTarget(null);
+        setChestTooltipDone(true);
+      }
       if (holdTargetRef.current) {
         closeHold();
         return;
@@ -1070,11 +1192,16 @@ export default function HomeScreen({ petApi }: Props) {
         stageHandle.current.steerHeld(point.x, point.y, false);
         return;
       }
-      if (!pieceAt(x, y)) {
+      const tapped = pieceAt(x, y);
+      if (tapped === TREASURE_CHEST_ID) {
+        setCollectionOpen(true);
+        return;
+      }
+      if (!tapped) {
         dropRef.current(x, y);
       }
     },
-    [closeHold, contentWidth, pieceAt, logicalH, viewHeight, viewWidth],
+    [chestTip, closeHold, contentWidth, pieceAt, logicalH, viewHeight, viewWidth],
   );
   const onHoldStart = useCallback(
     (x: number, y: number) => {
@@ -1594,6 +1721,23 @@ export default function HomeScreen({ petApi }: Props) {
     </FindFriendsHost>
   );
 
+  useLayoutEffect(() => {
+    closePickerRef.current = () => {
+      if (!storageOpen && !playOpen && !propOpen && !feedOpen && !treatOpen && bowlNotice == null) {
+        return false;
+      }
+      setStorageOpen(false);
+      setPlayOpen(false);
+      setPropOpen(false);
+      setFeedOpen(false);
+      setFeedNote(null);
+      setTreatOpen(false);
+      setTreatNote(null);
+      setBowlNotice(null);
+      return true;
+    };
+  }, [bowlNotice, feedOpen, playOpen, propOpen, storageOpen, treatOpen]);
+
   const propTypeOf = (value: string): TrickPropType | null =>
     value === 'podium' || value === 'tunnel' || value === 'hurdle' || value === 'cones' || value === 'hoop' ? value : null;
   const playCatalog = useCallback(
@@ -1799,6 +1943,26 @@ export default function HomeScreen({ petApi }: Props) {
         onClose={() => setWardrobeOpen(false)}
         onOpenStore={() => setShopOpen(true)}
       />
+    );
+  }
+
+  if (collectionOpen) {
+    const chestSpecies = breedById(state.breedId)?.species === 'cat' ? 'cat' : 'dog';
+    return hosted(
+      <TreasureChestScreen
+        key={state.id}
+        petId={state.id}
+        petName={state.name}
+        species={chestSpecies}
+        adoptedAt={state.bornAt}
+        parkFinds={state.parkFinds}
+        reducedMotion={reducedMotion}
+        onClose={() => setCollectionOpen(false)}
+        onMarkSeen={() => {
+          if (!state.parkFinds.items.some((row) => !row.seen)) return;
+          commitPet({ ...state, parkFinds: markCollectionSeen(state.parkFinds) });
+        }}
+      />,
     );
   }
 
@@ -2178,6 +2342,19 @@ export default function HomeScreen({ petApi }: Props) {
         setStorageOpen(true);
       },
     },
+    ...(isParkFindsUnlocked(state)
+      ? [
+          {
+            id: 'collection',
+            label: 'Collection',
+            onPress: () => {
+              tips.dismiss();
+              stageHandle.current?.parkFindNoteInput();
+              setCollectionOpen(true);
+            },
+          },
+        ]
+      : []),
     {
       id: soundOn ? 'sound' : 'soundOff',
       label: 'Sounds',
@@ -2210,6 +2387,15 @@ export default function HomeScreen({ petApi }: Props) {
           : tips.current === 'tip.move' && propTip
             ? { flavor: 'style' as const, icon: Sparkles, text: 'Hold to move or store', bold: 'Hold', target: propTip }
             : null;
+
+  const chestPlacement = home.placements.find(
+    (place) => place.pieceId === TREASURE_CHEST_ID && place.sceneId === state.sceneId,
+  );
+  const chestTipAnchor = chestTip
+    ? chestPlacement
+      ? stageToView(markerPoint('treasureChest', chestPlacement))
+      : chestTipTarget
+    : null;
 
   const sheetTop = split ? 0 : previewBottom;
   const trickTitle = (trackId: string) => trackName(trackId, species);
@@ -2909,24 +3095,25 @@ export default function HomeScreen({ petApi }: Props) {
             void grantDevItem(state.ownerId, species, state.equipped, id);
           }}
           onGrantBoops={() => grantDevBoops(10_000)}
+          onParkFindForce={(variant) => {
+            const speciesNow = breedById(state.breedId)?.species === 'cat' ? 'cat' : 'dog';
+            setParkFindDebug({ forceNotice: variant });
+            stageHandle.current?.parkFindForceNotice(speciesNow, variant);
+          }}
+          onParkFindResetCollection={() => {
+            commitPet({ ...state, parkFinds: resetCollection(state.parkFinds) });
+          }}
+          onParkFindResetChest={() => {
+            resetChestIntroFlags();
+            const speciesNow = breedById(state.breedId)?.species === 'cat' ? 'cat' : 'dog';
+            stowOwnedPiece(currentOwner(), speciesNow, TREASURE_CHEST_ID);
+            stageHandle.current?.stowFurniture(TREASURE_CHEST_ID);
+            setChestIntroOpen(false);
+            setChestTip(false);
+          }}
         />
     </ScrollView>
   );
-
-  closePickerRef.current = () => {
-    if (!storageOpen && !playOpen && !propOpen && !feedOpen && !treatOpen && bowlNotice == null) {
-      return false;
-    }
-    setStorageOpen(false);
-    setPlayOpen(false);
-    setPropOpen(false);
-    setFeedOpen(false);
-    setFeedNote(null);
-    setTreatOpen(false);
-    setTreatNote(null);
-    setBowlNotice(null);
-    return true;
-  };
 
   const homeIdle =
     stageReady &&
@@ -3105,6 +3292,33 @@ export default function HomeScreen({ petApi }: Props) {
               parkVisitors
               parkOffers={parkOffers}
               parkStranger={parkStranger}
+              onParkFindUi={(signal) => {
+                setParkPrompt(signal.prompting);
+                if (signal.revealed) {
+                  const foundAt = Date.now();
+                  const { next, isNew } = applyReveal(state.parkFinds, signal.revealed.itemId, foundAt);
+                  emitParkFindFound({
+                    petId: state.id,
+                    itemId: signal.revealed.itemId,
+                    rarity: signal.revealed.rarity as 'common' | 'uncommon' | 'rare' | 'legendary',
+                    isNew,
+                    foundAt,
+                  });
+                  commitPet({ ...state, parkFinds: next });
+                }
+                if (signal.modalItemId) {
+                  const rec = (state.parkFinds.items.find((row) => row.itemId === signal.modalItemId) ??
+                    applyReveal(state.parkFinds, signal.modalItemId, Date.now()).next.items.find(
+                      (row) => row.itemId === signal.modalItemId,
+                    ))!;
+                  setFindModal({
+                    itemId: signal.modalItemId,
+                    isNew: rec?.count === 1,
+                    count: rec?.count ?? 1,
+                  });
+                  stageHandle.current?.parkFindTakeModal();
+                }
+              }}
               onPointAdds={(adds) => {
                 const shown: PointAdd[] = [];
                 for (const gain of adds) {
@@ -3139,6 +3353,17 @@ export default function HomeScreen({ petApi }: Props) {
                 text={tipBubble.text}
                 boldWord={tipBubble.bold}
                 target={tipBubble.target}
+                bounds={{ width: viewWidth, height: viewHeight }}
+                reducedMotion={reducedMotion}
+              />
+            ) : null}
+            {chestTip && chestTipAnchor ? (
+              <CandyTooltip
+                flavor="style"
+                icon={Archive}
+                text="Tap the treasure chest to view your collection."
+                boldWord="treasure chest"
+                target={chestTipAnchor}
                 bounds={{ width: viewWidth, height: viewHeight }}
                 reducedMotion={reducedMotion}
               />
@@ -3238,6 +3463,70 @@ export default function HomeScreen({ petApi }: Props) {
             },
           }}
           secondary={{ label: 'Cancel', onPress: () => setBedSwap(null) }}
+        />
+      ) : null}
+      {parkPrompt ? (
+        <ParkFindPrompt
+          petName={state.name}
+          reducedMotion={reducedMotion}
+          onLetsSee={() => {
+            const speciesNow = breedById(state.breedId)?.species === 'cat' ? 'cat' : 'dog';
+            stageHandle.current?.parkFindAccept(speciesNow);
+            setParkPrompt(false);
+          }}
+        />
+      ) : null}
+      {findModal
+        ? (() => {
+            const item = parkFindById(findModal.itemId);
+            if (!item) return null;
+            return (
+              <ParkFindModal
+                petName={state.name}
+                item={item}
+                isNew={findModal.isNew}
+                count={findModal.count}
+                reducedMotion={reducedMotion}
+                onAdd={() => {
+                  setFindModal(null);
+                  commitPet({
+                    ...state,
+                    parkFinds: clearPendingModal(state.parkFinds),
+                  });
+                }}
+              />
+            );
+          })()
+        : null}
+      {chestIntroOpen ? (
+        <FunModal
+          title="Treasure Chest"
+          body="Your collection is stored in your Treasure Chest"
+          icon={Archive}
+          tint="orchid"
+          reducedMotion={reducedMotion}
+          primary={{
+            label: 'Place treasure chest',
+            onPress: () => {
+              const speciesNow = breedById(state.breedId)?.species === 'cat' ? 'cat' : 'dog';
+              const spot = treasureChestIntroSpot(state.sceneId);
+              const piece = ensureTreasureChest(currentOwner(), speciesNow, {
+                sceneId: state.sceneId,
+                x: spot.x,
+                y: spot.y,
+              });
+              stageHandle.current?.showStoredFurniture(piece);
+              stageHandle.current?.moveFurniture(TREASURE_CHEST_ID, spot.x, spot.y);
+              moveFurniture(TREASURE_CHEST_ID, state.sceneId, spot.x, spot.y);
+              setChestIntroShown(true);
+              setChestIntroOpen(false);
+              if (!chestTooltipDone()) {
+                // CandyTooltip wants view coords; spot is stage space.
+                setChestTipTarget(stageToView(markerPoint('treasureChest', spot)));
+                setChestTip(true);
+              }
+            },
+          }}
         />
       ) : null}
       {burst && stageReady ? (

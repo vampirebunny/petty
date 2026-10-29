@@ -25,6 +25,7 @@ import {
   Bed,
   TreePine,
   Cat,
+  Gift,
 } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
 
@@ -54,6 +55,7 @@ export const actionIcons: Record<string, LucideIcon> = {
   treat: Cookie,
   inventory: Backpack,
   storage: Archive,
+  collection: Gift,
   walk: Footprints,
 };
 

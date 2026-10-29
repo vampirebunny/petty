@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 120 150" width="120" height="150"><defs><radialGradient xmlns="http://www.w3.org/2000/svg" id="sGlassG" cx="0.42" cy="0.35" r="0.8"><stop offset="0" stop-color="#E6FFF8" stop-opacity="0.95" /><stop offset="0.5" stop-color="#8FE0CF" stop-opacity="0.85" /><stop offset="1" stop-color="#3E9E8C" stop-opacity="0.9" /></radialGradient>
+      <clipPath xmlns="http://www.w3.org/2000/svg" id="sGlassClip"><path d="M34 84 C30 66 50 56 70 60 C90 64 96 80 90 98 C84 116 60 120 46 112 C36 106 36 96 34 84 Z" /></clipPath>
+      <g xmlns="http://www.w3.org/2000/svg" id="sGlass">
+        <path d="M34 84 C30 66 50 56 70 60 C90 64 96 80 90 98 C84 116 60 120 46 112 C36 106 36 96 34 84 Z" fill="url(#sGlassG)" />
+        <g clip-path="url(#sGlassClip)">
+          <circle cx="48" cy="76" r="1.2" fill="#FFFFFF" opacity="0.5" /><circle cx="66" cy="70" r="1" fill="#FFFFFF" opacity="0.5" /><circle cx="78" cy="90" r="1.3" fill="#FFFFFF" opacity="0.45" /><circle cx="56" cy="100" r="1.1" fill="#FFFFFF" opacity="0.45" /><circle cx="70" cy="104" r="0.9" fill="#FFFFFF" opacity="0.45" /><circle cx="42" cy="92" r="1" fill="#FFFFFF" opacity="0.45" />
+          <ellipse cx="62" cy="88" rx="18" ry="12" fill="#FFFFFF" opacity="0.18" />
+          <path d="M38 100 Q60 124 88 100" stroke="#FFF8DA" stroke-width="5" fill="none" opacity="0.6" />
+        </g>
+        <ellipse cx="50" cy="70" rx="9" ry="4" fill="#FFFFFF" opacity="0.55" transform="rotate(-20 50 70)" />
+      </g>
+
+      </defs><use xlink:href="#sGlass"/></svg>

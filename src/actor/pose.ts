@@ -52,6 +52,8 @@ export const poseRate: Record<keyof Pose, number> = {
   stand: 4,
   swim: 8,
   xEyes: 14,
+  dig: 14,
+  swat: 14,
 };
 
 export function defaultPose(): Pose {
@@ -107,6 +109,8 @@ export function defaultPose(): Pose {
     stand: 0,
     swim: 0,
     xEyes: 0,
+    dig: 0,
+    swat: 0,
   };
 }
 

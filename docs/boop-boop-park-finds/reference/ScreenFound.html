@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Find modal</title>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#B0457A}a:hover{color:#8A2F5E}
+.fd-float{transform-box:fill-box;transform-origin:50% 50%;animation:fdFloat 3.2s ease-in-out infinite}
+@keyframes fdFloat{0%,100%{transform:translateY(0) rotate(-1.5deg)}50%{transform:translateY(-6px) rotate(1.5deg)}}
+@media (prefers-reduced-motion: reduce){.fd-float{animation:none}}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; overflow: hidden; font-family: 'Fredoka', system-ui, sans-serif; color: #4A2F4F; background: #E2F3F8">
+  <svg style="position: absolute; left: 0; top: 0" width="390" height="844" viewBox="0 0 390 844" aria-hidden="true">
+    <defs>
+      <linearGradient id="sfSky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#A9D8F0"></stop><stop offset="1" stop-color="#E2F3F8"></stop></linearGradient>
+    </defs>
+    <rect x="0" y="0" width="390" height="844" fill="url(#sfSky)"></rect>
+    <ellipse cx="80" cy="330" rx="170" ry="40" fill="#9CCF91"></ellipse>
+    <ellipse cx="320" cy="334" rx="180" ry="46" fill="#8BC482"></ellipse>
+    <rect x="0" y="330" width="390" height="514" fill="#7DBB66"></rect>
+    <ellipse cx="230" cy="560" rx="22" ry="6" fill="#4A2E16"></ellipse>
+    <path d="M200 560 Q206 546 222 546 Q238 546 244 560 Z" fill="#8A5A2B" transform="translate(-60 0)"></path>
+  </svg>
+  <div style="position: absolute; inset: 0; background: rgba(40,20,50,0.45)"></div>
+
+  <div style="position: absolute; left: 24px; right: 24px; top: 170px; background: #FFF4F8; border-radius: 32px; box-shadow: 0 8px 0 #F2C6D8, 0 20px 40px rgba(40,20,50,0.35); padding: 28px 22px 24px 22px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center">
+    <div style="font-size: 26px; font-weight: 700; line-height: 1.15">Biscuit found a<br>Golden acorn!</div>
+
+    <div style="position: relative; width: 200px; height: 200px; border-radius: 50%; background: radial-gradient(circle at 50% 55%, #FFF6D6 0%, #FFE7A3 45%, rgba(255,231,163,0) 72%); display: flex; align-items: center; justify-content: center">
+      <svg width="150" height="180" viewBox="0 0 120 150" role="img" aria-label="Golden acorn">
+        <defs>
+          <radialGradient id="sfGoldHalo" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#FFD36E" stop-opacity="0.45"></stop><stop offset="1" stop-color="#FFD36E" stop-opacity="0"></stop></radialGradient>
+          <radialGradient id="agBody" cx="0.36" cy="0.3" r="0.8"><stop offset="0" stop-color="#FFF6C8"></stop><stop offset="0.45" stop-color="#F5C242"></stop><stop offset="0.85" stop-color="#C98A1C"></stop><stop offset="1" stop-color="#8E5C0C"></stop></radialGradient>
+          <radialGradient id="agCap" cx="0.36" cy="0.28" r="0.85"><stop offset="0" stop-color="#F2CF6A"></stop><stop offset="0.55" stop-color="#B97A12"></stop><stop offset="1" stop-color="#6E4606"></stop></radialGradient>
+          <radialGradient id="agCapShade" cx="0.4" cy="0.35" r="0.65"><stop offset="0.55" stop-color="#2E1B0C" stop-opacity="0"></stop><stop offset="1" stop-color="#2E1B0C" stop-opacity="0.35"></stop></radialGradient>
+          <linearGradient id="agRim" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#D99A22"></stop><stop offset="1" stop-color="#7A4E08"></stop></linearGradient>
+          <linearGradient id="agUnder" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFF0C8" stop-opacity="0"></stop><stop offset="1" stop-color="#FFF0C8" stop-opacity="0.6"></stop></linearGradient>
+          <pattern id="agScale" width="8" height="12" patternUnits="userSpaceOnUse">
+            <ellipse cx="4" cy="3" rx="3.7" ry="2.8" fill="#C08A22"></ellipse><ellipse cx="3.3" cy="2.1" rx="1.9" ry="0.9" fill="#FFE7A3" opacity="0.9"></ellipse>
+            <ellipse cx="0" cy="9" rx="3.7" ry="2.8" fill="#C08A22"></ellipse><ellipse cx="-0.7" cy="8.1" rx="1.9" ry="0.9" fill="#FFE7A3" opacity="0.9"></ellipse>
+            <ellipse cx="8" cy="9" rx="3.7" ry="2.8" fill="#C08A22"></ellipse><ellipse cx="7.3" cy="8.1" rx="1.9" ry="0.9" fill="#FFE7A3" opacity="0.9"></ellipse>
+          </pattern>
+          <path id="sfBodyPath" d="M60 140 C52 136 34 118 33 92 C32 72 42 60 60 60 C78 60 88 72 87 92 C86 118 68 136 60 140 Z"></path>
+          <path id="sfCapPath" d="M25 68 C23 42 39 27 60 27 C81 27 97 42 95 68 C95 75 25 75 25 68 Z"></path>
+          <clipPath id="sfBodyClip"><use href="#sfBodyPath"></use></clipPath>
+          <clipPath id="sfCapClip"><use href="#sfCapPath"></use></clipPath>
+        </defs>
+        <g class="fd-float">
+          <path d="M57 139 L59 147 Q60 149 61 147 L63 139 Z" fill="#9A6A0E"></path>
+          <use href="#sfBodyPath" fill="url(#agBody)"></use>
+          <g clip-path="url(#sfBodyClip)"><ellipse cx="60" cy="68" rx="32" ry="10" fill="#7A4E08" opacity="0.4"></ellipse><rect x="20" y="90" width="80" height="55" fill="url(#agUnder)"></rect></g>
+          <ellipse cx="46" cy="88" rx="5" ry="14" fill="#FFFFFF" opacity="0.6" transform="rotate(12 46 88)"></ellipse>
+          <path d="M57 30 C56 19 61 11 69 8 C72 7 73 11 70 13 C65 16 63 22 64 30 Z" fill="#9A6A0E"></path>
+          <use href="#sfCapPath" fill="url(#agCap)"></use>
+          <g clip-path="url(#sfCapClip)"><rect x="20" y="25" width="80" height="50" fill="url(#agScale)" opacity="0.9"></rect></g>
+          <use href="#sfCapPath" fill="url(#agCapShade)"></use>
+          <ellipse cx="46" cy="42" rx="9" ry="4" fill="#FFFFFF" opacity="0.4" transform="rotate(-22 46 42)"></ellipse>
+          <ellipse cx="60" cy="70" rx="35" ry="6.5" fill="url(#agRim)"></ellipse>
+          <path d="M27 71 Q60 79 93 71" stroke="#FFE7A3" stroke-width="2" fill="none" opacity="0.85" stroke-linecap="round"></path>
+        </g>
+      </svg>
+      <div style="position: absolute; top: 14px; right: 6px; background: #D6336C; color: #FFFFFF; font-size: 13px; font-weight: 700; border-radius: 999px; padding: 3px 10px">New!</div>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 8px">
+      <div style="background: linear-gradient(180deg, #FFE7A3 0%, #F5C242 100%); color: #5A3A06; font-size: 14px; font-weight: 700; border-radius: 999px; padding: 4px 14px; box-shadow: inset 0 2px 0 rgba(255,255,255,0.6)">Legendary</div>
+      <div style="font-size: 14px; font-weight: 500; color: #7A4E6E">Found in fall</div>
+    </div>
+
+    <button style="margin-top: 8px; width: 100%; height: 56px; border: none; border-radius: 22px; background: linear-gradient(180deg, #FFC9DD 0%, #FF9EC2 100%); box-shadow: inset 0 3px 0 rgba(255,255,255,0.6), 0 5px 0 #E27FA6; font-family: 'Fredoka', system-ui, sans-serif; font-size: 19px; font-weight: 700; color: #6B2347; cursor: pointer">Add to collection</button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

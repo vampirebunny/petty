@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 120 150" width="120" height="150"><defs><radialGradient xmlns="http://www.w3.org/2000/svg" id="aBrassG" cx="0.36" cy="0.3" r="0.8"><stop offset="0" stop-color="#F8DC98" /><stop offset="0.5" stop-color="#C9963E" /><stop offset="1" stop-color="#76531B" /></radialGradient>
+      <g xmlns="http://www.w3.org/2000/svg" id="aCompass">
+        <circle cx="60" cy="49" r="6" fill="none" stroke="url(#aBrassG)" stroke-width="3.5" />
+        <rect x="56" y="53" width="8" height="6" rx="2" fill="url(#aBrassG)" />
+        <circle cx="60" cy="90" r="32" fill="url(#aBrassG)" />
+        <circle cx="60" cy="90" r="25" fill="#FFF8E8" stroke="#9A6E2A" stroke-width="2" />
+        <path d="M60 67 L60 72 M60 108 L60 113 M37 90 L42 90 M78 90 L83 90" stroke="#9A6E2A" stroke-width="2" stroke-linecap="round" />
+        <path d="M60 70 L65 90 L55 90 Z" fill="#E5533D" />
+        <path d="M60 110 L65 90 L55 90 Z" fill="#3A4F7A" />
+        <circle cx="60" cy="90" r="2.8" fill="url(#aBrassG)" />
+        <ellipse cx="51" cy="80" rx="12" ry="6" fill="#FFFFFF" opacity="0.45" transform="rotate(-35 51 80)" />
+        <ellipse cx="44" cy="70" rx="5" ry="2.6" fill="#FFFFFF" opacity="0.5" transform="rotate(-40 44 70)" />
+        <path d="M32 106 Q60 132 88 106" stroke="#FFF2D2" stroke-width="2.8" fill="none" opacity="0.65" />
+      </g>
+
+      </defs><use xlink:href="#aCompass"/></svg>

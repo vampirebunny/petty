@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 120 150" width="120" height="150"><defs><linearGradient xmlns="http://www.w3.org/2000/svg" id="dBark" gradientUnits="userSpaceOnUse" x1="53" y1="80" x2="67" y2="94"><stop offset="0" stop-color="#D9A06B" /><stop offset="0.45" stop-color="#A46C3A" /><stop offset="1" stop-color="#6A4120" /></linearGradient>
+      <radialGradient xmlns="http://www.w3.org/2000/svg" id="dLeaf" cx="0.4" cy="0.3" r="0.8"><stop offset="0" stop-color="#C8F0A0" /><stop offset="0.5" stop-color="#72BA4C" /><stop offset="1" stop-color="#3F7F2A" /></radialGradient>
+      <g xmlns="http://www.w3.org/2000/svg" id="dStick">
+        <path d="M58 88 Q50 72 46 60" stroke="url(#dBark)" stroke-width="8" stroke-linecap="round" fill="none" />
+        <path d="M46 60 C34 54 32 42 38 34 C50 38 54 50 46 60 Z" fill="url(#dLeaf)" />
+        <path d="M46 59 C42 50 40 44 39 37" stroke="#D8F5BE" stroke-width="1.2" fill="none" opacity="0.7" />
+        <path d="M24 124 L96 48" stroke="url(#dBark)" stroke-width="15" stroke-linecap="round" />
+        <path d="M21 120 L92 45" stroke="#F2C894" stroke-width="2" opacity="0.5" stroke-linecap="round" />
+        <path d="M28 128 L100 52" stroke="#FFE7B8" stroke-width="2.4" opacity="0.6" stroke-linecap="round" />
+        <path d="M40 104 L48 96 M66 78 L73 71 M80 66 L85 61 M32 116 L36 112" stroke="#5A3618" stroke-width="1.6" opacity="0.6" stroke-linecap="round" />
+        <ellipse cx="96" cy="48" rx="7.5" ry="6.5" fill="#EBC593" stroke="#9A6534" stroke-width="1.5" transform="rotate(-45 96 48)" />
+        <ellipse cx="96" cy="48" rx="3.8" ry="3" fill="none" stroke="#C48C55" stroke-width="1.2" transform="rotate(-45 96 48)" />
+      </g>
+
+      </defs><use xlink:href="#dStick"/></svg>

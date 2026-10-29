@@ -155,6 +155,8 @@ export type PetState = {
   lastGreetingId?: string;
   // Toy equipped from the Toy Box. Missing means the ball. Stays until another toy is picked.
   activeToyId?: string;
+  // Park finds collection. Retiring the pet deletes these with the pet row.
+  parkFinds: import('../parkFinds/types').PetParkFindsState;
   // Set when the pet is retired. The sim never loads a pet that has this.
   retiredAt?: number;
 };

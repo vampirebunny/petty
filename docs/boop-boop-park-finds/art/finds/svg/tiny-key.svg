@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 120 150" width="120" height="150"><defs><linearGradient xmlns="http://www.w3.org/2000/svg" id="kGold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFF0B0" /><stop offset="0.5" stop-color="#F5C242" /><stop offset="1" stop-color="#B5780E" /></linearGradient>
+      <radialGradient xmlns="http://www.w3.org/2000/svg" id="kGoldR" cx="0.35" cy="0.3" r="0.8"><stop offset="0" stop-color="#FFF4C2" /><stop offset="0.5" stop-color="#F5C242" /><stop offset="1" stop-color="#A86E0E" /></radialGradient>
+
+      <g xmlns="http://www.w3.org/2000/svg" id="aKey">
+        <g transform="rotate(-35 60 88)">
+          <circle cx="34" cy="88" r="15" fill="none" stroke="url(#kGold)" stroke-width="7" />
+          <path d="M34 95 C28 91 27 87 29 84.5 C31 82.5 33.5 83.5 34 85.5 C34.5 83.5 37 82.5 39 84.5 C41 87 40 91 34 95 Z" fill="url(#kGoldR)" />
+          <rect x="47" y="84" width="57" height="8" rx="4" fill="url(#kGold)" />
+          <rect x="49" y="81" width="6" height="14" rx="2.5" fill="url(#kGoldR)" />
+          <path d="M88 91 L88 106 L94 106 L94 99 L98 99 L98 106 L104 106 L104 91 Z" fill="url(#kGold)" />
+          <path d="M56 85.5 L102 85.5 M24 78 Q30 72 38 73" stroke="#FFF6D0" stroke-width="1.6" fill="none" opacity="0.8" stroke-linecap="round" />
+          <path d="M22 98 Q34 108 46 98 M88 106 L104 106" stroke="#FFF2D2" stroke-width="2" fill="none" opacity="0.7" />
+        </g>
+      </g>
+
+      </defs><use xlink:href="#aKey"/></svg>
