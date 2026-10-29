@@ -1621,16 +1621,49 @@ export default function HomeScreen({ petApi }: Props) {
     read();
   }, []);
 
-  const [knownUnlockKey, setKnownUnlockKey] = useState<string | null>(null);
-  const [unlocking, setUnlocking] = useState<string | null>(null);
+  const [knownLearnedKey, setKnownLearnedKey] = useState<string | null>(null);
+  const [learnedTrick, setLearnedTrick] = useState<string | null>(null);
   useEffect(() => {
-    if (badgeShow || unlocking || badgeQueue.length === 0) {
+    if (badgeShow || learnedTrick || badgeQueue.length === 0) {
       return;
     }
     setBadgeShow(badgeQueue[0]);
     setBadgeQueue((queue) => queue.slice(1));
-  }, [badgeQueue, badgeShow, unlocking]);
-  const [unlockQueue, setUnlockQueue] = useState<string[]>([]);
+  }, [badgeQueue, badgeShow, learnedTrick]);
+  const [learnedQueue, setLearnedQueue] = useState<string[]>([]);
+  const learnedKey = state
+    ? Object.values(state.training)
+        .filter((track) => track.mastered)
+        .map((track) => track.id)
+        .sort()
+        .join(',')
+    : '';
+  if (state && knownLearnedKey !== learnedKey) {
+    const previous = knownLearnedKey;
+    setKnownLearnedKey(learnedKey);
+    if (previous != null) {
+      const prevIds = previous ? previous.split(',') : [];
+      const fresh = learnedKey.split(',').filter((id) => id && !prevIds.includes(id));
+      if (fresh.length > 0) {
+        setLearnedQueue((queue) => [...queue, ...fresh]);
+      }
+    }
+  }
+  if (state && !learnedTrick && learnedQueue.length > 0) {
+    setLearnedTrick(learnedQueue[0]);
+    setLearnedQueue((queue) => queue.slice(1));
+  }
+  useEffect(() => {
+    if (!learnedTrick) {
+      return;
+    }
+    playBadgeChime();
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }, [learnedTrick]);
+  const finishLearned = useCallback(() => setLearnedTrick(null), []);
+  const finishBadge = useCallback(() => setBadgeShow(null), []);
+  const [knownUnlockKey, setKnownUnlockKey] = useState<string | null>(null);
+  const [freshUnlockId, setFreshUnlockId] = useState<string | null>(null);
   const openTrickKey = state
     ? Object.values(state.training)
         .filter((track) => track.unlocked)
@@ -1645,23 +1678,10 @@ export default function HomeScreen({ petApi }: Props) {
       const prevIds = previous ? previous.split(',') : [];
       const fresh = openTrickKey.split(',').filter((id) => id && !prevIds.includes(id));
       if (fresh.length > 0) {
-        setUnlockQueue((queue) => [...queue, ...fresh]);
+        setFreshUnlockId(fresh[0]);
       }
     }
   }
-  if (state && !unlocking && unlockQueue.length > 0) {
-    setUnlocking(unlockQueue[0]);
-    setUnlockQueue((queue) => queue.slice(1));
-  }
-  useEffect(() => {
-    if (!unlocking) {
-      return;
-    }
-    playBadgeChime();
-    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-  }, [unlocking]);
-  const finishUnlock = useCallback(() => setUnlocking(null), []);
-  const finishBadge = useCallback(() => setBadgeShow(null), []);
 
   const preset = sceneById(state?.sceneId ?? 'livingroom');
   const scene = preset;
@@ -1788,13 +1808,13 @@ export default function HomeScreen({ petApi }: Props) {
   const hosted = (screen: ReactNode) => (
     <FindFriendsHost accountHandle={accountHandle} onChanged={() => setFriendTick((value) => value + 1)}>
       {screen}
-      {unlocking ? (
+      {learnedTrick ? (
         <BadgeCelebration
-          title={trackName(unlocking, species)}
-          caption="New trick learned!"
+          title={trackName(learnedTrick, species)}
+          caption="New skill learned!"
           Icon={PawPrint}
           reducedMotion={reducedMotion}
-          onDone={finishUnlock}
+          onDone={finishLearned}
         />
       ) : badgeShow ? (
         <BadgeCelebration
@@ -2336,6 +2356,9 @@ export default function HomeScreen({ petApi }: Props) {
   const practice = (trackId: string) => {
     if (trickTip?.id === trackId) {
       setTrickTip(null);
+    }
+    if (freshUnlockId === trackId) {
+      setFreshUnlockId(null);
     }
     const resting = state.training[trackId];
     if (resting && !resting.mastered && isResting(resting, clockRef.current)) {
@@ -3142,7 +3165,7 @@ export default function HomeScreen({ petApi }: Props) {
           pet={state}
           species={species}
           onPractice={practice}
-          highlightId={trickTip?.id ?? unlocking}
+          highlightId={trickTip?.id ?? freshUnlockId}
           reducedMotion={reducedMotion}
           now={clock}
           disabled={dialogLive || biteWaiting}

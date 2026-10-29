@@ -85,7 +85,7 @@ No XP from mini-games, practice races, repeat park finds or time passing. After 
 
 ## 2. Badges
 
-Badges are achievements, separate from ribbons and trophies. Earned medals show on Settings, under Friends and above Log out. The trick-learned popup stays separate; there is no `badgeLabels` map. Badge names live next to the art in `src/sim/badges.ts`.
+Badges are achievements, separate from ribbons and trophies. Earned medals show on Settings, under Friends and above Log out. The trick-learned popup stays separate from achievement badges. It plays when a trick is fully mastered, with the caption "New skill learned!", and does not play when a trick unlocks for training. The unlocked ring still shows a New! sticker until it is practiced. There is no `badgeLabels` map. Badge names live next to the art in `src/sim/badges.ts`.
 
 **Shipped**, except the four race badges (Off to the Races, Blue Ribbon, Moving Up, Ribbon Rack), which wait for the Stadium. Day counts start the first time the check runs, not from the adoption date. Badge XP is skipped before level 10 and is not paid later.
 

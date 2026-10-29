@@ -180,7 +180,7 @@ function Confetti({ angle, distance, spin, color, wide }: Omit<(typeof confetti)
   return <Animated.View style={[medalStyles.confetti, wide ? medalStyles.confettiWide : null, { backgroundColor: color }, style]} />;
 }
 
-export function BadgeCelebration({ title, caption = 'New trick learned!', Icon = PawPrint, badgeId, reducedMotion, onDone }: Props) {
+export function BadgeCelebration({ title, caption = 'New skill learned!', Icon = PawPrint, badgeId, reducedMotion, onDone }: Props) {
   const pop = useSharedValue(reducedMotion ? 1 : 0);
   const wobble = useSharedValue(0);
   const textIn = useSharedValue(reducedMotion ? 1 : 0);
