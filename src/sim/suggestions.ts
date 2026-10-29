@@ -53,6 +53,7 @@ export function suggestionLabel(id: string, species: 'dog' | 'cat' = 'dog'): str
   if (action === 'hat') return 'Wear a hat';
   if (action === 'closet') return 'Try something new from the Closet';
   if (action === 'find') return 'Find something new at the park';
+  if (action === 'race') return 'Enter a race';
   if (action.startsWith('toy:')) {
     const toyId = action.slice('toy:'.length);
     return `Play with the ${ITEM_KINDS[toyId]?.name ?? toyId}`;
@@ -124,6 +125,7 @@ function candidates(state: PetState, ctx: SuggestionContext): string[] {
   ids.push('pat');
   if (!state.asleep && state.needs.energy < need) ids.push('nap');
   ids.push('play');
+  if (!state.races?.signup) ids.push('race');
   if (ctx.toys) {
     const toy = ctx.toys.find((id) => id && id !== 'ball');
     if (toy) ids.push(`toy:${toy}`);

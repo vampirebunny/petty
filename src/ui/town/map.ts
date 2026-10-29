@@ -47,6 +47,7 @@ export const buildings: Building[] = [
   { id: 'park', name: 'Park', x: 22, y: 226, w: 140, h: 110 },
   { id: 'trainingSchool', name: 'Training School', x: 232, y: 212, w: 110, h: 108 },
   { id: 'arcade', name: 'Arcade', x: 52, y: 418, w: 104, h: 110 },
+  { id: 'stadium', name: 'Stadium', x: 214, y: 418, w: 140, h: 132 },
 ];
 
 export const nodes: Record<NodeId, Point> = {
@@ -55,6 +56,7 @@ export const nodes: Record<NodeId, Point> = {
   park: { x: 118, y: 354 },
   trainingSchool: { x: 290, y: 338 },
   arcade: { x: 104, y: 560 },
+  stadium: { x: 284, y: 558 },
   plazaA: { x: 195, y: 205 },
   plazaB: { x: 195, y: 410 },
 };
@@ -105,6 +107,12 @@ export const edges: Edge[] = [
     from: 'plazaB',
     to: 'arcade',
     cubic: cubic(nodes.plazaB, { x: 175, y: 455 }, { x: 130, y: 510 }, nodes.arcade),
+  },
+  {
+    id: 'plazaB-stadium',
+    from: 'plazaB',
+    to: 'stadium',
+    cubic: cubic(nodes.plazaB, { x: 230, y: 455 }, { x: 270, y: 510 }, nodes.stadium),
   },
 ];
 

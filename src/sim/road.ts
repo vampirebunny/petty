@@ -1,4 +1,4 @@
-export const roadSpots = ['home', 'petShop', 'park', 'trainingSchool', 'arcade'] as const;
+export const roadSpots = ['home', 'petShop', 'park', 'trainingSchool', 'arcade', 'stadium'] as const;
 
 export type RoadSpot = (typeof roadSpots)[number];
 

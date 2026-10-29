@@ -4,6 +4,7 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
 import { getSupabase } from '../compliance/supabase';
+import { requestGate } from '../stadium/raceCall';
 import { requestFriendModal } from './open';
 
 const tokenKey = 'petty.friends.pushToken';
@@ -71,10 +72,19 @@ export function listenForFriendPushes(): void {
     return;
   }
   listenerReady = true;
-  Notifications.addNotificationResponseReceivedListener((response) => {
-    const data = response.notification.request.content.data as { kind?: string } | undefined;
+  const open = (response: Notifications.NotificationResponse) => {
+    const data = response.notification.request.content.data as { kind?: string; raceId?: string } | undefined;
     if (data?.kind === 'friend_request') {
       requestFriendModal();
     }
-  });
+    if (data?.kind === 'race') {
+      requestGate(typeof data.raceId === 'string' ? data.raceId : null);
+    }
+  };
+  Notifications.addNotificationResponseReceivedListener(open);
+  const launched = Notifications.getLastNotificationResponse();
+  if (launched) {
+    Notifications.clearLastNotificationResponse();
+    open(launched);
+  }
 }

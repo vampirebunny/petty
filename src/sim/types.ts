@@ -154,6 +154,8 @@ export type PetState = {
   suggestions: SuggestionSlot[];
   suggestionCompletions: number;
   suggestionDay: string;
+  /** Local copy of the Stadium sign-up, for the race call and its notification. Missing on an older save. */
+  races?: import('./stadium').RaceRecord;
   bond: number;
   needs: Needs;
   asleep: boolean;

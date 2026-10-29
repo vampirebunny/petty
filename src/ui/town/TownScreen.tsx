@@ -10,6 +10,7 @@ import { fontFamily } from '../font';
 import { useContentWidth } from '../PhoneColumn';
 import { ArcadeIcon, SchoolIcon, ShopIcon, TreeIcon } from '../places/locationIcons';
 import { HomeCottage } from './HomeCottage';
+import { StadiumIcon } from './StadiumIcon';
 import { HomeRoomSheet } from './HomeRoomSheet';
 import { buildingById, buildings, edges, grass, mapHeight, mapWidth, nodes, type Point } from './map';
 import { homeRooms } from './rooms';
@@ -34,6 +35,7 @@ type Props = {
   onEnter: (sceneId: 'park' | 'school' | 'livingroom' | 'bedroom' | 'catio') => void;
   onShop: () => void;
   onArcade: () => void;
+  onStadium: () => void;
 };
 
 type Outing = {
@@ -52,7 +54,7 @@ function curve(edge: (typeof edges)[number]): string {
   return `M${a.x} ${a.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${b.x} ${b.y}`;
 }
 
-export function TownScreen({ pet, species, roadSpot, reducedMotion, onStand, onEnter, onShop, onArcade }: Props) {
+export function TownScreen({ pet, species, roadSpot, reducedMotion, onStand, onEnter, onShop, onArcade, onStadium }: Props) {
   const contentWidth = useContentWidth();
   const mapW = Math.min(maxMapWidth, contentWidth);
   const scale = mapW / mapWidth;
@@ -75,12 +77,12 @@ export function TownScreen({ pet, species, roadSpot, reducedMotion, onStand, onE
   const scaleRef = useRef(scale);
   const progressRef = useRef(0);
   const frameRef = useRef(0);
-  const actions = useRef({ onStand, onEnter, onShop, onArcade });
+  const actions = useRef({ onStand, onEnter, onShop, onArcade, onStadium });
   const leavingRef = useRef(false);
 
   useEffect(() => {
-    actions.current = { onStand, onEnter, onShop, onArcade };
-  }, [onArcade, onEnter, onShop, onStand]);
+    actions.current = { onStand, onEnter, onShop, onArcade, onStadium };
+  }, [onArcade, onEnter, onShop, onStadium, onStand]);
 
   useEffect(() => {
     if (!leaving) {
@@ -95,6 +97,10 @@ export function TownScreen({ pet, species, roadSpot, reducedMotion, onStand, onE
       }
       if (dest === 'arcade') {
         actionsNow.onArcade();
+        return;
+      }
+      if (dest === 'stadium') {
+        actionsNow.onStadium();
         return;
       }
       if (dest === 'park') {
@@ -415,6 +421,8 @@ function Door({ buildingId, scale, onPress }: { buildingId: RoadSpot; scale: num
         <TreeIcon size={width} />
       ) : building.id === 'trainingSchool' ? (
         <SchoolIcon size={width} />
+      ) : building.id === 'stadium' ? (
+        <StadiumIcon width={width} />
       ) : (
         <ArcadeIcon size={width} />
       )}

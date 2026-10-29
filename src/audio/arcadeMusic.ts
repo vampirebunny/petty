@@ -44,6 +44,11 @@ function playLoop(): void {
   }
 }
 
+/** True while a mini-game run is in progress and not paused. */
+export function arcadeRoundRunning(): boolean {
+  return active && !paused;
+}
+
 // One looped track for this run. A later call picks a different track.
 export function startArcadeRound(): void {
   active = true;

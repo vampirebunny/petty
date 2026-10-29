@@ -1,10 +1,13 @@
 import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 
+import { readServerOffsetMs } from '../db/accountMeta';
 import type { PetState } from '../sim/types';
+import { eventLabel, raceReminderAt, racesOf } from '../sim/stadium';
 import { planReminders, reminderCopy } from './nextReminder';
 
 let handlerReady = false;
+const raceCallId = 'race-call';
 
 function ensureHandler(): void {
   if (handlerReady) {
@@ -32,6 +35,33 @@ export async function cancelReminders(): Promise<void> {
   }
 }
 
+export async function cancelRaceCall(): Promise<void> {
+  if (Platform.OS === 'web') {
+    return;
+  }
+  try {
+    await Notifications.cancelScheduledNotificationAsync(raceCallId);
+  } catch {
+    // Already fired or never scheduled.
+  }
+}
+
+export async function askRaceReminderPermission(): Promise<void> {
+  if (Platform.OS === 'web') {
+    return;
+  }
+  try {
+    ensureHandler();
+    const current = await Notifications.getPermissionsAsync();
+    if (current.status === 'granted' || current.status === 'denied') {
+      return;
+    }
+    await Notifications.requestPermissionsAsync();
+  } catch {
+    // The race still starts if notifications stay off.
+  }
+}
+
 export async function syncReminder(
   pet: PetState,
   enabled: boolean,
@@ -45,7 +75,8 @@ export async function syncReminder(
   try {
     ensureHandler();
     await Notifications.cancelAllScheduledNotificationsAsync();
-    if (!enabled && !care.enabled) {
+    const raceDue = raceReminderAt(pet, now + readServerOffsetMs()) != null;
+    if (!enabled && !care.enabled && !raceDue) {
       return false;
     }
     const current = await Notifications.getPermissionsAsync();
@@ -65,6 +96,27 @@ export async function syncReminder(
         name: 'Care',
         importance: Notifications.AndroidImportance.DEFAULT,
       });
+    }
+    const signup = racesOf(pet).signup;
+    const offset = readServerOffsetMs();
+    const raceAt = raceReminderAt(pet, now + offset);
+    if (signup && raceAt != null) {
+      await Notifications.scheduleNotificationAsync({
+        identifier: raceCallId,
+        content: {
+          title: `${pet.name}'s race starts in 1 minute! 🏁`,
+          body: `${eventLabel(signup.event)} is about to begin. Tap to head to the Stadium.`,
+          data: { kind: 'race', entryId: signup.entryId, raceId: signup.raceId },
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          date: new Date(raceAt - offset),
+          channelId: Platform.OS === 'android' ? 'care' : undefined,
+        },
+      });
+    }
+    if (!enabled && !care.enabled) {
+      return false;
     }
     const reminders = planReminders(pet, now, { reminders: enabled, care: care.enabled, basicTreats: care.basicTreats });
     for (const reminder of reminders) {

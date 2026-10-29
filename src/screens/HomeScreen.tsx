@@ -50,6 +50,9 @@ import {
 import { TownScreen } from '../ui/town/TownScreen';
 import { roadSpotForScene } from '../sim/road';
 import { ArcadeScreen } from './ArcadeScreen';
+import { StadiumScreen } from './StadiumScreen';
+import { onGateRequest } from '../stadium/raceCall';
+import { RaceCall } from '../ui/stadium/RaceCall';
 import { flushCloudHopScore } from '../minigames/cloudHop/scores';
 import { flushStayTime } from '../minigames/stay/scores';
 import { PantryScreen } from './PantryScreen';
@@ -89,7 +92,7 @@ import { usePet } from '../state/usePet';
 import { grantDevItem } from '../dev/grant';
 import { usePlayerHome } from '../state/usePlayerHome';
 import { useEconomy } from '../economy/useEconomy';
-import { basicTreatId } from '../economy/state';
+import { basicTreatId, specialTreatId } from '../economy/state';
 import { KIBBLE_ID, catalogItem, foodsInInventory } from '../economy/catalog';
 import { grantDevBoops, newRequestId, outfitsOwned, secondWindOffer } from '../economy/service';
 import { refreshShopCatalog } from '../economy/shopSync';
@@ -465,6 +468,11 @@ export default function HomeScreen({ petApi }: Props) {
   const [pantryOpen, setPantryOpen] = useState(false);
   const [shopOpen, setShopOpen] = useState(false);
   const [arcadeOpen, setArcadeOpen] = useState(false);
+  const [stadiumOpen, setStadiumOpen] = useState(false);
+  const [stadiumGate, setStadiumGate] = useState(0);
+  const [atGate, setAtGate] = useState(false);
+  const gateOpener = useRef<() => void>(() => undefined);
+  const gatePending = useRef(false);
   const [bedTip, setBedTip] = useState(false);
   const [bedSwap, setBedSwap] = useState<{ piece: FurniturePiece; occupantId: string; name: string; x: number; y: number } | null>(null);
   useEffect(() => {
@@ -575,6 +583,7 @@ export default function HomeScreen({ petApi }: Props) {
     setSeenSnap(homeSnapToken);
     setShopOpen(false);
     setArcadeOpen(false);
+    setStadiumOpen(false);
   }
   const whereUid = useId().replace(/:/g, '');
   const [facingOpen, setFacingOpen] = useState(false);
@@ -1805,9 +1814,43 @@ export default function HomeScreen({ petApi }: Props) {
   const propTip = tipSpot ? stageToView(markerPoint(tipPiece?.kind, tipSpot)) : null;
   const species = breedById(state?.breedId ?? '')?.species ?? 'dog';
 
+  // The race call and its notification skip the map walk and land on the starting gate.
+  const openStadiumGate = () => {
+    if (!state) {
+      gatePending.current = true;
+      return;
+    }
+    commitPet({ ...state, roadSpot: 'stadium', asleep: false });
+    setPlaydateOpen(false);
+    setSettingsOpen(false);
+    setFacingOpen(false);
+    setClothingOpen(false);
+    setColorwaysOpen(false);
+    setArcadeOpen(false);
+    setShopOpen(false);
+    setPantryOpen(false);
+    setWardrobeOpen(false);
+    setCollectionOpen(false);
+    setPlayOpen(false);
+    setStadiumGate((value) => value + 1);
+    setStadiumOpen(true);
+  };
+  useEffect(() => {
+    gateOpener.current = openStadiumGate;
+    if (gatePending.current && state) {
+      gatePending.current = false;
+      const timer = setTimeout(() => gateOpener.current(), 0);
+      return () => clearTimeout(timer);
+    }
+  });
+  useEffect(() => onGateRequest(() => gateOpener.current()), []);
+
   const hosted = (screen: ReactNode) => (
     <FindFriendsHost accountHandle={accountHandle} onChanged={() => setFriendTick((value) => value + 1)}>
       {screen}
+      {state ? (
+        <RaceCall pet={state} atGate={atGate && stadiumOpen} reducedMotion={reducedMotion} onGo={() => openStadiumGate()} onCommit={commitPet} />
+      ) : null}
       {learnedTrick ? (
         <BadgeCelebration
           title={trackName(learnedTrick, species)}
@@ -2012,6 +2055,47 @@ export default function HomeScreen({ petApi }: Props) {
     );
   }
 
+  if (stadiumOpen) {
+    return hosted(
+      <StadiumScreen
+        key={stadiumGate}
+        pet={state}
+        reducedMotion={reducedMotion}
+        openGate={stadiumGate > 0}
+        moodTreats={economyApi.inventory.find((row) => row.itemId === specialTreatId)?.qty ?? 0}
+        onClose={() => {
+          commitPet({ ...state, roadSpot: 'stadium', asleep: false });
+          setStadiumOpen(false);
+          setStadiumGate(0);
+        }}
+        onCommit={commitPet}
+        onTrain={() => {
+          setStadiumOpen(false);
+          setStadiumGate(0);
+          setScene('school');
+        }}
+        onPlay={() => {
+          commitPet({ ...state, roadSpot: undefined, asleep: false });
+          setStadiumOpen(false);
+          setStadiumGate(0);
+          setPlayOpen(true);
+        }}
+        onMoodTreat={() => {
+          const used = economyApi.useItem(state, specialTreatId, {}, newRequestId());
+          if (used.ok && used.pet) {
+            commitPet(used.pet);
+          }
+        }}
+        onShop={() => {
+          setStadiumOpen(false);
+          setStadiumGate(0);
+          setShopOpen(true);
+        }}
+        onAtGate={setAtGate}
+      />,
+    );
+  }
+
   if (shopOpen) {
     return hosted(
       <PetShopScreen
@@ -2110,6 +2194,10 @@ export default function HomeScreen({ petApi }: Props) {
           onArcade={() => {
             commitPet({ ...state, roadSpot: 'arcade', asleep: false });
             setArcadeOpen(true);
+          }}
+          onStadium={() => {
+            commitPet({ ...state, roadSpot: 'stadium', asleep: false });
+            setStadiumOpen(true);
           }}
         />
       </PhoneColumn>

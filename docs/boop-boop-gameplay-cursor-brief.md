@@ -30,10 +30,10 @@ Turn Boop Boop from a toy into a game. Add pet levels driven by XP, badges, sugg
 3. Suggested activities
 4. Map lock state for the Training School
 5. ~~Park finds~~ (**shipped** — see `docs/boop-boop-park-finds-brief.md`)
-6. Stadium with solo races against NPCs
-7. Live races with friends
+6. Stadium (now specified in `docs/boop-boop-stadium-cursor-brief.md`, which supersedes sections 8 and 9 below)
+7. Live races with friends (also in the stadium brief)
 
-Each phase should ship working on its own. Park finds landed ahead of levels. Levels, the tutorial, first-find XP, non-race badges, and suggested activities are shipped. Finds stay available from level 1. The Training School stays open from level 1. Race badges and race suggestions wait for the Stadium.
+Each phase should ship working on its own. Park finds landed ahead of levels. Levels, the tutorial, first-find XP, non-race badges and suggested activities are shipped. The Stadium lobby, sign-up, race call and starting gate are shipped on a Supabase schedule; the competitions themselves are still to come. Finds stay available from level 1. The Training School stays open from level 1.
 
 ---
 
@@ -74,10 +74,9 @@ All bands ramp linearly within the band (no flat bands, no jumps between bands).
 | Advanced trick learned | 200 |
 | One-time badge | 50 |
 | Tiered badge bronze / silver / gold | 50 / 100 / 200 |
-| Race entered / 3rd / 2nd / 1st | 20 / 40 / 60 / 100, first 8 races per day only |
 | First time finding a park item: common / uncommon / rare / legendary | 10 / 25 / 75 / 150 |
 
-No XP from mini-games, practice races, repeat park finds or time passing. After the 8th race of the day, pets still win ribbons and trophies but earn no race XP. Daily caps reset at local midnight.
+No XP from mini-games, races, repeat park finds or time passing. Race rewards wait for the competitions in the stadium brief. Daily caps reset at local midnight.
 
 **Level-up:** the pet does a happy hop with its bark or meow, and the level display under its name updates. No confetti overlay. Several level-ups at once play one after another.
 
@@ -87,7 +86,7 @@ No XP from mini-games, practice races, repeat park finds or time passing. After 
 
 Badges are achievements, separate from ribbons and trophies. Earned medals show on Settings, under Friends and above Log out. The trick-learned popup stays separate from achievement badges. It plays when a trick is fully mastered, with the caption "New skill learned!", and does not play when a trick unlocks for training. The unlocked ring still shows a New! sticker until it is practiced. There is no `badgeLabels` map. Badge names live next to the art in `src/sim/badges.ts`.
 
-**Shipped**, except the four race badges (Off to the Races, Blue Ribbon, Moving Up, Ribbon Rack), which wait for the Stadium. Day counts start the first time the check runs, not from the adoption date. Badge XP is skipped before level 10 and is not paid later.
+**Shipped.** Day counts start the first time the check runs, not from the adoption date. Badge XP is skipped before level 10 and is not paid later.
 
 **Retroactive awards:** when a badge's condition is already met by stored state (e.g. tricks learned, current outfit), award it on the next check. Don't backfill badges that need history the app never stored (total days opened, a past next-day visit, first item ever worn); start tracking those now.
 
@@ -104,8 +103,6 @@ Badges are achievements, separate from ribbons and trophies. Earned medals show 
 | Treasure Hunter | First park find |
 | Dressed Up | First item worn from the Closet |
 | Off to the Races | First race entered |
-| Blue Ribbon | First 1st place |
-| Moving Up | First race in any class above Beginner |
 | Playmate | First playdate |
 
 **Tiered (bronze / silver / gold)**
@@ -116,7 +113,8 @@ Badges are achievements, separate from ribbons and trophies. Earned medals show 
 | Devoted | Total days opened | 10 / 50 / 100 |
 | Trick Collector | Tricks learned | 5 / 10 / 20 |
 | Finder | Unique park finds | 10 / 25 / 50 |
-| Ribbon Rack | Ribbons won | 5 / 25 / 100 |
+
+Race badges for placings (Blue Ribbon, Moving Up, Ribbon Rack) return with the competitions.
 
 A missed day resets the streak count but never removes a badge. Use the device's local date for day counting.
 
@@ -141,7 +139,7 @@ A missed day resets the streak count but never removes a badge. Use the device's
 
 ## 4. Suggested activities
 
-**Shipped.** Race suggestions (enter a race, place in a race) wait for the Stadium. The Training School is open from level 1; training suggestions still start at level 3.
+**Shipped.** The Training School is open from level 1; training suggestions still start at level 3. "Enter a race" is in the pool; it completes when the pet signs up for a Stadium race.
 
 Small goals the game offers, not things the pet asks for. Ignoring one costs nothing.
 
@@ -165,13 +163,13 @@ Small goals the game offers, not things the pet asks for. Ignoring one costs not
 | Play | Play ball, play with a specific owned toy | 1 |
 | Style | Wear a hat, try something new from the Closet | 1 |
 | Outing | Visit the park | 1 |
-| Competition | Enter a race, place in a race | 1, waits for the Stadium |
+| Competition | Enter a race | 1 |
 | Training | Practice a trick 5 times, make progress on the trick in training | 3 |
 | Finds | Find something new at the park | 6 |
 
 ## 5. Map
 
-- Add a **Stadium** location to the map. All competitions, including future away competitions, are entered through it. Not built yet.
+- The **Stadium** is on the map, in the bottom right. Races are entered through its lobby (see the stadium brief).
 - The Training School stays open from level 1. It is not dimmed and does not wait for a level.
 - Future places can use a locked state with "Coming soon."
 
@@ -200,6 +198,16 @@ Small goals the game offers, not things the pet asks for. Ignoring one costs not
 - At home, learned tricks always succeed (no change).
 
 ## 8. Stadium and competitions
+
+**Superseded** by `docs/boop-boop-stadium-cursor-brief.md` (with `docs/Boop Boop Stadium.html`). What's shipped from it:
+
+- **Schedule:** a 5-minute slot rotation on the server (`supabase/migrations/20261029200000_stadium.sql`). Each slot runs Fetch & Swat and the Fun Run, open to every pet, plus one trick race alternating Hoop Hop (needs the hoop trick) and Tunnel Run (needs the tunnel trick). Every event is open to dogs and cats. The lobby shows the next 3 slots.
+- **Sign-up:** one active entry per pet, friends placed together first, up to 6 lanes, class by level (Beginner 1, Novice 10, Open 20, Expert 35, Championship 50). A missing trick opens a fun modal with a button to the Training School. After a race the pet rests for 15 minutes.
+- **Race call:** a local notification 1 minute before the start, and an in-app card when the gate opens. Both lead to the starting gate.
+- **Starting gate:** live presence for the pets in the race, a heartbeat that checks the pet in, withdrawal until 10 seconds before the start, then the line-up and a "Race coming soon" placeholder. A pet not at the gate at the lock loses its spot.
+- **Header:** a Skia stadium scene sharing the town's sky, time of day and weather, with a reduced-motion mode.
+
+Still to come: the competitions themselves, scoring, ribbons, trophies and race XP. The old local 15-minute schedule, practice runs and the ribbon board and trophy shelf furniture were removed. The rest of this section is the earlier design, kept for reference.
 
 ### Events
 

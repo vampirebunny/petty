@@ -29,6 +29,8 @@ Applied by the owner through `20261024250000_ledger_source_ambiguity.sql`, inclu
 
 `20261029120000_second_wind_price.sql` is applied. Second Wind costs 500 Boops. The app also pins that price in `priceAdjustments`, so a catalog saved before the download charges 500 too.
 
+`20261029200000_stadium.sql` is not applied yet. It adds the Stadium schedule (`competition_slots`, `competition_events`, `races`, `race_entries`, `pet_race_state`, `stadium_config`, `stadium_classes`) and the RPCs `get_upcoming_slots`, `sign_up`, `withdraw`, `gate_heartbeat`, and `race_state`. Each RPC creates upcoming slots and locks or starts due races first. A pg_cron job running `select public.stadium_tick();` every minute is an optional backstop. See [the Stadium brief](../docs/boop-boop-stadium-cursor-brief.md).
+
 New files in this folder are applied only by the project owner. Do not run `supabase db push`, the Supabase CLI against the hosted project, or the SQL in the dashboard from an agent or an automated script. After the CLI is linked, the owner applies new migrations with:
 
 ```bash

@@ -56,6 +56,26 @@ export const gameplayConfig = {
     // Hunger at or above this, or energy below it, is when care suggestions fit.
     needAt: 30,
   },
+  // Display defaults. The server's stadium_config row decides slots, sign-ups, and the gate.
+  races: {
+    slotMs: 5 * 60 * 1000,
+    eventsPerSlot: 3,
+    slotsShown: 3,
+    capacity: 6,
+    gateOpenMs: 60 * 1000,
+    lockMs: 10 * 1000,
+    cooldownMs: 15 * 60 * 1000,
+    npcFill: 5,
+    heartbeatMs: 5000,
+    boardRefreshMs: 15000,
+    classes: [
+      { id: 'beginner', level: 1 },
+      { id: 'novice', level: 10 },
+      { id: 'open', level: 20 },
+      { id: 'expert', level: 35 },
+      { id: 'championship', level: 50 },
+    ],
+  },
   goals: [
     { action: 'feed', label: 'Feed' },
     { action: 'water', label: 'Fill the water bowl' },

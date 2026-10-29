@@ -14,6 +14,7 @@ const labels: Record<string, string> = {
   'treasure-hunter': 'Treasure Hunter',
   'dressed-up': 'Dressed Up',
   'playmate': 'Playmate',
+  'off-to-the-races': 'Off to the Races',
   'best-friend-streak-bronze': 'Best Friend Streak · Bronze',
   'best-friend-streak-silver': 'Best Friend Streak · Silver',
   'best-friend-streak-gold': 'Best Friend Streak · Gold',
@@ -85,6 +86,9 @@ function earnedIds(state: PetState): string[] {
   }
   if (state.hadPlaydate) {
     ids.push('playmate');
+  }
+  if (state.races?.entered) {
+    ids.push('off-to-the-races');
   }
   ids.push(...tiers('best-friend-streak', state.openedStreak ?? 0, gameplayConfig.badges.streak));
   ids.push(...tiers('devoted', state.openedDays ?? 0, gameplayConfig.badges.devoted));
