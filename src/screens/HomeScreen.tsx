@@ -168,7 +168,7 @@ import type { PointPop } from '../ui/AttributePops';
 import { careConfig } from '../sim/careConfig';
 import { formatRest, isResting, restRemainingMs, treatProgressPreview } from '../sim/training';
 import { BadgeCelebration } from '../ui/BadgeCelebration';
-import { Archive, ChevronRight, Cookie, Droplet, HandHeart, Moon, Settings, Sparkles } from 'lucide-react-native';
+import { Archive, ChevronRight, Cookie, Droplet, HandHeart, Moon, PawPrint, Settings, Sparkles } from 'lucide-react-native';
 import { playBadgeChime } from '../audio/badge';
 import { GREET } from '../actor/greetings';
 import { PetView } from '../ui/PetView';
@@ -183,12 +183,6 @@ import type { FeedbackHandle } from '../ui/cuddle/CuddleFeedback';
 import type { PointAdd } from '../ui/cuddle/pointAdds';
 import { CuddleHelpSheet, GhostFinger } from '../ui/cuddle/CuddleGuidance';
 import { SilentModeHint } from '../ui/SilentModeHint';
-
-const badgeLabels: Record<string, string> = {
-  sit: 'Sit',
-  speak: 'Speak',
-  paw: 'Paw',
-};
 
 type TipKind = 'food' | 'water' | 'bed';
 
@@ -1561,9 +1555,6 @@ export default function HomeScreen({ petApi }: Props) {
     read();
   }, []);
 
-  const milestones = state?.milestones;
-  const [knownMilestones, setKnownMilestones] = useState<string[] | null>(null);
-  const [celebrating, setCelebrating] = useState<string | null>(null);
   const [knownUnlockKey, setKnownUnlockKey] = useState<string | null>(null);
   const [unlocking, setUnlocking] = useState<string | null>(null);
   const [unlockQueue, setUnlockQueue] = useState<string[]>([]);
@@ -1574,15 +1565,6 @@ export default function HomeScreen({ petApi }: Props) {
         .sort()
         .join(',')
     : '';
-  if (milestones && (knownMilestones == null || milestones.length !== knownMilestones.length)) {
-    setKnownMilestones(milestones);
-    if (knownMilestones != null) {
-      const fresh = milestones.find((id) => !knownMilestones.includes(id) && badgeLabels[id]);
-      if (fresh) {
-        setCelebrating(fresh);
-      }
-    }
-  }
   if (state && knownUnlockKey !== openTrickKey) {
     const previous = knownUnlockKey;
     setKnownUnlockKey(openTrickKey);
@@ -1594,15 +1576,10 @@ export default function HomeScreen({ petApi }: Props) {
       }
     }
   }
-  if (state && !celebrating && !unlocking && unlockQueue.length > 0) {
+  if (state && !unlocking && unlockQueue.length > 0) {
     setUnlocking(unlockQueue[0]);
     setUnlockQueue((queue) => queue.slice(1));
   }
-  useEffect(() => {
-    if (celebrating) {
-      playBadgeChime();
-    }
-  }, [celebrating]);
   useEffect(() => {
     if (!unlocking) {
       return;
@@ -1610,7 +1587,6 @@ export default function HomeScreen({ petApi }: Props) {
     playBadgeChime();
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   }, [unlocking]);
-  const finishCelebration = useCallback(() => setCelebrating(null), []);
   const finishUnlock = useCallback(() => setUnlocking(null), []);
 
   const preset = sceneById(state?.sceneId ?? 'livingroom');
@@ -3184,18 +3160,11 @@ export default function HomeScreen({ petApi }: Props) {
       <View
         style={[styles.root, { paddingTop: 64 + duoTop }]}
       >
-      {celebrating ? (
-        <BadgeCelebration
-          title={celebrating === 'paw' ? trackName('paw', species) : (badgeLabels[celebrating] ?? 'Badge')}
-          reducedMotion={reducedMotion}
-          onDone={finishCelebration}
-        />
-      ) : null}
       {unlocking ? (
         <BadgeCelebration
           title={trackName(unlocking, species)}
-          caption="New trick!"
-          Icon={Sparkles}
+          caption="New trick learned!"
+          Icon={PawPrint}
           reducedMotion={reducedMotion}
           onDone={finishUnlock}
         />
