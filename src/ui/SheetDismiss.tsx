@@ -35,8 +35,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   dock: {
+    flexGrow: 1,
+    flexShrink: 1,
+    minHeight: 0,
     maxHeight: '100%',
     paddingHorizontal: 20,
+    // Keeps a tall card above the home indicator so its last row can scroll on screen.
+    paddingBottom: 28,
     zIndex: 2,
     elevation: 8,
   },

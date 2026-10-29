@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector, ScrollView } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
@@ -33,6 +33,8 @@ type Props = {
 };
 
 const GLYPH = 72;
+// Title, card padding, and the gap above the grid. The scroller gives the rest back.
+const SCROLL_CHROME = 16 + 28 + 12 + 16;
 
 const trickTypes: readonly TrickPropType[] = ['podium', 'tunnel', 'hurdle', 'cones', 'hoop'];
 
@@ -41,24 +43,36 @@ function isTrickType(value: string): value is TrickPropType {
 }
 
 export function StorageCard({ items, empty, top, onClose, onPick }: Props) {
+  const [room, setRoom] = useState(0);
+  const scrollMax = room > 0 ? Math.min(320, Math.max(96, room - SCROLL_CHROME)) : 320;
   return (
     <SheetDismiss top={top} label="Close storage" onClose={onClose}>
-      <View style={styles.card}>
-        <Text style={styles.title}>Storage</Text>
-        {items.length === 0 ? (
-          <Text style={styles.empty}>{empty}</Text>
-        ) : (
-          <ScrollView
-            style={styles.scroller}
-            contentContainerStyle={styles.row}
-            showsVerticalScrollIndicator
-            nestedScrollEnabled
-          >
-            {items.map((item) => (
-              <StorageTile key={`${item.kind}:${item.id}`} item={item} onPick={onPick} />
-            ))}
-          </ScrollView>
-        )}
+      <View
+        style={styles.frame}
+        onLayout={(event) => {
+          const next = Math.round(event.nativeEvent.layout.height);
+          setRoom((prev) => (prev === next ? prev : next));
+        }}
+      >
+        <View style={styles.card}>
+          <Text style={styles.title}>Storage</Text>
+          {items.length === 0 ? (
+            <Text style={styles.empty}>{empty}</Text>
+          ) : (
+            <ScrollView
+              style={[styles.scroller, { maxHeight: scrollMax }]}
+              contentContainerStyle={styles.scrollContent}
+              showsVerticalScrollIndicator
+              nestedScrollEnabled
+            >
+              <View style={styles.row}>
+                {items.map((item) => (
+                  <StorageTile key={`${item.kind}:${item.id}`} item={item} onPick={onPick} />
+                ))}
+              </View>
+            </ScrollView>
+          )}
+        </View>
       </View>
     </SheetDismiss>
   );
@@ -146,16 +160,25 @@ function TrickGlyph({ type, sourceTrickId }: { type: TrickPropType; sourceTrickI
 }
 
 const styles = StyleSheet.create({
+  frame: {
+    flexGrow: 1,
+    flexShrink: 1,
+    minHeight: 0,
+    maxHeight: '100%',
+  },
   card: {
     backgroundColor: '#FFF6FB',
     borderRadius: 24,
     padding: 16,
     gap: 12,
+    maxHeight: '100%',
   },
   scroller: {
     flexGrow: 0,
     flexShrink: 1,
-    maxHeight: 320,
+  },
+  scrollContent: {
+    paddingBottom: 4,
   },
   title: {
     fontFamily: fontFamily.fredokaBold,
