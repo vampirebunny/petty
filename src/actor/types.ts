@@ -591,6 +591,10 @@ export type Actor = {
   topT: number;
   // Speed as a share of the pet's own top speed, for the legs.
   share: number;
+  // Race only. A fixed short stride, so step rate follows race speed instead of lengthening near the cap.
+  strideShare?: number;
+  // Race only. Scales that stride so a fast tap gallops quicker and a slow tap gallops longer.
+  raceCadence?: number;
   direction: Direction | null;
   // The direction token that already launched a jump, so a held jump fires once.
   directionJump: number;

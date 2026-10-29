@@ -12,6 +12,7 @@ import type { GallopStyle } from '../../actor/data/locomotion';
 import { freshPreview, stepPosePreview, stepRaceRun } from '../../actor/raceDrive';
 import type { PoseMode, PosePreview } from '../../actor/raceDrive';
 import { skyAt, solarHour } from '../../actor/sky';
+import { playRaceStart, preloadRaceStart, stopRaceStart } from '../../audio/raceStart';
 import { serverNow } from '../../db/accountMeta';
 import { classLabel, eventLabel, formatCountdown } from '../../sim/stadium';
 import type { PetState } from '../../sim/types';
@@ -79,7 +80,16 @@ function actorOf(row: LineupRow, pet: PetState, breed: Breed): Actor {
   });
 }
 
-function modsOf(row: LineupRow | undefined): Modifiers {
+function modsOf(row: LineupRow | undefined, pet: PetState | null): Modifiers {
+  if (row?.mine && pet) {
+    return {
+      energy: pet.needs.energy,
+      mood: pet.needs.happiness,
+      stamina: row.modifiers?.stamina ?? pet.attributes.current.stamina,
+      agility: row.modifiers?.agility ?? pet.attributes.current.agility,
+      intelligence: row.modifiers?.intelligence ?? pet.attributes.current.intelligence,
+    };
+  }
   return row?.modifiers ?? neutralModifiers;
 }
 
@@ -116,6 +126,8 @@ export function FunRunScreen({ race, pet, reducedMotion, onFinish, onExit }: Pro
   const touched = useRef(new Set<string>());
   const lastHaptic = useRef(0);
   const lastCountBeat = useRef<number | null>(null);
+  const startSound = useRef(false);
+  const playerMods = useRef<Modifiers | null>(null);
   const rewarded = useRef(false);
   const sent = useRef(false);
   const grantRef = useRef<(view: RaceView) => void>(() => undefined);
@@ -146,14 +158,24 @@ export function FunRunScreen({ race, pet, reducedMotion, onFinish, onExit }: Pro
   }, []);
 
   useEffect(() => {
+    preloadRaceStart();
+    return () => stopRaceStart();
+  }, []);
+
+  useEffect(() => {
     if (finished || beat == null || lastCountBeat.current === beat) return;
     lastCountBeat.current = beat;
+    if (!startSound.current) {
+      startSound.current = true;
+      const into = Math.max(0, (countdownSpanMs - (race.startsAt - serverNow())) / 1000);
+      playRaceStart(into);
+    }
     if (beat === 0) {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } else if (beat <= 3) {
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
-  }, [beat, finished]);
+  }, [beat, finished, race.startsAt]);
 
   useEffect(() => {
     const found = breedById(previewBreedId) ?? breedById('retriever')!;
@@ -192,18 +214,29 @@ export function FunRunScreen({ race, pet, reducedMotion, onFinish, onExit }: Pro
       const at = serverNow();
       const elapsed = Math.max(0, at - race.startsAt);
       let player: RunnerState | null = null;
-      if (going && !finished) {
+      if (going) {
+      const stepMs = 1000 / config.stepHz;
       for (const row of field) {
         const state = runners.current.get(row.key) ?? createRunner();
         runners.current.set(row.key, state);
         const npc = row.npc
           ? { classId: classOf(race.classId), skill: row.skill ?? 0.5, seed: `${race.seed}:${row.key}` }
           : null;
-        while (state.finishMs == null && state.tMs < Math.min(elapsed, config.maxMs)) {
-          const next = state.tMs + 1000 / config.stepHz;
-          const due = row.mine ? taps.current.filter((tap) => tap >= state.tMs && tap < next) : [];
-          stepRunner(state, due, modsOf(row.mine ? mine : row), npc, race.configVersion);
-          if (state.tMs >= config.maxMs) break;
+        while (state.tMs < Math.min(elapsed, config.maxMs + 20000)) {
+          if (state.finishMs == null) {
+            if (state.tMs >= config.maxMs) break;
+            const next = state.tMs + stepMs;
+            const due = row.mine ? taps.current.filter((tap) => tap >= state.tMs && tap < next) : [];
+            if (row.mine && !playerMods.current) {
+              playerMods.current = modsOf(row, petRef.current);
+            }
+            stepRunner(state, due, row.mine && playerMods.current ? playerMods.current : modsOf(row, null), npc, race.configVersion);
+          } else {
+            if (state.x > config.distanceM + 80) break;
+            state.v = Math.max(state.v, 4);
+            state.x += state.v * (stepMs / 1000);
+            state.tMs += stepMs;
+          }
         }
       }
       player = mine ? runners.current.get(mine.key) ?? null : null;
@@ -213,7 +246,7 @@ export function FunRunScreen({ race, pet, reducedMotion, onFinish, onExit }: Pro
             const spec = row.npc
               ? { classId: classOf(race.classId), skill: row.skill ?? 0.5, seed: `${race.seed}:${row.key}` }
               : null;
-            const result = runFunRun(row.mine ? taps.current : [], modsOf(row), spec, race.configVersion);
+            const result = runFunRun(row.mine ? taps.current : [], row.mine && playerMods.current ? playerMods.current : modsOf(row, null), spec, race.configVersion);
             return { key: row.key, name: row.petName, finishMs: result.finishMs, place: null, mine: row.mine };
           })
           .sort((a, b) => (a.finishMs ?? 1e9) - (b.finishMs ?? 1e9));
@@ -255,7 +288,8 @@ export function FunRunScreen({ race, pet, reducedMotion, onFinish, onExit }: Pro
       const trackH = stageHeight;
       if (width > 0) {
         const showing = preview.mode !== 'off' && previewActor.current && previewBreed.current;
-        const camera = showing ? preview.clock * 3 : mine ? (runners.current.get(mine.key)?.x ?? 0) : 0;
+        const follow = mine ? (runners.current.get(mine.key)?.x ?? 0) : 0;
+        const camera = showing ? preview.clock * 3 : follow;
         const env: Env = {
           tod: todAt(solarHour(new Date(at))),
           t: at / 1000,

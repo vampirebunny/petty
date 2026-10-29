@@ -597,7 +597,10 @@ export function drawActor(
       const len = geom.L;
       return { x: hip.x - Math.sin(swing) * len, y: hip.y + Math.cos(swing) * len };
     }
-    const gait = blendedFoot(actor.gait, leg, actor.phase, geom.L, actor.share);
+    const gait = blendedFoot(actor.gait, leg, actor.phase, geom.L, actor.strideShare ?? actor.share);
+    if (actor.raceCadence) {
+      gait.x /= actor.raceCadence;
+    }
     const stand = { x: hip.x + (fore ? 3 : -1) + gait.x * pose.walk, y: gait.y * pose.walk };
     const sit = fore ? { x: hip.x + 4, y: 0 } : { x: hip.x + 0.45 * geom.L, y: 0 };
     const lieReach = Math.sqrt(Math.max(0, 0.97 * geom.L * (0.97 * geom.L) - hip.y * hip.y));

@@ -90,20 +90,22 @@ export function drawRaceTrack(
   const mineFit = mine ? fitFor(mine, petH) : null;
   // Screen pixels per meter follow the player's pet, so its paws match the ground it runs over.
   const ppm = mineFit ? mineFit.legPx * racePoses.legsPerMeter : 40;
-  const screenX = (meters: number) => width * anchor + (meters - cameraX) * ppm;
+  // Stop following before the line so it sits left of the edge and pets can run off the right.
+  const camera = Math.min(cameraX, Math.max(0, TRACK_DISTANCE - (width * 0.42) / ppm));
+  const screenX = (meters: number) => width * anchor + (meters - camera) * ppm;
 
   drawSkyPane(c, 0, 0, width, height * 0.36, env);
   const stands = paint(env.tod.dark > 0.22 ? '#3A2A55' : '#CDB4F0');
   c.drawRect(Skia.XYWHRect(0, height * 0.18, width, height * 0.18), stands);
   const crowd = paint('#F7D7EA');
   const bob = env.reduced ? 0 : Math.sin(env.t * 2.2) * 2;
-  const crowdShift = -cameraX * ppm * 0.12;
+  const crowdShift = -camera * ppm * 0.12;
   for (let i = 0; i < 16; i += 1) {
     const x = ((((i * 34 + crowdShift) % (width + 34)) + width + 34) % (width + 34)) - 17;
     c.drawCircle(x, height * 0.29 + bob * (i % 2 === 0 ? 1 : -1), 7, crowd);
   }
   const wall = paint('#F48FB8');
-  const wallShift = -cameraX * ppm * 0.4;
+  const wallShift = -camera * ppm * 0.4;
   c.drawRect(Skia.XYWHRect(0, height * 0.34, width, height * 0.08), wall);
   const stripe = paint('#FFE4F1');
   for (let x = ((wallShift % 44) + 44) % 44 - 44; x < width; x += 44) {
@@ -114,7 +116,7 @@ export function drawRaceTrack(
 
   const backLanes = Math.max(1, others.length);
   const backLaneH = (frontTop - trackTop) / backLanes;
-  const dashOff = (((-cameraX * ppm) % (dashM * 2 * ppm)) + dashM * 2 * ppm) % (dashM * 2 * ppm);
+  const dashOff = (((-camera * ppm) % (dashM * 2 * ppm)) + dashM * 2 * ppm) % (dashM * 2 * ppm);
   const dashes = stroke('#E1CD98', 2);
   for (let lane = 1; lane <= backLanes; lane += 1) {
     const y = trackTop + lane * backLaneH;
@@ -145,15 +147,22 @@ export function drawRaceTrack(
   others.forEach((racer, index) => {
     const footY = trackTop + (index + 1) * backLaneH - 2;
     const x = screenX(racer.x);
-    if (x < -40 || x > width + 40) {
-      drawOffscreen(c, x < 0 ? 10 : width - 10, footY - backLaneH * 0.5, x < 0 ? -1 : 1);
+    if (x > width + width * 0.55) return;
+    if (x < -40) {
+      if (racer.x >= TRACK_DISTANCE) return;
+      drawOffscreen(c, 10, footY - backLaneH * 0.5, -1);
+      return;
+    }
+    if (x > width + 40 && racer.x < TRACK_DISTANCE) {
+      drawOffscreen(c, width - 10, footY - backLaneH * 0.5, 1);
       return;
     }
     const { fit } = fitFor(racer, petH * backScale);
     drawRacer(c, x, footY, fit, racer, env);
   });
   if (mine && mineFit) {
-    drawRacer(c, screenX(mine.x), height - frontH * 0.12, mineFit.fit, mine, env);
+    const x = screenX(mine.x);
+    if (x < width + width * 0.55) drawRacer(c, x, height - frontH * 0.12, mineFit.fit, mine, env);
   }
 }
 

@@ -1,4 +1,4 @@
-import { configFor, createRunner, neutralModifiers, runFunRun, stepRunner } from '../../../supabase/functions/_shared/race-sim/index.ts';
+import { configFor, createRunner, neutralModifiers, runFunRun, speedScale, stepRunner } from '../../../supabase/functions/_shared/race-sim/index.ts';
 import { testPet } from '../__fixtures__/pets';
 import { applyRaceRewards } from '../raceRewards';
 
@@ -27,6 +27,29 @@ it('holds top speed from a fast tap', () => {
     peak = Math.max(peak, state.v);
   }
   expect(peak).toBeGreaterThan(config.topSpeed * 0.95);
+});
+
+it('raises or lowers the top-speed cap from mood and energy', () => {
+  const config = configFor('funrun-1');
+  const base = { ...neutralModifiers };
+  expect(speedScale({ ...base, mood: 95, energy: 95 }, config)).toBeCloseTo(1.1);
+  expect(speedScale({ ...base, mood: 90, energy: 80 }, config)).toBeCloseTo(1);
+  expect(speedScale({ ...base, mood: 75, energy: 85 }, config)).toBeCloseTo(0.95);
+  expect(speedScale({ ...base, mood: 65, energy: 69 }, config)).toBeCloseTo(0.8);
+  expect(speedScale({ ...base, mood: 91, energy: 70 }, config)).toBeCloseTo(1);
+});
+
+it('runs farther on the same taps when mood and energy are high', () => {
+  const taps = Array.from({ length: 30 }, (_, index) => index * 250);
+  const high = runFunRun(taps, { ...neutralModifiers, mood: 100, energy: 100 }, null, 'funrun-1');
+  const low = runFunRun(taps, { ...neutralModifiers, mood: 50, energy: 50 }, null, 'funrun-1');
+  expect(high.x).toBeGreaterThan(low.x * 1.2);
+});
+
+it('keeps beginner NPCs near a steady tapper', () => {
+  const config = configFor('funrun-1');
+  expect(config.npcRanges.beginner[0]).toBeGreaterThanOrEqual(8);
+  expect(config.npcRanges.championship[1]).toBeGreaterThan(config.npcRanges.beginner[1]);
 });
 
 it('drops taps past 20 in one second', () => {

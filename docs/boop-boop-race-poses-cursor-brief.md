@@ -69,7 +69,7 @@ Today's gallop (`gaitDefs.gallop`: offsets LH/LF/RH/RF `[0.12, 0.5, 0, 0.62]`, d
 5. **Feet tilt with the leg:** add `extend` to `footTilt`'s max, so paws and boots point along the shin when outstretched instead of staying flat.
 6. **Head:** no change. `bodyFrame` already bobs the head less than the body.
 
-The phase rate keeps coming from `phaseRate`, so planted feet never slide.
+The phase rate keeps coming from `phaseRate`, so planted feet never slide. In a race the stride stays at the short end, and `raceCadence` (about 0.65 to 1.8) scales that stride with speed so a faster tap gallops quicker and a slower tap gallops longer.
 
 **Gait choice in races:** the race driver sets the gait from race speed instead of `chooseGait`, since race speeds don't match a pet's home top speed. Defaults (config): below 1.5 m/s walk, below 3 m/s trot, below 4.5 m/s canter, gallop above. Ignore `maxGait`, stamina drain and the tired trot cap; the race foundation's stamina modifier handles tiring instead. Blending uses `stepGait` as today. Set `share` = race speed ÷ the race top speed (11 m/s cap), so a full-speed gallop has `share` 1. `bounceOf` scales the lift by `share`, and dividing by the home top speed (pixels) would leave the pet barely leaving the ground.
 

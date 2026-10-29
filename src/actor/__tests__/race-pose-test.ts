@@ -1,5 +1,5 @@
 import { daysToSenior } from '../../sim/config';
-import { raceGaitFor, stepRaceRun } from '../raceDrive';
+import { raceCadence, raceGaitFor, stepRaceRun } from '../raceDrive';
 import { raceLeapVisual, stumbleVisualAt } from '../jump';
 import { racePoses } from '../data/locomotion';
 import { geomOf } from '../geometry';
@@ -31,6 +31,19 @@ describe('race poses', () => {
     expect(actor.gait.current).toBe('gallop');
     expect(actor.face).toBe(1);
     expect(actor.pose.lie).toBe(0);
+  });
+
+  it('cycles the legs faster when the race speed is higher', () => {
+    const breed = breedById('retriever')!;
+    const slow = pet('retriever', 16);
+    const fast = pet('retriever', 16);
+    expect(raceCadence(11)).toBeGreaterThan(raceCadence(4));
+    for (let i = 0; i < 20; i += 1) {
+      stepRaceRun(slow, breed, 4, 0.05);
+      stepRaceRun(fast, breed, 11, 0.05);
+    }
+    expect(fast.phase).toBeGreaterThan(slow.phase * 1.5);
+    expect(fast.raceCadence).toBeGreaterThan(slow.raceCadence ?? 0);
   });
 
   it('leaps with the front legs forward and the hind legs back', () => {

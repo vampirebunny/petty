@@ -22,6 +22,14 @@ function legLength(actor: Actor, breed: Breed): number {
   return geomOf(breed, actor.displayAgeDays, actor.displayWeight, actor.vitality).L;
 }
 
+// 0.65 at a standstill and 1.8 at the race cap. Paired with a short fixed stride, so the gallop
+// visibly quickens as taps get faster and lengthens when they slow down. Feet still match the ground.
+export function raceCadence(mps: number): number {
+  const top = racePoses.topMps;
+  const share = top > 0 ? Math.min(1, Math.max(0, mps) / top) : 0;
+  return 0.65 + 1.15 * share;
+}
+
 // Faces the pet right and advances the gait from race speed. Does not run the home sim.
 export function stepRaceRun(actor: Actor, breed: Breed, mps: number, dt: number): void {
   const speed = Math.max(0, mps);
@@ -38,8 +46,10 @@ export function stepRaceRun(actor: Actor, breed: Breed, mps: number, dt: number)
   actor.vy = 0;
   actor.speed = px;
   actor.share = racePoses.topMps > 0 ? Math.min(1, speed / racePoses.topMps) : 0;
+  actor.strideShare = 0;
+  actor.raceCadence = raceCadence(speed);
   stepGait(actor.gait, raceGaitFor(speed), dt);
-  actor.phase += dt * phaseRate(actor.gait, px, legLength(actor, breed), actor.share);
+  actor.phase += dt * phaseRate(actor.gait, px, legLength(actor, breed), actor.strideShare) * actor.raceCadence;
   const flow = streamOf(actor.gait);
   const moving = speed > 0.2 ? 1 : 0;
   actor.pose.walk = moving;

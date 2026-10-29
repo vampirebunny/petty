@@ -10,8 +10,8 @@ export type Modifiers = {
 };
 
 export const neutralModifiers: Modifiers = {
-  energy: 100,
-  mood: 50,
+  energy: 85,
+  mood: 85,
   stamina: 50,
   agility: 50,
   intelligence: 50,
@@ -42,15 +42,23 @@ function unit(value: number): number {
   return clamp(value / 100, 0, 1);
 }
 
-// Mood can raise top speed and low energy can lower it. The pair stays inside ±10%.
-export function speedScale(mods: Modifiers, config: FunRunConfig): number {
-  const mood = unit(mods.mood);
-  const energy = unit(mods.energy);
-  let scale = 1 + config.moodBoost * mood;
-  if (energy < config.lowEnergy) {
-    scale -= config.modifierCap * ((config.lowEnergy - energy) / config.lowEnergy);
+function statBand(value: number, config: FunRunConfig): number {
+  const stat = unit(value);
+  if (stat > config.statHigh) {
+    return config.statHighBoost;
   }
-  return clamp(scale, 1 - config.modifierCap, 1 + config.modifierCap);
+  if (stat < config.statLower) {
+    return -config.statLowerDrop;
+  }
+  if (stat < config.statLow) {
+    return -config.statLowDrop;
+  }
+  return 0;
+}
+
+// Each of mood and energy shifts the top-speed cap on its own. They stack.
+export function speedScale(mods: Modifiers, config: FunRunConfig): number {
+  return 1 + statBand(mods.mood, config) + statBand(mods.energy, config);
 }
 
 function tapPower(x: number, mods: Modifiers, config: FunRunConfig): number {
@@ -107,7 +115,7 @@ export function stepRunner(
         continue;
       }
       if (acceptTap(state, tap, config)) {
-        state.v = Math.min(config.topSpeed * scale, state.v + config.tapAccel * power);
+        state.v = Math.min(config.topSpeed * scale, state.v + config.tapAccel * power * scale);
       }
     }
     state.v *= Math.exp(-config.fadePerSec * dt);
