@@ -183,11 +183,9 @@ export function updateParkFindTask(
       break;
     }
     case 'stalk': {
-      // Run in at full age speed; crouch/stalk wait for the short wiggle at the spot.
-      targets.tailLift = -0.2;
+      // Sprint in and start the find — no crouch / stalk / wiggle beat.
       faceSpot();
-      const stopShort = run.variant === 'bush' ? 28 : 110;
-      // Run toward a point stopShort units short of the spot.
+      const stopShort = run.variant === 'bush' ? 28 : 18;
       const dx = spot.x - actor.x;
       const dy = spot.y - actor.y;
       const len = Math.hypot(dx, dy) || 1;
@@ -198,7 +196,7 @@ export function updateParkFindTask(
       setMove(approach, sprintVmax);
       if (distTo(spot) <= stopShort + 8) {
         setMove(null);
-        advance(run, 'wiggle');
+        advance(run, run.variant === 'bush' ? 'rear' : 'pounce');
       }
       break;
     }
