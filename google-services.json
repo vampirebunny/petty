@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "787505094317",
+    "project_id": "boop-boop-50b91",
+    "storage_bucket": "boop-boop-50b91.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:787505094317:android:b4de82974b0869e0477024",
+        "android_client_info": {
+          "package_name": "app.mylisto.boop"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCqyOFlM9AWGd8Gq8-rTZdKHyZlnNT0VAs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

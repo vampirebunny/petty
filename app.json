@@ -12,7 +12,10 @@
       "usesAppleSignIn": true,
       "appleTeamId": "89T43H6V58",
       "bundleIdentifier": "app.mylisto.boop",
-      "associatedDomains": ["applinks:boopboop.mylisto.app"],
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "associatedDomains": [
+        "applinks:boopboop.mylisto.app"
+      ],
       "entitlements": {
         "com.apple.developer.declared-age-range": true
       },
@@ -30,6 +33,7 @@
     },
     "android": {
       "package": "app.mylisto.boop",
+      "googleServicesFile": "./google-services.json",
       "intentFilters": [
         {
           "action": "VIEW",
@@ -46,7 +50,10 @@
               "pathPrefix": "/add/"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ],
       "adaptiveIcon": {
@@ -91,7 +98,8 @@
         "expo-build-properties",
         {
           "ios": {
-            "enableSceneSupport": true
+            "enableSceneSupport": true,
+            "useFrameworks": "dynamic"
           },
           "android": {
             "enableMinifyInReleaseBuilds": true,
@@ -130,6 +138,15 @@
           "url": "https://sentry.io/",
           "organization": "listo-xc",
           "project": "boop-boop"
+        }
+      ],
+      "@react-native-firebase/app",
+      [
+        "@react-native-firebase/analytics",
+        {
+          "ios": {
+            "withoutAdIdSupport": true
+          }
         }
       ]
     ],
