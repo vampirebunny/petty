@@ -29,7 +29,7 @@ Turn Boop Boop from a toy into a game. Add pet levels driven by XP, badges, sugg
 2. Badges
 3. Suggested activities
 4. Map lock state for the Training School
-5. ~~Park finds~~ (**shipped** — see `docs/boop-boop-park-finds/BRIEF.md`)
+5. ~~Park finds~~ (**shipped** — see `docs/boop-boop-park-finds-brief.md`)
 6. Stadium with solo races against NPCs
 7. Live races with friends
 
@@ -172,7 +172,7 @@ Small goals the game offers, not things the pet asks for. Ignoring one costs not
 
 ## 6. Park finds (shipped)
 
-**Source of truth:** [`docs/boop-boop-park-finds/BRIEF.md`](boop-boop-park-finds/BRIEF.md). The older tap-the-sparkle sketch in this doc was replaced by the pet-notice / "Let's see!" loop.
+**Source of truth:** [`docs/boop-boop-park-finds-brief.md`](boop-boop-park-finds-brief.md). The older tap-the-sparkle sketch in this doc was replaced by the pet-notice / "Let's see!" loop.
 
 **Shipped behavior (summary)**
 - At most one find chance per park visit. The first completed find is guaranteed (`firstFindVisitDone` stays false until a find is recorded, so leaving early does not spend it). Later visits roll at 15%.

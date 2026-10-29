@@ -4,18 +4,17 @@ This replaces the earlier park finds brief. The big change: **the player does no
 
 Build on existing systems (park scene, pet pose channels in `pet.ts`, scene props and `propKinds` in `scenes.ts`, furniture Move / Put away / Storage, tooltips, modals, scene weather / time of day / moon calendar, Supabase catalog). Do not rebuild them.
 
-## What's in this folder
+## Related paths
 
 | Path | What it is |
 | --- | --- |
-| `BRIEF.md` | This document |
-| `park-finds-catalog.json` | All 42 finds as catalog rows, ready to seed into the Supabase catalog |
-| `art/finds/png/<id>@2x.png`, `@3x.png` | Source renders (also copied into `assets/park-finds/` for Metro) |
-| `art/finds/silhouette-png/<id>@2x.png`, `@3x.png` | Source silhouettes, color `#54467A`, glow halos removed |
-| `art/cube/…`, `art/chest/…` | Source cube and chest art |
-| `../../assets/park-finds/` | **Runtime** PNGs the app requires (no `@2x` in the path — Metro treats that as a scale suffix) |
-| `*.svg` next to them | Source art only, for future edits. Don't render these at runtime |
-| `reference/*.html` | Open in a browser. Animated timing references and screen mocks. The pets in them are stand-ins: copy the **timing and motion**, draw with the real pet rig |
+| `docs/boop-boop-park-finds-brief.md` | This document |
+| `src/parkFinds/park-finds-catalog.json` | Bundled catalog rows (also seeded via Supabase migration) |
+| `assets/park-finds/finds-2x/`, `finds-3x/` | Runtime color PNGs (no `@2x` in the filename — Metro treats that as a scale suffix) |
+| `assets/park-finds/silhouette-2x/`, `silhouette-3x/` | Runtime silhouettes, color `#54467A` |
+| `assets/park-finds/chest/`, `cube/` | Chest and cube PNGs (+ SVG sources beside them) |
+| `assets/park-finds/svg/` | Find SVG sources for future edits. Don't render these at runtime |
+| `docs/park-finds-reference/*.html` | Timing references and early screen mocks. Pets in them are stand-ins: copy **timing and motion**, draw with the real pet rig |
 
 ## Global rules
 
@@ -31,7 +30,7 @@ Build on existing systems (park scene, pet pose channels in `pet.ts`, scene prop
 
 ## 1. Catalog
 
-Fields: `id`, `name`, `species` (`dog` | `cat` | `both`), `rarity` (`common` | `uncommon` | `rare` | `legendary`), `condition_type` (`always` | `season` | `weather` | `time` | `moon` | `date_window`), `condition_value`, `sort_order`, `art_key`, `active`. `art_key` matches the file names in `art/finds/`.
+Fields: `id`, `name`, `species` (`dog` | `cat` | `both`), `rarity` (`common` | `uncommon` | `rare` | `legendary`), `condition_type` (`always` | `season` | `weather` | `time` | `moon` | `date_window`), `condition_value`, `sort_order`, `art_key`, `active`. `art_key` matches the file names in `assets/park-finds/finds-2x/` (and the SVG sources in `assets/park-finds/svg/`).
 
 **Seeding.** Use the same path the existing Pet Shop / Training School catalog rows use; check the repo for the existing migration or seed. Add park finds as a new item type in that catalog (or a sibling `park_finds` table if the existing table can't hold these fields cleanly). Seed it from `park-finds-catalog.json` in a migration, so it's repeatable.
 
@@ -53,7 +52,7 @@ Finds only happen **in the park**, only when unlocked, and only when the pet not
 **The notice and the prompt**
 1. Pick the spot (see "Where").
 2. The pet stops, perks its ears, turns its head toward the spot and wags. A dog sniffs the air toward it. For a cat, the grass tuft grows in and rustles, or the bush shakes softly.
-3. The pet makes one bark or meow, and the prompt slides down from the top of the scene (see `reference/ScreenPrompt.html`):
+3. The pet makes one bark or meow, and the prompt slides down from the top of the scene (see `docs/park-finds-reference/ScreenPrompt.html`):
    - It's a glossy cotton-candy card just under the header. It must never cover the pet.
    - Text: **"[Pet name] seems to have found something!"**
    - One button: **"Let's see!"**
@@ -80,9 +79,9 @@ Finds only happen **in the park**, only when unlocked, and only when the pet not
 ## 3. Animations
 
 Open the references and match the beats and timing:
-- `reference/AnimDog.html`: dog digs
-- `reference/AnimCatGrass.html`: cat pounces into grass
-- `reference/AnimCatBush.html`: cat bats at a bush
+- `docs/park-finds-reference/AnimDog.html`: dog digs
+- `docs/park-finds-reference/AnimCatGrass.html`: cat pounces into grass
+- `docs/park-finds-reference/AnimCatBush.html`: cat bats at a bush
 
 Each reference has a timeline bar with a playhead. Walking and stalking legs run as long as the distance needs (use the existing walk task and gait); the other beats have fixed durations.
 
@@ -154,7 +153,7 @@ Existing channels used below: `headUp`, `headDown`, `earBack`, `wagAmp`, `tailLi
 
 ## 4. The find modal
 
-See `reference/ScreenFound.html`.
+See `docs/park-finds-reference/ScreenFound.html`.
 
 - **Title:** "[Pet name] found a [Item]!". Use "an" before a vowel sound: "Biscuit found an Old compass!"
 - **Item art:** large, on a warm glow disc, floating gently.
@@ -170,7 +169,7 @@ See `reference/ScreenFound.html`.
 
 **Art:** `art/chest/chest-closed`. The lid always stays closed. Draw it about 110 stage units wide, on the `sorted` layer like other furniture.
 
-### First time home (see `reference/ScreenChestIntro.html`)
+### First time home (see `docs/park-finds-reference/ScreenChestIntro.html`)
 
 1. **Trigger:** the player enters any **player-owned room** (`scene.playerOwned`) while:
    - the pet has at least one find,
@@ -192,13 +191,13 @@ See `reference/ScreenFound.html`.
 - **Put away** sends it to Storage. From Storage the player can take it out into any player-owned room, through the existing flow.
 ### Collection button on Home
 
-- Add a glossy **"Collection"** button right next to **Storage**, with the small closed-chest art as its icon (see the right phone in `ScreenChestIntro.html`).
+- Add a glossy **"Collection"** button right next to **Storage**, with the small closed-chest art as its icon (see the right phone in `docs/park-finds-reference/ScreenChestIntro.html`).
 - It opens the Treasure Chest page from anywhere, even when the chest is in Storage or not placed yet.
 - Show it whenever park finds are unlocked.
 
 ## 6. Treasure Chest page
 
-`reference/ScreenCollection.html` is an early mock (2-column glass cubes). **Ship the layout below**, not the mock.
+`docs/park-finds-reference/ScreenCollection.html` is an early mock (2-column glass cubes). **Ship the layout below**, not the mock.
 
 **Layout**
 - Dark background `#1E1630`.
@@ -269,7 +268,7 @@ The goal is no lag or stutter, including on mid-range Android phones.
   - @2x for collection cells, the chest prop and items in the park scene.
   - @3x only for the large art in the find modal.
 - **Silhouettes:** always the silhouette PNGs. No runtime color filters or tinting.
-- **Acorn / golden acorn:** drawn compact (short nut, wider cap). Prefer the SVG sources under `art/finds/svg/` when regenerating PNGs.
+- **Acorn / golden acorn:** drawn compact (short nut, wider cap). Prefer the SVG sources under `assets/park-finds/svg/` when regenerating PNGs.
 
 **Collection page**
 - Use a virtualized list (FlashList or FlatList), so only visible rows render.
