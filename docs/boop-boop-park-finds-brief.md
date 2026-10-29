@@ -45,7 +45,7 @@ Finds only happen **in the park**, only when unlocked, and only when the pet not
 **When the pet notices**
 - **Not every visit, and at most once per visit.** A visit runs from entering the park scene until leaving it.
 - **The pet's first completed find is guaranteed** (`firstVisitFindChance` = 1.0). Track this per pet with a `firstFindVisitDone` flag. Finds are not level-gated, so this is the first park visit that records a find. Set the flag only when an item is actually revealed, so an ignored prompt or an early exit carries the guarantee to the next visit.
-- Every later visit: when the player enters the park, roll `visitFindChance` (0.15). If it fails, nothing happens this visit.
+- Every later visit: when the player enters the park, roll `visitFindChance` (0.25). If it fails, nothing happens this visit.
 - If it succeeds, pick a random notice time `noticeMinSec`–`noticeMaxSec` (20–90) of park time. When that time comes, wait until the pet is **idle** (no task, not carrying a toy, not mid-play, no player input for `idleSec` = 4), then the pet **notices** something.
 - After that one notice, whatever happens (found, ignored or left), there are no more finds until the next visit.
 
@@ -343,7 +343,7 @@ Listeners:
 
 ## Decisions
 
-1. The pet's first park visit always has a find. After that, 15% of visits have one, never more than one per visit.
+1. The pet's first park visit always has a find. After that, 25% of visits have one, never more than one per visit.
 2. The prompt does not auto-timeout. It stays until "Let's see!" or another action; ignoring via another action spends the visit's find.
 3. The chest follows the existing prop pattern: tap opens the collection, hold opens Move / Put away.
 4. The chest lid always stays closed.

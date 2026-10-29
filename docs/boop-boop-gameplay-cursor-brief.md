@@ -180,7 +180,7 @@ Small goals the game offers, not things the pet asks for. Ignoring one costs not
 **Source of truth:** [`docs/boop-boop-park-finds-brief.md`](boop-boop-park-finds-brief.md). The older tap-the-sparkle sketch in this doc was replaced by the pet-notice / "Let's see!" loop.
 
 **Shipped behavior (summary)**
-- At most one find chance per park visit. The first completed find is guaranteed (`firstFindVisitDone` stays false until a find is recorded, so leaving early does not spend it). Later visits roll at 15%.
+- At most one find chance per park visit. The first completed find is guaranteed (`firstFindVisitDone` stays false until a find is recorded, so leaving early does not spend it). Later visits roll at 25%.
 - The pet notices on its own; the player taps **"Let's see!"** (or dismisses by doing something else).
 - Dogs dig; cats rustle grass or bat a bush. Both carry the find to the front, then the reveal modal.
 - Collection lives in the player's **Treasure Chest** furniture + Home **Collection** button. Page: 3-column floating art over light pools (no glass cubes).

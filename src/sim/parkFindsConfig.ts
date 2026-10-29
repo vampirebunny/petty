@@ -2,7 +2,7 @@ import type { PetState } from './types';
 
 export const parkFinds = {
   firstVisitFindChance: 1,
-  visitFindChance: 0.15,
+  visitFindChance: 0.25,
   noticeMinSec: 5,
   noticeMaxSec: 10,
   idleSec: 1,
