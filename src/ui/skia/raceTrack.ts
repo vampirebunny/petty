@@ -4,7 +4,7 @@ import type { SkCanvas } from '@shopify/react-native-skia';
 import { bodyFrame } from '../../actor';
 import type { Actor, Breed } from '../../actor';
 import { racePoses } from '../../actor/data/locomotion';
-import { HURDLE, type PlacedTrickProp } from '../../sim/trickProps';
+import { HURDLE, TUNNEL, type PlacedTrickProp } from '../../sim/trickProps';
 import type { Env } from './env';
 import { drawActor } from './pet';
 import { drawTrickProp } from './trickPropArt';
@@ -30,6 +30,8 @@ export type TrackCourse = {
   barZ: number;
   species: 'dog' | 'cat';
   zones: TrackZone[] | null;
+  /** Mouth and exit in meters. `bonkS` is seconds since that racer bonked the mouth (null if it didn't). */
+  tunnels?: { at: number; end: number; bonkS: number | null }[];
 };
 
 export type TrackRacer = {
@@ -173,6 +175,7 @@ export function drawRaceTrack(
     const footY = trackTop + (index + 1) * backLaneH - 2;
     const laneFit = fitFor(racer, petH * backScale);
     if (racer.course) drawLaneHurdles(c, racer.course, screenX, laneFit, footY, width, env.reduced, 'back');
+    if (racer.course) drawLaneTunnels(c, racer.course, screenX, ppm, laneFit, footY, width, env.reduced, 'back');
     const x = bodyX(racer.x, laneFit);
     if (x < -40) {
       if (racer.x < distanceM) drawOffscreen(c, 10, footY - backLaneH * 0.5, -1);
@@ -182,13 +185,53 @@ export function drawRaceTrack(
       drawRacer(c, x, footY, laneFit.fit, racer, env);
     }
     if (racer.course) drawLaneHurdles(c, racer.course, screenX, laneFit, footY, width, env.reduced, 'front');
+    if (racer.course) drawLaneTunnels(c, racer.course, screenX, ppm, laneFit, footY, width, env.reduced, 'front');
   });
   if (mine && mineFit) {
     const footY = height - frontH * 0.12;
     if (mine.course) drawLaneHurdles(c, mine.course, screenX, mineFit, footY, width, env.reduced, 'back');
+    if (mine.course) drawLaneTunnels(c, mine.course, screenX, ppm, mineFit, footY, width, env.reduced, 'back');
     const x = bodyX(mine.x, mineFit);
     if (x < width + width * 0.55) drawRacer(c, x, footY, mineFit.fit, mine, env);
     if (mine.course) drawLaneHurdles(c, mine.course, screenX, mineFit, footY, width, env.reduced, 'front');
+    if (mine.course) drawLaneTunnels(c, mine.course, screenX, ppm, mineFit, footY, width, env.reduced, 'front');
+  }
+}
+
+// The Training School tunnel, stretched so mouth to mouth spans the course's tunnel length.
+// Back pass behind the pet, front pass over it, so the pet shows only at the mouths.
+function drawLaneTunnels(
+  c: SkCanvas,
+  course: TrackCourse,
+  screenX: (meters: number) => number,
+  ppm: number,
+  lane: Fit,
+  footY: number,
+  width: number,
+  reduced: boolean,
+  pass: 'back' | 'front',
+): void {
+  if (!course.tunnels) return;
+  const prop: PlacedTrickProp = {
+    instanceId: 'race-tunnel',
+    type: 'tunnel',
+    sourceTrickId: course.species === 'cat' ? 'cat_tunnel' : 'dog_tunnel',
+    x: 0,
+    y: 0,
+    knocked: false,
+  };
+  for (const tunnel of course.tunnels) {
+    const from = screenX(tunnel.at);
+    const to = screenX(tunnel.end);
+    const reach = (TUNNEL.mouth + 20) * lane.fit;
+    if (to < -reach || from > width + reach) continue;
+    const stretch = Math.max(0.5, (to - from) / (2 * TUNNEL.half * lane.fit));
+    const wobble = !reduced && tunnel.bonkS != null && tunnel.bonkS < 0.6 ? Math.sin(tunnel.bonkS * 28) * Math.exp(-tunnel.bonkS * 6) : 0;
+    c.save();
+    c.translate((from + to) / 2, footY);
+    c.scale(lane.fit * stretch * (1 + wobble * 0.04), lane.fit * (1 - wobble * 0.08));
+    drawTrickProp(c, prop, pass);
+    c.restore();
   }
 }
 

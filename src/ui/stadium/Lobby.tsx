@@ -52,7 +52,7 @@ export function Lobby({ board, now, selected, onSelect, onCard, onFriends }: Pro
 
 function RaceCard({ card, board, now, onPress }: { card: StadiumCard; board: StadiumBoard; now: number; onPress: () => void }) {
   const trickName = card.requiredTrick ? (trickListing(card.requiredTrick)?.name ?? 'a new trick') : null;
-  const openEvent = card.event === 'funRun' || card.event === 'dockDive' || card.event === 'sniffOut';
+  const openEvent = card.event === 'funRun' || card.event === 'dockDive';
   const tag = card.cup === 'veteran' ? 'VETERAN' : card.isAway ? 'AWAY' : openEvent ? 'OPEN' : null;
   return (
     <Pressable

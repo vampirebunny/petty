@@ -1,4 +1,5 @@
 import { testPet } from '../__fixtures__/pets';
+import { gameplayConfig } from '../gameplayConfig';
 import { parseBoard, parseEntry, parseRace } from '../../stadium/api';
 import {
   classForEvent,
@@ -42,7 +43,8 @@ it('lets a new pet into the open races and locks the trick races', () => {
     ageDays: 12,
     training: { ...puppy.training, dog_hurdle: { ...puppy.training.sit, mastered: true } },
   };
-  expect(skillBlock(trained, 'obstacle')?.trickId).toBe('dog_tunnel');
+  expect(isPlayableEvent('obstacle')).toBe(true);
+  expect(skillBlock(trained, 'obstacle')?.trickId).toBe(gameplayConfig.races.waiveObstacleSkill ? undefined : 'dog_tunnel');
 });
 
 it('picks the class from level', () => {

@@ -15,7 +15,7 @@ Applied by the owner through `20261024250000_ledger_source_ambiguity.sql`, inclu
 - `20261024240000_anonymous_cleanup.sql` — `cleanup_empty_anonymous_users()` (creating it does not delete users)
 - `20261024250000_ledger_source_ambiguity.sql` — earn lookup no longer aborts the batch
 
-`apple_store_token`, `delete_account`, `supersede_guest`, and `revenuecat-webhook` are deployed on that project. `revenuecat-webhook` has `verify_jwt = false` and requires `REVENUECAT_WEBHOOK_SECRET`.
+`apple_store_token`, `delete_account`, `supersede_guest`, `revenuecat-webhook`, and `race_report` are deployed on that project. `revenuecat-webhook` has `verify_jwt = false` and requires `REVENUECAT_WEBHOOK_SECRET`.
 
 `20261027120000_colorway_columns.sql` is applied. It adds `theme`, `collection`, `season`, and `rarity` on `shop_items`. The 238 launch colorways were inserted from `tools/colorways/generated/seed.sql`, which is not a migration: 190 `always`/`standard`, 24 `rotation`/`exclusive`, and 24 `featured`/`limited` with cap 500. A later drop is another insert-only file from `npm run colorways:seed`. The app reads `theme`: the `always`/`standard` themes rotate in the shop's collection section every 3 hours instead of sitting on the Clothes shelf (see [the shop brief](../docs/boop-boop-pet-shop-brief.md#5a-collection-rotation)).
 
@@ -40,10 +40,10 @@ These race follow-ups are applied:
 - `20261029360000_rest_by_race_start.sql`: a rest only blocks races that start before it ends.
 - `20261029370000_test_fast_slots.sql`: **testing only.** 1-minute slots and no rest. Before launch, set `slot_seconds = 300` and `cooldown_seconds = 360` again in a new migration, and restore `slotMs` and `cooldownMs` in `src/sim/gameplayConfig.ts`.
 - `20261029380000_fill_npcs_at_lock.sql`: a solo Fun Run gets its NPCs at line-up lock, so they stand at the start line during the countdown.
-
-Waiting for the owner to apply:
-
-- `20261029420000_fun_run_open_to_all.sql`: Fun Run is one Open field for every level (`stadium_event_class`), and new Fun Run races are stamped `funrun-2`. Ship the app build with the `funrun-2` config before or with this.
+- `20261029420000_fun_run_open_to_all.sql`: Fun Run is one Open field for every level (`stadium_event_class`), and new Fun Run races are stamped `funrun-2`.
+- `20261029430000_schedule_ship_roster.sql`: schedule only Fun Run, Dock Dive, Hurdles, and Obstacle Course (Sniff Out, Trick Show, and Weave cancelled). Keeps the testing board (Dock Dive + Hurdles every open slot; waived hurdle trick). Launch later restores the Hurdles / Obstacle Course third-event rotation, trick gates, and 5-minute / 6-minute rest.
+- `20261029440000_obstacle_course.sql`: Obstacle Course starts like Hurdles; races are stamped `obstacle-1`.
+- `20261029450000_race_replay.sql`: authoritative solo results. Adds `apply_verified_race_report` (service_role), `race_report_flags`, `race_entries.input_log`, and blocks client `submit_race_report`. The `race_report` Edge Function is deployed with it.
 
 New files in this folder are applied only by the project owner. Do not run `supabase db push`, the Supabase CLI against the hosted project, or the SQL in the dashboard from an agent or an automated script. After the CLI is linked, the owner applies new migrations with:
 

@@ -33,7 +33,7 @@ Turn Boop Boop from a toy into a game. Add pet levels driven by XP, badges, sugg
 6. Stadium (now specified in `docs/boop-boop-stadium-cursor-brief.md`, which supersedes sections 8 and 9 below)
 7. Live races with friends (also in the stadium brief)
 
-Each phase should ship working on its own. Park finds landed ahead of levels. Levels, the tutorial, first-find XP, non-race badges and suggested activities are shipped. The Stadium lobby through the starting gate is shipped. Fun Run is the first playable race (`docs/boop-boop-race-foundation-cursor-brief.md`). The other events are on the schedule and still end on a placeholder. Finds stay available from level 1. The Training School stays open from level 1.
+Each phase should ship working on its own. Park finds landed ahead of levels. Levels, the tutorial, first-find XP, non-race badges and suggested activities are shipped. The Stadium lobby through the starting gate is shipped. Fun Run, Hurdles, Dock Dive, and Obstacle Course are playable solo races (`docs/boop-boop-race-foundation-cursor-brief.md`). Solo results go through the `race_report` Edge Function. Sniff Out, Trick Show, and Weave are cancelled and are not scheduled. Finds stay available from level 1. The Training School stays open from level 1.
 
 ---
 
@@ -204,7 +204,7 @@ Small goals the game offers, not things the pet asks for. Ignoring one costs not
 
 ## 8. Stadium and competitions
 
-The lobby, sign-up, race call, and starting gate are in `docs/boop-boop-stadium-cursor-brief.md`. The races themselves are in `docs/boop-boop-race-foundation-cursor-brief.md`. Fun Run is playable for solo races. Dock Dive, Sniff Out, Trick Show, Hurdles, Weave, and Obstacle Course are on the schedule and still end on "Race coming soon." Live races and the server replay come after that. Trophies and the ribbon furniture wait for their own brief.
+The lobby, sign-up, race call, and starting gate are in `docs/boop-boop-stadium-cursor-brief.md`. The races themselves are in `docs/boop-boop-race-foundation-cursor-brief.md`. Fun Run, Hurdles, Dock Dive, and Obstacle Course are playable for solo races. Solo server replay is shipped (`race_report`). Sniff Out, Trick Show, and Weave are cancelled. Live races with friends come next. Trophies and the ribbon furniture wait for their own brief.
 
 ## 9. Live races (phase 7)
 
@@ -220,4 +220,5 @@ The lobby, sign-up, race call, and starting gate are in `docs/boop-boop-stadium-
 - Best Dressed contest with player voting
 - Heats, finals and weekly championships
 - Away competitions (later, entered through the Stadium)
+- Sniff Out, Trick Show, and Weave (cancelled; not scheduled)
 - Final badge names and item art

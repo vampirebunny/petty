@@ -139,6 +139,20 @@ export function applyStumble(actor: Actor, breed: Breed, t: number, reduced: boo
   };
 }
 
+// The Through the Tunnel crawl, blended by `u` (0 standing, 1 fully low). These are the channels
+// trickPlay sets inside the tube. Call every frame: `u` 0 hands the channels back to the gallop.
+export function applyRaceDuck(actor: Actor, u: number): void {
+  const low = Math.max(0, Math.min(1, u));
+  actor.pose.stalk = low;
+  actor.pose.crouch = low;
+  actor.pose.headDown = 0.9 * low;
+  actor.pose.earBack = low;
+  if (low > 0) {
+    actor.pose.headUp = Math.min(actor.pose.headUp, 1 - low);
+    actor.pose.sit = 0;
+  }
+}
+
 export function clearPose(actor: Actor): void {
   clearRaceVisual(actor);
   actor.stumble = null;

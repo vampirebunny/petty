@@ -86,6 +86,8 @@ export const gameplayConfig = {
     dailyXpRaces: 8,
     energyCost: 8,
     waiveHurdleSkill: true,
+    // Testing: Obstacle Course without Jump the Hurdle and Through the Tunnel. Restore before launch.
+    waiveObstacleSkill: true,
   },
   goals: [
     { action: 'feed', label: 'Feed' },

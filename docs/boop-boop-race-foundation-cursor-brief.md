@@ -2,7 +2,7 @@
 
 ## Goal
 
-Build the shared engine every Stadium competition runs on: the race screen, start and finish, multiplayer sync, server checking, NPC pets, rewards, and the race scene. Then build **Fun Run** on top of it as the first working event. Later briefs add one event at a time (Hurdles, Weave, Obstacle Course, Dock Dive, Sniff Out, Trick Show) and should only need event-specific rules, controls and drawing.
+Build the shared engine every Stadium competition runs on: the race screen, start and finish, multiplayer sync, server checking, NPC pets, rewards, and the race scene. Then build **Fun Run** on top of it as the first working event. Later briefs add one event at a time (Hurdles, Dock Dive, Obstacle Course) and should only need event-specific rules, controls and drawing. Sniff Out, Trick Show, and Weave are cancelled.
 
 This brief picks up where the Stadium brief ends: the starting gate hands off the race id and final line-up (live players plus NPCs, if any).
 
@@ -10,9 +10,9 @@ This brief picks up where the Stadium brief ends: the starting gate hands off th
 
 These override the sections below. The old addendum is folded in here.
 
-**Schedule.** Every 5-minute slot shows three events: Fun Run, plus two from Dock Dive, Sniff Out, Trick Show, Hurdles, Weave, and Obstacle Course. Every slot includes at least one no-trick event besides Fun Run (Dock Dive or Sniff Out). Events that are not built yet still appear and end on the "Race coming soon" screen. Fun Run is the first playable event.
+**Schedule.** Ship roster: Fun Run, Dock Dive, Hurdles, and Obstacle Course. Every 5-minute slot shows three events: Fun Run, Dock Dive, and one of Hurdles or Obstacle Course. The no-trick event besides Fun Run is always Dock Dive. Sniff Out, Trick Show, and Weave are cancelled and are not scheduled (their `event_type` values may remain in the DB check for old rows). All four ship events are playable. Testing keeps 1-minute slots with Hurdles and Obstacle Course in every open slot until testing ends; launch restores 5-minute slots, 6-minute rest, and the Hurdles / Obstacle Course rotation.
 
-**Veteran Cup.** A fourth card, shown only to senior pets, in every third slot (every 15 minutes, on :00, :15, :30, and :45). It does not replace a regular race. The event rotates through all seven and leans toward Fun Run, Dock Dive, and Sniff Out. Seniors of every level race together on Open class settings. It has its own trophy, which waits for the trophies brief. The usual trick check still applies.
+**Veteran Cup.** A fourth card, shown only to senior pets, in every third slot (every 15 minutes, on :00, :15, :30, and :45). It does not replace a regular race. The event rotates through Fun Run, Dock Dive, Hurdles, and Obstacle Course. Seniors of every level race together on Open class settings. It has its own trophy, which waits for the trophies brief. The usual trick check still applies.
 
 **Classes.** Beginner, Novice, Open, Expert, and Championship, plus Veteran Cup. A pet always races in its highest class, except in Fun Run, which is one Open field for every level (section 9). At gate open (start − 60 s), neighboring classes merge into the lower class when one race has a single live player and the combined field fits in capacity. The switch defaults on. If withdrawals then leave one player, that player gets NPCs at the start.
 
@@ -26,7 +26,7 @@ These override the sections below. The old addendum is folded in here.
 
 **Code.** Race rules live in `supabase/functions/_shared/race-sim/`. Solo races ship before the replay Edge Function. Live races need that function and Realtime sync, which are later. The track scrolls with parallax and uses the shared sky and weather. The running, leap, and stumble poses are the existing pet rig (`docs/boop-boop-race-poses-cursor-brief.md`). Fun Run has no hurdles, so the leap and the stumble are checked from the dev preview on the race screen.
 
-**Build order.** (1) sim and config, (2) race screen and scene, (3) NPCs and solo Fun Run, (4) scene polish, (5) server replay Edge Function, an owner deploy, (6) live races.
+**Build order.** (1) sim and config, (2) race screen and scene, (3) NPCs and solo Fun Run, (4) scene polish, (5) ~~server replay Edge Function~~ (**shipped** — `20261029450000_race_replay.sql` applied; `race_report` deployed), (6) live races.
 
 **References**
 - Design canvas "Boop Boop Stadium", screens 6–8 (Fun Run, Hurdles, Results), for layout.
@@ -45,19 +45,19 @@ These override the sections below. The old addendum is folded in here.
 
 ## 1. Events and entry
 
-| Event | Tricks needed to enter | Type |
-| --- | --- | --- |
-| Fun Run | none | race |
-| Dock Dive | none | distance |
-| Sniff Out | none | rounds |
-| Trick Show | Sit, Speak, Spin, Stand | rounds |
-| Hurdles | Jump the Hurdle | race |
-| Weave | Weave | race |
-| Obstacle Course | Jump the Hurdle + Through the Tunnel | race |
+| Event | Tricks needed to enter | Type | Status |
+| --- | --- | --- | --- |
+| Fun Run | none | race | playable |
+| Dock Dive | none | distance | playable |
+| Hurdles | Jump the Hurdle | race | playable |
+| Obstacle Course | Jump the Hurdle + Through the Tunnel | race | playable |
+| Sniff Out | — | — | cancelled |
+| Trick Show | — | — | cancelled |
+| Weave | — | — | cancelled |
 
-- All events are open to dogs and cats. The cat trick catalog in the Training School must get Jump the Hurdle, Weave and Through the Tunnel so cats can qualify.
+- All ship events are open to dogs and cats. The cat trick catalog must include Jump the Hurdle and Through the Tunnel so cats can qualify for Hurdles and Obstacle Course.
 - The trick check runs server-side at sign-up, as in the Stadium brief.
-- The engine supports three event types. **Race:** first to the finish line, ranked by time. **Distance:** best attempt wins. **Rounds:** last pet standing or best score. This brief builds the race type fully. The other two only need the hooks: results ranking by score instead of time, and a round-sync message (section 5).
+- The engine supports three event types. **Race:** first to the finish line, ranked by time. **Distance:** best attempt wins. **Rounds:** last pet standing or best score. This brief builds the race type fully. Distance is used by Dock Dive. Rounds were for cancelled events and are not needed for the ship roster.
 
 ## 2. Race lifecycle
 
@@ -129,21 +129,17 @@ To make replays match exactly:
 
 ## 6. Results and server check
 
-When a player finishes (or hits max length), the phone sends one report to an Edge Function: `{ raceId, petId, inputLog, claimedFinishMs }`. Inputs are tap times for Fun Run; later events add jump, duck, hold and release times.
+**Shipped for solo:** the phone calls the `race_report` Edge Function with `{ raceId, inputLog, claimedFinishMs }` (optional `claimedScoreDm` for Dock Dive). Fun Run sends tap times; Hurdles jump times; Dock Dive hold/release attempts; Obstacle Course button taps. The old `submit_race_report` RPC rejects client calls (`use race_report`).
 
 The server:
-1. **Replays the race** with `race/sim`, using the stored seed, config and that pet's modifiers.
-2. **Applies the tap cap:** taps beyond 20 in any rolling second are dropped (the phone drops them too, so honest players never notice).
-3. **Flags bot-like input:** e.g. very evenly spaced taps (low variation over long runs) or impossible patterns. Flagged runs are kept for review. Start by logging only, with no automatic penalty.
-4. **Uses the replayed finish time,** not the claimed one. Log differences larger than a small tolerance.
-5. **Ranks** by finish time (race type), with DNFs last. Ties are broken by the earlier-replayed exact ms.
-6. **Writes the results** and broadcasts them on the race channel. Each phone shows the results screen.
+1. **Replays the race** with `_shared/race-sim`, using the stored seed, config version, and that pet's lock modifiers. NPC finishes are re-simulated from the race seed (not trusted from the phone).
+2. **Applies the tap cap** inside the sim (same as the phone).
+3. **Flags bot-like input** into `race_report_flags` (even sustained taps). Log only; no automatic penalty.
+4. **Uses the replayed finish time / score**, not the claimed one. Mismatches beyond 100 ms (or 1 score tenth) are flagged.
+5. **Writes** via `apply_verified_race_report` (service role) and ranks with `stadium_rank`.
+6. **Returns** `race_state` JSON. Live Realtime results broadcast is still later; phones use the invoke return and `race_state` polling.
 
-**Rewards** (server-side, on results):
-- **XP to the pet:** entered 20, 3rd 40, 2nd 60, 1st 100 (existing values). In a race with fewer than 3 live players plus no NPCs, places still pay normally.
-- **Ribbons to the pet:** 1st blue, 2nd red, 3rd yellow. Store them as the pet's items for the ribbons and trophies display (trophies are a later brief).
-- **Energy:** lowers like normal play (default −8, config).
-- **Rest:** 6 minutes per event from the race start. Only that event's races starting before the rest ends are blocked.
+**Rewards** stay on the phone from the published place (`applyRaceRewards`): XP, ribbon log, energy. The server never writes the pet document. Rest still comes from `stadium_finish_cooldown`.
 
 **Results screen** (canvas screen 8):
 - event and class
@@ -222,4 +218,4 @@ NPCs run at full speed from Go!. With ordinary mood and energy, about 4.5 taps p
 
 ## 10. Build order
 
-See Decisions. The next brief is Hurdles, which adds obstacles, jump zones, and the Hurdles results stat on this foundation.
+See Decisions. Fun Run, Hurdles, Dock Dive, and Obstacle Course are playable. Solo reports go through `race_report`. Next: live races with friends.

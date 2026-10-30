@@ -15,7 +15,8 @@ import { playClearChime, playClipThud, playJumpBoing, preloadRaceSfx, releaseRac
 import { serverNow } from '../../db/accountMeta';
 import { classLabel, eventLabel } from '../../sim/stadium';
 import type { PetState } from '../../sim/types';
-import { fetchRace, submitRaceReport, type DistanceScore, type RaceView } from '../../stadium/api';
+import { fetchRace, submitRaceReport, type RaceView } from '../../stadium/api';
+import { dockDiveLog } from '../../stadium/raceReport';
 import { useDiveFlags } from '../../stadium/diveSync';
 import {
   advanceDive,
@@ -159,16 +160,6 @@ function applyMotion(actor: Actor, breed: Breed, motion: Motion, flop: boolean, 
   } else if (motion.mode === 'back') {
     setFace(actor, -1);
   }
-}
-
-function toScore(results: readonly (DiveResult | null)[], score: DiveScore): DistanceScore {
-  return {
-    scoreDm: Math.round(score.bestM * 10),
-    secondDm: Math.round(score.secondM * 10),
-    bestAttempt: score.bestAttempt,
-    attemptsM: results.map((result) => result?.distanceM ?? 0),
-    flops: results.map((result) => result?.flop ?? false),
-  };
 }
 
 export function DockDiveScreen({ race, pet, reducedMotion, onFinish, onExit }: Props) {
@@ -344,12 +335,11 @@ export function DockDiveScreen({ race, pet, reducedMotion, onFinish, onExit }: P
         void submitRaceReport(
           race.raceId,
           mineScored?.score.bestAtMs ?? null,
-          scored
-            .filter((item) => item.row.npc)
-            .map((item) => ({ entryId: item.row.key, finishMs: item.score.bestAtMs, score: toScore(item.results, item.score) })),
-          mineScored ? toScore(mineScored.results, mineScored.score) : undefined,
+          dockDiveLog(inputs.current),
+          mineScored ? Math.round(mineScored.score.bestM * 10) : null,
         ).then((result) => {
           if (result.ok) grantRef.current(result.data);
+          else if (result.offline) sent.current = false;
         });
       }
 

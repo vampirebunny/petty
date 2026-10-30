@@ -6,7 +6,7 @@ Build the Stadium place on the map: where players see upcoming races, sign up, g
 
 Visual reference: the "Boop Boop Stadium" design canvas, screens 1–5 (Stadium lobby, Sign-up sheet, Signed up, Race call, Starting gate). Use the mocks for layout, hierarchy and copy. **Where this brief and the mocks disagree, this brief wins** (notably the starting gate's lane and NPC rules, section 6).
 
-**Status: shipped** through the starting gate, pending the owner applying `supabase/migrations/20261029200000_stadium.sql` and `supabase/migrations/20261029310000_race_foundation.sql`. Race gameplay is in `docs/boop-boop-race-foundation-cursor-brief.md`. Fun Run is playable. The other events still end on "Race coming soon."
+**Status: shipped** through the starting gate. Race gameplay is in `docs/boop-boop-race-foundation-cursor-brief.md`. Fun Run, Hurdles, Dock Dive, and Obstacle Course are playable. Solo results go through the deployed `race_report` Edge Function. Sniff Out, Trick Show, and Weave are cancelled. Testing migrations (`20261029370000_test_fast_slots.sql`, `20261029390000_test_hurdles_every_slot.sql`, `20261029430000_schedule_ship_roster.sql`, `20261029440000_obstacle_course.sql`) stay in effect until testing ends.
 
 ## Global rules
 
@@ -15,7 +15,7 @@ Visual reference: the "Boop Boop Stadium" design canvas, screens 1–5 (Stadium 
   - Go / confirm (Go to the Stadium, selected time slot): the mint/green glossy button
   - Race with friends: the lavender glossy button
   - Secondary (Withdraw, Not now, Skip this race): the existing white or text-only secondary style
-- All numbers are defaults in the gameplay config, not hardcoded: slot length (5 min), events per slot (3), slots shown (3), race capacity (6), gate opens (60 s before start), line-up lock (10 s before start), rest per event (6 min), NPC fill count. The server's `stadium_config` row is the source of truth. For testing, `20261029370000_test_fast_slots.sql` sets 1-minute slots and no rest, and `20261029390000_test_hurdles_every_slot.sql` puts Hurdles in every slot with no Jump the Hurdle requirement. The client defaults match. Restore 5 minutes, 6 minutes, the rotating third event, and the hurdle trick before launch.
+- All numbers are defaults in the gameplay config, not hardcoded: slot length (5 min), events per slot (3), slots shown (3), race capacity (6), gate opens (60 s before start), line-up lock (10 s before start), rest per event (6 min), NPC fill count. The server's `stadium_config` row is the source of truth. For testing, `20261029370000_test_fast_slots.sql` sets 1-minute slots and no rest, `20261029390000_test_hurdles_every_slot.sql` puts Hurdles in every slot with no Jump the Hurdle requirement, and `20261029430000_schedule_ship_roster.sql` keeps that board while scheduling only the ship roster (Fun Run, Dock Dive, Hurdles, Obstacle Course). The client defaults match. Restore 5 minutes, 6 minutes, the Hurdles / Obstacle Course third-event rotation, and the hurdle trick before launch.
 - No speech balloons over pets; no tooltips or banners on the starting gate or during races.
 - The Stadium needs a connection. Offline: show the header plus a friendly "The Stadium needs internet to race" state with a back button. Everything else in the app keeps working offline.
 - Use **server time** for every countdown (keep a server-clock offset); never trust the device clock for slot times.

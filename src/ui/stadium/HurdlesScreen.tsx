@@ -16,6 +16,7 @@ import { serverNow } from '../../db/accountMeta';
 import { classLabel, eventLabel, formatCountdown } from '../../sim/stadium';
 import type { PetState } from '../../sim/types';
 import { fetchRace, submitRaceReport, type RaceView } from '../../stadium/api';
+import { hurdlesLog } from '../../stadium/raceReport';
 import {
   coastRunner,
   createHurdleRunner,
@@ -179,12 +180,9 @@ export function HurdlesScreen({ race, pet, reducedMotion, onFinish, onExit }: Pr
           setWaiting(true);
           setProvisional(standings);
           const mineStanding = standings.find((row) => row.mine);
-          void submitRaceReport(
-            race.raceId,
-            mineStanding?.finishMs ?? null,
-            standings.filter((row) => !row.mine).map((row) => ({ entryId: row.key, finishMs: row.finishMs })),
-          ).then((result) => {
+          void submitRaceReport(race.raceId, mineStanding?.finishMs ?? null, hurdlesLog(jumps.current)).then((result) => {
             if (result.ok) grantRef.current(result.data);
+            else if (result.offline) sent.current = false;
           });
         }
       }

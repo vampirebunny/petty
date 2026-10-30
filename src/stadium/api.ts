@@ -11,6 +11,9 @@ import {
   type RaceSignup,
   type SpeciesAllowed,
 } from '../sim/stadium';
+import type { RaceReportInputLog } from './raceReport';
+
+export type { RaceReportInputLog } from './raceReport';
 
 export type RaceModifiers = {
   energy: number;
@@ -72,9 +75,6 @@ export type LineupRow = {
   /** Distance events: 0-based attempt of the best jump. */
   bestAttempt: number | null;
 };
-
-/** One racer's distance-event result, as reported to the server. */
-export type DistanceScore = { scoreDm: number; secondDm: number; bestAttempt: number; attemptsM: number[]; flops: boolean[] };
 
 export type RaceStatus = 'open' | 'locked' | 'countdown' | 'running' | 'finished' | 'cancelled';
 
@@ -233,19 +233,6 @@ function lineupRow(value: unknown, index: number, npc: boolean): LineupRow {
   };
 }
 
-function scoreJson(score: DistanceScore | undefined): Record<string, unknown> {
-  if (!score) return {};
-  return {
-    score_dm: Math.round(score.scoreDm),
-    detail: {
-      second_dm: Math.round(score.secondDm),
-      best_attempt: score.bestAttempt,
-      attempts_m: score.attemptsM,
-      flops: score.flops,
-    },
-  };
-}
-
 export function parseRace(value: unknown): RaceView | null {
   const row = rowOf(value);
   const raceId = text(row.race_id);
@@ -323,26 +310,40 @@ export async function gateHeartbeat(entryId: string): Promise<StadiumResult<Race
 
 export async function submitRaceReport(
   raceId: string,
-  finishMs: number | null,
-  npcFinishes: { entryId: string; finishMs: number | null; score?: DistanceScore }[],
-  score?: DistanceScore,
+  claimedFinishMs: number | null,
+  inputLog: RaceReportInputLog,
+  claimedScoreDm?: number | null,
 ): Promise<StadiumResult<RaceView>> {
-  const mine = scoreJson(score);
-  const result = await call('submit_race_report', {
-    p_race_id: raceId,
-    p_finish_ms: finishMs == null ? null : Math.round(finishMs),
-    p_npc_finishes: npcFinishes.map((row) => ({
-      entry_id: row.entryId,
-      finish_ms: row.finishMs == null ? null : Math.round(row.finishMs),
-      ...scoreJson(row.score),
-    })),
-    ...(score ? { p_score_dm: mine.score_dm, p_detail: mine.detail } : {}),
-  });
-  if (!result.ok) {
-    return result;
+  const supabase = getSupabase();
+  if (!supabase) {
+    return { ok: false, offline: true, reason: 'offline' };
   }
-  const race = parseRace(result.data);
-  return race ? { ok: true, data: race } : { ok: false, offline: false, reason: 'bad race' };
+  try {
+    const { data, error } = await supabase.functions.invoke('race_report', {
+      body: {
+        raceId,
+        claimedFinishMs: claimedFinishMs == null ? null : Math.round(claimedFinishMs),
+        inputLog,
+        ...(claimedScoreDm == null ? {} : { claimedScoreDm: Math.round(claimedScoreDm) }),
+      },
+    });
+    if (error) {
+      const message = error.message ?? '';
+      return { ok: false, offline: offlinePattern.test(message), reason: message };
+    }
+    const payload = rowOf(data);
+    if (typeof payload.error === 'string') {
+      return { ok: false, offline: false, reason: payload.error };
+    }
+    const serverNow = time(payload.server_now);
+    if (serverNow != null) {
+      noteServerTime(serverNow);
+    }
+    const race = parseRace(data);
+    return race ? { ok: true, data: race } : { ok: false, offline: false, reason: 'bad race' };
+  } catch (error) {
+    return { ok: false, offline: true, reason: error instanceof Error ? error.message : 'offline' };
+  }
 }
 
 export async function fetchRace(raceId: string): Promise<StadiumResult<RaceView>> {
