@@ -34,6 +34,7 @@ import {
 } from './engine';
 import { drawPaddlePaws } from './render';
 import { flushPaddleScores, loadBoard, rankThisRun, readBest, recordRun } from './scores';
+import { track } from '../../analytics/analytics';
 import type { Board, LocalBest } from './scores';
 import type { PaddleSound, Run } from './types';
 
@@ -212,6 +213,10 @@ export function PaddlePawsScreen({ pet, reducedMotion, onMenu }: Props) {
     const isGuest = !readAccountLinked();
     setGuest(isGuest);
     const flushed = await flushPaddleScores();
+    if (flushed === 'sent') {
+      track('post_score', { game_id: 'paddlePaws', score });
+    }
+    track('minigame_end', { game_id: 'paddlePaws', score, duration_s: Math.round(run.t) });
     const live = await loadBoard();
     if (live) {
       setBoard(live);
@@ -321,6 +326,7 @@ export function PaddlePawsScreen({ pet, reducedMotion, onMenu }: Props) {
       bestScore: best.score,
     });
     beginRun(run);
+    track('minigame_start', { game_id: 'paddlePaws' });
     startArcadeRound();
     runRef.current = run;
     overRef.current = 0;

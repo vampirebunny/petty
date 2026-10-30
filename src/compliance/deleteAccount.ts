@@ -7,6 +7,7 @@ import { pingAuthHealth } from './authHealth';
 import { peekSessionUserId } from './identity';
 import { deleteGuestAccount } from './syncConsentRecords';
 import { getSupabase } from './supabase';
+import { resetAndDisable } from '../analytics/analytics';
 
 const pendingKey = 'boop.pendingSupersede';
 
@@ -35,6 +36,7 @@ function payloadOf(data: unknown): { ok?: boolean; error?: string; needs_apple_r
 
 /** Deletes the signed-in account, or wipes a guest that never reached the server. */
 export async function runAccountDeletion(options: Options = {}): Promise<DeleteResult> {
+  resetAndDisable();
   const linked = readAccountLinked();
   const sessionId = await peekSessionUserId();
   if (!linked && !sessionId) {
@@ -100,6 +102,7 @@ export async function runAccountDeletion(options: Options = {}): Promise<DeleteR
  * A guest that never synced wipes locally. Offline returns false and deletes nothing.
  */
 export async function eraseUnder13(): Promise<boolean> {
+  resetAndDisable();
   const linked = readAccountLinked();
   const sessionId = await peekSessionUserId();
   if (!sessionId && !linked) {

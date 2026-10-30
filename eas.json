@@ -15,7 +15,10 @@
     },
     "production": {
       "autoIncrement": true,
-      "environment": "production"
+      "environment": "production",
+      "env": {
+        "EXPO_PUBLIC_ANALYTICS_ENABLED": "1"
+      }
     }
   },
   "submit": {

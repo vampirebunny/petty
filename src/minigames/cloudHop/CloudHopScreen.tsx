@@ -15,6 +15,7 @@ import { AccountSheet } from '../../ui/AccountSheet';
 import { fontFamily } from '../../ui/font';
 import { loadSoundEnabled, saveSoundEnabled } from '../../storage/session';
 import { HOW_TO, PTS_PER_M, WORLD_W } from './content';
+import { track } from '../../analytics/analytics';
 import {
   beginRun,
   createRun,
@@ -353,6 +354,9 @@ export function CloudHopScreen({ pet, reducedMotion, onMenu }: Props) {
     let waiting = false;
     if (!guest && readHandleSaved()) {
       const flushed = await flushCloudHopScore();
+      if (flushed === 'sent') {
+        track('post_score', { game_id: 'cloudHop', score });
+      }
       waiting = flushed === 'kept';
       const live = await loadBoard();
       if (live?.me && live.me.rank <= 20) {
@@ -362,6 +366,7 @@ export function CloudHopScreen({ pet, reducedMotion, onMenu }: Props) {
         setBoard(live);
       }
     }
+    track('minigame_end', { game_id: 'cloudHop', score, duration_s: Math.round(run.time) });
     setSummary({
       cause: run.deathCause,
       score,
@@ -387,6 +392,7 @@ export function CloudHopScreen({ pet, reducedMotion, onMenu }: Props) {
     overRef.current = 0;
     const run = makeRun(logicalH);
     beginRun(run);
+    track('minigame_start', { game_id: 'cloudHop' });
     startArcadeRound();
     setSummary(null);
     setOverlay('play');

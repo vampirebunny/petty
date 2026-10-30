@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ChevronLeft, Flag, Users, WifiOff } from 'lucide-react-native';
 
 import { readAccountLinked, serverNow } from '../db/accountMeta';
+import { track, trackScreen } from '../analytics/analytics';
 import { pushPetBeforeRead } from '../sync/queue';
 import { askRaceReminderPermission, cancelRaceCall } from '../reminders/notifications';
 import { fetchBoard, signUpFor, withdrawEntry, type RaceView, type StadiumBoard, type StadiumCard, type StadiumSlot } from '../stadium/api';
@@ -34,6 +35,7 @@ import { StadiumHeader } from '../ui/stadium/StadiumHeader';
 import { StartingGate, type GateExit } from '../ui/stadium/StartingGate';
 import { Ticket } from '../ui/stadium/Ticket';
 import { FriendGameSetup } from '../ui/stadium/FriendGameSetup';
+import { NpcCalibrationStadium } from '../ui/stadium/NpcCalibrationDebug';
 import { FriendRoom, type FriendRoomExit } from '../ui/stadium/FriendRoom';
 import { AccountSheet } from '../ui/AccountSheet';
 import { iconStroke } from '../ui/theme';
@@ -130,6 +132,15 @@ export function StadiumScreen({
   const screenRef = useRef(screen);
   const atGateRef = useRef(onAtGate);
 
+  useEffect(() => {
+    if (screen === 'gate' || screen === 'race') {
+      trackScreen('race');
+      return;
+    }
+    if (screen !== 'loading') {
+      trackScreen('stadium');
+    }
+  }, [screen]);
   useEffect(() => {
     petRef.current = pet;
     commitRef.current = onCommit;
@@ -233,7 +244,11 @@ export function StadiumScreen({
       return;
     }
     if (card.state === 'missing_trick') {
-      setBlock(skillBlock(pet, card.event));
+      const blocked = skillBlock(pet, card.event);
+      setBlock(blocked);
+      if (blocked) {
+        track('competition_blocked', { type: card.event, missing_trick: blocked.trickId });
+      }
       return;
     }
     if (card.state === 'busy') {
@@ -302,6 +317,12 @@ export function StadiumScreen({
   };
 
   const startRace = (view: RaceView) => {
+    track('competition_enter', {
+      type: view.event,
+      class: view.classId,
+      cup: view.cup,
+      live_players: view.players.length,
+    });
     clearSignup();
     setRace(view);
     setScreen('race');
@@ -551,6 +572,7 @@ export function StadiumScreen({
                 />
               ) : null}
               {signup ? <CandyButton role="go" label="See your ticket" onPress={() => setScreen('ticket')} /> : null}
+              <NpcCalibrationStadium />
             </>
           ) : (
             <View style={[shared.card, styles.offline]}>

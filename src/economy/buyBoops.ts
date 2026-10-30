@@ -1,5 +1,7 @@
 import Purchases, { PURCHASES_ERROR_CODE } from 'react-native-purchases';
 
+import { setProp, track } from '../analytics/analytics';
+
 import { ensureAnonymousUserId } from '../compliance/identity';
 import { loadBoopsPackage } from './boopsOffering';
 import { iapPurchaseKeys, pullIapCredits } from './iapApply';
@@ -39,8 +41,18 @@ export async function buyBoopsPack(productId: string, onWaiting?: () => void): P
   const before = new Set(iapPurchaseKeys());
   try {
     await Purchases.purchasePackage(pack);
+    track('iap_result', { pack_id: productId, result: 'success' });
+    setProp('is_payer', 'yes');
   } catch (error) {
-    return purchaseFailure(error);
+    const failure = purchaseFailure(error);
+    const parsed = readError(error);
+    const code = errorCode(parsed.code);
+    if (failure.status === 'cancelled') {
+      track('iap_result', { pack_id: productId, result: 'cancelled' });
+    } else {
+      track('iap_result', code ? { pack_id: productId, result: 'failed', error_code: code } : { pack_id: productId, result: 'failed' });
+    }
+    return failure;
   }
   if (iapPurchaseKeys().some((key) => !before.has(key))) {
     return { status: 'credited' };
@@ -64,6 +76,14 @@ async function waitForCredit(before: ReadonlySet<string>): Promise<boolean> {
     await new Promise((resolve) => setTimeout(resolve, Math.min(pollMs, remaining)));
   }
   return false;
+}
+
+function errorCode(code: string | undefined): PURCHASES_ERROR_CODE | undefined {
+  if (!code) {
+    return undefined;
+  }
+  const values = Object.values(PURCHASES_ERROR_CODE) as string[];
+  return values.includes(code) ? (code as PURCHASES_ERROR_CODE) : undefined;
 }
 
 function purchaseFailure(error: unknown): BuyBoopsResult {

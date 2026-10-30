@@ -20,6 +20,8 @@ import { playBloop } from '../audio/bloop';
 import { playVoice } from '../audio/voice';
 import { PawCoin } from '../components/currency/PawCoin';
 import { catalogItem } from '../economy/catalog';
+import { track } from '../analytics/analytics';
+import type { ShopSection } from '../analytics/events';
 import { localDay, nextLocalMidnight } from '../economy/clock';
 import { buyLimited } from '../economy/limited';
 import { limitedSerial, newRequestId, purchaseCart } from '../economy/service';
@@ -431,6 +433,27 @@ export function PetShopScreen({
   }, [bundle, collection, crown, groups, limitedOffer]);
 
   const add = useCallback((id: string, kind: CartRow['kind']) => {
+    const item = catalogItem(id);
+    const section: ShopSection =
+      kind === 'bundle'
+        ? 'bundle'
+        : cartTheme
+          ? 'collection'
+          : item?.kind === 'outfit'
+            ? 'clothes'
+            : item?.kind === 'toy'
+              ? 'toys'
+              : item?.kind === 'furniture'
+                ? 'home'
+                : item?.kind === 'second_wind'
+                  ? 'boosts'
+                  : 'treats';
+    const price = typeof item?.price === 'number' ? item.price : 0;
+    track('shop_item_view', { item_id: id, section });
+    if (item?.kind === 'outfit') {
+      track('shop_try_on', { item_id: id });
+    }
+    track('shop_add_to_cart', { item_id: id, price_boops: price, section });
     setCart((rows) => {
       const existing = rows.find((row) => row.id === id && row.kind === kind);
       if (existing && kind === 'item') {
@@ -444,7 +467,7 @@ export function PetShopScreen({
       }
       return [...rows, { id, kind, qty: 1, addedAt: Date.now() }];
     });
-  }, [catalog]);
+  }, [cartTheme, catalog]);
   const remove = useCallback((id: string, kind: CartRow['kind']) => {
     setCart((rows) => rows.filter((row) => !(row.id === id && row.kind === kind)));
   }, []);

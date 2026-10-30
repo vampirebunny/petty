@@ -5,6 +5,7 @@ import { Video, X } from 'lucide-react-native';
 import { CandyShell, tints } from '../ui/candy';
 import { fontFamily } from '../ui/font';
 
+import { track, trackScreen } from '../analytics/analytics';
 import { durationOf } from './clips';
 import { ClipPlayer } from './ClipPlayer';
 import { camReady, dismissCam, markOverlayShown, onPetCam, pendingCam } from './session';
@@ -55,6 +56,8 @@ export function PetCamOverlay() {
     markOverlayShown();
     markCamSeen();
     pushCamHistory(record);
+    trackScreen('petCam');
+    track('pet_cam_shown', { clip_id: record.clipId, night: record.isNight ? 1 : 0 });
     rise.setValue(0);
     Animated.spring(rise, { toValue: 1, useNativeDriver: true, speed: 14, bounciness: 8 }).start();
   }, [record, rise]);
@@ -189,6 +192,7 @@ export function PetCamOverlay() {
                 accessibilityRole="button"
                 accessibilityLabel="Play clip"
                 onPress={() => {
+                  track('pet_cam_played', { clip_id: record.clipId, night: record.isNight ? 1 : 0 });
                   setElapsed(0);
                   setEnded(false);
                   setPlaying(true);

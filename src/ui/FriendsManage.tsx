@@ -18,6 +18,7 @@ import {
 import { findFriendsSnapshot, onFindFriends, openFindFriends, openFriendScanner } from '../friends/findOpen';
 import { friendPromptShouldShow } from '../friends/prompt';
 import { friendErrorCopy, inviteShareMessage } from '../friends/rules';
+import { track } from '../analytics/analytics';
 import type { FriendRow } from '../friends/types';
 import { setSuppressOpenPath } from '../state/sessionGate';
 import { CandyShell, candyInk, tints } from './candy';
@@ -117,7 +118,11 @@ export function FriendsManage({ handle, careRemindersOn, onCareReminders, onClos
 
   const share = () => {
     setSuppressOpenPath(true);
-    void Share.share({ message: inviteShareMessage(handle) }).finally(() => setSuppressOpenPath(false));
+    void Share.share({ message: inviteShareMessage(handle) })
+      .then((result) => {
+        track('share', { content_type: 'invite', completed: result.action === Share.sharedAction ? 1 : 0 });
+      })
+      .finally(() => setSuppressOpenPath(false));
   };
 
   const act = (work: Promise<{ ok: boolean; error?: string }>) => {

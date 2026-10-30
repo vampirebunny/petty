@@ -6,6 +6,7 @@ import type { PetState } from '../sim/types';
 import { gameplayConfig } from '../sim/gameplayConfig';
 import { eventLabel, raceReminderAt, racesOf } from '../sim/stadium';
 import { planReminders, reminderCopy } from './nextReminder';
+import { track } from '../analytics/analytics';
 
 let handlerReady = false;
 const raceCallId = 'race-call';
@@ -57,7 +58,8 @@ export async function askRaceReminderPermission(): Promise<void> {
     if (current.status === 'granted' || current.status === 'denied') {
       return;
     }
-    await Notifications.requestPermissionsAsync();
+    const requested = await Notifications.requestPermissionsAsync();
+    track('notif_permission', { context: 'race', granted: requested.status === 'granted' ? 1 : 0 });
   } catch {
     // The race still starts if notifications stay off.
   }
@@ -88,6 +90,7 @@ export async function syncReminder(
       }
       const requested = await Notifications.requestPermissionsAsync();
       status = requested.status;
+      track('notif_permission', { context: 'care', granted: status === 'granted' ? 1 : 0 });
     }
     if (status !== 'granted') {
       return false;

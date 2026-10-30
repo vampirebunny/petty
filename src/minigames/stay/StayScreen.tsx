@@ -10,6 +10,7 @@ import { fontFamily } from '../../ui/font';
 import { formatStayTime, heldCentiseconds, isExactStay, pickTargetSeconds } from './best';
 import { StayFireworks } from './StayFireworks';
 import { flushStayTime, loadBoard, recordRun } from './scores';
+import { track } from '../../analytics/analytics';
 import type { Board, BoardMe } from './scores';
 
 type Phase = 'ready' | 'holding' | 'over';
@@ -96,6 +97,7 @@ export function StayScreen({ pet, reducedMotion, onMenu }: Props) {
     }
     holdingRef.current = true;
     startedAt.current = Date.now();
+    track('minigame_start', { game_id: 'stay' });
     setPressed(true);
     setElapsedCs(0);
     setPhaseBoth('holding');
@@ -123,12 +125,16 @@ export function StayScreen({ pet, reducedMotion, onMenu }: Props) {
     let waiting = false;
     if (!guest && readHandleSaved()) {
       const flushed = await flushStayTime();
+      if (flushed === 'sent') {
+        track('post_score', { game_id: 'stay', score: actualCs });
+      }
       waiting = flushed === 'kept';
     }
     const live = await loadBoard();
     if (live) {
       setBoard(live);
     }
+    track('minigame_end', { game_id: 'stay', score: actualCs, duration_s: actualCs / 100 });
     const me = live?.me ?? null;
     setSummary({
       targetCs,

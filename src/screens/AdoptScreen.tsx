@@ -31,6 +31,7 @@ import { LookPicker } from './adopt/LookPicker';
 import { ChooseScreen } from './adopt/ChooseScreen';
 import { NameScreen } from './adopt/NameScreen';
 import { OnboardingHeader } from './adopt/OnboardingHeader';
+import { track } from '../analytics/analytics';
 
 type Props = {
   onAdopt: (breedId: string, attributes: PetAttributes, look: Look, name: string) => void;
@@ -198,6 +199,18 @@ export function AdoptScreen({ onAdopt, onBusyChange }: Props) {
       cancelled = true;
     };
   }, []);
+
+  const loggedSteps = useRef(new Set<string>());
+  useEffect(() => {
+    if (!draft) {
+      return;
+    }
+    const step = draft.step === 'design' ? 'adopt' : draft.step === 'offers' ? 'attributes' : draft.step === 'name' ? 'name' : null;
+    if (step && !loggedSteps.current.has(step)) {
+      loggedSteps.current.add(step);
+      track('onboarding_step', { step });
+    }
+  }, [draft]);
 
   const update = useCallback((patch: Partial<AdoptionDraft>) => {
     const current = draftRef.current;

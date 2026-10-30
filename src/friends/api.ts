@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { getSupabase } from '../compliance/supabase';
+import { bucketFriends, setProp, track } from '../analytics/analytics';
 import type { Equipped, Look, OutfitSlot, Stats, Trait } from '../sim/types';
 import type { FriendPet, FriendRow, LookupResult } from './types';
 
@@ -206,13 +207,18 @@ export async function lookupHandle(handle: string): Promise<LookupResult> {
   };
 }
 
-export async function sendFriendRequest(handle: string): Promise<{ ok: true; state: 'pending' | 'friends'; requestId?: string } | { ok: false; error: string }> {
+export async function sendFriendRequest(
+  handle: string,
+  via: 'handle' | 'qr' = 'handle',
+): Promise<{ ok: true; state: 'pending' | 'friends'; requestId?: string } | { ok: false; error: string }> {
   const data = await rpc('send_friend_request', { p_handle: handle });
   const error = failed(data);
   if (error || !data) {
     return { ok: false, error: error ?? 'offline' };
   }
   const state = data.state === 'friends' ? 'friends' : 'pending';
+  track('friend_request_sent', { via });
+  void loadFriends().then((bundle) => setProp('friend_count_bucket', bucketFriends(bundle.friends.length)));
   return {
     ok: true,
     state,
@@ -223,7 +229,12 @@ export async function sendFriendRequest(handle: string): Promise<{ ok: true; sta
 export async function respondFriendRequest(id: string, action: 'accept' | 'decline'): Promise<{ ok: true } | { ok: false; error: string }> {
   const data = await rpc('respond_friend_request', { p_id: id, p_action: action });
   const error = failed(data);
-  return error ? { ok: false, error } : { ok: true };
+  if (error) {
+    return { ok: false, error };
+  }
+  track('friend_request_response', { result: action });
+  void loadFriends().then((bundle) => setProp('friend_count_bucket', bucketFriends(bundle.friends.length)));
+  return { ok: true };
 }
 
 export async function cancelFriendRequest(id: string): Promise<{ ok: true } | { ok: false; error: string }> {
@@ -241,7 +252,12 @@ export async function removeFriend(userId: string): Promise<{ ok: true } | { ok:
 export async function blockPlayer(userId: string): Promise<{ ok: true } | { ok: false; error: string }> {
   const data = await rpc('block_player', { p_user_id: userId });
   const error = failed(data);
-  return error ? { ok: false, error } : { ok: true };
+  if (error) {
+    return { ok: false, error };
+  }
+  track('friend_request_response', { result: 'block' });
+  void loadFriends().then((bundle) => setProp('friend_count_bucket', bucketFriends(bundle.friends.length)));
+  return { ok: true };
 }
 
 export async function unblockPlayer(userId: string): Promise<{ ok: true } | { ok: false; error: string }> {

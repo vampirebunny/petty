@@ -13,6 +13,7 @@ import { freshPreview, stepPosePreview, stepRaceMotion } from '../../actor/raceD
 import type { PoseMode, PosePreview } from '../../actor/raceDrive';
 import { skyAt, solarHour } from '../../actor/sky';
 import { serverNow } from '../../db/accountMeta';
+import { useCompetitionResult } from '../../analytics/race';
 import { eventLabel, formatCountdown, raceTagLabel } from '../../sim/stadium';
 import type { PetState } from '../../sim/types';
 import { fetchRace, submitRaceReport, type RaceView } from '../../stadium/api';
@@ -308,6 +309,7 @@ export function FunRunScreen({ race, pet, reducedMotion, onFinish, onExit }: Pro
         .sort((a, b) => (a.place ?? 99) - (b.place ?? 99))
     : provisional;
   const minePlace = standings?.find((row) => row.mine)?.place;
+  useCompetitionResult(race, resultsReady, minePlace ?? undefined);
 
   const tap = () => {
     // Re-check the clock: `going` can lag the 50 ms render tick right at Go!.

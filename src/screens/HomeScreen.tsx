@@ -143,7 +143,9 @@ import { FriendNotifyPrompt } from '../ui/FriendNotifyPrompt';
 import { loadFriends, blockPlayer, reportPlayer } from '../friends/api';
 import { parseFriendLink } from '../friends/friendLink';
 import { onPetCam, reportPresentation, welcomeHomeHeld, welcomeHomeWasReplaced } from '../petCam/session';
-import { closeFindFriends, openFindFriends } from '../friends/findOpen';
+import { closeFindFriends, findFriendsSnapshot, onFindFriends, openFindFriends } from '../friends/findOpen';
+import { track, trackScreen } from '../analytics/analytics';
+import type { Screen } from '../analytics/events';
 import { onFriendModalRequest } from '../friends/open';
 import { clearPendingAdd, readPendingAdd, savePendingAdd } from '../friends/pendingAdd';
 import { friendPromptShouldShow, newestRequestAt, readFriendSeenAt, writeFriendSeenAt } from '../friends/prompt';
@@ -616,6 +618,76 @@ export default function HomeScreen({ petApi }: Props) {
     isNew: boolean;
     count: number;
   } | null>(null);
+  const [friendsOpen, setFriendsOpen] = useState(() => findFriendsSnapshot().open);
+  useEffect(() => onFindFriends(() => setFriendsOpen(findFriendsSnapshot().open)), []);
+  useEffect(() => {
+    if (!state) {
+      return;
+    }
+    let name: Screen | null = null;
+    if (settingsOpen) {
+      name = 'settings';
+    } else if (friendsOpen) {
+      name = 'friends';
+    } else if (shopOpen) {
+      name = 'petShop';
+    } else if (wardrobeOpen) {
+      name = 'closet';
+    } else if (storageOpen) {
+      name = 'storage';
+    } else if (collectionOpen) {
+      name = 'collection';
+    } else if (arcadeOpen || stadiumOpen || playdateOpen) {
+      name = null;
+    } else if (state.roadSpot) {
+      name = 'map';
+    } else if (state.sceneId === 'park') {
+      name = 'park';
+    } else if (state.sceneId === 'school') {
+      name = 'trainingSchool';
+    } else if (state.sceneId === 'livingroom' || state.sceneId === 'bedroom' || state.sceneId === 'catio') {
+      name = state.sceneId;
+    }
+    if (name) {
+      trackScreen(name);
+    }
+  }, [
+    arcadeOpen,
+    collectionOpen,
+    friendsOpen,
+    playdateOpen,
+    settingsOpen,
+    shopOpen,
+    stadiumOpen,
+    state,
+    storageOpen,
+    wardrobeOpen,
+  ]);
+  const collectionWasOpen = useRef(false);
+  useEffect(() => {
+    if (collectionOpen && !collectionWasOpen.current && state) {
+      track('collection_open', { found_count: state.parkFinds?.items.length ?? 0 });
+    }
+    collectionWasOpen.current = collectionOpen;
+  }, [collectionOpen, state]);
+  useEffect(() => {
+    if (!dialog) {
+      return;
+    }
+    if (dialog.kind === 'break') {
+      const owned = economyApi.inventory.find((row) => row.itemId === 'second_wind')?.qty ?? 0;
+      track('training_break', { trick_id: dialog.trackId, second_wind_owned: owned });
+    }
+    if (dialog.kind === 'out') {
+      track('out_of_treats', { context: 'training' });
+    }
+    if (dialog.kind === 'good') {
+      const treats = economyApi.inventory.find((row) => row.itemId === basicTreatId)?.qty ?? 0;
+      if (treats === 0) {
+        track('out_of_treats', { context: 'training' });
+      }
+    }
+  }, [dialog, economyApi.inventory]);
   const [chestIntroOpen, setChestIntroOpen] = useState(false);
   const [chestTip, setChestTip] = useState(false);
   const [chestTipTarget, setChestTipTarget] = useState<{ x: number; y: number } | null>(null);
@@ -3773,6 +3845,11 @@ export default function HomeScreen({ petApi }: Props) {
                 count={findModal.count}
                 reducedMotion={reducedMotion}
                 onAdd={() => {
+                  track('park_find', {
+                    item_id: item.id,
+                    rarity: item.rarity,
+                    first_time: findModal.isNew ? 1 : 0,
+                  });
                   setFindModal(null);
                   commitPet({
                     ...state,

@@ -67,20 +67,18 @@ Requires a development or store build — not Expo Go.
 
 ### Usage
 
-Automatic events (`first_open`, `session_start`, etc.) start once Analytics is linked and a build with the SDK is installed. Custom events (when product asks for them):
+Event names, consent, and the user-property map live in [Boop Boop Analytics — Cursor Brief.md](./Boop%20Boop%20Analytics%20%E2%80%94%20Cursor%20Brief.md). The only import of `@react-native-firebase/analytics` is `src/analytics/analytics.ts`.
 
-```ts
-import { getAnalytics, logEvent } from '@react-native-firebase/analytics';
+Collection stays off until a playable age-gate yes (teen, adult, or at least 13). Under-13 never enables it. Account deletion and `eraseUnder13` call `resetAndDisable()`. The user id is the Supabase id, never the install id.
 
-await logEvent(getAnalytics(), 'event_name');
-```
+A build collects only when it is not a dev bundle and `EXPO_PUBLIC_ANALYTICS_ENABLED=1` (set on the production EAS profile), or when `EXPO_PUBLIC_ANALYTICS_DEBUG=1`. `firebase.json` turns off automatic collection, ad id, SSAID, ad personalization, and automatic screen reporting. Those native flags apply on the next EAS build.
 
-Keep parameters free of personal data (handles, emails, tokens, exact ages). See the PRD privacy notes and update store privacy labels when custom events ship.
+Keep parameters free of personal data (handles, emails, tokens, exact ages).
 
 ### Verify
 
-- Firebase console **Realtime** after a production/preview install
-- DebugView needs platform debug flags (`-FIRAnalyticsDebugEnabled` / `adb shell setprop debug.firebase.analytics.app app.mylisto.boop`)
+- Firebase console **Realtime** after a production install. Preview and development builds do not set `EXPO_PUBLIC_ANALYTICS_ENABLED`.
+- DebugView needs `EXPO_PUBLIC_ANALYTICS_DEBUG=1` plus the platform debug flags (`-FIRAnalyticsDebugEnabled` / `adb shell setprop debug.firebase.analytics.app app.mylisto.boop`)
 
 ## Privacy
 

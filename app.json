@@ -21,6 +21,7 @@
       },
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
+        "FirebaseAutomaticScreenReportingEnabled": false,
         "CFBundleURLTypes": [
           {
             "CFBundleURLSchemes": [
@@ -33,6 +34,7 @@
     },
     "android": {
       "package": "app.mylisto.boop",
+      "blockedPermissions": ["com.google.android.gms.permission.AD_ID"],
       "googleServicesFile": "./google-services.json",
       "intentFilters": [
         {

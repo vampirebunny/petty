@@ -31,6 +31,12 @@ import { noteForegroundDay } from '../compliance/accountPrompts';
 import { offerPetCam } from '../petCam/trigger';
 import { clearReturnSkips, dropPendingCam, expectGreet, noteSlotSkip } from '../petCam/session';
 import { noteBackgroundAt } from '../petCam/store';
+import { bucketHoursAway, stat, track } from '../analytics/analytics';
+import { noteLastBackgroundAt, noteTrickAttempt, takeAppReturn } from '../analytics/clock';
+import { observePet } from '../analytics/observe';
+import { breedById } from '../actor/breeds';
+import type { Place } from '../analytics/events';
+import { roadSpotForScene } from '../sim/road';
 import { createUuid, getCachedInstallId } from '../compliance/identity';
 import { bootstrapLocal, wipeLocalData } from '../db/bootstrap';
 import { readAccountLinked, readStandby, readSyncedRevision, serverNow, setOtherDeviceLabel, setStandby } from '../db/accountMeta';
@@ -203,6 +209,19 @@ async function linkedChangeIsCurrent(title: string, petName: string): Promise<bo
   return false;
 }
 
+function toyPlace(pet: PetState): Place {
+  if (pet.roadSpot && pet.roadSpot !== 'home') {
+    return pet.roadSpot;
+  }
+  if (pet.sceneId === 'livingroom' || pet.sceneId === 'bedroom' || pet.sceneId === 'catio') {
+    return pet.sceneId;
+  }
+  if (pet.sceneId === 'park' || pet.sceneId === 'school') {
+    return roadSpotForScene(pet.sceneId);
+  }
+  return 'livingroom';
+}
+
 export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
   const [ready, setReady] = useState(false);
   const [state, setState] = useState<PetState | null>(null);
@@ -232,6 +251,7 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
   const statusRef = useRef(AppState.currentState);
   const considerOpenRef = useRef<(pet: PetState) => void>(() => undefined);
   const returningRef = useRef(false);
+  const pendingTrick = useRef<string | null>(null);
 
   useEffect(() => {
     storageRef.current = storage;
@@ -261,6 +281,8 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
     const synced = syncBadges(next, Date.now());
     const fresh = synced.badges.filter((id) => !previous.has(id));
     knownBadges.current = synced.badges;
+    const previousPet = stateRef.current?.id === next.id ? stateRef.current : null;
+    observePet(previousPet, synced);
     if (fresh.length > 0) {
       setAwardedBadges((prev) => [...prev, ...fresh.filter((id) => !prev.includes(id))]);
     }
@@ -424,9 +446,19 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
           const save = current.ownerId ? await loadPlaydateSave(current.ownerId) : emptyPlaydateSave();
           const marked =
             current.hadPlaydate || petHasCompletedPlaydate(save, current.id) ? { ...current, hadPlaydate: true } : current;
+          const gap = takeAppReturn(now);
           const opened = onAppOpen(marked, now);
           const elapsedH = awayElapsedHours(opened.pet.lastUpdatedAt, now);
           const resumed = resume(opened.pet, now);
+          if (gap) {
+            track('app_return', {
+              hours_away: bucketHoursAway(gap.hours),
+              tummy: stat(100 - resumed.needs.hunger),
+              energy: stat(resumed.needs.energy),
+              mood: stat(resumed.needs.happiness),
+              boops_paid: opened.awayBoops,
+            });
+          }
           if (resumed.sceneId !== opened.pet.sceneId) {
             setHomeSnapToken((token) => token + 1);
           }
@@ -716,6 +748,7 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
       }
       if (previous === 'active' && status === 'background') {
         noteBackgroundAt(Date.now());
+        noteLastBackgroundAt(Date.now());
         dropPendingCam();
         clearReturnSkips();
       }
@@ -883,6 +916,16 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
         const id = createUuid();
         grantSpeciesHome(ownerId, speciesOf(breedId));
         const created = createPet({ id, ownerId, name, breedId, look, attributes, now });
+        const species = breedById(breedId)?.species;
+        if (species) {
+          track('pet_adopted', {
+            species,
+            breed: breedId,
+            coat_style: look.coat,
+            eye_color: look.eyeColor ?? 'breed',
+            archetype: attributes.archetype,
+          });
+        }
         const opened = onAppOpen(created, now);
         enqueueOpen(opened);
         publish(opened.pet, { kind: 'none' });
@@ -1023,19 +1066,32 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
       if (!result) {
         return null;
       }
-      const track = result.state.training[trackId];
+      noteTrickAttempt(result.state.id, trackId);
+      const atSchool = result.state.sceneId === 'school' ? 1 : 0;
+      const trickState = result.state.training[trackId];
+      if (result.state.care.pendingReward) {
+        pendingTrick.current = trackId;
+      } else {
+        const succeeded = trickState?.mastered === true || (result.cue.kind !== 'confused' && result.cue.kind !== 'none');
+        track('trick_attempt', {
+          trick_id: trackId,
+          success: succeeded ? 1 : 0,
+          treat_given: 0,
+          at_school: atSchool,
+        });
+      }
       const catalogTrick = trackId !== 'sit' && trackId !== 'paw' && trackId !== 'speak';
       if (catalogTrick) {
         const pending = result.state.care.pendingReward != null;
         return {
           ok: pending,
-          mastered: track?.mastered === true && !pending,
-          confused: track != null && !track.mastered && !pending,
+          mastered: trickState?.mastered === true && !pending,
+          confused: trickState != null && !trickState.mastered && !pending,
         };
       }
       return {
         ok: result.cue.kind !== 'confused' && result.cue.kind !== 'none',
-        mastered: track?.mastered === true && result.state.care.pendingReward == null,
+        mastered: trickState?.mastered === true && result.state.care.pendingReward == null,
         confused: result.cue.kind === 'confused',
       };
     },
@@ -1073,6 +1129,16 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
       const moodGain = Math.round(settled.pet.needs.happiness - beforeHappiness);
       const showTreat = choice === 'treat' && !alreadyWaiting;
       publish(settled.pet, showTreat ? { kind: 'treat', treatId: 'biscuit', moodGain } : undefined);
+      const trickId = pendingTrick.current;
+      if (trickId) {
+        pendingTrick.current = null;
+        track('trick_attempt', {
+          trick_id: trickId,
+          success: 1,
+          treat_given: choice === 'treat' ? 1 : 0,
+          at_school: current.sceneId === 'school' ? 1 : 0,
+        });
+      }
       return { before: current, after: settled.pet, waiting: false };
     },
     [publish, pushBurst],
@@ -1111,8 +1177,20 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
     queuePlayer();
   }, []);
   const dismissWelcome = useCallback(() => setWelcomeBack(false), []);
-  const feed = useCallback(() => dispatch({ type: 'feed' }), [dispatch]);
-  const refillWater = useCallback(() => dispatch({ type: 'refillWater' }), [dispatch]);
+  const feed = useCallback(() => {
+    const current = stateRef.current;
+    if (current) {
+      track('care_action', { action: 'feed', stat_before: stat(100 - current.needs.hunger) });
+    }
+    dispatch({ type: 'feed' });
+  }, [dispatch]);
+  const refillWater = useCallback(() => {
+    const current = stateRef.current;
+    if (current) {
+      track('care_action', { action: 'water', stat_before: stat(current.waterLevel * 100) });
+    }
+    dispatch({ type: 'refillWater' });
+  }, [dispatch]);
   const reportAte = useCallback(() => {
     const current = stateRef.current;
     const item = current?.bowlItemId ? catalogItem(current.bowlItemId) : null;
@@ -1128,8 +1206,20 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
     (fromBowl: boolean) => dispatch({ type: 'drank', fromBowl, now: Date.now() }),
     [dispatch],
   );
-  const rest = useCallback(() => dispatch({ type: 'toggleRest' }), [dispatch]);
-  const beginRest = useCallback(() => dispatch({ type: 'beginRest' }), [dispatch]);
+  const rest = useCallback(() => {
+    const current = stateRef.current;
+    if (current && !current.asleep) {
+      track('care_action', { action: 'bed', stat_before: stat(current.needs.energy) });
+    }
+    dispatch({ type: 'toggleRest' });
+  }, [dispatch]);
+  const beginRest = useCallback(() => {
+    const current = stateRef.current;
+    if (current) {
+      track('care_action', { action: 'bed', stat_before: stat(current.needs.energy) });
+    }
+    dispatch({ type: 'beginRest' });
+  }, [dispatch]);
   const pet = useCallback(() => commitProgress({ type: 'pet' }), [commitProgress]);
 
   const rememberGreeting = useCallback(
@@ -1143,7 +1233,13 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
   );
   const startCuddle = useCallback(() => dispatch({ type: 'cuddleStart' }), [dispatch]);
   const finishCuddle = useCallback(
-    (seconds: number) => commitProgress({ type: 'cuddled', seconds }, seconds > 0 ? { find: 'cuddle_session' } : undefined),
+    (seconds: number) => {
+      const current = stateRef.current;
+      if (seconds > 0 && current) {
+        track('care_action', { action: 'cuddle', stat_before: stat(current.needs.happiness) });
+      }
+      commitProgress({ type: 'cuddled', seconds }, seconds > 0 ? { find: 'cuddle_session' } : undefined);
+    },
     [commitProgress],
   );
   const fetchBall = useCallback(() => dispatch({ type: 'fetch' }), [dispatch]);
@@ -1167,9 +1263,15 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
       const base = { ...current, activeToyId: id, asleep: false };
       if (action === 'hold') {
         if (base.activeToyId !== current.activeToyId || base.asleep !== current.asleep) {
+          if (current.activeToyId !== id) {
+            track('toy_play', { toy_id: id, place: toyPlace(current) });
+          }
           publish(base);
         }
         return;
+      }
+      if (current.activeToyId !== id) {
+        track('toy_play', { toy_id: id, place: toyPlace(current) });
       }
       const result = applyEvent(base, { type: 'fetch' });
       publish(result.state, result.cue);

@@ -13,6 +13,7 @@ import { applyRaceLeap, applyStumble, clearPose, raceAirPx, raceHurdleSize, step
 import { skyAt, solarHour } from '../../actor/sky';
 import { playClearChime, playClipThud, preloadRaceSfx, releaseRaceSfx } from '../../audio/raceSfx';
 import { serverNow } from '../../db/accountMeta';
+import { useCompetitionResult } from '../../analytics/race';
 import { eventLabel, formatCountdown, raceTagLabel } from '../../sim/stadium';
 import type { PetState } from '../../sim/types';
 import { fetchRace, submitRaceReport, type RaceView } from '../../stadium/api';
@@ -352,6 +353,7 @@ export function HurdlesScreen({ race, pet, reducedMotion, onFinish, onExit }: Pr
         .sort((a, b) => (a.place ?? 99) - (b.place ?? 99))
     : provisional;
   const minePlace = standings?.find((row) => row.mine)?.place;
+  useCompetitionResult(race, resultsReady, minePlace ?? undefined);
   const stat = hurdleStat(frame.outcomes, hurdles.length);
   const showPopup = popup != null && frame.at < popup.until;
 

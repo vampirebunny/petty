@@ -148,8 +148,8 @@ relationships (owner_id uuid, pet_id uuid, partner_snapshot_id uuid, bond numeri
 - **Social actions go through `security definer` RPCs:** `search_handles`, `check_handle_available`, `claim_handle`, `send_friend_request`, `respond_friend_request`, `cancel_friend_request`, `unfriend`, `block_user`, `unblock_user`, `report_user`. Each one enforces blocks, rate limits and validation server-side; the client is never trusted for these rules.
 - **Friend pet cards:** an RPC `get_friend_pet_cards()` returns a limited snapshot (name, species, breed, coat, cosmetics, age stage, current style) only for accepted, unblocked friends. Never the raw pet document. `friend_pet_card` also returns `owned`: `{ slot, id }` for closet pieces with a positive ledger quantity (`hat`, `glasses`, `neckwear`, `jacket`, `boots`) and for whatever that pet has equipped. A friend playdate may draw only those pieces. The playdate flow is in `docs/boop-boop-npc-playdates-brief.md`.
 
-## 7. Analytics (minimal)
-Log a small set of events to an `events` table (or PostHog if you prefer): `app_open`, `onboarding_complete`, `account_created`, `playdate_started`, `playdate_completed`, `friend_request_sent`, `friend_added`. Key them by `user_id`, without content. This gives D1/D7 retention and playdates per user. Update the privacy label and the Data Safety form to cover it.
+## 7. Analytics
+Account, friend, and playdate events go through Firebase Analytics as specified in [Boop Boop Analytics — Cursor Brief.md](./Boop%20Boop%20Analytics%20%E2%80%94%20Cursor%20Brief.md). There is no `events` table and no PostHog.
 
 ## Out of scope
 - Async replay sharing (next brief). Friend playdates are specified in `docs/boop-boop-npc-playdates-brief.md`.

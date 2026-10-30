@@ -13,6 +13,7 @@ import { applyRaceLeap, clearPose, stepRaceRun } from '../../actor/raceDrive';
 import { skyAt, solarHour } from '../../actor/sky';
 import { playClearChime, playClipThud, playJumpBoing, preloadRaceSfx, releaseRaceSfx } from '../../audio/raceSfx';
 import { serverNow } from '../../db/accountMeta';
+import { useCompetitionResult } from '../../analytics/race';
 import { classLabel, eventLabel } from '../../sim/stadium';
 import type { PetState } from '../../sim/types';
 import { fetchRace, submitRaceReport, type RaceView } from '../../stadium/api';
@@ -473,6 +474,7 @@ export function DockDiveScreen({ race, pet, reducedMotion, onFinish, onExit }: P
     : provisional;
   const mineStanding = standings?.find((row) => row.mine);
   const minePlace = mineStanding?.place;
+  useCompetitionResult(race, resultsReady, minePlace ?? undefined);
   const mineScore = diveScore(mineResults, version);
 
   const press = () => {

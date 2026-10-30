@@ -57,7 +57,12 @@ export async function requestFriendPermission(): Promise<boolean> {
   if (Platform.OS === 'web') {
     return false;
   }
+  const current = await Notifications.getPermissionsAsync();
   const requested = await Notifications.requestPermissionsAsync();
+  if (current.status === 'undetermined') {
+    const { track } = await import('../analytics/analytics');
+    track('notif_permission', { context: 'friends', granted: requested.status === 'granted' ? 1 : 0 });
+  }
   if (requested.status !== 'granted') {
     return false;
   }

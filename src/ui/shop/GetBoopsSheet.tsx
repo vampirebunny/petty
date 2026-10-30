@@ -5,6 +5,7 @@ import Animated, { FadeIn, SlideInDown, runOnJS, useAnimatedStyle, useSharedValu
 import { X } from 'lucide-react-native';
 
 import { PawCoin } from '../../components/currency/PawCoin';
+import { track } from '../../analytics/analytics';
 import { buyBoopsPack } from '../../economy/buyBoops';
 import { onIapBoops } from '../../economy/iapApply';
 import { loadBoopsPrices } from '../../economy/boopsOffering';
@@ -66,11 +67,17 @@ export function GetBoopsSheet({ balance, reducedMotion, onClose }: Props) {
   }, [phase, reload]);
 
   useEffect(() => onIapBoops(() => setNotice(null)), []);
+  useEffect(() => {
+    if (showPacks) {
+      track('iap_view', { context: 'petShop' });
+    }
+  }, [showPacks]);
 
   const buy = (productId: string) => {
     if (buying) {
       return;
     }
+    track('iap_pack_tap', { pack_id: productId });
     setBuying(productId);
     setNotice(null);
     void buyBoopsPack(productId, () => setNotice('Adding your Boops…')).then((result) => {

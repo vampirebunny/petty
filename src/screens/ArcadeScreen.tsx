@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { trackScreen } from '../analytics/analytics';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { CloudHopScreen } from '../minigames/cloudHop/CloudHopScreen';
 import { PaddlePawsScreen } from '../minigames/paddlePaws/PaddlePawsScreen';
@@ -21,6 +22,9 @@ export function ArcadeScreen({ pet, reducedMotion, onClose }: Props) {
   const [game, setGame] = useState<'hop' | 'paddle' | 'stay' | null>(null);
   const width = useContentWidth();
   const tile = Math.min(120, Math.max(84, (width - 56) / 3));
+  useEffect(() => {
+    trackScreen(game ? 'minigame' : 'arcade');
+  }, [game]);
 
   if (game === 'hop') {
     return (

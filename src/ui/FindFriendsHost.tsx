@@ -33,13 +33,14 @@ export function FindFriendsHost({ accountHandle, onChanged, children }: Props) {
                   openFindFriends();
                 }
               }}
-              onHandle={(handle) => openFindFriends(handle)}
+              onHandle={(handle) => openFindFriends(handle, 'qr')}
             />
           ) : (
             <FindFriends
               key={snap.prefill ?? 'search'}
               accountHandle={accountHandle}
               initialHandle={snap.prefill}
+              via={snap.via}
               onClose={closeFindFriends}
               onScan={() => openFriendScanner('find')}
               onChanged={onChanged}

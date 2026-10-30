@@ -2,6 +2,7 @@ import { getSupabase } from '../compliance/supabase';
 import { ownerIsReady, currentOwner } from '../db/currentOwner';
 import { getDb, transaction } from '../db/database';
 import { writeLedgerEntry, type LedgerLine } from '../db/ledgerWrite';
+import { earn } from '../analytics/analytics';
 import { newRequestId, reloadWallet } from './service';
 
 const iapSources = ['iap_purchase', 'iap_refund', 'iap_refund_reversed', 'sandbox_wipe'] as const;
@@ -78,6 +79,9 @@ export function applyIapEntries(rows: IapLedgerRow[]): AppliedIapCredit[] {
     const bursts = applied.filter(
       (credit) => (credit.source === 'iap_purchase' || credit.source === 'iap_refund_reversed') && credit.amount > 0,
     );
+    for (const credit of bursts) {
+      earn('iap', credit.amount);
+    }
     if (bursts.length > 0) {
       for (const listener of listeners) {
         try {

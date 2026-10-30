@@ -8,6 +8,7 @@ import { canUseFriends, inviteShareMessage } from '../friends/rules';
 import type { FriendRow } from '../friends/types';
 import { maxPlaydateFriends } from '../playdate/party';
 import { setSuppressOpenPath } from '../state/sessionGate';
+import { track } from '../analytics/analytics';
 import { AccountSheet } from './AccountSheet';
 import { CandyShell, candyInk, tints } from './candy';
 import { FriendFace } from './FriendFace';
@@ -72,7 +73,11 @@ export function PlaydateFriends({ linked, petName, handle, cooling = false, sele
       return;
     }
     setSuppressOpenPath(true);
-    void Share.share({ message: inviteShareMessage(handle) }).finally(() => setSuppressOpenPath(false));
+    void Share.share({ message: inviteShareMessage(handle) })
+      .then((result) => {
+        track('share', { content_type: 'invite', completed: result.action === Share.sharedAction ? 1 : 0 });
+      })
+      .finally(() => setSuppressOpenPath(false));
   };
 
   return (

@@ -756,7 +756,7 @@ type PetEvent =
 - Accessibility: the 5-second reward window (R5.7) is tap-only and never required for progress, so a reduced-motion or slower-input option should widen it, no meaning carried by color alone, and haptic or on-screen fallbacks for sound. Every action button has an `accessibilityLabel` equal to its label and a touch target of at least 44 by 44. Cuddle is the exception to haptic fallbacks: it sends no haptics.
 - Privacy: collect the minimum, keep analytics free of personal data, and support deletion. The public policy is the page at `https://boopboop.mylisto.app/privacypolicy`.
 - Testing: every simulation feature ships with unit tests for determinism, bounds and thresholds, and the same seed, species, breed and archetype must always give the same potentials. Scene tests cover validation, POI lookup, and action availability. Time-of-day tests cover the keyframe blend at phase boundaries, the wrap past midnight, and `time` validation. Cuddle tests cover gesture classification, the `headTurn` guard (never 1 while moving), the no-snap pose blend, the roll-over and exit sequence for every breed and life stage, tooltip seen-state, and the icon map covering every action id.
-- Observability: crash reporting, and analytics events for the success metrics, with no personal data.
+- Observability: crash reporting, and analytics events for the success metrics, with no personal data. Event names, consent, and the age-gate rule are in `docs/Boop Boop Analytics — Cursor Brief.md`. Nothing is sent before a playable yes, and an under-13 answer is never uploaded.
 - Code quality: TypeScript in strict mode, small files, and one commit per task.
 
 ## Decisions and open questions

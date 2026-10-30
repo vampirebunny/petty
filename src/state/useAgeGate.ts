@@ -20,6 +20,7 @@ import { PRIVACY_VERSION, TERMS_VERSION } from '../config/legal';
 import { onAgeGateRefresh } from './ageGateRefresh';
 import { setAgeGatePhase, type AgeGatePhase } from './ageGatePhase';
 import { eraseUnder13 } from '../compliance/deleteAccount';
+import { enableAfterConsent, track } from '../analytics/analytics';
 import {
   enqueueAgeDetermination,
   enqueueAgeStatusChanged,
@@ -36,9 +37,10 @@ function termsAreCurrent(terms: TermsAcceptance | null): boolean {
 
 type Options = {
   onUnavailable: () => void;
+  isFirstOnboarding?: () => boolean;
 };
 
-export function useAgeGate({ onUnavailable }: Options) {
+export function useAgeGate({ onUnavailable, isFirstOnboarding }: Options) {
   const [phase, setPhase] = useState<AgeGatePhase>('loading');
   const [askAge, setAskAge] = useState(true);
   const onUnavailableRef = useRef(onUnavailable);
@@ -144,8 +146,12 @@ export function useAgeGate({ onUnavailable }: Options) {
       void flushConsentRecords();
       setAskAge(false);
       setPhase('ready');
+      enableAfterConsent();
+      if (isFirstOnboarding?.()) {
+        track('onboarding_step', { step: 'consent_accepted' });
+      }
     });
-  }, [downgrade, enqueueWork, finishUnavailable]);
+  }, [downgrade, enqueueWork, finishUnavailable, isFirstOnboarding]);
 
   const continueNo = useCallback(() => {
     return enqueueWork(async () => {

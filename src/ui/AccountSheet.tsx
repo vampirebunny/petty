@@ -11,6 +11,7 @@ import { pingAuthHealth } from '../compliance/authHealth';
 import { beginRestore } from '../compliance/restoreAccount';
 import { getSupabase } from '../compliance/supabase';
 import { setSuppressOpenPath } from '../state/sessionGate';
+import { setProp, track } from '../analytics/analytics';
 import { CandyShell, candyInk, tints } from './candy';
 import { iconStroke } from './theme';
 
@@ -129,17 +130,21 @@ export function AccountSheet({ reason, petName, onClose, onCredential }: Props) 
               }
               return;
             }
-            onClose();
+            track('login', { method: provider });
+            closeSheet('accepted');
             return;
           }
           if (!linked.ok) {
             setNote(linked.message);
             return;
           }
-          onClose();
+          track('sign_up', { method: provider });
+          setProp('has_account', 'yes');
+          closeSheet('accepted');
           return;
         }
         onCredential?.(credential);
+        track('login', { method: provider });
         onClose();
       } catch (error) {
         const message = error instanceof Error ? error.message.trim() : '';
@@ -163,6 +168,13 @@ export function AccountSheet({ reason, petName, onClose, onCredential }: Props) 
         }
       }
     })();
+  };
+
+  const closeSheet = (result: 'accepted' | 'dismissed') => {
+    if (reason === 'friends' || reason === 'purchase' || reason === 'day3' || reason === 'settings' || reason === 'score') {
+      track('account_prompt', { reason, result });
+    }
+    onClose();
   };
 
   return (
@@ -193,7 +205,7 @@ export function AccountSheet({ reason, petName, onClose, onCredential }: Props) 
             </View>
           </Pressable>
         )}
-        <Pressable accessibilityRole="button" onPress={onClose} style={styles.hit}>
+        <Pressable accessibilityRole="button" onPress={() => closeSheet('dismissed')} style={styles.hit}>
           <View style={styles.dismiss}>
             {closeLabel ? <X size={18} strokeWidth={iconStroke + 1} color={ink} /> : null}
             <Text style={[styles.dismissText, { color: ink }]}>{closeLabel ? 'Close' : 'Not now'}</Text>

@@ -14,6 +14,7 @@ import { applyRaceDuck, applyRaceLeap, applyStumble, clearPose, raceAirPx, raceH
 import { skyAt, solarHour } from '../../actor/sky';
 import { playClearChime, playClipThud, preloadRaceSfx, releaseRaceSfx } from '../../audio/raceSfx';
 import { serverNow } from '../../db/accountMeta';
+import { useCompetitionResult } from '../../analytics/race';
 import { eventLabel, formatCountdown, raceTagLabel } from '../../sim/stadium';
 import type { PetState } from '../../sim/types';
 import { fetchRace, submitRaceReport, type RaceView } from '../../stadium/api';
@@ -401,6 +402,7 @@ export function ObstacleScreen({ race, pet, reducedMotion, onFinish, onExit }: P
         .sort((a, b) => (a.place ?? 99) - (b.place ?? 99))
     : provisional;
   const minePlace = standings?.find((row) => row.mine)?.place;
+  useCompetitionResult(race, resultsReady, minePlace ?? undefined);
   const stat = obstacleStat(frame.outcomes, obstacles.length, 0);
   const showPopup = popup != null && frame.at < popup.until;
   const compact = obstacles.length > roomyMarkers;

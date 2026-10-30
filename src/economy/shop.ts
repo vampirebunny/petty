@@ -1,4 +1,5 @@
 import { mulberry, seedOf } from '../actor/mulberry';
+import { track } from '../analytics/analytics';
 import type { ItemKind } from './catalog';
 import { explainRemoteRow, remoteItemDef, versionAllows, type RemoteDefRow } from './remoteDefs';
 import { calendarDaysBetween } from './clock';
@@ -540,6 +541,11 @@ export function priceCart(
     }
   }
   if (charge > balance) {
+    const bundle = [...merged.values()].some((line) => line.kind === 'bundle');
+    track('insufficient_boops', {
+      context: bundle ? 'furnitureBundle' : 'petShop',
+      shortfall: charge - balance,
+    });
     return { ok: false, reason: 'insufficient_boops' };
   }
   return {

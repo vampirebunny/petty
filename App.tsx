@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
 import { Fredoka_600SemiBold, Fredoka_700Bold } from '@expo-google-fonts/fredoka';
@@ -44,6 +44,8 @@ import { CandyShell, candyInk, tints } from './src/ui/candy';
 import { fontFamily } from './src/ui/font';
 import { PhoneColumn } from './src/ui/PhoneColumn';
 import { pullIapCredits } from './src/economy/iapApply';
+import { enableAfterConsent, track, trackScreen } from './src/analytics/analytics';
+import { syncAnalyticsIdentity, syncAnalyticsProps, syncFriendBucket } from './src/analytics/player';
 import { useDeviceOrientation } from './src/ui/useDeviceOrientation';
 
 export default function App() {
@@ -51,7 +53,10 @@ export default function App() {
   const pet = usePet();
   const { setRemindersOn, adopt, ready: petReady, state: petState } = pet;
   const identity = useIdentity();
-  const gate = useAgeGate({ onUnavailable: () => setRemindersOn(false) });
+  const gate = useAgeGate({
+    onUnavailable: () => setRemindersOn(false),
+    isFirstOnboarding: () => petState == null,
+  });
   const [fontsLoaded, fontError] = useFonts({
     [fontFamily.regular]: Nunito_400Regular,
     [fontFamily.semibold]: Nunito_600SemiBold,
@@ -119,6 +124,24 @@ export default function App() {
       void clearLeftoverGuestSession();
     }
   }, [identity.ready, restoreInProgress]);
+  useEffect(() => {
+    if (gate.phase !== 'ready') {
+      return;
+    }
+    enableAfterConsent();
+    syncAnalyticsIdentity();
+    syncAnalyticsProps(petState);
+    syncFriendBucket();
+    const subscription = AppState.addEventListener('change', (status) => {
+      if (status === 'active') {
+        enableAfterConsent();
+        syncAnalyticsIdentity();
+        syncAnalyticsProps(petState);
+        syncFriendBucket();
+      }
+    });
+    return () => subscription.remove();
+  }, [gate.phase, petState]);
   useEffect(() => {
     if (!identity.ready || !identity.ownerId) {
       return;
@@ -286,6 +309,40 @@ export default function App() {
       );
     }
   }
+
+  const analyticsScreen =
+    !booted || gate.phase === 'loading' || gate.phase === 'unavailable'
+      ? null
+      : gate.phase === 'consent'
+        ? ('consent' as const)
+        : petState && meeting
+          ? ('meet' as const)
+          : petState
+            ? null
+            : entry === 'welcome'
+              ? ('welcome' as const)
+              : entry === 'started' && gate.phase === 'ready'
+                ? ('adopt' as const)
+                : null;
+  useEffect(() => {
+    if (analyticsScreen) {
+      trackScreen(analyticsScreen);
+    }
+  }, [analyticsScreen]);
+  const sawMeet = useRef(false);
+  useEffect(() => {
+    if (meeting && petState) {
+      if (!sawMeet.current) {
+        sawMeet.current = true;
+        track('onboarding_step', { step: 'meet' });
+      }
+      return;
+    }
+    if (sawMeet.current && petState && !meeting) {
+      sawMeet.current = false;
+      track('onboarding_step', { step: 'home' });
+    }
+  }, [meeting, petState]);
 
   if (updateRequired) {
     screen = (

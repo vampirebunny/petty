@@ -27,6 +27,7 @@ import { CandyButton } from '../ui/closet/CandyButton';
 import { PlaydateFriends } from '../ui/PlaydateFriends';
 import { fontFamily } from '../ui/font';
 import { PhoneColumn } from '../ui/PhoneColumn';
+import { track } from '../analytics/analytics';
 import { WardrobePicker } from '../ui/WardrobePicker';
 import { minTouch } from '../ui/theme';
 
@@ -173,6 +174,12 @@ export function PlaydateScreen({ pet, save, now, remaining, reducedMotion, onSav
       }
     }
     setStep('results');
+    if (!replay) {
+      track('playdate_complete', {
+        partner_type: guests && guests.length > 0 ? 'friend' : 'npc',
+        friend_count: guests?.length ?? 0,
+      });
+    }
   };
 
   const inviteFriends = (rows: FriendRow[]) => {
@@ -216,6 +223,7 @@ export function PlaydateScreen({ pet, save, now, remaining, reducedMotion, onSav
       resetSkip();
       setRecord(next);
       setStep('play');
+      track('playdate_start', { partner_type: 'friend', friend_count: guests.length });
       return;
     }
     const next = createPlaydateRecord({
@@ -237,6 +245,10 @@ export function PlaydateScreen({ pet, save, now, remaining, reducedMotion, onSav
     resetSkip();
     setRecord(next);
     setStep('play');
+    track('playdate_start', {
+      partner_type: guests && guests.length > 0 ? 'friend' : 'npc',
+      friend_count: guests?.length ?? 0,
+    });
   };
 
   const watch = (saved: PlaydateRecord) => {

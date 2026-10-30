@@ -12,7 +12,7 @@ import { writeLedgerEntry, type LedgerLine } from '../db/ledgerWrite';
 import { furnitureOf, markBedStorageTip, moveOwnedPiece, touchPlayerHome, trickPropsOf } from '../db/playerHome';
 import { masteredTrickIds, speciesOf } from '../sim/tracks';
 import { awardedBadgeIds, syncBadges } from '../sim/badges';
-import { prepareTrickPurchase, trickMilestoneKey } from '../sim/tricks';
+import { prepareTrickPurchase, trickListing, trickMilestoneKey, trickPrice } from '../sim/tricks';
 import { listedPrice, quoteCart } from './shopState';
 import type { CartInput, PricedLine, SpeciesId } from './shop';
 import { accrualNow } from '../db/accountMeta';
@@ -22,6 +22,33 @@ import { localDay } from './clock';
 import { planTimePayout } from './accrual';
 import { loginOffer, type LoginOffer } from './login';
 import { levelsToPay, stagesToPay } from './levels';
+import { earn, stat, track } from '../analytics/analytics';
+import { noteTrickStart } from '../analytics/clock';
+import type { EarnSource, SpendCategory } from '../analytics/events';
+type Credit = { source: EarnSource; value: number };
+
+function flushCredits(credits: Credit[]) {
+  for (const credit of credits) {
+    earn(credit.source, credit.value);
+  }
+}
+
+function spendCategory(line: PricedLine): SpendCategory {
+  const item = catalogItem(line.id);
+  if (item) {
+    return item.kind;
+  }
+  if (line.place === 'Closet') {
+    return 'outfit';
+  }
+  if (line.place === 'Toy Box') {
+    return 'toy';
+  }
+  if (line.place === 'Pantry') {
+    return 'food';
+  }
+  return 'furniture';
+}
 
 export type Check = { ok: true } | { ok: false; reason: string };
 export type UseOpts = { context?: 'casual' | 'training'; trickId?: string };
@@ -34,7 +61,13 @@ export type Burst = {
   origin?: { x: number; y: number };
   id?: number;
 };
-export type OpenRewards = { pet: PetState; bursts: Burst[]; login: LoginOffer; awardedBadges: string[] };
+export type OpenRewards = {
+  pet: PetState;
+  bursts: Burst[];
+  login: LoginOffer;
+  awardedBadges: string[];
+  awayBoops: number;
+};
 
 const listeners = new Set<(snapshot: WalletSnapshot) => void>();
 
@@ -529,6 +562,11 @@ export function purchaseCart(
         ledger.push({ asset: 'furniture', delta: 1, furnitureId: pieceId, scene: sceneId });
       }
       insertTransaction('purchase', requestId, 'cart', ledger);
+      const spent = priced.lines.map((line) => ({
+        id: line.id,
+        value: line.lineTotal,
+        category: spendCategory(line),
+      }));
       for (const row of granted) {
         const spot = buySpot(row.sku, sceneId);
         if (!spot) {
@@ -544,12 +582,30 @@ export function purchaseCart(
         charge: priced.charge,
         lines: priced.lines,
         includesClothes: priced.includesClothes,
+        spent,
       };
     });
     emit();
+    if (result.ok && result.spent && result.spent.length > 0) {
+      for (const line of result.spent) {
+        if (line.value > 0) {
+          track('spend_virtual_currency', {
+            virtual_currency_name: 'Boops',
+            value: line.value,
+            item_name: line.id,
+            category: line.category,
+          });
+        }
+      }
+      track('shop_checkout', { total_boops: result.charge ?? 0, item_count: result.spent.length });
+    }
     if (result.ok) {
       touchPlayerHome();
       queuePlayer();
+    }
+    if (result.ok) {
+      const { spent: _spent, ...rest } = result;
+      return rest;
     }
     return result;
   } catch (error) {
@@ -565,19 +621,31 @@ export function purchaseLimited(itemId: string, price: number, serial: number, r
         return { ok: true as const };
       }
       if (balance() < price) {
-        return { ok: false as const, reason: 'insufficient_boops' };
+        return { ok: false as const, reason: 'insufficient_boops', price };
       }
       insertTransaction('purchase', requestId, itemId, [
         { asset: 'boops', delta: -price, unitPrice: price, deal: false },
         { asset: itemId, delta: 1, unitPrice: price, deal: false, serial },
       ]);
-      return { ok: true as const };
+      return { ok: true as const, price };
     });
     emit();
+    if (!result.ok && result.reason === 'insufficient_boops' && 'price' in result && typeof result.price === 'number') {
+      track('insufficient_boops', { context: 'petShop', shortfall: Math.max(0, result.price - balance()) });
+    }
+    if (result.ok && 'price' in result && typeof result.price === 'number') {
+      const item = catalogItem(itemId);
+      track('spend_virtual_currency', {
+        virtual_currency_name: 'Boops',
+        value: result.price,
+        item_name: itemId,
+        category: item?.kind ?? 'outfit',
+      });
+    }
     if (result.ok) {
       queuePlayer();
     }
-    return result;
+    return result.ok ? { ok: true as const } : { ok: false as const, reason: result.reason };
   } catch (error) {
     return { ok: false, reason: error instanceof Error ? error.message : 'unknown' };
   }
@@ -664,6 +732,7 @@ export function buyTrick(
       if (!quoted.ok) {
         return quoted;
       }
+      const price = quoted.price;
       const lines: LedgerLine[] = [{ asset: 'boops', delta: -quoted.price, unitPrice: quoted.price, deal: false }];
       if (quoted.prop) {
         lines.push({
@@ -676,11 +745,27 @@ export function buyTrick(
       }
       insertTransaction('purchase', requestId, trickId, lines);
       writePetNow(quoted.pet);
-      return { ok: true as const, pet: quoted.pet };
+      noteTrickStart(pet.id, trickId, now);
+      return { ok: true as const, pet: quoted.pet, price };
     });
     emit();
+    if (!result.ok && result.reason === 'insufficient_boops') {
+      const listing = trickListing(trickId);
+      const ownedProps = trickPropsOf(ownerId()).map((prop) => prop.type);
+      const cost = listing ? trickPrice(listing, listing.propType != null && ownedProps.includes(listing.propType)) : 0;
+      track('insufficient_boops', { context: 'trickShop', shortfall: Math.max(0, cost - balance()) });
+    }
+    if (result.ok && 'price' in result && typeof result.price === 'number') {
+      track('spend_virtual_currency', {
+        virtual_currency_name: 'Boops',
+        value: result.price,
+        item_name: trickId,
+        category: 'trick',
+      });
+    }
     if (result.ok && result.pet) {
       queueCoupled(result.pet);
+      return { ok: true as const, pet: result.pet };
     }
     return result;
   } catch (error) {
@@ -700,13 +785,31 @@ export function purchase(itemId: string, qty: number, requestId: string): Check 
         return check;
       }
       commitPurchase(catalogItem(itemId) as CatalogItem, qty, requestId);
-      return { ok: true as const };
+      return { ok: true as const, fresh: true };
     });
     emit();
+    if (!result.ok && result.reason === 'insufficient_boops') {
+      const price = listedPrice(itemId);
+      if (price != null) {
+        track('insufficient_boops', { context: 'petShop', shortfall: Math.max(0, price * qty - balance()) });
+      }
+    }
+    if (result.ok && 'fresh' in result && result.fresh) {
+      const item = catalogItem(itemId);
+      const price = listedPrice(itemId);
+      if (item && price != null && item.kind !== 'toy') {
+        track('spend_virtual_currency', {
+          virtual_currency_name: 'Boops',
+          value: price * qty,
+          item_name: itemId,
+          category: item.kind,
+        });
+      }
+    }
     if (result.ok) {
       queuePlayer();
     }
-    return result;
+    return result.ok ? { ok: true as const } : result;
   } catch (error) {
     return { ok: false, reason: error instanceof Error ? error.message : 'unknown' };
   }
@@ -729,6 +832,14 @@ export function useItem(pet: PetState, itemId: string, opts: UseOpts, requestId:
     });
     emit();
     if (result.ok && result.pet) {
+      const item = catalogItem(itemId);
+      if (item?.kind === 'food') {
+        track('care_action', { action: 'feed', stat_before: stat(100 - pet.needs.hunger), item_id: itemId });
+      } else if (item?.kind === 'treat') {
+        track('care_action', { action: 'treat', stat_before: stat(pet.needs.happiness), item_id: itemId });
+      } else if (item?.kind === 'second_wind' && opts.trickId) {
+        track('second_wind_used', { trick_id: opts.trickId });
+      }
       queueCoupled(result.pet);
     }
     return result;
@@ -739,6 +850,7 @@ export function useItem(pet: PetState, itemId: string, opts: UseOpts, requestId:
 
 export function buyAndUse(pet: PetState, itemId: string, opts: UseOpts, requestId: string, now = Date.now()): Check & { pet?: PetState } {
   try {
+    let bought = false;
     const result = transaction(() => {
       ensureOwnerRows(now);
       if (hasKey(`${requestId}:use`)) {
@@ -754,6 +866,7 @@ export function buyAndUse(pet: PetState, itemId: string, opts: UseOpts, requestI
           return check;
         }
         commitPurchase(catalogItem(itemId) as CatalogItem, 1, requestId);
+        bought = true;
       }
       const check = canUse(current, itemId, opts, now);
       if (!check.ok) {
@@ -764,6 +877,24 @@ export function buyAndUse(pet: PetState, itemId: string, opts: UseOpts, requestI
       return { ok: true as const, pet: current };
     });
     emit();
+    if (!result.ok && result.reason === 'insufficient_boops') {
+      const price = listedPrice(itemId);
+      if (price != null) {
+        track('insufficient_boops', { context: 'petShop', shortfall: Math.max(0, price - balance()) });
+      }
+    }
+    if (bought && result.ok) {
+      const item = catalogItem(itemId);
+      const price = listedPrice(itemId);
+      if (item && price != null) {
+        track('spend_virtual_currency', {
+          virtual_currency_name: 'Boops',
+          value: price,
+          item_name: itemId,
+          category: item.kind,
+        });
+      }
+    }
     if (result.ok && result.pet) {
       queueCoupled(result.pet);
     }
@@ -773,7 +904,7 @@ export function buyAndUse(pet: PetState, itemId: string, opts: UseOpts, requestI
   }
 }
 
-function grantLines(source: string, key: string, ref: string | null, lines: { asset: string; delta: number }[]): boolean {
+function grantLines(source: string, key: string, ref: string | null, lines: LedgerLine[]): boolean {
   if (hasKey(key) || lines.every((line) => line.delta === 0)) {
     return false;
   }
@@ -782,11 +913,13 @@ function grantLines(source: string, key: string, ref: string | null, lines: { as
 }
 
 export function ensureStarter(now = Date.now()): void {
+  let granted = false;
   transaction(() => {
     ensureOwnerRows(now);
     if (hasKey('starter')) {
       return;
     }
+    granted = true;
     const lines: LedgerLine[] = [{ asset: 'boops', delta: economyConfig.starter.boops }];
     for (const [itemId, qty] of Object.entries(economyConfig.starter.items)) {
       lines.push({ asset: itemId, delta: qty });
@@ -800,6 +933,9 @@ export function ensureStarter(now = Date.now()): void {
     owner.last_trusted_time = now;
     writeOwner(owner);
   });
+  if (granted) {
+    earn('starter', economyConfig.starter.boops);
+  }
   emit();
   queuePlayer();
 }
@@ -866,6 +1002,9 @@ export function payoutTimeAccrual(mode: 'live' | 'return', wallNow?: number): nu
     return 0;
   });
   emit();
+  if (amount > 0) {
+    earn(mode === 'return' ? 'away_payout' : 'session_accrual', amount);
+  }
   if (wrote) {
     queuePlayer();
   }
@@ -950,6 +1089,9 @@ export function claimDailyLogin(now = Date.now()): Check & { amount?: number; st
       return { ok: true as const, amount, streakDay: offer.streakDay };
     });
     emit();
+    if (result.ok && result.amount && result.amount > 0) {
+      earn('daily_login', result.amount);
+    }
     if (result.ok) {
       queuePlayer();
     }
@@ -964,21 +1106,28 @@ function payLevelsAndStages(pet: PetState): {
   boops: number;
   label: string | null;
   payouts: { label: string; amount: number }[];
+  credits: Credit[];
 } {
   let boops = 0;
   const payouts: { label: string; amount: number }[] = [];
+  const credits: Credit[] = [];
   const levels = levelsToPay(pet);
   for (const level of levels) {
     const paid = grantBoops('level_up', `level:${pet.id}:${level}`, pet.id, economyConfig.levelUp.boops);
     boops += paid;
     if (paid > 0) {
       payouts.push({ label: `Level ${level}!`, amount: paid });
+      credits.push({ source: 'level_up', value: paid });
     }
   }
   const stages = stagesToPay(pet);
   let rest = 0;
   for (const stage of stages) {
-    rest += grantBoops('milestone', `stage:${pet.id}:${stage}`, pet.id, economyConfig.milestones.lifeStage);
+    const paid = grantBoops('milestone', `stage:${pet.id}:${stage}`, pet.id, economyConfig.milestones.lifeStage);
+    rest += paid;
+    if (paid > 0) {
+      credits.push({ source: 'life_stage', value: paid });
+    }
   }
   const tricks = masteredTrickIds(pet);
   let trickLabel: string | null = null;
@@ -990,8 +1139,11 @@ function payLevelsAndStages(pet: PetState): {
       economyConfig.milestones.trickMastered,
     );
     rest += paid;
-    if (paid > 0 && !trickLabel) {
-      trickLabel = trickId;
+    if (paid > 0) {
+      credits.push({ source: 'trick_mastered', value: paid });
+      if (!trickLabel) {
+        trickLabel = trickId;
+      }
     }
   }
   boops += rest;
@@ -1004,7 +1156,7 @@ function payLevelsAndStages(pet: PetState): {
     lastPaidStage: stages.length > 0 ? stages[stages.length - 1] : (pet.lastPaidStage ?? 'puppy'),
   };
   const label = levels.length > 0 ? `Level ${levels[levels.length - 1]}!` : trickLabel ? `${trickLabel}!` : boops > 0 ? 'Boops' : null;
-  return { pet: next, boops, label, payouts };
+  return { pet: next, boops, label, payouts, credits };
 }
 
 export function settleProgress(
@@ -1021,10 +1173,12 @@ export function settleProgress(
     boops += progressed.boops;
     label = progressed.label;
     const payouts = [...progressed.payouts];
+    const credits = [...progressed.credits];
     if (extra?.playdateId) {
       const paid = grantBoops('playdate', `playdate:${extra.playdateId}`, extra.playdateId, economyConfig.playdate.boops);
       boops += paid;
       if (paid > 0) {
+        credits.push({ source: 'playdate', value: paid });
         payouts.push({ label: 'Boops', amount: paid });
         if (!label) {
           label = 'Boops';
@@ -1042,6 +1196,7 @@ export function settleProgress(
         const paid = grantBoops('play_find', `find:${newRequestId()}`, extra.find, amount);
         if (paid > 0) {
           setDaily(day, '', 'play_finds', dailyCount(day, '', 'play_finds') + paid);
+          credits.push({ source: 'play_find', value: paid });
           boops += paid;
           payouts.push({ label: 'Boops', amount: paid });
           if (!label) {
@@ -1053,18 +1208,20 @@ export function settleProgress(
     if (next !== pet) {
       writePetNow(next);
     }
-    return { pet: next, boops, label, payouts };
+    return { pet: next, boops, label, payouts, credits };
   });
+  flushCredits(result.credits);
   if (result.boops > 0) {
     emit();
   }
   queueCoupled(result.pet);
-  return result;
+  return { pet: result.pet, boops: result.boops, label: result.label, payouts: result.payouts };
 }
 
 export function onAppOpen(pet: PetState, now = Date.now()): OpenRewards {
   const rewards = transaction(() => {
     ensureOwnerRows(now);
+    const credits: Credit[] = [];
     if (!hasKey('starter')) {
       const lines: LedgerLine[] = [{ asset: 'boops', delta: economyConfig.starter.boops }];
       for (const [itemId, qty] of Object.entries(economyConfig.starter.items)) {
@@ -1077,7 +1234,9 @@ export function onAppOpen(pet: PetState, now = Date.now()): OpenRewards {
       for (const place of grantPieces(speciesOf(pet.breedId), 'shared').placed) {
         lines.push({ asset: 'furniture', delta: 1, furnitureId: place.pieceId, scene: place.sceneId });
       }
-      grantLines('starter_grant', 'starter', null, lines);
+      if (grantLines('starter_grant', 'starter', null, lines)) {
+        credits.push({ source: 'starter', value: economyConfig.starter.boops });
+      }
       const seeded = readOwner();
       const cursor = accrualNow() ?? now;
       seeded.time_paid_through = cursor;
@@ -1098,6 +1257,7 @@ export function onAppOpen(pet: PetState, now = Date.now()): OpenRewards {
       'return',
     );
     const bursts: Burst[] = [];
+    let awayBoops = 0;
     if (planned.save) {
       owner.time_paid_through = planned.owner.timePaidThrough;
       owner.time_capped_day = planned.owner.timeCappedDay;
@@ -1106,6 +1266,8 @@ export function onAppOpen(pet: PetState, now = Date.now()): OpenRewards {
         const paid = grantBoops('time_payout', `time:${planned.owner.timePaidThrough}`, null, planned.amount);
         if (paid > 0) {
           setDaily(planned.day, '', 'time_boops', dailyCount(planned.day, '', 'time_boops') + paid);
+          awayBoops = paid;
+          credits.push({ source: 'away_payout', value: paid });
           bursts.push({ label: 'Boops', amount: paid, coinCount: 5 });
         }
       }
@@ -1115,10 +1277,12 @@ export function onAppOpen(pet: PetState, now = Date.now()): OpenRewards {
       const welcomeKey = `welcome:${localDay(now)}`;
       const paid = grantBoops('welcome_back', welcomeKey, null, economyConfig.welcomeBack.boops);
       if (paid > 0) {
+        credits.push({ source: 'welcome_back', value: paid });
         bursts.push({ label: 'Welcome back!', amount: paid, coinCount: 5 });
       }
     }
     const progressed = payLevelsAndStages(pet);
+    credits.push(...progressed.credits);
     for (const payout of progressed.payouts) {
       bursts.push({ label: payout.label, amount: payout.amount, coinCount: 5 });
     }
@@ -1132,11 +1296,20 @@ export function onAppOpen(pet: PetState, now = Date.now()): OpenRewards {
       bursts,
       login: loginOffer(owner.login_last_claimed_day, owner.login_streak, localDay(now)),
       awardedBadges,
+      awayBoops,
+      credits,
     };
   });
+  flushCredits(rewards.credits);
   emit();
   queueCoupled(rewards.pet);
-  return rewards;
+  return {
+    pet: rewards.pet,
+    bursts: rewards.bursts,
+    login: rewards.login,
+    awardedBadges: rewards.awardedBadges,
+    awayBoops: rewards.awayBoops,
+  };
 }
 
 function importLegacyOutfits(): void {

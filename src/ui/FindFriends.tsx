@@ -28,9 +28,10 @@ type Props = {
   onSent: () => void;
   onAccepted: () => void;
   onScan: () => void;
+  via?: 'handle' | 'qr';
 };
 
-export function FindFriends({ accountHandle, initialHandle, onClose, onChanged, onSent, onAccepted, onScan }: Props) {
+export function FindFriends({ accountHandle, initialHandle, onClose, onChanged, onSent, onAccepted, onScan, via = 'handle' }: Props) {
   const [query, setQuery] = useState(initialHandle ?? '');
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
@@ -111,7 +112,7 @@ export function FindFriends({ accountHandle, initialHandle, onClose, onChanged, 
     setNote(null);
     void (async () => {
       if (kind === 'send') {
-        const sent = await sendFriendRequest(found.handle);
+        const sent = await sendFriendRequest(found.handle, via);
         setBusy(false);
         if (!sent.ok) {
           setNote(friendErrorCopy(sent.error));
