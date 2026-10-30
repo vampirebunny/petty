@@ -89,6 +89,57 @@ export const gameplayConfig = {
     dailyXpRaces: 8,
     energyCost: 8,
   },
+  petCam: {
+    minAwayHours: 5,
+    showChance: 0.15,
+    leaveMarginMin: 30,
+    returnMarginMin: 15,
+    history: 20,
+    noRepeatLast: 1,
+    openFloor: 160,
+    seniorSpeed: 0.72,
+    youngWobble: 1.6,
+    // Room-frame limits: walkers stay this far from the side walls, and exits go this far past them.
+    edgeMargin: 56,
+    offscreen: 130,
+    // How far the bowl or bed is shoved across the floor.
+    pushReach: 220,
+    // y sorts the pet just in front of the sofa or bed; z lifts it onto the seat cushion.
+    napSpots: {
+      livingroom: { x: 510, y: 206, z: 34 },
+      bedroom: { x: 350, y: 208, z: 44 },
+    },
+    filter: {
+      dayContrast: 1.35,
+      nightGain: 1.15,
+      nightLift: 0.06,
+      grain: 10,
+      nightGrain: 17,
+      scanline: 0.06,
+      nightScanline: 0.1,
+      vignette: 0.6,
+      shakePt: 9,
+      shakeS: 0.6,
+      flash: 0.5,
+      flashS: 0.45,
+      // Boop: the pet walks up to the lens and grows; the room does not zoom.
+      boopScale: 3.2,
+      boopPeak: 3.7,
+      boopHold: 2.6,
+      boopFloorPad: 6,
+      bumps: 3,
+    },
+    clips: {
+      boop: { weight: 0.35, duration: 8 },
+      sweater: { weight: 1, duration: 8.5 },
+      tail: { weight: 1, duration: 8 },
+      inOut: { weight: 1, duration: 9.5, passesMin: 3, passesMax: 5, emptyMin: 0.6, emptyMax: 1 },
+      hind: { weight: 1, duration: 8, puppyDrop: 4 },
+      nap: { weight: 1, duration: 8.5 },
+      bowl: { weight: 1, duration: 9 },
+      bedPush: { weight: 1, duration: 9.5 },
+    },
+  },
   // Display defaults. The server's stadium_config row decides the delays and the invite cap.
   friendGames: {
     events: ['funRun', 'hurdles', 'obstacle'] as const,

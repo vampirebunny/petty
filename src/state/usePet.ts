@@ -28,6 +28,9 @@ import {
 } from '../sim';
 import type { Cue, Look, Mood, OutfitSlot, PetAttributes, PetEvent, PetState, Trait } from '../sim';
 import { noteForegroundDay } from '../compliance/accountPrompts';
+import { offerPetCam } from '../petCam/trigger';
+import { clearReturnSkips, dropPendingCam, expectGreet, noteSlotSkip } from '../petCam/session';
+import { noteBackgroundAt } from '../petCam/store';
 import { createUuid, getCachedInstallId } from '../compliance/identity';
 import { bootstrapLocal, wipeLocalData } from '../db/bootstrap';
 import { readAccountLinked, readStandby, readSyncedRevision, serverNow, setOtherDeviceLabel, setStandby } from '../db/accountMeta';
@@ -269,6 +272,9 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
     stagedRef.current = false;
     stateRef.current = clean;
     setState(clean);
+    if (nextCue?.kind === 'greet') {
+      expectGreet();
+    }
     if (nextCue) {
       tokenRef.current += 1;
       setCue({
@@ -443,6 +449,7 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
           } else {
             publish(settled.pet);
           }
+          offerPetCam(settled.pet, now);
         } finally {
           returningRef.current = false;
         }
@@ -612,6 +619,7 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
           const message = hasUnsentPlay()
             ? `You're playing on ${phrase}. Play on this device since then will be replaced. Anything you bought here is safe. If you tap Not now, that play stays on this device until you tap Play here, which replaces it the same way.`
             : `You're playing on ${phrase}. Continue here?`;
+          noteSlotSkip();
           Alert.alert('Continue here?', message, [
             { text: 'Not now', onPress: () => void enterStandby(false) },
             { text: 'Continue here', onPress: () => takeSlot(current, false) },
@@ -705,6 +713,11 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
       activeRef.current = status === 'active';
       if (status === 'active') {
         noteForegroundDay();
+      }
+      if (previous === 'active' && status === 'background') {
+        noteBackgroundAt(Date.now());
+        dropPendingCam();
+        clearReturnSkips();
       }
       const current = stateRef.current;
       if (!current) {

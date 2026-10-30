@@ -11,4 +11,5 @@ export const fontFamily = {
   // Candy buttons, headers, coins, and tooltips. The rest of the app stays on Nunito.
   fredokaSemibold: 'Fredoka_600SemiBold',
   fredokaBold: 'Fredoka_700Bold',
+  mono: 'ShareTechMono_400Regular',
 } as const;

@@ -8,6 +8,7 @@ import { withdrawEntry } from '../../stadium/api';
 import { gameplayConfig } from '../../sim/gameplayConfig';
 import { eventLabel, formatCountdown, gatePhase, racesOf, withSignup } from '../../sim/stadium';
 import type { PetState } from '../../sim/types';
+import { setRaceCallOpen } from '../../petCam/session';
 import { FunModal } from '../FunModal';
 import { Toast } from './parts';
 
@@ -61,6 +62,11 @@ export function RaceCall({ pet, atGate, reducedMotion, onGo, onCommit }: Props) 
     now >= callAt &&
     gatePhase(signup.startsAt, now) === 'gate' &&
     !waitForRun;
+
+  useEffect(() => {
+    setRaceCallOpen(show);
+    return () => setRaceCallOpen(false);
+  }, [show]);
 
   const skip = async () => {
     if (!signup) {

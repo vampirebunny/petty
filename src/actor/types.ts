@@ -544,6 +544,12 @@ export type Actor = {
   pendingHydration: number;
   vitality: number;
   equipped: Equipped;
+  // Pet Cam playback. The live pet never sets these.
+  clipPlay?: boolean;
+  clipStuck?: boolean;
+  clipEyeshine?: boolean;
+  clipHind?: boolean;
+  clipScale?: number;
   // Remote clothes this actor must draw even when the viewer's catalog does not know the id.
   wearDefs?: Partial<Record<OutfitSlot, WearItem>>;
   // World time of the last bell jingle, so a run does not ring every frame.

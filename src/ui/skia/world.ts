@@ -482,9 +482,20 @@ export function drawWorld(
         }
         canvas.restore();
       };
-      drawPet();
+      const scale = actor.clipScale ?? 1;
+      if (scale !== 1) {
+        canvas.save();
+        canvas.translate(actor.x, actor.y);
+        canvas.scale(scale, scale);
+        canvas.translate(-actor.x, -actor.y);
+        drawPet();
+        canvas.restore();
+      } else {
+        drawPet();
+      }
     };
-    items.push({ y: sortY, late: night, band: 'live', draw: () => paintActor(true) });
+    const front = (actor.clipScale ?? 1) > 1;
+    items.push({ y: front ? 10000 : sortY, late: night, band: front ? 'front' : 'live', draw: () => paintActor(true) });
   }
   if (overlay?.rope && world.actors.length >= 2) {
     const lower = Math.max(world.actors[0]?.y ?? 0, world.actors[1]?.y ?? 0);

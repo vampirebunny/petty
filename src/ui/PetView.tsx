@@ -5,6 +5,7 @@ import { useSharedValue } from 'react-native-reanimated';
 import { Canvas, Picture, Rect, Skia } from '@shopify/react-native-skia';
 import type { SkPicture } from '@shopify/react-native-skia';
 
+import { setGreetActive, setStageMounted } from '../petCam/session';
 import {
   createWorld,
   equipToy,
@@ -447,8 +448,16 @@ export function PetView({
   useEffect(() => {
     redrawRef.current = redraw;
   }, [redraw]);
+  useEffect(() => {
+    setStageMounted(true);
+    return () => {
+      setStageMounted(false);
+      setGreetActive(false);
+    };
+  }, []);
 
   const walkedIn = useRef(false);
+  const greetLive = useRef(false);
   useLayoutEffect(() => {
     if (!enterFromLeft || walkedIn.current) {
       return;
@@ -568,6 +577,9 @@ export function PetView({
         if (plan) {
           world.toyPool = toysRef.current;
           beginGreeting(world, actor, plan);
+          setGreetActive(actor.task.type === 'greet');
+        } else {
+          setGreetActive(false);
         }
       } else if (kind === 'fetch') {
         world.toyKind = playToyRef.current || 'ball';
@@ -1143,6 +1155,13 @@ export function PetView({
       world.birdSeed = birdVisitSeed(world.scene.id, now.getTime());
       const dt = frameDt(elapsedMs, activeRef.current);
       update(world, dt);
+      const greetingNow = world.actors[0]?.task.type === 'greet';
+      if (greetingNow) {
+        greetLive.current = true;
+      } else if (greetLive.current) {
+        greetLive.current = false;
+        setGreetActive(false);
+      }
       if (takePendingRest(world)) {
         onFellAsleepRef.current?.();
       }

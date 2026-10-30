@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
 import { Fredoka_600SemiBold, Fredoka_700Bold } from '@expo-google-fonts/fredoka';
+import { ShareTechMono_400Regular } from '@expo-google-fonts/share-tech-mono';
+import * as Notifications from 'expo-notifications';
 import {
   Nunito_400Regular,
   Nunito_600SemiBold,
@@ -9,7 +11,7 @@ import {
   Nunito_800ExtraBold,
   Nunito_900Black,
 } from '@expo-google-fonts/nunito';
-import { AppState, Image, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { AppState, Image, Linking, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { fetchUpdateRequired } from './src/appUpdate/check';
@@ -33,6 +35,9 @@ import {
   installServerPet,
   supersedePendingGuest,
 } from './src/compliance/restoreAccount';
+import { parseFriendLink } from './src/friends/friendLink';
+import { noteLaunchSkip } from './src/petCam/session';
+import { PetCamOverlay } from './src/petCam/Overlay';
 import { StandbyOverlay } from './src/ui/StandbyOverlay';
 import { FinishSignIn } from './src/ui/FinishSignIn';
 import { CandyShell, candyInk, tints } from './src/ui/candy';
@@ -55,6 +60,7 @@ export default function App() {
     [fontFamily.black]: Nunito_900Black,
     [fontFamily.fredokaSemibold]: Fredoka_600SemiBold,
     [fontFamily.fredokaBold]: Fredoka_700Bold,
+    [fontFamily.mono]: ShareTechMono_400Regular,
   });
   const fontsReady = fontsLoaded || fontError != null;
   const restoreInProgress = identity.ready && readRestoreInProgress() != null;
@@ -62,6 +68,28 @@ export default function App() {
   const [entryAttempt, setEntryAttempt] = useState(0);
   const [signInBusy, setSignInBusy] = useState(false);
   const [updateRequired, setUpdateRequired] = useState(false);
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      return;
+    }
+    try {
+      const launched = Notifications.getLastNotificationResponse();
+      if (launched) {
+        const data = launched.notification.request.content.data as { kind?: unknown } | null;
+        const kind = data && typeof data.kind === 'string' ? data.kind : undefined;
+        if (kind == null || kind === 'race' || kind === 'friend_request' || kind === 'friend_game') {
+          noteLaunchSkip();
+        }
+      }
+    } catch {
+      // Notifications are unavailable in this runtime.
+    }
+    void Linking.getInitialURL().then((url) => {
+      if (url && parseFriendLink(url)) {
+        noteLaunchSkip();
+      }
+    });
+  }, []);
   useEffect(() => {
     if (__DEV__ || Platform.OS === 'web') {
       return;
@@ -271,6 +299,7 @@ export default function App() {
     <GestureHandlerRootView style={styles.root}>
       {screen}
       {updateRequired ? null : <StandbyOverlay pet={petState} />}
+      {updateRequired ? null : <PetCamOverlay />}
       <StatusBar style="auto" />
     </GestureHandlerRootView>
   );

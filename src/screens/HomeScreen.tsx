@@ -142,6 +142,7 @@ import { BlockConfirm, ReportSheet, ReportThanks } from '../ui/FriendDialogs';
 import { FriendNotifyPrompt } from '../ui/FriendNotifyPrompt';
 import { loadFriends, blockPlayer, reportPlayer } from '../friends/api';
 import { parseFriendLink } from '../friends/friendLink';
+import { onPetCam, reportPresentation, welcomeHomeHeld, welcomeHomeWasReplaced } from '../petCam/session';
 import { closeFindFriends, openFindFriends } from '../friends/findOpen';
 import { onFriendModalRequest } from '../friends/open';
 import { clearPendingAdd, readPendingAdd, savePendingAdd } from '../friends/pendingAdd';
@@ -646,6 +647,8 @@ export default function HomeScreen({ petApi }: Props) {
   const [badgeQueue, setBadgeQueue] = useState<string[]>([]);
   const badgeReady = useRef(false);
   const badgeSeen = useRef(new Set<string>());
+  const [camTick, setCamTick] = useState(0);
+  useEffect(() => onPetCam(() => setCamTick((value) => value + 1)), []);
   const playNextLevel = useCallback(() => {
     const level = levelQueue.current.shift();
     if (level == null) {
@@ -707,17 +710,16 @@ export default function HomeScreen({ petApi }: Props) {
           badgeSeen.current.add(id);
         }
       }
-      enqueueBadges(awardedBadges);
-      if (awardedBadges.length > 0) {
-        clearAwardedBadges();
-      }
-      return;
     }
-    enqueueBadges(awardedBadges);
-    if (awardedBadges.length > 0) {
+    if (welcomeHomeWasReplaced()) {
+      badgeSeen.current.add('welcome-home');
+    }
+    const visible = welcomeHomeHeld() ? awardedBadges.filter((id) => id !== 'welcome-home') : awardedBadges;
+    enqueueBadges(visible);
+    if (awardedBadges.length > 0 && !welcomeHomeHeld()) {
       clearAwardedBadges();
     }
-  }, [awardedBadges, clearAwardedBadges, enqueueBadges, state]);
+  }, [awardedBadges, camTick, clearAwardedBadges, enqueueBadges, state]);
   const stateNow = useRef(state);
   const feedback = useRef<FeedbackHandle>(null);
   const tracker = useRef(new CuddleGesture());
@@ -1639,6 +1641,12 @@ export default function HomeScreen({ petApi }: Props) {
   const [knownLearnedKey, setKnownLearnedKey] = useState<string | null>(null);
   const [learnedTrick, setLearnedTrick] = useState<string | null>(null);
   useEffect(() => {
+    reportPresentation({
+      bursts: burst != null,
+      badges: badgeShow != null || learnedTrick != null,
+    });
+  }, [badgeShow, burst, camTick, learnedTrick]);
+  useEffect(() => {
     if (badgeShow || learnedTrick || badgeQueue.length === 0) {
       return;
     }
@@ -1855,6 +1863,18 @@ export default function HomeScreen({ petApi }: Props) {
   });
   useEffect(() => onGateRequest(() => gateOpener.current()), []);
 
+  const payoutPoint = burst?.origin ?? { x: stageWidth / 2, y: stageHeight * 0.5 };
+  const payoutLocal = stageToView(payoutPoint);
+  const payoutOrigin = { x: stageWindow.x + payoutLocal.x, y: stageWindow.y + payoutLocal.y };
+  const finishBurst = () => {
+    if (!burst || paidBurst.current === burst.id) {
+      return;
+    }
+    paidBurst.current = burst.id ?? null;
+    counterRef.current?.countBy(burst.amount);
+    dismissBurst();
+  };
+
   const hosted = (screen: ReactNode) => (
     <FindFriendsHost accountHandle={accountHandle} onChanged={() => setFriendTick((value) => value + 1)}>
       {screen}
@@ -1886,6 +1906,17 @@ export default function HomeScreen({ petApi }: Props) {
           badgeId={badgeShow}
           reducedMotion={reducedMotion}
           onDone={finishBadge}
+        />
+      ) : null}
+      {burst ? (
+        <BoopsPayout
+          key={burst.id}
+          amount={burst.amount}
+          coinCount={burst.coinCount}
+          origin={payoutOrigin}
+          counter={counterRef}
+          reducedMotion={reducedMotion}
+          onDone={finishBurst}
         />
       ) : null}
       {addGate ? (
@@ -2870,18 +2901,6 @@ export default function HomeScreen({ petApi }: Props) {
     );
   }
 
-  const payoutPoint = burst?.origin ?? { x: stageWidth / 2, y: stageHeight * 0.5 };
-  const payoutLocal = stageToView(payoutPoint);
-  const payoutOrigin = { x: stageWindow.x + payoutLocal.x, y: stageWindow.y + payoutLocal.y };
-  const finishBurst = () => {
-    if (!burst || paidBurst.current === burst.id) {
-      return;
-    }
-    paidBurst.current = burst.id ?? null;
-    counterRef.current?.countBy(burst.amount);
-    dismissBurst();
-  };
-
   const suggestionSlots = state.suggestions ?? [];
   const tutorialSpan = (gameplayConfig.tutorialLevel - 1) * gameplayConfig.tutorialXp;
   const tutorialBar =
@@ -3793,17 +3812,6 @@ export default function HomeScreen({ petApi }: Props) {
               }
             },
           }}
-        />
-      ) : null}
-      {burst && stageReady ? (
-        <BoopsPayout
-          key={burst.id}
-          amount={burst.amount}
-          coinCount={burst.coinCount}
-          origin={payoutOrigin}
-          counter={counterRef}
-          reducedMotion={reducedMotion}
-          onDone={finishBurst}
         />
       ) : null}
       <HandlePrompt petName={state.name} idle={homeIdle} />

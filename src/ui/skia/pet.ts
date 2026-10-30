@@ -237,7 +237,7 @@ function poseInFlight(pose: Pose): boolean {
 const LIVE_TASKS = new Set(['walk', 'jump', 'fetch', 'travel', 'cuddle', 'greet', 'trick', 'held', 'pounce', 'groom', 'parkFind']);
 
 function idleCacheable(actor: Actor, silhouette: boolean): boolean {
-  if (silhouette || placing || actor.debugTheta != null || actor.spin || actor.jump || actor.turning) {
+  if (actor.clipPlay || silhouette || placing || actor.debugTheta != null || actor.spin || actor.jump || actor.turning) {
     return false;
   }
   if (actor.hearts.length > 0 || actor.z > 2 || LIVE_TASKS.has(actor.task.type)) {
@@ -458,7 +458,8 @@ export function drawActor(
   });
   const scale = frame.scale * (1 + 0.35 * pose.closeUp);
   const cat = breed.species === 'cat';
-  const standTilt = 1.12 * pose.stand - Math.sin(t * 5.2) * (0.035 + 0.1 * pose.shake) * pose.stand;
+  const standGain = actor.clipHind ? 1.31 : 1.12;
+  const standTilt = standGain * pose.stand - Math.sin(t * 5.2) * (0.035 + 0.1 * pose.shake) * pose.stand;
   let theta = frame.theta - 0.35 * pose.rearUp + Math.sin(t * 9 + 1) * 0.03 * pose.rubSway - (actor.furniture?.rig.rear ?? 0) - standTilt;
   let dy = frame.dy + geom.dLie * pose.side;
   if (posed) {
@@ -1070,7 +1071,7 @@ export function drawActor(
     y: headY + shift.y + pose.headPush * geom.headR * 0.15,
   };
   const pitch =
-    (frame.pitch + pose.headRot - 0.9 * pose.headUp + Math.sin(t * 9) * 0.12 * pose.rubSway + (posed?.head ?? 0) - 0.45 * furnitureRear + 1.12 * 0.78 * pose.stand) *
+    (frame.pitch + pose.headRot - 0.9 * pose.headUp + Math.sin(t * 9) * 0.12 * pose.rubSway + (posed?.head ?? 0) - 0.45 * furnitureRear + standGain * 0.78 * pose.stand) *
     (1 - 0.7 * Math.max(rig.headFront, rig.rear));
   // Side view joins the neck at the front of the chest. Front and back replace that
   // body with a centered oval, so the same shoulder sits out to the side. A thick
@@ -1256,6 +1257,19 @@ export function drawActor(
     c.restore();
   };
   withHead(() => {
+  if (actor.clipStuck) {
+    const jacket = actor.wearDefs?.jacket ?? wearItem('jacket', actor.equipped.jacket);
+    const color = jacket?.colorway.c ?? '#e7a0c4';
+    const accent = jacket?.colorway.d ?? color;
+    fillOval(c, 0, -R * 0.05, R * 1.45, R * 1.2, color);
+    if (jacket?.colorway.pattern) {
+      fillOval(c, 0, -R * 0.2, R * 0.7, R * 0.35, accent, 0.85);
+    }
+    const swing = actor.swing;
+    strokeLine(c, -R * 0.2, R * 0.2, -R * 0.9 + swing * 6, R * 1.3, color, R * 0.28);
+    strokeLine(c, R * 0.2, R * 0.2, R * 0.9 + swing * 6, R * 1.3, color, R * 0.28);
+    return;
+  }
   if (rig.rear > 0.55) {
     if (cat) {
       fillOval(c, 0, 0, R * 1.06, R * 0.96, baseColor);
@@ -1400,6 +1414,10 @@ export function drawActor(
       strokeLine(c, s, -s, -s, s, '#2a1f33', 2);
     } else {
       drawEye(c, 0, 0, eyeR, eyeClosed, breed, cf);
+      if (actor.clipEyeshine && eyeClosed < 0.55) {
+        fillCircle(c, 0, 0, eyeR * 2.4, '#ffffff', 0.45);
+        fillCircle(c, 0, 0, eyeR * 0.55, '#ffffff');
+      }
     }
     c.restore();
     if (fa < 0.999) {
@@ -1418,6 +1436,10 @@ export function drawActor(
     strokeLine(c, s, -s, -s, s, '#2a1f33', 2);
   } else {
     drawEye(c, 0, 0, eyeR, eyeClosed, breed, cf);
+    if (actor.clipEyeshine && eyeClosed < 0.55) {
+      fillCircle(c, 0, 0, eyeR * 2.4, '#ffffff', 0.45);
+      fillCircle(c, 0, 0, eyeR * 0.55, '#ffffff');
+    }
   }
   c.restore();
   if (geom.bags > 0.04) {
