@@ -266,11 +266,12 @@ export function CloudHopScreen({ pet, reducedMotion, onMenu }: Props) {
       const run = runRef.current;
       const breed = breedRef.current;
       if (run && activeRef.current) {
-        if (run.phase === 'menu') {
+        const phase = run.phase;
+        if (phase === 'menu') {
           if (!reducedRef.current) {
             driftClouds(run, rdt);
           }
-        } else if (run.phase === 'play') {
+        } else if (phase === 'play') {
           run.time += rdt;
           let dt = rdt;
           if (run.slowT > 0) {
