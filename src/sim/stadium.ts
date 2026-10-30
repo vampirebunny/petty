@@ -68,7 +68,7 @@ export function trickIdFor(species: 'dog' | 'cat', key: string): string {
 }
 
 export function isPlayableEvent(event: RaceEvent): boolean {
-  return event === 'funRun' || event === 'hurdles';
+  return event === 'funRun' || event === 'hurdles' || event === 'dockDive';
 }
 
 export function isRaceEvent(value: unknown): value is RaceEvent {

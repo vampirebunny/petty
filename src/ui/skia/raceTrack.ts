@@ -55,7 +55,7 @@ function stroke(color: string, width: number) {
   return p;
 }
 
-type Fit = { fit: number; legPx: number; nosePx: number; pawPx: number };
+type Fit = { fit: number; legPx: number; pawPx: number };
 
 function fitFor(racer: TrackRacer, targetH: number): Fit {
   const { actor, breed } = racer;
@@ -80,9 +80,8 @@ function fitFor(racer: TrackRacer, targetH: number): Fit {
   return {
     fit,
     legPx: frame.scale * frame.geom.L * fit,
-    nosePx: frame.scale * (frame.geom.bodyLen / 2 + frame.geom.headR * 1.7) * fit,
-    // Front paws sit ahead of the body center. Course lines are judged at the paws.
-    pawPx: frame.scale * frame.geom.bodyLen * 0.4 * fit,
+    // Standing front paw, including the toe, ahead of the body center.
+    pawPx: frame.scale * (frame.geom.foreX + 3 + frame.geom.pawRx) * fit,
   };
 }
 
@@ -110,6 +109,9 @@ export function drawRaceTrack(
   // Stop following before the line so it sits left of the edge and pets can run off the right.
   const camera = Math.min(cameraX, Math.max(0, distanceM - (width * 0.42) / ppm));
   const screenX = (meters: number) => width * anchor + (meters - camera) * ppm;
+  // The start stroke is 6 px wide. Toes stop 1 px short of its left edge.
+  const toeGap = 4;
+  const bodyX = (meters: number, fit: Fit) => screenX(meters) - fit.pawPx - toeGap;
 
   drawSkyPane(c, 0, 0, width, height * 0.36, env);
   const stands = paint(env.tod.dark > 0.22 ? '#3A2A55' : '#CDB4F0');
@@ -152,14 +154,13 @@ export function drawRaceTrack(
     if (x < -20 || x > width + 20) continue;
     c.drawLine(x, trackTop, x, height, stroke('#D9C79A', 1.5));
   }
-  // Every racer starts with its body centered on 0 m, so the line sits just past the player's nose.
-  drawStart(c, screenX(0) + (mineFit?.nosePx ?? 30) + 4, width, trackTop, height);
-  const finishLead = mine?.course && mineFit ? mineFit.pawPx : 0;
-  drawFinish(c, screenX(distanceM) + finishLead, width, trackTop, height);
+  // World x is the front-paw line. Every pet is drawn back by its own toe reach, so at 0 m every foot meets this line.
+  drawStart(c, screenX(0), width, trackTop, height);
+  drawFinish(c, screenX(distanceM), width, trackTop, height);
 
   if (mine?.course?.zones && mineFit) {
     for (const zone of mine.course.zones) {
-      drawZone(c, screenX(zone.from) + mineFit.pawPx, screenX(zone.to) + mineFit.pawPx, screenX(zone.perfectFrom) + mineFit.pawPx, screenX(zone.perfectTo) + mineFit.pawPx, frontTop, height, width);
+      drawZone(c, screenX(zone.from), screenX(zone.to), screenX(zone.perfectFrom), screenX(zone.perfectTo), frontTop, height, width);
     }
   }
 
@@ -172,7 +173,7 @@ export function drawRaceTrack(
     const footY = trackTop + (index + 1) * backLaneH - 2;
     const laneFit = fitFor(racer, petH * backScale);
     if (racer.course) drawLaneHurdles(c, racer.course, screenX, laneFit, footY, width, env.reduced, 'back');
-    const x = screenX(racer.x);
+    const x = bodyX(racer.x, laneFit);
     if (x < -40) {
       if (racer.x < distanceM) drawOffscreen(c, 10, footY - backLaneH * 0.5, -1);
     } else if (x > width + 40) {
@@ -185,7 +186,7 @@ export function drawRaceTrack(
   if (mine && mineFit) {
     const footY = height - frontH * 0.12;
     if (mine.course) drawLaneHurdles(c, mine.course, screenX, mineFit, footY, width, env.reduced, 'back');
-    const x = screenX(mine.x);
+    const x = bodyX(mine.x, mineFit);
     if (x < width + width * 0.55) drawRacer(c, x, footY, mineFit.fit, mine, env);
     if (mine.course) drawLaneHurdles(c, mine.course, screenX, mineFit, footY, width, env.reduced, 'front');
   }
@@ -218,7 +219,7 @@ function drawLaneHurdles(
 ): void {
   const reach = (HURDLE.barMax + 40) * lane.fit;
   course.hurdles.forEach((at, index) => {
-    const x = screenX(at) + lane.pawPx;
+    const x = screenX(at);
     if (x < -reach || x > width + reach) return;
     const fallen = course.fallenS[index];
     if (fallen != null && pass === 'front') return;

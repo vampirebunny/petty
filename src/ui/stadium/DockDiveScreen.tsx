@@ -132,13 +132,14 @@ function setFace(actor: Actor, dir: 1 | -1): void {
   actor.octantTarget = side;
 }
 
-function applyMotion(actor: Actor, breed: Breed, motion: Motion, dt: number, legsPerMeter: number, bodyPx: number): void {
-  stepRaceRun(actor, breed, motion.mode === 'run' || motion.mode === 'back' ? motion.v : 0, dt, legsPerMeter);
+// `apex` is one body height in the pet's own pixels.
+function applyMotion(actor: Actor, breed: Breed, motion: Motion, flop: boolean, dt: number, legsPerMeter: number, apex: number): void {
+  const pace = motion.mode === 'run' || motion.mode === 'back' ? motion.v : motion.mode === 'air' ? motion.v : 0;
+  stepRaceRun(actor, breed, pace, dt, legsPerMeter);
   actor.pose.swim = 0;
   actor.pose.shake = 0;
   if (motion.mode === 'air') {
-    const flop = motion.level >= 0 && motion.u >= 0 && motion.splash == null && motion.v === 7 && false;
-    applyRaceLeap(actor, motion.u, 0, bodyPx * (flop ? apexBodies.flop : apexBodies.leap));
+    applyRaceLeap(actor, motion.u, 0, apex * (flop ? apexBodies.flop : apexBodies.leap));
     return;
   }
   clearPose(actor);
@@ -151,7 +152,7 @@ function applyMotion(actor: Actor, breed: Breed, motion: Motion, dt: number, leg
     actor.phase += dt * 7;
   } else if (motion.mode === 'hop') {
     setFace(actor, -1);
-    applyRaceLeap(actor, motion.u, 0, bodyPx * apexBodies.hop);
+    applyRaceLeap(actor, motion.u, 0, apex * apexBodies.hop);
   } else if (motion.mode === 'shake') {
     actor.pose.walk = 0;
     actor.pose.shake = Math.sin(Math.PI * motion.u);
@@ -182,7 +183,6 @@ export function DockDiveScreen({ race, pet, reducedMotion, onFinish, onExit }: P
   const inputs = useRef<DiveInput[][]>([[], [], []]);
   const dives = useRef<DiveState[]>([createDive(), createDive(), createDive()]);
   const holdAttempt = useRef<number | null>(null);
-  const touches = useRef(new Set<string>());
   const actorRef = useRef<Actor | null>(null);
   const landed = useRef(new Set<number>());
   const bests = useRef<{ best: number; popups: { attempt: number; text: string; big: boolean }[] }>({ best: 0, popups: [] });
@@ -292,9 +292,10 @@ export function DockDiveScreen({ race, pet, reducedMotion, onFinish, onExit }: P
           const state = dives.current[k];
           if (state.result) continue;
           advanceDive(state, inputs.current[k], k < now ? config.windowMs : Math.min(nowLocal, config.windowMs), playerMods.current, classId, version);
-          if (!state.result) continue;
+          // advanceDive sets `result`; read it fresh past the narrowing above.
+          const result = dives.current[k].result as DiveResult | null;
+          if (!result) continue;
           changed = true;
-          const result = state.result;
           if (!result.flop) {
             playJumpBoing();
             void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -365,15 +366,7 @@ export function DockDiveScreen({ race, pet, reducedMotion, onFinish, onExit }: P
         actor.displayAgeDays = livePet.ageDays;
         const fit = diveFit(actor, breed, width, stageHeight);
         const bodyUnits = fit.bodyPx / Math.max(fit.fit, 0.001);
-        if (motion.mode === 'air') {
-          stepRaceRun(actor, breed, 7, 0.05, fit.legsPerMeter);
-          actor.pose.swim = 0;
-          actor.pose.shake = 0;
-          const flop = latest[motionAttempt]?.flop ?? false;
-          applyRaceLeap(actor, motion.u, 0, bodyUnits * (flop ? apexBodies.flop : apexBodies.leap));
-        } else {
-          applyMotion(actor, breed, motion, 0.05, fit.legsPerMeter, bodyUnits);
-        }
+        applyMotion(actor, breed, motion, latest[motionAttempt]?.flop ?? false, 0.05, fit.legsPerMeter, bodyUnits);
         const env: Env = {
           tod: todAt(solarHour(new Date(at))),
           t: at / 1000,
@@ -500,8 +493,10 @@ export function DockDiveScreen({ race, pet, reducedMotion, onFinish, onExit }: P
     const since = at - race.startsAt;
     if (since < 0 || finished) return;
     const index = Math.min(config.attempts - 1, Math.floor(since / gapMs));
-    const at0 = since - attemptGoMs(index, version);
-    if (at0 >= config.windowMs || dives.current[index].result) return;
+    const state = dives.current[index];
+    // Never earlier than a step already run, even if the server clock offset moved.
+    const at0 = Math.max(since - attemptGoMs(index, version), state.tMs);
+    if (at0 >= config.windowMs || state.result) return;
     holdAttempt.current = index;
     inputs.current[index].push({ at: at0, down: true });
   };
@@ -510,8 +505,9 @@ export function DockDiveScreen({ race, pet, reducedMotion, onFinish, onExit }: P
     const index = holdAttempt.current;
     holdAttempt.current = null;
     if (index == null) return;
-    const at0 = serverNow() - race.startsAt - attemptGoMs(index, version);
-    if (dives.current[index].result) return;
+    const state = dives.current[index];
+    const at0 = Math.max(serverNow() - race.startsAt - attemptGoMs(index, version), state.tMs);
+    if (state.result) return;
     inputs.current[index].push({ at: at0, down: false });
     void Haptics.selectionAsync();
   };
@@ -580,7 +576,6 @@ export function DockDiveScreen({ race, pet, reducedMotion, onFinish, onExit }: P
           hint={done ? 'Waiting for results…' : hint}
           onPress={press}
           onRelease={lift}
-          touches={touches.current}
         >
           <Meter value={frame.meter} />
         </HoldArea>
@@ -598,7 +593,6 @@ function HoldArea({
   hint,
   onPress,
   onRelease,
-  touches,
   children,
 }: {
   open: boolean;
@@ -608,10 +602,11 @@ function HoldArea({
   hint: string;
   onPress: () => void;
   onRelease: () => void;
-  touches: Set<string>;
   children: ReactNode;
 }) {
+  const touchRef = useRef(new Set<string>());
   const settle = (still: readonly { identifier: string | number }[]) => {
+    const touches = touchRef.current;
     const ids = new Set(still.map((touch) => String(touch.identifier)));
     for (const id of touches) if (!ids.has(id)) touches.delete(id);
     if (touches.size === 0) onRelease();
@@ -620,13 +615,14 @@ function HoldArea({
     <View
       style={styles.action}
       onTouchStart={(event) => {
+        const touches = touchRef.current;
         const wasEmpty = touches.size === 0;
         for (const touch of event.nativeEvent.touches) touches.add(String(touch.identifier));
         if (wasEmpty && touches.size > 0) onPress();
       }}
       onTouchEnd={(event) => settle(event.nativeEvent.touches)}
       onTouchCancel={() => {
-        touches.clear();
+        touchRef.current.clear();
         onRelease();
       }}
     >

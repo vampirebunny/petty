@@ -38,6 +38,11 @@ export type DiveFlag = { m: number; mine: boolean; fresh: boolean };
 
 export type DiveSplash = { m: number; ageS: number; size: number; flop: boolean };
 
+/** A distance pop-up over the splash. */
+export type DiveLabel = { m: number; text: string; big: boolean; alpha: number };
+
+export type DiveFonts = { ruler: SkFont | null; label: SkFont | null; big: SkFont | null };
+
 function paint(color: string, alpha = 1) {
   const p = Skia.Paint();
   p.setAntiAlias(true);
@@ -96,8 +101,10 @@ export function drawDockDive(
   pet: DivePet | null,
   flags: DiveFlag[],
   splashes: DiveSplash[],
-  font: SkFont | null,
+  labels: DiveLabel[],
+  fonts: DiveFonts,
 ): void {
+  const font = fonts.ruler;
   const { ppm } = fit;
   const farM = dock.dockM + rulerM + 1;
   const camera = Math.min(cameraX, Math.max(0, farM - (width * (1 - anchor)) / ppm));
@@ -189,8 +196,24 @@ export function drawDockDive(
 
   for (const splash of splashes) drawSplashDrops(c, screenX(dock.dockM + splash.m), waterY, splash, ppm, env.reduced);
 
+  for (const label of labels) {
+    const labelFont = label.big ? fonts.big : fonts.label;
+    if (!labelFont || label.alpha <= 0) continue;
+    const w = labelFont.getTextWidth(label.text);
+    const x = clampX(screenX(dock.dockM + label.m) - w / 2, 4, width - w - 4);
+    const y = wallBottom + (waterY - wallBottom) * 0.35;
+    const outline = stroke('#4A3560', 4, label.alpha);
+    outline.setStrokeJoin(1);
+    c.drawText(label.text, x, y, outline, labelFont);
+    c.drawText(label.text, x, y, paint(label.big ? '#FFE38A' : '#FFFFFF', label.alpha), labelFont);
+  }
+
   drawPrecip(c, 0, 0, width, height, env);
   if (dark) c.drawRect(Skia.XYWHRect(0, 0, width, height), paint('rgba(20,16,40,0.12)'));
+}
+
+function clampX(x: number, lo: number, hi: number): number {
+  return Math.min(Math.max(lo, hi), Math.max(lo, x));
 }
 
 function drawDock(c: SkCanvas, edgeX: number, deckY: number, waterY: number, height: number, ppm: number, zoneM: number, dark: boolean): void {

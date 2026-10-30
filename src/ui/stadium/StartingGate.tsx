@@ -168,6 +168,9 @@ function lineup(players: LineupRow[], petName: string, signup: RaceSignup): Line
     place: null,
     coat: null,
     breedId: null,
+    scoreDm: null,
+    attemptsM: [],
+    bestAttempt: null,
   };
   return [own, ...players.filter((row) => !row.mine).sort((a, b) => a.lane - b.lane)];
 }
