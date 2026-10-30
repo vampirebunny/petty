@@ -135,6 +135,12 @@ async function rpc(name: string, args?: Record<string, unknown>): Promise<Record
   if (!supabase) {
     return null;
   }
+  // These functions are granted to authenticated only. An anon call is a Postgres
+  // permission error, which the client would treat as offline.
+  const { data: sessionData } = await supabase.auth.getSession();
+  if (!sessionData.session) {
+    return { ok: false, error: 'account_required' };
+  }
   const { data, error } = await supabase.rpc(name, args);
   if (error || !data || typeof data !== 'object') {
     return null;
