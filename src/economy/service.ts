@@ -122,7 +122,10 @@ function balance(): number {
 }
 
 function setBalance(next: number): void {
-  if (next < 0) {
+  // A refund can leave the balance below zero. Credits still apply so it can
+  // climb back. Spending that would reduce it further is rejected.
+  const current = balance();
+  if (next < 0 && next < current) {
     throw new Error('insufficient_boops');
   }
   const owner = ownerId();
