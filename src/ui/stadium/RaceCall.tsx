@@ -22,7 +22,7 @@ type Props = {
 // A mini-game run keeps going until this close to the line-up lock, then the call shows anyway.
 const holdForRunMs = 20_000;
 
-// The in-app race call: shows once the gate opens, wherever the player is except the gate itself.
+// The in-app race call: shows callMs before the start, wherever the player is except the gate itself.
 export function RaceCall({ pet, atGate, reducedMotion, onGo, onCommit }: Props) {
   const signup = racesOf(pet).signup;
   const [now, setNow] = useState(() => serverNow());
@@ -52,9 +52,15 @@ export function RaceCall({ pet, atGate, reducedMotion, onGo, onCommit }: Props) 
   const hideToast = useCallback(() => setToast(null), []);
 
   const lockAt = (startsAt ?? 0) - gameplayConfig.races.lockMs;
+  const callAt = (startsAt ?? 0) - gameplayConfig.races.callMs;
   const waitForRun = running && lockAt - now > holdForRunMs;
   const show =
-    signup != null && !atGate && skipped !== signup.entryId && gatePhase(signup.startsAt, now) === 'gate' && !waitForRun;
+    signup != null &&
+    !atGate &&
+    skipped !== signup.entryId &&
+    now >= callAt &&
+    gatePhase(signup.startsAt, now) === 'gate' &&
+    !waitForRun;
 
   const skip = async () => {
     if (!signup) {

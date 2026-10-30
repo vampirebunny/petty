@@ -74,8 +74,8 @@ it('keeps the sign-up for the reminder until the race is finished', () => {
   const entered = withSignup(pet(), signup(), now);
   expect(racesOf(entered).signup?.entryId).toBe('e1');
   expect(racesOf(entered).entered).toBe(false);
-  expect(raceReminderAt(entered, now)).toBe(start - 60_000);
-  expect(raceReminderAt(entered, start - 30_000)).toBeNull();
+  expect(raceReminderAt(entered, now)).toBe(start - gameplayConfig.races.callMs);
+  expect(raceReminderAt(entered, start - gameplayConfig.races.callMs)).toBeNull();
   expect(withSignup(entered, signup(), now)).toBe(entered);
   const withdrawn = withSignup(entered, null, now);
   expect(racesOf(withdrawn).signup).toBeNull();

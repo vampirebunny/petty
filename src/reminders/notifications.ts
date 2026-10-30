@@ -3,6 +3,7 @@ import * as Notifications from 'expo-notifications';
 
 import { readServerOffsetMs } from '../db/accountMeta';
 import type { PetState } from '../sim/types';
+import { gameplayConfig } from '../sim/gameplayConfig';
 import { eventLabel, raceReminderAt, racesOf } from '../sim/stadium';
 import { planReminders, reminderCopy } from './nextReminder';
 
@@ -104,7 +105,7 @@ export async function syncReminder(
       await Notifications.scheduleNotificationAsync({
         identifier: raceCallId,
         content: {
-          title: `${pet.name}'s race starts in 1 minute! 🏁`,
+          title: `${pet.name}'s race starts in ${Math.round(gameplayConfig.races.callMs / 1000)} seconds! 🏁`,
           body: `${eventLabel(signup.event)} is about to begin. Tap to head to the Stadium.`,
           data: { kind: 'race', entryId: signup.entryId, raceId: signup.raceId },
         },

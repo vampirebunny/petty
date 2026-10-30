@@ -68,6 +68,8 @@ export const gameplayConfig = {
     slotsShown: 3,
     capacity: 6,
     gateOpenMs: 60 * 1000,
+    // The race call and local notification, later than the gate itself.
+    callMs: 30 * 1000,
     lockMs: 10 * 1000,
     cooldownMs: 0,
     npcFill: 5,

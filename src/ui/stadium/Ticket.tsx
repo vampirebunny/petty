@@ -55,7 +55,9 @@ export function Ticket({ signup, petName, energy, mood, moodTreats, now, others,
         {phase === 'gate' || phase === 'locked' ? (
           <CandyButton role="go" label="Go to the starting gate" onPress={onGate} />
         ) : (
-          <Text style={shared.copy}>You don&apos;t have to wait here. We&apos;ll call you when the gate opens, wherever you are.</Text>
+          <Text style={shared.copy}>
+            You don&apos;t have to wait here. We&apos;ll call you {Math.round(gameplayConfig.races.callMs / 1000)} seconds before the start, wherever you are.
+          </Text>
         )}
       </View>
 

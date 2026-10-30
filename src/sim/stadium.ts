@@ -187,13 +187,13 @@ export function skillBlock(state: PetState, event: RaceEvent): SkillBlock | null
   return null;
 }
 
-// The local notification fires when the gate opens.
+// The local notification asks the player back to the gate this long before the start.
 export function raceReminderAt(state: PetState, now: number): number | null {
   const signup = racesOf(state).signup;
   if (!signup) {
     return null;
   }
-  const at = signup.startsAt - gameplayConfig.races.gateOpenMs;
+  const at = signup.startsAt - gameplayConfig.races.callMs;
   return at > now ? at : null;
 }
 

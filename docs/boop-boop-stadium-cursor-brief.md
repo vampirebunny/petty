@@ -15,7 +15,7 @@ Visual reference: the "Boop Boop Stadium" design canvas, screens 1–5 (Stadium 
   - Go / confirm (Go to the Stadium, selected time slot): the mint/green glossy button
   - Race with friends: the lavender glossy button
   - Secondary (Withdraw, Not now, Skip this race): the existing white or text-only secondary style
-- All numbers are defaults in the gameplay config, not hardcoded: slot length (5 min), events per slot (3), slots shown (3), race capacity (6), gate opens (60 s before start), line-up lock (10 s before start), rest per event (6 min), NPC fill count. The server's `stadium_config` row is the source of truth. For testing, `20261029370000_test_fast_slots.sql` sets 1-minute slots and no rest, `20261029390000_test_hurdles_every_slot.sql` puts Hurdles in every slot with no Jump the Hurdle requirement, and `20261029430000_schedule_ship_roster.sql` keeps that board while scheduling only the ship roster (Fun Run, Dock Dive, Hurdles, Obstacle Course). The client defaults match. Restore 5 minutes, 6 minutes, the Hurdles / Obstacle Course third-event rotation, and the hurdle trick before launch.
+- All numbers are defaults in the gameplay config, not hardcoded: slot length (5 min), events per slot (3), slots shown (3), race capacity (6), gate opens (60 s before start), race call and local notification (30 s before start), line-up lock (10 s before start), rest per event (6 min), NPC fill count. The server's `stadium_config` row is the source of truth. For testing, `20261029370000_test_fast_slots.sql` sets 1-minute slots and no rest, `20261029390000_test_hurdles_every_slot.sql` puts Hurdles in every slot with no Jump the Hurdle requirement, and `20261029430000_schedule_ship_roster.sql` keeps that board while scheduling only the ship roster (Fun Run, Dock Dive, Hurdles, Obstacle Course). The client defaults match. Restore 5 minutes, 6 minutes, the Hurdles / Obstacle Course third-event rotation, and the hurdle trick before launch.
 - No speech balloons over pets; no tooltips or banners on the starting gate or during races.
 - The Stadium needs a connection. Offline: show the header plus a friendly "The Stadium needs internet to race" state with a back button. Everything else in the app keeps working offline.
 - Use **server time** for every countdown (keep a server-clock offset); never trust the device clock for slot times.
@@ -30,7 +30,7 @@ Visual reference: the "Boop Boop Stadium" design canvas, screens 1–5 (Stadium 
 | 1 | Stadium lobby | Entering the Stadium with no active sign-up |
 | 2 | Sign-up sheet | Tapping Sign up on a race card (bottom sheet over the lobby) |
 | 3 | Signed up (ticket) | Entering the Stadium while the pet has an active sign-up; also right after signing up |
-| 4 | Race call | In-app card when the gate opens and the player is anywhere other than the gate |
+| 4 | Race call | In-app card 30 s before the start, when the player is anywhere other than the gate |
 | 5 | Starting gate | From 60 s before start, reached from the race call, the push notification, or the ticket |
 | — | Race (placeholder) | At start time; receives the race id and line-up. Built in the next brief |
 
@@ -78,7 +78,7 @@ Top to bottom:
 
 - Tapping Sign up opens the bottom sheet: event name, start time and countdown, class; the line-up so far (real players who've signed up, and the pet's own lane); race readiness (energy and mood, with a short nudge to play or give a mood treat); two rule lines; **Sign up [pet name]** and **Not now**.
 - Line-up copy (replaces the mock's "Open lanes fill with friendly NPC pets at the start"): **"If no one else joins, friendly NPC pets will race with you."**
-- Rule lines: "Go anywhere you like. We'll call you 1 minute before the start." / "Free to enter. Change your mind? You can withdraw until 10 seconds before the start."
+- Rule lines: "Go anywhere you like. We'll call you 30 seconds before the start." / "Free to enter. Change your mind? You can withdraw until 10 seconds before the start."
 - On the player's **first** sign-up ever, request notification permission here (contextual, not at launch). If declined, sign-up still works; the in-app race call still shows.
 
 **Sign-up rules:**
@@ -91,13 +91,13 @@ Top to bottom:
 
 ## 5. Signed up, race call, notification (screens 3–4)
 
-**Ticket (screen 3):** shown whenever the player enters the Stadium with an active sign-up, and right after signing up. Shows "YOU'RE IN!", event, time, class, lane; "Gate opens in m:ss" and "Race starts in m:ss"; the note "You don't have to wait here. We'll call you when the gate opens, wherever you are."; "Get [pet] ready" buttons (Play → existing play flow, shown once the gate opens; Mood treat → uses one from the Pantry, showing the owned count, and at 0 offers Visit Pet Shop); before the gate opens, **Wait somewhere else** takes the player to the map; other events in the slot shown disabled ("In a race"); **Withdraw from race** at the bottom.
+**Ticket (screen 3):** shown whenever the player enters the Stadium with an active sign-up, and right after signing up. Shows "YOU'RE IN!", event, time, class, lane; "Gate opens in m:ss" and "Race starts in m:ss"; the note "You don't have to wait here. We'll call you 30 seconds before the start, wherever you are."; "Get [pet] ready" buttons (Play → existing play flow, shown once the gate opens; Mood treat → uses one from the Pantry, showing the owned count, and at 0 offers Visit Pet Shop); before the gate opens, **Wait somewhere else** takes the player to the map; other events in the slot shown disabled ("In a race"); **Withdraw from race** at the bottom.
 
 The player is free to leave the Stadium and do anything.
 
-**Local notification:** at sign-up, schedule a local notification for **gate open (start − 60 s)**: title "[Pet]'s race starts in 1 minute! 🏁", body "[Event] is about to begin. Tap to head to the Stadium." Cancel it on withdraw, if the race is cancelled, or if the player is already at the gate. Tapping it opens the app **directly to the starting gate** (deep link with the race id).
+**Local notification:** at sign-up, schedule a local notification for **start − 30 s** (the gate itself still opens at start − 60 s): title "[Pet]'s race starts in 30 seconds! 🏁", body "[Event] is about to begin. Tap to head to the Stadium." Cancel it on withdraw, if the race is cancelled, or if the player is already at the gate. Tapping it opens the app **directly to the starting gate** (deep link with the race id).
 
-**In-app race call (screen 4):** if the app is open and the player is anywhere other than the gate when it opens (park, home, a mini-game, the Stadium lobby), show the race call card: "RACE CALL / The gate is open!", the event, a live countdown, **Go to the starting gate** (mint) and **Skip this race**.
+**In-app race call (screen 4):** if the app is open and the player is anywhere other than the gate at start − 30 s (park, home, a mini-game, the Stadium lobby), show the race call card: "RACE CALL / The gate is open!", the event, a live countdown, **Go to the starting gate** (mint) and **Skip this race**.
 - Go to the starting gate jumps straight to the gate. **Skip the map walk** for this jump, since the walk would eat the countdown.
 - Skip this race = withdraw.
 - In a mini-game: show the card at the end of the current run, or as a small pause-and-ask if the countdown would otherwise run out. Don't interrupt mid-jump without pausing.

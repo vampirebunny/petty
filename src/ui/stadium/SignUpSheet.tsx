@@ -1,6 +1,7 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import type { StadiumCard, StadiumSlot } from '../../stadium/api';
+import { gameplayConfig } from '../../sim/gameplayConfig';
 import { classLabel, eventLabel, formatCountdown, formatSlot, type RaceClass } from '../../sim/stadium';
 import { fontFamily } from '../font';
 import { CandyButton } from './CandyButton';
@@ -59,7 +60,9 @@ export function SignUpSheet({ card, slot, classId, capacity, petName, energy, mo
             {low ? <Text style={shared.copy}>A little play or a mood treat helps {petName} feel race-ready.</Text> : null}
           </View>
 
-          <Text style={shared.copy}>Go anywhere you like. We&apos;ll call you 1 minute before the start.</Text>
+          <Text style={shared.copy}>
+            Go anywhere you like. We&apos;ll call you {Math.round(gameplayConfig.races.callMs / 1000)} seconds before the start.
+          </Text>
           <Text style={shared.copy}>Free to enter. Change your mind? You can withdraw until 10 seconds before the start.</Text>
 
           <CandyButton role="primary" label={busy ? 'Signing up…' : `Sign up ${petName}`} disabled={busy} onPress={onSignUp} />
