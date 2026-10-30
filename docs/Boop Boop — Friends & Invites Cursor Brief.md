@@ -225,7 +225,7 @@ Care reminders keep their on-device preference and do not request permission whi
 
 - After a pending send, the notify edge function pushes every token for the addressee. It skips the push when their friend-request switch is off.
 - Copy: "@handle wants to be friends!" (no other personal data in the payload).
-- Tapping it opens the app to the friend request modal.
+- Tapping it opens the app to the friend request modal. If the app is already open, that same push opens the modal without a tap.
 - Skip the push if the sender is blocked by the addressee (should be impossible, but check).
 - Remove tokens the push service reports as invalid.
 

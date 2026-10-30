@@ -30,13 +30,15 @@ Wired in `app.json` as `android.googleServicesFile` and `ios.googleServicesFile`
 - Token registration: `src/friends/push.ts` (`getExpoPushTokenAsync` with the EAS `projectId`)
 - Stores token via `register_push_token` / `unregister_push_token` into `push_tokens`
 - Android channel: `friends`
-- Tap listener opens the friend modal when `data.kind === 'friend_request'`
+- A tap opens the friend-request modal when `data.kind === 'friend_request'`, and the friend-game invite when `data.kind === 'friend_game'`
+- The same modals open immediately when that push arrives while the app is in the foreground. A closed or backgrounded app shows the system notification when permission is granted; a tap opens the modal
 
 ### Server
 
 - Edge function: `supabase/functions/notify_friend_request`
+- Friend-game invite pushes use the same Expo endpoint, tokens, `notification_settings.friend_requests` check, and block check, with `data.kind === 'friend_game'`
 - Sends to `https://exp.host/--/api/v2/push/send` with Expo push tokens
-- Respects `notification_settings.friend_requests` and blocks; deletes `DeviceNotRegistered` tokens
+- Deletes `DeviceNotRegistered` tokens
 
 ### Local care reminders
 

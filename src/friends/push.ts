@@ -5,7 +5,7 @@ import { Platform } from 'react-native';
 
 import { getSupabase } from '../compliance/supabase';
 import { requestGate } from '../stadium/raceCall';
-import { requestFriendModal } from './open';
+import { requestFriendGame, requestFriendModal } from './open';
 
 const tokenKey = 'petty.friends.pushToken';
 
@@ -65,6 +65,37 @@ export async function requestFriendPermission(): Promise<boolean> {
   return true;
 }
 
+type PushData = { kind?: string; raceId?: string };
+
+function pushData(notification: Notifications.Notification): PushData | undefined {
+  const data = notification.request.content.data;
+  if (!data || typeof data !== 'object') {
+    return undefined;
+  }
+  return data as PushData;
+}
+
+/** Foreground pushes are discarded unless a handler answers. Same presentation as care reminders. */
+function presentWhileOpen(): void {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: false,
+      shouldSetBadge: false,
+    }),
+  });
+}
+
+function openFriendPush(data: PushData | undefined): void {
+  if (data?.kind === 'friend_request') {
+    requestFriendModal();
+  }
+  if (data?.kind === 'friend_game') {
+    requestFriendGame(typeof data.raceId === 'string' ? data.raceId : null);
+  }
+}
+
 let listenerReady = false;
 
 export function listenForFriendPushes(): void {
@@ -72,16 +103,18 @@ export function listenForFriendPushes(): void {
     return;
   }
   listenerReady = true;
+  presentWhileOpen();
   const open = (response: Notifications.NotificationResponse) => {
-    const data = response.notification.request.content.data as { kind?: string; raceId?: string } | undefined;
-    if (data?.kind === 'friend_request') {
-      requestFriendModal();
-    }
+    const data = pushData(response.notification);
+    openFriendPush(data);
     if (data?.kind === 'race') {
       requestGate(typeof data.raceId === 'string' ? data.raceId : null);
     }
   };
   Notifications.addNotificationResponseReceivedListener(open);
+  Notifications.addNotificationReceivedListener((notification) => {
+    openFriendPush(pushData(notification));
+  });
   const launched = Notifications.getLastNotificationResponse();
   if (launched) {
     Notifications.clearLastNotificationResponse();
