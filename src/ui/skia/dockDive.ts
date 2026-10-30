@@ -3,7 +3,6 @@ import type { SkCanvas, SkFont } from '@shopify/react-native-skia';
 
 import { bodyFrame } from '../../actor';
 import type { Actor, Breed } from '../../actor';
-import { racePoses } from '../../actor/data/locomotion';
 import type { Env } from './env';
 import { weatherOf } from './env';
 import { hash } from './ink';
@@ -13,10 +12,13 @@ import { drawPrecip } from './weatherFx';
 
 // Where the player's pet sits across the screen.
 const anchor = 0.33;
+// Tallest the pet may draw, as a share of the stage.
 const petShare = 0.3;
 const rulerM = 10;
-// The pool always shows at least this much past the edge when the pet is at the edge.
-const viewM = 12;
+// Meters across the screen. The camera follows the pet, so the landing stays in view.
+const viewM = 9;
+// The pet's body is drawn this long on the ruler, so a 6 m jump reads as several body lengths.
+const bodyM = 1.3;
 
 export const diveLayout = { deck: 0.7, water: 0.8, wallTop: 0.36, wallBottom: 0.52 };
 
@@ -58,7 +60,7 @@ function stroke(color: string, width: number, alpha = 1) {
   return p;
 }
 
-// Scale for the player's pet: planted paws when the screen allows, smaller when the pool would not fit.
+// Scale for the player's pet, sized to the ruler. The gait rate follows, so paws stay planted.
 export function diveFit(actor: Actor, breed: Breed, width: number, height: number): DiveFit {
   const frame = bodyFrame(
     breed,
@@ -77,9 +79,10 @@ export function diveFit(actor: Actor, breed: Breed, width: number, height: numbe
     actor.share,
   );
   const drawn = frame.scale * (frame.geom.bodyH + frame.geom.headR * 1.8 + frame.geom.L);
-  const fit = (height * petShare) / Math.max(drawn, 1);
+  const ppm = width / viewM;
+  const byLength = (bodyM * ppm) / Math.max(frame.scale * frame.geom.bodyLen, 1);
+  const fit = Math.min(byLength, (height * petShare) / Math.max(drawn, 1));
   const legPx = frame.scale * frame.geom.L * fit;
-  const ppm = Math.min(legPx * racePoses.legsPerMeter, (width * (1 - anchor)) / viewM);
   return {
     fit,
     legPx,
@@ -255,7 +258,7 @@ function drawSplashRings(c: SkCanvas, x: number, y: number, splash: DiveSplash, 
   for (let i = 0; i < rings; i += 1) {
     const k = Math.min(1, (splash.ageS - i * 0.25) / splashS);
     if (k <= 0) continue;
-    const w = ppm * (0.6 + 2.4 * k) * (splash.flop ? 1.4 : 1) * (0.6 + 0.4 * splash.size);
+    const w = ppm * (0.4 + 1.4 * k) * (splash.flop ? 1.4 : 1) * (0.6 + 0.4 * splash.size);
     c.drawOval(Skia.XYWHRect(x - w / 2, y - w * 0.09, w, w * 0.18), stroke('#FFFFFF', 2, 0.8 * (1 - k)));
   }
 }
@@ -266,8 +269,8 @@ function drawSplashDrops(c: SkCanvas, x: number, y: number, splash: DiveSplash, 
   const k = splash.ageS / life;
   const count = reduced ? 6 : Math.round(10 + 12 * splash.size);
   const drop = paint('#FFFFFF', 0.9 * (1 - k));
-  const rise = ppm * (splash.flop ? 0.9 : 1.6 + 1.6 * splash.size);
-  const spread = ppm * (splash.flop ? 2.2 : 1.2);
+  const rise = ppm * (splash.flop ? 0.5 : 0.9 + 0.9 * splash.size);
+  const spread = ppm * (splash.flop ? 1.4 : 0.8);
   for (let i = 0; i < count; i += 1) {
     const dir = hash(i, 17) * 2 - 1;
     const up = 0.5 + hash(i, 19) * 0.5;
