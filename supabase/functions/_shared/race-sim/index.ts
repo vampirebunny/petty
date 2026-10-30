@@ -4,7 +4,7 @@ export { createRunner, neutralModifiers, npcSpeed, runFunRun, speedScale, stepRu
 export {
   HURDLES_VERSION,
   createHurdleRunner,
-  hurdlePositions,
+  hurdleCourse,
   hurdleStat,
   hurdlesConfig,
   hurdlesConfigFor,
@@ -13,6 +13,7 @@ export {
   runHurdles,
   stepHurdleRunner,
   zoneHalfWidth,
+  type HurdleCourse,
   type HurdleNpc,
   type HurdleOutcome,
   type HurdleRunner,

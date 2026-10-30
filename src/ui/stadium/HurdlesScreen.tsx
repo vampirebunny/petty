@@ -19,7 +19,7 @@ import { fetchRace, submitRaceReport, type RaceView } from '../../stadium/api';
 import {
   coastRunner,
   createHurdleRunner,
-  hurdlePositions,
+  hurdleCourse,
   hurdleStat,
   hurdlesConfigFor,
   npcJumpPlan,
@@ -87,7 +87,8 @@ export function HurdlesScreen({ race, pet, reducedMotion, onFinish, onExit }: Pr
   const classId = classOf(race.classId);
   const version = race.configVersion;
   const config = hurdlesConfigFor(version);
-  const hurdles = useMemo(() => hurdlePositions(classId, version), [classId, version]);
+  const course = useMemo(() => hurdleCourse(classId, version, race.seed), [classId, race.seed, version]);
+  const { hurdles, distanceM } = course;
   const stageHeight = Math.round(Math.min(320, Math.max(240, width * 0.72)));
   const finished = provisional != null || finalRace?.status === 'finished';
   const { untilStart, going, beat, countLabel } = useRaceCountdown(race.startsAt, finished);
@@ -128,7 +129,7 @@ export function HurdlesScreen({ race, pet, reducedMotion, onFinish, onExit }: Pr
           const npc = row.npc ? { classId, skill: row.skill ?? 0.5, seed: `${race.seed}:${row.key}` } : null;
           let plan = plans.current.get(row.key) ?? null;
           if (npc && !plan) {
-            plan = npcJumpPlan(npc, version);
+            plan = npcJumpPlan(npc, version, race.seed);
             plans.current.set(row.key, plan);
           }
           if (row.mine && !playerMods.current) {
@@ -139,10 +140,10 @@ export function HurdlesScreen({ race, pet, reducedMotion, onFinish, onExit }: Pr
               if (state.tMs >= config.maxMs) break;
               const next = state.tMs + stepMs;
               const due = row.mine ? jumps.current.filter((tap) => tap >= state.tMs && tap < next) : [];
-              stepHurdleRunner(state, due, row.mine ? playerMods.current : null, npc, classId, version, plan);
+              stepHurdleRunner(state, due, row.mine ? playerMods.current : null, npc, classId, version, race.seed, plan);
             } else {
               const before = state.tMs;
-              coastRunner(state, stepMs, config.distanceM);
+              coastRunner(state, stepMs, distanceM);
               if (state.tMs === before) break;
             }
           }
@@ -170,7 +171,7 @@ export function HurdlesScreen({ race, pet, reducedMotion, onFinish, onExit }: Pr
           const standings = field
             .map((row) => {
               const npc = row.npc ? { classId, skill: row.skill ?? 0.5, seed: `${race.seed}:${row.key}` } : null;
-              const result = runHurdles(row.mine ? jumps.current : [], row.mine ? playerMods.current : null, npc, classId, version);
+              const result = runHurdles(row.mine ? jumps.current : [], row.mine ? playerMods.current : null, npc, classId, version, race.seed);
               return { key: row.key, name: row.petName, finishMs: result.finishMs, place: null, mine: row.mine };
             })
             .sort((a, b) => (a.finishMs ?? 1e9) - (b.finishMs ?? 1e9));
@@ -271,7 +272,7 @@ export function HurdlesScreen({ race, pet, reducedMotion, onFinish, onExit }: Pr
             },
           };
         });
-        drawRaceTrack(canvas, width, trackH, env, follow, racers, config.distanceM, legsPerMeter);
+        drawRaceTrack(canvas, width, trackH, env, follow, racers, distanceM, legsPerMeter);
         picture.value = recorder.finishRecordingAsPicture();
       }
       const xs: Record<string, number> = {};
@@ -283,7 +284,7 @@ export function HurdlesScreen({ race, pet, reducedMotion, onFinish, onExit }: Pr
       alive = false;
       clearInterval(timer);
     };
-  }, [classId, config, field, going, hurdles, mine, picture, race.raceId, race.seed, race.startsAt, reducedMotion, stageHeight, version, width]);
+  }, [classId, config, distanceM, field, going, hurdles, mine, picture, race.raceId, race.seed, race.startsAt, reducedMotion, stageHeight, version, width]);
 
   // The screen opens before the start, while the server may still be adding NPCs.
   const settled = lineup.status === 'running' || lineup.status === 'finished' || lineup.status === 'cancelled';
@@ -350,7 +351,7 @@ export function HurdlesScreen({ race, pet, reducedMotion, onFinish, onExit }: Pr
         {field.map((row) => (
           <View
             key={row.key}
-            style={[styles.dot, row.mine && styles.dotMine, { left: `${Math.min(100, ((frame.xs[row.key] ?? 0) / config.distanceM) * 100)}%` }]}
+            style={[styles.dot, row.mine && styles.dotMine, { left: `${Math.min(100, ((frame.xs[row.key] ?? 0) / distanceM) * 100)}%` }]}
           />
         ))}
       </View>
