@@ -11,7 +11,7 @@ import { racePoses } from '../../actor/data/locomotion';
 import { puffDust } from '../../actor/jump';
 import { applyRaceLeap, applyStumble, clearPose, raceAirPx, raceHurdleSize, stepRaceRun } from '../../actor/raceDrive';
 import { skyAt, solarHour } from '../../actor/sky';
-import { playClearChime, playClipThud, playJumpBoing, preloadRaceSfx, releaseRaceSfx } from '../../audio/raceSfx';
+import { playClearChime, playClipThud, preloadRaceSfx, releaseRaceSfx } from '../../audio/raceSfx';
 import { serverNow } from '../../db/accountMeta';
 import { classLabel, eventLabel, formatCountdown } from '../../sim/stadium';
 import type { PetState } from '../../sim/types';
@@ -153,7 +153,6 @@ export function HurdlesScreen({ race, pet, reducedMotion, onFinish, onExit }: Pr
         if (player) {
           if (player.jumps.length > seen.current.jumps) {
             seen.current.jumps = player.jumps.length;
-            playJumpBoing();
             void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           }
           if (player.outcomes.length > seen.current.outcomes) {

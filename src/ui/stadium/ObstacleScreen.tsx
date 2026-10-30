@@ -12,7 +12,7 @@ import { racePoses } from '../../actor/data/locomotion';
 import { puffDust } from '../../actor/jump';
 import { applyRaceDuck, applyRaceLeap, applyStumble, clearPose, raceAirPx, raceHurdleSize, stepRaceRun } from '../../actor/raceDrive';
 import { skyAt, solarHour } from '../../actor/sky';
-import { playClearChime, playClipThud, playJumpBoing, preloadRaceSfx, releaseRaceSfx } from '../../audio/raceSfx';
+import { playClearChime, playClipThud, preloadRaceSfx, releaseRaceSfx } from '../../audio/raceSfx';
 import { serverNow } from '../../db/accountMeta';
 import { classLabel, eventLabel, formatCountdown } from '../../sim/stadium';
 import type { PetState } from '../../sim/types';
@@ -171,7 +171,6 @@ export function ObstacleScreen({ race, pet, reducedMotion, onFinish, onExit }: P
         if (player) {
           if (player.jumps.length > seen.current.jumps) {
             seen.current.jumps = player.jumps.length;
-            playJumpBoing();
             void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           }
           if (player.ducks.length > seen.current.ducks) {
@@ -464,7 +463,7 @@ export function ObstacleScreen({ race, pet, reducedMotion, onFinish, onExit }: P
           going={going}
           beat={beat}
           countLabel={countLabel}
-          hint={going ? 'Jump the hurdles, duck into the tunnels' : 'Buttons wake up at Go!'}
+          hint={going ? 'Keep tapping RUN · jump and duck in time' : 'Buttons wake up at Go!'}
           cue={frame.cue}
           onPress={press}
         />

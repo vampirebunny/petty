@@ -56,6 +56,7 @@ export {
   npcObstaclePlan,
   obstacleConfig,
   obstacleConfigFor,
+  isObstacleVersion,
   obstacleCourse,
   obstacleStat,
   obstacleZoneHalfWidth,

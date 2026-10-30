@@ -39,7 +39,8 @@ export type ReplayRace = {
   configVersion: string;
 };
 
-const MAX_INPUTS = 2000;
+// Obstacle RUN is tapped for the whole course (up to 140 s), so the caps fit about 40 taps a second.
+const MAX_INPUTS = 6000;
 const MISMATCH_MS = 100;
 const MISMATCH_DM = 1;
 const BUTTONS: readonly ObstacleButton[] = ['jump', 'duck', 'run'];
@@ -257,5 +258,5 @@ export function inputLogBytes(log: RaceInputLog): number {
   return JSON.stringify(log).length;
 }
 
-export const REPLAY_MAX_INPUT_BYTES = 8_192;
+export const REPLAY_MAX_INPUT_BYTES = 200_000;
 export const REPLAY_MISMATCH_MS = MISMATCH_MS;

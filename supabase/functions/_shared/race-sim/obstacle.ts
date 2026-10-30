@@ -3,7 +3,7 @@ import { npcSpeed, type Modifiers } from './funRun.ts';
 import { hashSeed, mulberry32 } from './rng.ts';
 
 // Published versions are immutable. Tuning adds a new version; races keep the one they were created with.
-export const OBSTACLE_VERSION = 'obstacle-2';
+export const OBSTACLE_VERSION = 'obstacle-7';
 
 type ObstacleClass = {
   speed: number;
@@ -15,6 +15,8 @@ type ObstacleClass = {
   gapM: number;
   clipMax: number;
   clipMin: number;
+  /** NPC cruise in m/s, drawn per NPC. Overrides `speed × npcSpeedSpread` when set. */
+  npcSpeed?: readonly [number, number];
 };
 
 export type ObstacleConfig = {
@@ -22,8 +24,21 @@ export type ObstacleConfig = {
   /** Where the first section's zone (or a sprint's start) begins. */
   firstM: number;
   runOutM: number;
-  /** Each gap is drawn from the race seed between the class gap and this multiple of it. */
+  /** Shortest tight gap as a share of the class gap. */
+  gapMin: number;
+  /** Longest tight gap as a share of the class gap. */
+  tightMax: number;
+  /** Chance each gap is a tight one (otherwise it uses the normal range). */
+  tightChance: number;
+  /** Shortest normal gap as a share of the class gap. */
+  normalMin: number;
+  /** Longest normal gap as a multiple of the class gap. */
   gapSpread: number;
+  /**
+   * When true, the player must tap RUN for the whole race (Fun Run physics). No pink sprint stretches.
+   * NPCs still cruise at class speed. obstacle-1 keeps tap physics only inside sprint sections.
+   */
+  tapDrive: boolean;
   /** Extra ground after a sprint, so a thumb can move from RUN to JUMP or DUCK. */
   afterSprintM: number;
   /** Hurdle zone center, measured back from the hurdle at the front paws. */
@@ -75,7 +90,12 @@ const obstacleV1: ObstacleConfig = {
   version: 'obstacle-1',
   firstM: 12,
   runOutM: 10,
+  gapMin: 1,
+  tightMax: 1,
+  tightChance: 0,
+  normalMin: 1,
   gapSpread: 1.3,
+  tapDrive: false,
   afterSprintM: 4,
   zoneBeforeM: 2.25,
   airM: 4.5,
@@ -119,29 +139,112 @@ const obstacleV1: ObstacleConfig = {
 
 const longOpen: ObstacleClass = { ...openClass, hurdles: 16, tunnels: 10, sprints: 0 };
 
-// obstacle-2: no sprints, and about three times the obstacle-1 course: more hurdles and tunnels at the same
-// gaps, 250 to 470 m. Races run 45 to 60 s, so the max race length doubles.
-export const obstacleConfig: ObstacleConfig = {
+const longClasses: ObstacleConfig['classes'] = {
+  beginner: { ...obstacleV1.classes.beginner, hurdles: 10, tunnels: 5, sprints: 0 },
+  novice: { ...obstacleV1.classes.novice, hurdles: 12, tunnels: 6, sprints: 0 },
+  open: longOpen,
+  veteran: longOpen,
+  expert: { ...obstacleV1.classes.expert, hurdles: 19, tunnels: 11, sprints: 0 },
+  championship: { ...obstacleV1.classes.championship, hurdles: 23, tunnels: 14, sprints: 0 },
+};
+
+// obstacle-2: no sprints, about three times the obstacle-1 course. Auto-run between obstacles.
+const obstacleV2: ObstacleConfig = {
   ...obstacleV1,
-  version: OBSTACLE_VERSION,
+  version: 'obstacle-2',
   maxMs: 120_000,
+  classes: longClasses,
+};
+
+// obstacle-3: long course, tap RUN, gaps vary evenly from 0.55× to 2.2×.
+const obstacleV3: ObstacleConfig = {
+  ...obstacleV2,
+  version: 'obstacle-3',
+  gapMin: 0.55,
+  tightMax: 0.55,
+  tightChance: 0,
+  normalMin: 0.55,
+  gapSpread: 2.2,
+  tapDrive: true,
+  sprintFloor: 0.2,
+};
+
+// obstacle-4: same as 3, but some gaps are much tighter, and NPCs run a bit faster.
+const obstacleV4: ObstacleConfig = {
+  ...obstacleV3,
+  version: 'obstacle-4',
+  gapMin: 0.22,
+  tightMax: 0.48,
+  tightChance: 0.32,
+  normalMin: 0.9,
+  gapSpread: 2.15,
+  npcSpeedSpread: [1.05, 1.14],
+};
+
+// obstacle-5: same course as 4; NPCs closer to a tapping player's pace.
+const obstacleV5: ObstacleConfig = {
+  ...obstacleV4,
+  version: 'obstacle-5',
+  // A clean RUN pace sits near the top of this band, so the field stays within a couple of seconds.
+  npcSpeedSpread: [1.26, 1.40],
+};
+
+// Misses cost far more here, so NPCs miss less: about 1 in 10 for a weak NPC, 1 in 50 for a strong one.
+const fastMiss = { clipMax: 0.1, clipMin: 0.02 };
+const fastOpen: ObstacleClass = { ...longOpen, ...fastMiss, npcSpeed: [9.6, 10.8] };
+
+// obstacle-6: NPCs run near the RUN top speed (11 m/s), and a missed obstacle costs about a second,
+// so mashing RUN through every hurdle and tunnel finishes behind the field.
+const obstacleV6: ObstacleConfig = {
+  ...obstacleV5,
+  version: 'obstacle-6',
+  clipSpeed: 0.15,
+  clipMs: 1100,
+  recoverMs: 400,
+  crawlSpeed: 0.3,
   classes: {
-    beginner: { ...obstacleV1.classes.beginner, hurdles: 10, tunnels: 5, sprints: 0 },
-    novice: { ...obstacleV1.classes.novice, hurdles: 12, tunnels: 6, sprints: 0 },
-    open: longOpen,
-    veteran: longOpen,
-    expert: { ...obstacleV1.classes.expert, hurdles: 19, tunnels: 11, sprints: 0 },
-    championship: { ...obstacleV1.classes.championship, hurdles: 23, tunnels: 14, sprints: 0 },
+    beginner: { ...longClasses.beginner, ...fastMiss, npcSpeed: [9.2, 10.6] },
+    novice: { ...longClasses.novice, ...fastMiss, npcSpeed: [9.4, 10.7] },
+    open: fastOpen,
+    veteran: fastOpen,
+    expert: { ...longClasses.expert, ...fastMiss, npcSpeed: [9.8, 10.9] },
+    championship: { ...longClasses.championship, ...fastMiss, npcSpeed: [10, 11] },
+  },
+};
+
+const steadyOpen: ObstacleClass = { ...fastOpen, npcSpeed: [7.2, 9] };
+
+// obstacle-7: same miss costs as 6, NPCs slower, so a steady clean run (about 4 RUN taps a second) wins.
+export const obstacleConfig: ObstacleConfig = {
+  ...obstacleV6,
+  version: OBSTACLE_VERSION,
+  classes: {
+    beginner: { ...obstacleV6.classes.beginner, npcSpeed: [6.4, 8.2] },
+    novice: { ...obstacleV6.classes.novice, npcSpeed: [6.8, 8.6] },
+    open: steadyOpen,
+    veteran: steadyOpen,
+    expert: { ...obstacleV6.classes.expert, npcSpeed: [7.6, 9.4] },
+    championship: { ...obstacleV6.classes.championship, npcSpeed: [8, 9.8] },
   },
 };
 
 const obstacleVersions: Record<string, ObstacleConfig> = {
   'obstacle-1': obstacleV1,
+  'obstacle-2': obstacleV2,
+  'obstacle-3': obstacleV3,
+  'obstacle-4': obstacleV4,
+  'obstacle-5': obstacleV5,
+  'obstacle-6': obstacleV6,
   [OBSTACLE_VERSION]: obstacleConfig,
 };
 
 export function obstacleConfigFor(version: string): ObstacleConfig {
   return obstacleVersions[version] ?? obstacleConfig;
+}
+
+/** False when this bundle predates the version, so a replay would use the wrong course and rules. */
+export function isObstacleVersion(version: string): boolean {
+  return version in obstacleVersions;
 }
 
 export type SectionKind = 'hurdle' | 'tunnel' | 'sprint';
@@ -256,7 +359,11 @@ function layCourse(classId: RaceClassId, version: string, seed: string): Course 
   let cursor = config.firstM;
   order.forEach((kind, index) => {
     if (index > 0) {
-      cursor += cls.gapM * lerp(1, config.gapSpread, rng());
+      const tight = config.tightChance > 0 && rng() < config.tightChance;
+      const mult = tight
+        ? lerp(config.gapMin, config.tightMax, rng())
+        : lerp(config.normalMin, config.gapSpread, rng());
+      cursor += cls.gapM * mult;
       if (order[index - 1] === 'sprint') cursor += config.afterSprintM;
     }
     if (kind === 'hurdle') {
@@ -317,6 +424,7 @@ export function duckLengthM(half: number, version: string): number {
 function baseSpeed(course: Course, mods: Modifiers | null, npc: ObstacleNpc | null): number {
   if (npc) {
     const roll = mulberry32(hashSeed(`${npc.seed}:speed`))();
+    if (course.cls.npcSpeed) return lerp(course.cls.npcSpeed[0], course.cls.npcSpeed[1], roll);
     const [lo, hi] = course.config.npcSpeedSpread;
     return course.cls.speed * lerp(lo, hi, roll);
   }
@@ -472,14 +580,19 @@ function cruiseStep(
   dt: number,
 ): void {
   const config = course.config;
-  let cruise = state.cruise ?? base;
   const sprint = sectionAt(course, state.x);
-  if (sprint?.kind === 'sprint') {
+  const tapZone = config.tapDrive || sprint?.kind === 'sprint';
+  let cruise = state.cruise ?? (config.tapDrive && !npc ? 0 : base);
+  if (tapZone) {
     if (npc) {
       const target = Math.min(config.topSpeed, npcSpeed(npc, state.tMs, config.npcSprintVersion));
-      cruise += clamp(target - cruise, -config.rampMps2 * dt, config.rampMps2 * dt);
+      // On tapDrive courses NPCs hold class speed; on pink sprints they ramp like Fun Run NPCs.
+      const goal = config.tapDrive ? base : target;
+      cruise += clamp(goal - cruise, -config.rampMps2 * dt, config.rampMps2 * dt);
     } else {
-      const along = clamp(((state.x - sprint.at) / (sprint.end - sprint.at) - config.fadeStart) / (1 - config.fadeStart), 0, 1);
+      const along = sprint
+        ? clamp(((state.x - sprint.at) / (sprint.end - sprint.at) - config.fadeStart) / (1 - config.fadeStart), 0, 1)
+        : clamp((state.x / Math.max(course.distanceM, 1) - config.fadeStart) / (1 - config.fadeStart), 0, 1);
       const stamina = mods ? unit(mods.stamina) : 0.5;
       const power = 1 - config.fadeAmount * (1 - stamina) * along;
       for (const tap of taps) {

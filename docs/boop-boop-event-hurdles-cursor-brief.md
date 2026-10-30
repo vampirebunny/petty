@@ -54,7 +54,7 @@ The pet runs on its own at the class speed. The player taps **JUMP** when the pe
 
 - Pop-up words near the pet: "Perfect!" or "Nice!" on a clear, "Oops!" on a clip. No banners.
 - Under the track: a row of dots, one per hurdle, filled mint for a clear and an ✕ for a clip.
-- Sounds: jump boing, clear chime (higher for Perfect), soft thud on a clip. No hurt sounds.
+- Sounds: clear chime (higher for Perfect), soft thud on a clip. No sound on the jump tap. No hurt sounds.
 
 ## Poses
 

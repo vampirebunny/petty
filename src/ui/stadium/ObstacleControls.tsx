@@ -12,7 +12,7 @@ type Props = {
   beat: number | null;
   countLabel: string | null;
   hint: string;
-  /** The button the next obstacle needs; it glows. */
+  /** The button the next obstacle needs; it glows. RUN never cues — keep tapping it. */
   cue: ObstacleButton | null;
   onPress: (button: ObstacleButton) => void;
 };
@@ -69,7 +69,22 @@ function Pill({
   );
 }
 
-// JUMP under the left thumb, DUCK under the right, always in the same place.
+function RunPad({ going, onPress }: { going: boolean; onPress: () => void }) {
+  const touch = useTouchTarget(onPress);
+  return (
+    <View
+      {...touch}
+      style={[styles.run, !going && styles.waitRun]}
+      accessibilityRole="button"
+      accessibilityLabel={going ? 'Run' : 'Wait for Go'}
+      accessibilityState={{ disabled: !going }}
+    >
+      <Text style={[styles.runLabel, !going && styles.waitLabel]}>{going ? 'RUN' : 'Wait'}</Text>
+    </View>
+  );
+}
+
+// JUMP and DUCK stacked under the left thumb; big RUN under the right. Keep tapping RUN for speed.
 export function ObstacleControls({ going, beat, countLabel, hint, cue, onPress }: Props) {
   return (
     <View style={styles.action}>
@@ -79,8 +94,11 @@ export function ObstacleControls({ going, beat, countLabel, hint, cue, onPress }
         </Text>
       ) : null}
       <View style={styles.row}>
-        <Pill label="JUMP" arrow="↑" going={going} glow={cue === 'jump'} style={styles.jump} onPress={() => onPress('jump')} />
-        <Pill label="DUCK" arrow="↓" going={going} glow={cue === 'duck'} style={styles.duck} onPress={() => onPress('duck')} />
+        <View style={styles.stack}>
+          <Pill label="JUMP" arrow="↑" going={going} glow={cue === 'jump'} style={styles.jump} onPress={() => onPress('jump')} />
+          <Pill label="DUCK" arrow="↓" going={going} glow={cue === 'duck'} style={styles.duck} onPress={() => onPress('duck')} />
+        </View>
+        <RunPad going={going} onPress={() => onPress('run')} />
       </View>
       <Text style={shared.copy}>{hint}</Text>
     </View>
@@ -92,11 +110,11 @@ const styles = StyleSheet.create({
   count: { fontFamily: fontFamily.fredokaBold, fontSize: 56, color: ink },
   ready: { fontSize: 38 },
   go: { color: tints.mint.icon },
-  row: { alignSelf: 'stretch', flexDirection: 'row', gap: 14 },
+  row: { alignSelf: 'stretch', flexDirection: 'row', gap: 14, alignItems: 'stretch' },
+  stack: { flex: 1, gap: 10 },
   pill: {
-    flex: 1,
-    height: 96,
-    borderRadius: 48,
+    height: 64,
+    borderRadius: 32,
     borderWidth: 3,
     borderColor: ink,
     flexDirection: 'row',
@@ -106,9 +124,21 @@ const styles = StyleSheet.create({
   },
   jump: { backgroundColor: tints.mint.icon },
   duck: { backgroundColor: tints.lilac.icon },
+  run: {
+    width: 132,
+    borderRadius: 66,
+    borderWidth: 3,
+    borderColor: ink,
+    backgroundColor: tints.pink.icon,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+  },
+  waitRun: { backgroundColor: '#E4DEE9', borderColor: '#B7ADC1', borderStyle: 'dashed', opacity: 0.6, transform: [{ scale: 0.92 }] },
   glow: { shadowColor: '#FFF3A0', shadowOpacity: 1, shadowRadius: 14, shadowOffset: { width: 0, height: 0 }, elevation: 10, borderColor: '#FFE45C' },
   wait: { backgroundColor: '#E4DEE9', borderColor: '#B7ADC1', borderStyle: 'dashed', opacity: 0.6, transform: [{ scale: 0.92 }] },
-  arrow: { fontFamily: fontFamily.fredokaBold, fontSize: 30, color: '#fff' },
-  pillLabel: { fontFamily: fontFamily.fredokaBold, fontSize: 30, color: '#fff' },
+  arrow: { fontFamily: fontFamily.fredokaBold, fontSize: 26, color: '#fff' },
+  pillLabel: { fontFamily: fontFamily.fredokaBold, fontSize: 26, color: '#fff' },
+  runLabel: { fontFamily: fontFamily.fredokaBold, fontSize: 30, color: '#fff' },
   waitLabel: { color: '#9A8FA6' },
 });

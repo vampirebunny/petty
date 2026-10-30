@@ -5,6 +5,7 @@ import {
   finishMismatch,
   flagBotLike,
   inputLogBytes,
+  isObstacleVersion,
   isReplayEvent,
   parseInputLog,
   parseModifiers,
@@ -126,6 +127,11 @@ Deno.serve(async (req) => {
     seed: typeof loaded.data.seed === 'string' ? loaded.data.seed : '',
     configVersion: typeof loaded.data.config_version === 'string' ? loaded.data.config_version : 'funrun-2',
   };
+
+  if (race.event === 'obstacle' && !isObstacleVersion(race.configVersion)) {
+    console.error('race_report is older than the race config; redeploy it', race.configVersion);
+    return json({ error: `config ${race.configVersion} not deployed` }, 409);
+  }
 
   const inputLog = parseInputLog(race.event, body.inputLog, race.configVersion);
   if (!inputLog) {

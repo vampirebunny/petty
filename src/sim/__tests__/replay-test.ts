@@ -1,11 +1,16 @@
 import {
+  OBSTACLE_VERSION,
+  REPLAY_MAX_INPUT_BYTES,
   finishMismatch,
   flagBotLike,
+  inputLogBytes,
+  isObstacleVersion,
   neutralModifiers,
   parseInputLog,
   replayNpc,
   replayPlayer,
   runFunRun,
+  runObstacle,
   sanitizeTimes,
   scoreMismatch,
 } from '../../../supabase/functions/_shared/race-sim/index.ts';
@@ -50,6 +55,24 @@ it('detects finish and score mismatches', () => {
   expect(finishMismatch(null, 1000)).toBe(true);
   expect(scoreMismatch(64, 64)).toBe(false);
   expect(scoreMismatch(64, 66)).toBe(true);
+});
+
+it('replays a whole Obstacle race of RUN taps the same as the phone', () => {
+  const inputs = Array.from({ length: 3000 }, (_, index) => ({ tMs: index * 45, button: 'run' as const }));
+  const log = parseInputLog('obstacle', { inputs }, OBSTACLE_VERSION);
+  expect(log && 'inputs' in log ? log.inputs.length : 0).toBe(3000);
+  expect(inputLogBytes(log!)).toBeLessThanOrEqual(REPLAY_MAX_INPUT_BYTES);
+  const obstacleRace = { event: 'obstacle' as const, classId: 'open' as const, seed: 'seed-1', configVersion: OBSTACLE_VERSION };
+  const replayed = replayPlayer(obstacleRace, neutralModifiers, log!);
+  const local = runObstacle(inputs, neutralModifiers, null, 'open', OBSTACLE_VERSION, 'seed-1');
+  expect(replayed.finishMs).not.toBeNull();
+  expect(replayed.finishMs).toBe(local.finishMs);
+});
+
+it('knows which Obstacle config versions this bundle can replay', () => {
+  expect(isObstacleVersion(OBSTACLE_VERSION)).toBe(true);
+  expect(isObstacleVersion('obstacle-1')).toBe(true);
+  expect(isObstacleVersion('obstacle-999')).toBe(false);
 });
 
 it('parses Dock Dive attempts', () => {

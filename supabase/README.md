@@ -44,6 +44,12 @@ These race follow-ups are applied:
 - `20261029430000_schedule_ship_roster.sql`: schedule only Fun Run, Dock Dive, Hurdles, and Obstacle Course (Sniff Out, Trick Show, and Weave cancelled). Keeps the testing board (Dock Dive + Hurdles every open slot; waived hurdle trick). Launch later restores the Hurdles / Obstacle Course third-event rotation, trick gates, and 5-minute / 6-minute rest.
 - `20261029440000_obstacle_course.sql`: Obstacle Course starts like Hurdles; races are stamped `obstacle-1`.
 - `20261029450000_race_replay.sql`: authoritative solo results. Adds `apply_verified_race_report` (service_role), `race_report_flags`, `race_entries.input_log`, and blocks client `submit_race_report`. The `race_report` Edge Function is deployed with it.
+- `20261029460000_obstacle_long_course.sql`: Obstacle Course `obstacle-2` (long course, 140 s DNF window).
+- `20261029470000_obstacle_tap_drive.sql`: Obstacle Course `obstacle-3` (tap RUN for speed, varied gaps).
+- `20261029480000_obstacle_tight_gaps.sql`: Obstacle Course `obstacle-4` (occasional tight gaps, faster NPCs).
+- `20261029490000_obstacle_faster_npcs.sql`: Obstacle Course `obstacle-5` (NPCs 1.26×–1.40× class speed). Waiting for the owner to apply.
+- `20261029500000_obstacle_npc_pace.sql`: Obstacle Course `obstacle-6` (NPCs near RUN top speed, misses cost about a second). Deploy `race_report` before applying. Waiting for the owner to apply.
+- `20261029510000_obstacle_steady_npcs.sql`: Obstacle Course `obstacle-7` (slower NPCs: Beginner 6.4–8.2 m/s up to Championship 8.0–9.8). Deploy `race_report` before applying. Waiting for the owner to apply.
 
 New files in this folder are applied only by the project owner. Do not run `supabase db push`, the Supabase CLI against the hosted project, or the SQL in the dashboard from an agent or an automated script. After the CLI is linked, the owner applies new migrations with:
 
