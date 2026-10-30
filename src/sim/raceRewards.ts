@@ -62,3 +62,25 @@ export function applyRaceRewards(state: PetState, finish: RaceFinish, now: numbe
   next = completeSuggestion(next, 'race', now);
   return syncBadges(next, now);
 }
+
+// Friend games cost the same energy as an open race and give nothing else.
+export function applyFriendRaceResult(state: PetState, raceId: string): PetState {
+  const applied = state.appliedRaceIds ?? [];
+  if (!raceId || applied.includes(raceId)) {
+    return state;
+  }
+  return {
+    ...state,
+    needs: {
+      ...state.needs,
+      energy: Math.max(0, state.needs.energy - gameplayConfig.races.energyCost),
+    },
+    appliedRaceIds: [...applied, raceId],
+  };
+}
+
+// Sending the invites is what counts for "Start a friends game".
+export function noteFriendGameStarted(state: PetState, now: number): PetState {
+  const next = noteTutorialAction(state, 'friendGame');
+  return completeSuggestion(next, 'friendGame', now);
+}

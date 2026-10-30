@@ -51,6 +51,8 @@ export type StadiumBoard = {
   capacity: number;
   cooldownUntil: number | null;
   activeEntry: RaceSignup | null;
+  /** The pet's friend game, which never shows as activeEntry. */
+  friendGameRaceId: string | null;
   slots: StadiumSlot[];
 };
 
@@ -148,6 +150,10 @@ export function parseEntry(value: unknown): RaceSignup | null {
   };
 }
 
+function cupOf(value: unknown): RaceCup {
+  return value === 'veteran' || value === 'friends' ? value : 'open';
+}
+
 const cardStates: CardState[] = ['open', 'entered', 'busy', 'resting', 'missing_trick', 'wrong_species', 'closed'];
 
 function parseCard(value: unknown): StadiumCard | null {
@@ -182,6 +188,7 @@ export function parseBoard(value: unknown): StadiumBoard {
     capacity: num(config.capacity) ?? 6,
     cooldownUntil: time(row.cooldown_until),
     activeEntry: parseEntry(row.active_entry),
+    friendGameRaceId: text(row.friend_game_race_id),
     slots: slots.flatMap((slot) => {
       const item = rowOf(slot);
       const startsAt = time(item.starts_at);
@@ -283,7 +290,7 @@ export function parseRace(value: unknown): RaceView | null {
     status: raceStatuses.includes(row.status as RaceStatus) ? (row.status as RaceStatus) : 'open',
     classId: isRaceClass(row.class) ? row.class : 'beginner',
     event: row.event_type,
-    cup: row.cup === 'veteran' ? 'veteran' : 'open',
+    cup: cupOf(row.cup),
     startsAt,
     seed: text(row.seed) ?? '',
     configVersion: text(row.config_version) ?? 'funrun-1',
@@ -292,7 +299,7 @@ export function parseRace(value: unknown): RaceView | null {
   };
 }
 
-async function call(fn: string, args: Record<string, unknown>): Promise<StadiumResult<unknown>> {
+export async function call(fn: string, args: Record<string, unknown>): Promise<StadiumResult<unknown>> {
   const supabase = getSupabase();
   if (!supabase) {
     return { ok: false, offline: true, reason: 'offline' };

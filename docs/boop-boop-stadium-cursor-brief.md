@@ -66,7 +66,7 @@ Top to bottom:
    - **Missing trick**: lock line ("Requires skills in Jump the Hurdle") and a disabled "Not qualified" pill. Tapping the card offers a link to the Training School.
    - **Wrong species**: disabled "Cats only" / "Dogs only" pill
    - **Resting**: disabled "Resting" pill and the line "Again in m:ss". Only cards of the rested event that start before the rest ends show this.
-5. "Race with friends" (lavender) at the bottom: opens the friend competition flow from the friends addendum (stub it if not built yet).
+5. "Race with friends" (lavender) at the bottom: opens the friend game flow (`docs/boop-boop-friend-games-addendum.md`). Guests get the create-account sheet. While the pet is in a friend game, the lobby shows a button back to its waiting room.
 
 **Slot schedule rules (server side):**
 - A slot starts every 5 minutes on the clock (:00, :05, :10…).

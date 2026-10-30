@@ -12,6 +12,8 @@ export type SuggestionContext = {
   closet?: { slot: OutfitSlot; id: string }[];
   /** False when the collection already has every catalog item. */
   unfound?: boolean;
+  /** Friends of a linked account. Zero for guests. Unknown leaves a friend-game slot alone. */
+  friends?: number;
 };
 
 export type SuggestionFocus =
@@ -53,7 +55,8 @@ export function suggestionLabel(id: string, species: 'dog' | 'cat' = 'dog'): str
   if (action === 'hat') return 'Wear a hat';
   if (action === 'closet') return 'Try something new from the Closet';
   if (action === 'find') return 'Find something new at the park';
-  if (action === 'race') return 'Race in the Stadium';
+  if (action === 'race') return 'Compete in the Stadium';
+  if (action === 'friendGame') return 'Start a friends game';
   if (action.startsWith('toy:')) {
     const toyId = action.slice('toy:'.length);
     return `Play with the ${ITEM_KINDS[toyId]?.name ?? toyId}`;
@@ -126,6 +129,7 @@ function candidates(state: PetState, ctx: SuggestionContext): string[] {
   if (!state.asleep && state.needs.energy < need) ids.push('nap');
   ids.push('play');
   if (!state.races?.signup) ids.push('race');
+  if ((ctx.friends ?? 0) > 0) ids.push('friendGame');
   if (ctx.toys) {
     const toy = ctx.toys.find((id) => id && id !== 'ball');
     if (toy) ids.push(`toy:${toy}`);
@@ -159,15 +163,30 @@ function keepSlot(slot: SuggestionSlot, state: PetState, ctx: SuggestionContext,
   if (slot.id === 'find' && ctx.unfound == null && state.level >= gameplayConfig.suggestions.findsFromLevel) {
     return true;
   }
+  if (slot.id === 'friendGame' && ctx.friends == null) {
+    return true;
+  }
   return false;
+}
+
+function tutorialOffers(action: string, current: SuggestionSlot[], ctx: SuggestionContext): boolean {
+  if (action !== 'friendGame') {
+    return true;
+  }
+  if (ctx.friends == null) {
+    return current.some((slot) => slot.id === 'tutorial:friendGame');
+  }
+  return ctx.friends > 0;
 }
 
 export function syncSuggestions(state: PetState, now: number, ctx: SuggestionContext = {}): PetState {
   const stamped = stampDay(state, now);
   if (stamped.level < gameplayConfig.tutorialLevel) {
-    const next = gameplayConfig.goals.find((goal) => !(stamped.tutorialSeen ?? []).includes(goal.action));
-    const id = next ? `tutorial:${next.action}` : '';
     const current = stamped.suggestions ?? [];
+    const next = gameplayConfig.goals.find(
+      (goal) => !(stamped.tutorialSeen ?? []).includes(goal.action) && tutorialOffers(goal.action, current, ctx),
+    );
+    const id = next ? `tutorial:${next.action}` : '';
     if (!id) {
       return current.length === 0 ? stamped : { ...stamped, suggestions: [] };
     }

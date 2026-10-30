@@ -137,6 +137,7 @@ import { SettingsScreen } from './SettingsScreen';
 import { AccountSheet } from '../ui/AccountSheet';
 import { FindFriendsHost } from '../ui/FindFriendsHost';
 import { FriendRequestModal } from '../ui/FriendRequestModal';
+import { FriendGameInviteModal } from '../ui/FriendGameInviteModal';
 import { BlockConfirm, ReportSheet, ReportThanks } from '../ui/FriendDialogs';
 import { FriendNotifyPrompt } from '../ui/FriendNotifyPrompt';
 import { loadFriends, blockPlayer, reportPlayer } from '../friends/api';
@@ -470,6 +471,8 @@ export default function HomeScreen({ petApi }: Props) {
   const [arcadeOpen, setArcadeOpen] = useState(false);
   const [stadiumOpen, setStadiumOpen] = useState(false);
   const [stadiumGate, setStadiumGate] = useState(0);
+  const [friendGameRoom, setFriendGameRoom] = useState<string | null>(null);
+  const [friendCount, setFriendCount] = useState<number | undefined>(undefined);
   const [atGate, setAtGate] = useState(false);
   const gateOpener = useRef<() => void>(() => undefined);
   const gatePending = useRef(false);
@@ -570,11 +573,11 @@ export default function HomeScreen({ petApi }: Props) {
     } catch {
       unfound = true;
     }
-    const next = syncSuggestions(state, Date.now(), { toys: home.toys, closet: owned, unfound });
+    const next = syncSuggestions(state, Date.now(), { toys: home.toys, closet: owned, unfound, friends: friendCount });
     if (suggestionSignature(next) !== suggestionSignature(state)) {
       commitPet(next);
     }
-  }, [closetKey, commitPet, state, toyKey]);
+  }, [closetKey, commitPet, friendCount, state, toyKey]);
   const [hour, setHour] = useState<number | null>(null);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [wardrobeOpen, setWardrobeOpen] = useState(false);
@@ -810,6 +813,7 @@ export default function HomeScreen({ petApi }: Props) {
     const unsubModal = onFriendModalRequest(() => {
       closeFindFriends();
       setForceRequests(true);
+      setFriendTick((value) => value + 1);
       setSettingsOpen(false);
       setPlaydateOpen(false);
     });
@@ -835,6 +839,7 @@ export default function HomeScreen({ petApi }: Props) {
         if (!cancelled) {
           setIncomingFriends([]);
           setRequestsOpen(false);
+          setFriendCount(0);
         }
         return;
       }
@@ -844,6 +849,7 @@ export default function HomeScreen({ petApi }: Props) {
         return;
       }
       setIncomingFriends(bundle.incoming);
+      setFriendCount(bundle.friends.length);
       if (handlePromptIsStrict()) {
         return;
       }
@@ -1835,6 +1841,10 @@ export default function HomeScreen({ petApi }: Props) {
     setStadiumGate((value) => value + 1);
     setStadiumOpen(true);
   };
+  const openFriendGameRoom = (raceId: string) => {
+    setFriendGameRoom(raceId);
+    openStadiumGate();
+  };
   useEffect(() => {
     gateOpener.current = openStadiumGate;
     if (gatePending.current && state) {
@@ -1850,6 +1860,16 @@ export default function HomeScreen({ petApi }: Props) {
       {screen}
       {state ? (
         <RaceCall pet={state} atGate={atGate && stadiumOpen} reducedMotion={reducedMotion} onGo={() => openStadiumGate()} onCommit={commitPet} />
+      ) : null}
+      {state ? (
+        <FriendGameInviteModal
+          pet={state}
+          linked={readAccountLinked()}
+          hidden={atGate && stadiumOpen}
+          reducedMotion={reducedMotion}
+          onCommit={commitPet}
+          onJoined={openFriendGameRoom}
+        />
       ) : null}
       {learnedTrick ? (
         <BadgeCelebration
@@ -2058,26 +2078,30 @@ export default function HomeScreen({ petApi }: Props) {
   if (stadiumOpen) {
     return hosted(
       <StadiumScreen
-        key={stadiumGate}
+        key={`${stadiumGate}:${friendGameRoom ?? ''}`}
         pet={state}
         reducedMotion={reducedMotion}
         openGate={stadiumGate > 0}
+        openFriendGame={friendGameRoom}
         moodTreats={economyApi.inventory.find((row) => row.itemId === specialTreatId)?.qty ?? 0}
         onClose={() => {
           commitPet({ ...state, roadSpot: 'stadium', asleep: false });
           setStadiumOpen(false);
           setStadiumGate(0);
+          setFriendGameRoom(null);
         }}
         onCommit={commitPet}
         onTrain={() => {
           setStadiumOpen(false);
           setStadiumGate(0);
+          setFriendGameRoom(null);
           setScene('school');
         }}
         onPlay={() => {
           commitPet({ ...state, roadSpot: undefined, asleep: false });
           setStadiumOpen(false);
           setStadiumGate(0);
+          setFriendGameRoom(null);
           setPlayOpen(true);
         }}
         onMoodTreat={() => {
@@ -2089,6 +2113,7 @@ export default function HomeScreen({ petApi }: Props) {
         onShop={() => {
           setStadiumOpen(false);
           setStadiumGate(0);
+          setFriendGameRoom(null);
           setShopOpen(true);
         }}
         onAtGate={setAtGate}

@@ -6,7 +6,7 @@ import type { PetState, Stage } from './types';
 
 export type RaceEvent = 'funRun' | 'dockDive' | 'sniffOut' | 'trickShow' | 'hurdles' | 'weave' | 'obstacle';
 export type RaceClass = 'beginner' | 'novice' | 'open' | 'expert' | 'championship' | 'veteran';
-export type RaceCup = 'open' | 'veteran';
+export type RaceCup = 'open' | 'veteran' | 'friends';
 export type SpeciesAllowed = 'dog' | 'cat' | 'both';
 export type CardState = 'open' | 'entered' | 'busy' | 'resting' | 'missing_trick' | 'wrong_species' | 'closed';
 export type GatePhase = 'waiting' | 'gate' | 'locked' | 'started';
@@ -116,6 +116,15 @@ export function whoCanEnter(allowed: SpeciesAllowed): string {
 export function classLabel(id: RaceClass): string {
   if (id === 'veteran') return 'Veteran Cup';
   return id.charAt(0).toUpperCase() + id.slice(1);
+}
+
+export function raceTagLabel(race: { cup: RaceCup; classId: RaceClass }): string {
+  return race.cup === 'friends' ? 'Friend game' : classLabel(race.classId);
+}
+
+export function trickNameFor(trickId: string): string {
+  const key = trickId.replace(/^(dog|cat)_/, '');
+  return trickListing(trickId)?.name ?? trickLabels[key] ?? trickId;
 }
 
 export function classForLevel(level: number): RaceClass {

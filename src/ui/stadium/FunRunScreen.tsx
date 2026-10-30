@@ -13,7 +13,7 @@ import { freshPreview, stepPosePreview, stepRaceMotion } from '../../actor/raceD
 import type { PoseMode, PosePreview } from '../../actor/raceDrive';
 import { skyAt, solarHour } from '../../actor/sky';
 import { serverNow } from '../../db/accountMeta';
-import { classLabel, eventLabel, formatCountdown } from '../../sim/stadium';
+import { eventLabel, formatCountdown, raceTagLabel } from '../../sim/stadium';
 import type { PetState } from '../../sim/types';
 import { fetchRace, submitRaceReport, type RaceView } from '../../stadium/api';
 import { liveFinish, liveStateOf, raceSyncConfig, sampleLive } from '../../stadium/liveTrack';
@@ -431,7 +431,7 @@ export function FunRunScreen({ race, pet, reducedMotion, onFinish, onExit }: Pro
                 {row.mine ? ' · you' : ' · NPC'} {row.finishMs == null ? 'DNF' : `${(row.finishMs / 1000).toFixed(2)}s`}
               </Text>
             ))}
-            <Text style={shared.copy}>Top tap speed shows on the next races. {classLabel(race.classId)}.</Text>
+            <Text style={shared.copy}>Top tap speed shows on the next races. {raceTagLabel(race)}.</Text>
           </View>
           {resultsReady ? (
             <CandyButton role="go" label="Back to the Stadium" onPress={onExit} />

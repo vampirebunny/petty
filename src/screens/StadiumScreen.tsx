@@ -1,13 +1,22 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { ChevronLeft, Flag, WifiOff } from 'lucide-react-native';
+import { ChevronLeft, Flag, Users, WifiOff } from 'lucide-react-native';
 
-import { serverNow } from '../db/accountMeta';
+import { readAccountLinked, serverNow } from '../db/accountMeta';
 import { pushPetBeforeRead } from '../sync/queue';
 import { askRaceReminderPermission, cancelRaceCall } from '../reminders/notifications';
 import { fetchBoard, signUpFor, withdrawEntry, type RaceView, type StadiumBoard, type StadiumCard, type StadiumSlot } from '../stadium/api';
+import {
+  conflictCopy,
+  createFriendGame,
+  friendGameErrorCopy,
+  leaveFriendGame,
+  type FriendGameConflict,
+  type FriendGameEvent,
+  type FriendGameState,
+} from '../stadium/friendGames';
 import { gameplayConfig } from '../sim/gameplayConfig';
-import { applyRaceRewards } from '../sim/raceRewards';
+import { applyFriendRaceResult, applyRaceRewards, noteFriendGameStarted } from '../sim/raceRewards';
 import { classForEvent, classForLevel, dropEndedSignup, eventLabel, isPlayableEvent, racesOf, skillBlock, withSignup, type RaceSignup, type SkillBlock } from '../sim/stadium';
 import type { PetState } from '../sim/types';
 import { fontFamily } from '../ui/font';
@@ -24,6 +33,9 @@ import { SignUpSheet } from '../ui/stadium/SignUpSheet';
 import { StadiumHeader } from '../ui/stadium/StadiumHeader';
 import { StartingGate, type GateExit } from '../ui/stadium/StartingGate';
 import { Ticket } from '../ui/stadium/Ticket';
+import { FriendGameSetup } from '../ui/stadium/FriendGameSetup';
+import { FriendRoom, type FriendRoomExit } from '../ui/stadium/FriendRoom';
+import { AccountSheet } from '../ui/AccountSheet';
 import { iconStroke } from '../ui/theme';
 
 type Props = {
@@ -31,6 +43,8 @@ type Props = {
   reducedMotion: boolean;
   /** Open straight onto the starting gate (race call or notification). */
   openGate: boolean;
+  /** Open straight into this friend game's waiting room (an accepted invite). */
+  openFriendGame?: string | null;
   moodTreats: number;
   onClose: () => void;
   onCommit: (pet: PetState) => void;
@@ -41,7 +55,20 @@ type Props = {
   onAtGate: (atGate: boolean) => void;
 };
 
-type Screen = 'loading' | 'lobby' | 'ticket' | 'gate' | 'race';
+type Screen = 'loading' | 'lobby' | 'ticket' | 'gate' | 'race' | 'friendSetup' | 'friendRoom';
+
+type FriendAsk = { event: FriendGameEvent; delayMin: number; invitees: string[]; conflict: FriendGameConflict };
+
+function friendExitCopy(exit: FriendRoomExit): string {
+  if (exit.why === 'cancelled') {
+    return exit.byHost && exit.hostHandle
+      ? `@${exit.hostHandle} cancelled the game.`
+      : 'Not enough friends joined in time, so the game was cancelled.';
+  }
+  if (exit.why === 'lockedOut') return 'The friend game started without you.';
+  if (exit.why === 'ended') return 'That friend game already finished.';
+  return 'This friend game is no longer open.';
+}
 type Status = 'ok' | 'offline' | 'error';
 
 const statusTop = 48;
@@ -63,11 +90,30 @@ function failureCopy(reason: string, name: string): string {
   return 'Something went wrong. Try again in a moment.';
 }
 
-export function StadiumScreen({ pet, reducedMotion, openGate, moodTreats, onClose, onCommit, onTrain, onPlay, onMoodTreat, onShop, onAtGate }: Props) {
+export function StadiumScreen({
+  pet,
+  reducedMotion,
+  openGate,
+  openFriendGame = null,
+  moodTreats,
+  onClose,
+  onCommit,
+  onTrain,
+  onPlay,
+  onMoodTreat,
+  onShop,
+  onAtGate,
+}: Props) {
   const [now, setNow] = useState(() => serverNow());
   const [board, setBoard] = useState<StadiumBoard | null>(null);
   const [status, setStatus] = useState<Status>('ok');
-  const [screen, setScreen] = useState<Screen>(() => (openGate && racesOf(pet).signup ? 'gate' : 'loading'));
+  const [screen, setScreen] = useState<Screen>(() =>
+    openFriendGame ? 'friendRoom' : openGate && racesOf(pet).signup ? 'gate' : 'loading',
+  );
+  const [friendRaceId, setFriendRaceId] = useState<string | null>(openFriendGame);
+  const [friendAsk, setFriendAsk] = useState<FriendAsk | null>(null);
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
   const [gateSignup, setGateSignup] = useState<RaceSignup | null>(() => (openGate ? racesOf(pet).signup : null));
   const [slotId, setSlotId] = useState<number | null>(null);
   const [sheet, setSheet] = useState<{ card: StadiumCard; slot: StadiumSlot } | null>(null);
@@ -149,7 +195,7 @@ export function StadiumScreen({ pet, reducedMotion, openGate, moodTreats, onClos
   }, [load]);
 
   useEffect(() => {
-    atGateRef.current(screen === 'gate');
+    atGateRef.current(screen === 'gate' || screen === 'race' || screen === 'friendRoom');
   }, [screen]);
 
   useEffect(() => {
@@ -261,6 +307,85 @@ export function StadiumScreen({ pet, reducedMotion, openGate, moodTreats, onClos
     setScreen('race');
   };
 
+  const openFriends = () => {
+    if (!readAccountLinked()) {
+      setAccountOpen(true);
+      return;
+    }
+    if (board?.friendGameRaceId) {
+      setFriendRaceId(board.friendGameRaceId);
+      setScreen('friendRoom');
+      return;
+    }
+    setScreen('friendSetup');
+  };
+
+  const sendInvites = async (event: FriendGameEvent, delayMin: number, invitees: string[], replace: boolean) => {
+    if (busy) {
+      return;
+    }
+    setBusy(true);
+    let result = await createFriendGame(petRef.current.id, event, delayMin, invitees, replace);
+    if (!result.ok && /pet not synced/i.test(result.error)) {
+      const pushed = await pushPetBeforeRead(petRef.current);
+      if (pushed.pet !== petRef.current) {
+        petRef.current = pushed.pet;
+        commitRef.current(pushed.pet);
+      }
+      if (!pushed.reason) {
+        result = await createFriendGame(pushed.pet.id, event, delayMin, invitees, replace);
+      }
+    }
+    setBusy(false);
+    if (!result.ok) {
+      if ('conflict' in result) {
+        setFriendAsk({ event, delayMin, invitees, conflict: result.conflict });
+        return;
+      }
+      setFriendAsk(null);
+      setToast(friendGameErrorCopy(result.error));
+      return;
+    }
+    if (replace && friendAsk && friendAsk.conflict.cup !== 'friends') {
+      void cancelRaceCall();
+      clearSignup();
+    }
+    setFriendAsk(null);
+    commitRef.current(noteFriendGameStarted(petRef.current, Date.now()));
+    setFriendRaceId(result.data.raceId);
+    setScreen('friendRoom');
+    void load();
+  };
+
+  const leaveFriend = async (game: FriendGameState | null, confirmed: boolean) => {
+    if (!friendRaceId || busy) {
+      return;
+    }
+    if (game?.mineHost && !confirmed) {
+      setConfirmCancel(true);
+      return;
+    }
+    setConfirmCancel(false);
+    setBusy(true);
+    const result = await leaveFriendGame(friendRaceId);
+    setBusy(false);
+    if (!result.ok) {
+      setToast(friendGameErrorCopy(result.error));
+      return;
+    }
+    setFriendRaceId(null);
+    setToast(result.data.cancelled ? 'You cancelled the friend game.' : 'You left the friend game.');
+    setScreen('lobby');
+    void load();
+  };
+
+  const leaveFriendRoom = (exit: FriendRoomExit) => {
+    setFriendRaceId(null);
+    setToast(friendExitCopy(exit));
+    setScreen('lobby');
+    void load();
+  };
+
   const othersInSlot = (entry: RaceSignup): StadiumCard[] => {
     const slot = slots.find((item) => item.startsAt === entry.startsAt);
     return slot ? slot.events.filter((card) => card.id !== entry.eventId) : [];
@@ -285,6 +410,10 @@ export function StadiumScreen({ pet, reducedMotion, openGate, moodTreats, onClos
         pet={pet}
         reducedMotion={reducedMotion}
         onFinish={(place) => {
+          if (race.cup === 'friends') {
+            commitRef.current(applyFriendRaceResult(petRef.current, race.raceId));
+            return;
+          }
           commitRef.current(
             applyRaceRewards(
               petRef.current,
@@ -308,7 +437,21 @@ export function StadiumScreen({ pet, reducedMotion, openGate, moodTreats, onClos
         <View>
           {width > 0 ? <StadiumHeader width={width} top={statusTop} nextStart={slots[0]?.startsAt ?? null} reducedMotion={reducedMotion} /> : null}
           <View style={styles.headerBar}>
-            <Pressable accessibilityRole="button" accessibilityLabel="Back to the map" onPress={onClose} style={styles.back}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={screen === 'friendSetup' || screen === 'friendRoom' ? 'Back to the Stadium' : 'Back to the map'}
+              onPress={() => {
+                if (screen === 'friendSetup') {
+                  setScreen('lobby');
+                } else if (screen === 'friendRoom') {
+                  setScreen('lobby');
+                  void load();
+                } else {
+                  onClose();
+                }
+              }}
+              style={styles.back}
+            >
               <ChevronLeft size={22} strokeWidth={iconStroke + 1} color={ink} />
             </Pressable>
             <PetChip name={pet.name} level={pet.level} classId={classId} />
@@ -324,6 +467,27 @@ export function StadiumScreen({ pet, reducedMotion, openGate, moodTreats, onClos
               <CandyButton role="go" label="Try again" onPress={() => void load()} />
               <CandyButton role="secondary" label="Back to the map" onPress={onClose} />
             </View>
+          ) : screen === 'friendRoom' && friendRaceId ? (
+            <FriendRoom
+              raceId={friendRaceId}
+              petName={pet.name}
+              now={now}
+              leaving={busy}
+              onLeave={(game) => void leaveFriend(game, false)}
+              onRace={(view) => {
+                setFriendRaceId(null);
+                setRace(view);
+                setScreen('race');
+              }}
+              onExit={leaveFriendRoom}
+            />
+          ) : screen === 'friendSetup' ? (
+            <FriendGameSetup
+              pet={pet}
+              busy={busy}
+              onSend={(event, delayMin, invitees) => void sendInvites(event, delayMin, invitees, false)}
+              onBack={() => setScreen('lobby')}
+            />
           ) : screen === 'loading' ? (
             <Text style={[shared.copy, styles.center]}>Checking the race board…</Text>
           ) : screen === 'gate' && activeGate ? (
@@ -374,8 +538,18 @@ export function StadiumScreen({ pet, reducedMotion, openGate, moodTreats, onClos
                 selected={selected}
                 onSelect={(slot) => setSlotId(slot.id)}
                 onCard={onCard}
-                onFriends={() => setToast('Racing with friends is coming soon.')}
+                onFriends={openFriends}
               />
+              {board.friendGameRaceId ? (
+                <CandyButton
+                  role="friends"
+                  label="Back to your friend game"
+                  onPress={() => {
+                    setFriendRaceId(board.friendGameRaceId);
+                    setScreen('friendRoom');
+                  }}
+                />
+              ) : null}
               {signup ? <CandyButton role="go" label="See your ticket" onPress={() => setScreen('ticket')} /> : null}
             </>
           ) : (
@@ -418,6 +592,35 @@ export function StadiumScreen({ pet, reducedMotion, openGate, moodTreats, onClos
           secondary={block.reason === 'now' ? { label: 'Not now', onPress: () => setBlock(null) } : undefined}
         />
       ) : null}
+
+      {friendAsk ? (
+        <FunModal
+          title="Already in a race"
+          body={conflictCopy(friendAsk.conflict, pet.name, 'start')}
+          icon={Users}
+          tint="lilac"
+          reducedMotion={reducedMotion}
+          primary={{
+            label: busy ? 'Starting…' : 'Start this game',
+            onPress: () => void sendInvites(friendAsk.event, friendAsk.delayMin, friendAsk.invitees, true),
+          }}
+          secondary={{ label: 'Not now', onPress: () => setFriendAsk(null) }}
+        />
+      ) : null}
+
+      {confirmCancel ? (
+        <FunModal
+          title="Cancel this game?"
+          body="Leaving cancels the friend game for everyone."
+          icon={Users}
+          tint="lilac"
+          reducedMotion={reducedMotion}
+          primary={{ label: 'Cancel game', onPress: () => void leaveFriend(null, true) }}
+          secondary={{ label: 'Stay', onPress: () => setConfirmCancel(false) }}
+        />
+      ) : null}
+
+      {accountOpen ? <AccountSheet reason="friends" petName={pet.name} onClose={() => setAccountOpen(false)} /> : null}
 
       {toast ? <Toast message={toast} reducedMotion={reducedMotion} onDone={hideToast} /> : null}
     </View>

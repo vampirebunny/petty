@@ -49,7 +49,7 @@ function statsOf(value: unknown): Stats {
   return stats;
 }
 
-function petOf(value: unknown): FriendPet | null {
+export function petOf(value: unknown): FriendPet | null {
   if (!value || typeof value !== 'object') {
     return null;
   }

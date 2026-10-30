@@ -405,6 +405,9 @@ verify_jwt = true
 [functions.notify_friend_request]
 verify_jwt = true
 
+[functions.notify_friend_game]
+verify_jwt = true
+
 [functions.revenuecat-webhook]
 verify_jwt = false
 

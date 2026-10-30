@@ -74,7 +74,7 @@ All bands ramp linearly within the band (no flat bands, no jumps between bands).
 | Advanced trick learned | 200 |
 | One-time badge | 50 |
 | Tiered badge bronze / silver / gold | 50 / 100 / 200 |
-| Race entered / 3rd / 2nd / 1st | 20 / 40 / 60 / 100, first 8 races per day only |
+| Open race entered / 3rd / 2nd / 1st | 20 / 40 / 60 / 100, first 8 races per day only. Friend games give no XP. |
 | First time finding a park item: common / uncommon / rare / legendary | 10 / 25 / 75 / 150 |
 
 No XP from mini-games, repeat park finds, or time passing. Race XP is skipped below level 10. Daily caps reset at local midnight.
@@ -138,13 +138,14 @@ A missed day resets the streak count but never removes a badge. Use the device's
 | Cuddle | Finish a cuddle with real petting |
 | Closet | Put on any item |
 | Learn Sit | Master Sit |
-| Race in the Stadium | Finish a Stadium race |
+| Compete in the Stadium | Finish an open Stadium race (friend games don't count) |
+| Start a friends game | Send invites for a friend game. The pill offers it only to a linked account with at least one friend. |
 
 **What's open:** everything is available from the start (Home, Closet, Park, Pet Shop, Mini-games, Playdates, Training School, Stadium), including park finds. The Training School is not locked.
 
 ## 4. Suggested activities
 
-**Shipped.** The Training School is open from level 1; training suggestions still start at level 3. "Race in the Stadium" is in the pool; it completes when the pet finishes a race.
+**Shipped.** The Training School is open from level 1; training suggestions still start at level 3. "Compete in the Stadium" is in the pool; it completes when the pet finishes an open race. "Start a friends game" completes when the player sends friend-game invites, and is offered only to a linked account with at least one friend.
 
 Small goals the game offers, not things the pet asks for. Ignoring one costs nothing.
 
@@ -168,7 +169,8 @@ Small goals the game offers, not things the pet asks for. Ignoring one costs not
 | Play | Play ball, play with a specific owned toy | 1 |
 | Style | Wear a hat, try something new from the Closet | 1 |
 | Outing | Visit the park | 1 |
-| Competition | Race in the Stadium | 1 |
+| Competition | Compete in the Stadium | 1 |
+| Social | Start a friends game (needs a linked account and at least one friend) | 1 |
 | Training | Practice a trick 5 times, make progress on the trick in training | 3 |
 | Finds | Find something new at the park | 6 |
 
@@ -208,7 +210,7 @@ The lobby, sign-up, race call, and starting gate are in `docs/boop-boop-stadium-
 
 ## 9. Live races (phase 7)
 
-- Open scheduled races are for anyone online, guests included. Friends who sign up for the same slot and class are placed in the same race when there's room. Private races with friends only are the friend games addendum (`docs/boop-boop-friend-games-addendum.md`), which needs an account.
+- Open scheduled races are for anyone online, guests included. Friends who sign up for the same slot and class are placed in the same race when there's room. Private races with friends only are the friend games addendum (`docs/boop-boop-friend-games-addendum.md`), which needs an account. Think intramural vs. varsity: friend games give no XP, ribbons, trophies, race badges, or rest; open races are the record.
 - Within a class, fill races in sign-up order. When a race fills, open another.
 - The server sends one synchronized countdown start (Supabase Realtime).
 - Each phone simulates its own pet from its own player's input and broadcasts its state for others to display (Fun Run, Hurdles, Obstacle Course). Dock Dive shares each jump's result instead.

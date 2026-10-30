@@ -13,7 +13,7 @@ import { applyRaceLeap, applyStumble, clearPose, raceAirPx, raceHurdleSize, step
 import { skyAt, solarHour } from '../../actor/sky';
 import { playClearChime, playClipThud, preloadRaceSfx, releaseRaceSfx } from '../../audio/raceSfx';
 import { serverNow } from '../../db/accountMeta';
-import { classLabel, eventLabel, formatCountdown } from '../../sim/stadium';
+import { eventLabel, formatCountdown, raceTagLabel } from '../../sim/stadium';
 import type { PetState } from '../../sim/types';
 import { fetchRace, submitRaceReport, type RaceView } from '../../stadium/api';
 import { liveFinish, liveStateOf, raceSyncConfig, sampleLive } from '../../stadium/liveTrack';
@@ -427,7 +427,7 @@ export function HurdlesScreen({ race, pet, reducedMotion, onFinish, onExit }: Pr
                 {row.mine ? ' · you' : ' · NPC'} {row.finishMs == null ? 'DNF' : `${(row.finishMs / 1000).toFixed(2)}s`}
               </Text>
             ))}
-            <Text style={shared.copy}>{classLabel(race.classId)}.</Text>
+            <Text style={shared.copy}>{raceTagLabel(race)}.</Text>
           </View>
           {resultsReady ? (
             <CandyButton role="go" label="Back to the Stadium" onPress={onExit} />

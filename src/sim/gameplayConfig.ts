@@ -11,7 +11,8 @@ export type TutorialAction =
   | 'closet'
   | 'sit'
   | 'cuddle'
-  | 'race';
+  | 'race'
+  | 'friendGame';
 
 export type TutorialGoal = {
   action: TutorialAction;
@@ -91,6 +92,16 @@ export const gameplayConfig = {
     // Testing: Obstacle Course without Jump the Hurdle and Through the Tunnel. Restore before launch.
     waiveObstacleSkill: true,
   },
+  // Display defaults. The server's stadium_config row decides the delays and the invite cap.
+  friendGames: {
+    events: ['funRun', 'hurdles', 'obstacle'] as const,
+    delaysMin: [2, 5, 15] as const,
+    defaultDelayMin: 5,
+    maxInvites: 5,
+    recentShown: 5,
+    heartbeatMs: 3000,
+    invitePollMs: 20000,
+  },
   goals: [
     { action: 'feed', label: 'Feed' },
     { action: 'water', label: 'Fill the water bowl' },
@@ -102,6 +113,7 @@ export const gameplayConfig = {
     { action: 'cuddle', label: 'Cuddle' },
     { action: 'closet', label: 'Put on something from the Closet' },
     { action: 'sit', label: 'Learn Sit' },
-    { action: 'race', label: 'Race in the Stadium' },
+    { action: 'race', label: 'Compete in the Stadium' },
+    { action: 'friendGame', label: 'Start a friends game' },
   ] as const satisfies readonly TutorialGoal[],
 };

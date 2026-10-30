@@ -13,6 +13,7 @@ import {
   Sparkles,
   Volleyball,
   Flag,
+  Users,
 } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
 
@@ -36,6 +37,7 @@ function iconFor(id: string): LucideIcon {
   if (action === 'hat' || action === 'closet') return Shirt;
   if (action === 'find') return Sparkles;
   if (action === 'race') return Flag;
+  if (action === 'friendGame') return Users;
   if (action.startsWith('practice:') || action.startsWith('progress:') || action === 'sit' || action === 'school') {
     return PawPrint;
   }
