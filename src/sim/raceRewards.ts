@@ -2,7 +2,6 @@ import { localDay } from '../economy/clock';
 import { gameplayConfig } from './gameplayConfig';
 import { grantXp, noteTutorialAction } from './progress';
 import { syncBadges } from './badges';
-import { racesOf } from './stadium';
 import { completeSuggestion } from './suggestions';
 import type { PetState } from './types';
 
@@ -52,7 +51,9 @@ export function applyRaceRewards(state: PetState, finish: RaceFinish, now: numbe
     appliedRaceIds: [...applied, finish.raceId],
     raceXpDay: day,
     raceXpCount: pay ? count + 1 : count,
-    races: { ...racesOf(state), entered: true },
+    // The ticket is for the race that just ended. Keeping it made the next board
+    // look like the pet was still signed up.
+    races: { signup: null, entered: true },
   };
   if (pay) {
     next = grantXp(next, xpForPlace(finish.place));

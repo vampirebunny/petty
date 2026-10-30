@@ -105,15 +105,42 @@ Deno.serve(async (req) => {
     return json({ error: 'load failed' }, 500);
   }
 
-  const entries = (entryRows.data ?? []) as EntryRow[];
-  const mine = entries.find(
-    (row) => row.player_id === caller.id && !row.is_npc && (row.status === 'checked_in' || row.status === 'finished'),
+  let entries = (entryRows.data ?? []) as EntryRow[];
+  let mine = entries.find(
+    (row) =>
+      row.player_id === caller.id &&
+      !row.is_npc &&
+      (row.status === 'signed_up' || row.status === 'checked_in' || row.status === 'finished'),
   );
   if (!mine) {
     return json({ error: 'not in race' }, 403);
   }
 
-  if (loaded.data.status === 'finished' || mine.finish_ms != null || mine.status === 'finished') {
+  // The report can arrive before line-up lock has checked the pet in. Advance once
+  // so the replay uses the locked modifiers, then accept the result either way.
+  if (mine.status === 'signed_up' || (mine.status === 'checked_in' && mine.modifiers == null)) {
+    const advanced = await admin.rpc('advance_races');
+    if (advanced.error) {
+      console.error('race_report advance failed', advanced.error);
+      return json({ error: 'load failed' }, 500);
+    }
+    const again = await admin
+      .from('race_entries')
+      .select('id, is_npc, player_id, status, skill, modifiers, finish_ms')
+      .eq('race_id', raceId);
+    if (again.error) {
+      console.error('race_report entries failed', again.error);
+      return json({ error: 'load failed' }, 500);
+    }
+    entries = (again.data ?? []) as EntryRow[];
+    mine = entries.find((row) => row.player_id === caller.id && !row.is_npc);
+    if (!mine) {
+      return json({ error: 'not in race' }, 403);
+    }
+  }
+
+  const stillIn = mine.status === 'signed_up' || mine.status === 'checked_in';
+  if (!stillIn) {
     const state = await admin.rpc('race_state_for', { p_race_id: raceId, p_viewer_id: caller.id });
     if (state.error) {
       return json({ error: state.error.message }, 500);

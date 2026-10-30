@@ -1,5 +1,6 @@
 import { getSupabase } from '../compliance/supabase';
 import { noteServerTime } from '../db/accountMeta';
+import { Sentry } from '../monitoring/sentry';
 import { kick } from '../sync/queue';
 import {
   isRaceClass,
@@ -308,6 +309,18 @@ export async function gateHeartbeat(entryId: string): Promise<StadiumResult<Race
   return race ? { ok: true, data: race } : { ok: false, offline: false, reason: 'bad race' };
 }
 
+// A non-2xx reply only says "non-2xx status code"; the server's own message is in the body.
+async function functionErrorReason(error: unknown, fallback: string): Promise<string> {
+  const context = (error as { context?: unknown }).context;
+  if (!(context instanceof Response)) return fallback;
+  try {
+    const body = rowOf(await context.clone().json());
+    return typeof body.error === 'string' ? `${context.status} ${body.error}` : `${context.status} ${fallback}`;
+  } catch {
+    return `${context.status} ${fallback}`;
+  }
+}
+
 export async function submitRaceReport(
   raceId: string,
   claimedFinishMs: number | null,
@@ -329,7 +342,12 @@ export async function submitRaceReport(
     });
     if (error) {
       const message = error.message ?? '';
-      return { ok: false, offline: offlinePattern.test(message), reason: message };
+      if (offlinePattern.test(message)) {
+        return { ok: false, offline: true, reason: message };
+      }
+      const reason = await functionErrorReason(error, message);
+      Sentry.captureMessage('race_report rejected', { level: 'warning', extra: { raceId, reason } });
+      return { ok: false, offline: false, reason };
     }
     const payload = rowOf(data);
     if (typeof payload.error === 'string') {

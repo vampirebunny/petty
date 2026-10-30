@@ -78,6 +78,7 @@ export function StadiumScreen({ pet, reducedMotion, openGate, moodTreats, onClos
   const [busy, setBusy] = useState(false);
   const [width, setWidth] = useState(0);
   const petRef = useRef(pet);
+  const loadGen = useRef(0);
   const commitRef = useRef(onCommit);
   const boardRef = useRef(board);
   const screenRef = useRef(screen);
@@ -94,9 +95,12 @@ export function StadiumScreen({ pet, reducedMotion, openGate, moodTreats, onClos
   const signup = racesOf(pet).signup;
 
   const load = useCallback(async () => {
+    const gen = ++loadGen.current;
     let result = await fetchBoard(petRef.current.id);
+    if (gen !== loadGen.current) return;
     if (!result.ok && result.reason.includes('pet not synced')) {
       const pushed = await pushPetBeforeRead(petRef.current);
+      if (gen !== loadGen.current) return;
       if (pushed.pet !== petRef.current) {
         petRef.current = pushed.pet;
         commitRef.current(pushed.pet);
@@ -104,6 +108,7 @@ export function StadiumScreen({ pet, reducedMotion, openGate, moodTreats, onClos
       result = pushed.reason
         ? { ok: false, offline: false, reason: pushed.reason }
         : await fetchBoard(pushed.pet.id);
+      if (gen !== loadGen.current) return;
     }
     if (!result.ok) {
       setBoardReason(result.reason);

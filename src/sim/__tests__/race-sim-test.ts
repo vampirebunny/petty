@@ -86,6 +86,28 @@ it('applies race rewards once and skips race XP during the tutorial', () => {
   expect(paid.level).toBe(pet.level + 1);
   expect(paid.tutorialSeen).toContain('race');
   expect(paid.races?.entered).toBe(true);
+  expect(paid.races?.signup).toBeNull();
+  const signed = applyRaceRewards(
+    {
+      ...pet,
+      races: {
+        signup: {
+          entryId: 'e',
+          raceId: 'race-1',
+          eventId: 'ev',
+          event: 'funRun',
+          startsAt: now,
+          classId: 'beginner',
+          lane: 1,
+        },
+        entered: false,
+      },
+    },
+    { ...finish, raceId: 'race-signed' },
+    now,
+  );
+  expect(signed.races?.signup).toBeNull();
+  expect(signed.races?.entered).toBe(true);
   expect(paid.badges).toContain('off-to-the-races');
   expect(applyRaceRewards(paid, finish, now)).toBe(paid);
 

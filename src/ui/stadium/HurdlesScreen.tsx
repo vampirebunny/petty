@@ -16,7 +16,7 @@ import { serverNow } from '../../db/accountMeta';
 import { classLabel, eventLabel, formatCountdown } from '../../sim/stadium';
 import type { PetState } from '../../sim/types';
 import { fetchRace, submitRaceReport, type RaceView } from '../../stadium/api';
-import { hurdlesLog } from '../../stadium/raceReport';
+import { deliverRaceReport, hurdlesLog } from '../../stadium/raceReport';
 import {
   coastRunner,
   createHurdleRunner,
@@ -179,10 +179,11 @@ export function HurdlesScreen({ race, pet, reducedMotion, onFinish, onExit }: Pr
           setWaiting(true);
           setProvisional(standings);
           const mineStanding = standings.find((row) => row.mine);
-          void submitRaceReport(race.raceId, mineStanding?.finishMs ?? null, hurdlesLog(jumps.current)).then((result) => {
-            if (result.ok) grantRef.current(result.data);
-            else if (result.offline) sent.current = false;
-          });
+          const log = hurdlesLog(jumps.current);
+          void deliverRaceReport(
+            () => submitRaceReport(race.raceId, mineStanding?.finishMs ?? null, log),
+            (view) => grantRef.current(view),
+          );
         }
       }
 
@@ -328,7 +329,10 @@ export function HurdlesScreen({ race, pet, reducedMotion, onFinish, onExit }: Pr
     // Re-check the clock: `going` can lag the 50 ms render tick right at Go!.
     const at = serverNow();
     if (!raceInputOpen(at, race.startsAt, finished)) return;
-    jumps.current.push(at - race.startsAt);
+    // The live sim can run up to one step past `at`. Stamp the tap no earlier than the
+    // step it lands in, or the scene skips it while the replay and the results count it.
+    const simMs = mine ? (runners.current.get(mine.key)?.tMs ?? 0) : 0;
+    jumps.current.push(Math.max(at - race.startsAt, simMs));
   };
 
   return (

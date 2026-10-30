@@ -16,7 +16,7 @@ import { serverNow } from '../../db/accountMeta';
 import { classLabel, eventLabel } from '../../sim/stadium';
 import type { PetState } from '../../sim/types';
 import { fetchRace, submitRaceReport, type RaceView } from '../../stadium/api';
-import { dockDiveLog } from '../../stadium/raceReport';
+import { deliverRaceReport, dockDiveLog } from '../../stadium/raceReport';
 import { useDiveFlags } from '../../stadium/diveSync';
 import {
   advanceDive,
@@ -332,15 +332,12 @@ export function DockDiveScreen({ race, pet, reducedMotion, onFinish, onExit }: P
         );
         setWaiting(true);
         const mineScored = scored.find((item) => item.row.mine);
-        void submitRaceReport(
-          race.raceId,
-          mineScored?.score.bestAtMs ?? null,
-          dockDiveLog(inputs.current),
-          mineScored ? Math.round(mineScored.score.bestM * 10) : null,
-        ).then((result) => {
-          if (result.ok) grantRef.current(result.data);
-          else if (result.offline) sent.current = false;
-        });
+        const log = dockDiveLog(inputs.current);
+        const score = mineScored ? Math.round(mineScored.score.bestM * 10) : null;
+        void deliverRaceReport(
+          () => submitRaceReport(race.raceId, mineScored?.score.bestAtMs ?? null, log, score),
+          (view) => grantRef.current(view),
+        );
       }
 
       // Draw the player's pet from the attempt it is in, or the one it is coming back from.

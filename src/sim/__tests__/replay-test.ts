@@ -69,6 +69,16 @@ it('replays a whole Obstacle race of RUN taps the same as the phone', () => {
   expect(replayed.finishMs).toBe(local.finishMs);
 });
 
+it('replays Obstacle NPCs exactly as the race screen runs them', () => {
+  for (const configVersion of ['obstacle-5', 'obstacle-6', OBSTACLE_VERSION]) {
+    const obstacleRace = { event: 'obstacle' as const, classId: 'beginner' as const, seed: 'seed-1', configVersion };
+    for (const [entryId, skill] of [['npc-a', 0.2], ['npc-b', 0.9]] as const) {
+      const screen = runObstacle([], null, { classId: 'beginner', skill, seed: `seed-1:${entryId}` }, 'beginner', configVersion, 'seed-1');
+      expect(replayNpc(obstacleRace, entryId, skill).finishMs).toBe(screen.finishMs);
+    }
+  }
+});
+
 it('knows which Obstacle config versions this bundle can replay', () => {
   expect(isObstacleVersion(OBSTACLE_VERSION)).toBe(true);
   expect(isObstacleVersion('obstacle-1')).toBe(true);

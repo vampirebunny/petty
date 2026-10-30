@@ -17,7 +17,7 @@ import { serverNow } from '../../db/accountMeta';
 import { classLabel, eventLabel, formatCountdown } from '../../sim/stadium';
 import type { PetState } from '../../sim/types';
 import { fetchRace, submitRaceReport, type RaceView } from '../../stadium/api';
-import { obstacleLog } from '../../stadium/raceReport';
+import { deliverRaceReport, obstacleLog } from '../../stadium/raceReport';
 import {
   coastRunner,
   createObstacleRunner,
@@ -201,10 +201,11 @@ export function ObstacleScreen({ race, pet, reducedMotion, onFinish, onExit }: P
           setWaiting(true);
           setProvisional(standings);
           const mineStanding = standings.find((row) => row.mine);
-          void submitRaceReport(race.raceId, mineStanding?.finishMs ?? null, obstacleLog(inputs.current)).then((result) => {
-            if (result.ok) grantRef.current(result.data);
-            else if (result.offline) sent.current = false;
-          });
+          const log = obstacleLog(inputs.current);
+          void deliverRaceReport(
+            () => submitRaceReport(race.raceId, mineStanding?.finishMs ?? null, log),
+            (view) => grantRef.current(view),
+          );
         }
       }
 
@@ -374,7 +375,10 @@ export function ObstacleScreen({ race, pet, reducedMotion, onFinish, onExit }: P
     // Re-check the clock: `going` can lag the 50 ms render tick right at Go!.
     const at = serverNow();
     if (!raceInputOpen(at, race.startsAt, finished)) return;
-    inputs.current.push({ tMs: at - race.startsAt, button });
+    // The live sim can run up to one step past `at`. Stamp the press no earlier than the
+    // step it lands in, or the scene skips it while the replay and the results count it.
+    const simMs = mine ? (runners.current.get(mine.key)?.tMs ?? 0) : 0;
+    inputs.current.push({ tMs: Math.max(at - race.startsAt, simMs), button });
   };
 
   return (

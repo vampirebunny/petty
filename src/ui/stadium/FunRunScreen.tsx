@@ -16,7 +16,7 @@ import { serverNow } from '../../db/accountMeta';
 import { classLabel, eventLabel, formatCountdown } from '../../sim/stadium';
 import type { PetState } from '../../sim/types';
 import { fetchRace, submitRaceReport, type RaceView } from '../../stadium/api';
-import { funRunLog } from '../../stadium/raceReport';
+import { deliverRaceReport, funRunLog } from '../../stadium/raceReport';
 import {
   coastRunner,
   configFor,
@@ -176,10 +176,11 @@ export function FunRunScreen({ race, pet, reducedMotion, onFinish, onExit }: Pro
           setWaiting(true);
           setProvisional(standings);
           const mineStanding = standings.find((row) => row.mine);
-          void submitRaceReport(race.raceId, mineStanding?.finishMs ?? null, funRunLog(taps.current)).then((result) => {
-            if (result.ok) grantRef.current(result.data);
-            else if (result.offline) sent.current = false;
-          });
+          const log = funRunLog(taps.current);
+          void deliverRaceReport(
+            () => submitRaceReport(race.raceId, mineStanding?.finishMs ?? null, log),
+            (view) => grantRef.current(view),
+          );
         }
       }
       }
@@ -288,7 +289,10 @@ export function FunRunScreen({ race, pet, reducedMotion, onFinish, onExit }: Pro
     // Re-check the clock: `going` can lag the 50 ms render tick right at Go!.
     const at = serverNow();
     if (!raceInputOpen(at, race.startsAt, finished)) return;
-    taps.current.push(at - race.startsAt);
+    // The live sim can run up to one step past `at`. Stamp the tap no earlier than the
+    // step it lands in, or the scene skips it while the replay and the results count it.
+    const simMs = mine ? (runners.current.get(mine.key)?.tMs ?? 0) : 0;
+    taps.current.push(Math.max(at - race.startsAt, simMs));
     const local = Date.now();
     if (local - lastHaptic.current < 50) return;
     lastHaptic.current = local;
