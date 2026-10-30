@@ -202,7 +202,7 @@ export function stepDive(
   state.tMs += stepMs;
 }
 
-/** Steps a dive up to `untilMs` (ms from that attempt's GO). */
+/** Runs every step that ends by `untilMs` (ms from that attempt's GO), so later inputs still land. */
 export function advanceDive(
   state: DiveState,
   inputs: readonly DiveInput[],
@@ -212,7 +212,7 @@ export function advanceDive(
   version: string,
 ): void {
   const stepMs = 1000 / dockDiveConfigFor(version).stepHz;
-  while (!state.result && state.tMs <= untilMs) {
+  while (!state.result && state.tMs + stepMs <= untilMs) {
     const end = state.tMs + stepMs;
     const due = inputs.filter((input) => input.at >= state.tMs && input.at < end);
     stepDive(state, due, mods, classId, version);

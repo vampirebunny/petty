@@ -1,5 +1,7 @@
 import {
+  advanceDive,
   compareDives,
+  createDive,
   diveBonus,
   diveClass,
   diveScore,
@@ -90,6 +92,17 @@ describe('dock dive sim', () => {
   it('caps stamina and mood at +10%', () => {
     expect(diveBonus({ ...mods, stamina: 100, mood: 100 }, version)).toBeCloseTo(1.1, 5);
     expect(diveBonus({ ...mods, stamina: 500, mood: 500 }, version)).toBeCloseTo(1.1, 5);
+  });
+
+  it('plays the same dive live, tick by tick, as the replay', () => {
+    const inputs = peakAt(30);
+    const state = createDive();
+    const seen: typeof inputs = [];
+    for (let at = 0; at <= 6000 && !state.result; at += 50) {
+      for (const input of inputs) if (input.at <= at && !seen.includes(input)) seen.push(input);
+      advanceDive(state, seen, at, mods, 'beginner', version);
+    }
+    expect(state.result).toEqual(runDive(inputs, mods, 'beginner', version));
   });
 
   it('repeats NPC jumps from the seed', () => {
