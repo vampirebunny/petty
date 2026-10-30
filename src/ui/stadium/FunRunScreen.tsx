@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Canvas, Picture, Skia } from '@shopify/react-native-skia';
+import { Canvas, Picture, Skia, useFont } from '@shopify/react-native-skia';
 import type { SkPicture } from '@shopify/react-native-skia';
 import * as Haptics from 'expo-haptics';
 import { useSharedValue } from 'react-native-reanimated';
@@ -16,7 +16,9 @@ import { serverNow } from '../../db/accountMeta';
 import { classLabel, eventLabel, formatCountdown } from '../../sim/stadium';
 import type { PetState } from '../../sim/types';
 import { fetchRace, submitRaceReport, type RaceView } from '../../stadium/api';
+import { liveFinish, liveStateOf, raceSyncConfig, sampleLive } from '../../stadium/liveTrack';
 import { deliverRaceReport, funRunLog } from '../../stadium/raceReport';
+import { useRaceSync } from '../../stadium/raceSync';
 import {
   coastRunner,
   configFor,
@@ -32,7 +34,7 @@ import { fontFamily } from '../font';
 import { CandyButton } from './CandyButton';
 import { RaceAction } from './RaceAction';
 import { raceInputOpen } from './raceCountdown';
-import { actorOf, breedOf, classOf, modsOf, placeSuffix } from './raceField';
+import { actorOf, breedOf, classOf, modsOf, placeSuffix, raceLabelFont, raceLabelSize } from './raceField';
 import { useRaceCountdown } from './useRaceCountdown';
 import { ink, shared } from './parts';
 
@@ -90,6 +92,10 @@ export function FunRunScreen({ race, pet, reducedMotion, onFinish, onExit }: Pro
   const [lineup, setLineup] = useState(race);
   const field = useMemo(() => [...lineup.players, ...lineup.npcs], [lineup.npcs, lineup.players]);
   const mine = field.find((row) => row.mine) ?? race.players[0];
+  const live = lineup.players.length > 1;
+  const { remotes, send } = useRaceSync(race.raceId, live);
+  const stale = useRef(new Set<string>());
+  const labelFont = useFont(raceLabelFont, raceLabelSize);
   const config = configFor(race.configVersion);
   const finished = provisional != null || finalRace?.status === 'finished';
   const { untilStart, going, beat, countLabel } = useRaceCountdown(race.startsAt, finished);
@@ -139,6 +145,19 @@ export function FunRunScreen({ race, pet, reducedMotion, onFinish, onExit }: Pro
       if (going) {
       const stepMs = 1000 / config.stepHz;
       for (const row of field) {
+        if (!row.mine && !row.npc) {
+          const view = sampleLive(remotes.current.get(row.key), elapsed - raceSyncConfig.interpDelayMs, Date.now());
+          if (view?.stale) stale.current.add(row.key);
+          else stale.current.delete(row.key);
+          runners.current.set(row.key, {
+            ...createRunner(),
+            x: view?.x ?? 0,
+            v: view?.v ?? 0,
+            tMs: view?.t ?? 0,
+            finishMs: view?.finishMs ?? null,
+          });
+          continue;
+        }
         const state = runners.current.get(row.key) ?? createRunner();
         runners.current.set(row.key, state);
         const npc = row.npc
@@ -161,9 +180,13 @@ export function FunRunScreen({ race, pet, reducedMotion, onFinish, onExit }: Pro
         }
       }
       player = mine ? runners.current.get(mine.key) ?? null : null;
+      if (live && mine && player) send(liveStateOf(mine.key, player));
       if (player && (player.finishMs != null || player.tMs >= config.maxMs)) {
         const standings = field
           .map((row) => {
+            if (!row.mine && !row.npc) {
+              return { key: row.key, name: row.petName, finishMs: liveFinish(remotes.current.get(row.key)), place: null, mine: false };
+            }
             const spec = row.npc
               ? { classId: classOf(race.classId), skill: row.skill ?? 0.5, seed: `${race.seed}:${row.key}` }
               : null;
@@ -228,10 +251,11 @@ export function FunRunScreen({ race, pet, reducedMotion, onFinish, onExit }: Pro
               x: runners.current.get(row.key)?.x ?? 0,
               name: row.petName,
               mine: row.mine,
+              stale: stale.current.has(row.key),
               actor: actors.current.get(row.key) ?? actorOf(row, livePet, breedOf(row, livePet)),
               breed: breedOf(row, livePet),
             }));
-        drawRaceTrack(canvas, width, trackH, env, camera, racers, config.distanceM, legsPerMeter);
+        drawRaceTrack(canvas, width, trackH, env, camera, racers, config.distanceM, legsPerMeter, labelFont);
         picture.value = recorder.finishRecordingAsPicture();
       }
       const xs: Record<string, number> = {};
@@ -243,7 +267,7 @@ export function FunRunScreen({ race, pet, reducedMotion, onFinish, onExit }: Pro
       alive = false;
       clearInterval(timer);
     };
-  }, [config.distanceM, config.maxMs, config.stepHz, field, finished, going, mine, picture, race.classId, race.configVersion, race.raceId, race.seed, race.startsAt, reducedMotion, stageHeight, width]);
+  }, [config.distanceM, config.maxMs, config.stepHz, field, finished, going, labelFont, live, mine, picture, race.classId, race.configVersion, race.raceId, race.seed, race.startsAt, reducedMotion, remotes, send, stageHeight, width]);
 
   // The screen opens before the start, while the server may still be adding NPCs.
   const settled = lineup.status === 'running' || lineup.status === 'finished' || lineup.status === 'cancelled';

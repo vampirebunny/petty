@@ -24,6 +24,9 @@ export function getSupabase(): SupabaseClient | null {
         detectSessionInUrl: false,
         flowType: 'pkce',
       },
+      // Realtime protocol 2.0.0 sends broadcasts as binary frames decoded with TextDecoder, which Hermes
+      // doesn't reliably provide; the decode throws and race broadcasts never arrive. 1.0.0 is plain JSON.
+      realtime: { vsn: '1.0.0' },
     });
   }
   return client;

@@ -24,9 +24,11 @@ These override the sections below. The old addendum is folded in here.
 
 **Modifiers and config.** At lock, the server snapshots energy, mood, and attributes from the pet's last synced document. Config versions are immutable. Each race keeps the version it was created with.
 
-**Code.** Race rules live in `supabase/functions/_shared/race-sim/`. Solo races ship before the replay Edge Function. Live races need that function and Realtime sync, which are later. The track scrolls with parallax and uses the shared sky and weather. The running, leap, and stumble poses are the existing pet rig (`docs/boop-boop-race-poses-cursor-brief.md`). Fun Run has no hurdles, so the leap and the stumble are checked from the dev preview on the race screen.
+**Live races.** Open sign-ups are for anyone online, guests included (a guest has no handle, so the name tag shows the pet name only). Fun Run, Hurdles, and Obstacle Course stream each pet's state (section 5). Dock Dive keeps its per-jump flags on `race:{raceId}:dives`. Other players' pets show their real coat, age, and outfit from the server copy of the pet. A player who drops mid-race keeps racing on their own phone; other phones freeze that pet and show "Reconnecting", and a missing report is DNF. There is no NPC autoplay.
 
-**Build order.** (1) sim and config, (2) race screen and scene, (3) NPCs and solo Fun Run, (4) scene polish, (5) ~~server replay Edge Function~~ (**shipped** — `20261029450000_race_replay.sql` applied; `race_report` deployed), (6) live races.
+**Code.** Race rules live in `supabase/functions/_shared/race-sim/`. Live races use the replay Edge Function and Realtime sync. The track scrolls with parallax and uses the shared sky and weather. The running, leap, and stumble poses are the existing pet rig (`docs/boop-boop-race-poses-cursor-brief.md`). Fun Run has no hurdles, so the leap and the stumble are checked from the dev preview on the race screen.
+
+**Build order.** (1) sim and config, (2) race screen and scene, (3) NPCs and solo Fun Run, (4) scene polish, (5) ~~server replay Edge Function~~ (**shipped** — `20261029450000_race_replay.sql` applied; `race_report` deployed), (6) ~~live races~~ (**shipped** — Fun Run, Hurdles, and Obstacle Course stream state on `race:{raceId}:run`; real looks from `20261030100000_race_state_pet_looks.sql`).
 
 **References**
 - Design canvas "Boop Boop Stadium", screens 6–8 (Fun Run, Hurdles, Results), for layout.
@@ -114,10 +116,12 @@ To make replays match exactly:
 - **Inputs are timestamped** in ms from GO! and applied on the step they fall in. The live loop can run up to one step past the clock, so a press is stamped no earlier than the player's current sim time (`max(now − start, runner.tMs)`). Otherwise the scene skips a tap that the provisional results and the server replay still count.
 
 **Live sync (Supabase Realtime)**
-- One broadcast channel per race: `race:{raceId}`.
-- About 10 times a second, each phone sends `{ petId, t, x, v, air, ev }`: race time, distance, speed, airborne flag, and any event such as "clipped hurdle 3".
-- Other pets are drawn about 120 ms behind and smoothed between updates, so they glide instead of jumping. A slow connection only makes *other* pets look slightly behind; it never changes the player's own race or results.
-- **Rounds-type events** (Sniff Out, Trick Show) also use the channel for server-sent round messages: the same pattern or shuffle at the same server time for everyone, with answers sent back with timestamps. The hooks go in now; the details come with those event briefs.
+- Fun Run, Hurdles, and Obstacle Course use one broadcast channel per race: `race:{raceId}:run` (the gate's presence channel on `race:{raceId}` may still be closing). Code: `src/stadium/raceSync.ts`.
+- About 10 times a second (`raceSyncConfig.syncHz`), each phone sends its own runner state: `{ entryId, t, x, v, jumpX, airM, duckX, duckUntilX, clipAtMs, outcomes, outcomeMs, finishMs }`. Those are the same fields the renderers read for the local pet, so other lanes leap, duck, tip hurdles, and bonk tunnels from the sender's own outcomes.
+- Other humans are drawn only from these updates. Phones never simulate them. Their provisional finish comes from the broadcast `finishMs`.
+- Other pets are drawn 120 ms behind (`interpDelayMs`) and interpolated between updates, so they glide instead of jumping. A slow connection only makes *other* pets look slightly behind; it never changes the player's own race or results. Updates older than `staleMs` freeze that pet and show "Reconnecting".
+- The stream runs only when the line-up has two or more live players.
+- The Supabase client pins Realtime protocol `1.0.0` (`src/compliance/supabase.ts`). Protocol `2.0.0` encodes broadcasts as binary frames that Hermes does not decode reliably, so presence works but position updates never arrive.
 
 **NPCs are never sent over the network.** NPCs only appear in solo races (Stadium brief), so the player's phone simulates them from the race seed.
 
@@ -220,4 +224,4 @@ NPCs run at full speed from Go!. With ordinary mood and energy, about 4.5 taps p
 
 ## 10. Build order
 
-See Decisions. Fun Run, Hurdles, Dock Dive, and Obstacle Course are playable. Solo reports go through `race_report`. Next: live races with friends.
+See Decisions. Fun Run, Hurdles, Dock Dive, and Obstacle Course are playable. Solo reports go through `race_report`. Live open races are shipped (section 5). Next: friend games (`docs/boop-boop-friend-games-addendum.md`).

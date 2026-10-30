@@ -1,5 +1,5 @@
 import { Skia } from '@shopify/react-native-skia';
-import type { SkCanvas } from '@shopify/react-native-skia';
+import type { SkCanvas, SkFont } from '@shopify/react-native-skia';
 
 import { bodyFrame } from '../../actor';
 import type { Actor, Breed } from '../../actor';
@@ -38,10 +38,15 @@ export type TrackRacer = {
   x: number;
   name: string;
   mine: boolean;
+  /** A live racer whose updates stopped: drawn faded, frozen, with "Reconnecting" over it. */
+  stale?: boolean;
   actor: Actor;
   breed: Breed;
   course?: TrackCourse;
 };
+
+const staleAlpha = 0.45;
+const staleLabel = 'Reconnecting';
 
 function paint(color: string) {
   const p = Skia.Paint();
@@ -97,6 +102,7 @@ export function drawRaceTrack(
   racers: TrackRacer[],
   distanceM: number,
   legsPerMeter: number = racePoses.legsPerMeter,
+  labelFont: SkFont | null = null,
 ): void {
   const trackTop = height * 0.42;
   const trackH = height - trackTop;
@@ -181,6 +187,16 @@ export function drawRaceTrack(
       if (racer.x < distanceM) drawOffscreen(c, 10, footY - backLaneH * 0.5, -1);
     } else if (x > width + 40) {
       if (racer.x < distanceM) drawOffscreen(c, width - 10, footY - backLaneH * 0.5, 1);
+    } else if (racer.stale) {
+      const fade = Skia.Paint();
+      fade.setAlphaf(staleAlpha);
+      c.saveLayer(fade);
+      drawRacer(c, x, footY, laneFit.fit, racer, env);
+      c.restore();
+      if (labelFont) {
+        const labelX = Math.max(4, Math.min(width - labelFont.getTextWidth(staleLabel) - 4, x - labelFont.getTextWidth(staleLabel) / 2));
+        c.drawText(staleLabel, labelX, footY - petH * backScale - 4, paint('rgba(74,53,96,0.85)'), labelFont);
+      }
     } else {
       drawRacer(c, x, footY, laneFit.fit, racer, env);
     }

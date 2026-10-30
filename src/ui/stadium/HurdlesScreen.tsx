@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { Canvas, Picture, Skia } from '@shopify/react-native-skia';
+import { Canvas, Picture, Skia, useFont } from '@shopify/react-native-skia';
 import type { SkPicture } from '@shopify/react-native-skia';
 import * as Haptics from 'expo-haptics';
 import { useSharedValue } from 'react-native-reanimated';
@@ -16,7 +16,9 @@ import { serverNow } from '../../db/accountMeta';
 import { classLabel, eventLabel, formatCountdown } from '../../sim/stadium';
 import type { PetState } from '../../sim/types';
 import { fetchRace, submitRaceReport, type RaceView } from '../../stadium/api';
+import { liveFinish, liveStateOf, raceSyncConfig, sampleLive } from '../../stadium/liveTrack';
 import { deliverRaceReport, hurdlesLog } from '../../stadium/raceReport';
+import { useRaceSync } from '../../stadium/raceSync';
 import {
   coastRunner,
   createHurdleRunner,
@@ -36,7 +38,7 @@ import { fontFamily } from '../font';
 import { CandyButton } from './CandyButton';
 import { RaceAction } from './RaceAction';
 import { raceInputOpen } from './raceCountdown';
-import { actorOf, breedOf, classOf, modsOf, placeSuffix } from './raceField';
+import { actorOf, breedOf, classOf, modsOf, placeSuffix, raceLabelFont, raceLabelSize } from './raceField';
 import { useRaceCountdown } from './useRaceCountdown';
 import { ink, shared } from './parts';
 
@@ -85,6 +87,10 @@ export function HurdlesScreen({ race, pet, reducedMotion, onFinish, onExit }: Pr
   const [lineup, setLineup] = useState(race);
   const field = useMemo(() => [...lineup.players, ...lineup.npcs], [lineup.npcs, lineup.players]);
   const mine = field.find((row) => row.mine) ?? race.players[0];
+  const live = lineup.players.length > 1;
+  const { remotes, send } = useRaceSync(race.raceId, live);
+  const stale = useRef(new Set<string>());
+  const labelFont = useFont(raceLabelFont, raceLabelSize);
   const classId = classOf(race.classId);
   const version = race.configVersion;
   const config = hurdlesConfigFor(version);
@@ -125,6 +131,25 @@ export function HurdlesScreen({ race, pet, reducedMotion, onFinish, onExit }: Pr
       let player: HurdleRunner | null = null;
       if (going) {
         for (const row of field) {
+          if (!row.mine && !row.npc) {
+            const view = sampleLive(remotes.current.get(row.key), elapsed - raceSyncConfig.interpDelayMs, Date.now());
+            if (view?.stale) stale.current.add(row.key);
+            else stale.current.delete(row.key);
+            const outcomes = (view?.outcomes ?? []) as HurdleOutcome[];
+            runners.current.set(row.key, {
+              ...createHurdleRunner(),
+              x: view?.x ?? 0,
+              v: view?.v ?? 0,
+              tMs: view?.t ?? 0,
+              finishMs: view?.finishMs ?? null,
+              jumpX: view?.jumpX ?? null,
+              clipAtMs: view?.clipAtMs ?? null,
+              outcomes,
+              outcomeMs: view?.outcomeMs ?? [],
+              next: outcomes.length,
+            });
+            continue;
+          }
           const state = runners.current.get(row.key) ?? createHurdleRunner();
           runners.current.set(row.key, state);
           const npc = row.npc ? { classId, skill: row.skill ?? 0.5, seed: `${race.seed}:${row.key}` } : null;
@@ -150,6 +175,7 @@ export function HurdlesScreen({ race, pet, reducedMotion, onFinish, onExit }: Pr
           }
         }
         player = mine ? runners.current.get(mine.key) ?? null : null;
+        if (live && mine && player) send(liveStateOf(mine.key, player, config.airM));
         if (player) {
           if (player.jumps.length > seen.current.jumps) {
             seen.current.jumps = player.jumps.length;
@@ -170,6 +196,9 @@ export function HurdlesScreen({ race, pet, reducedMotion, onFinish, onExit }: Pr
         if (player && (player.finishMs != null || player.tMs >= config.maxMs) && !sent.current) {
           const standings = field
             .map((row) => {
+              if (!row.mine && !row.npc) {
+                return { key: row.key, name: row.petName, finishMs: liveFinish(remotes.current.get(row.key)), place: null, mine: false };
+              }
               const npc = row.npc ? { classId, skill: row.skill ?? 0.5, seed: `${race.seed}:${row.key}` } : null;
               const result = runHurdles(row.mine ? jumps.current : [], row.mine ? playerMods.current : null, npc, classId, version, race.seed);
               return { key: row.key, name: row.petName, finishMs: result.finishMs, place: null, mine: row.mine };
@@ -256,6 +285,7 @@ export function HurdlesScreen({ race, pet, reducedMotion, onFinish, onExit }: Pr
             x: runner?.x ?? 0,
             name: row.petName,
             mine: row.mine,
+            stale: stale.current.has(row.key),
             actor: actors.current.get(row.key) ?? actorOf(row, livePet, breedOf(row, livePet)),
             breed: breedOf(row, livePet),
             course: {
@@ -270,7 +300,7 @@ export function HurdlesScreen({ race, pet, reducedMotion, onFinish, onExit }: Pr
             },
           };
         });
-        drawRaceTrack(canvas, width, trackH, env, follow, racers, distanceM, legsPerMeter);
+        drawRaceTrack(canvas, width, trackH, env, follow, racers, distanceM, legsPerMeter, labelFont);
         picture.value = recorder.finishRecordingAsPicture();
       }
       const xs: Record<string, number> = {};
@@ -282,7 +312,7 @@ export function HurdlesScreen({ race, pet, reducedMotion, onFinish, onExit }: Pr
       alive = false;
       clearInterval(timer);
     };
-  }, [classId, config, distanceM, field, going, hurdles, mine, picture, race.raceId, race.seed, race.startsAt, reducedMotion, stageHeight, version, width]);
+  }, [classId, config, distanceM, field, going, hurdles, labelFont, live, mine, picture, race.raceId, race.seed, race.startsAt, reducedMotion, remotes, send, stageHeight, version, width]);
 
   // The screen opens before the start, while the server may still be adding NPCs.
   const settled = lineup.status === 'running' || lineup.status === 'finished' || lineup.status === 'cancelled';

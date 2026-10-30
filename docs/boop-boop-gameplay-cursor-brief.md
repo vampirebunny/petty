@@ -31,7 +31,7 @@ Turn Boop Boop from a toy into a game. Add pet levels driven by XP, badges, sugg
 4. Map lock state for the Training School
 5. ~~Park finds~~ (**shipped** — see `docs/boop-boop-park-finds-brief.md`)
 6. Stadium (now specified in `docs/boop-boop-stadium-cursor-brief.md`, which supersedes sections 8 and 9 below)
-7. Live races with friends (also in the stadium brief)
+7. ~~Live races~~ (**shipped** — open races for anyone online, guests included), then friend games (`docs/boop-boop-friend-games-addendum.md`)
 
 Each phase should ship working on its own. Park finds landed ahead of levels. Levels, the tutorial, first-find XP, non-race badges and suggested activities are shipped. The Stadium lobby through the starting gate is shipped. Fun Run, Hurdles, Dock Dive, and Obstacle Course are playable solo races (`docs/boop-boop-race-foundation-cursor-brief.md`). Solo results go through the `race_report` Edge Function. Sniff Out, Trick Show, and Weave are cancelled and are not scheduled. Finds stay available from level 1. The Training School stays open from level 1.
 
@@ -204,16 +204,16 @@ Small goals the game offers, not things the pet asks for. Ignoring one costs not
 
 ## 8. Stadium and competitions
 
-The lobby, sign-up, race call, and starting gate are in `docs/boop-boop-stadium-cursor-brief.md`. The races themselves are in `docs/boop-boop-race-foundation-cursor-brief.md`. Fun Run, Hurdles, Dock Dive, and Obstacle Course are playable for solo races. Solo server replay is shipped (`race_report`). Sniff Out, Trick Show, and Weave are cancelled. Live races with friends come next. Trophies and the ribbon furniture wait for their own brief.
+The lobby, sign-up, race call, and starting gate are in `docs/boop-boop-stadium-cursor-brief.md`. The races themselves are in `docs/boop-boop-race-foundation-cursor-brief.md`. Fun Run, Hurdles, Dock Dive, and Obstacle Course are playable for solo races. Solo server replay is shipped (`race_report`). Sniff Out, Trick Show, and Weave are cancelled. Live open races are shipped; friend games follow. Trophies and the ribbon furniture wait for their own brief.
 
 ## 9. Live races (phase 7)
 
-- Friends only (mutual friends). Friends who sign up for the same slot and class are placed in the same race.
+- Open scheduled races are for anyone online, guests included. Friends who sign up for the same slot and class are placed in the same race when there's room. Private races with friends only are the friend games addendum (`docs/boop-boop-friend-games-addendum.md`), which needs an account.
 - Within a class, fill races in sign-up order. When a race fills, open another.
 - The server sends one synchronized countdown start (Supabase Realtime).
-- Each phone simulates its own pet from its own player's input and broadcasts position for others to display.
+- Each phone simulates its own pet from its own player's input and broadcasts its state for others to display (Fun Run, Hurdles, Obstacle Course). Dock Dive shares each jump's result instead.
 - The server confirms final times and rejects impossible input (e.g. sustained tap rates no human can hit).
-- A player who disconnects mid-race finishes on NPC autoplay.
+- A player who disconnects mid-race keeps racing on their own phone. Other phones freeze that pet and show "Reconnecting". A missing report is DNF. No NPC autoplay.
 
 ## Out of scope for now
 

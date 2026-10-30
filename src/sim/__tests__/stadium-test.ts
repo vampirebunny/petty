@@ -125,3 +125,35 @@ it('reads the server board, entry, and race line-up', () => {
   expect(race?.players[0].mine).toBe(true);
   expect(race?.npcs[0]).toMatchObject({ petName: 'Pip', npc: true, lane: 2 });
 });
+
+it('parses other players pet looks and outfits, but never for NPCs', () => {
+  const race = parseRace({
+    race_id: 'r',
+    status: 'running',
+    class: 'open',
+    event_type: 'hurdles',
+    starts_at: '2026-01-01T00:55:00Z',
+    entries: [
+      {
+        entry_id: 'friend',
+        lane: 2,
+        pet_name: 'Biscuit',
+        species: 'dog',
+        breed_id: 'corgi',
+        status: 'checked_in',
+        look: { coat: '#C9A27A', pattern: 'points', accent: '#222222', bogus: 1 },
+        equipped: { hat: 'top', glasses: 7 },
+        age_days: 22,
+      },
+      { entry_id: 'npc', lane: 3, pet_name: 'Pip', is_npc: true, look: { coat: '#fff' }, equipped: { hat: 'top' }, age_days: 4 },
+      { entry_id: 'old', lane: 4, pet_name: 'Moss', look: 'nope', equipped: [], age_days: -3 },
+    ],
+  });
+  expect(race?.players[0]).toMatchObject({
+    look: { coat: '#C9A27A', pattern: 'points', accent: '#222222' },
+    equipped: { hat: 'top' },
+    ageDays: 22,
+  });
+  expect(race?.npcs[0]).toMatchObject({ look: null, equipped: null, ageDays: null });
+  expect(race?.players[1]).toMatchObject({ look: null, equipped: null, ageDays: null });
+});

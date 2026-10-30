@@ -12,6 +12,7 @@ import {
   type RaceSignup,
   type SpeciesAllowed,
 } from '../sim/stadium';
+import type { Equipped, Look } from '../sim/types';
 import type { RaceReportInputLog } from './raceReport';
 
 export type { RaceReportInputLog } from './raceReport';
@@ -69,6 +70,10 @@ export type LineupRow = {
   place: number | null;
   coat: string | null;
   breedId: string | null;
+  /** Other players' pets: coat, outfit, and age from the server copy of the pet. Null for NPCs. */
+  look: Look | null;
+  equipped: Equipped | null;
+  ageDays: number | null;
   /** Distance events: best distance in tenths of a meter. */
   scoreDm: number | null;
   /** Distance events: each attempt's distance in meters, in order. */
@@ -208,10 +213,35 @@ function modifiersOf(value: unknown): RaceModifiers | null {
   };
 }
 
+function lookOf(value: unknown): Look | null {
+  const row = rowOf(value);
+  const coat = text(row.coat);
+  if (!coat) return null;
+  const look: Look = { coat };
+  if (row.pattern === 'stripes' || row.pattern === 'points' || row.pattern === 'bicolor' || row.pattern === 'none') {
+    look.pattern = row.pattern;
+  }
+  const accent = text(row.accent);
+  if (accent) look.accent = accent;
+  const eyeColor = text(row.eyeColor);
+  if (eyeColor) look.eyeColor = eyeColor;
+  return look;
+}
+
+function equippedOf(value: unknown): Equipped | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const out: Record<string, string> = {};
+  for (const [slot, id] of Object.entries(value as Row)) {
+    if (typeof id === 'string' && id) out[slot] = id;
+  }
+  return out as Equipped;
+}
+
 function lineupRow(value: unknown, index: number, npc: boolean): LineupRow {
   const item = rowOf(value);
   const coat = rowOf(item.coat);
   const detail = rowOf(item.detail);
+  const ageDays = num(item.age_days);
   return {
     key: text(item.entry_id) ?? `${npc ? 'npc' : 'player'}-${index}`,
     lane: num(item.lane) ?? index + 1,
@@ -228,6 +258,9 @@ function lineupRow(value: unknown, index: number, npc: boolean): LineupRow {
     place: num(item.place),
     coat: text(coat.coat),
     breedId: text(item.breed_id),
+    look: npc ? null : lookOf(item.look),
+    equipped: npc ? null : equippedOf(item.equipped),
+    ageDays: npc || ageDays == null || ageDays < 0 ? null : ageDays,
     scoreDm: num(item.score_dm),
     attemptsM: Array.isArray(detail.attempts_m) ? detail.attempts_m.flatMap((m) => num(m) ?? []) : [],
     bestAttempt: num(detail.best_attempt),
