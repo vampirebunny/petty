@@ -165,7 +165,7 @@ Computed once at GO! from the pet's current energy and mood (the bars on screen)
 
 | Input | Effect (Fun Run) | Notes for later events |
 | --- | --- | --- |
-| Stamina | How much late-race tap power fades | Weave rhythm forgiveness, Dock Dive charge hold |
+| Stamina | How much late-race tap power fades | Weave rhythm forgiveness, Dock Dive distance (up to +5%) |
 | Agility | (no effect) | Hurdles and Obstacle Course zone width, Weave timing window |
 | Intelligence | (no effect) | Trick Show demo pace or one free mistake, Sniff Out shuffle readability |
 | Energy | Shifts each tap and the top-speed cap | All races |
