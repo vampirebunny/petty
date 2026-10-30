@@ -111,7 +111,7 @@ The camera follows the player's own pet, which sits about a third of the way fro
 To make replays match exactly:
 - **Fixed timestep** (60 steps per second). Draw at whatever frame rate the phone runs, interpolating between steps.
 - **No `Math.random` inside the sim.** Use a seeded generator (e.g. mulberry32) with the seed stored on the race.
-- **Inputs are timestamped** in ms from GO! and applied on the step they fall in.
+- **Inputs are timestamped** in ms from GO! and applied on the step they fall in. The live loop can run up to one step past the clock, so a press is stamped no earlier than the player's current sim time (`max(now − start, runner.tMs)`). Otherwise the scene skips a tap that the provisional results and the server replay still count.
 
 **Live sync (Supabase Realtime)**
 - One broadcast channel per race: `race:{raceId}`.
@@ -138,6 +138,8 @@ The server:
 4. **Uses the replayed finish time / score**, not the claimed one. Mismatches beyond 100 ms (or 1 score tenth) are flagged.
 5. **Writes** via `apply_verified_race_report` (service role) and ranks with `stadium_rank`.
 6. **Returns** `race_state` JSON. Live Realtime results broadcast is still later; phones use the invoke return and `race_state` polling.
+
+The function reads `races`, `race_entries`, `competition_events`, and `competition_slots` as `service_role`, which needs `select` on each (`20261029530000_race_report_read_grants.sql`). Without it every report fails with a 500 (`permission denied for table races`), nothing is stored, and the race closes at the DNF deadline with no times. When a report is rejected, the phone keeps the server's status and message (not the generic "non-2xx status code") and sends a `race_report rejected` warning to Sentry with the race id and reason only.
 
 **Rewards** stay on the phone from the published place (`applyRaceRewards`): XP, ribbon log, energy. The server never writes the pet document. Rest still comes from `stadium_finish_cooldown`.
 

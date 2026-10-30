@@ -17,12 +17,43 @@ type Props = {
   onPress: (button: ObstacleButton) => void;
 };
 
+type Rect = { x: number; y: number; width: number; height: number };
+type Touch = GestureResponderEvent['nativeEvent'];
+
+const slopPx = 8;
+
+function inside(rect: Rect, touch: Touch): boolean {
+  return (
+    touch.pageX >= rect.x - slopPx &&
+    touch.pageX <= rect.x + rect.width + slopPx &&
+    touch.pageY >= rect.y - slopPx &&
+    touch.pageY <= rect.y + rect.height + slopPx
+  );
+}
+
 // Fires once per new finger on this button, so a held thumb doesn't repeat and two thumbs on two buttons both count.
+// Fingers that land together reach every touched button in one `changedTouches` list, so keep only this button's.
 function useTouchTarget(onStart: () => void) {
   const touched = useRef(new Set<string>());
+  const ref = useRef<View>(null);
+  const rect = useRef<Rect | null>(null);
+  const ownTouches = (event: GestureResponderEvent): Touch[] => {
+    const changed = event.nativeEvent.changedTouches ?? [];
+    if (changed.length <= 1) return changed;
+    const bounds = rect.current;
+    const mine = bounds ? changed.filter((touch) => inside(bounds, touch)) : [];
+    if (mine.length > 0) return mine;
+    return changed.filter((touch) => touch.identifier === event.nativeEvent.identifier).slice(0, 1);
+  };
   return {
+    ref,
+    onLayout: () => {
+      ref.current?.measureInWindow((x, y, width, height) => {
+        rect.current = { x, y, width, height };
+      });
+    },
     onTouchStart: (event: GestureResponderEvent) => {
-      for (const touch of event.nativeEvent.changedTouches ?? []) {
+      for (const touch of ownTouches(event)) {
         const id = String(touch.identifier);
         if (!touched.current.has(id)) {
           touched.current.add(id);

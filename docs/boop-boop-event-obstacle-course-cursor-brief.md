@@ -64,6 +64,7 @@ Exactly like Fun Run and Hurdles: every pet lines up with its toes on the start 
 - **Left, stacked:** **JUMP** (mint, up arrow) on top, **DUCK** (lavender, down arrow) below.
 - **Right:** a large round **RUN** pad (pink, paw). Keep tapping it for speed.
 - Each button is its own tap target, with per-touch tracking, so both thumbs work at once. All read **Wait** until Go!.
+  - Fingers that land in the same frame reach every touched button in one `changedTouches` list. With more than one changed touch, a button counts only the touches inside its own window bounds (measured on layout, 8 px slop), falling back to the event's own touch. Otherwise RUN and JUMP pressed together logged `run, run, jump, jump`.
 - Cue (no banners): JUMP or DUCK for the next obstacle glows. RUN does not cue.
 - The track draws at the Hurdles scale (`racePoses.hurdlesLegsPerMeter`, 3 leg lengths per meter), passed to `stepRaceRun`, `raceAirPx`, and `drawRaceTrack`, with the default background parallax. The ground, legs, crowd, and wall all move together, as in Hurdles. A retriever sees about 4 m ahead. A slower zoom (1.5) gave about 8 m of look-ahead, but the ground and legs looked too slow.
 - Haptics: light on jump and duck, medium on a miss. Sounds: clear chime (higher for Perfect), soft thud on a miss. No sound on the jump or duck tap.
