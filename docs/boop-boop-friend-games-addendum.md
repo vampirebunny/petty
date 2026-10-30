@@ -1,5 +1,7 @@
 # Cursor Brief Addendum: Friend Games
 
+**Shipped.** Migration `20261030110000_friend_games.sql` and the `notify_friend_game` Edge Function are deployed. The client is `src/stadium/friendGames.ts`, `FriendGameSetup`, `FriendRoom`, and `FriendGameInviteModal`.
+
 An addition to the gameplay progression brief. Built on live open races (phase 7, **shipped**): synchronized countdown on server time, each phone simulates its own pet and streams its state (`race:{raceId}:run`), and the server replays and verifies results. All numbers go in the gameplay config.
 
 Alongside open scheduled races (anyone online, guests included), a player can create a private race just for friends. It is entered from the **Race with friends** button at the bottom of the Stadium lobby. Think intramural vs. varsity: friend games are for fun, and open races are the record.
