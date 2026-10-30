@@ -8,7 +8,7 @@ import { askRaceReminderPermission, cancelRaceCall } from '../reminders/notifica
 import { fetchBoard, signUpFor, withdrawEntry, type RaceView, type StadiumBoard, type StadiumCard, type StadiumSlot } from '../stadium/api';
 import { gameplayConfig } from '../sim/gameplayConfig';
 import { applyRaceRewards } from '../sim/raceRewards';
-import { classForLevel, dropEndedSignup, eventLabel, isPlayableEvent, racesOf, skillBlock, withSignup, type RaceSignup, type SkillBlock } from '../sim/stadium';
+import { classForEvent, classForLevel, dropEndedSignup, eventLabel, isPlayableEvent, racesOf, skillBlock, withSignup, type RaceSignup, type SkillBlock } from '../sim/stadium';
 import type { PetState } from '../sim/types';
 import { fontFamily } from '../ui/font';
 import { FunModal } from '../ui/FunModal';
@@ -378,7 +378,7 @@ export function StadiumScreen({ pet, reducedMotion, openGate, moodTreats, onClos
         <SignUpSheet
           card={sheet.card}
           slot={sheet.slot}
-          classId={classId}
+          classId={classForEvent(sheet.card.event, sheet.card.cup, classId)}
           capacity={board.capacity}
           petName={pet.name}
           energy={pet.needs.energy}

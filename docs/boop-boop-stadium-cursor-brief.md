@@ -72,7 +72,7 @@ Top to bottom:
 - A slot starts every 5 minutes on the clock (:00, :05, :10…).
 - Each slot has 3 events, all open to dogs and cats: **Fun Run** every slot, plus 2 featured events from Dock Dive, Sniff Out, Trick Show, Hurdles, Weave, and Obstacle Course. Every slot includes at least one featured event that needs no tricks (Dock Dive or Sniff Out).
 - **Veteran Cup** is a fourth card for senior pets only, every 15 minutes. See the race foundation brief.
-- A pet races in its highest class. Neighboring classes can merge at gate open, into the lower class, when the combined field fits.
+- A pet races in its highest class. Fun Run is the exception: every level races in one Open field. Neighboring classes can merge at gate open, into the lower class, when the combined field fits.
 
 ## 4. Sign-up (screen 2)
 

@@ -128,6 +128,13 @@ export function classForLevel(level: number): RaceClass {
   return found;
 }
 
+// Matches the server's stadium_event_class: Fun Run is one Open field for every level.
+export function classForEvent(event: RaceEvent, cup: RaceCup, levelClass: RaceClass): RaceClass {
+  if (cup === 'veteran') return 'veteran';
+  if (event === 'funRun') return 'open';
+  return levelClass;
+}
+
 export function formatSlot(start: number): string {
   return new Date(start).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 }

@@ -52,6 +52,16 @@ it('keeps beginner NPCs near a steady tapper', () => {
   expect(config.npcRanges.championship[1]).toBeGreaterThan(config.npcRanges.beginner[1]);
 });
 
+it('keeps the one Open Fun Run field in reach of a steady tapper', () => {
+  const tapping = (perSec: number) => Array.from({ length: 60 * perSec }, (_, index) => Math.round((index * 1000) / perSec));
+  const npcMs = (skill: number) => runFunRun([], neutralModifiers, { classId: 'open', skill, seed: `s${skill}` }, 'funrun-2').finishMs!;
+  expect(runFunRun(tapping(5), neutralModifiers, null, 'funrun-2').finishMs!).toBeLessThan(npcMs(0.3));
+  expect(runFunRun(tapping(8), neutralModifiers, null, 'funrun-2').finishMs!).toBeLessThan(npcMs(0.9));
+  const happy = { ...neutralModifiers, mood: 95, energy: 95 };
+  expect(runFunRun(tapping(6), happy, null, 'funrun-2').finishMs!).toBeLessThan(npcMs(0.9));
+  expect(configFor('funrun-1').npcRanges.open).toEqual([10.0, 11.0]);
+});
+
 it('drops taps past 20 in one second', () => {
   const burst = Array.from({ length: 25 }, (_, index) => index * 10);
   const capped = burst.slice(0, 20);
@@ -92,6 +102,14 @@ it('applies race rewards once and skips race XP during the tutorial', () => {
   expect(grown.xpTotal).toBe(pet.xpTotal + 100);
   expect(grown.badges).toContain('blue-ribbon');
   expect(grown.badges).toContain('moving-up');
+});
+
+it('leaves Moving Up to the level-class events', () => {
+  const pet = { ...testPet(4, 'retriever', now, 'Maple', 'pet'), level: 3 };
+  const run = applyRaceRewards(pet, { raceId: 'run', event: 'funRun', classId: 'open', place: 2, at: now }, now);
+  expect(run.badges).not.toContain('moving-up');
+  const hurdles = applyRaceRewards(run, { raceId: 'hop', event: 'hurdles', classId: 'novice', place: 2, at: now }, now);
+  expect(hurdles.badges).toContain('moving-up');
 });
 
 it('coasts finishers past the line without changing the finish time', () => {

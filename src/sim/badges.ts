@@ -99,7 +99,8 @@ function earnedIds(state: PetState): string[] {
   if (ribbons.some((row) => row.place === 1)) {
     ids.push('blue-ribbon');
   }
-  if (ribbons.some((row) => row.classId !== 'beginner' && row.classId !== 'veteran')) {
+  // Fun Run is one Open field for every level, so its ribbons don't show a class step.
+  if (ribbons.some((row) => row.event !== 'funRun' && row.classId !== 'beginner' && row.classId !== 'veteran')) {
     ids.push('moving-up');
   }
   const won = ribbons.filter((row) => row.place >= 1 && row.place <= 3).length;

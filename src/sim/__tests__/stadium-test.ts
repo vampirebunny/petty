@@ -1,6 +1,7 @@
 import { testPet } from '../__fixtures__/pets';
 import { parseBoard, parseEntry, parseRace } from '../../stadium/api';
 import {
+  classForEvent,
   classForLevel,
   dropEndedSignup,
   formatCountdown,
@@ -49,6 +50,13 @@ it('picks the class from level', () => {
   expect(classForLevel(10)).toBe('novice');
   expect(classForLevel(49)).toBe('expert');
   expect(classForLevel(60)).toBe('championship');
+});
+
+it('puts every level in one Open Fun Run', () => {
+  expect(classForEvent('funRun', 'open', 'beginner')).toBe('open');
+  expect(classForEvent('funRun', 'open', 'championship')).toBe('open');
+  expect(classForEvent('funRun', 'veteran', 'expert')).toBe('veteran');
+  expect(classForEvent('hurdles', 'open', 'novice')).toBe('novice');
 });
 
 it('moves through the gate phases on server time', () => {

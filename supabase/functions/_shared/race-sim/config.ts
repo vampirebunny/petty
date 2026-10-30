@@ -1,13 +1,13 @@
-// funrun-1 is immutable. Tuning adds a new version; races keep the one they were created with.
+// Published versions are immutable. Tuning adds a new version; races keep the one they were created with.
 
-export const CONFIG_VERSION = 'funrun-1';
+export const CONFIG_VERSION = 'funrun-2';
 
 export type RaceClassId = 'beginner' | 'novice' | 'open' | 'expert' | 'championship' | 'veteran';
 
 export type NpcRange = readonly [number, number];
 
-export const funRunConfig = {
-  version: CONFIG_VERSION,
+const funRunV1 = {
+  version: 'funrun-1',
   distanceM: 70,
   // 2.8 m/s per tap: about 4 taps/s stays with Beginner. About 5 taps/s holds the cap, so high mood and energy can raise it.
   tapAccel: 2.8,
@@ -35,12 +35,22 @@ export const funRunConfig = {
     expert: [10.6, 11.6],
     championship: [11.0, 12.0],
     veteran: [10.0, 11.0],
-  } as const satisfies Record<RaceClassId, NpcRange>,
+  } satisfies Record<RaceClassId, NpcRange> as Record<RaceClassId, NpcRange>,
 };
 
-export type FunRunConfig = typeof funRunConfig;
+export type FunRunConfig = typeof funRunV1;
+
+// funrun-2: Fun Run is one Open field for every level. NPCs start at full speed, so Open sits near the
+// old Beginner range: 4.5 taps/s beats the slowest, 5 places about third, and the fastest takes
+// 8 taps/s, or 6 with mood and energy above 90.
+export const funRunConfig: FunRunConfig = {
+  ...funRunV1,
+  version: CONFIG_VERSION,
+  npcRanges: { ...funRunV1.npcRanges, open: [8.2, 9.6] },
+};
 
 const versions: Record<string, FunRunConfig> = {
+  'funrun-1': funRunV1,
   [CONFIG_VERSION]: funRunConfig,
 };
 

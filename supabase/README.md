@@ -41,6 +41,10 @@ These race follow-ups are applied:
 - `20261029370000_test_fast_slots.sql`: **testing only.** 1-minute slots and no rest. Before launch, set `slot_seconds = 300` and `cooldown_seconds = 360` again in a new migration, and restore `slotMs` and `cooldownMs` in `src/sim/gameplayConfig.ts`.
 - `20261029380000_fill_npcs_at_lock.sql`: a solo Fun Run gets its NPCs at line-up lock, so they stand at the start line during the countdown.
 
+Waiting for the owner to apply:
+
+- `20261029420000_fun_run_open_to_all.sql`: Fun Run is one Open field for every level (`stadium_event_class`), and new Fun Run races are stamped `funrun-2`. Ship the app build with the `funrun-2` config before or with this.
+
 New files in this folder are applied only by the project owner. Do not run `supabase db push`, the Supabase CLI against the hosted project, or the SQL in the dashboard from an agent or an automated script. After the CLI is linked, the owner applies new migrations with:
 
 ```bash

@@ -14,13 +14,13 @@ These override the sections below. The old addendum is folded in here.
 
 **Veteran Cup.** A fourth card, shown only to senior pets, in every third slot (every 15 minutes, on :00, :15, :30, and :45). It does not replace a regular race. The event rotates through all seven and leans toward Fun Run, Dock Dive, and Sniff Out. Seniors of every level race together on Open class settings. It has its own trophy, which waits for the trophies brief. The usual trick check still applies.
 
-**Classes.** Beginner, Novice, Open, Expert, and Championship, plus Veteran Cup. A pet always races in its highest class. At gate open (start − 60 s), neighboring classes merge into the lower class when one race has a single live player and the combined field fits in capacity. The switch defaults on. If withdrawals then leave one player, that player gets NPCs at the start.
+**Classes.** Beginner, Novice, Open, Expert, and Championship, plus Veteran Cup. A pet always races in its highest class, except in Fun Run, which is one Open field for every level (section 9). At gate open (start − 60 s), neighboring classes merge into the lower class when one race has a single live player and the combined field fits in capacity. The switch defaults on. If withdrawals then leave one player, that player gets NPCs at the start.
 
 **Lifecycle.** `open` → `locked` (start − 10 s) → `countdown` (start − 3 s) → `running` → `finished` or `cancelled`. Each race stores `seed` and `config_version`. The rest is 6 minutes per event (`stadium_config.cooldown_seconds`), counted from the race start and set when results are written. It only blocks races of that event that start before the rest ends, so the next slot is usually out and the one after is open. Withdrawals, no-shows, and cancelled races do not start one. A running race that nobody reports within start + 80 s is finalized with those players as DNF, so a closed app never leaves a stale entry. One active sign-up per pet still applies. The ticket does not show a lane.
 
 **Results.** Solo: the phone reports its own finish time and the NPC times it simulated, and the server stores and ranks them. Once the replay Edge Function exists, the server recomputes both from the seed. Live: publish when every live player has reported, or 10 seconds after the first report. Anyone missing is DNF. Phones show provisional standings until the server ranking arrives.
 
-**Rewards.** The server never writes the pet document. It writes placings. The phone applies XP, a ribbon log (`raceId`, event, class, place, date), energy, and badges once per race id. Race XP is capped at 8 races a day and is skipped below level 10. Ribbons are still awarded then. "Race in the Stadium" is a tutorial goal that completes when the pet finishes a race. Badges: First Race (id `off-to-the-races`), Blue Ribbon, Moving Up, Ribbon Rack (5 / 25 / 100). Furniture waits.
+**Rewards.** The server never writes the pet document. It writes placings. The phone applies XP, a ribbon log (`raceId`, event, class, place, date), energy, and badges once per race id. Race XP is capped at 8 races a day and is skipped below level 10. Ribbons are still awarded then. "Race in the Stadium" is a tutorial goal that completes when the pet finishes a race. Badges: First Race (id `off-to-the-races`), Blue Ribbon, Moving Up (a ribbon in a level class above Beginner; Fun Run ribbons don't count), Ribbon Rack (5 / 25 / 100). Furniture waits.
 
 **Modifiers and config.** At lock, the server snapshots energy, mood, and attributes from the pet's last synced document. Config versions are immutable. Each race keeps the version it was created with.
 
@@ -203,18 +203,16 @@ Used only when a solo player races (Stadium brief: 1 live player → fill with N
 - Tap cap: 20 taps per rolling second; extra taps are ignored
 - Max race length: 60 s
 
-**Class ranges (NPC target speeds; the player's limit is the same everywhere):**
+**Open to all.** Fun Run is one Open field for every level: the server enters every pet in the `open` class (`stadium_event_class`), whatever its level. The Veteran Cup Fun Run keeps its own field. XP is unchanged and the same as every other event (section 6).
 
-| Class | Opens at | NPC speed range |
+**NPC target speeds (config `funrun-2`):**
+
+| Field | Who races | NPC speed range |
 | --- | --- | --- |
-| Beginner | level 1 | 8.2–9.4 m/s |
-| Novice | level 10 | 9.2–10.2 m/s |
-| Open | level 20 | 10.0–11.0 m/s |
-| Expert | level 35 | 10.6–11.6 m/s |
-| Championship | level 50 | 11.0–12.0 m/s |
-| Veteran Cup | senior pets | Open settings |
+| Open | every level | 8.2–9.6 m/s |
+| Veteran Cup | senior pets | 10.0–11.0 m/s |
 
-About 4 taps per second, with ordinary mood and energy, keeps pace with a Beginner NPC. About 5 taps per second holds the 11 m/s cap, so near-max mood and energy can raise it. The player's tap rules are the same in every class. The NPC cruise speed is what changes.
+NPCs run at full speed from Go!. With ordinary mood and energy, about 4.5 taps per second beats the slowest NPC, 5 places about third, and the fastest NPC takes about 8 taps per second, or 6 with mood and energy above 90. Races stamped `funrun-1` keep its level-class ranges (Beginner 8.2–9.4, Novice 9.2–10.2, Open 10.0–11.0, Expert 10.6–11.6, Championship 11.0–12.0 m/s).
 
 **Controls:** a large round pink TAP! button with a paw. The whole action area is the tap target, with multi-touch. Each tap gives a brief press-down animation and a light haptic. Above it, a speed meter of 8 bars fills green → yellow → pink with current speed.
 
