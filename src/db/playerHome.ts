@@ -26,6 +26,7 @@ import { startingToys } from '../sim/config';
 import { getDb } from './database';
 import { writeLedgerEntry } from './ledgerWrite';
 import { parkFindPlayerFlags } from '../parkFinds/playerFlags';
+import { seenDailyOutfitTooltip } from '../storage/dailyOutfitTip';
 
 export type SpeciesId = 'dog' | 'cat';
 
@@ -43,6 +44,7 @@ export type PlayerDoc = {
   shopPickHistory: { date: string; slot: string; itemId: string }[];
   dailyCounters: { day: string; petId: string; key: string; count: number }[];
   parkFinds?: { chestIntroShown: boolean; chestTooltipDone: boolean };
+  seenDailyOutfitTooltip?: boolean;
 };
 
 const listeners = new Set<() => void>();
@@ -459,5 +461,6 @@ export function playerDoc(ownerId: string): PlayerDoc {
     shopPickHistory: history.map((row) => ({ date: row.date, slot: row.slot, itemId: row.item_id })),
     dailyCounters: counters.map((row) => ({ day: row.day, petId: row.pet_id, key: row.key, count: row.count })),
     parkFinds: parkFindPlayerFlags(),
+    seenDailyOutfitTooltip: seenDailyOutfitTooltip(),
   };
 }

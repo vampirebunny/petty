@@ -129,6 +129,12 @@ export type PetState = {
   /** Set while the pet is on the road in Boop Boop Town, beside this door. Missing means inside sceneId. */
   roadSpot?: import('./road').RoadSpot;
   equipped: Equipped;
+  /** Opt-in daily outfit. Missing means off. */
+  dailyOutfitEnabled?: boolean;
+  /** Local day (YYYY-MM-DD) of the last auto-pick or the day a manual outfit is held. */
+  lastOutfitPickDate?: string;
+  /** Slot to wear id. The no-repeat rule compares against this. */
+  previousOutfit?: Equipped;
   look: Look;
   attributes: PetAttributes;
   drift: Stats;

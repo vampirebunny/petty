@@ -150,6 +150,12 @@ export const gameplayConfig = {
     heartbeatMs: 3000,
     invitePollMs: 20000,
   },
+  // Per-slot chance is out of 100. Weather can raise jackets and boots, but not to a guarantee.
+  dailyOutfit: {
+    slotChance: 50,
+    weatherBonus: 15,
+    maxRetries: 10,
+  },
   goals: [
     { action: 'feed', label: 'Feed' },
     { action: 'water', label: 'Fill the water bowl' },

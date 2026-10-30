@@ -33,7 +33,7 @@ function badgeTier(id: string): number | undefined {
 }
 
 /** Diff two publishes of the same pet. First load (no previous pet) logs nothing. */
-export function observePet(prev: PetState | null, next: PetState): void {
+export function observePet(prev: PetState | null, next: PetState, opts?: { quietEquip?: boolean }): void {
   if (!prev || prev.id !== next.id) {
     return;
   }
@@ -98,8 +98,14 @@ export function observePet(prev: PetState | null, next: PetState): void {
     if (prevBadges.has(id)) {
       continue;
     }
+    if (opts?.quietEquip && id === 'dressed-up') {
+      continue;
+    }
     const tier = badgeTier(id);
     track('unlock_achievement', tier == null ? { achievement_id: id } : { achievement_id: id, tier });
+  }
+  if (opts?.quietEquip) {
+    return;
   }
   const slots = new Set<OutfitSlot>([
     ...(Object.keys(prev.equipped ?? {}) as OutfitSlot[]),

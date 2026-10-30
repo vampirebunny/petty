@@ -190,6 +190,11 @@ export async function applyRestore(input: Input): Promise<void> {
         pick.itemId,
       );
     }
+    database.runSync(
+      'INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)',
+      'seen_daily_outfit_tooltip',
+      input.player?.seenDailyOutfitTooltip ? '1' : '0',
+    );
     for (const counter of input.player?.dailyCounters ?? []) {
       database.runSync(
         'INSERT INTO daily_counters (day, pet_id, key, count) VALUES (?, ?, ?, ?)',

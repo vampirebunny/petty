@@ -166,6 +166,11 @@ function keepSlot(slot: SuggestionSlot, state: PetState, ctx: SuggestionContext,
   if (slot.id === 'friendGame' && ctx.friends == null) {
     return true;
   }
+  // Closet and hat prompts finish only when the player equips something themselves.
+  // An automatic outfit must not clear them.
+  if (slot.id === 'hat' || slot.id === 'closet') {
+    return true;
+  }
   return false;
 }
 

@@ -430,6 +430,8 @@ export default function HomeScreen({ petApi }: Props) {
     flickAt,
     setScene,
     equip,
+    setDailyOutfitEnabled,
+    pickDailyOutfitNow,
     applyActorWeight,
     applyActorEnergy,
     applyActorHunger,
@@ -2274,6 +2276,9 @@ export default function HomeScreen({ petApi }: Props) {
         equipped={state.equipped}
         boops={economyApi.balance}
         onEquip={equip}
+        dailyOutfitOn={state.dailyOutfitEnabled === true}
+        onDailyOutfit={setDailyOutfitEnabled}
+        onPickDailyOutfit={pickDailyOutfitNow}
         reducedMotion={reducedMotion}
         onClose={() => setWardrobeOpen(false)}
         onOpenStore={() => setShopOpen(true)}

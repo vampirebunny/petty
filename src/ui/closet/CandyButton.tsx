@@ -1,4 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
+import type { StyleProp, ViewStyle } from 'react-native';
 import { Pressable } from 'react-native-gesture-handler';
 
 import { fontFamily } from '../font';
@@ -9,9 +10,10 @@ type Props = {
   onPress: () => void;
   disabled?: boolean;
   accessibilityLabel?: string;
+  style?: StyleProp<ViewStyle>;
 };
 
-export function CandyButton({ label, onPress, disabled = false, accessibilityLabel }: Props) {
+export function CandyButton({ label, onPress, disabled = false, accessibilityLabel, style }: Props) {
   return (
     <Pressable
       accessibilityRole="button"
@@ -19,7 +21,7 @@ export function CandyButton({ label, onPress, disabled = false, accessibilityLab
       accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}
-      style={[styles.button, disabled && styles.disabled]}
+      style={[styles.button, style, disabled && styles.disabled]}
     >
       <View pointerEvents="none" style={styles.gloss} />
       <Text style={styles.label} numberOfLines={1}>

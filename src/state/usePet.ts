@@ -58,6 +58,17 @@ import {
   setSettleRequest,
 } from './sessionGate';
 import { speciesOf } from '../sim/tracks';
+import {
+  applyDailyPick,
+  armDailyOutfit,
+  clearDailyOutfit,
+  dailyOutfitDue,
+  noteManualOutfit,
+  pickDailyOutfit,
+  sameOutfit,
+} from '../sim/dailyOutfit';
+import { skyAt } from '../actor/sky';
+import { localDay } from '../economy/clock';
 import { syncBadges } from '../sim/badges';
 import { sqlitePetStorage } from '../db/sqlitePetStorage';
 import { emptyPlaydateSave, petHasCompletedPlaydate } from '../playdate/save';
@@ -69,6 +80,7 @@ import type { PlayFindKind } from '../economy/economyConfig';
 import {
   claimDailyLogin,
   onAppOpen,
+  outfitsOwned,
   payoutTimeAccrual,
   settleProgress,
   type Burst,
@@ -124,6 +136,8 @@ type PetApi = {
   flickAt: (x: number, y: number, vx: number, vy: number) => void;
   setScene: (sceneId: string) => void;
   equip: (slot: OutfitSlot, itemId: string | null) => void;
+  setDailyOutfitEnabled: (on: boolean) => void;
+  pickDailyOutfitNow: () => void;
   applyActorWeight: (delta: number) => void;
   applyActorEnergy: (delta: number) => void;
   applyActorHunger: (delta: number) => void;
@@ -169,6 +183,26 @@ function caughtUpCopy(discarded: boolean, petName: string): string {
     return 'All caught up from your other device!';
   }
   return `You played on your other device more recently, so ${petName} is just how you left them there. Anything you bought here is safe.`;
+}
+
+function dressForNewDay(pet: PetState, now: number, force: boolean): PetState {
+  const today = localDay(now);
+  if (pet.retiredAt || (!force && !dailyOutfitDue(pet, today))) {
+    return pet;
+  }
+  const sky = skyAt(new Date(now));
+  const outfit = pickDailyOutfit({
+    owned: outfitsOwned(),
+    species: speciesOf(pet.breedId),
+    previous: pet.previousOutfit ?? {},
+    tilt: sky.weather.precip === 'rain' || sky.weather.precip === 'snow' || sky.season.season === 'winter',
+    seed: pet.attributes.seed,
+    day: today,
+  });
+  if (!outfit) {
+    return { ...pet, lastOutfitPickDate: today };
+  }
+  return applyDailyPick(pet, outfit, today);
 }
 
 function petNameFromDb(fallback: string): string {
@@ -267,7 +301,7 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
 
   const knownBadgePet = useRef<string | null>(null);
   const knownBadges = useRef<string[]>([]);
-  const publish = useCallback((next: PetState, nextCue?: Cue, sync = true) => {
+  const publish = useCallback((next: PetState, nextCue?: Cue, sync = true, opts?: { quietEquip?: boolean }) => {
     if (knownBadgePet.current !== next.id) {
       knownBadgePet.current = next.id;
       knownBadges.current = [];
@@ -280,11 +314,12 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
     }
     const synced = syncBadges(next, Date.now());
     const fresh = synced.badges.filter((id) => !previous.has(id));
+    const announce = opts?.quietEquip ? fresh.filter((id) => id !== 'dressed-up') : fresh;
     knownBadges.current = synced.badges;
     const previousPet = stateRef.current?.id === next.id ? stateRef.current : null;
-    observePet(previousPet, synced);
-    if (fresh.length > 0) {
-      setAwardedBadges((prev) => [...prev, ...fresh.filter((id) => !prev.includes(id))]);
+    observePet(previousPet, synced, opts);
+    if (announce.length > 0) {
+      setAwardedBadges((prev) => [...prev, ...announce.filter((id) => !prev.includes(id))]);
     }
     const gained = synced.xpPops ?? [];
     const clean = gained.length > 0 ? { ...synced, xpPops: undefined } : synced;
@@ -463,6 +498,8 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
             setHomeSnapToken((token) => token + 1);
           }
           const settled = settleProgress(resumed, now);
+          const dressed = dressForNewDay(settled.pet, now, false);
+          const quietEquip = !sameOutfit(settled.pet.equipped, dressed.equipped);
           const bursts = [
             ...opened.bursts,
             ...settled.payouts.map((payout) => ({ label: payout.label, amount: payout.amount, coinCount: 5 as const })),
@@ -472,16 +509,17 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
           }
           const awayMin = elapsedH * 60;
           const greet = awayMin >= 2;
-          const playing = enqueueOpen({ ...opened, pet: settled.pet, bursts });
+          const playing = enqueueOpen({ ...opened, pet: dressed, bursts });
+          const outfitOpts = quietEquip ? { quietEquip: true as const } : undefined;
           if (playing && greet) {
             greetAfter.current = { elapsedH };
-            publish(settled.pet);
+            publish(dressed, undefined, true, outfitOpts);
           } else if (greet) {
-            publish(settled.pet, { kind: 'greet', elapsedH });
+            publish(dressed, { kind: 'greet', elapsedH }, true, outfitOpts);
           } else {
-            publish(settled.pet);
+            publish(dressed, undefined, true, outfitOpts);
           }
-          offerPetCam(settled.pet, now);
+          offerPetCam(dressed, now);
         } finally {
           returningRef.current = false;
         }
@@ -1293,9 +1331,35 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
     [dispatch],
   );
   const equip = useCallback(
-    (slot: OutfitSlot, itemId: string | null) => dispatch({ type: 'equip', slot, itemId }),
-    [dispatch],
+    (slot: OutfitSlot, itemId: string | null) => {
+      const current = stateRef.current;
+      if (!current) {
+        return;
+      }
+      const result = applyEvent(current, { type: 'equip', slot, itemId });
+      publish(noteManualOutfit(result.state, localDay(Date.now())), result.cue);
+    },
+    [publish],
   );
+  const setDailyOutfitEnabled = useCallback(
+    (on: boolean) => {
+      const current = stateRef.current;
+      if (!current) {
+        return;
+      }
+      publish(on ? armDailyOutfit(current, localDay(Date.now())) : clearDailyOutfit(current));
+    },
+    [publish],
+  );
+  const pickDailyOutfitNow = useCallback(() => {
+    const current = stateRef.current;
+    if (!current) {
+      return;
+    }
+    const next = dressForNewDay({ ...current, dailyOutfitEnabled: true }, Date.now(), true);
+    const quietEquip = !sameOutfit(current.equipped, next.equipped);
+    publish(next, undefined, true, quietEquip ? { quietEquip: true } : undefined);
+  }, [publish]);
 
   const finishPlaydate = useCallback(
     (happiness: number, attributes: Partial<Record<Trait, number>>, playdateId?: string) => {
@@ -1356,6 +1420,8 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
     flickAt,
     setScene,
     equip,
+    setDailyOutfitEnabled,
+    pickDailyOutfitNow,
     applyActorWeight,
     applyActorEnergy,
     applyActorHunger,

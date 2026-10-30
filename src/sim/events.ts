@@ -68,6 +68,7 @@ function copyState(state: PetState): PetState {
     seenCoachMarks: [...state.seenCoachMarks],
     careWindow: state.careWindow.map((sample) => ({ ...sample })),
     equipped: { ...state.equipped },
+    previousOutfit: state.previousOutfit ? { ...state.previousOutfit } : undefined,
     look: { ...state.look },
     attributes: {
       ...state.attributes,
