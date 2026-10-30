@@ -188,7 +188,7 @@ Used only when a solo player races (Stadium brief: 1 live player → fill with N
   - attributes
 - **Skill spread:** across the NPCs in a race, spread skill from weak to strong (e.g. one strong, a few in the middle, one weak, with some randomness). Placing then reflects how well the player raced.
 - **Skill → performance** per event and class. For Fun Run: target speed = lerp(class min, class max, skill), with small natural variation during the race (±5%, from the seed).
-- **Once launched,** NPC skill comes from real players' results for that event and class (an NPC at skill 0.6 matches the 60th percentile, best at skill 1). The calibration brief owns the curve, the nightly job, and the solo win-rate offset (`docs/boop-boop-npc-calibration-cursor-brief.md`). Before there's data, fill time keeps the config ranges.
+- **Shipped.** NPC skill comes from real players' results for that event and class (an NPC at skill 0.6 matches the 60th percentile, best at skill 1). The calibration brief owns the curve, the daily job, and the solo win-rate offset (`docs/boop-boop-npc-calibration-cursor-brief.md`). Before a cell has enough data, fill time keeps the config ranges.
 - **No rubber-banding:** NPCs never react to the player's position.
 - NPCs use the app's NPC pet looks and the same renderer and animations as real pets.
 - **Tuning target:** an average solo player wins about 1 race in 3 and places top 3 most of the time. Log solo results per event and class so the spread can be tuned in config.
@@ -224,4 +224,4 @@ NPCs run at full speed from Go!. With ordinary mood and energy, about 4.5 taps p
 
 ## 10. Build order
 
-See Decisions. Fun Run, Hurdles, Dock Dive, and Obstacle Course are playable. Solo reports go through `race_report`. Live open races are shipped (section 5). Next: friend games (`docs/boop-boop-friend-games-addendum.md`).
+See Decisions. Fun Run, Hurdles, Dock Dive, and Obstacle Course are playable. Solo reports go through `race_report`. Live open races are shipped (section 5). Friend games are shipped. NPC calibration is shipped (`docs/boop-boop-npc-calibration-cursor-brief.md`).

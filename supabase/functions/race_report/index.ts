@@ -7,20 +7,26 @@ import {
   inputLogBytes,
   isObstacleVersion,
   isReplayEvent,
+  neutralModifiers,
   parseInputLog,
   parseModifiers,
+  playedMetric,
   replayNpc,
   replayPlayer,
   scoreMismatch,
+  shouldLogResult,
+  type RaceEventType,
   type RaceInputLog,
   type ReplayFinish,
   type ReplayRace,
 } from '../_shared/race-sim/index.ts';
+import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 
 type EntryRow = {
   id: string;
   is_npc: boolean;
   player_id: string | null;
+  pet_id: string | null;
   status: string;
   skill: number | null;
   modifiers: unknown;
@@ -85,7 +91,7 @@ Deno.serve(async (req) => {
 
   const eventRow = await admin
     .from('competition_events')
-    .select('event_type')
+    .select('event_type, cup')
     .eq('id', loaded.data.event_id)
     .maybeSingle();
   if (eventRow.error || !eventRow.data) {
@@ -98,7 +104,7 @@ Deno.serve(async (req) => {
 
   const entryRows = await admin
     .from('race_entries')
-    .select('id, is_npc, player_id, status, skill, modifiers, finish_ms')
+    .select('id, is_npc, player_id, pet_id, status, skill, modifiers, finish_ms')
     .eq('race_id', raceId);
   if (entryRows.error) {
     console.error('race_report entries failed', entryRows.error);
@@ -126,7 +132,7 @@ Deno.serve(async (req) => {
     }
     const again = await admin
       .from('race_entries')
-      .select('id, is_npc, player_id, status, skill, modifiers, finish_ms')
+      .select('id, is_npc, player_id, pet_id, status, skill, modifiers, finish_ms')
       .eq('race_id', raceId);
     if (again.error) {
       console.error('race_report entries failed', again.error);
@@ -226,5 +232,67 @@ Deno.serve(async (req) => {
     console.error('apply_verified_race_report failed', applied.error);
     return json({ error: applied.error.message }, 500);
   }
+  await logRaceResult(admin, {
+    raceId,
+    event: race.event,
+    classId: typeof loaded.data.class === 'string' ? loaded.data.class : race.classId,
+    configVersion: race.configVersion,
+    friend: eventRow.data.cup === 'friends',
+    anonymous: caller.is_anonymous === true,
+    solo: entries.some((row) => row.is_npc),
+    petId: mine.pet_id,
+    playerId: caller.id,
+    race,
+    inputLog,
+    player,
+  });
   return json(applied.data);
 });
+
+async function logRaceResult(
+  admin: SupabaseClient,
+  input: {
+    raceId: string;
+    event: RaceEventType;
+    classId: string;
+    configVersion: string;
+    friend: boolean;
+    anonymous: boolean;
+    solo: boolean;
+    petId: string | null;
+    playerId: string;
+    race: ReplayRace;
+    inputLog: RaceInputLog;
+    player: ReplayFinish;
+  },
+): Promise<void> {
+  try {
+    const played = playedMetric(input.event, input.player.finishMs, input.player.scoreDm);
+    if (!input.petId || !shouldLogResult({ metric: played?.metric ?? null, friend: input.friend, anonymous: input.anonymous }) || !played) {
+      return;
+    }
+    const neutral = replayPlayer(input.race, neutralModifiers, input.inputLog);
+    const adjusted = playedMetric(input.event, neutral.finishMs, neutral.scoreDm);
+    if (!adjusted) return;
+    const inserted = await admin.from('race_results').upsert(
+      {
+        race_id: input.raceId,
+        pet_id: input.petId,
+        player_id: input.playerId,
+        event: input.event,
+        class: input.classId,
+        config_version: input.configVersion,
+        is_solo: input.solo,
+        metric: played.metric,
+        metric_adj: adjusted.metric,
+        metric_kind: played.kind,
+      },
+      { onConflict: 'race_id,player_id' },
+    );
+    if (inserted.error) {
+      console.error('race_results log failed', inserted.error);
+    }
+  } catch (error) {
+    console.error('race_results log failed', error);
+  }
+}

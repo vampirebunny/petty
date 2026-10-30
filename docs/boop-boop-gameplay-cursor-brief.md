@@ -206,7 +206,7 @@ Small goals the game offers, not things the pet asks for. Ignoring one costs not
 
 ## 8. Stadium and competitions
 
-The lobby, sign-up, race call, and starting gate are in `docs/boop-boop-stadium-cursor-brief.md`. The races themselves are in `docs/boop-boop-race-foundation-cursor-brief.md`. Fun Run, Hurdles, Dock Dive, and Obstacle Course are playable for solo races. Solo server replay is shipped (`race_report`). Sniff Out, Trick Show, and Weave are cancelled. Live open races and friend games are shipped. Trophies and the ribbon furniture wait for their own brief.
+The lobby, sign-up, race call, and starting gate are in `docs/boop-boop-stadium-cursor-brief.md`. The races themselves are in `docs/boop-boop-race-foundation-cursor-brief.md`. Fun Run, Hurdles, Dock Dive, and Obstacle Course are playable for solo races. Solo server replay is shipped (`race_report`). Sniff Out, Trick Show, and Weave are cancelled. Live open races and friend games are shipped. NPC calibration is shipped (`docs/boop-boop-npc-calibration-cursor-brief.md`): a daily job turns real finishes into NPC skill, and cells without enough data keep the event-brief spread. Trophies and the ribbon furniture wait for their own brief.
 
 ## 9. Live races (phase 7)
 

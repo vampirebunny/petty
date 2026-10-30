@@ -9,6 +9,7 @@ import { setDecorOverride, setWeatherOverride } from '../actor/sky';
 import { catalog } from '../economy/catalog';
 import { applyCatalogNow } from '../economy/shopState';
 import { DefPreview } from '../dev/DefPreview';
+import { NpcCalibrationDebug } from './stadium/NpcCalibrationDebug';
 import { attributeScore, stageOf, traits } from '../sim';
 import { visualLifespanDays } from '../sim/config';
 import type { Mood, PetState, Trait } from '../sim/types';
@@ -344,6 +345,7 @@ function DebugPanelBody({
         </View>
       ) : null}
         {typeof __DEV__ !== 'undefined' && __DEV__ ? <DefPreview /> : null}
+        {typeof __DEV__ !== 'undefined' && __DEV__ ? <NpcCalibrationDebug /> : null}
         {typeof __DEV__ !== 'undefined' && __DEV__ && onGrant ? (
         <View style={styles.actions}>
           {catalog.map((item) => (
