@@ -1,7 +1,8 @@
 import { breedById } from './breeds';
 import { racePoses } from './data/locomotion';
 import { geomOf } from './geometry';
-import { attachRaceVisual, clearRaceVisual, jumpConfig, puffDust, raceLeapVisual, stumbleVisualAt } from './jump';
+import { fitBarZ } from '../sim/trickProps';
+import { attachRaceVisual, clearRaceVisual, jumpConfig, puffDust, raceLeapVisual, resolveJump, stumbleVisualAt } from './jump';
 import { phaseRate, stepGait, streamOf } from './locomotion';
 import type { Actor, Breed, Gait } from './types';
 
@@ -31,7 +32,13 @@ export function raceCadence(mps: number): number {
 }
 
 // Faces the pet right and advances the gait from race speed. Does not run the home sim.
-export function stepRaceRun(actor: Actor, breed: Breed, mps: number, dt: number): void {
+export function stepRaceRun(
+  actor: Actor,
+  breed: Breed,
+  mps: number,
+  dt: number,
+  legsPerMeter: number = racePoses.legsPerMeter,
+): void {
   const speed = Math.max(0, mps);
   actor.face = 1;
   actor.aimFace = 1;
@@ -41,7 +48,7 @@ export function stepRaceRun(actor: Actor, breed: Breed, mps: number, dt: number)
   actor.octantTarget = 'E';
   actor.octantBlend = 1;
   actor.turning = false;
-  const px = speed * legLength(actor, breed) * racePoses.legsPerMeter;
+  const px = speed * legLength(actor, breed) * legsPerMeter;
   actor.vx = px;
   actor.vy = 0;
   actor.speed = px;
@@ -71,6 +78,34 @@ export function stepRaceRun(actor: Actor, breed: Breed, mps: number, dt: number)
   }
 }
 
+// Ballistic lift across the air: 0 at take-off and touchdown, 1 at the peak.
+export function leapLift(airU: number): number {
+  const u = Math.max(0, Math.min(1, airU));
+  return 4 * u * (1 - u);
+}
+
+// Lift where a jump from the edge of the zone passes over the hurdle (a quarter of the air from one end).
+const edgeLift = 0.75;
+// Peak height as a share of the leap's length on the ground, so a long leap reads as a long, high arc.
+const apexPerLength = 0.3;
+
+// Bar height fitted to this pet the same way the Training School fits its hurdle, and a race leap tall
+// enough that the feet clear it with the jump's usual margin even from the edge of the zone.
+// `airPx` is the leap's ground length in the pet's own pixels.
+export function raceHurdleSize(actor: Actor, airPx: number): { barZ: number; apex: number } {
+  const reach = resolveJump(actor, { heightPx: 1e4 });
+  const bodyH = reach?.bodyHPx ?? 30;
+  const ceiling = reach?.heightPx ?? racePoses.leapApexPx;
+  const barZ = fitBarZ(ceiling, bodyH, jumpConfig.obstacleMargin);
+  const clear = (barZ + jumpConfig.obstacleMargin * bodyH) / edgeLift;
+  return { barZ, apex: Math.max(racePoses.leapApexPx, clear, airPx * apexPerLength) };
+}
+
+// The leap's ground length in the pet's own pixels at a track scale.
+export function raceAirPx(actor: Actor, breed: Breed, airM: number, legsPerMeter: number): number {
+  return airM * legLength(actor, breed) * legsPerMeter;
+}
+
 export function applyRaceLeap(actor: Actor, airU: number, afterLandS: number, apex: number): boolean {
   const visual = raceLeapVisual(actor, airU, afterLandS);
   actor.stumble = null;
@@ -83,7 +118,7 @@ export function applyRaceLeap(actor: Actor, airU: number, afterLandS: number, ap
   const landing = jumpConfig[species].landingMs / 1000;
   const phase = afterLandS <= 0 ? 'airborne' : afterLandS < landing ? 'landing' : 'recovery';
   attachRaceVisual(actor, visual, phase, apex);
-  actor.z = afterLandS > 0 ? 0 : Math.sin(Math.PI * Math.max(0, Math.min(1, airU))) * apex;
+  actor.z = afterLandS > 0 ? 0 : leapLift(airU) * apex;
   return true;
 }
 
@@ -108,6 +143,60 @@ export function clearPose(actor: Actor): void {
   clearRaceVisual(actor);
   actor.stumble = null;
   actor.z = 0;
+}
+
+export type RaceLeap = {
+  airU: number;
+  afterLandS: number;
+  airSeconds: number;
+  apex: number;
+  landed: boolean;
+};
+
+// Advances a gallop, or a leap that is already in the air. The leap plays through landing and
+// recovery, then the pet gallops. Crossing the finish line does not cancel it: pass the same clock.
+export function stepRaceMotion(
+  actor: Actor,
+  breed: Breed,
+  mps: number,
+  dt: number,
+  leap: RaceLeap | null,
+  reduced: boolean,
+  legsPerMeter: number = racePoses.legsPerMeter,
+): RaceLeap | null {
+  stepRaceRun(actor, breed, mps, dt, legsPerMeter);
+  if (!leap) return null;
+
+  let airU = leap.airU;
+  let afterLandS = leap.afterLandS;
+  let landed = leap.landed;
+  const airSeconds = Math.max(0.001, leap.airSeconds);
+
+  if (airU < 1) {
+    const nextU = airU + dt / airSeconds;
+    if (nextU < 1) {
+      applyRaceLeap(actor, nextU, 0, leap.apex);
+      return { ...leap, airU: nextU, afterLandS: 0, landed: false };
+    }
+    afterLandS += (nextU - 1) * airSeconds;
+    airU = 1;
+  } else {
+    afterLandS += dt;
+  }
+
+  if (!landed && afterLandS > 0 && !reduced) {
+    const dust = actor.jump?.dust ?? [];
+    puffDust(actor, dust);
+    if (actor.jump) actor.jump.dust = dust;
+  }
+  if (afterLandS > 0) landed = true;
+
+  const playing = applyRaceLeap(actor, 1, afterLandS, leap.apex);
+  if (!playing) {
+    clearPose(actor);
+    return null;
+  }
+  return { ...leap, airU, afterLandS, landed };
 }
 
 export type PoseMode = 'off' | 'gallop' | 'leap' | 'stumble' | 'loop';

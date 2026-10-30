@@ -7,6 +7,7 @@ import {
   gatePhase,
   raceReminderAt,
   racesOf,
+  isPlayableEvent,
   skillBlock,
   withSignup,
   type RaceSignup,
@@ -31,14 +32,15 @@ it('lets a new pet into the open races and locks the trick races', () => {
   const puppy = pet();
   expect(skillBlock(puppy, 'funRun')).toBeNull();
   expect(skillBlock(puppy, 'dockDive')).toBeNull();
-  expect(skillBlock(puppy, 'hurdles')?.trickId).toBe('dog_hurdle');
-  expect(skillBlock(puppy, 'hurdles')?.reason).toBe('age');
+  expect(skillBlock(puppy, 'hurdles')).toBeNull();
+  expect(isPlayableEvent('funRun')).toBe(true);
+  expect(isPlayableEvent('hurdles')).toBe(true);
+  expect(isPlayableEvent('weave')).toBe(false);
   const trained = {
     ...puppy,
     ageDays: 12,
     training: { ...puppy.training, dog_hurdle: { ...puppy.training.sit, mastered: true } },
   };
-  expect(skillBlock(trained, 'hurdles')).toBeNull();
   expect(skillBlock(trained, 'obstacle')?.trickId).toBe('dog_tunnel');
 });
 

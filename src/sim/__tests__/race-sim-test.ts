@@ -1,4 +1,4 @@
-import { configFor, createRunner, neutralModifiers, runFunRun, speedScale, stepRunner } from '../../../supabase/functions/_shared/race-sim/index.ts';
+import { coastPastM, coastRunner, configFor, createRunner, neutralModifiers, runFunRun, speedScale, stepRunner } from '../../../supabase/functions/_shared/race-sim/index.ts';
 import { testPet } from '../__fixtures__/pets';
 import { applyRaceRewards } from '../raceRewards';
 
@@ -92,4 +92,25 @@ it('applies race rewards once and skips race XP during the tutorial', () => {
   expect(grown.xpTotal).toBe(pet.xpTotal + 100);
   expect(grown.badges).toContain('blue-ribbon');
   expect(grown.badges).toContain('moving-up');
+});
+
+it('coasts finishers past the line without changing the finish time', () => {
+  const distanceM = 80;
+  const stepMs = 1000 / 60;
+  const finished = { x: distanceM, v: 1.5, tMs: 12000, finishMs: 12000 };
+  coastRunner(finished, stepMs, distanceM);
+  expect(finished.finishMs).toBe(12000);
+  expect(finished.v).toBe(4);
+  expect(finished.x).toBeCloseTo(distanceM + 4 * (stepMs / 1000), 5);
+
+  const dnf = { x: 40, v: 6, tMs: 60000, finishMs: null as number | null };
+  coastRunner(dnf, stepMs, distanceM);
+  expect(dnf.x).toBe(40);
+  expect(dnf.tMs).toBe(60000);
+
+  const gone = { x: distanceM + coastPastM + 1, v: 9, tMs: 14000, finishMs: 11000 };
+  coastRunner(gone, stepMs, distanceM);
+  expect(gone.x).toBe(distanceM + coastPastM + 1);
+  expect(gone.tMs).toBe(14000);
+  expect(gone.finishMs).toBe(11000);
 });

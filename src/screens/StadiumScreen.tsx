@@ -16,6 +16,7 @@ import { CandyButton } from '../ui/stadium/CandyButton';
 import { Lobby } from '../ui/stadium/Lobby';
 import { PetChip, ReadyBars, Toast, ink, pageFill, shared, softInk } from '../ui/stadium/parts';
 import { FunRunScreen } from '../ui/stadium/FunRunScreen';
+import { HurdlesScreen } from '../ui/stadium/HurdlesScreen';
 import { RacePlaceholder } from '../ui/stadium/RacePlaceholder';
 import { SignUpSheet } from '../ui/stadium/SignUpSheet';
 import { StadiumHeader } from '../ui/stadium/StadiumHeader';
@@ -262,8 +263,10 @@ export function StadiumScreen({ pet, reducedMotion, openGate, moodTreats, onClos
   const activeGate = screen === 'gate' ? (gateSignup ?? signup) : null;
 
   if (screen === 'race' && race && isPlayableEvent(race.event)) {
+    const RaceScreen = race.event === 'hurdles' ? HurdlesScreen : FunRunScreen;
     return (
-      <FunRunScreen
+      <RaceScreen
+        key={race.raceId}
         race={race}
         pet={pet}
         reducedMotion={reducedMotion}

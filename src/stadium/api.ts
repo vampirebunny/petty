@@ -65,7 +65,16 @@ export type LineupRow = {
   place: number | null;
   coat: string | null;
   breedId: string | null;
+  /** Distance events: best distance in tenths of a meter. */
+  scoreDm: number | null;
+  /** Distance events: each attempt's distance in meters, in order. */
+  attemptsM: number[];
+  /** Distance events: 0-based attempt of the best jump. */
+  bestAttempt: number | null;
 };
+
+/** One racer's distance-event result, as reported to the server. */
+export type DistanceScore = { scoreDm: number; secondDm: number; bestAttempt: number; attemptsM: number[]; flops: boolean[] };
 
 export type RaceStatus = 'open' | 'locked' | 'countdown' | 'running' | 'finished' | 'cancelled';
 
@@ -201,6 +210,7 @@ function modifiersOf(value: unknown): RaceModifiers | null {
 function lineupRow(value: unknown, index: number, npc: boolean): LineupRow {
   const item = rowOf(value);
   const coat = rowOf(item.coat);
+  const detail = rowOf(item.detail);
   return {
     key: text(item.entry_id) ?? `${npc ? 'npc' : 'player'}-${index}`,
     lane: num(item.lane) ?? index + 1,
@@ -217,6 +227,22 @@ function lineupRow(value: unknown, index: number, npc: boolean): LineupRow {
     place: num(item.place),
     coat: text(coat.coat),
     breedId: text(item.breed_id),
+    scoreDm: num(item.score_dm),
+    attemptsM: Array.isArray(detail.attempts_m) ? detail.attempts_m.flatMap((m) => num(m) ?? []) : [],
+    bestAttempt: num(detail.best_attempt),
+  };
+}
+
+function scoreJson(score: DistanceScore | undefined): Record<string, unknown> {
+  if (!score) return {};
+  return {
+    score_dm: Math.round(score.scoreDm),
+    detail: {
+      second_dm: Math.round(score.secondDm),
+      best_attempt: score.bestAttempt,
+      attempts_m: score.attemptsM,
+      flops: score.flops,
+    },
   };
 }
 
@@ -298,15 +324,19 @@ export async function gateHeartbeat(entryId: string): Promise<StadiumResult<Race
 export async function submitRaceReport(
   raceId: string,
   finishMs: number | null,
-  npcFinishes: { entryId: string; finishMs: number | null }[],
+  npcFinishes: { entryId: string; finishMs: number | null; score?: DistanceScore }[],
+  score?: DistanceScore,
 ): Promise<StadiumResult<RaceView>> {
+  const mine = scoreJson(score);
   const result = await call('submit_race_report', {
     p_race_id: raceId,
     p_finish_ms: finishMs == null ? null : Math.round(finishMs),
     p_npc_finishes: npcFinishes.map((row) => ({
       entry_id: row.entryId,
       finish_ms: row.finishMs == null ? null : Math.round(row.finishMs),
+      ...scoreJson(row.score),
     })),
+    ...(score ? { p_score_dm: mine.score_dm, p_detail: mine.detail } : {}),
   });
   if (!result.ok) {
     return result;

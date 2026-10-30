@@ -5,33 +5,37 @@ import type { SkPicture } from '@shopify/react-native-skia';
 import * as Haptics from 'expo-haptics';
 import { useSharedValue } from 'react-native-reanimated';
 
-import { breedById, defaultLook, resolveBreed, resolveBreedById, spawnActor, todAt } from '../../actor';
+import { breedById, defaultLook, resolveBreed, spawnActor, todAt } from '../../actor';
 import type { Actor, Breed } from '../../actor';
-import { setGallopStyle } from '../../actor/data/locomotion';
+import { racePoses, setGallopStyle } from '../../actor/data/locomotion';
 import type { GallopStyle } from '../../actor/data/locomotion';
-import { freshPreview, stepPosePreview, stepRaceRun } from '../../actor/raceDrive';
+import { freshPreview, stepPosePreview, stepRaceMotion } from '../../actor/raceDrive';
 import type { PoseMode, PosePreview } from '../../actor/raceDrive';
 import { skyAt, solarHour } from '../../actor/sky';
-import { playRaceStart, preloadRaceStart, stopRaceStart } from '../../audio/raceStart';
 import { serverNow } from '../../db/accountMeta';
 import { classLabel, eventLabel, formatCountdown } from '../../sim/stadium';
 import type { PetState } from '../../sim/types';
-import { fetchRace, submitRaceReport, type LineupRow, type RaceView } from '../../stadium/api';
+import { fetchRace, submitRaceReport, type RaceView } from '../../stadium/api';
 import {
+  coastRunner,
   configFor,
   createRunner,
-  neutralModifiers,
   runFunRun,
   stepRunner,
   type Modifiers,
-  type RaceClassId,
   type RunnerState,
 } from '../../../supabase/functions/_shared/race-sim/index.ts';
 import type { Env } from '../skia/env';
 import { drawRaceTrack } from '../skia/raceTrack';
 import { fontFamily } from '../font';
 import { CandyButton } from './CandyButton';
+import { RaceAction } from './RaceAction';
+import { raceInputOpen } from './raceCountdown';
+import { actorOf, breedOf, classOf, modsOf, placeSuffix } from './raceField';
+import { useRaceCountdown } from './useRaceCountdown';
 import { ink, shared } from './parts';
+
+const legsPerMeter = racePoses.legsPerMeter * racePoses.funRunScroll;
 
 type Props = {
   race: RaceView;
@@ -44,62 +48,10 @@ type Props = {
 type Standing = { key: string; name: string; finishMs: number | null; place: number | null; mine: boolean };
 
 const bars = 8;
-// One second per beat: Get ready! (T-4s), 3, 2, 1, then Go! for the first second of the race.
-const countLabels = ['Go!', '1', '2', '3', 'Get ready!'] as const;
-
-const countdownSpanMs = 4000;
-
-function countBeat(untilStart: number): number | null {
-  if (untilStart <= -1000 || untilStart > countdownSpanMs) return null;
-  if (untilStart <= 0) return 0;
-  return Math.min(4, Math.ceil(untilStart / 1000));
-}
 const previewBreeds = ['retriever', 'corgi', 'pug', 'dachshund', 'husky', 'domesticShorthair', 'siamese'] as const;
 const previewAges = { puppy: 1, adult: 16, senior: 22 } as const;
 
-function breedOf(row: LineupRow, pet: PetState): Breed {
-  if (row.mine) {
-    return resolveBreedById(pet.breedId, pet.look) ?? breedById('retriever')!;
-  }
-  const fallback = row.species === 'cat' ? 'domesticShorthair' : 'retriever';
-  const found = breedById(row.breedId || fallback) ?? breedById(fallback)!;
-  const look = row.coat ? { ...defaultLook(found), coat: row.coat } : defaultLook(found);
-  return resolveBreed(found, look);
-}
-
-function actorOf(row: LineupRow, pet: PetState, breed: Breed): Actor {
-  return spawnActor({
-    id: row.key,
-    breedId: breed.id,
-    ageDays: row.mine ? pet.ageDays : 16,
-    weight: row.mine ? pet.weight : 0,
-    vitality: row.mine ? pet.vitality : 1,
-    equipped: row.mine ? { ...pet.equipped } : {},
-    look: row.mine ? pet.look : { coat: breed.coat },
-    asleep: false,
-  });
-}
-
-function modsOf(row: LineupRow | undefined, pet: PetState | null): Modifiers {
-  if (row?.mine && pet) {
-    return {
-      energy: pet.needs.energy,
-      mood: pet.needs.happiness,
-      stamina: row.modifiers?.stamina ?? pet.attributes.current.stamina,
-      agility: row.modifiers?.agility ?? pet.attributes.current.agility,
-      intelligence: row.modifiers?.intelligence ?? pet.attributes.current.intelligence,
-    };
-  }
-  return row?.modifiers ?? neutralModifiers;
-}
-
-function classOf(id: string): RaceClassId {
-  if (id === 'novice' || id === 'open' || id === 'expert' || id === 'championship' || id === 'veteran') return id;
-  return 'beginner';
-}
-
 export function FunRunScreen({ race, pet, reducedMotion, onFinish, onExit }: Props) {
-  const [now, setNow] = useState(() => serverNow());
   const [width, setWidth] = useState(0);
   const [finalRace, setFinalRace] = useState<RaceView | null>(null);
   const [provisional, setProvisional] = useState<Standing[] | null>(null);
@@ -123,10 +75,7 @@ export function FunRunScreen({ race, pet, reducedMotion, onFinish, onExit }: Pro
   const [posesOpen, setPosesOpen] = useState(false);
   const stageHeight = Math.round(Math.min(320, Math.max(240, width * 0.72)));
   const [armedQuiet, setArmedQuiet] = useState<number | null>(null);
-  const touched = useRef(new Set<string>());
   const lastHaptic = useRef(0);
-  const lastCountBeat = useRef<number | null>(null);
-  const startSound = useRef(false);
   const playerMods = useRef<Modifiers | null>(null);
   const rewarded = useRef(false);
   const sent = useRef(false);
@@ -141,41 +90,13 @@ export function FunRunScreen({ race, pet, reducedMotion, onFinish, onExit }: Pro
   const field = useMemo(() => [...lineup.players, ...lineup.npcs], [lineup.npcs, lineup.players]);
   const mine = field.find((row) => row.mine) ?? race.players[0];
   const config = configFor(race.configVersion);
-  const untilStart = race.startsAt - now;
-  const going = untilStart <= 0;
   const finished = provisional != null || finalRace?.status === 'finished';
+  const { untilStart, going, beat, countLabel } = useRaceCountdown(race.startsAt, finished);
   const resultsReady = finished && armedQuiet === quiet;
-  const beat = countBeat(untilStart);
-  const countLabel = beat == null ? null : countLabels[beat];
 
   useEffect(() => {
     petRef.current = pet;
   }, [pet]);
-
-  useEffect(() => {
-    const timer = setInterval(() => setNow(serverNow()), 50);
-    return () => clearInterval(timer);
-  }, []);
-
-  useEffect(() => {
-    preloadRaceStart();
-    return () => stopRaceStart();
-  }, []);
-
-  useEffect(() => {
-    if (finished || beat == null || lastCountBeat.current === beat) return;
-    lastCountBeat.current = beat;
-    if (!startSound.current) {
-      startSound.current = true;
-      const into = Math.max(0, (countdownSpanMs - (race.startsAt - serverNow())) / 1000);
-      playRaceStart(into);
-    }
-    if (beat === 0) {
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } else if (beat <= 3) {
-      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    }
-  }, [beat, finished, race.startsAt]);
 
   useEffect(() => {
     const found = breedById(previewBreedId) ?? breedById('retriever')!;
@@ -232,10 +153,9 @@ export function FunRunScreen({ race, pet, reducedMotion, onFinish, onExit }: Pro
             }
             stepRunner(state, due, row.mine && playerMods.current ? playerMods.current : modsOf(row, null), npc, race.configVersion);
           } else {
-            if (state.x > config.distanceM + 80) break;
-            state.v = Math.max(state.v, 4);
-            state.x += state.v * (stepMs / 1000);
-            state.tMs += stepMs;
+            const before = state.tMs;
+            coastRunner(state, stepMs, config.distanceM);
+            if (state.tMs === before) break;
           }
         }
       }
@@ -275,7 +195,7 @@ export function FunRunScreen({ race, pet, reducedMotion, onFinish, onExit }: Pro
           actor.equipped = { ...livePet.equipped };
           actor.displayAgeDays = livePet.ageDays;
         }
-        stepRaceRun(actor, breed, runners.current.get(row.key)?.v ?? 0, dt);
+        stepRaceMotion(actor, breed, runners.current.get(row.key)?.v ?? 0, dt, null, reducedMotion, legsPerMeter);
       }
       const preview = previewRef.current;
       if (preview.mode !== 'off' && previewActor.current && previewBreed.current) {
@@ -312,7 +232,7 @@ export function FunRunScreen({ race, pet, reducedMotion, onFinish, onExit }: Pro
               actor: actors.current.get(row.key) ?? actorOf(row, livePet, breedOf(row, livePet)),
               breed: breedOf(row, livePet),
             }));
-        drawRaceTrack(canvas, width, trackH, env, camera, racers);
+        drawRaceTrack(canvas, width, trackH, env, camera, racers, config.distanceM, legsPerMeter);
         picture.value = recorder.finishRecordingAsPicture();
       }
       const xs: Record<string, number> = {};
@@ -324,7 +244,7 @@ export function FunRunScreen({ race, pet, reducedMotion, onFinish, onExit }: Pro
       alive = false;
       clearInterval(timer);
     };
-  }, [config.maxMs, config.stepHz, field, finished, going, mine, picture, race.classId, race.configVersion, race.raceId, race.seed, race.startsAt, reducedMotion, stageHeight, width]);
+  }, [config.distanceM, config.maxMs, config.stepHz, field, finished, going, mine, picture, race.classId, race.configVersion, race.raceId, race.seed, race.startsAt, reducedMotion, stageHeight, width]);
 
   // The screen opens before the start, while the server may still be adding NPCs.
   const settled = lineup.status === 'running' || lineup.status === 'finished' || lineup.status === 'cancelled';
@@ -367,10 +287,9 @@ export function FunRunScreen({ race, pet, reducedMotion, onFinish, onExit }: Pro
   const minePlace = standings?.find((row) => row.mine)?.place;
 
   const tap = () => {
-    if (finished) return;
     // Re-check the clock: `going` can lag the 50 ms render tick right at Go!.
     const at = serverNow();
-    if (at < race.startsAt) return;
+    if (!raceInputOpen(at, race.startsAt, finished)) return;
     taps.current.push(at - race.startsAt);
     const local = Date.now();
     if (local - lastHaptic.current < 50) return;
@@ -478,7 +397,7 @@ export function FunRunScreen({ race, pet, reducedMotion, onFinish, onExit }: Pro
       {finished && standings ? (
         <View style={styles.results}>
           <View style={styles.standings}>
-            <Text style={styles.title}>{minePlace === 1 ? `${pet.name} won!` : minePlace ? `${pet.name} placed ${minePlace}${suffix(minePlace)}!` : 'Finish!'}</Text>
+            <Text style={styles.title}>{minePlace === 1 ? `${pet.name} won!` : minePlace ? `${pet.name} placed ${minePlace}${placeSuffix(minePlace)}!` : 'Finish!'}</Text>
             {finalRace?.status === 'finished' ? null : <Text style={shared.copy}>Provisional</Text>}
             {standings.map((row, index) => (
               <Text key={row.key} style={styles.standing}>
@@ -495,60 +414,25 @@ export function FunRunScreen({ race, pet, reducedMotion, onFinish, onExit }: Pro
           )}
         </View>
       ) : (
-        <View
-          style={styles.action}
-          onTouchStart={(event) => {
-            for (const touch of event.nativeEvent.touches) {
-              const id = String(touch.identifier);
-              if (!touched.current.has(id)) {
-                touched.current.add(id);
-                tap();
-              }
-            }
-          }}
-          onTouchEnd={(event) => {
-            for (const touch of event.nativeEvent.changedTouches ?? []) {
-              touched.current.delete(String(touch.identifier));
-            }
-            const still = new Set(event.nativeEvent.touches.map((touch) => String(touch.identifier)));
-            for (const id of touched.current) {
-              if (!still.has(id)) touched.current.delete(id);
-            }
-          }}
-          onTouchCancel={() => touched.current.clear()}
+        <RaceAction
+          going={going}
+          beat={beat}
+          countLabel={countLabel}
+          activeLabel="TAP!"
+          tone="tap"
+          hint={going ? 'Tap as fast as you can' : 'Tapping starts at Go!'}
+          accessibilityLabel="Tap to run"
+          onActivate={tap}
         >
-          {countLabel ? (
-            <Text
-              accessibilityLiveRegion="assertive"
-              style={[styles.count, beat === 4 && styles.ready, beat === 0 && styles.go]}
-            >
-              {countLabel}
-            </Text>
-          ) : null}
           <View style={styles.meter}>
             {Array.from({ length: bars }, (_, index) => (
               <View key={index} style={[styles.barBit, index < filled && styles.barOn]} />
             ))}
           </View>
-          <View
-            style={[styles.tap, !going && styles.tapWait]}
-            accessibilityRole="button"
-            accessibilityLabel={going ? 'Tap to run' : 'Wait for Go'}
-            accessibilityState={{ disabled: !going }}
-          >
-            <Text style={[styles.tapText, !going && styles.tapTextWait]}>{going ? 'TAP!' : 'Wait'}</Text>
-          </View>
-          <Text style={shared.copy}>{going ? 'Tap as fast as you can' : 'Tapping starts at Go!'}</Text>
-        </View>
+        </RaceAction>
       )}
     </View>
   );
-}
-
-function suffix(place: number): string {
-  if (place === 2) return 'nd';
-  if (place === 3) return 'rd';
-  return 'th';
 }
 
 const styles = StyleSheet.create({
@@ -567,17 +451,9 @@ const styles = StyleSheet.create({
   chipText: { fontFamily: fontFamily.bold, fontSize: 11, color: ink },
   stage: { marginTop: 8 },
   canvas: { flex: 1 },
-  action: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 16 },
-  count: { fontFamily: fontFamily.fredokaBold, fontSize: 72, color: ink },
-  ready: { fontSize: 44 },
-  go: { color: '#2DAA6C' },
   meter: { flexDirection: 'row', gap: 6 },
   barBit: { width: 18, height: 14, borderRadius: 4, backgroundColor: '#E7D7F2' },
   barOn: { backgroundColor: '#F0609F' },
-  tap: { width: 150, height: 150, borderRadius: 75, backgroundColor: '#FF8FC0', borderWidth: 3, borderColor: ink, alignItems: 'center', justifyContent: 'center' },
-  tapWait: { backgroundColor: '#E4DEE9', borderColor: '#B7ADC1', borderStyle: 'dashed', opacity: 0.6, transform: [{ scale: 0.92 }] },
-  tapText: { fontFamily: fontFamily.fredokaBold, fontSize: 36, color: '#fff' },
-  tapTextWait: { color: '#9A8FA6' },
   results: { flex: 1, padding: 16, paddingBottom: 28, justifyContent: 'space-between' },
   standings: { gap: 8 },
   hold: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },

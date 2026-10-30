@@ -65,9 +65,13 @@ export function hoopApex(prop: PlacedTrickProp, bodyHPx: number): number {
 
 // Sets the bar and ring to heights this pet can actually clear.
 // ceilingPx is the pet's highest jump (feet height), bodyHPx its body height, margin the jump's obstacle margin in body-heights.
+export function fitBarZ(ceilingPx: number, bodyHPx: number, margin: number): number {
+  return clamp((ceilingPx - margin * bodyHPx) * 0.85, HURDLE.barMin, HURDLE.barMax);
+}
+
 export function fitTrickProp(prop: PlacedTrickProp, ceilingPx: number, bodyHPx: number, margin: number): void {
   if (prop.type === 'hurdle') {
-    prop.barZ = clamp((ceilingPx - margin * bodyHPx) * 0.85, HURDLE.barMin, HURDLE.barMax);
+    prop.barZ = fitBarZ(ceilingPx, bodyHPx, margin);
   } else if (prop.type === 'hoop') {
     const lowest = HOOP.r + HOOP.ring / 2 + 4;
     prop.hoopZ = clamp(ceilingPx * 0.85 + HOOP.bodyCenter * bodyHPx, lowest, HOOP.zMax);

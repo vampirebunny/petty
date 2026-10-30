@@ -60,6 +60,8 @@ export const gameplayConfig = {
   },
   // Display defaults. The server's stadium_config row decides slots, sign-ups, and the gate.
   // Testing: 1-minute slots and no rest. Restore to 5 min / 6 min when done.
+  // Testing: Hurdles is in every slot and does not require Jump the Hurdle.
+  // The server half is 20261029390000_test_hurdles_every_slot.sql. Restore both before launch.
   races: {
     slotMs: 60 * 1000,
     eventsPerSlot: 3,
@@ -83,6 +85,7 @@ export const gameplayConfig = {
     xp: { entered: 20, third: 40, second: 60, first: 100 },
     dailyXpRaces: 8,
     energyCost: 8,
+    waiveHurdleSkill: true,
   },
   goals: [
     { action: 'feed', label: 'Feed' },

@@ -1,5 +1,6 @@
 import { daysToSenior } from '../../sim/config';
-import { raceCadence, raceGaitFor, stepRaceRun } from '../raceDrive';
+import { leapLift, raceAirPx, raceCadence, raceGaitFor, raceHurdleSize, stepRaceMotion, stepRaceRun } from '../raceDrive';
+import type { RaceLeap } from '../raceDrive';
 import { raceLeapVisual, stumbleVisualAt } from '../jump';
 import { racePoses } from '../data/locomotion';
 import { geomOf } from '../geometry';
@@ -19,6 +20,21 @@ function pet(breedId: string, ageDays: number) {
 }
 
 describe('race poses', () => {
+  it('leaps high enough to clear the fitted hurdle even from the edge of the zone', () => {
+    for (const breedId of ['retriever', 'pug', 'siamese']) {
+      const actor = pet(breedId, 16);
+      const breed = breedById(breedId)!;
+      const airPx = raceAirPx(actor, breed, 4.5, racePoses.hurdlesLegsPerMeter);
+      const { barZ, apex } = raceHurdleSize(actor, airPx);
+      expect(barZ).toBeGreaterThan(0);
+      // Edge jumps pass over the hurdle a quarter of the air from take-off or touchdown.
+      expect(leapLift(0.25) * apex).toBeGreaterThan(barZ);
+      expect(leapLift(0.5) * apex).toBeCloseTo(apex, 5);
+      // A long leap is a high arc too, not a skim.
+      expect(apex).toBeGreaterThanOrEqual(airPx * 0.3);
+    }
+  });
+
   it('picks the gait from race speed and ignores home top speed', () => {
     expect(raceGaitFor(1)).toBe('walk');
     expect(raceGaitFor(2)).toBe('trot');
@@ -72,6 +88,35 @@ describe('race poses', () => {
     expect(buckle.fore.plant).toBe(false);
     expect(done.blend).toBe(0);
     stepRaceRun(actor, breed, 5, 0.05);
+    expect(actor.pose.lie).toBe(0);
+  });
+
+  it('finishes a leap that is still in the air, then gallops', () => {
+    const actor = pet('retriever', 16);
+    const breed = breedById('retriever')!;
+    let leap: RaceLeap | null = {
+      airU: 0.4,
+      afterLandS: 0,
+      airSeconds: racePoses.leapAirSeconds,
+      apex: racePoses.leapApexPx,
+      landed: false,
+    };
+    leap = stepRaceMotion(actor, breed, 8, 0.05, leap, true);
+    expect(leap).not.toBeNull();
+    expect(leap!.airU).toBeGreaterThan(0.4);
+    expect(leap!.airU).toBeLessThan(1);
+    expect(actor.jump).toBeTruthy();
+    expect(actor.z).toBeGreaterThan(0);
+
+    let steps = 0;
+    while (leap && steps < 80) {
+      leap = stepRaceMotion(actor, breed, 8, 0.05, leap, true);
+      steps += 1;
+    }
+    expect(leap).toBeNull();
+    expect(actor.jump).toBeFalsy();
+    expect(actor.z).toBe(0);
+    expect(actor.gait.current).toBe('gallop');
     expect(actor.pose.lie).toBe(0);
   });
 });

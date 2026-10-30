@@ -83,6 +83,10 @@ export const racePoses = {
   // Ground covered per meter, in the pet's own leg lengths. The track scrolls at the same rate under the
   // player's pet, so planted paws stay put. About 3.3 gallop strides a second at the 11 m/s cap.
   legsPerMeter: 1.5,
+  // Fun Run draws the track this many times faster than the planted-paw scale, so the ground rushes by.
+  funRunScroll: 3,
+  // Hurdles track scale, in leg lengths per meter. Fun Run is faster (legsPerMeter × funRunScroll).
+  hurdlesLegsPerMeter: 3,
   topMps: 11,
   bands: { walk: 1.5, trot: 3, canter: 4.5 },
   stumbleMps: 5,

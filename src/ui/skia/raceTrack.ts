@@ -4,12 +4,12 @@ import type { SkCanvas } from '@shopify/react-native-skia';
 import { bodyFrame } from '../../actor';
 import type { Actor, Breed } from '../../actor';
 import { racePoses } from '../../actor/data/locomotion';
+import { HURDLE, type PlacedTrickProp } from '../../sim/trickProps';
 import type { Env } from './env';
 import { drawActor } from './pet';
+import { drawTrickProp } from './trickPropArt';
 import { drawSkyPane } from './sky';
 import { drawPrecip } from './weatherFx';
-
-export const TRACK_DISTANCE = 70;
 
 // Where the player's pet sits across the screen.
 const anchor = 0.33;
@@ -20,12 +20,25 @@ const backScale = 0.6;
 const frontFill = 0.86;
 const dashM = 1.2;
 
+export type TrackZone = { from: number; to: number; perfectFrom: number; perfectTo: number };
+
+// Hurdles in a racer's own lane, drawn with the Training School hurdle art at that pet's bar height.
+// `fallenS` is seconds since that racer clipped each hurdle (null while it stands). Zones draw only for the player.
+export type TrackCourse = {
+  hurdles: number[];
+  fallenS: (number | null)[];
+  barZ: number;
+  species: 'dog' | 'cat';
+  zones: TrackZone[] | null;
+};
+
 export type TrackRacer = {
   x: number;
   name: string;
   mine: boolean;
   actor: Actor;
   breed: Breed;
+  course?: TrackCourse;
 };
 
 function paint(color: string) {
@@ -42,7 +55,7 @@ function stroke(color: string, width: number) {
   return p;
 }
 
-type Fit = { fit: number; legPx: number; nosePx: number };
+type Fit = { fit: number; legPx: number; nosePx: number; pawPx: number };
 
 function fitFor(racer: TrackRacer, targetH: number): Fit {
   const { actor, breed } = racer;
@@ -68,6 +81,8 @@ function fitFor(racer: TrackRacer, targetH: number): Fit {
     fit,
     legPx: frame.scale * frame.geom.L * fit,
     nosePx: frame.scale * (frame.geom.bodyLen / 2 + frame.geom.headR * 1.7) * fit,
+    // Front paws sit ahead of the body center. Course lines are judged at the paws.
+    pawPx: frame.scale * frame.geom.bodyLen * 0.4 * fit,
   };
 }
 
@@ -79,6 +94,8 @@ export function drawRaceTrack(
   env: Env,
   cameraX: number,
   racers: TrackRacer[],
+  distanceM: number,
+  legsPerMeter: number = racePoses.legsPerMeter,
 ): void {
   const trackTop = height * 0.42;
   const trackH = height - trackTop;
@@ -89,9 +106,9 @@ export function drawRaceTrack(
   const others = racers.filter((racer) => racer !== mine);
   const mineFit = mine ? fitFor(mine, petH) : null;
   // Screen pixels per meter follow the player's pet, so its paws match the ground it runs over.
-  const ppm = mineFit ? mineFit.legPx * racePoses.legsPerMeter : 40;
+  const ppm = mineFit ? mineFit.legPx * legsPerMeter : 40;
   // Stop following before the line so it sits left of the edge and pets can run off the right.
-  const camera = Math.min(cameraX, Math.max(0, TRACK_DISTANCE - (width * 0.42) / ppm));
+  const camera = Math.min(cameraX, Math.max(0, distanceM - (width * 0.42) / ppm));
   const screenX = (meters: number) => width * anchor + (meters - camera) * ppm;
 
   drawSkyPane(c, 0, 0, width, height * 0.36, env);
@@ -130,14 +147,21 @@ export function drawRaceTrack(
     c.drawCircle(x + dashM * ppm * 0.5, frontTop + frontH * 0.85, 1.5, pebble);
   }
 
-  for (let mark = 10; mark < TRACK_DISTANCE; mark += 10) {
+  for (let mark = 10; mark < distanceM; mark += 10) {
     const x = screenX(mark);
     if (x < -20 || x > width + 20) continue;
     c.drawLine(x, trackTop, x, height, stroke('#D9C79A', 1.5));
   }
   // Every racer starts with its body centered on 0 m, so the line sits just past the player's nose.
   drawStart(c, screenX(0) + (mineFit?.nosePx ?? 30) + 4, width, trackTop, height);
-  drawFinish(c, screenX(TRACK_DISTANCE), width, trackTop, height);
+  const finishLead = mine?.course && mineFit ? mineFit.pawPx : 0;
+  drawFinish(c, screenX(distanceM) + finishLead, width, trackTop, height);
+
+  if (mine?.course?.zones && mineFit) {
+    for (const zone of mine.course.zones) {
+      drawZone(c, screenX(zone.from) + mineFit.pawPx, screenX(zone.to) + mineFit.pawPx, screenX(zone.perfectFrom) + mineFit.pawPx, screenX(zone.perfectTo) + mineFit.pawPx, frontTop, height, width);
+    }
+  }
 
   drawPrecip(c, 0, 0, width, height * 0.7, env);
   if (env.tod.dark > 0.22) {
@@ -146,23 +170,91 @@ export function drawRaceTrack(
 
   others.forEach((racer, index) => {
     const footY = trackTop + (index + 1) * backLaneH - 2;
+    const laneFit = fitFor(racer, petH * backScale);
+    if (racer.course) drawLaneHurdles(c, racer.course, screenX, laneFit, footY, width, env.reduced, 'back');
     const x = screenX(racer.x);
-    if (x > width + width * 0.55) return;
     if (x < -40) {
-      if (racer.x >= TRACK_DISTANCE) return;
-      drawOffscreen(c, 10, footY - backLaneH * 0.5, -1);
-      return;
+      if (racer.x < distanceM) drawOffscreen(c, 10, footY - backLaneH * 0.5, -1);
+    } else if (x > width + 40) {
+      if (racer.x < distanceM) drawOffscreen(c, width - 10, footY - backLaneH * 0.5, 1);
+    } else {
+      drawRacer(c, x, footY, laneFit.fit, racer, env);
     }
-    if (x > width + 40 && racer.x < TRACK_DISTANCE) {
-      drawOffscreen(c, width - 10, footY - backLaneH * 0.5, 1);
-      return;
-    }
-    const { fit } = fitFor(racer, petH * backScale);
-    drawRacer(c, x, footY, fit, racer, env);
+    if (racer.course) drawLaneHurdles(c, racer.course, screenX, laneFit, footY, width, env.reduced, 'front');
   });
   if (mine && mineFit) {
+    const footY = height - frontH * 0.12;
+    if (mine.course) drawLaneHurdles(c, mine.course, screenX, mineFit, footY, width, env.reduced, 'back');
     const x = screenX(mine.x);
-    if (x < width + width * 0.55) drawRacer(c, x, height - frontH * 0.12, mineFit.fit, mine, env);
+    if (x < width + width * 0.55) drawRacer(c, x, footY, mineFit.fit, mine, env);
+    if (mine.course) drawLaneHurdles(c, mine.course, screenX, mineFit, footY, width, env.reduced, 'front');
+  }
+}
+
+const tumble = { fallS: 0.32, bounceS: 0.22, angle: 86, bounceDeg: 9, slidePx: 10 };
+
+// Degrees the hurdle has tipped forward and how far it has slid, from seconds since the bump.
+function tumbleAt(seconds: number, reduced: boolean): { angle: number; slide: number } {
+  if (reduced || seconds >= tumble.fallS + tumble.bounceS) return { angle: tumble.angle, slide: tumble.slidePx };
+  if (seconds < tumble.fallS) {
+    const u = seconds / tumble.fallS;
+    return { angle: tumble.angle * u * u, slide: tumble.slidePx * u };
+  }
+  const u = (seconds - tumble.fallS) / tumble.bounceS;
+  return { angle: tumble.angle - tumble.bounceDeg * Math.sin(Math.PI * u), slide: tumble.slidePx };
+}
+
+// Standing hurdles split around the pet like they do at home: far half of the pole behind, near half in front.
+// A tumbling or fallen hurdle draws whole on the back pass, under the pet.
+function drawLaneHurdles(
+  c: SkCanvas,
+  course: TrackCourse,
+  screenX: (meters: number) => number,
+  lane: Fit,
+  footY: number,
+  width: number,
+  reduced: boolean,
+  pass: 'back' | 'front',
+): void {
+  const reach = (HURDLE.barMax + 40) * lane.fit;
+  course.hurdles.forEach((at, index) => {
+    const x = screenX(at) + lane.pawPx;
+    if (x < -reach || x > width + reach) return;
+    const fallen = course.fallenS[index];
+    if (fallen != null && pass === 'front') return;
+    const prop: PlacedTrickProp = {
+      instanceId: 'race-hurdle',
+      type: 'hurdle',
+      sourceTrickId: course.species === 'cat' ? 'cat_hurdle' : 'dog_hurdle',
+      x: 0,
+      y: 0,
+      knocked: false,
+      barZ: course.barZ,
+    };
+    c.save();
+    c.translate(x, footY);
+    c.scale(lane.fit, lane.fit);
+    if (fallen != null) {
+      const { angle, slide } = tumbleAt(fallen, reduced);
+      c.translate(slide, 0);
+      c.rotate(angle, 0, 0);
+      drawTrickProp(c, prop, 'whole');
+    } else {
+      drawTrickProp(c, prop, pass);
+    }
+    c.restore();
+  });
+}
+
+function drawZone(c: SkCanvas, from: number, to: number, perfectFrom: number, perfectTo: number, top: number, bottom: number, width: number): void {
+  if (to < 0 || from > width) return;
+  c.drawRect(Skia.XYWHRect(from, top, to - from, bottom - top), paint('rgba(121,200,160,0.28)'));
+  c.drawRect(Skia.XYWHRect(perfectFrom, top, perfectTo - perfectFrom, bottom - top), paint('rgba(45,170,108,0.18)'));
+  const dash = stroke('#2DAA6C', 2);
+  for (const x of [from, to]) {
+    for (let y = top; y < bottom; y += 10) {
+      c.drawLine(x, y, x, Math.min(bottom, y + 5), dash);
+    }
   }
 }
 

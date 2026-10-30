@@ -97,6 +97,7 @@ Additions for the leap:
 - **Ears flat** in the air: add 0.2 to `earLag`'s target while airborne in a leap.
 - The idle tuck (`pose.tuck`) never applies during a jump already. Keep it that way.
 - Home hurdles (`considerHurdle`) keep `'tuck'` for now. Try `'leap'` there after seeing it in races.
+- The finish line does not cut a leap short. If the pet is still in the air when it crosses, the leap plays through landing and recovery, then the gallop.
 
 ## 3. Stumble (clipped hurdle)
 
@@ -128,7 +129,7 @@ The race sim (race foundation brief) owns position, speed, jump height and timin
 - **Jumps:** the race owns the arc, so don't call `jump()` in a race. Its turn, crouch and take-off phases would delay the jump by about 130 ms after the tap, and its own gravity arc would disagree with the race's. Instead, export a pure **`raceLeapVisual(actor, airU, afterLandS)`** from `jump.ts`. It builds a `JumpState`-shaped object and runs the same `poseLegs` / `sampleVisual` logic for a leap:
   - **No crouch in races.** The tap is the take-off. Blend the `push` legs into the first 8% of air (`airU` 0–0.08), then rise, apex and fall by `airU`, exactly as `poseLegs` does today.
   - After touchdown, play `landing` then `recovery` by `afterLandS` (seconds since landing), as visuals only. The race keeps moving the pet at full speed, so treat it as a running landing (no `vx = 0`).
-  - The race sets `actor.z` from its own arc, with `apex` = the race's jump height, so shadow shrink and fade keep working (`z / apex`).
+  - The race sets `actor.z` from its own arc, with `apex` = the race's jump height, so shadow shrink and fade keep working (`z / apex`). The arc is `leapLift(airU) × apex`, a parabola (4u(1 − u)). Hurdles sizes `apex` per pet with `raceHurdleSize` so the feet clear the fitted bar.
   - Dust: spawn the existing landing dust at touchdown.
   - The puppy bounce is skipped in races, since it would hold the pet back.
 - **Stumble:** the race starts it on a clip; the driver steps `actor.stumble.t` and fills the visual with `stumbleVisualAt(t)`.
