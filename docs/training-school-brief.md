@@ -61,7 +61,7 @@ These override anything below that still reads the other way.
 ### Learned Tricks
 - Tapping a learned trick makes the pet perform it on demand.
 - If the pet is busy, the trick cuts in the way a learned trick does today. A pet on furniture finishes climbing, then performs the one waiting trick.
-- Performing a learned trick costs nothing and gives no progress.
+- Performing a learned trick costs nothing and gives no progress. It raises the trick's linked attributes a little (`learnedPerformanceRaw` in `gameplayConfig`), less as they near potential, and never past potential.
 
 ### Free treats at Training School
 - This applies when a training attempt succeeds **while the pet is at the Training School**.

@@ -1951,7 +1951,9 @@ export default function HomeScreen({ petApi }: Props) {
       }
       let outcome: 'success' | 'early' | 'mid' | 'almost' = 'success';
       let pending: 'good' | 'miss' | null = null;
-      if (!mastered) {
+      if (mastered) {
+        attemptTrick(trackId);
+      } else {
         if (isResting(track, clockRef.current)) {
           if (sheetTimer.current) {
             clearTimeout(sheetTimer.current);

@@ -35,6 +35,8 @@ export const gameplayConfig = {
   tutorialXp: 10,
   everyday: { xp: 2, dailyCap: 100 },
   trickXp: { basic: 50, advanced: 200 } as const,
+  // Split across the trick's linked attributes. trainingGain tapers it near potential.
+  learnedPerformanceRaw: 0.25,
   findXp: { common: 10, uncommon: 25, rare: 75, legendary: 150 } as Record<ParkFindRarity, number>,
   bands: [
     { from: 11, to: 25, start: 120, end: 250 },
@@ -60,11 +62,9 @@ export const gameplayConfig = {
     needAt: 30,
   },
   // Display defaults. The server's stadium_config row decides slots, sign-ups, and the gate.
-  // Testing: 1-minute slots and no rest. Restore to 5 min / 6 min when done.
-  // Testing: Hurdles is in every slot and does not require Jump the Hurdle.
-  // The server half is 20261029390000_test_hurdles_every_slot.sql. Restore both before launch.
+  // 20261030130000_launch_race_schedule.sql: 5-minute slots, 1-minute rest.
   races: {
-    slotMs: 60 * 1000,
+    slotMs: 5 * 60 * 1000,
     eventsPerSlot: 3,
     slotsShown: 3,
     capacity: 6,
@@ -72,7 +72,7 @@ export const gameplayConfig = {
     // The race call and local notification, later than the gate itself.
     callMs: 30 * 1000,
     lockMs: 10 * 1000,
-    cooldownMs: 0,
+    cooldownMs: 60 * 1000,
     npcFill: 5,
     heartbeatMs: 5000,
     boardRefreshMs: 15000,
@@ -88,9 +88,6 @@ export const gameplayConfig = {
     xp: { entered: 20, third: 40, second: 60, first: 100 },
     dailyXpRaces: 8,
     energyCost: 8,
-    waiveHurdleSkill: true,
-    // Testing: Obstacle Course without Jump the Hurdle and Through the Tunnel. Restore before launch.
-    waiveObstacleSkill: true,
   },
   // Display defaults. The server's stadium_config row decides the delays and the invite cap.
   friendGames: {

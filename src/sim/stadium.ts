@@ -172,12 +172,6 @@ function stageReached(ageDays: number, need: Stage): boolean {
 }
 
 export function skillBlock(state: PetState, event: RaceEvent): SkillBlock | null {
-  if (event === 'hurdles' && gameplayConfig.races.waiveHurdleSkill) {
-    return null;
-  }
-  if (event === 'obstacle' && gameplayConfig.races.waiveObstacleSkill) {
-    return null;
-  }
   const species = speciesOf(state.breedId);
   for (const key of trickKeys[event] ?? []) {
     const trickId = trickIdFor(species, key);

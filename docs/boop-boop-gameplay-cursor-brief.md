@@ -198,10 +198,10 @@ Small goals the game offers, not things the pet asks for. Ignoring one costs not
 - **Basic:** every trick that doesn't need a prop, including the free starters Sit, Speak and Paw, plus Down, Spin, High Five, Bow, Roll Over, Catch, Stand Tall, Play Dead, Sing, and the cat's Lie Down and Fetch.
 - **Advanced:** every trick that needs a prop: Jump the Hurdle, Through the Tunnel, Jump Through Hoop, Jump Up (dogs and cats, podium), Weave. Place is not a trick (Jump Up replaced it); don't add it.
 - Keep the catalog's existing age gates (e.g. Weave at adult). Open-class Agility therefore needs an adult pet; that's intended.
-- **Cat Paw naming:** rename the cat's starter trick from "High five" to "Paw" so it doesn't clash with the purchasable cat_high_five in the Trick Show.
+- **Cat Paw naming:** cats keep **High five** for the starter Paw track. Dogs see Paw. The purchasable High Five (`cat_high_five`) stays a separate trick. Do not rename the starter.
 - Come stays removed.
 - Keep the existing trick-to-attribute mappings in code.
-- Performing an already-learned trick raises its attributes slightly, shrinking as the attribute nears the pet's potential. Never past potential.
+- **Shipped.** Performing an already-learned trick raises its linked attributes by `learnedPerformanceRaw` (0.25), split across those attributes. The gain uses `trainingGain`, so it shrinks as the score nears potential and stops at potential. It does not change trick progress, pay XP, or spend a treat. Training rest does not block it.
 - At home, learned tricks always succeed (no change).
 
 ## 8. Stadium and competitions

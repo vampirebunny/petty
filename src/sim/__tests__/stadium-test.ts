@@ -34,7 +34,7 @@ it('lets a new pet into the open races and locks the trick races', () => {
   const puppy = pet();
   expect(skillBlock(puppy, 'funRun')).toBeNull();
   expect(skillBlock(puppy, 'dockDive')).toBeNull();
-  expect(skillBlock(puppy, 'hurdles')).toBeNull();
+  expect(skillBlock(puppy, 'hurdles')?.trickId).toBe('dog_hurdle');
   expect(isPlayableEvent('funRun')).toBe(true);
   expect(isPlayableEvent('hurdles')).toBe(true);
   expect(isPlayableEvent('weave')).toBe(false);
@@ -43,8 +43,9 @@ it('lets a new pet into the open races and locks the trick races', () => {
     ageDays: 12,
     training: { ...puppy.training, dog_hurdle: { ...puppy.training.sit, mastered: true } },
   };
+  expect(skillBlock(trained, 'hurdles')).toBeNull();
   expect(isPlayableEvent('obstacle')).toBe(true);
-  expect(skillBlock(trained, 'obstacle')?.trickId).toBe(gameplayConfig.races.waiveObstacleSkill ? undefined : 'dog_tunnel');
+  expect(skillBlock(trained, 'obstacle')?.trickId).toBe('dog_tunnel');
 });
 
 it('picks the class from level', () => {

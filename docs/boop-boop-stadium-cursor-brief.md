@@ -6,7 +6,7 @@ Build the Stadium place on the map: where players see upcoming races, sign up, g
 
 Visual reference: the "Boop Boop Stadium" design canvas, screens 1–5 (Stadium lobby, Sign-up sheet, Signed up, Race call, Starting gate). Use the mocks for layout, hierarchy and copy. **Where this brief and the mocks disagree, this brief wins** (notably the starting gate's lane and NPC rules, section 6).
 
-**Status: shipped** through the starting gate. Race gameplay is in `docs/boop-boop-race-foundation-cursor-brief.md`. Fun Run, Hurdles, Dock Dive, and Obstacle Course are playable. Solo results go through the deployed `race_report` Edge Function. Sniff Out, Trick Show, and Weave are cancelled. Testing migrations (`20261029370000_test_fast_slots.sql`, `20261029390000_test_hurdles_every_slot.sql`, `20261029430000_schedule_ship_roster.sql`, `20261029440000_obstacle_course.sql`) stay in effect until testing ends.
+**Status: shipped** through the starting gate. Race gameplay is in `docs/boop-boop-race-foundation-cursor-brief.md`. Fun Run, Hurdles, Dock Dive, and Obstacle Course are playable. Solo results go through the deployed `race_report` Edge Function. Sniff Out, Trick Show, and Weave are cancelled. The launch board is applied (`20261030130000_launch_race_schedule.sql`): 5-minute slots, Fun Run and Dock Dive every slot, Hurdles and Obstacle Course alternating, trick gates restored, and a 1-minute rest per event.
 
 ## Global rules
 
@@ -15,7 +15,7 @@ Visual reference: the "Boop Boop Stadium" design canvas, screens 1–5 (Stadium 
   - Go / confirm (Go to the Stadium, selected time slot): the mint/green glossy button
   - Race with friends: the lavender glossy button
   - Secondary (Withdraw, Not now, Skip this race): the existing white or text-only secondary style
-- All numbers are defaults in the gameplay config, not hardcoded: slot length (5 min), events per slot (3), slots shown (3), race capacity (6), gate opens (60 s before start), race call and local notification (30 s before start), line-up lock (10 s before start), rest per event (6 min), NPC fill count. The server's `stadium_config` row is the source of truth. For testing, `20261029370000_test_fast_slots.sql` sets 1-minute slots and no rest, `20261029390000_test_hurdles_every_slot.sql` puts Hurdles in every slot with no Jump the Hurdle requirement, and `20261029430000_schedule_ship_roster.sql` keeps that board while scheduling only the ship roster (Fun Run, Dock Dive, Hurdles, Obstacle Course). The client defaults match. Restore 5 minutes, 6 minutes, the Hurdles / Obstacle Course third-event rotation, and the hurdle trick before launch.
+- All numbers are defaults in the gameplay config, not hardcoded: slot length (5 min), events per slot (3), slots shown (3), race capacity (6), gate opens (60 s before start), race call and local notification (30 s before start), line-up lock (10 s before start), rest per event (1 min), NPC fill count. The server's `stadium_config` row is the source of truth (`20261030130000_launch_race_schedule.sql`). The client defaults match.
 - No speech balloons over pets; no tooltips or banners on the starting gate or during races.
 - The Stadium needs a connection. Offline: show the header plus a friendly "The Stadium needs internet to race" state with a back button. Everything else in the app keeps working offline.
 - Use **server time** for every countdown (keep a server-clock offset); never trust the device clock for slot times.
@@ -85,7 +85,7 @@ Top to bottom:
 - Free entry, no energy cost or minimum.
 - **One active sign-up per pet.** While signed up, other races show "In a race".
 - Players can sign up for any slot shown (up to ~15 min ahead).
-- Blocked when that event's 6-minute rest (from the last race's start) is still running at the new race's start. The rest is written with the results; withdrawing, missing the gate, or a cancelled race does not start it. A pet can enter a different event during the rest.
+- Blocked when that event's 1-minute rest (from the last race's start) is still running at the new race's start. The rest is written with the results; withdrawing, missing the gate, or a cancelled race does not start it. A pet can enter a different event during the rest.
 - Re-check eligibility server side (trick learned, species, class, cooldown, no other active entry).
 - Race placement: within event + class, fill races in sign-up order up to capacity 6; when one fills, the next sign-up opens a new race in the same slot. Friends signing up for the same event and class go into the same race when there's room.
 

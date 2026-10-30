@@ -7,7 +7,7 @@ Visual reference: Stadium canvas, screen 7 (Hurdles). Feel reference: `race-demo
 ## Entry
 
 - Type: **race** (ranked by finish time).
-- Trick needed: **Jump the Hurdle** (dogs and cats; the cat catalog needs this trick). Testing waives this: `waiveHurdleSkill` on the client and `20261029390000_test_hurdles_every_slot.sql` on the server. Restore both before launch.
+- Trick needed: **Jump the Hurdle** (dogs and cats; the cat catalog needs this trick). The gate is on again: `skillBlock` on the client and `stadium_required_tricks('hurdles')` in the applied `20261030130000_launch_race_schedule.sql`.
 - `20261029400000_start_hurdle_races.sql` runs Hurdles through the same lock, countdown, and start as Fun Run. The phone opens `HurdlesScreen`; the rules live in `race-sim/hurdles.ts` (`hurdles-3`; `hurdles-1` and `hurdles-2` are kept frozen). Races the server stamped `funrun-1` fall back to the current version. Obstacle Course is the remaining unbuilt ship event and still shows "Race coming soon". Sniff Out, Trick Show, and Weave are cancelled.
 
 ## How it plays

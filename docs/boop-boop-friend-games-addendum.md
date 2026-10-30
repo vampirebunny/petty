@@ -54,7 +54,7 @@ There is no scheduling for a specific date and time yet. That is a possible late
 ## Rewards
 
 - **None** beyond the race itself: no XP, ribbons, trophies, or race badges (First Race, Blue Ribbon, Moving Up, Ribbon Rack). It does not count for "Compete in the Stadium".
-- No 6-minute rest.
+- No event rest.
 - The same energy cost as an open race (`gameplayConfig.races.energyCost`).
 - Results screen shows final placings for everyone in the game.
 

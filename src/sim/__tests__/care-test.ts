@@ -283,6 +283,51 @@ it('raises boldness for speak, affection for paw, and intelligence on mastery', 
   expect(mastered.milestones).toContain('sit');
 });
 
+it('raises linked attributes a little when a learned trick is performed', () => {
+  const before = trainedPet();
+  const learned = {
+    ...before,
+    training: {
+      ...before.training,
+      sit: {
+        ...before.training.sit!,
+        mastered: true,
+        progress: 100,
+        restUntil: before.lastUpdatedAt + 60_000,
+      },
+    },
+  };
+  const shown = applyEvent(learned, { type: 'trickRep', trackId: 'sit', now: learned.lastUpdatedAt });
+  expect(shown.cue.kind).toBe('sit');
+  const gain = shown.state.attributes.trained?.obedience ?? 0;
+  expect(gain).toBeGreaterThan(0);
+  expect(shown.state.attributes.trained?.boldness ?? 0).toBe(0);
+  expect(shown.state.training.sit?.progress).toBe(100);
+  expect(shown.state.xpTotal).toBe(learned.xpTotal);
+
+  const potential = learned.attributes.potential.obedience;
+  const natural = naturalGrowth(potential, learned.maturity);
+  const nearTrained = potential - natural - 0.5;
+  const blank = { stamina: 0, agility: 0, intelligence: 0, boldness: 0, affection: 0, obedience: nearTrained };
+  const near = {
+    ...learned,
+    attributes: { ...learned.attributes, trained: blank },
+  };
+  const nearRoll = rollTrick(near, 'sit', near.lastUpdatedAt);
+  const nearGain = (nearRoll.state.attributes.trained?.obedience ?? 0) - nearTrained;
+  expect(nearGain).toBeGreaterThan(0);
+  expect(nearGain).toBeLessThan(gain);
+
+  const toppedTrained = potential - natural;
+  const topped = {
+    ...near,
+    attributes: { ...near.attributes, trained: { ...blank, obedience: toppedTrained } },
+  };
+  expect(attributeScore(topped, 'obedience')).toBe(potential);
+  const full = rollTrick(topped, 'sit', topped.lastUpdatedAt);
+  expect(full.state.attributes.trained?.obedience).toBe(toppedTrained);
+});
+
 it('shows training above natural growth and keeps style free of weight', () => {
   const before = trainedPet();
   const natural = attributeScore(before, 'obedience');

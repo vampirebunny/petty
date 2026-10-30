@@ -87,6 +87,19 @@ function addAttribute(state: PetState, trait: Trait, raw: number): PetState {
   return { ...state, attributes: { ...state.attributes, trained } };
 }
 
+function grantLearnedPerformance(state: PetState, trackId: string): PetState {
+  const def = trackDef(trackId);
+  if (!def || def.linked.length === 0) {
+    return state;
+  }
+  const share = gameplayConfig.learnedPerformanceRaw / def.linked.length;
+  let next = state;
+  for (const trait of def.linked) {
+    next = addAttribute(next, trait, share);
+  }
+  return next;
+}
+
 function grantMastery(state: PetState, trackId: string, skipXp: boolean): PetState {
   const def = trackDef(trackId);
   if (!def) {
@@ -207,11 +220,11 @@ export function rollTrick(state: PetState, trackId: string, now: number): { stat
   next = refreshTraining(next, now);
   const current = next.training[trackId] ?? track;
   next = withTrack(next, current);
+  if (current.mastered) {
+    return { state: grantLearnedPerformance(next, trackId), ok: true };
+  }
   if (isResting(current, now)) {
     return { state: next, ok: false };
-  }
-  if (current.mastered) {
-    return { state: next, ok: true };
   }
   const chance = successChance(attributeScore(next, 'obedience'), current.progress, false);
   const roll = nextRng(next.rngState);

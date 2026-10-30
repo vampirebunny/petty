@@ -38,10 +38,11 @@ These race follow-ups are applied:
 - `20261029320000_abandon_unreported_races.sql`, `20261029330000_fix_finalize_status.sql`, `20261029340000_fix_cooldown_event_type.sql`: a running race nobody reports by start + 80 s is finalized with DNFs, so a closed app never leaves a stale sign-up. The rest counts from the race start.
 - `20261029350000_six_minute_race_rest.sql`: 6-minute rest per event, and each card returns `rest_until`.
 - `20261029360000_rest_by_race_start.sql`: a rest only blocks races that start before it ends.
-- `20261029370000_test_fast_slots.sql`: **testing only.** 1-minute slots and no rest. Before launch, set `slot_seconds = 300` and `cooldown_seconds = 360` again in a new migration, and restore `slotMs` and `cooldownMs` in `src/sim/gameplayConfig.ts`.
+- `20261029370000_test_fast_slots.sql`: **testing only.** 1-minute slots and no rest. Superseded by `20261030130000_launch_race_schedule.sql`.
 - `20261029380000_fill_npcs_at_lock.sql`: a solo Fun Run gets its NPCs at line-up lock, so they stand at the start line during the countdown.
 - `20261029420000_fun_run_open_to_all.sql`: Fun Run is one Open field for every level (`stadium_event_class`), and new Fun Run races are stamped `funrun-2`.
-- `20261029430000_schedule_ship_roster.sql`: schedule only Fun Run, Dock Dive, Hurdles, and Obstacle Course (Sniff Out, Trick Show, and Weave cancelled). Keeps the testing board (Dock Dive + Hurdles every open slot; waived hurdle trick). Launch later restores the Hurdles / Obstacle Course third-event rotation, trick gates, and 5-minute / 6-minute rest.
+- `20261029430000_schedule_ship_roster.sql`: schedule only Fun Run, Dock Dive, Hurdles, and Obstacle Course (Sniff Out, Trick Show, and Weave cancelled). The testing board in that file is superseded by `20261030130000_launch_race_schedule.sql`.
+- `20261030130000_launch_race_schedule.sql` is applied. 5-minute slots, 1-minute rest, Fun Run and Dock Dive every slot, Hurdles and Obstacle Course alternating, and the trick gates restored.
 - `20261029440000_obstacle_course.sql`: Obstacle Course starts like Hurdles; races are stamped `obstacle-1`.
 - `20261029450000_race_replay.sql`: authoritative solo results. Adds `apply_verified_race_report` (service_role), `race_report_flags`, `race_entries.input_log`, and blocks client `submit_race_report`. The `race_report` Edge Function is deployed with it.
 - `20261029460000_obstacle_long_course.sql`: Obstacle Course `obstacle-2` (long course, 140 s DNF window).
