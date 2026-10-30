@@ -12,7 +12,7 @@ Visual reference: Stadium canvas, screen 7 (Hurdles). Feel reference: `race-demo
 
 ## How it plays
 
-The pet runs on its own at the class speed. The player taps **JUMP** when the pet reaches the green jump zone in front of each hurdle. A good jump clears it. A miss clips the hurdle: it tips over and the pet stumbles and slows down for a moment. First across the line wins.
+The pet runs on its own at the class speed. The player taps **JUMP** when the pet reaches the jump zone just in front of each hurdle. The zone is not drawn; players judge it from the hurdle. A good jump clears it. A miss clips the hurdle: it tips over and the pet stumbles and slows down for a moment. First across the line wins.
 
 ## Rules (defaults, all config)
 
@@ -38,11 +38,11 @@ The pet runs on its own at the class speed. The player taps **JUMP** when the pe
 ## Controls and layout
 
 - Top bar: event name, a hurdle counter pill (cleared so far / total), timer.
-- Track: own pet in the front lane; the **green zone is drawn only in the player's own lane**, as a dashed mint band on the track. Other lanes show their hurdles, which tip over when that racer clips (sent as an `ev` in the position updates).
+- Track: own pet in the front lane; the jump zone is **hidden** to make timing harder (`zones: null`). `drawRaceTrack` can still draw it as a dashed mint band in the player's lane if it comes back, for example for lower classes. Other lanes show their hurdles, which tip over when that racer clips (sent as an `ev` in the position updates).
 - Hurdle art is the Training School hurdle (`drawTrickProp`, dog or cat palette), scaled with the lane's pet. The bar height is fitted to each pet the same way the school fits it (`fitBarZ`), and the far half of the pole draws behind the pet, the near half in front. `raceHurdleSize` sets the leap height so the feet clear that bar with the jump margin even from the edge of the zone; the lift is a parabola (`leapLift`, 4u(1 − u)), and the peak is at least 0.3 × the leap's ground length so a long leap reads as a long, high arc.
 - The track draws at `racePoses.hurdlesLegsPerMeter` (3 leg lengths per meter), passed to `stepRaceRun` and `drawRaceTrack`. Fun Run's ground is faster (`funRunScroll` 3, so 4.5). Feet still match the ground, and hurdles and leaps spread out with the Hurdles scale.
 - A clipped hurdle tumbles: it tips forward about its base to about 86° over 0.32 s, bounces back 9° over 0.22 s, and slides forward a little, then lies there. The sim records when each hurdle was judged (`outcomeMs`), so the tumble starts at the bump. Reduced motion shows it already down.
-- Start uses the shared race countdown and input lock (Get ready!, 3, 2, 1, Go!, the same beep and haptics). The button reads **Wait** until Go!, then one large mint **JUMP!** pill with an up arrow. Jumps before Go! are ignored. **The whole action area is the tap target.** Hint line after Go!: "Jump when [pet] reaches the green zone".
+- Start uses the shared race countdown and input lock (Get ready!, 3, 2, 1, Go!, the same beep and haptics). The button reads **Wait** until Go!, then one large mint **JUMP!** pill with an up arrow. Jumps before Go! are ignored. **The whole action area is the tap target.** Hint line after Go!: "Jump just before [pet] reaches each hurdle".
 - The finish line is this event's 100 m, and that distance drives the camera lock. After the line, pets use the shared coast and run off the right side. A jump still in the air at the line finishes (landing and recovery), then the pet gallops off.
 - Haptic: light on jump, medium on clip.
 

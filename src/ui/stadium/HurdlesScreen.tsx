@@ -25,13 +25,12 @@ import {
   npcJumpPlan,
   runHurdles,
   stepHurdleRunner,
-  zoneHalfWidth,
   type HurdleOutcome,
   type HurdleRunner,
   type Modifiers,
 } from '../../../supabase/functions/_shared/race-sim/index.ts';
 import type { Env } from '../skia/env';
-import { drawRaceTrack, type TrackZone } from '../skia/raceTrack';
+import { drawRaceTrack } from '../skia/raceTrack';
 import { fontFamily } from '../font';
 import { CandyButton } from './CandyButton';
 import { RaceAction } from './RaceAction';
@@ -250,12 +249,6 @@ export function HurdlesScreen({ race, pet, reducedMotion, onFinish, onExit }: Pr
           sky: skyAt(new Date(at)),
           wind: skyAt(new Date(at)).weather.wind,
         };
-        const half = zoneHalfWidth(classId, playerMods.current ?? modsOf(mine, livePet), version);
-        const zones: TrackZone[] = hurdles.map((h) => {
-          const center = h - config.zoneBeforeM;
-          const inner = half * config.perfectShare;
-          return { from: center - half, to: center + half, perfectFrom: center - inner, perfectTo: center + inner };
-        });
         const recorder = Skia.PictureRecorder();
         const canvas = recorder.beginRecording(Skia.XYWHRect(0, 0, width, trackH));
         const racers = field.map((row) => {
@@ -273,7 +266,8 @@ export function HurdlesScreen({ race, pet, reducedMotion, onFinish, onExit }: Pr
               ),
               barZ: sizes.current.get(row.key)?.barZ ?? 30,
               species: row.mine ? (breedOf(row, livePet).species === 'cat' ? 'cat' : 'dog') : row.species,
-              zones: row.mine ? zones : null,
+              // The jump zone stays hidden; players judge it from the hurdle.
+              zones: null,
             },
           };
         });
@@ -416,7 +410,7 @@ export function HurdlesScreen({ race, pet, reducedMotion, onFinish, onExit }: Pr
           countLabel={countLabel}
           activeLabel="JUMP!"
           tone="jump"
-          hint={going ? `Jump when ${pet.name} reaches the green zone` : 'Jumping starts at Go!'}
+          hint={going ? `Jump just before ${pet.name} reaches each hurdle` : 'Jumping starts at Go!'}
           accessibilityLabel="Jump"
           onActivate={tap}
         />
