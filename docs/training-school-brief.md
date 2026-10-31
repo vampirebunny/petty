@@ -43,7 +43,7 @@ These override anything below that still reads the other way.
   - The first lesson is for sale on day one.
   - Each trick that moves from In Training to Learned, including Sit, Speak, and Paw, opens the next one.
   - Lessons still waiting show under **"New lessons unlock as [name] learns new skills"** and cannot be bought. The preview says **"Learn more skills first"**.
-  - Dogs, in order: Down, Spin, High Five, Bow, Jump Up, Roll Over, Jump Through Hoop, Stand Tall, Catch, Jump the Hurdle, Through the Tunnel, Play Dead, Sing, Weave.
+  - Dogs, in order: Down, Spin, High Five, Bow, Jump Up, Roll Over, Jump the Hurdle, Stand Tall, Catch, Jump Through Hoop, Through the Tunnel, Play Dead, Sing, Weave.
   - Cats, in order: Spin, High Five, Jump Up, Lie Down, Jump the Hurdle, Stand Tall, Fetch, Jump Through Hoop, Through the Tunnel, Roll Over, Sing, Weave.
 - **Duplicate purchases are not possible.** A trick the pet already owns, whether in training or learned, shows as "Owned" in the shop.
 - **No refunds**, which is consistent with the Pet Shop.
@@ -189,10 +189,10 @@ Players start with 1,000 Boops and accrue about 60 per hour. Prices below are th
 | Bow | 250 | 3 | obedience | |
 | Jump Up | 400 | 4 | obedience | podium |
 | Roll Over | 300 | 5 | agility, obedience | |
-| Jump Through Hoop | 550 | 6 | agility, boldness | hoop |
+| Jump the Hurdle | 500 | 6 | agility, boldness | hurdle |
 | Stand Tall | 350 | 7 | stamina, agility | |
 | Catch | 300 | 8 | agility | |
-| Jump the Hurdle | 500 | 9 | agility, boldness | hurdle |
+| Jump Through Hoop | 550 | 9 | agility, boldness | hoop |
 | Through the Tunnel | 450 | 10 | boldness | pink tunnel |
 | Play Dead | 500 | 11 | intelligence, obedience | |
 | Sing | 450 | 12 | boldness, affection | |
