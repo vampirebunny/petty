@@ -140,7 +140,13 @@ describe('park visitor entry', () => {
       let rolls = 0;
       world.rng = () => {
         rolls += 1;
-        return rolls === 1 ? 0.6 : 0.15;
+        if (rolls === 1) {
+          return 0.6;
+        }
+        if (rolls === 3) {
+          return 0.75;
+        }
+        return 0.15;
       };
       syncParkVisitors(world, {
         enabled: true,
@@ -151,13 +157,69 @@ describe('park visitor entry', () => {
       player.x = fromLeft ? 500 : 120;
       player.stats.boldness = 0.1;
       player.cuddleAffinity = 0.1;
-      steps(world, 80);
+      steps(world, 1);
+      const arriving = world.actors.find((actor) => actor.guest);
+      expect(arriving?.task.type).toBe('travel');
+      expect(world.park!.guests[0]?.phase).toBe('enter');
+      steps(world, 79);
       const guest = world.actors.find((actor) => actor.guest);
       expect(guest).toBeTruthy();
       const floor = world.scene.floor;
       expect(guest!.x).toBeGreaterThan(floor.xMin + 80);
       expect(guest!.x).toBeLessThan(floor.xMax - 80);
     }
+  });
+
+  it('places some opening visitors on the grass, off the pet depth', () => {
+    const { world } = parkWorld();
+    const player = world.actors[0];
+    player.x = 80;
+    player.y = 280;
+    let rolls = 0;
+    world.rng = () => {
+      rolls += 1;
+      if (rolls === 1) {
+        return 0.6;
+      }
+      if (rolls === 2) {
+        return 0.1;
+      }
+      return 0.2;
+    };
+    syncParkVisitors(world, {
+      enabled: true,
+      offers: [offer('settled', 20, 20)],
+      stranger: null,
+    });
+    steps(world, 1);
+    const guest = world.actors.find((actor) => actor.guest);
+    expect(guest).toBeTruthy();
+    expect(guest!.task.type).toBe('idle');
+    expect(world.park!.guests[0]?.phase).toBe('wander');
+    expect(Math.abs(guest!.y - player.y)).toBeGreaterThanOrEqual(45);
+    const floor = world.scene.floor;
+    expect(guest!.x).toBeGreaterThan(floor.xMin);
+    expect(guest!.x).toBeLessThan(floor.xMax);
+    expect(guest!.y).toBeGreaterThanOrEqual(floor.yMin);
+    expect(guest!.y).toBeLessThanOrEqual(floor.yMax);
+  });
+
+  it('walks in visitors who show up after the park is open', () => {
+    const { world } = parkWorld();
+    world.rng = () => 0.1;
+    syncParkVisitors(world, {
+      enabled: true,
+      offers: [offer('later', 20, 20)],
+      stranger: null,
+    });
+    steps(world, 1);
+    expect(world.actors.some((actor) => actor.guest)).toBe(false);
+    world.park!.nextCheck = 0;
+    steps(world, 1);
+    const guest = world.actors.find((actor) => actor.guest);
+    expect(guest).toBeTruthy();
+    expect(guest!.task.type).toBe('travel');
+    expect(world.park!.guests[0]?.phase).toBe('enter');
   });
 });
 

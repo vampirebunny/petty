@@ -35,6 +35,7 @@ export const parkVisitorRules = {
   avoidLingerCut: 15,
   arrivalEmpty: 0.5,
   arrivalOne: 0.85,
+  openingPresent: 0.5,
 } as const;
 
 const rules = parkVisitorRules;
@@ -221,7 +222,11 @@ export function stepParkVisitors(world: World, spawn: Spawn, direct: Direct): vo
     const count = arrivalCount(world.rng());
     book.nextCheck = world.t + checkGap(world.rng());
     for (let i = 0; i < count; i += 1) {
-      spawnVisitor(world, spawn);
+      if (world.rng() < rules.openingPresent) {
+        spawnVisitor(world, spawn, presentSpot(world), true);
+      } else {
+        spawnVisitor(world, spawn);
+      }
     }
   } else if (world.t >= book.nextCheck) {
     book.nextCheck = world.t + checkGap(world.rng());
@@ -348,6 +353,43 @@ function grassY(world: World): number {
   return floor.yMin + 10 + world.rng() * span;
 }
 
+function presentSpot(world: World): Vec {
+  const floor = world.scene.floor;
+  const player = playerOf(world);
+  const xPad = 36;
+  const yPad = 10;
+  const xLo = floor.xMin + xPad;
+  const xHi = Math.max(xLo, floor.xMax - xPad);
+  const x = xLo + world.rng() * (xHi - xLo);
+  const yLo = floor.yMin + yPad;
+  const yHi = Math.max(yLo, floor.yMax - yPad);
+  const playerY = player?.y ?? (yLo + yHi) / 2;
+  const above = playerY - rules.personalSpace - yLo;
+  const below = yHi - (playerY + rules.personalSpace);
+  const bands: { lo: number; hi: number }[] = [];
+  if (above >= 8) {
+    bands.push({ lo: yLo, hi: playerY - rules.personalSpace });
+  }
+  if (below >= 8) {
+    bands.push({ lo: playerY + rules.personalSpace, hi: yHi });
+  }
+  if (bands.length === 0) {
+    return { x, y: yLo + world.rng() * (yHi - yLo) };
+  }
+  const span = bands.reduce((sum, band) => sum + (band.hi - band.lo), 0);
+  let pick = world.rng() * span;
+  let band = bands[0];
+  for (const candidate of bands) {
+    const width = candidate.hi - candidate.lo;
+    if (pick <= width) {
+      band = candidate;
+      break;
+    }
+    pick -= width;
+  }
+  return { x, y: band.lo + (world.rng() * (band.hi - band.lo)) };
+}
+
 function entrySide(world: World, y: number): { fromLeft: boolean; entryX: number; targetX: number } {
   const floor = world.scene.floor;
   const player = playerOf(world);
@@ -430,7 +472,7 @@ function spawnVisitor(world: World, spawn: Spawn, at?: Vec, wandering = false): 
   };
   if (wandering) {
     actor.task = { type: 'idle', stage: '', t: 0, bats: 0, cool: 0 };
-    actor.idle = { mode: 'still', t: 0, dur: 30, target: null, sit: false, arrived: true };
+    actor.idle = { mode: 'still', t: 0, dur: 3 + world.rng() * 3.5, target: null, sit: false, arrived: true };
   } else {
     actor.task = {
       type: 'travel',

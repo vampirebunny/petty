@@ -12,7 +12,7 @@ A visit lasts 30–75 seconds and never past about 90 seconds. The animal then w
 
 About 70% of visitors are animals from the owner's playdate cast. The rest are one-off strangers drawn from the same names and breeds. Any species, any breed. The same animal is not in both slots, and does not enter twice in a row.
 
-They enter from the left or the right, whichever is farther from your pet, at least about 120px from your pet and from the other visitor. Reduced motion still walks them on and off. It does not add zoomies.
+They enter from the left or the right, whichever is farther from your pet, at least about 120px from your pet and from the other visitor. About half of the visitors rolled when the park opens are already on the grass instead of walking in. They stand on a different depth from your pet, at least about 45px apart, and keep the same visit length. Anyone who shows up while you stay still walks in from the edge. Reduced motion still walks them on and off. It does not add zoomies.
 
 ## Sociability
 
