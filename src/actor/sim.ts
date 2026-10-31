@@ -374,6 +374,7 @@ export function spawnActor(source: ActorSource, at?: Vec): Actor {
     vitality: source.vitality,
     equipped: { ...source.equipped },
     wearDefs: source.wearDefs,
+    backWear: source.backWear,
     look: source.look ? { ...source.look } : null,
     variant: variantFor(source.seed, source.breedId),
     asleep: source.asleep,

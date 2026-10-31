@@ -34,7 +34,7 @@ function dispose(): void {
     activeId = null;
     onChange?.(null);
   }
-  holdMusic(false);
+  holdMusic(false, 'runwayPreview');
 }
 
 export function previewingTrackId(): string | null {
@@ -71,7 +71,7 @@ export function previewRunwayTrack(trackId: string): void {
   }
   try {
     configurePlayback();
-    holdMusic(true);
+    holdMusic(true, 'runwayPreview');
     const next = createAudioPlayer(uri, { keepAudioSessionActive: true });
     next.loop = false;
     next.volume = volume;

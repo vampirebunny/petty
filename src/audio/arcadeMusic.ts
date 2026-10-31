@@ -58,7 +58,7 @@ export function startArcadeRound(): void {
     return;
   }
   configurePlayback();
-  holdMusic(true);
+  holdMusic(true, 'arcade');
   playLoop();
 }
 
@@ -110,5 +110,5 @@ export function stopArcadeRound(): void {
   active = false;
   paused = false;
   dispose();
-  holdMusic(false);
+  holdMusic(false, 'arcade');
 }

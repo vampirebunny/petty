@@ -4,9 +4,16 @@ export const runwayConfig = {
   looksPerModel: 3,
   maxInvites: 5,
   recentShown: 5,
-  rackCap: 12,
+  /** Solo shows seed this share of the catalog as the shared rack (round(23/3)=8). */
+  soloRackShare: 1 / 3,
+  /** Friend drip: unlock tranche sizes in catalog order. */
+  dripTrancheSizes: [8, 8, 7] as const,
+  /** Minutes after invites_sent_at before tranche 1 unlocks. */
   dripFirstUnlockMin: 5,
-  dripNextUnlockMin: 1,
+  /** Minutes between subsequent tranches. */
+  dripTrancheGapMin: 2,
+  /** Friend show deadline must be at least this many minutes from create. */
+  minDeadlineMin: 10,
   pollCloseMin: 15,
   poseEnabled: true,
   runwayZoom: 1.8,

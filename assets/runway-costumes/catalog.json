@@ -1,0 +1,178 @@
+{
+  "frames": {
+    "hat": {
+      "origin": [
+        54,
+        -88
+      ],
+      "about": "head center; scale by headR / 21; rotates with head pitch"
+    },
+    "glasses": {
+      "origin": [
+        54,
+        -88
+      ],
+      "about": "head center; scale by headR / 21; rotates with head pitch"
+    },
+    "neckwear": {
+      "origin": [
+        40,
+        -66
+      ],
+      "about": "front of the neck under the chin; scale by headR / 21; follows neck"
+    },
+    "jacket": {
+      "origin": [
+        0,
+        -56
+      ],
+      "about": "body center; scale x by bodyLen / 92, y by bodyH / 48; rotates with torso"
+    },
+    "back": {
+      "origin": [
+        14,
+        -80
+      ],
+      "about": "withers (top of the shoulders); scale by bodyH / 48; rotates with torso"
+    },
+    "boots": {
+      "origin": "each paw",
+      "about": "paw center, y up the shin; scale by legWidth / 10; rotates with the shin"
+    }
+  },
+  "paws": {
+    "nearFore": [
+      33,
+      0
+    ],
+    "nearHind": [
+      -33,
+      0
+    ],
+    "farFore": [
+      36,
+      -3
+    ],
+    "farHind": [
+      -30,
+      -3
+    ]
+  },
+  "pieces": [
+    {
+      "id": "crown",
+      "label": "Crown",
+      "slot": "hat"
+    },
+    {
+      "id": "goggles",
+      "label": "Goggles",
+      "slot": "hat"
+    },
+    {
+      "id": "antennae",
+      "label": "Antennae Headband",
+      "slot": "hat"
+    },
+    {
+      "id": "flowercrown",
+      "label": "Flower Crown",
+      "slot": "hat"
+    },
+    {
+      "id": "tophat",
+      "label": "Showman Top Hat",
+      "slot": "hat"
+    },
+    {
+      "id": "bandana",
+      "label": "Head Bandana",
+      "slot": "hat"
+    },
+    {
+      "id": "starglasses",
+      "label": "Star Sunglasses",
+      "slot": "glasses"
+    },
+    {
+      "id": "mask",
+      "label": "Eye Mask",
+      "slot": "glasses"
+    },
+    {
+      "id": "mustache",
+      "label": "Mustache",
+      "slot": "glasses"
+    },
+    {
+      "id": "ruffle",
+      "label": "Ruffle Collar",
+      "slot": "neckwear"
+    },
+    {
+      "id": "bowtie",
+      "label": "Bow Tie",
+      "slot": "neckwear"
+    },
+    {
+      "id": "shells",
+      "label": "Shell Necklace",
+      "slot": "neckwear"
+    },
+    {
+      "id": "chain",
+      "label": "Gold Chain",
+      "slot": "neckwear"
+    },
+    {
+      "id": "vest",
+      "label": "Sequin Vest",
+      "slot": "jacket"
+    },
+    {
+      "id": "tutu",
+      "label": "Tutu",
+      "slot": "jacket"
+    },
+    {
+      "id": "jacket",
+      "label": "Leather Jacket",
+      "slot": "jacket"
+    },
+    {
+      "id": "stripes",
+      "label": "Striped Shirt",
+      "slot": "jacket"
+    },
+    {
+      "id": "cape",
+      "label": "Cape",
+      "slot": "back"
+    },
+    {
+      "id": "wings",
+      "label": "Wings",
+      "slot": "back"
+    },
+    {
+      "id": "jetpack",
+      "label": "Jetpack",
+      "slot": "back"
+    },
+    {
+      "id": "glitterboots",
+      "label": "Glitter Boots",
+      "slot": "boots"
+    },
+    {
+      "id": "cowboyboots",
+      "label": "Cowboy Boots",
+      "slot": "boots"
+    },
+    {
+      "id": "rainboots",
+      "label": "Rain Boots",
+      "slot": "boots"
+    }
+  ]
+}

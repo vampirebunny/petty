@@ -16,29 +16,29 @@ Add a fashion show: a new place on the map where pets walk a runway in 3 looks, 
 Each player submits 3 looks; the show's creator sets the theme and the music.
 
 - **3 looks:** each look is built from the player's owned wardrobe items (Closet) plus any available runway costume pieces (see Costumes). A look can use several pieces. Each look needs at least one piece, closet or costume.
-- **One piece per slot:** choosing another closet item or costume for a slot replaces what was there. Closet items and costumes share head, face, neck, body, and feet. Back is costumes only. Closet `OutfitSlot` stays the five everyday slots; costumes use a parallel slot type that includes `back`.
-- **Music:** one track from a list stored in Supabase for the whole show. The inviter picks it for a friend show (invitees hear it but don't choose it); the player picks it for a solo show. Playback loops that track for every round and every model, including across skips. The app mute switch silences it. If the track is missing locally, play silently. No error, no fallback track, and **no bundled runway audio** (keeps the binary small). Source files are the ten re-encoded MP3s in `docs/runway music/` (128 kbps stereo). Host them in the public Storage bucket `catwalk-music` (same public-read pattern as `background-music`). Object names match the filenames and `runway_tracks.audio_path`. The client downloads every object into `Documents/catwalk-music/` when Home runs `prepareRemoteMusic` (and again on foreground / network restore), skipping any file that already exists with size > 0 — there is no content-hash check. To ship an updated take of a track, upload under a **new** object name and point `audio_path` / the client `fileName` at it.
-- **Theme:** solo shows, the player picks it. Friend shows, the inviter picks it when sending invites, and it applies to everyone. The theme sets the venue background and which costume pieces are on the rack. The theme picker shows a still of each venue (Skia composite of the layered SVGs): 2 columns on phones, 3 on mid-width, 4 on wide tablets.
+- **One piece per slot:** choosing another closet item or costume for a slot replaces what was there. Closet items and costumes share hat, glasses, neckwear, jacket, and boots. Back is costumes only. Closet `OutfitSlot` stays the five everyday slots; costumes use the same names plus `back`.
+- **Music:** one track from a list stored in Supabase for the whole show. The inviter picks it for a friend show (invitees hear it but don't choose it); the player picks it for a solo show. Playback loops that track for every round and every model, including across skips. The app mute switch silences it. If the track is missing locally, play silently. No error, no fallback track, and **no bundled runway music** (keeps the binary small). Source files are the ten re-encoded MP3s listed under Music seed (128 kbps stereo). Host them in the public Storage bucket `catwalk-music` (same public-read pattern as `background-music`). Object names match the filenames and `runway_tracks.audio_path`. The client downloads every object into `Documents/catwalk-music/` when Home runs `prepareRemoteMusic` (and again on foreground / network restore), skipping any file that already exists with size > 0 — there is no content-hash check. To ship an updated take of a track, upload under a **new** object name and point `audio_path` / the client `fileName` at it.
+- **Theme:** solo shows, the player picks it. Friend shows, the inviter picks it when sending invites, and it applies to everyone. The theme sets the venue background only — every theme shares the same 23-piece costume catalog. The theme picker shows a still of each venue (Skia composite of the layered SVGs + static lit FX): 2 columns on phones, 3 on mid-width, 4 on wide tablets.
 - **Music picker:** each row has a play control that previews ~10 seconds of the downloaded track (with a small sound-bars animation while it plays). Tapping the title chooses the track and continues. Missing local audio stays silent.
-- **Backstage:** wardrobe-style look builder on a dark grey page, with a live pet preview of the current look.
+- **Backstage:** wardrobe-style look builder on a dark grey page, with a live pet preview of the current look (3/4 sit pose). Closet sections use the Closet tiles; the costume rack uses the PNG thumbnails. Picking anything in an occupied slot replaces it, whether the old piece was a Closet item or a costume.
 - **Snapshot on submit:** the three looks lock forever. Store each worn item's id and a copy of the colorway it resolved to (its colors and its clothing pattern, which live together on the item). Store each costume the same way. Later Closet changes, and a later recolor of the catalog item, do not change the show. Playback uses the current drawing code for that shape with the saved colorway. There is no new closet model: players still pick items, not a color and a pattern on their own.
-- **No theme tags on wardrobe items.** Only costume pieces carry theme tags.
+- **No theme tags on wardrobe items.** Costumes are shared across themes (no theme-tag filtering).
 
 ## Costumes
 
-Runway costume pieces are free for all players, but each piece can be used only once per show, first come first served.
+Art lives in `assets/runway-costumes/`: `rack/` PNG thumbnails (`@2x` / `@3x`) for the backstage rack, `worn/` SVGs drawn on the pet, and `catalog.json`. Frames, attach rules, draw order and the Closet-id overlap are in `docs/boopboop-costumes/README.md`; the fit reference is `docs/Runway Costume Pieces.html`.
 
+- **Shared 23-piece catalog:** every theme uses the same rack (hat, glasses, neckwear, jacket, back, boots). There are no theme-specific or wildcard seed tables.
 - **Runway-only:** costume pieces never enter the Closet, are never owned, and never appear in playdate outfit rotations.
-- **Pieces, not full costumes:** each piece attaches to one slot (head, face, neck, body, back, feet). Every costume fits dogs and cats. There is no species fit.
-- **New back slot:** wings, jetpack and similar pieces need a "back" attachment point. It exists for costumes only; the wardrobe doesn't use it.
-- **Theme tags:** each costume piece is tagged with every theme it fits. Versatile pieces carry several tags.
-- **Rack per show:** a theme's rack is the theme-specific pieces listed for it, then the wildcards, then versatile pieces whose tags include that theme, in the order of the tables below. Seed only those pieces. Do not invent pieces to fill a rack. A rack cap stays a config value (default 12) and is not used to pad or trim this seed. A piece still locked when the deadline arrives cannot be claimed.
-- **Once per show:** a piece can be used in only one of a player's 3 looks, and by only one player in the show.
-- **No per-player cap:** a player may claim as many available pieces as they like.
-- **Claim on submit:** selecting a piece doesn't reserve it. The claim happens on the server when the player submits. If a piece was claimed by someone else while the player was building, block submission and show: "Someone already claimed the \[piece\]. Pick another piece for Look \[n\]."
-- **Taken pieces:** shown greyed out with "Taken." Never show who took them (that would leak a submission before the viewer has submitted).
-- **Drip unlock (friend shows):** the first piece unlocks 5 minutes after invites go out; each next piece unlocks 1 minute after the previous one. Locked pieces show on the rack with their unlock countdown. Both intervals are config values, not hardcoded.
-- **Solo shows:** the full rack is available immediately; the once-per-show rule still applies across the player's 3 looks.
+- **Pieces, not full costumes:** each piece attaches to one slot. Every costume fits dogs and cats. There is no species fit.
+- **Back slot:** cape, wings, jetpack. Costumes only; the wardrobe doesn't use it.
+- **Reuse across looks:** a player may use the same costume on Looks 1–3. Wardrobe items stay reusable across looks too.
+- **FCFS between players only:** `runway_costume_claims` still enforces one claim per costume per friend show. UI "Taken" is for another player's (or seeded NPC's) claim — not for the player's own prior looks.
+- **No per-player cap:** a player may claim as many available pieces as they like on a look (one per slot).
+- **Claim on submit (friends):** selecting a piece doesn't reserve it. The claim happens on the server when the player submits. If a piece was claimed by someone else while the player was building, block submission and show: "Someone already claimed the \[piece\]. Pick another piece for Look \[n\]."
+- **Drip unlock (friend shows):** unlock in catalog order by tranche — **8 / 8 / 7** at `invites_sent_at + 5m`, then `+2m`, then `+2m` (full rack by ~9m). Locked tiles show a countdown. Config: `dripFirstUnlockMin`, `dripTrancheGapMin`, `dripTrancheSizes`.
+- **Solo shows:** seed a shared show rack of `round(23/3) = 8` pieces from the catalog (seeded by show id). Player and NPCs share that rack; NPCs only take unclaimed leftovers. Store `soloRackIds` on the local show for stable replay.
+- **Friend deadline:** at least **10 minutes** from create time (client + `create_runway_show`).
 
 ## Friend shows
 
@@ -48,7 +48,7 @@ Friends submit anytime before a deadline. A contestant can't peek until they've 
 
 - Reuse the friend-competition invite picker: up to 5 friends, with the 5 most recently invited friends shown for quick reselection.
 - The inviter picks the theme, the music track, and the deadline, and sends invites via push and in-app notification.
-- **Deadline:** the host picks a calendar day and a time in their own zone. Store that instant in UTC. Each friend sees it in their own zone. Reject a time that is already past.
+- **Deadline:** the host picks a calendar day and a time in their own zone. Store that instant in UTC. Each friend sees it in their own zone. Reject a time that is already past or less than 10 minutes from create.
 - Show size is the host plus up to 5 invitees (max 6 contestants).
 - An invitee may decline. A decline removes them from the runway and from the vote, and they no longer count as someone the show is waiting on. Being in one show does not block joining or hosting another.
 
@@ -74,15 +74,16 @@ Friends submit anytime before a deadline. A contestant can't peek until they've 
 
 ## Runway presentation
 
-Shows play in rounds, one round per look: every model walks once per round, the player's own model first, before the next round starts. Each model struts in place at center while the venue scrolls behind it.
+Shows play in rounds, one round per look: every model walks once per round, the player's own model first, before the next round starts. Enter/exit move the pet on X with the venue still; walk steps keep the pet at center and scroll the venue (see steps below). Venue FX (beams, follow spot, LED chase, flashes, particles, theme extras) draw from each theme's `fx.json`; reduced motion keeps a static lit set.
 
 - **Rounds:** Round 1 shows every model in Look 1, Round 2 every model in Look 2, Round 3 every model in Look 3. This applies to NPC shows and friend shows alike. Show a "Look 1 of 3" label for the round that is playing.
 - **Order within a round:** the viewing player's model walks first, then the others by submission time. A judge-only viewer has no model, so their rounds start with the first submitted model.
 - **Skip model:** ends the current model's walk and starts the next model in the round. Any viewer can skip, including a voter or a judge. Watching is the path into the vote screen; a voter does not have to finish every model or round before voting.
 - **Skip to next round:** jumps to the first model of the next round. In the last round it ends the show (to voting or results in a friend show). Same skip rules for voters and judges.
-- **Music:** the show's one track loops for the entire show, including across skips.
+- **Music:** the show's one track loops for the entire show, including across skips. Scene background music is held for the whole time the runway is open (start to the end modal), including when the track is missing or music is muted. Music holds are per owner (`holdMusic(on, owner)`: `runway`, `runwayPreview`, `arcade`), so one releasing can't bring scene music back under another.
+- **End of show:** the runway track stops, the last frame holds, and a one-second applause plays (`assets/sounds/vvqne-applause-383901.mp3`, with the fade-out baked into the file; it follows the pet-sounds switch). There is no applause during the show. A FunModal ("That's a wrap!") offers **Replay** (restarts the show and its track) or **Return to The Catwalk**. Skipping past the last round lands on the same modal.
 - **Zoom:** closer than the home scene, less than the Closet close-up. The full pet (top of a hat down to boots) stays in frame.
-- **Venue:** the theme's layered venue strips, scrolled with parallax behind the pet. Placement math is in `docs/boopboop-venues/README.md`. Runtime art lives in `assets/runway/<theme>/`. The pet never collides with anything.
+- **Venue:** v2 show-set layers (7 SVGs + `fx.json` per theme). Placement, paw y 687, stack 990, and FX order are in `docs/boopboop-venues/README.md`. Runtime art lives in `assets/runway/<theme>/`. The pet never collides with anything.
 - **Turning:** use the existing in-between turn view, never a flat flip.
 
 ### The strut
@@ -98,17 +99,17 @@ Every runway walk uses the strut: a showier walk built on the existing leg model
 | Body bounce | 1 px | 2.5 px, chest up |
 | Head | level | chin up |
 | Tail | resting | high, slow wag |
-| Cadence | by speed | about 1 stride cycle per second |
+| Cadence | by speed | 1.7 stride cycles per second (`strutCadenceHz`), venue at 160 stack px/s (`strutStageSpeed`) |
 
-Each model's walk, in seconds:
+Each model's walk, in seconds (`runwaySteps`):
 
-1. **Enter (4.0):** the pet struts from off-screen left to center. Venue is still.
-2. **Walk out (3.0):** the pet struts in place at center; the venue scrolls right to left.
-3. **Stop (0.6):** speed eases to zero and the paws settle under the hips.
-4. **Pose (1.3):** the pet faces the audience with a faster wag. This step ships on. A config flag can skip it, and the turn then follows the stop.
-5. **Turn (0.8):** the pet turns through the front view to face left.
-6. **Walk back (3.0):** speed eases up over 0.5 s; the venue scrolls left to right.
-7. **Exit (4.2):** venue is still; the pet struts from center to off-screen left.
+1. **Enter (1.6):** the pet struts from off-screen left to center. Venue is still.
+2. **Walk out (2.2):** the pet struts in place at center; the venue scrolls right to left.
+3. **Stop (0.4):** speed eases to zero and the paws settle under the hips.
+4. **Pose (0.9):** the pet faces the audience with a faster wag. This step ships on. A config flag can skip it, and the turn then follows the stop.
+5. **Turn (0.5):** the pet turns through the front view to face left.
+6. **Walk back (2.2):** speed eases up over 0.35 s; the venue scrolls left to right.
+7. **Exit (1.7):** venue is still; the pet struts from center to off-screen left.
 
 The next model enters from the left after the previous one exits, so outfit changes always happen off-screen. The runway floor layer scrolls at exactly the pet's ground speed so planted paws don't slide.
 
@@ -119,7 +120,7 @@ Config sets how many NPC models walk (default 3). Guests can run solo shows.
 - **When:** generate NPC looks right after the player submits their 3 looks, not before. Snapshot them exactly like a player submission (items, colorways, costume pieces) so replays never change. Seed all randomness with the show id.
 - **Who:** generic NPC pets (random species, breed, fur, name) from the existing NPC pet generator, behind one function `pickNpcModels(show)`. Do not build another source now.
 - **Wardrobe:** evergreen catalog items only, via the same rule as playdates (`npcMayWear`: never `limited` or `exclusive`). Filter Closet fit with `fitsSpecies` (species, not breed). Color family comes from the item's `colorway.c`; there is no separate `mainColor` column. Prefer the costume's family or neutrals (white, black, grey, brown). Goofy may clash.
-- **Costumes:** only pieces from the theme's rack that the player did not claim. Once per show across everyone. NPCs never take a piece the player used.
+- **Costumes:** only pieces from the show rack (solo: the seeded 8) that the player did not claim on any look. NPCs never take a piece the player used.
 - **Style:** each NPC gets one of glam, sporty, cozy, goofy. No two NPCs in the same show share a style unless there are more NPCs than styles. Style biases item choice through a config weight table (item tag or category → weight).
   - glam: sequins, capes, crowns, glitter boots, tutus, bright jewel colors
   - sporty: bandanas, goggles, sneakers/boots, jackets, bold primary colors
@@ -161,8 +162,7 @@ Suggested tables; adjust names to match existing conventions. Costume claims and
 | Table | Holds | Key fields |
 | --- | --- | --- |
 | `runway_themes` | Theme catalog | id, name, venue background asset, sort order |
-| `runway_costumes` | Costume catalog | id, name, slot (head/face/neck/body/back/feet), theme tags, art asset. Every piece fits dogs and cats |
-| `runway_theme_rack` | Which pieces are on each theme's rack, in unlock order | theme\_id, costume\_id, rack position |
+| `runway_costumes` | Shared 23-piece costume catalog | id, name, slot (hat/glasses/neckwear/jacket/back/boots), art asset. Every piece fits dogs and cats |
 | `runway_tracks` | Music catalog | id, title, audio file path |
 | `runway_shows` | One row per show | id, host player\_id, mode (solo/friends), theme\_id, track\_id, invites\_sent\_at, deadline, voting\_opens\_at, poll\_closes\_at, results\_revealed\_at |
 | `runway_invites` | Who's in a friend show | show\_id, player\_id, status (invited, declined, submitted, judge), submitted flag |
@@ -173,7 +173,7 @@ Suggested tables; adjust names to match existing conventions. Costume claims and
 | `runway_viewer_hides` | Per-player hide of a friend show | show\_id, player\_id; unique on (show\_id, player\_id) |
 
 - The unique constraint on `runway_costume_claims` is what makes first-come-first-served safe when two players submit at once; insert all of a submission's claims in one transaction.
-- Drip unlock times derive from `invites_sent_at` + rack position, so no scheduled job is needed.
+- Friend drip unlock counts derive from `invites_sent_at` + tranche times (5m / +2m / +2m), so no scheduled job is needed.
 - Votes store the voter only to enforce one vote each, and that vote cannot be changed. The app never displays who voted for whom. Account deletion removes the voter id and keeps the tally.
 - `poll_closes_at` is `voting_opens_at` plus the poll length (15 minutes). Set both when voting opens.
 - Theme and costume catalogs ship in the client (`src/runway/catalog.ts`) and are mirrored in Supabase seed tables. Track **metadata** is the same pattern (`runway_tracks` + client list). Track **audio** is Storage-only: downloaded like remote scene music (`src/audio/remoteCatwalkMusic.ts`), not like the Pet Shop catalog.
@@ -186,41 +186,13 @@ Use these as seed data with simple placeholder art; final art comes separately.
 
 Space Travelers · Under the Sea · Royal Ball · Beach Day · Winter Wonderland · Rock Star · Garden Party · Spooky Night · Wild West · Superhero City · Pirate Cove · Safari
 
-**Versatile costume pieces**
+**Shared 23 costume pieces** (see `assets/runway-costumes/catalog.json`)
 
-| Piece | Slot | Theme tags |
-| --- | --- | --- |
-| Crown | Head | Royal Ball, Under the Sea, Winter Wonderland, Superhero City |
-| Goggles | Head | Space Travelers, Under the Sea, Winter Wonderland, Pirate Cove |
-| Antennae headband | Head | Space Travelers, Garden Party, Spooky Night |
-| Flower crown | Head | Garden Party, Beach Day, Royal Ball |
-| Top hat | Head | Royal Ball, Spooky Night, Rock Star |
-| Head bandana | Head | Pirate Cove, Rock Star, Wild West |
-| Star sunglasses | Face | Rock Star, Beach Day, Space Travelers |
-| Eye mask | Face | Superhero City, Spooky Night, Royal Ball |
-| Mustache | Face | Wild West, Pirate Cove, Royal Ball |
-| Ruffle collar | Neck | Royal Ball, Pirate Cove, Spooky Night |
-| Bow tie | Neck | Royal Ball, Garden Party, Spooky Night |
-| Shell necklace | Neck | Beach Day, Under the Sea |
-| Gold chain | Neck | Rock Star, Pirate Cove |
-| Cape | Back | Superhero City, Royal Ball, Spooky Night |
-| Sequin vest | Body | Rock Star, Space Travelers, Royal Ball |
-| Tutu | Body | Royal Ball, Garden Party, Spooky Night |
-| Leather jacket | Body | Rock Star, Wild West, Superhero City |
-| Striped shirt | Body | Pirate Cove, Beach Day |
-| Wings | Back | Garden Party, Spooky Night, Royal Ball |
-| Jetpack | Back | Space Travelers, Superhero City |
-| Glitter boots | Feet | Rock Star, Space Travelers, Royal Ball |
-| Cowboy boots | Feet | Wild West, Rock Star |
-| Rain boots | Feet | Garden Party, Winter Wonderland, Under the Sea |
+Crown, Goggles, Antennae, Flower Crown, Top Hat, Bandana (hat) · Star Glasses, Mask, Mustache (glasses) · Ruffle, Bow Tie, Shells, Chain (neckwear) · Vest, Tutu, Jacket, Stripes (jacket) · Cape, Wings, Jetpack (back) · Glitter / Cowboy / Rain Boots (boots).
 
-**Theme-specific costume pieces (examples)**
+Every theme uses this full list. Solo shows seed 8 at random by show id; friend shows drip 8 / 8 / 7 in catalog order.
 
-Astronaut helmet (Space Travelers) · Pirate hat and eye patch (Pirate Cove) · Mermaid tail (Under the Sea) · Bumblebee antennae and stripes (Garden Party) · Lion's mane (Safari) · Cowboy hat (Wild West) · Wizard hat (Spooky Night) · Scarf and earmuffs (Winter Wonderland) · Pumpkin suit (Spooky Night) · Dinosaur hoodie, hot dog bun (any theme, as fun wildcards)
-
-A theme's rack is those pieces, in that order: its own theme-specific pieces, then the wildcards, then versatile pieces tagged for it. Do not invent more pieces to reach 12.
-
-**Music seed** (`docs/runway music/` → upload to Storage bucket `catwalk-music`)
+**Music seed** (uploaded to Storage bucket `catwalk-music`)
 
 Re-encoded as 128 kbps stereo, 44.1 kHz MP3 (same profile as scene background music). Not shipped in the app bundle — download-only via `syncCatwalkMusic` (kicked from `prepareRemoteMusic` on Home):
 

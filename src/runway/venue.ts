@@ -42,13 +42,17 @@ export function venueScale(screenHeight: number): number {
   return screenHeight / venueStackHeight;
 }
 
+/**
+ * Parallax offset for a layer. `scroll` is in stack (unscaled) px — same units as
+ * docs/boopboop-venues and the strips mock: offset = -(((scroll × k × s) mod tw) + tw) % tw.
+ */
 export function layerOffset(scroll: number, speed: number, scale: number): number {
   const tile = venueTileWidth * scale;
   if (tile <= 0) {
     return 0;
   }
-  const raw = -((scroll * speed * scale) % tile);
-  return raw > 0 ? raw - tile : raw;
+  const tw = tile;
+  return -(((scroll * speed * scale) % tw) + tw) % tw;
 }
 
 /** Pull the solid backdrop fill from `1-backdrop.svg` for letterboxing. */

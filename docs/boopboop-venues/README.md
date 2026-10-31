@@ -1,32 +1,36 @@
-# Boop Boop runway venues
+# Boop Boop runway venues (v2: show sets)
 
-Final art for The Catwalk's 12 venue themes. One folder per theme, six SVG layers per folder. Every layer repeats seamlessly every 1200 px, so draw it side by side as many times as the screen needs.
+Venue spec for The Catwalk. The art lives only in `assets/runway/<theme>/` (7 layer SVGs + `fx.json`); the app embeds the SVG XML in `src/runway/venueSvgXml.ts` and the FX in `src/runway/venueFxData.ts`. Regenerate both when a theme's files change. Visual reference: `docs/Runway Venue Strips.html`.
 
-**Runtime path:** the app loads these from `assets/runway/<theme>/`. This docs folder is the source copy; keep both in sync when art changes.
+Themes: beach, garden, hero, pirate, rock, royal, safari, sea, space, spooky, west, winter.
 
-Theme folders: `space`, `sea`, `royal`, `beach`, `winter`, `rock`, `garden`, `spooky`, `west`, `hero`, `pirate`, `safari` (these match the theme ids in the Supabase theme catalog).
+Each theme is a fashion-show set: themed scenery, uplit set panels, a lighting truss, a back row, a glossy raised runway with an LED edge, and a front row. Every SVG layer repeats seamlessly every 1200 px. Effects are drawn live from `fx.json`.
 
 ## Layers
 
-| File | Size (px) | Scroll speed | Position in the stack |
+| File | Size (px) | Scroll speed | Placed at |
 | --- | --- | --- | --- |
-| `1-sky.svg` | 1200 × 600 | 0.10 × | top, y 0 |
-| `2-far.svg` | 1200 × 600 | 0.30 × | top, y 0 (transparent, over sky) |
-| `3-near.svg` | 1200 × 600 | 0.60 × | top, y 0 (transparent, over far) |
-| `4-audience-back.svg` | 1200 × 70 | 0.75 × | y 600 |
-| `5-floor.svg` | 1200 × 110 | 1.00 × | y 670 |
-| `6-audience-front.svg` | 1200 × 170 | 1.25 × | y 780 |
+| `1-backdrop.svg` | 1200 × 600 | 0.10 × | y 0 |
+| `2-far.svg` | 1200 × 600 | 0.30 × | y 0 |
+| `3-near.svg` | 1200 × 600 | 0.60 × | y 0 |
+| `4-truss.svg` | 1200 × 130 | 0.80 × | y 0, over layers 1–3 |
+| `5-crowd.svg` | 1200 × 70 | 0.75 × | y 600 |
+| `6-runway.svg` | 1200 × 150 | 1.00 × | y 670 |
+| `7-front.svg` | 1200 × 170 | 1.25 × | y 820 |
 
-The full stack is 950 px tall. Scroll speed is a multiple of the pet's ground speed: the floor moves exactly with the pet so planted paws don't slide, and the layers above and below move slower and faster for depth.
+Stack height 990. Scale everything by `s = screenHeight / 990`, anchored to the bottom. The pet's paws sit at stack y 687 (the runway's top surface). The runway moves exactly with the pet.
 
-## Placing it on screen
+Per frame, for a layer with speed `k`: `offset = -((scroll × k × s) mod (1200 × s))`, then draw copies until the screen is covered. Load each SVG once and record it into a picture or image at the current scale.
 
-- Scale every layer by the same factor: `s = screenHeight / 950`, anchored to the bottom of the screen.
-- The pet's paws sit on the floor layer at y 62 (stack y 732), so the paw line is at `732 × s` from the top.
-- Each frame, for a layer with speed `k`: `offset = -((scroll × k × s) mod (1200 × s))`, then draw copies at `offset`, `offset + 1200 × s`, … until the screen is covered. `scroll` grows while the pet walks out and shrinks while it walks back; it stays still during the enter, pose, turn and exit steps.
-- In Skia, load each SVG once (`Skia.SVG.MakeFromString` from the strings in `src/runway/venueSvgXml.ts`), draw with `canvas.drawSvg` at the layer's y/height × scale, and reuse the parsed SVG for every horizontal copy. Do not feed runway SVGs to React Native `Image` — Metro treats `.svg` as an asset binary and `Image` will not paint them (black stage). Don't re-parse per frame.
-- A screen taller than 950 × s (if you cap `s`): fill the space above the stack with the theme's sky color, which is the background rect in `1-sky.svg`.
+## Effects (`fx.json`)
 
-## Style
+Draw order: backdrop → background extra → far → near → particles → beams and follow spot → truss → crowd → runway → LED chase → front row → flashes.
 
-Outlines are #4B3B7A, 4 px at 1× scale, matching the Town map buildings and costume pieces. The audience is drawn as silhouettes (pointy and floppy ears) so it never competes with the pet.
+- **Beams:** one per truss fixture (`fixtures.x` in truss-layer coordinates, at `fixtures.y`), alternating `beams[0]` and `beams[1]`. Each is a cone about 16 px wide at the lens and 120 px at the runway, fading from 38% to 2% opacity, swinging ±0.32 rad with `sin(t × 0.7 + i × 0.9)`. Blend with screen. Each lens gets a pulsing glow.
+- **Follow spot:** a warm white cone from the top center onto the pet, plus a light pool on the runway under the pet.
+- **LED chase:** 10 soft glows per 1200 px running along the runway's LED strip (runway y 46) at 260 px/s, in the walking direction, color `led`.
+- **Flashes:** a camera flash from a random spot in the front row every 0.35–1.4 s: a white burst that fades over 0.28 s.
+- **Particles:** `particles` names the type (stars, bubbles, glitter, glints, snow, confetti, petals, fireflies, dust, sparkle) in `colors`.
+- **Extra:** `extra` is the theme's background motion: shootingStar, causticShimmer, chandelierTwinkle, sunPulse, auroraDrift, strobe, stringLightTwinkle, fog, searchlights, shipBob (use glints). Pulses and twinkles sit at `anchors.points`, in the coordinates of `anchors.layer`, and scroll with it.
+
+The live preview (`docs/Runway Venue Strips.html`) implements all of this and is the reference for timing and look. In the app the walk steps scroll at `strutStageSpeed` (160 stack px/s, `src/actor/data/strut.ts`). With reduced motion on, stop the beams, chase, flashes and strobe, and show the set lit but still.

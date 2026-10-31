@@ -2,18 +2,19 @@ import type { Colorway, WearItem } from '../actor/wardrobe';
 import type { Look, OutfitSlot } from '../sim/types';
 import type { RunwayStyle } from './config';
 
-/** Closet slots plus the costume-only back slot. */
-export type CostumeSlot = OutfitSlot | 'back' | 'hat' | 'glasses' | 'neckwear' | 'jacket' | 'boots';
+/** Closet slots plus the costume-only back slot. Catalog slots match WearItem slots. */
+export type CostumeSlot = OutfitSlot | 'back';
 
-export type RunwayCostumeSlot = 'head' | 'face' | 'neck' | 'body' | 'back' | 'feet';
+/** Slots used by the 23-piece runway costume catalog. */
+export type RunwayCostumeSlot = 'hat' | 'glasses' | 'neckwear' | 'jacket' | 'back' | 'boots';
 
 export const costumeToOutfit: Record<RunwayCostumeSlot, CostumeSlot> = {
-  head: 'hat',
-  face: 'glasses',
-  neck: 'neckwear',
-  body: 'jacket',
+  hat: 'hat',
+  glasses: 'glasses',
+  neckwear: 'neckwear',
+  jacket: 'jacket',
   back: 'back',
-  feet: 'boots',
+  boots: 'boots',
 };
 
 export type FrozenPiece = {
@@ -63,7 +64,11 @@ export type LocalRunwayShow = {
   hostPlayerId?: string;
   createdAt: number;
   deadlineAt?: number;
+  /** Friend drip clock; defaults to createdAt when absent. */
+  invitesSentAt?: number;
   submissions: RunwaySubmission[];
+  /** Seeded solo rack ids (stable for replay / NPC leftovers). */
+  soloRackIds?: string[];
   /** Player-facing list order: self first for the host viewer. */
   hidden?: boolean;
 };
@@ -81,5 +86,6 @@ export function wearFromFrozen(piece: FrozenPiece): WearItem {
     colorway: piece.colorway,
     ...(piece.patternParts ? { patternParts: piece.patternParts } : {}),
     ...(piece.lensTint ? { lensTint: piece.lensTint } : {}),
+    ...(piece.kind === 'costume' ? { costume: true } : {}),
   };
 }

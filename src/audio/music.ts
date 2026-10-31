@@ -50,6 +50,8 @@ let last = -1;
 let wanted = false;
 let suspended = false;
 let held = false;
+// Each owner holds independently, so one releasing (a preview ending) can't unpause music under another.
+const holders = new Set<string>();
 
 export function isMusicEnabled(): boolean {
   return wanted;
@@ -140,9 +142,15 @@ export function suspendMusic(off: boolean): void {
   }
 }
 
-// Keeps scene music quiet while an arcade round owns the speakers.
-export function holdMusic(on: boolean): void {
-  held = on;
+// Keeps scene music quiet while an arcade round, the runway, or a preview owns the speakers.
+export function holdMusic(on: boolean, owner = 'default'): void {
+  if (on) {
+    holders.add(owner);
+  } else {
+    holders.delete(owner);
+  }
+  held = holders.size > 0;
+  on = held;
   try {
     if (on || suspended) {
       player?.pause();
@@ -159,5 +167,6 @@ export function holdMusic(on: boolean): void {
 export function releaseMusic(): void {
   wanted = false;
   held = false;
+  holders.clear();
   dispose();
 }

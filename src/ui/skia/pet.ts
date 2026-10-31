@@ -2,6 +2,7 @@ import { BlendMode, Skia, StrokeCap } from '@shopify/react-native-skia';
 import type { SkCanvas, SkPaint, SkPicture } from '@shopify/react-native-skia';
 
 import { blendedFoot, bodyFrame, isDarkCoat, solveKnee, wearItem } from '../../actor';
+import { strutFoot } from '../../actor/data/strut';
 import type { Actor, Breed, Geom, Pose } from '../../actor';
 import { blendedTheta, facingFit, projectLocal } from '../../actor/facing';
 import { facingConfig } from '../../actor/data/facing';
@@ -57,6 +58,7 @@ import {
   strokeLine,
 } from './draw';
 import { jacketHasSleeves, type WearItem } from '../../actor/wardrobe';
+import { drawCostumeWorn, usesCostumeWorn } from './costumeWorn';
 import { frostOval } from './frost';
 import { drawToyShape } from './scenery';
 import { cachedLayout, viewDefs, viewRig } from './views';
@@ -598,10 +600,16 @@ export function drawActor(
       const len = geom.L;
       return { x: hip.x - Math.sin(swing) * len, y: hip.y + Math.cos(swing) * len };
     }
-    const gait = blendedFoot(actor.gait, leg, actor.phase, geom.L, actor.strideShare ?? actor.share);
-    if (actor.raceCadence) {
-      gait.x /= actor.raceCadence;
-    }
+    // Runway strut uses its own foot path; race cadence still scales the everyday gaits.
+    const gait = actor.strutting
+      ? strutFoot(leg, actor.phase, geom.L)
+      : (() => {
+          const foot = blendedFoot(actor.gait, leg, actor.phase, geom.L, actor.strideShare ?? actor.share);
+          if (actor.raceCadence) {
+            foot.x /= actor.raceCadence;
+          }
+          return foot;
+        })();
     const stand = { x: hip.x + (fore ? 3 : -1) + gait.x * pose.walk, y: gait.y * pose.walk };
     const sit = fore ? { x: hip.x + 4, y: 0 } : { x: hip.x + 0.45 * geom.L, y: 0 };
     const lieReach = Math.sqrt(Math.max(0, 0.97 * geom.L * (0.97 * geom.L) - hip.y * hip.y));
@@ -1125,11 +1133,28 @@ export function drawActor(
     paintCoat();
   }
   actor.anchors.paws = drawnPaws.map((paw) => ({ x: paw.x, y: paw.y, shin: paw.shin }));
+  // Runway back costume (cape / wings / jetpack) after near boots, before neck/head.
+  // Catalog origin: withers (14, −80) = body center + (14, −24) in reference units.
+  if (actor.backWear && usesCostumeWorn(actor.backWear)) {
+    c.save();
+    c.translate(0, dy);
+    c.translate(geom.Px, geom.Py);
+    c.rotate(deg(theta), 0, 0);
+    c.translate(-geom.Px, -geom.Py);
+    // Move the withers point with the torso's 3/4 foreshorten and pose scale (like the body oval),
+    // without squashing the art itself.
+    const fs = rig.view === 'front' || rig.view === 'back' ? 1 : Math.max(rig.foreshorten, 0.001);
+    const withersX = (geom.Px + ((14 / 92) * geom.bodyLen - geom.Px) * fs) * torsoScaleX;
+    const withersY = geom.bodyY - (24 / 48) * geom.bodyH * (posed?.scaleY ?? 1);
+    c.translate(withersX, withersY);
+    drawCostumeWorn(c, actor.backWear.id, { scale: geom.bodyH / 48 });
+    c.restore();
+  }
   c.restore();
   if (jacket?.shape === 'hoodie' && jacketAnchor && coats.side > 0.01 && pose.belly < 0.45) {
     drawHood(c, base, perp, along, jacket, geom.headR, neckWidth, baseColor, coats.side);
   }
-  if (jacket && jacketAnchor && coats.back < 0.999) {
+  if (jacket && jacketAnchor && coats.back < 0.999 && !usesCostumeWorn(jacket)) {
     const collarAlpha = 1 - coats.back;
     if (collarAlpha < 0.999) {
       const fade = Skia.Paint();
@@ -1185,7 +1210,10 @@ export function drawActor(
     const sway = Math.sin(t * 3) * 0.08 + Math.sin(t * 11) * clamp(actor.speed / 120, 0, 1) * 0.12;
     const chest = markingOf(markings, 'chest')?.color ?? baseColor;
     c.save();
-    c.translate(neckAnchor.x * R, neckAnchor.y * R);
+    // Closet neckwear uses cosmeticAnchor nudge; costume worn SVGs are authored at chin.
+    if (!usesCostumeWorn(neckwear)) {
+      c.translate(neckAnchor.x * R, neckAnchor.y * R);
+    }
     drawNeckwear(c, chin, perp, along, neckwear, sway, R, chest, view, pitch, {
       sit: pose.sit,
       lie: pose.lie,
@@ -1502,6 +1530,16 @@ export function drawActor(
       c.translate(glassAnchor.x * R, glassAnchor.y * R);
       drawGlassesFront(c, glasses, face, R, baseColor, t, reduced);
       c.restore();
+      // Eye mask: worn SVG covers the eye; redraw the near eye through the hole.
+      if (usesCostumeWorn(glasses) && glasses.shape === 'mask' && pose.xEyes <= 0.5) {
+        c.save();
+        c.translate(ex, ey);
+        if (cat && pose.pupils > 0.001) {
+          c.scale(1 + 1.2 * pose.pupils, 1);
+        }
+        drawEye(c, 0, 0, eyeR, eyeClosed, breed, cf);
+        c.restore();
+      }
     }
     if (hat && hatAnchor) {
       c.save();

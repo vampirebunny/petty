@@ -46,13 +46,22 @@ function playLoop(trackId: string): void {
 export function startRunwayTrack(trackId: string): void {
   active = true;
   paused = false;
+  // Scene music stays off for the whole show, even when the runway track is missing or muted.
+  holdMusic(true, 'runway');
   if (!isMusicEnabled()) {
     dispose();
     return;
   }
   configurePlayback();
-  holdMusic(true);
   playLoop(trackId);
+}
+
+/** Silence the runway track but keep scene music held (end-of-show modal). */
+export function quietRunwayTrack(): void {
+  active = false;
+  paused = false;
+  currentTrackId = null;
+  dispose();
 }
 
 export function pauseRunwayTrack(): void {
@@ -96,12 +105,9 @@ export function suspendRunway(off: boolean): void {
 }
 
 export function stopRunwayTrack(): void {
-  if (!active && !player) {
-    return;
-  }
   active = false;
   paused = false;
   currentTrackId = null;
   dispose();
-  holdMusic(false);
+  holdMusic(false, 'runway');
 }

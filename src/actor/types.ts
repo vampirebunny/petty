@@ -552,6 +552,8 @@ export type Actor = {
   clipScale?: number;
   // Remote clothes this actor must draw even when the viewer's catalog does not know the id.
   wearDefs?: Partial<Record<OutfitSlot, WearItem>>;
+  /** Runway costume-only back piece (cape / wings / jetpack). */
+  backWear?: WearItem;
   // World time of the last bell jingle, so a run does not ring every frame.
   bellAt?: number;
   look: Look | null;
@@ -601,6 +603,8 @@ export type Actor = {
   strideShare?: number;
   // Race only. Scales that stride so a fast tap gallops quicker and a slow tap gallops longer.
   raceCadence?: number;
+  /** When set, feet use the runway strut path instead of everyday gait. */
+  strutting?: boolean;
   direction: Direction | null;
   // The direction token that already launched a jump, so a held jump fires once.
   directionJump: number;
@@ -814,6 +818,8 @@ export type ActorSource = {
   vitality: number;
   equipped: Equipped;
   wearDefs?: Partial<Record<OutfitSlot, WearItem>>;
+  /** Runway costume-only back piece (cape / wings / jetpack). */
+  backWear?: WearItem;
   look?: Look | null;
   asleep: boolean;
   cuddleAffinity?: number;

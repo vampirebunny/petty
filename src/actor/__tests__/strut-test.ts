@@ -4,7 +4,7 @@ describe('strut', () => {
   it('keeps a longer stride and higher fore lift than the walk', () => {
     expect(strutDef.stride).toBeGreaterThan(0.38);
     expect(strutForeLift).toBeGreaterThan(strutDef.lift);
-    expect(strutCadenceHz).toBe(1);
+    expect(strutCadenceHz).toBe(1.7);
   });
 
   it('returns a planted foot and a lifted swing foot', () => {

@@ -4,8 +4,9 @@ import { loadShopCatalog } from '../economy/shopState';
 import { npcMayWear, parkStranger } from '../playdate/npcs';
 import { pickIndex, rngFrom, shuffle } from '../playdate/rng';
 import type { OutfitSlot } from '../sim/types';
-import { costumeById, rackForTheme, type RunwayCostume, type RunwayThemeId } from './catalog';
+import { costumeById, type RunwayCostume, type RunwayThemeId } from './catalog';
 import { runwayConfig, type RunwayStyle } from './config';
+import { soloShowRack, soloShowRackIds } from './rack';
 import {
   costumeToOutfit,
   type FrozenLook,
@@ -267,8 +268,11 @@ export function dressNpcModels(
   themeId: RunwayThemeId,
   playerClaimed: readonly string[],
   models: RunwayPetSnap[],
+  /** Solo show rack; defaults to seeded 8-of-23 for this show. */
+  showRack?: RunwayCostume[],
 ): RunwaySubmission[] {
-  const rack = rackForTheme(themeId).filter((piece) => !playerClaimed.includes(piece.id));
+  void themeId;
+  const rack = (showRack ?? soloShowRack(showId)).filter((piece) => !playerClaimed.includes(piece.id));
   const usedCostumes = new Set<string>(playerClaimed);
   const out: RunwaySubmission[] = [];
 
@@ -335,16 +339,21 @@ export function buildSoloShow(args: {
   showId?: string;
 }): LocalRunwayShow {
   const id = args.showId ?? `solo-${args.ownerId}-${Date.now()}`;
+  const soloRackIds = soloShowRackIds(id);
+  const showRack = soloShowRack(id);
   const frozen = freezePlayerLooks(args.playerLooks);
+  // NPCs only take leftovers the player never used on any look (union of claimed ids).
+  const playerClaimedUnique = [...new Set(frozen.claimed)];
   const playerSub: RunwaySubmission = {
     submissionId: `sub-${id}-self`,
     playerId: args.ownerId,
     pet: args.pet,
     looks: frozen.looks,
     submittedAt: Date.now(),
-    claimedCostumeIds: frozen.claimed,
+    claimedCostumeIds: playerClaimedUnique,
   };
-  const npcSubs = args.npcSubmissions ?? dressNpcModels(id, args.themeId, frozen.claimed, pickNpcModels({ id }));
+  const npcSubs =
+    args.npcSubmissions ?? dressNpcModels(id, args.themeId, playerClaimedUnique, pickNpcModels({ id }), showRack);
   return {
     id,
     mode: 'solo',
@@ -352,6 +361,7 @@ export function buildSoloShow(args: {
     trackId: args.trackId,
     hostPlayerId: args.ownerId,
     createdAt: Date.now(),
+    soloRackIds,
     submissions: [playerSub, ...npcSubs],
   };
 }

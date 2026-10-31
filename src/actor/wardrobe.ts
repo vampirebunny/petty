@@ -30,6 +30,8 @@ export type WearItem = {
   patternParts?: readonly string[];
   // Replaces the lens color from glassesStyles. Alpha and glare stay on the shape.
   lensTint?: string;
+  /** Runway costume piece — draw worn SVG art; Closet ids may collide (crown, bowtie, …). */
+  costume?: boolean;
 };
 
 function wear(

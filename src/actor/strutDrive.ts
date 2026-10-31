@@ -35,6 +35,7 @@ export function stepStrutRun(actor: Actor, breed: Breed, dt: number, moving: boo
   actor.share = moving ? 0.35 : 0;
   actor.strideShare = 0;
   actor.raceCadence = strutCadenceHz;
+  actor.strutting = true;
   stepGait(actor.gait, 'walk', dt);
   if (moving) {
     actor.phase += dt * Math.PI * 2 * strutCadenceHz;

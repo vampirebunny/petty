@@ -19,6 +19,7 @@ export type OutfitSubject = {
 type Props = OutfitSubject & {
   equipped: Equipped;
   wearDefs?: ActorSource['wearDefs'];
+  backWear?: ActorSource['backWear'];
   width: number;
   height: number;
   t: number;
@@ -56,6 +57,7 @@ export function OutfitPreview({
   seed = 1,
   equipped,
   wearDefs,
+  backWear,
   width,
   height,
   t,
@@ -66,7 +68,7 @@ export function OutfitPreview({
 }: Props) {
   const picture = useMemo(() => {
     const actor = spawnActor(
-      { id: 'outfit', breedId, ageDays, weight, vitality, equipped, wearDefs, look, asleep: false, seed },
+      { id: 'outfit', breedId, ageDays, weight, vitality, equipped, wearDefs, backWear, look, asleep: false, seed },
       { x: 320, y: 460 },
     );
     actor.blinkT = 2;
@@ -93,7 +95,7 @@ export function OutfitPreview({
       drawWorld(canvas, world, width, height, tod, true, undefined, camera, undefined, { sky: null });
     }
     return recorder.finishRecordingAsPicture();
-  }, [ageDays, bare, breedId, cameraY, equipped, height, look, pose, seed, t, vitality, wearDefs, weight, width, zoom]);
+  }, [ageDays, backWear, bare, breedId, cameraY, equipped, height, look, pose, seed, t, vitality, wearDefs, weight, width, zoom]);
 
   return (
     <Canvas style={[styles.canvas, { width, height }]} pointerEvents="none">

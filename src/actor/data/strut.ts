@@ -74,17 +74,22 @@ export const runwayPose: Partial<Pose> = {
 // Runway sequence for each of the 3 looks. Seconds. The pet's ground speed during the walk steps is constant
 // and the venue scrolls at exactly that speed, so planted paws stay put.
 export const runwaySteps = [
-  { id: 'enter', seconds: 4.0 }, // off-screen left to center, venue still
-  { id: 'walkOut', seconds: 3.0 }, // walk in place at center, venue scrolls right to left
-  { id: 'stop', seconds: 0.6 }, // speed eases to 0, legs settle under the hips
-  { id: 'pose', seconds: 1.3 }, // optional: runwayPose, then back
-  { id: 'turn', seconds: 0.8 }, // turn through the front view (octant blend), no flat flip
-  { id: 'walkBack', seconds: 3.0 }, // speed eases up over 0.5 s, venue scrolls left to right
-  { id: 'exit', seconds: 4.2 }, // venue still, pet walks from center off-screen left
+  { id: 'enter', seconds: 1.6 }, // off-screen left to center, venue still
+  { id: 'walkOut', seconds: 2.2 }, // walk in place at center, venue scrolls right to left
+  { id: 'stop', seconds: 0.4 }, // speed eases to 0, legs settle under the hips
+  { id: 'pose', seconds: 0.9 }, // optional: runwayPose, then back
+  { id: 'turn', seconds: 0.5 }, // turn through the front view (octant blend), no flat flip
+  { id: 'walkBack', seconds: 2.2 }, // speed eases up, venue scrolls left to right
+  { id: 'exit', seconds: 1.7 }, // venue still, pet walks from center off-screen left
 ] as const;
 
 export type RunwayStepId = (typeof runwaySteps)[number]['id'];
 
-// Ground speed during the strut, as a share of the scene's walking speed. The mock uses 72 stage px/s at a
-// 1.18 zoom, which is about one full stride cycle per second: slower and more deliberate than a normal walk.
-export const strutCadenceHz = 1;
+// Stride cycles per second. Paired with strutStageSpeed so planted paws stay put on the scrolling floor.
+export const strutCadenceHz = 1.7;
+
+/**
+ * Stack px/s for venue scroll during walkOut / walkBack (unscaled; layerOffset multiplies by scale).
+ * Keep in sync with strutCadenceHz ≈ one stride of ~strutDef.stride·L per cycle at typical L.
+ */
+export const strutStageSpeed = 160;

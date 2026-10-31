@@ -78,8 +78,8 @@ const portraitNodes: Record<NodeId, Point> = {
   park: { x: 100, y: 304 },
   trainingSchool: { x: 290, y: 358 },
   bend: { x: 100, y: 468 },
-  // On the main road to the right of The Catwalk, not on the spur in front of the door.
-  catwalk: { x: 195, y: 495 },
+  // On the main road just right of The Catwalk, not on the door spur and not halfway to Arcade.
+  catwalk: { x: 148, y: 478 },
   arcade: { x: 290, y: 522 },
   stadium: { x: 195, y: 650 },
 };
@@ -90,8 +90,8 @@ const wideNodes: Record<NodeId, Point> = {
   park: { x: 740, y: 175.5 },
   trainingSchool: { x: 1020, y: 172 },
   bend: { x: 1020, y: 526 },
-  // On the bottom road below The Catwalk, toward the Arcade.
-  catwalk: { x: 900, y: 530 },
+  // On the bottom road under The Catwalk, just before the bend corner.
+  catwalk: { x: 980, y: 528 },
   arcade: { x: 740, y: 531.1 },
   stadium: { x: 420, y: 534 },
 };
@@ -135,8 +135,8 @@ export const portraitLayout: TownLayout = {
     edge('petShop-park', 'petShop', 'park', { x: 320, y: 235 }, { x: 180, y: 280 }, portraitNodes),
     edge('park-trainingSchool', 'park', 'trainingSchool', { x: 60, y: 316 }, { x: 200, y: 330 }, portraitNodes),
     edge('trainingSchool-bend', 'trainingSchool', 'bend', { x: 320, y: 395 }, { x: 180, y: 440 }, portraitNodes),
-    edge('bend-catwalk', 'bend', 'catwalk', { x: 60, y: 480 }, { x: 140, y: 488 }, portraitNodes),
-    edge('catwalk-arcade', 'catwalk', 'arcade', { x: 240, y: 505 }, { x: 270, y: 515 }, portraitNodes),
+    edge('bend-catwalk', 'bend', 'catwalk', { x: 80, y: 475 }, { x: 120, y: 476 }, portraitNodes),
+    edge('catwalk-arcade', 'catwalk', 'arcade', { x: 200, y: 490 }, { x: 250, y: 510 }, portraitNodes),
     edge('arcade-stadium', 'arcade', 'stadium', { x: 330, y: 560 }, { x: 230, y: 620 }, portraitNodes),
   ],
   extras: [],
@@ -167,8 +167,8 @@ export const wideLayout: TownLayout = {
     edge('petShop-park', 'petShop', 'park', { x: 541.4, y: 173.6 }, { x: 633.8, y: 175.3 }, wideNodes),
     edge('park-trainingSchool', 'park', 'trainingSchool', { x: 824.2, y: 175.6 }, { x: 917.1, y: 174.7 }, wideNodes),
     edge('trainingSchool-bend', 'trainingSchool', 'bend', { x: 1170, y: 168 }, { x: 1170, y: 528 }, wideNodes),
-    edge('bend-catwalk', 'bend', 'catwalk', { x: 1000, y: 528 }, { x: 950, y: 529 }, wideNodes),
-    edge('catwalk-arcade', 'catwalk', 'arcade', { x: 850, y: 531 }, { x: 790, y: 531 }, wideNodes),
+    edge('bend-catwalk', 'bend', 'catwalk', { x: 1010, y: 527 }, { x: 995, y: 528 }, wideNodes),
+    edge('catwalk-arcade', 'catwalk', 'arcade', { x: 920, y: 530 }, { x: 820, y: 531 }, wideNodes),
     edge('arcade-stadium', 'arcade', 'stadium', { x: 628.6, y: 534.3 }, { x: 513.5, y: 537.1 }, wideNodes),
   ],
   extras: [

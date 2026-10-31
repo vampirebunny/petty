@@ -1,4 +1,4 @@
-import { buildBeats, modelsForViewer, skipToNextModel, skipToNextRound } from '../playback';
+import { buildBeats, modelsForViewer, skipToNextModel, skipToNextRound, venueScrolls } from '../playback';
 import type { LocalRunwayShow } from '../types';
 
 function show(): LocalRunwayShow {
@@ -66,5 +66,15 @@ describe('runway playback', () => {
     expect(beats[afterModel].modelIndex).not.toBe(beats[0].modelIndex);
     const afterRound = skipToNextRound(beats, 0);
     expect(beats[afterRound].lookIndex).toBe(1);
+  });
+
+  it('scrolls only on walkOut and walkBack', () => {
+    expect(venueScrolls('enter')).toBe('still');
+    expect(venueScrolls('walkOut')).toBe('out');
+    expect(venueScrolls('stop')).toBe('still');
+    expect(venueScrolls('pose')).toBe('still');
+    expect(venueScrolls('turn')).toBe('still');
+    expect(venueScrolls('walkBack')).toBe('back');
+    expect(venueScrolls('exit')).toBe('still');
   });
 });

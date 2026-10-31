@@ -3,43 +3,29 @@ import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } fr
 import { ChevronLeft, Pause, Play } from 'lucide-react-native';
 
 import { breedById } from '../actor/breeds';
-import { outfitSlots, wearItem, type WearItem } from '../actor/wardrobe';
+import { outfitSlots, wearItem } from '../actor/wardrobe';
 import { track, trackScreen } from '../analytics/analytics';
 import { listenPreview, previewRunwayTrack, stopRunwayPreview } from '../audio/runwayPreview';
 import { syncCatwalkMusic } from '../audio/remoteCatwalkMusic';
-import { rackForTheme, runwayThemes, runwayTracks, themeById, type RunwayCostume, type RunwayThemeId } from '../runway/catalog';
+import { allCostumes, costumeById, runwayThemes, runwayTracks, themeById, type RunwayThemeId } from '../runway/catalog';
 import { runwayConfig } from '../runway/config';
 import { equipFromDraft } from '../runway/lookEquip';
 import { buildSoloShow } from '../runway/npcs';
+import { friendNextUnlockAt, friendUnlockCount, soloShowRack } from '../runway/rack';
 import { deleteSoloShow, hideFriendShow, loadRunwaySave, rememberShow, saveRunwaySave, visibleShows } from '../runway/storage';
-import { costumeToOutfit, type LocalRunwayShow } from '../runway/types';
+import type { LocalRunwayShow } from '../runway/types';
 import { recordFormatEntered } from '../invites/store';
 import type { RunwayInvitation } from '../invites/types';
 import type { Equipped, OutfitSlot, PetState } from '../sim/types';
 import { ClosetSection } from '../ui/closet/ClosetSection';
-import { ClosetTile } from '../ui/closet/ClosetTile';
 import { closet, tileColumns } from '../ui/closet/closetStyle';
 import { fontFamily } from '../ui/font';
 import { OutfitPreview, useOutfitClock } from '../ui/OutfitPreview';
+import { CostumeTile } from '../ui/runway/CostumeTile';
 import { RunwayView } from '../ui/runway/RunwayView';
 import { SoundBars } from '../ui/runway/SoundBars';
 import { ThemeStill } from '../ui/runway/ThemeStill';
 import { iconStroke } from '../ui/theme';
-
-function costumeWear(piece: RunwayCostume): { slot: OutfitSlot; item: WearItem } {
-  const mapped = costumeToOutfit[piece.slot];
-  const slot: OutfitSlot = mapped === 'back' ? 'jacket' : mapped;
-  return {
-    slot,
-    item: {
-      id: piece.id,
-      slot,
-      label: piece.name,
-      shape: piece.shape,
-      colorway: { ...piece.colorway },
-    },
-  };
-}
 
 function chunkCostumes<T>(items: T[], cols: number): T[][] {
   const rows: T[][] = [];
@@ -47,6 +33,13 @@ function chunkCostumes<T>(items: T[], cols: number): T[][] {
     rows.push(items.slice(i, i + cols));
   }
   return rows;
+}
+
+function formatCountdown(ms: number): string {
+  const total = Math.max(0, Math.ceil(ms / 1000));
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
 type Props = {
@@ -110,6 +103,8 @@ export function CatwalkScreen({ pet, ownerId, owned, reducedMotion, seed = null,
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [previewId, setPreviewId] = useState<string | null>(null);
+  const [soloShowId] = useState(() => seed?.showId ?? `solo-${ownerId}-${Date.now()}`);
+  const [nowTick, setNowTick] = useState(() => Date.now());
 
   useEffect(() => {
     trackScreen('catwalk');
@@ -124,20 +119,39 @@ export function CatwalkScreen({ pet, ownerId, owned, reducedMotion, seed = null,
     }
   }, [step]);
 
+  useEffect(() => {
+    if (step !== 'backstage') {
+      return;
+    }
+    const timer = setInterval(() => setNowTick(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [step]);
+
   const refreshHistory = useCallback(async () => {
     const save = await loadRunwaySave(ownerId);
     setHistory(visibleShows(save));
   }, [ownerId]);
 
-  const rack = useMemo(() => {
-    const all = rackForTheme(themeId);
+  /** Friend NPC invites: FCFS against NPC claims. Solo: seeded 8-of-23 rack. */
+  const friendMode = Boolean(seed && seed.type === 'runway');
+  const invitesSentAt = seed?.createdAt ?? nowTick;
+  const npcTaken = useMemo(() => {
     if (!seed || seed.type !== 'runway') {
-      return all;
+      return new Set<string>();
     }
-    const worn = new Set(seed.npcSubmissions.flatMap((row) => row.claimedCostumeIds));
-    return all.filter((piece) => !worn.has(piece.id));
-  }, [seed, themeId]);
-  const claimedInDraft = useMemo(() => new Set(looks.flatMap((look) => look.costumes)), [looks]);
+    return new Set(seed.npcSubmissions.flatMap((row) => row.claimedCostumeIds));
+  }, [seed]);
+
+  const rack = useMemo(() => {
+    if (friendMode) {
+      return allCostumes();
+    }
+    return soloShowRack(soloShowId);
+  }, [friendMode, soloShowId]);
+
+  const unlockedCount = friendMode ? friendUnlockCount(invitesSentAt, nowTick) : rack.length;
+  const nextUnlockAt = friendMode ? friendNextUnlockAt(invitesSentAt, nowTick) : null;
+
   const current = looks[lookIndex];
   const draftEquip = useMemo(
     () => equipFromDraft(current.wardrobe, current.costumes),
@@ -153,25 +167,25 @@ export function CatwalkScreen({ pet, ownerId, owned, reducedMotion, seed = null,
         const next = { ...look.wardrobe };
         if (next[slot] === id) {
           delete next[slot];
-        } else {
-          next[slot] = id;
-          look.costumes = look.costumes.filter((costumeId) => {
-            const piece = rack.find((row) => row.id === costumeId);
-            return (
-              !piece ||
-              piece.slot !==
-                (slot === 'hat' ? 'head' : slot === 'glasses' ? 'face' : slot === 'neckwear' ? 'neck' : slot === 'jacket' ? 'body' : 'feet')
-            );
-          });
+          return { ...look, wardrobe: next };
         }
-        return { ...look, wardrobe: next };
+        next[slot] = id;
+        const costumes = look.costumes.filter((costumeId) => costumeById(costumeId)?.slot !== slot);
+        return { ...look, wardrobe: next, costumes };
       }),
     );
   };
 
   const toggleCostume = (costumeId: string) => {
-    const piece = rack.find((row) => row.id === costumeId);
+    const piece = costumeById(costumeId);
     if (!piece) {
+      return;
+    }
+    if (npcTaken.has(costumeId)) {
+      return;
+    }
+    const pieceIndex = allCostumes().findIndex((row) => row.id === costumeId);
+    if (friendMode && pieceIndex >= unlockedCount) {
       return;
     }
     setLooks((rows) =>
@@ -182,29 +196,12 @@ export function CatwalkScreen({ pet, ownerId, owned, reducedMotion, seed = null,
         if (look.costumes.includes(costumeId)) {
           return { ...look, costumes: look.costumes.filter((id) => id !== costumeId) };
         }
-        if (claimedInDraft.has(costumeId) && !look.costumes.includes(costumeId)) {
-          return look;
-        }
-        const slotKey =
-          piece.slot === 'head'
-            ? 'hat'
-            : piece.slot === 'face'
-              ? 'glasses'
-              : piece.slot === 'neck'
-                ? 'neckwear'
-                : piece.slot === 'body'
-                  ? 'jacket'
-                  : piece.slot === 'feet'
-                    ? 'boots'
-                    : null;
+        // Costume reuse across Looks 1–3 is allowed; only one piece per slot on this look.
         const wardrobe = { ...look.wardrobe };
-        if (slotKey) {
-          delete wardrobe[slotKey];
+        if (piece.slot !== 'back') {
+          delete wardrobe[piece.slot];
         }
-        const costumes = look.costumes.filter((id) => {
-          const other = rack.find((row) => row.id === id);
-          return !other || other.slot !== piece.slot;
-        });
+        const costumes = look.costumes.filter((id) => costumeById(id)?.slot !== piece.slot);
         return { ...look, wardrobe, costumes: [...costumes, costumeId] };
       }),
     );
@@ -226,7 +223,7 @@ export function CatwalkScreen({ pet, ownerId, owned, reducedMotion, seed = null,
         ownerId,
         themeId,
         trackId,
-        showId: seed?.showId,
+        showId: seed?.showId ?? soloShowId,
         npcSubmissions: seed?.npcSubmissions,
         pet: {
           snapshotId: `self-${pet.id}`,
@@ -429,6 +426,7 @@ export function CatwalkScreen({ pet, ownerId, owned, reducedMotion, seed = null,
               look={pet.look}
               equipped={draftEquip.equipped}
               wearDefs={draftEquip.wearDefs}
+              backWear={draftEquip.backWear}
               width={Math.min(320, width - 48)}
               height={220}
               t={previewClock}
@@ -464,27 +462,26 @@ export function CatwalkScreen({ pet, ownerId, owned, reducedMotion, seed = null,
               <Text accessibilityRole="header" style={styles.costumePlate}>
                 Costume rack
               </Text>
-              {chunkCostumes(rack, tileColumns).map((row, index) => (
+              {chunkCostumes(friendMode ? allCostumes() : rack, tileColumns).map((row, index) => (
                 <View key={index} style={styles.costumeRow}>
                   {row.map((piece) => {
-                    const taken = claimedInDraft.has(piece.id) && !current.costumes.includes(piece.id);
+                    const catalogIndex = allCostumes().findIndex((rowPiece) => rowPiece.id === piece.id);
+                    const locked = friendMode && catalogIndex >= unlockedCount;
+                    const taken = npcTaken.has(piece.id);
                     const on = current.costumes.includes(piece.id);
-                    const { slot, item } = costumeWear(piece);
+                    const countdownLabel =
+                      locked && nextUnlockAt != null ? formatCountdown(nextUnlockAt - nowTick) : null;
                     return (
-                      <View key={piece.id} style={[styles.costumeCell, taken && styles.tileTaken]}>
-                        <ClosetTile
-                          slot={slot}
-                          item={item}
-                          worn={on}
-                          reducedMotion={reducedMotion}
-                          onPress={() => {
-                            if (!taken) {
-                              toggleCostume(piece.id);
-                            }
-                          }}
-                        />
-                        {taken ? <Text style={styles.takenLabel}>Taken</Text> : null}
-                      </View>
+                      <CostumeTile
+                        key={piece.id}
+                        id={piece.id}
+                        label={piece.name}
+                        worn={on}
+                        locked={locked}
+                        taken={taken}
+                        countdownLabel={countdownLabel}
+                        onPress={() => toggleCostume(piece.id)}
+                      />
                     );
                   })}
                   {Array.from({ length: tileColumns - row.length }, (_, pad) => (

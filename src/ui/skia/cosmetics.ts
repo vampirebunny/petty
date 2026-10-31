@@ -6,6 +6,7 @@ import { torsoPoint, type HeadFace } from '../../actor/geometry';
 import { wardrobeSizes } from '../../actor/data/wardrobeSizes';
 import { PART_NAMES, PATTERN_PARTS, type PatternId, type WearItem } from '../../actor/wardrobe';
 import { clamp, deg, fillCircle, mix, oval, paintOf, polygon, strokeLine } from './draw';
+import { drawCostumeWorn, usesCostumeWorn } from './costumeWorn';
 import { drawItemPattern, isPatternId, patternPaint, patternUnit, type PatternPaint } from './patterns';
 
 type Pt = { x: number; y: number };
@@ -425,6 +426,17 @@ export function drawSleeve(c: SkCanvas, hip: Pt, knee: Pt, geom: Geom, item: Wea
 // One rounded silhouette: the shaft and an oversized toe are merged so there is a single outline.
 // `tilt` is 0 for a planted paw and 1 for a paw that follows the shin (sitting hind legs, lying, belly up, a jump tuck).
 export function drawBoot(c: SkCanvas, knee: Pt, paw: Pt, geom: Geom, boot: WearItem, far: boolean, fur: string, tilt: number): void {
+  if (usesCostumeWorn(boot)) {
+    const segX = paw.x - knee.x;
+    const segY = paw.y - knee.y;
+    const shin = Math.atan2(segY, segX) - Math.PI / 2;
+    c.save();
+    c.translate(paw.x, paw.y);
+    c.rotate(deg(shin), 0, 0);
+    drawCostumeWorn(c, boot.id, { scale: geom.legWidth / 10, alpha: far ? 0.72 : 1 });
+    c.restore();
+    return;
+  }
   const sneaker = boot.shape === 'sneaker' || boot.shape === 'hightop';
   const high = boot.shape === 'hightop';
   const rain = boot.shape === 'rain';
@@ -1022,6 +1034,22 @@ function drawHoodiePocket(c: SkCanvas, f: JFrame, item: WearItem, front: boolean
 }
 
 export function drawJacket(c: SkCanvas, geom: Geom, item: WearItem, breath: number, fur: string, pose: JacketPose = {}): void {
+  if (usesCostumeWorn(item)) {
+    const pass = pose.pass ?? 'side';
+    // Worn jacket art is authored for the side/3-4 view; skip back/front panel passes.
+    if (pass !== 'side') {
+      return;
+    }
+    const alpha = pose.alpha ?? 1;
+    jacketAlpha(c, alpha, () => {
+      // Catalog origin is body center (0, −56) → (0, geom.bodyY) in pet space.
+      c.save();
+      c.translate(0, geom.bodyY);
+      drawCostumeWorn(c, item.id, { scale: { x: geom.bodyLen / 92, y: geom.bodyH / 48 } });
+      c.restore();
+    });
+    return;
+  }
   const pass = pose.pass ?? 'side';
   const alpha = pose.alpha ?? 1;
   jacketAlpha(c, alpha, () => {
@@ -1328,6 +1356,14 @@ export function drawNeckwear(
   pitch = 0,
   hang: HangPose = {},
 ): void {
+  if (usesCostumeWorn(item)) {
+    // Catalog origin: front of the neck under the chin (chinAnchor).
+    c.save();
+    c.translate(chin.x, chin.y);
+    drawCostumeWorn(c, item.id, { scale: r / 21 });
+    c.restore();
+    return;
+  }
   const flat = neckFlat(along);
   const lying = flat > 0.45;
   const hangK = lying ? Math.max(1 - sizes.neckFlatHang * flat, sizes.neckLieHang) : 1 - sizes.neckFlatHang * flat;
@@ -1654,6 +1690,9 @@ function drawLensAt(c: SkCanvas, L: GlassesLayout, at: Pt, scale: Pt, alpha: num
 
 // Drawn BEFORE the near ear: temple arms, so hanging ears cover them.
 export function drawGlassesBack(c: SkCanvas, item: WearItem, face: HeadFace, headR: number, fur: string): void {
+  if (usesCostumeWorn(item)) {
+    return;
+  }
   const L = glassesLayout(face, item);
   if (!L) {
     return;
@@ -1687,6 +1726,21 @@ export function drawGlassesFront(
   t = 0,
   reduced = false,
 ): void {
+  if (usesCostumeWorn(item)) {
+    // Like Closet glasses, fit to this pet's face rather than the reference head center:
+    // lenses land on the near eye (reference eye (6, −4), r 3.8), the mustache on the muzzle
+    // (reference muzzle (17, 7), rx 14). Reference head radius is 21.
+    const onMuzzle = item.shape === 'mustache';
+    const ref = onMuzzle ? { x: 17, y: 7 } : { x: 6, y: -4 };
+    const at = onMuzzle ? { x: face.muzzle.x, y: face.muzzle.y } : face.nearEye;
+    const k = onMuzzle ? face.muzzle.rx / 14 : face.eyeR / 3.8;
+    const s = clamp(k, (headR / 21) * 0.7, (headR / 21) * 1.4);
+    c.save();
+    c.translate(at.x - ref.x * s, at.y - ref.y * s);
+    drawCostumeWorn(c, item.id, { scale: s });
+    c.restore();
+    return;
+  }
   const L = glassesLayout(face, item);
   if (!L) {
     return;
@@ -1744,6 +1798,11 @@ export function drawHat(
   t = 0,
   reduced = false,
 ): void {
+  if (usesCostumeWorn(item)) {
+    // Catalog origin: head center (withHead space is already at the head).
+    drawCostumeWorn(c, item.id, { scale: r / 21 });
+    return;
+  }
   c.save();
   c.translate(face.top.x, 0);
   drawHatShape(c, item, r, fur, face, view, t, reduced, false);

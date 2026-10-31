@@ -27,6 +27,8 @@ Applied by the owner through `20261024250000_ledger_source_ambiguity.sql`, inclu
 
 `20261031140000_catwalk_music_bucket.sql` does the same for the public `catwalk-music` bucket (`catwalk_music_public_read`). Upload the re-encoded runway MP3s from `docs/runway music/` (128 kbps stereo) after it is applied. Object names match the filenames and `runway_tracks.audio_path`. Unlike scene music, Catwalk audio is **not** bundled: `prepareRemoteMusic` also runs `syncCatwalkMusic`, which downloads every object into `Documents/catwalk-music/` and skips files that already exist (no hash). Replace a track by uploading a new object name.
 
+`20261031120000_runway_shows.sql` adds Catwalk tables and RPCs (`create_runway_show`, claims, votes). `20261031200000_runway_rack_drip.sql` (owner apply) updates `runway_config` for friend drip tranches (`drip_tranche_sizes` 8/8/7, `drip_tranche_gap_minutes` 2, `min_deadline_minutes` 10) and rejects `create_runway_show` deadlines sooner than now + 10 minutes. Friend drip unlock counts stay client-side from `invites_sent_at`.
+
 `20261028170000_iap_boops.sql` is applied. It adds `webhook_events`, `boops_packs`, `iap_events`, and `apply_iap_webhook`. The RevenueCat webhook credits Boops packs through that function. See [the IAP brief](../docs/boops-iap-brief.md).
 
 `20261028180000_iap_service_grants.sql` is applied. `service_role` can insert and update `webhook_events` and read `boops_packs`. Without that, the webhook returns `{"error":"unavailable"}`. After the grant, a RevenueCat test event returned `{"ok":true}`.

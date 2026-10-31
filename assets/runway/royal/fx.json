@@ -1,0 +1,51 @@
+{
+  "particles": "glitter",
+  "colors": [
+    "#FFD45E",
+    "#FFFFFF",
+    "#FFB3D6"
+  ],
+  "extra": "chandelierTwinkle",
+  "beams": [
+    "#FFD45E",
+    "#FFB3D6"
+  ],
+  "led": "#FFD45E",
+  "flash": "#FFFFFF",
+  "fixtures": {
+    "layer": "4-truss",
+    "x": [
+      75,
+      225,
+      375,
+      525,
+      675,
+      825,
+      975,
+      1125
+    ],
+    "y": 112
+  },
+  "uplights": {
+    "layer": "3-near",
+    "x": [
+      200,
+      600,
+      1000
+    ],
+    "y": 594
+  },
+  "anchors": {
+    "layer": "2-far",
+    "points": [
+      [
+        300,
+        200
+      ],
+      [
+        900,
+        200
+      ]
+    ]
+  }
+}

@@ -9,14 +9,30 @@ function isOutfitSlot(slot: string): slot is OutfitSlot {
   return (outfitSlots as string[]).includes(slot);
 }
 
-/** Build equipped + wearDefs so Closet and costume pieces both draw. */
-export function equipFromPieces(pieces: readonly FrozenPiece[]): {
+export type EquipResult = {
   equipped: Equipped;
   wearDefs: Partial<Record<OutfitSlot, WearItem>>;
-} {
+  /** Costume-only back piece (cape / wings / jetpack). */
+  backWear?: WearItem;
+};
+
+/** Build equipped + wearDefs so Closet and costume pieces both draw. */
+export function equipFromPieces(pieces: readonly FrozenPiece[]): EquipResult {
   const equipped: Equipped = {};
   const wearDefs: Partial<Record<OutfitSlot, WearItem>> = {};
+  let backWear: WearItem | undefined;
   for (const piece of pieces) {
+    if (piece.slot === 'back') {
+      backWear = {
+        id: piece.id,
+        slot: 'jacket',
+        label: piece.label,
+        shape: piece.shape,
+        colorway: piece.colorway,
+        costume: true,
+      };
+      continue;
+    }
     const wear = wearFromFrozen(piece);
     if (!isOutfitSlot(wear.slot)) {
       continue;
@@ -27,13 +43,10 @@ export function equipFromPieces(pieces: readonly FrozenPiece[]): {
       wearDefs[wear.slot] = wear;
     }
   }
-  return { equipped, wearDefs };
+  return { equipped, wearDefs, backWear };
 }
 
-export function equipFromFrozenLook(look: FrozenLook | undefined): {
-  equipped: Equipped;
-  wearDefs: Partial<Record<OutfitSlot, WearItem>>;
-} {
+export function equipFromFrozenLook(look: FrozenLook | undefined): EquipResult {
   return equipFromPieces(look?.pieces ?? []);
 }
 
@@ -41,15 +54,27 @@ export function equipFromFrozenLook(look: FrozenLook | undefined): {
 export function equipFromDraft(
   wardrobe: Equipped,
   costumeIds: readonly string[],
-): { equipped: Equipped; wearDefs: Partial<Record<OutfitSlot, WearItem>> } {
+): EquipResult {
   const equipped: Equipped = { ...wardrobe };
   const wearDefs: Partial<Record<OutfitSlot, WearItem>> = {};
+  let backWear: WearItem | undefined;
   for (const costumeId of costumeIds) {
     const piece = costumeById(costumeId);
     if (!piece) {
       continue;
     }
     const slot = costumeToOutfit[piece.slot];
+    if (slot === 'back') {
+      backWear = {
+        id: piece.id,
+        slot: 'jacket',
+        label: piece.name,
+        shape: piece.shape,
+        colorway: { ...piece.colorway },
+        costume: true,
+      };
+      continue;
+    }
     if (!isOutfitSlot(slot)) {
       continue;
     }
@@ -64,5 +89,5 @@ export function equipFromDraft(
     equipped[slot] = wear.id;
     wearDefs[slot] = wear;
   }
-  return { equipped, wearDefs };
+  return { equipped, wearDefs, backWear };
 }

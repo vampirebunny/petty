@@ -1,4 +1,4 @@
-import { BlendMode, Skia } from '@shopify/react-native-skia';
+import { PaintStyle, Skia, TileMode } from '@shopify/react-native-skia';
 import type { SkCanvas } from '@shopify/react-native-skia';
 
 import type { VenueFx } from '../../runway/venueFxData';
@@ -67,11 +67,11 @@ function glowAt(canvas: SkCanvas, x: number, y: number, r: number, color: string
   const paint = Skia.Paint();
   paint.setShader(
     Skia.Shader.MakeRadialGradient(
-      { x, y },
+      Skia.Point(x, y),
       r,
       [Skia.Color(hexA(color, a)), Skia.Color(hexA(color, 0))],
       [0, 1],
-      0,
+      TileMode.Clamp,
     ),
   );
   canvas.drawCircle(x, y, r, paint);
@@ -141,7 +141,7 @@ export function advanceVenueFx(
       p.y += Math.cos(runtime.t * 0.5 + p.ph) * 0.0004;
     }
     if (opts.playing) {
-      p.x -= (opts.scrollDir * 72 * 0.3 * dt) / Math.max(W / s, 1);
+      p.x -= (opts.scrollDir * 160 * 0.3 * dt) / Math.max(W / s, 1);
     }
     if (p.y > 1.05) {
       p.y = -0.05;
@@ -231,14 +231,14 @@ export function drawVenueExtras(
       runtime.star.y += 220 * s * opts.dt;
       const paint = Skia.Paint();
       paint.setStrokeWidth(3 * s);
-      paint.setStyle(1);
+      paint.setStyle(PaintStyle.Stroke);
       paint.setShader(
         Skia.Shader.MakeLinearGradient(
-          { x: runtime.star.x - 160 * s, y: runtime.star.y - 50 * s },
-          { x: runtime.star.x, y: runtime.star.y },
+          Skia.Point(runtime.star.x - 160 * s, runtime.star.y - 50 * s),
+          Skia.Point(runtime.star.x, runtime.star.y),
           [Skia.Color('rgba(255,255,255,0)'), Skia.Color('rgba(255,255,255,0.95)')],
           [0, 1],
-          0,
+          TileMode.Clamp,
         ),
       );
       const path = Skia.Path.Make();
@@ -268,7 +268,7 @@ export function drawVenueExtras(
         ];
         const paint = paintFill(cols[i]!);
         paint.setStrokeWidth((30 - i * 5) * s);
-        paint.setStyle(1);
+        paint.setStyle(PaintStyle.Stroke);
         const path = Skia.Path.Make();
         for (let x = 0; x <= W; x += 20 * s) {
           const yy = opts.stageTop + (120 + i * 30) * s + Math.sin(x / (160 * s) + t * 0.5 + i) * 30 * s;
@@ -299,11 +299,11 @@ export function drawVenueExtras(
       const paint = Skia.Paint();
       paint.setShader(
         Skia.Shader.MakeLinearGradient(
-          { x: 0, y: 0 },
-          { x: 0, y: -600 * s },
+          Skia.Point(0, 0),
+          Skia.Point(0, -600 * s),
           [Skia.Color('rgba(255,255,255,0.28)'), Skia.Color('rgba(255,255,255,0)')],
           [0, 1],
-          0,
+          TileMode.Clamp,
         ),
       );
       const path = Skia.Path.Make();
@@ -347,7 +347,7 @@ export function drawVenueParticles(
       drawDiamond(canvas, r, p.c, 0.3 + 0.7 * tw);
     } else if (type === 'bubbles') {
       const paint = paintFill('#FFFFFF');
-      paint.setStyle(1);
+      paint.setStyle(PaintStyle.Stroke);
       paint.setStrokeWidth(2 * s);
       paint.setAlphaf(0.8);
       canvas.drawCircle(0, 0, 7 * p.r * s, paint);
@@ -405,11 +405,11 @@ export function drawVenueBeams(
         const paint = Skia.Paint();
         paint.setShader(
           Skia.Shader.MakeLinearGradient(
-            { x: 0, y: 0 },
-            { x: 0, y: len },
+            Skia.Point(0, 0),
+            Skia.Point(0, len),
             [Skia.Color(hexA(col, 0.38)), Skia.Color(hexA(col, 0.02))],
             [0, 1],
-            0,
+            TileMode.Clamp,
           ),
         );
         const path = Skia.Path.Make();
@@ -437,11 +437,11 @@ export function drawVenueBeams(
   const spot = Skia.Paint();
   spot.setShader(
     Skia.Shader.MakeLinearGradient(
-      { x: cx, y: opts.stageTop },
-      { x: cx, y: pawY },
+      Skia.Point(cx, opts.stageTop),
+      Skia.Point(cx, pawY),
       [Skia.Color('rgba(255,250,235,0)'), Skia.Color(`rgba(255,250,235,${spotA})`)],
       [0, 1],
-      0,
+      TileMode.Clamp,
     ),
   );
   const cone = Skia.Path.Make();
@@ -515,5 +515,3 @@ export function drawPetShadow(canvas: SkCanvas, cx: number, pawY: number, scale:
   );
 }
 
-// Keep BlendMode import used if we later composite screen modes.
-void BlendMode;
