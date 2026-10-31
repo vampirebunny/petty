@@ -219,7 +219,7 @@ export function NpcCalibrationDebug() {
   );
 }
 
-/** Development builds do not show the home debug panel. Stadium does. */
+/** The home debug panel is development-only. Stadium shows this inspector in a development build outside Expo Go. */
 export function NpcCalibrationStadium() {
   if (typeof __DEV__ === 'undefined' || !__DEV__ || inExpoGo()) return null;
   return <NpcCalibrationDebug />;

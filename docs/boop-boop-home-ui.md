@@ -1,6 +1,6 @@
 # Home screen UI
 
-The pet screen's action panel is cotton-candy: glossy pink, blue, and lilac controls. Need rings, training cards, the Where card, the room height, the Expo Go gear, and the debug Settings link stay as they were.
+The pet screen's action panel is cotton-candy: glossy pink, blue, and lilac controls. Need rings, training cards, the Where card, the room height, and the gear stay as they were. The debug Settings link at the bottom of Home shows in a development build, including Expo Go, and stays off in a release build.
 
 The home clock does not re-render the scene every second. It updates while a trick is resting, while the break sheet is open, once a minute at the training school for the shop's "New in" line, and once more when that countdown ends. The playdate cooldown line ticks only while a cooldown is running. A cuddle, a held piece, and a flick sample the finger once per frame. Taps, the start of a drag, and the release stay immediate.
 

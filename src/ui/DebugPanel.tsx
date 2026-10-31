@@ -1,4 +1,3 @@
-import { isRunningInExpoGo } from 'expo';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -118,17 +117,9 @@ export function RangeControl({
   );
 }
 
-/** Expo Go includes the ExpoGo native module. A development build does not. */
-function runningInExpoGo(): boolean {
-  try {
-    return isRunningInExpoGo();
-  } catch {
-    return false;
-  }
-}
-
+/** Development builds and Expo Go. Release builds leave this off. */
 export function DebugPanel(props: Props) {
-  if (!runningInExpoGo()) {
+  if (typeof __DEV__ === 'undefined' || !__DEV__) {
     return null;
   }
   return <DebugPanelBody {...props} />;

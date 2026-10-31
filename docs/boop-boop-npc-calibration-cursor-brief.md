@@ -76,7 +76,7 @@ Frozen cells skip the curve update and the offset step. Manual offset skips the 
 
 ## 5. DEV inspector
 
-A `__DEV__` block in the home debug panel (Expo Go) and, in a development build, on the Stadium screen. It lists each cell: status, sample size, solo win rate, offset, the grid metric at skill 0.2, 0.5, and 0.8, and the 21 curve points.
+A `__DEV__` block in the home debug panel and on the Stadium screen. The home panel shows in a development build, including Expo Go. The Stadium copy shows in a development build outside Expo Go. It lists each cell: status, sample size, solo win rate, offset, the grid metric at skill 0.2, 0.5, and 0.8, and the 21 curve points.
 
 Freeze, reset, and manual offset call `npc_calibrate`. Those actions refuse unless the function env `NPC_CALIBRATION_ADMIN` is `1`. A production deploy leaves that unset. Reset restores the default curve, offset 0, and automatic mode.
 
