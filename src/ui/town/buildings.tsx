@@ -9,6 +9,7 @@ import { StadiumIcon } from './StadiumIcon';
 import { usePulse } from './motion';
 import { SeasonalFlowers } from './blooms';
 import { leafColor } from './townSky';
+import { NightContext, TownSvg, nightPuff, useNight } from './nightTint';
 
 const ink = {
   stroke: '#4B3B7A',
@@ -19,9 +20,9 @@ const ink = {
 
 function Art({ width, label, children }: { width: number; label: string; children: ReactNode }) {
   return (
-    <Svg width={width} height={width * 0.9} viewBox="0 0 200 180" accessibilityRole="image" accessibilityLabel={label}>
+    <TownSvg width={width} height={width * 0.9} viewBox="0 0 200 180" accessibilityRole="image" accessibilityLabel={label}>
       {children}
-    </Svg>
+    </TownSvg>
   );
 }
 
@@ -42,6 +43,7 @@ function Puff({
 }) {
   const t = useSharedValue(0);
   const still = useSharedValue(reduced ? 1 : 0);
+  const night = useNight();
   const unit = width / 200;
   useEffect(() => {
     still.value = reduced ? 1 : 0;
@@ -76,7 +78,7 @@ function Puff({
           width: size,
           height: size,
           borderRadius: size,
-          backgroundColor: '#FFFFFF',
+          backgroundColor: night ? nightPuff : '#FFFFFF',
         },
         style,
       ]}
@@ -310,10 +312,10 @@ function ParkArt({
         pointerEvents="none"
         style={[{ position: 'absolute', left: 121 * unit, top: 148 * unit, width: 14 * unit, height: 14 * unit }, ball]}
       >
-        <Svg width="100%" height="100%" viewBox="121 148 14 14">
+        <TownSvg width="100%" height="100%" viewBox="121 148 14 14">
           <Circle cx={128} cy={155} r={7} fill="#FFAD7A" stroke="#4B3B7A" strokeWidth={2} />
           <Path d="M122 153 Q128 157 134 153" fill="none" stroke="#FFFFFF" strokeWidth={1.5} />
-        </Svg>
+        </TownSvg>
       </Animated.View>
     </View>
   );
@@ -360,9 +362,9 @@ function SchoolArt({ width, reducedMotion }: { width: number; reducedMotion: boo
         pointerEvents="none"
         style={[{ position: 'absolute', left: 94 * unit, top: 34 * unit, width: 12 * unit, height: 14 * unit }, bell]}
       >
-        <Svg width="100%" height="100%" viewBox="94 34 12 14">
+        <TownSvg width="100%" height="100%" viewBox="94 34 12 14">
           <Path d="M94 46 Q94 34 100 34 Q106 34 106 46 Z" fill="#FFD45E" stroke="#4B3B7A" strokeWidth={2} />
-        </Svg>
+        </TownSvg>
       </Animated.View>
     </View>
   );
@@ -399,9 +401,9 @@ function Beam({
       pointerEvents="none"
       style={[{ position: 'absolute', left: box.x * unit, top: box.y * unit, width: box.w * unit, height: box.h * unit }, style]}
     >
-      <Svg width="100%" height="100%" viewBox={`${box.x} ${box.y} ${box.w} ${box.h}`}>
+      <TownSvg width="100%" height="100%" viewBox={`${box.x} ${box.y} ${box.w} ${box.h}`}>
         <Path d={d} fill="#FFE9A8" opacity={0.6} />
-      </Svg>
+      </TownSvg>
     </Animated.View>
   );
 }
@@ -657,9 +659,7 @@ export function TownPlace({
     );
   return (
     <View style={{ width, height }} pointerEvents="none">
-      <View pointerEvents="none" style={night ? styles.nightDim : undefined}>
-        {art}
-      </View>
+      <NightContext.Provider value={night}>{art}</NightContext.Provider>
       {night ? <WindowGlow id={id} width={width} height={height} /> : null}
       {id === 'petShop' ? <ShopBall width={width} reduced={reducedMotion} /> : null}
       {id === 'arcade' ? <Claw width={width} reduced={reducedMotion} /> : null}
@@ -667,9 +667,3 @@ export function TownPlace({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  nightDim: {
-    filter: 'brightness(0.62) saturate(0.85)',
-  },
-});

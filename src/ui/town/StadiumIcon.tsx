@@ -1,8 +1,9 @@
 import { View } from 'react-native';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
-import Svg, { Path, SvgXml } from 'react-native-svg';
+import { Path, SvgXml } from 'react-native-svg';
 
 import { usePulse } from './motion';
+import { TownSvg, nightXml, useNight } from './nightTint';
 import { stadiumXml } from './stadiumXml';
 
 const artW = 320;
@@ -35,6 +36,7 @@ function prepared(xml: string): string {
 }
 
 const arenaXml = prepared(stadiumXml);
+const nightArenaXml = nightXml(arenaXml);
 
 function Pennant({
   x,
@@ -65,18 +67,19 @@ function Pennant({
   }));
   return (
     <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: x * unit, top: y * unit, width: w, height: h }, style]}>
-      <Svg width="100%" height="100%" viewBox="0 0 28 18">
+      <TownSvg width="100%" height="100%" viewBox="0 0 28 18">
         <Path d="M0 0 Q15 2 27 9 Q15 14 0 18 Z" fill={fill} stroke="#5A3E8C" strokeWidth={2.5} strokeLinejoin="round" />
-      </Svg>
+      </TownSvg>
     </Animated.View>
   );
 }
 
 export function StadiumIcon({ width, reducedMotion = false }: { width: number; reducedMotion?: boolean }) {
   const height = (width * artH) / artW;
+  const night = useNight();
   return (
     <View style={{ width, height }} pointerEvents="none">
-      <SvgXml xml={arenaXml} width={width} height={height} />
+      <SvgXml xml={night ? nightArenaXml : arenaXml} width={width} height={height} />
       {pennants.map((flag) => (
         <Pennant key={flag.fill} {...flag} width={width} reducedMotion={reducedMotion} />
       ))}
