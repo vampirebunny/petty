@@ -2,6 +2,8 @@
 
 Final art for The Catwalk's 12 venue themes. One folder per theme, six SVG layers per folder. Every layer repeats seamlessly every 1200 px, so draw it side by side as many times as the screen needs.
 
+**Runtime path:** the app loads these from `assets/runway/<theme>/`. This docs folder is the source copy; keep both in sync when art changes.
+
 Theme folders: `space`, `sea`, `royal`, `beach`, `winter`, `rock`, `garden`, `spooky`, `west`, `hero`, `pirate`, `safari` (these match the theme ids in the Supabase theme catalog).
 
 ## Layers

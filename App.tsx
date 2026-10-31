@@ -82,7 +82,15 @@ export default function App() {
       if (launched) {
         const data = launched.notification.request.content.data as { kind?: unknown } | null;
         const kind = data && typeof data.kind === 'string' ? data.kind : undefined;
-        if (kind == null || kind === 'race' || kind === 'friend_request' || kind === 'friend_game') {
+        if (
+          kind == null ||
+          kind === 'race' ||
+          kind === 'friend_request' ||
+          kind === 'friend_game' ||
+          kind === 'runway_show' ||
+          kind === 'runway_vote' ||
+          kind === 'runway_results'
+        ) {
           noteLaunchSkip();
         }
       }

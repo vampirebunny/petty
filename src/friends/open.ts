@@ -27,3 +27,18 @@ export function onFriendGameRequest(listener: (raceId: string | null) => void): 
     gameListeners.delete(listener);
   };
 }
+
+const runwayListeners = new Set<(showId: string | null) => void>();
+
+export function requestRunwayShow(showId: string | null): void {
+  for (const listener of runwayListeners) {
+    listener(showId);
+  }
+}
+
+export function onRunwayShowRequest(listener: (showId: string | null) => void): () => void {
+  runwayListeners.add(listener);
+  return () => {
+    runwayListeners.delete(listener);
+  };
+}

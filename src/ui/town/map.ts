@@ -30,14 +30,6 @@ export type Building = {
   art: number;
 };
 
-export type PlaceBox = {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  art: number;
-};
-
 export type CloudSpec = {
   x: number;
   y: number;
@@ -73,7 +65,6 @@ export type TownLayout = {
   pathOuter: number;
   pathInner: number;
   buildings: Building[];
-  catwalk: PlaceBox;
   nodes: Record<NodeId, Point>;
   edges: Edge[];
   /** Painted with the road. Not walked. */
@@ -87,6 +78,7 @@ const portraitNodes: Record<NodeId, Point> = {
   park: { x: 100, y: 304 },
   trainingSchool: { x: 290, y: 358 },
   bend: { x: 100, y: 468 },
+  catwalk: { x: 100, y: 420 },
   arcade: { x: 290, y: 522 },
   stadium: { x: 195, y: 650 },
 };
@@ -97,6 +89,7 @@ const wideNodes: Record<NodeId, Point> = {
   park: { x: 740, y: 175.5 },
   trainingSchool: { x: 1020, y: 172 },
   bend: { x: 1020, y: 526 },
+  catwalk: { x: 1020, y: 400 },
   arcade: { x: 740, y: 531.1 },
   stadium: { x: 420, y: 534 },
 };
@@ -130,17 +123,18 @@ export const portraitLayout: TownLayout = {
     door('petShop', 'Pet Shop', 215, 70, 150, 120, 108),
     door('park', 'Park', 25, 180, 150, 120, 108),
     door('trainingSchool', 'Training School', 215, 234, 150, 120, 108),
+    door('catwalk', 'The Catwalk', 25, 344, 150, 120, 108),
     door('arcade', 'Arcade', 215, 398, 150, 120, 108),
     door('stadium', 'Stadium', 105, 512, 180, 160, 150),
   ],
-  catwalk: { x: 25, y: 344, w: 150, h: 108, art: 120 },
   nodes: portraitNodes,
   edges: [
     edge('home-petShop', 'home', 'petShop', { x: 190, y: 140 }, { x: 260, y: 155 }, portraitNodes),
     edge('petShop-park', 'petShop', 'park', { x: 320, y: 235 }, { x: 180, y: 280 }, portraitNodes),
     edge('park-trainingSchool', 'park', 'trainingSchool', { x: 60, y: 316 }, { x: 200, y: 330 }, portraitNodes),
     edge('trainingSchool-bend', 'trainingSchool', 'bend', { x: 320, y: 395 }, { x: 180, y: 440 }, portraitNodes),
-    edge('bend-arcade', 'bend', 'arcade', { x: 60, y: 480 }, { x: 200, y: 495 }, portraitNodes),
+    edge('bend-catwalk', 'bend', 'catwalk', { x: 80, y: 450 }, { x: 90, y: 430 }, portraitNodes),
+    edge('catwalk-arcade', 'catwalk', 'arcade', { x: 140, y: 430 }, { x: 220, y: 480 }, portraitNodes),
     edge('arcade-stadium', 'arcade', 'stadium', { x: 330, y: 560 }, { x: 230, y: 620 }, portraitNodes),
   ],
   extras: [],
@@ -161,17 +155,18 @@ export const wideLayout: TownLayout = {
     door('petShop', 'Pet Shop', 375, 36, 170, 140, 126),
     door('park', 'Park', 655, 36, 170, 140, 126),
     door('trainingSchool', 'Training School', 935, 36, 170, 140, 126),
+    door('catwalk', 'The Catwalk', 935, 390, 170, 140, 126),
     door('arcade', 'Arcade', 655, 390, 170, 140, 126),
     door('stadium', 'Stadium', 320, 362, 200, 180, 168.75),
   ],
-  catwalk: { x: 935, y: 390, w: 170, h: 126, art: 140 },
   nodes: wideNodes,
   edges: [
     edge('home-petShop', 'home', 'petShop', { x: 257, y: 167.3 }, { x: 348, y: 169.6 }, wideNodes),
     edge('petShop-park', 'petShop', 'park', { x: 541.4, y: 173.6 }, { x: 633.8, y: 175.3 }, wideNodes),
     edge('park-trainingSchool', 'park', 'trainingSchool', { x: 824.2, y: 175.6 }, { x: 917.1, y: 174.7 }, wideNodes),
     edge('trainingSchool-bend', 'trainingSchool', 'bend', { x: 1170, y: 168 }, { x: 1170, y: 528 }, wideNodes),
-    edge('bend-arcade', 'bend', 'arcade', { x: 943.1, y: 525 }, { x: 843.1, y: 528.2 }, wideNodes),
+    edge('bend-catwalk', 'bend', 'catwalk', { x: 1020, y: 480 }, { x: 1020, y: 430 }, wideNodes),
+    edge('catwalk-arcade', 'catwalk', 'arcade', { x: 960, y: 420 }, { x: 860, y: 500 }, wideNodes),
     edge('arcade-stadium', 'arcade', 'stadium', { x: 628.6, y: 534.3 }, { x: 513.5, y: 537.1 }, wideNodes),
   ],
   extras: [

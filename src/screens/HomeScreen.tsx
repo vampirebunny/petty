@@ -50,6 +50,7 @@ import {
 import { TownScreen } from '../ui/town/TownScreen';
 import { roadSpotForScene } from '../sim/road';
 import { ArcadeScreen } from './ArcadeScreen';
+import { CatwalkScreen } from './CatwalkScreen';
 import { StadiumScreen } from './StadiumScreen';
 import { onGateRequest } from '../stadium/raceCall';
 import { RaceCall } from '../ui/stadium/RaceCall';
@@ -473,6 +474,7 @@ export default function HomeScreen({ petApi }: Props) {
   const [pantryOpen, setPantryOpen] = useState(false);
   const [shopOpen, setShopOpen] = useState(false);
   const [arcadeOpen, setArcadeOpen] = useState(false);
+  const [catwalkOpen, setCatwalkOpen] = useState(false);
   const [stadiumOpen, setStadiumOpen] = useState(false);
   const [stadiumGate, setStadiumGate] = useState(0);
   const [friendGameRoom, setFriendGameRoom] = useState<string | null>(null);
@@ -637,7 +639,7 @@ export default function HomeScreen({ petApi }: Props) {
       name = 'storage';
     } else if (collectionOpen) {
       name = 'collection';
-    } else if (arcadeOpen || stadiumOpen || playdateOpen) {
+    } else if (arcadeOpen || catwalkOpen || stadiumOpen || playdateOpen) {
       name = null;
     } else if (state.roadSpot) {
       name = 'map';
@@ -653,6 +655,7 @@ export default function HomeScreen({ petApi }: Props) {
     }
   }, [
     arcadeOpen,
+    catwalkOpen,
     collectionOpen,
     friendsOpen,
     playdateOpen,
@@ -2171,6 +2174,21 @@ export default function HomeScreen({ petApi }: Props) {
     );
   }
 
+  if (catwalkOpen) {
+    return hosted(
+      <CatwalkScreen
+        pet={state}
+        ownerId={state.ownerId || currentOwner()}
+        owned={owned}
+        reducedMotion={reducedMotion}
+        onClose={() => {
+          commitPet({ ...state, roadSpot: 'catwalk', asleep: false });
+          setCatwalkOpen(false);
+        }}
+      />,
+    );
+  }
+
   if (stadiumOpen) {
     return hosted(
       <StadiumScreen
@@ -2317,6 +2335,10 @@ export default function HomeScreen({ petApi }: Props) {
         onArcade={() => {
           commitPet({ ...state, roadSpot: 'arcade', asleep: false });
           setArcadeOpen(true);
+        }}
+        onCatwalk={() => {
+          commitPet({ ...state, roadSpot: 'catwalk', asleep: false });
+          setCatwalkOpen(true);
         }}
         onStadium={() => {
           commitPet({ ...state, roadSpot: 'stadium', asleep: false });

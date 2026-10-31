@@ -14,7 +14,7 @@ import { useOpenedDuoTopInset } from '../useDeviceOrientation';
 import { TownPlace } from './buildings';
 import { PondGlint, TownCloud, TownGround } from './mapArt';
 import { HomeRoomSheet } from './HomeRoomSheet';
-import { buildingById, layoutFor, type Building, type PlaceBox, type Point } from './map';
+import { buildingById, layoutFor, type Building, type Point } from './map';
 import { townLook, useTownSky } from './townSky';
 import { homeRooms } from './rooms';
 import {
@@ -38,6 +38,7 @@ type Props = {
   onEnter: (sceneId: 'park' | 'school' | 'livingroom' | 'bedroom' | 'catio') => void;
   onShop: () => void;
   onArcade: () => void;
+  onCatwalk: () => void;
   onStadium: () => void;
 };
 
@@ -52,7 +53,7 @@ const petW = 96;
 const petH = 72;
 const maxMapWidth = 600;
 
-export function TownScreen({ pet, species, roadSpot, reducedMotion, onStand, onEnter, onShop, onArcade, onStadium }: Props) {
+export function TownScreen({ pet, species, roadSpot, reducedMotion, onStand, onEnter, onShop, onArcade, onCatwalk, onStadium }: Props) {
   const contentWidth = useContentWidth();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const wide = isLandscapeSplit(windowWidth, windowHeight);
@@ -84,7 +85,7 @@ export function TownScreen({ pet, species, roadSpot, reducedMotion, onStand, onE
   const seenLayout = useRef(layout.id);
   const progressRef = useRef(0);
   const frameRef = useRef(0);
-  const actions = useRef({ onStand, onEnter, onShop, onArcade, onStadium });
+  const actions = useRef({ onStand, onEnter, onShop, onArcade, onCatwalk, onStadium });
   const leavingRef = useRef(false);
 
   const scrollToPet = (y: number) => {
@@ -96,8 +97,8 @@ export function TownScreen({ pet, species, roadSpot, reducedMotion, onStand, onE
   };
 
   useEffect(() => {
-    actions.current = { onStand, onEnter, onShop, onArcade, onStadium };
-  }, [onArcade, onEnter, onShop, onStadium, onStand]);
+    actions.current = { onStand, onEnter, onShop, onArcade, onCatwalk, onStadium };
+  }, [onArcade, onCatwalk, onEnter, onShop, onStadium, onStand]);
 
   useEffect(() => {
     if (!leaving) {
@@ -112,6 +113,10 @@ export function TownScreen({ pet, species, roadSpot, reducedMotion, onStand, onE
       }
       if (dest === 'arcade') {
         actionsNow.onArcade();
+        return;
+      }
+      if (dest === 'catwalk') {
+        actionsNow.onCatwalk();
         return;
       }
       if (dest === 'stadium') {
@@ -349,17 +354,6 @@ export function TownScreen({ pet, species, roadSpot, reducedMotion, onStand, onE
                 alpha={chrome.cloudAlpha}
               />
             ))}
-            <PlaceArt
-              box={layout.catwalk}
-              scale={scale}
-              labelSize={labelSize}
-              reducedMotion={reducedMotion}
-              night={chrome.night}
-              snow={chrome.snow}
-              foliage={paint.foliage}
-              pill={chrome.pill}
-              pillText={chrome.pillText}
-            />
             {layout.buildings.map((building) => (
               <Door
                 key={building.id}
@@ -437,45 +431,6 @@ export function TownScreen({ pet, species, roadSpot, reducedMotion, onStand, onE
           }}
         />
       ) : null}
-    </View>
-  );
-}
-
-function PlaceArt({
-  box,
-  scale,
-  labelSize,
-  reducedMotion,
-  night,
-  snow,
-  foliage,
-  pill,
-  pillText,
-  name = 'The Catwalk',
-}: {
-  box: PlaceBox;
-  scale: number;
-  labelSize: number;
-  reducedMotion: boolean;
-  night: boolean;
-  snow: boolean;
-  foliage: Foliage;
-  pill: string;
-  pillText: string;
-  name?: string;
-}) {
-  const artW = box.art * scale;
-  return (
-    <View
-      pointerEvents="none"
-      accessibilityRole="image"
-      accessibilityLabel={name}
-      style={[styles.door, { left: box.x * scale, top: box.y * scale, width: box.w * scale }]}
-    >
-      <TownPlace id="catwalk" width={artW} reducedMotion={reducedMotion} night={night} snow={snow} foliage={foliage} />
-      <View style={[styles.label, { marginTop: -6 * scale, backgroundColor: pill }]}>
-        <Text style={[styles.labelText, { fontSize: labelSize, color: pillText }]}>{name}</Text>
-      </View>
     </View>
   );
 }

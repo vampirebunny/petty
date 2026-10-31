@@ -5,7 +5,7 @@ import { Platform } from 'react-native';
 
 import { getSupabase } from '../compliance/supabase';
 import { requestGate } from '../stadium/raceCall';
-import { requestFriendGame, requestFriendModal } from './open';
+import { requestFriendGame, requestFriendModal, requestRunwayShow } from './open';
 
 const tokenKey = 'petty.friends.pushToken';
 
@@ -70,7 +70,7 @@ export async function requestFriendPermission(): Promise<boolean> {
   return true;
 }
 
-type PushData = { kind?: string; raceId?: string };
+type PushData = { kind?: string; raceId?: string; showId?: string };
 
 function pushData(notification: Notifications.Notification): PushData | undefined {
   const data = notification.request.content.data;
@@ -98,6 +98,9 @@ function openFriendPush(data: PushData | undefined): void {
   }
   if (data?.kind === 'friend_game') {
     requestFriendGame(typeof data.raceId === 'string' ? data.raceId : null);
+  }
+  if (data?.kind === 'runway_show' || data?.kind === 'runway_vote' || data?.kind === 'runway_results') {
+    requestRunwayShow(typeof data.showId === 'string' ? data.showId : null);
   }
 }
 

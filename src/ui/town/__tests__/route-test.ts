@@ -4,13 +4,14 @@ import { roadSpots } from '../../../sim/road';
 
 function connects(layout: TownLayout) {
   expect(layout.nodes.bend).toBeTruthy();
-  expect(Object.keys(layout.nodes)).not.toContain('catwalk');
+  expect(layout.nodes.catwalk).toBeTruthy();
+  expect(layout.buildings.some((building) => building.id === 'catwalk')).toBe(true);
   for (const spot of roadSpots) {
     const there = routeNodes('home', spot, layout.edges);
     const back = routeNodes(spot, 'home', layout.edges);
     expect(there[0]).toBe('home');
     expect(there[there.length - 1]).toBe(spot);
-    if (spot === 'arcade' || spot === 'stadium') {
+    if (spot === 'catwalk' || spot === 'arcade' || spot === 'stadium') {
       expect(there).toContain('bend');
     } else {
       expect(there).not.toContain('bend');
@@ -41,6 +42,7 @@ describe('town routes', () => {
     connects(wideLayout);
     const there = routeNodes('home', 'stadium', wideLayout.edges);
     expect(there).toContain('trainingSchool');
+    expect(there).toContain('catwalk');
     expect(there.indexOf('arcade')).toBeGreaterThan(there.indexOf('trainingSchool'));
   });
 

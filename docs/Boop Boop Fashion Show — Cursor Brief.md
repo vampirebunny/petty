@@ -16,7 +16,7 @@ Add a fashion show: a new place on the map where pets walk a runway in 3 looks, 
 Each player submits 3 looks; the show's creator sets the theme and the music.
 
 - **3 looks:** each look is built from the player's owned wardrobe items (Closet) plus any available runway costume pieces (see Costumes). A look can use several pieces. Each look needs at least one piece, closet or costume.
-- **One piece per slot:** choosing another closet item or costume for a slot replaces what was there. Closet items and costumes share head, face, neck, body, and feet. Back is costumes only.
+- **One piece per slot:** choosing another closet item or costume for a slot replaces what was there. Closet items and costumes share head, face, neck, body, and feet. Back is costumes only. Closet `OutfitSlot` stays the five everyday slots; costumes use a parallel slot type that includes `back`.
 - **Music:** one track from a list stored in Supabase for the whole show. The inviter picks it for a friend show (invitees hear it but don't choose it); the player picks it for a solo show. Playback loops that track for every round and every model, including across skips. The app mute switch silences it. If the track no longer exists, play silently. No error, no fallback track. Seed files are the ten mp3s in `docs/runway music/`.
 - **Theme:** solo shows, the player picks it. Friend shows, the inviter picks it when sending invites, and it applies to everyone. The theme sets the venue background and which costume pieces are on the rack.
 - **Snapshot on submit:** the three looks lock forever. Store each worn item's id and a copy of the colorway it resolved to (its colors and its clothing pattern, which live together on the item). Store each costume the same way. Later Closet changes, and a later recolor of the catalog item, do not change the show. Playback uses the current drawing code for that shape with the saved colorway. There is no new closet model: players still pick items, not a color and a pattern on their own.
@@ -76,11 +76,11 @@ Shows play in rounds, one round per look: every model walks once per round, the 
 
 - **Rounds:** Round 1 shows every model in Look 1, Round 2 every model in Look 2, Round 3 every model in Look 3. This applies to NPC shows and friend shows alike. Show a "Look 1 of 3" label for the round that is playing.
 - **Order within a round:** the viewing player's model walks first, then the others by submission time. A judge-only viewer has no model, so their rounds start with the first submitted model.
-- **Skip model:** ends the current model's walk and starts the next model in the round.
-- **Skip to next round:** jumps to the first model of the next round. In the last round it ends the show (to voting or results in a friend show).
+- **Skip model:** ends the current model's walk and starts the next model in the round. Any viewer can skip, including a voter or a judge. Watching is the path into the vote screen; a voter does not have to finish every model or round before voting.
+- **Skip to next round:** jumps to the first model of the next round. In the last round it ends the show (to voting or results in a friend show). Same skip rules for voters and judges.
 - **Music:** the show's one track loops for the entire show, including across skips.
 - **Zoom:** closer than the home scene, less than the Closet close-up. The full pet (top of a hat down to boots) stays in frame.
-- **Venue:** the theme's layered venue strips, scrolled with parallax behind the pet. The layers and placement math are in `docs/boopboop-venues/`. The build bundles them from `assets/runway/<theme>/`. The pet never collides with anything.
+- **Venue:** the theme's layered venue strips, scrolled with parallax behind the pet. Placement math is in `docs/boopboop-venues/README.md`. Runtime art lives in `assets/runway/<theme>/`. The pet never collides with anything.
 - **Turning:** use the existing in-between turn view, never a flat flip.
 
 ### The strut
@@ -110,11 +110,32 @@ Each model's walk, in seconds:
 
 The next model enters from the left after the previous one exits, so outfit changes always happen off-screen. The runway floor layer scrolls at exactly the pet's ground speed so planted paws don't slide.
 
+## Solo NPC models
+
+Config sets how many NPC models walk (default 3). Guests can run solo shows.
+
+- **When:** generate NPC looks right after the player submits their 3 looks, not before. Snapshot them exactly like a player submission (items, colorways, costume pieces) so replays never change. Seed all randomness with the show id.
+- **Who:** generic NPC pets (random species, breed, fur, name) from the existing NPC pet generator, behind one function `pickNpcModels(show)`. Do not build another source now.
+- **Wardrobe:** evergreen catalog items only, via the same rule as playdates (`npcMayWear`: never `limited` or `exclusive`). Filter Closet fit with `fitsSpecies` (species, not breed). Color family comes from the item's `colorway.c`; there is no separate `mainColor` column. Prefer the costume's family or neutrals (white, black, grey, brown). Goofy may clash.
+- **Costumes:** only pieces from the theme's rack that the player did not claim. Once per show across everyone. NPCs never take a piece the player used.
+- **Style:** each NPC gets one of glam, sporty, cozy, goofy. No two NPCs in the same show share a style unless there are more NPCs than styles. Style biases item choice through a config weight table (item tag or category → weight).
+  - glam: sequins, capes, crowns, glitter boots, tutus, bright jewel colors
+  - sporty: bandanas, goggles, sneakers/boots, jackets, bold primary colors
+  - cozy: sweaters, scarves, beanies, rain boots, soft pastels
+  - goofy: mustache, antennae, mismatched colors, odd combos
+- **Three looks per NPC,** with roles so every NPC has at least one light and one full look:
+  1. **Light:** 2–3 pieces total, with 1 costume when the rack still has one.
+  2. **Middle:** 1–2 costumes, then 2–3 wardrobe items in slots the costumes did not take. If the rack is empty, wardrobe only.
+  3. **Full:** 4 or more pieces, including a head piece and a feet piece.
+- Never repeat an item across the same NPC's 3 looks. Different NPCs may share wardrobe items (not costume pieces). One item per attachment slot.
+- On the runway the player walks first, then the NPCs in generation order. No voting, no winner.
+
 ## Saved shows
 
-Shows are saved as data and re-rendered on replay, like playdates; no video is recorded.
+Shows are saved as data and re-rendered on replay, like playdates; no video is recorded. Keep them forever.
 
 - **Past Shows:** a list inside the venue. Friend shows appear for everyone invited, including judge-only players.
+- **Hide or delete:** a friend show is hidden for that viewer only (`runway_viewer_hides`). A solo show delete removes the local row. When every remaining viewer has hidden a friend show, hard-delete the show. Declined invitees and anonymized deleted accounts do not count as remaining viewers.
 - **Pet snapshot:** store each pet as it looked at submission: breed, the whole look (coat, fur pattern, accent, eyes), life stage, and weight. Fur pattern is the coat combination from adoption. It is separate from a clothing pattern on a colorway. An old show replays with the pet at that age and in that coat.
 - **Retired pets:** their shows stay watchable.
 - **Current art:** replays render items and costume pieces with their current art. If an item was redrawn, the replay shows the new version.
@@ -147,6 +168,7 @@ Suggested tables; adjust names to match existing conventions. Costume claims and
 | `runway_looks` | The 3 frozen looks | submission\_id, look number (1–3), item ids with a copied colorway, costume ids with a copied colorway |
 | `runway_costume_claims` | Once-per-show enforcement | show\_id, costume\_id, submission\_id; unique on (show\_id, costume\_id) |
 | `runway_votes` | Votes | show\_id, voter player\_id, contestant submission\_id; unique on (show\_id, voter) |
+| `runway_viewer_hides` | Per-player hide of a friend show | show\_id, player\_id; unique on (show\_id, player\_id) |
 
 - The unique constraint on `runway_costume_claims` is what makes first-come-first-served safe when two players submit at once; insert all of a submission's claims in one transaction.
 - Drip unlock times derive from `invites_sent_at` + rack position, so no scheduled job is needed.
@@ -209,11 +231,10 @@ A theme's rack is those pieces, in that order: its own theme-specific pieces, th
 - maison_brava-runway-royalty-388307.mp3
 - musictown-positive-fun-exploration-110144.mp3
 
-## Open decisions (don't build yet)
+## Closed for this pass
 
-These are undecided. Leave them out of this pass.
-
-- [ ] Solo shows: how many NPC pets walk, and how their looks are generated. Guests can run the solo show; the cast is what is still open.
-- [ ] Rewards beyond the winner banner: ribbon, XP, badge, or nothing for winners and participants.
-- [ ] Whether voters must watch every contestant before voting.
-- [ ] Saved show retention: keep forever, or cap to the most recent few per player.
+- NPC count is config, default 3. Looks follow the Solo NPC models section.
+- Rewards are the winner banner and vote counts only. No ribbon, XP, or badge.
+- Voters may skip models and rounds. Watching is not a completeness gate.
+- Saved shows are kept forever, with hide (friend) / delete (solo) as above.
+- No camera-flash washes.

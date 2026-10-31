@@ -514,7 +514,7 @@ function Claw({ width, reduced }: { width: number; reduced: boolean }) {
   );
 }
 
-function WindowGlow({ id, width, height }: { id: RoadSpot | 'catwalk'; width: number; height: number }) {
+function WindowGlow({ id, width, height }: { id: RoadSpot; width: number; height: number }) {
   const stadium = id === 'stadium';
   return (
     <Svg width={width} height={height} viewBox={stadium ? '0 0 320 300' : '0 0 200 180'} style={StyleSheet.absoluteFill} pointerEvents="none">
@@ -592,7 +592,7 @@ function WindowGlow({ id, width, height }: { id: RoadSpot | 'catwalk'; width: nu
   );
 }
 
-function SnowCap({ id, width, height }: { id: RoadSpot | 'catwalk'; width: number; height: number }) {
+function SnowCap({ id, width, height }: { id: RoadSpot; width: number; height: number }) {
   const stadium = id === 'stadium';
   return (
     <Svg width={width} height={height} viewBox={stadium ? '0 0 320 300' : '0 0 200 180'} style={StyleSheet.absoluteFill} pointerEvents="none">
@@ -631,7 +631,7 @@ export function TownPlace({
   snow,
   foliage,
 }: {
-  id: RoadSpot | 'catwalk';
+  id: RoadSpot;
   width: number;
   reducedMotion: boolean;
   night: boolean;
