@@ -2,67 +2,179 @@ import { useEffect } from 'react';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 import Svg, { Circle, Ellipse, G, Line, Path, Rect } from 'react-native-svg';
 
+import type { Foliage } from '../../actor/sky';
 import { curvePath, roadCubics, type CloudSpec, type TownLayout } from './map';
 import { usePulse } from './motion';
-import type { GroundPaint, TownChrome } from './townSky';
+import { SeasonalFlowers } from './blooms';
+import { leafColor, type GroundPaint, type TownChrome } from './townSky';
 
 const cloudPath = 'M20 40 Q4 40 6 28 Q8 18 22 20 Q26 6 44 8 Q56 0 70 8 Q90 4 94 18 Q114 18 114 30 Q114 40 100 40 Z';
 
-function RoundTree({ x, y, r, paint, snow }: { x: number; y: number; r: number; paint: GroundPaint; snow: boolean }) {
+const canopy = [
+  { dx: -0.62, dy: -0.2, rr: 0.52 },
+  { dx: 0.62, dy: -0.18, rr: 0.5 },
+  { dx: -0.28, dy: -0.72, rr: 0.58 },
+  { dx: 0.32, dy: -0.78, rr: 0.55 },
+  { dx: 0, dy: -1.12, rr: 0.62 },
+] as const;
+
+function unit(n: number): number {
+  const x = Math.sin(n * 127.1) * 43758.5453;
+  return x - Math.floor(x);
+}
+
+/** Round deciduous tree: the same season cues as the room trees, drawn for the map. */
+function RoundTree({
+  x,
+  y,
+  r,
+  paint,
+  foliage,
+  snow,
+  seed = 0,
+}: {
+  x: number;
+  y: number;
+  r: number;
+  paint: GroundPaint;
+  foliage: Foliage;
+  snow: boolean;
+  seed?: number;
+}) {
+  const trunkH = r * 1.15;
+  const crownY = y - trunkH;
+  const leafy = foliage.leaves;
+  const grow = 0.55 + 0.45 * leafy;
   return (
-    <G stroke={paint.ink} strokeWidth={2.5} strokeLinejoin="round">
-      <Rect x={x - 4} y={y} width={8} height={r * 0.85} fill={paint.trunk} />
-      <Circle cx={x} cy={y - r * 0.15} r={r} fill={paint.leaf} />
-      {snow ? <Ellipse cx={x} cy={y - r * 0.55} rx={r * 0.72} ry={r * 0.28} fill="#FFFFFF" /> : null}
+    <G stroke={paint.ink} strokeWidth={2.4} strokeLinejoin="round" strokeLinecap="round">
+      <Path d={`M${x - 5} ${y} L${x + 5} ${y} L${x + 3.2} ${crownY} L${x - 3.2} ${crownY} Z`} fill={paint.trunk} />
+      <Ellipse cx={x - 5} cy={y - 1} rx={4} ry={2} fill={paint.trunk} />
+      <Ellipse cx={x + 5} cy={y - 1} rx={4} ry={2} fill={paint.trunk} />
+      {leafy < 0.85 ? (
+        <G opacity={1 - leafy * 0.85}>
+          <Line x1={x} y1={crownY + 2} x2={x - r * 0.75} y2={crownY - r * 0.55} stroke={paint.trunk} strokeWidth={2.4} />
+          <Line x1={x} y1={crownY + 2} x2={x + r * 0.72} y2={crownY - r * 0.6} stroke={paint.trunk} strokeWidth={2.4} />
+          <Line x1={x} y1={crownY + 2} x2={x} y2={crownY - r * 1.05} stroke={paint.trunk} strokeWidth={2.2} />
+          <Line x1={x - r * 0.4} y1={crownY - r * 0.25} x2={x - r * 0.95} y2={crownY - r * 0.35} stroke={paint.trunk} strokeWidth={1.6} />
+          <Line x1={x + r * 0.38} y1={crownY - r * 0.28} x2={x + r * 0.95} y2={crownY - r * 0.3} stroke={paint.trunk} strokeWidth={1.6} />
+          {snow ? (
+            <G>
+              <Line x1={x - r * 0.75} y1={crownY - r * 0.58} x2={x - r * 0.3} y2={crownY - r * 0.2} stroke="#F5F8FF" strokeWidth={2} />
+              <Line x1={x + r * 0.72} y1={crownY - r * 0.63} x2={x + r * 0.28} y2={crownY - r * 0.22} stroke="#F5F8FF" strokeWidth={2} />
+            </G>
+          ) : null}
+        </G>
+      ) : null}
+      {leafy > 0.02
+        ? canopy.map((blob, i) => {
+            if (unit(i + seed * 13 + 21) > leafy * 1.15) {
+              return null;
+            }
+            const col = leafColor(paint.leaf, foliage, i + seed * 7);
+            const cx = x + blob.dx * r;
+            const cy = crownY + blob.dy * r;
+            const rr = blob.rr * r * grow;
+            return (
+              <G key={`${seed}-${i}`}>
+                <Circle cx={cx + 1.2} cy={cy + 1.5} r={rr} fill={col} opacity={0.72} />
+                <Circle cx={cx} cy={cy} r={rr} fill={col} />
+                {snow ? <Ellipse cx={cx} cy={cy - rr * 0.55} rx={rr * 0.78} ry={rr * 0.28} fill="#F6F9FF" /> : null}
+              </G>
+            );
+          })
+        : null}
+      {foliage.blossom > 0.02
+        ? Array.from({ length: 8 }, (_, i) => {
+            const blob = canopy[i % canopy.length];
+            const ang = unit(i + seed + 31) * Math.PI * 2;
+            const d = blob.rr * r * (0.2 + unit(i + seed + 32) * 0.7);
+            const px = x + blob.dx * r + Math.cos(ang) * d;
+            const py = crownY + blob.dy * r + Math.sin(ang) * d;
+            return (
+              <G key={`bloom-${seed}-${i}`} opacity={foliage.blossom}>
+                <Circle cx={px} cy={py} r={2.4} fill={i % 3 === 0 ? '#FFFFFF' : '#F7B9CF'} stroke="none" />
+                <Circle cx={px} cy={py} r={0.9} fill="#F2D86A" stroke="none" />
+              </G>
+            );
+          })
+        : null}
     </G>
   );
 }
 
 function Pine({ x, y, h, paint, snow }: { x: number; y: number; h: number; paint: GroundPaint; snow: boolean }) {
   const top = y - h;
+  const mid = y - h * 0.45;
   return (
     <G stroke={paint.ink} strokeWidth={2.5} strokeLinejoin="round">
-      <Rect x={x - 4} y={y} width={8} height={12} fill={paint.trunk} />
-      <Path d={`M${x - 18} ${y} L${x} ${top} L${x + 18} ${y} Z`} fill={paint.pine} />
-      {snow ? <Path d={`M${x - 10} ${top + 10} L${x} ${top} L${x + 10} ${top + 10} Z`} fill="#FFFFFF" /> : null}
+      <Rect x={x - 4} y={y - 4} width={8} height={16} fill={paint.trunk} />
+      <Path d={`M${x - 16} ${y} L${x} ${mid} L${x + 16} ${y} Z`} fill={paint.pine} />
+      <Path d={`M${x - 13} ${mid + 4} L${x} ${top} L${x + 13} ${mid + 4} Z`} fill={paint.pine} />
+      {snow ? <Path d={`M${x - 9} ${top + 10} L${x} ${top} L${x + 9} ${top + 10} Z`} fill="#FFFFFF" /> : null}
     </G>
   );
 }
 
-function Flowers({ dots }: { dots: { x: number; y: number; r: number; fill: string }[] }) {
+function Bush({ x, y, r, paint, foliage, snow }: { x: number; y: number; r: number; paint: GroundPaint; foliage: Foliage; snow: boolean }) {
   return (
-    <G>
-      {dots.map((dot) => (
-        <Circle key={`${dot.x}-${dot.y}`} cx={dot.x} cy={dot.y} r={dot.r} fill={dot.fill} />
-      ))}
+    <G stroke={paint.ink} strokeWidth={2.4} strokeLinejoin="round">
+      <Circle cx={x - r * 0.45} cy={y - r * 0.15} r={r * 0.7} fill={paint.bush} />
+      <Circle cx={x + r * 0.42} cy={y - r * 0.12} r={r * 0.65} fill={paint.bush} />
+      <Circle cx={x} cy={y - r * 0.45} r={r * 0.85} fill={paint.bush} />
+      {foliage.season === 'spring' || foliage.blossom > 0
+        ? [0, 1, 2, 3].map((i) => (
+            <Circle
+              key={`bush-bloom-${i}`}
+              cx={x - r * 0.55 + unit(i + 41) * r * 1.1}
+              cy={y - r * 0.7 + unit(i + 42) * r * 0.55}
+              r={2.2}
+              fill={i % 2 ? '#FFFFFF' : '#FFC6DC'}
+              stroke="none"
+              opacity={Math.max(foliage.blossom, foliage.season === 'spring' ? 0.6 : 0)}
+            />
+          ))
+        : null}
+      {foliage.season === 'winter'
+        ? [0, 1, 2, 3].map((i) => (
+            <Circle
+              key={`berry-${i}`}
+              cx={x - r * 0.45 + unit(i + 43) * r}
+              cy={y - r * 0.55 + unit(i + 44) * r * 0.5}
+              r={1.8}
+              fill="#D23B3B"
+              stroke="none"
+            />
+          ))
+        : null}
+      {snow ? <Ellipse cx={x} cy={y - r * 0.85} rx={r * 0.9} ry={r * 0.28} fill="#F6F9FF" /> : null}
     </G>
   );
 }
 
 const portraitFlowers = [
-  { x: 200, y: 40, r: 3.5, fill: '#F7A9C9' },
-  { x: 212, y: 48, r: 3, fill: '#FFD45E' },
-  { x: 30, y: 110, r: 3, fill: '#F7A9C9' },
-  { x: 190, y: 250, r: 3.5, fill: '#C9B8F5' },
-  { x: 200, y: 244, r: 3, fill: '#FFD45E' },
-  { x: 360, y: 380, r: 3.5, fill: '#F7A9C9' },
-  { x: 190, y: 420, r: 3, fill: '#C9B8F5' },
-  { x: 30, y: 600, r: 3.5, fill: '#FFD45E' },
-  { x: 350, y: 680, r: 3, fill: '#F7A9C9' },
-  { x: 200, y: 570, r: 3, fill: '#FFD45E' },
+  { x: 200, y: 40, r: 3.5 },
+  { x: 212, y: 48, r: 3 },
+  { x: 30, y: 110, r: 3 },
+  { x: 190, y: 250, r: 3.5 },
+  { x: 200, y: 244, r: 3 },
+  { x: 360, y: 380, r: 3.5 },
+  { x: 190, y: 420, r: 3 },
+  { x: 30, y: 600, r: 3.5 },
+  { x: 350, y: 680, r: 3 },
+  { x: 200, y: 570, r: 3 },
 ];
 
 const wideFlowers = [
-  { x: 320, y: 90, r: 3.5, fill: '#F7A9C9' },
-  { x: 332, y: 98, r: 3, fill: '#FFD45E' },
-  { x: 620, y: 80, r: 3.5, fill: '#C9B8F5' },
-  { x: 880, y: 96, r: 3, fill: '#F7A9C9' },
-  { x: 460, y: 290, r: 3.5, fill: '#FFD45E' },
-  { x: 720, y: 280, r: 3, fill: '#F7A9C9' },
-  { x: 1000, y: 300, r: 3.5, fill: '#C9B8F5' },
-  { x: 560, y: 650, r: 3, fill: '#FFD45E' },
-  { x: 900, y: 660, r: 3.5, fill: '#F7A9C9' },
-  { x: 240, y: 640, r: 3, fill: '#C9B8F5' },
+  { x: 320, y: 90, r: 3.5 },
+  { x: 332, y: 98, r: 3 },
+  { x: 620, y: 80, r: 3.5 },
+  { x: 880, y: 96, r: 3 },
+  { x: 460, y: 290, r: 3.5 },
+  { x: 720, y: 280, r: 3 },
+  { x: 1000, y: 300, r: 3.5 },
+  { x: 560, y: 650, r: 3 },
+  { x: 900, y: 660, r: 3.5 },
+  { x: 240, y: 640, r: 3 },
 ];
 
 function PortraitPatches({ paint }: { paint: GroundPaint }) {
@@ -89,32 +201,34 @@ function WidePatches({ paint }: { paint: GroundPaint }) {
 }
 
 function PortraitScenery({ paint, snow }: { paint: GroundPaint; snow: boolean }) {
+  const foliage = paint.foliage;
   return (
     <G>
-      <RoundTree x={365} y={52} r={16} paint={paint} snow={snow} />
-      <RoundTree x={22} y={334} r={14} paint={paint} snow={snow} />
-      <Pine x={20} y={540} h={32} paint={paint} snow={snow} />
-      <RoundTree x={370} y={616} r={15} paint={paint} snow={snow} />
-      <Circle cx={350} cy={300} r={10} fill={paint.bush} stroke={paint.ink} strokeWidth={2.5} />
-      <Circle cx={40} cy={660} r={12} fill={paint.bush} stroke={paint.ink} strokeWidth={2.5} />
-      {snow ? null : <Flowers dots={portraitFlowers} />}
+      <RoundTree x={365} y={52} r={18} paint={paint} foliage={foliage} snow={snow} seed={1} />
+      <RoundTree x={22} y={334} r={16} paint={paint} foliage={foliage} snow={snow} seed={2} />
+      <Pine x={20} y={540} h={34} paint={paint} snow={snow} />
+      <RoundTree x={370} y={616} r={17} paint={paint} foliage={foliage} snow={snow} seed={3} />
+      <Bush x={350} y={300} r={11} paint={paint} foliage={foliage} snow={snow} />
+      <Bush x={40} y={660} r={13} paint={paint} foliage={foliage} snow={snow} />
+      <SeasonalFlowers spots={portraitFlowers} foliage={foliage} snow={snow} />
     </G>
   );
 }
 
 function WideScenery({ paint, snow }: { paint: GroundPaint; snow: boolean }) {
+  const foliage = paint.foliage;
   return (
     <G>
-      <RoundTree x={40} y={72} r={16} paint={paint} snow={snow} />
-      <Pine x={300} y={306} h={36} paint={paint} snow={snow} />
-      <RoundTree x={600} y={318} r={15} paint={paint} snow={snow} />
-      <Pine x={870} y={300} h={34} paint={paint} snow={snow} />
-      <RoundTree x={1150} y={70} r={16} paint={paint} snow={snow} />
-      <RoundTree x={1140} y={672} r={15} paint={paint} snow={snow} />
-      <Pine x={60} y={672} h={32} paint={paint} snow={snow} />
-      <Circle cx={760} cy={660} r={12} fill={paint.bush} stroke={paint.ink} strokeWidth={2.5} />
-      <Circle cx={360} cy={650} r={10} fill={paint.bush} stroke={paint.ink} strokeWidth={2.5} />
-      {snow ? null : <Flowers dots={wideFlowers} />}
+      <RoundTree x={40} y={72} r={18} paint={paint} foliage={foliage} snow={snow} seed={4} />
+      <Pine x={300} y={306} h={38} paint={paint} snow={snow} />
+      <RoundTree x={600} y={318} r={17} paint={paint} foliage={foliage} snow={snow} seed={5} />
+      <Pine x={870} y={300} h={36} paint={paint} snow={snow} />
+      <RoundTree x={1150} y={70} r={18} paint={paint} foliage={foliage} snow={snow} seed={6} />
+      <RoundTree x={1140} y={672} r={17} paint={paint} foliage={foliage} snow={snow} seed={7} />
+      <Pine x={60} y={672} h={34} paint={paint} snow={snow} />
+      <Bush x={760} y={660} r={13} paint={paint} foliage={foliage} snow={snow} />
+      <Bush x={360} y={650} r={11} paint={paint} foliage={foliage} snow={snow} />
+      <SeasonalFlowers spots={wideFlowers} foliage={foliage} snow={snow} />
     </G>
   );
 }
@@ -189,11 +303,6 @@ function Lamp({ x, y, night, glow }: { x: number; y: number; night: boolean; glo
       />
     </G>
   );
-}
-
-function unit(n: number): number {
-  const x = Math.sin(n * 127.1) * 43758.5453;
-  return x - Math.floor(x);
 }
 
 function Precip({

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { skyAt, type SkyState } from '../../actor/sky';
+import { skyAt, type Foliage, type SkyState } from '../../actor/sky';
 import { todAt } from '../../actor/timeOfDay';
 
 type Rgb = [number, number, number];
@@ -19,6 +19,7 @@ export type GroundPaint = {
   waterLine: string;
   trunk: string;
   ink: string;
+  foliage: Foliage;
 };
 
 export type TownChrome = {
@@ -121,7 +122,35 @@ function mixPalette(from: Palette, to: Palette, t: number): Palette {
   };
 }
 
-function paintOf(palette: Palette): GroundPaint {
+const autumnLeaves = ['#E9A93B', '#DD6A2E', '#C94A32', '#E8C04A', '#B8562F'] as const;
+
+/** Same leaf mix the room trees use: spring buds, then autumn turn. */
+export function leafColor(base: string, foliage: Foliage, seed: number): string {
+  const target = autumnLeaves[((seed % autumnLeaves.length) + autumnLeaves.length) % autumnLeaves.length];
+  const springy = foliage.season === 'spring' ? mixHex(base, '#9FD36A', 0.35 * (1 - foliage.leaves)) : base;
+  const k = Math.min(1, Math.max(0, foliage.turn * (0.75 + (seed % 5) * 0.1)));
+  return mixHex(springy, target, k);
+}
+
+/** Same grass dulling the rooms use when lush falls. */
+function grassTone(color: string, lush: number): string {
+  const dull = mixHex(color, '#B8A874', 0.5);
+  return mixHex(color, dull, 1 - lush);
+}
+
+function seasonPalette(base: Palette, foliage: Foliage): Palette {
+  return {
+    ...base,
+    bg: grassTone(base.bg, foliage.lush),
+    hill: grassTone(base.hill, foliage.lush),
+    hill2: grassTone(base.hill2, foliage.lush),
+    tree: leafColor(base.tree, foliage, 2),
+    tree2: mixHex(base.tree2, '#7B8A5A', (1 - foliage.lush) * 0.25),
+    bush: mixHex(base.bush, '#7B8A5A', (1 - foliage.lush) * 0.45),
+  };
+}
+
+function paintOf(palette: Palette, foliage: Foliage): GroundPaint {
   return {
     ground: palette.bg,
     light: palette.hill,
@@ -134,20 +163,22 @@ function paintOf(palette: Palette): GroundPaint {
     bush: palette.bush,
     water: palette.pond,
     waterLine: palette.pondEdge,
-    trunk: '#C98A66',
+    trunk: '#7A5535',
     ink: '#4B3B7A',
+    foliage,
   };
 }
 
 /** Map colors from the same sky the rooms use. Morning and afternoon stay the day palette. */
 export function townLook(sky: SkyState): { paint: GroundPaint; chrome: TownChrome } {
   const weather = sky.weather;
+  const foliage = sky.season;
   const rainMix =
     weather.precip === 'rain'
       ? Math.max(weather.wetness, weather.intensity, weather.overcast * 0.65)
       : weather.overcast * 0.28;
   const snowMix = Math.max(weather.snowCover, weather.precip === 'snow' ? weather.intensity : 0);
-  const mixed = mixPalette(mixPalette(clear, rain, rainMix), snow, snowMix);
+  const mixed = seasonPalette(mixPalette(mixPalette(clear, rain, rainMix), snow, snowMix), foliage);
   const tod = todAt(sky.solarHour);
   const phase = tod.phase;
   const night = phase === 'Night' || phase === 'Evening';
@@ -155,7 +186,7 @@ export function townLook(sky: SkyState): { paint: GroundPaint; chrome: TownChrom
   const header =
     night ? '#1A1533' : phase === 'Dawn' ? '#FDF1EA' : phase === 'Dusk' ? '#FBE8E4' : '#F5F6FB';
   return {
-    paint: paintOf(mixed),
+    paint: paintOf(mixed, foliage),
     chrome: {
       header,
       title: night ? '#F4F0FF' : '#2A2B4A',

@@ -1,11 +1,14 @@
 import { useEffect, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, { cancelAnimation, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withTiming } from 'react-native-reanimated';
-import Svg, { Circle, Ellipse, G, Path, Rect } from 'react-native-svg';
+import Svg, { Circle, Ellipse, G, Line, Path, Rect } from 'react-native-svg';
 
+import type { Foliage } from '../../actor/sky';
 import type { RoadSpot } from '../../sim/road';
 import { StadiumIcon } from './StadiumIcon';
 import { usePulse } from './motion';
+import { SeasonalFlowers } from './blooms';
+import { leafColor } from './townSky';
 
 const ink = {
   stroke: '#4B3B7A',
@@ -226,28 +229,63 @@ function ShopArt({ width }: { width: number }) {
   );
 }
 
-function ParkArt({ width, reducedMotion }: { width: number; reducedMotion: boolean }) {
+function ParkArt({
+  width,
+  reducedMotion,
+  foliage,
+  snow,
+}: {
+  width: number;
+  reducedMotion: boolean;
+  foliage: Foliage;
+  snow: boolean;
+}) {
   const hop = usePulse(reducedMotion, 2800);
   const unit = width / 200;
   const ball = useAnimatedStyle(() => ({
     transform: [{ translateY: hop.value < 0.7 ? 0 : -9 * unit * Math.sin(((hop.value - 0.7) / 0.3) * Math.PI) }],
   }));
+  const pine = leafColor('#3FA86E', foliage, 4);
+  const round = leafColor('#9FE3B4', foliage, 5);
+  const arch = leafColor('#3FA86E', foliage, 6);
+  const lawn = foliage.season === 'winter' || foliage.lush < 0.35 ? '#D9D2B8' : foliage.season === 'autumn' ? '#D7E3A8' : '#BFEFD4';
+  const bare = foliage.leaves < 0.55;
   return (
     <View style={{ width, height: width * 0.9 }} pointerEvents="none">
       <Art width={width} label="Park">
         <Ellipse cx={100} cy={166} rx={82} ry={9} fill="#4B3B7A" opacity={0.12} />
         <G {...ink}>
-          <Rect x={165} y={110} width={10} height={16} fill="#C98A66" />
-          <Path d="M148 112 L170 70 L192 112 Z" fill="#3FA86E" />
-          <Path d="M153 90 L170 54 L187 90 Z" fill="#9FE3B4" />
-          <Rect x={27} y={102} width={10} height={24} fill="#C98A66" />
-          <Circle cx={32} cy={86} r={25} fill="#9FE3B4" />
-          <Circle cx={24} cy={78} r={6} fill="#FFFFFF" opacity={0.6} stroke="none" />
-          <Ellipse cx={100} cy={150} rx={90} ry={16} fill="#BFEFD4" />
+          <Rect x={165} y={110} width={10} height={16} fill="#7A5535" />
+          {bare ? (
+            <G>
+              <Line x1={170} y1={112} x2={158} y2={72} stroke="#7A5535" strokeWidth={2.5} />
+              <Line x1={170} y1={112} x2={182} y2={68} stroke="#7A5535" strokeWidth={2.5} />
+              <Line x1={170} y1={90} x2={170} y2={54} stroke="#7A5535" strokeWidth={2.2} />
+            </G>
+          ) : (
+            <G>
+              <Path d="M148 112 L170 70 L192 112 Z" fill={pine} />
+              <Path d="M153 90 L170 54 L187 90 Z" fill={round} />
+            </G>
+          )}
+          <Rect x={27} y={102} width={10} height={24} fill="#7A5535" />
+          {bare ? (
+            <G>
+              <Line x1={32} y1={102} x2={18} y2={68} stroke="#7A5535" strokeWidth={2.5} />
+              <Line x1={32} y1={102} x2={46} y2={64} stroke="#7A5535" strokeWidth={2.5} />
+              <Line x1={32} y1={90} x2={32} y2={58} stroke="#7A5535" strokeWidth={2.2} />
+            </G>
+          ) : (
+            <G>
+              <Circle cx={32} cy={86} r={25} fill={round} />
+              <Circle cx={24} cy={78} r={6} fill="#FFFFFF" opacity={0.6} stroke="none" />
+            </G>
+          )}
+          <Ellipse cx={100} cy={150} rx={90} ry={16} fill={lawn} />
           <Path d="M86 166 L92 120 L108 120 L114 166 Z" fill="#FFF6E6" stroke="#E2CDA6" />
           <Rect x={52} y={80} width={14} height={78} rx={4} fill="#C98A66" />
           <Rect x={134} y={80} width={14} height={78} rx={4} fill="#C98A66" />
-          <Path d="M50 88 Q100 40 150 88 L150 100 Q100 54 50 100 Z" fill="#3FA86E" />
+          <Path d="M50 88 Q100 40 150 88 L150 100 Q100 54 50 100 Z" fill={arch} />
           <Circle cx={59} cy={78} r={9} fill="#FFD45E" />
           <Circle cx={141} cy={78} r={9} fill="#FFD45E" />
           <Path d="M84 78 V86 M116 78 V86" fill="none" strokeWidth={2} />
@@ -257,9 +295,15 @@ function ParkArt({ width, reducedMotion }: { width: number; reducedMotion: boole
           <Circle cx={98.2} cy={89.8} r={1.9} fill="#E784B3" stroke="none" />
           <Circle cx={101.8} cy={89.8} r={1.9} fill="#E784B3" stroke="none" />
           <Circle cx={105.5} cy={92.3} r={1.9} fill="#E784B3" stroke="none" />
-          <Circle cx={30} cy={152} r={3} fill="#F7A9C9" strokeWidth={1.5} />
-          <Circle cx={40} cy={156} r={3} fill="#FFD45E" strokeWidth={1.5} />
-          <Circle cx={168} cy={152} r={3} fill="#C9B8F5" strokeWidth={1.5} />
+          <SeasonalFlowers
+            spots={[
+              { x: 30, y: 152, r: 3.2 },
+              { x: 40, y: 156, r: 2.8 },
+              { x: 168, y: 152, r: 3.2 },
+            ]}
+            foliage={foliage}
+            snow={snow}
+          />
         </G>
       </Art>
       <Animated.View
@@ -585,12 +629,14 @@ export function TownPlace({
   reducedMotion,
   night,
   snow,
+  foliage,
 }: {
   id: RoadSpot | 'catwalk';
   width: number;
   reducedMotion: boolean;
   night: boolean;
   snow: boolean;
+  foliage: Foliage;
 }) {
   const height = id === 'stadium' ? (width * 300) / 320 : width * 0.9;
   const art =
@@ -599,7 +645,7 @@ export function TownPlace({
     ) : id === 'petShop' ? (
       <ShopArt width={width} />
     ) : id === 'park' ? (
-      <ParkArt width={width} reducedMotion={reducedMotion} />
+      <ParkArt width={width} reducedMotion={reducedMotion} foliage={foliage} snow={snow} />
     ) : id === 'trainingSchool' ? (
       <SchoolArt width={width} reducedMotion={reducedMotion} />
     ) : id === 'catwalk' ? (

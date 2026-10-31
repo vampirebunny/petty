@@ -4,6 +4,7 @@ import { ChevronLeft, PawPrint } from 'lucide-react-native';
 import Animated, { cancelAnimation, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 import Svg, { Circle } from 'react-native-svg';
 
+import type { Foliage } from '../../actor/sky';
 import type { RoadSpot } from '../../sim/road';
 import type { PetState } from '../../sim/types';
 import { fontFamily } from '../font';
@@ -355,6 +356,7 @@ export function TownScreen({ pet, species, roadSpot, reducedMotion, onStand, onE
               reducedMotion={reducedMotion}
               night={chrome.night}
               snow={chrome.snow}
+              foliage={paint.foliage}
               pill={chrome.pill}
               pillText={chrome.pillText}
             />
@@ -367,6 +369,7 @@ export function TownScreen({ pet, species, roadSpot, reducedMotion, onStand, onE
                 reducedMotion={reducedMotion}
                 night={chrome.night}
                 snow={chrome.snow}
+                foliage={paint.foliage}
                 pill={chrome.pill}
                 pillText={chrome.pillText}
                 onPress={() => tap(building.id)}
@@ -445,6 +448,7 @@ function PlaceArt({
   reducedMotion,
   night,
   snow,
+  foliage,
   pill,
   pillText,
   name = 'The Catwalk',
@@ -455,6 +459,7 @@ function PlaceArt({
   reducedMotion: boolean;
   night: boolean;
   snow: boolean;
+  foliage: Foliage;
   pill: string;
   pillText: string;
   name?: string;
@@ -467,7 +472,7 @@ function PlaceArt({
       accessibilityLabel={name}
       style={[styles.door, { left: box.x * scale, top: box.y * scale, width: box.w * scale }]}
     >
-      <TownPlace id="catwalk" width={artW} reducedMotion={reducedMotion} night={night} snow={snow} />
+      <TownPlace id="catwalk" width={artW} reducedMotion={reducedMotion} night={night} snow={snow} foliage={foliage} />
       <View style={[styles.label, { marginTop: -6 * scale, backgroundColor: pill }]}>
         <Text style={[styles.labelText, { fontSize: labelSize, color: pillText }]}>{name}</Text>
       </View>
@@ -482,6 +487,7 @@ function Door({
   reducedMotion,
   night,
   snow,
+  foliage,
   pill,
   pillText,
   onPress,
@@ -492,6 +498,7 @@ function Door({
   reducedMotion: boolean;
   night: boolean;
   snow: boolean;
+  foliage: Foliage;
   pill: string;
   pillText: string;
   onPress: () => void;
@@ -512,7 +519,7 @@ function Door({
         },
       ]}
     >
-      <TownPlace id={building.id} width={artW} reducedMotion={reducedMotion} night={night} snow={snow} />
+      <TownPlace id={building.id} width={artW} reducedMotion={reducedMotion} night={night} snow={snow} foliage={foliage} />
       <View style={[styles.label, { marginTop: -6 * scale, backgroundColor: pill }]}>
         <Text style={[styles.labelText, { fontSize: labelSize, color: pillText }]}>{building.name}</Text>
       </View>

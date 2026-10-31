@@ -33,12 +33,12 @@ All map art is drawn in code with react-native-svg, in the existing cotton candy
 
 ### Map
 
-- Starts below the header and fills the screen. Top corners stay rounded (32 pt) in portrait and on the landscape split. The grass, path, pond, and trees follow the app sky: clear mint by day, wetter greens in rain, and a pale snow palette as snow cover builds. Dawn and dusk wash the map warm. Night washes it blue, dims the header, and turns the door pills dark. Morning and afternoon stay the day colors. Rain streaks, snowflakes, and a rainbow are drawn on the map from the same weather the rooms use. Reduce Motion holds the streaks and flakes still.
+- Starts below the header and fills the screen. Top corners stay rounded (32 pt) in portrait and on the landscape split. The grass, path, pond, and trees follow the app sky and the same season as the rooms: lush mint in summer, turning and thinning in autumn, bare branches and dull lawns in winter, and spring blossom. Wetter greens show in rain, and a pale snow palette builds with snow cover. Dawn and dusk wash the map warm. Night washes it blue, dims the header, and turns the door pills dark. Morning and afternoon stay the day colors. Rain streaks, snowflakes, and a rainbow are drawn on the map from the same weather the rooms use. Reduce Motion holds the streaks and flakes still.
 - Portrait, including an upright iPad and a Surface Duo on one screen, uses a 390 by 724 zigzag. Scale it to the width, up to 600 pt, and keep the aspect ratio. It scrolls vertically when it is taller than the pane. On open, scroll so the pet is visible.
 - The landscape split (short side at least 600, and wider than tall) uses a separate 1194 by 722 horizontal road, scaled to the full pane width. It scrolls vertically the same way. The pet and place labels grow with that scale. Title and subtitle sit on one row.
 - The header clears the status bar the way the other screens do (64 pt, plus the opened-Duo inset). The walk pill sits above the home indicator.
 - Paths: cream, two stacked strokes with round caps, plus a dashed center. The same cubics are drawn and walked. A bend under The Catwalk keeps the switchback on the path. The Catwalk is a door on that bend.
-- Decoration: a pond, trees, bush clusters, tiny pastel flower dots, and drifting clouds. Decoration is not tappable.
+- Decoration: a pond, seasonal trees and bushes, flower beds that follow the bloom cycle, and drifting clouds. Decoration is not tappable.
 
 ### Buildings
 
@@ -48,13 +48,13 @@ Each building is one button, at least 44 pt, with a soft ground shadow and a whi
 | --- | --- |
 | Home | Peach cottage, coral roof, round window. Must not look like Training School |
 | Pet Shop | Teal shop, gold sign, teal and white scallops, an orange ball in the window |
-| Park | Garden gate between deeper green trees, flower beds, a ball on the lawn |
+| Park | Garden gate between seasonal trees, bloom-cycle flower beds, a ball on the lawn |
 | Training School | Blue schoolhouse with a bell tower and a yellow bell |
 | The Catwalk | Fashion house with a gold marquee, spotlights, and a runway carpet. Drawn for dogs and cats. A tap walks the pet there and opens the venue |
 | Arcade | Orange claw machine building with a gold marquee |
 | Stadium | The current arena art. Its own four pennants wave. No extra poles are drawn on top |
 
-Night dims each building and lights its windows. Snow caps the roofs and trees and hides the flower dots. Three path lamps glow at night. Smoke, the bell, the spotlights, the marquee lights, the clouds, the pond shine, the stadium pennants, the arcade claw, and the shop-window ball play. Reduce Motion holds them still.
+Night dims each building and lights its windows. Snow caps the roofs and trees. Flowers follow a bloom cycle: spring tulips, summer sunflowers and bright beds, autumn mums while the lawn is still lush, and none in winter or under snow. There are no dead flowers. Three path lamps glow at night. Smoke, the bell, the spotlights, the marquee lights, the clouds, the pond shine, the stadium pennants, the arcade claw, and the shop-window ball play. Reduce Motion holds them still.
 
 ### Pet
 
