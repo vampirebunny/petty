@@ -19,7 +19,7 @@ import { AdoptScreen } from './src/screens/AdoptScreen';
 import { MeetScreen } from './src/screens/adopt/MeetScreen';
 import { ConsentScreen } from './src/screens/ConsentScreen';
 import { NotAvailableScreen } from './src/screens/NotAvailableScreen';
-import { WelcomeScreen } from './src/screens/WelcomeScreen';
+import { WelcomeScreen, welcomeBackground } from './src/screens/WelcomeScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import { UpdateRequiredScreen } from './src/screens/UpdateRequiredScreen';
 import { useAgeGate } from './src/state/useAgeGate';
@@ -243,11 +243,7 @@ export default function App() {
     } else if (petState && gated) {
       screen = gated;
     } else if (petState && meeting) {
-      screen = (
-        <PhoneColumn>
-          <MeetScreen pet={petState} onStart={() => setMeeting(false)} />
-        </PhoneColumn>
-      );
+      screen = <MeetScreen pet={petState} onStart={() => setMeeting(false)} />;
     } else if (petState) {
       screen = <HomeScreen petApi={pet} />;
     } else if (entry === 'checking') {
@@ -276,7 +272,7 @@ export default function App() {
       );
     } else if (entry === 'welcome') {
       screen = (
-        <PhoneColumn>
+        <PhoneColumn backgroundColor={welcomeBackground}>
           <WelcomeScreen
             onGetStarted={() => {
               releaseWelcomeHold();
@@ -297,15 +293,13 @@ export default function App() {
       screen = gated;
     } else {
       screen = (
-        <PhoneColumn>
-          <AdoptScreen
-            onBusyChange={setSignInBusy}
-            onAdopt={(...args) => {
-              setMeeting(true);
-              adopt(...args, ownerId);
-            }}
-          />
-        </PhoneColumn>
+        <AdoptScreen
+          onBusyChange={setSignInBusy}
+          onAdopt={(...args) => {
+            setMeeting(true);
+            adopt(...args, ownerId);
+          }}
+        />
       );
     }
   }

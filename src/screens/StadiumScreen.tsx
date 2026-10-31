@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { ChevronLeft, Flag, Users, WifiOff } from 'lucide-react-native';
 
 import { readAccountLinked, serverNow } from '../db/accountMeta';
@@ -21,6 +21,9 @@ import { applyFriendRaceResult, applyRaceRewards, noteFriendGameStarted } from '
 import { classForEvent, classForLevel, dropEndedSignup, eventLabel, isPlayableEvent, racesOf, skillBlock, withSignup, type RaceSignup, type SkillBlock } from '../sim/stadium';
 import type { PetState } from '../sim/types';
 import { fontFamily } from '../ui/font';
+import { FitScale } from '../ui/FitScale';
+import { STADIUM_STAGE } from '../ui/skia/stadium';
+import { isLandscapeSplit, phoneColumnWidth } from '../ui/wideLayout';
 import { FunModal } from '../ui/FunModal';
 import { CandyButton } from '../ui/stadium/CandyButton';
 import { Lobby } from '../ui/stadium/Lobby';
@@ -75,6 +78,12 @@ type Status = 'ok' | 'offline' | 'error';
 
 const statusTop = 48;
 
+function stadiumArtWidth(paneW: number, paneH: number, top: number): number {
+  const ratio = STADIUM_STAGE.h / STADIUM_STAGE.w;
+  const byHeight = Math.max(1, (paneH - top) / ratio);
+  return Math.max(1, Math.min(paneW, byHeight));
+}
+
 function failureCopy(reason: string, name: string): string {
   if (reason.includes('busy')) return `${name} is already in a race.`;
   if (reason.includes('resting')) return `${name} needs a short rest before this race.`;
@@ -125,6 +134,9 @@ export function StadiumScreen({
   const [boardReason, setBoardReason] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [width, setWidth] = useState(0);
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const split = isLandscapeSplit(windowWidth, windowHeight);
+  const [pane, setPane] = useState<{ width: number; height: number } | null>(null);
   const petRef = useRef(pet);
   const loadGen = useRef(0);
   const commitRef = useRef(onCommit);
@@ -452,12 +464,13 @@ export function StadiumScreen({
     );
   }
 
-  return (
-    <View style={styles.root} onLayout={(event) => setWidth(Math.round(event.nativeEvent.layout.width))}>
-      <ScrollView contentContainerStyle={styles.scroll} bounces={false}>
-        <View>
-          {width > 0 ? <StadiumHeader width={width} top={statusTop} nextStart={slots[0]?.startsAt ?? null} reducedMotion={reducedMotion} /> : null}
-          <View style={styles.headerBar}>
+  const artWidth = split && pane ? stadiumArtWidth(pane.width, pane.height, statusTop) : width;
+  const art =
+    artWidth > 0 ? (
+      <StadiumHeader width={artWidth} top={statusTop} nextStart={slots[0]?.startsAt ?? null} reducedMotion={reducedMotion} />
+    ) : null;
+  const headerBar = (
+          <View style={styles.headerBar} pointerEvents="box-none">
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={screen === 'friendSetup' || screen === 'friendRoom' ? 'Back to the Stadium' : 'Back to the map'}
@@ -477,8 +490,8 @@ export function StadiumScreen({
             </Pressable>
             <PetChip name={pet.name} level={pet.level} classId={classId} />
           </View>
-        </View>
-
+  );
+  const controls = (
         <View style={styles.body}>
           {offline ? (
             <View style={[shared.card, styles.offline]}>
@@ -581,24 +594,26 @@ export function StadiumScreen({
             </View>
           )}
         </View>
-      </ScrollView>
-
-      {sheet && board ? (
-        <SignUpSheet
-          card={sheet.card}
-          slot={sheet.slot}
-          classId={classForEvent(sheet.card.event, sheet.card.cup, classId)}
-          capacity={board.capacity}
-          petName={pet.name}
-          energy={pet.needs.energy}
-          mood={pet.needs.happiness}
-          now={now}
-          busy={busy}
-          onSignUp={() => void signUp()}
-          onClose={() => setSheet(null)}
-        />
-      ) : null}
-
+  );
+  const signupSheet =
+    sheet && board ? (
+      <SignUpSheet
+        panel={split}
+        card={sheet.card}
+        slot={sheet.slot}
+        classId={classForEvent(sheet.card.event, sheet.card.cup, classId)}
+        capacity={board.capacity}
+        petName={pet.name}
+        energy={pet.needs.energy}
+        mood={pet.needs.happiness}
+        now={now}
+        busy={busy}
+        onSignUp={() => void signUp()}
+        onClose={() => setSheet(null)}
+      />
+    ) : null;
+  const notices = (
+    <>
       {block ? (
         <FunModal
           title={block.trickName}
@@ -641,6 +656,48 @@ export function StadiumScreen({
       {accountOpen ? <AccountSheet reason="friends" petName={pet.name} onClose={() => setAccountOpen(false)} /> : null}
 
       {toast ? <Toast message={toast} reducedMotion={reducedMotion} onDone={hideToast} /> : null}
+    </>
+  );
+
+  if (split) {
+    return (
+      <View style={styles.root}>
+        <View style={styles.splitBody}>
+          <View
+            style={styles.stagePane}
+            onLayout={(event) => {
+              const nextW = Math.round(event.nativeEvent.layout.width);
+              const nextH = Math.round(event.nativeEvent.layout.height);
+              setPane((prev) => (prev && prev.width === nextW && prev.height === nextH ? prev : { width: nextW, height: nextH }));
+            }}
+          >
+            {art}
+          </View>
+          <FitScale designWidth={phoneColumnWidth} style={styles.controlColumn}>
+            {signupSheet ?? (
+              <ScrollView style={styles.columnScroll} contentContainerStyle={[styles.scroll, styles.columnScrollContent]} bounces={false}>
+                {controls}
+              </ScrollView>
+            )}
+          </FitScale>
+        </View>
+        {headerBar}
+        {notices}
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.root} onLayout={(event) => setWidth(Math.round(event.nativeEvent.layout.width))}>
+      <ScrollView contentContainerStyle={styles.scroll} bounces={false}>
+        <View>
+          {art}
+          {headerBar}
+        </View>
+        {controls}
+      </ScrollView>
+      {signupSheet}
+      {notices}
     </View>
   );
 }
@@ -653,11 +710,44 @@ const styles = StyleSheet.create({
   scroll: {
     paddingBottom: 48,
   },
+  splitBody: {
+    flex: 1,
+    flexDirection: 'row',
+  },
+  stagePane: {
+    flexGrow: 1,
+    flexShrink: 1,
+    flexBasis: 0,
+    width: 0,
+    minWidth: 0,
+    overflow: 'hidden',
+    alignItems: 'center',
+    backgroundColor: pageFill,
+  },
+  controlColumn: {
+    flexGrow: 0,
+    flexShrink: 1,
+    flexBasis: phoneColumnWidth,
+    maxWidth: phoneColumnWidth,
+    minWidth: 0,
+    minHeight: 0,
+    overflow: 'hidden',
+    backgroundColor: pageFill,
+    borderLeftWidth: StyleSheet.hairlineWidth,
+    borderLeftColor: '#E4D7F2',
+  },
+  columnScroll: {
+    flex: 1,
+  },
+  columnScrollContent: {
+    paddingTop: 96,
+  },
   headerBar: {
     position: 'absolute',
     top: statusTop + 4,
     left: 12,
     right: 12,
+    zIndex: 5,
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',

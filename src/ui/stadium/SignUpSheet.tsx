@@ -19,16 +19,15 @@ type Props = {
   busy: boolean;
   onSignUp: () => void;
   onClose: () => void;
+  /** Fill the right-hand column on a wide screen instead of rising as a bottom sheet. */
+  panel?: boolean;
 };
 
-export function SignUpSheet({ card, slot, classId, capacity, petName, energy, mood, now, busy, onSignUp, onClose }: Props) {
+export function SignUpSheet({ card, slot, classId, capacity, petName, energy, mood, now, busy, onSignUp, onClose, panel = false }: Props) {
   const low = Math.min(energy, mood) < 50;
   const others = card.signedUp;
-  return (
-    <View style={styles.layer}>
-      <Pressable accessibilityRole="button" accessibilityLabel="Not now" onPress={onClose} style={styles.dim} />
-      <View style={styles.sheet} accessibilityViewIsModal>
-        <ScrollView contentContainerStyle={styles.content} bounces={false} showsVerticalScrollIndicator={false}>
+  const form = (
+          <>
           <View style={styles.head}>
             <EventIcon event={card.event} size={30} />
             <View style={styles.headText}>
@@ -67,6 +66,28 @@ export function SignUpSheet({ card, slot, classId, capacity, petName, energy, mo
 
           <CandyButton role="primary" label={busy ? 'Signing up…' : `Sign up ${petName}`} disabled={busy} onPress={onSignUp} />
           <CandyButton role="secondary" label="Not now" onPress={onClose} />
+          </>
+  );
+  if (panel) {
+    return (
+      <View style={styles.panel}>
+        <ScrollView
+          style={styles.panelScroll}
+          contentContainerStyle={[styles.content, styles.panelContent]}
+          bounces={false}
+          showsVerticalScrollIndicator={false}
+        >
+          {form}
+        </ScrollView>
+      </View>
+    );
+  }
+  return (
+    <View style={styles.layer}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Not now" onPress={onClose} style={styles.dim} />
+      <View style={styles.sheet} accessibilityViewIsModal>
+        <ScrollView contentContainerStyle={styles.content} bounces={false} showsVerticalScrollIndicator={false}>
+          {form}
         </ScrollView>
       </View>
     </View>
@@ -88,6 +109,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF6FB',
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
+  },
+  panel: {
+    flex: 1,
+    minHeight: 0,
+    backgroundColor: '#FFF6FB',
+  },
+  panelScroll: {
+    flex: 1,
+  },
+  panelContent: {
+    paddingTop: 108,
   },
   content: {
     padding: 20,

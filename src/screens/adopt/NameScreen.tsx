@@ -6,6 +6,7 @@ import { archetypeNames } from '../../sim';
 import type { Archetype, Look } from '../../sim';
 import { fontFamily } from '../../ui/font';
 import { PetPreview } from '../../ui/PetPreview';
+import { AdoptSplit, useAdoptLayout } from './AdoptLayout';
 import { OnboardingHeader } from './OnboardingHeader';
 
 type Props = {
@@ -20,54 +21,84 @@ type Props = {
 
 // Step 3: name the pet. The Meet button is the only place the pet is created.
 export function NameScreen({ breed, look, archetype, name, onChangeName, onBack, onMeet }: Props) {
+  const { split, paddingTop } = useAdoptLayout();
   const result = validateName(name);
   const ready = result.ok ? result.name : null;
   const hint =
     name.trim().length > 0 && !result.ok ? nameRejectMessage(result.reason) : null;
+  const young = breed.species === 'cat' ? 'kitten' : 'pup';
+  const header = (
+    <OnboardingHeader title={`Name your ${young}`} step={3} onBack={onBack} backLabel="Back to pups" />
+  );
+  const nameField = (
+    <View style={styles.group}>
+      <Text style={styles.groupTitle}>Name</Text>
+      <TextInput
+        value={name}
+        onChangeText={(value) => onChangeName(value.slice(0, nameLimit))}
+        maxLength={nameLimit}
+        style={styles.input}
+        autoCorrect={false}
+        autoFocus
+        accessibilityLabel="Name"
+      />
+      {hint ? <Text style={styles.hint}>{hint}</Text> : null}
+    </View>
+  );
+  const footer = (
+    <View style={styles.footer}>
+      <Pressable
+        style={[styles.choice, ready == null && styles.disabled]}
+        disabled={ready == null}
+        onPress={() => {
+          if (ready) {
+            onMeet(ready);
+          }
+        }}
+        accessibilityRole="button"
+      >
+        <Text style={styles.choiceLabel}>Meet {ready ?? ''}</Text>
+      </Pressable>
+    </View>
+  );
 
   return (
-    <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <View style={styles.intro}>
-          <OnboardingHeader
-            title={`Name your ${breed.species === 'cat' ? 'kitten' : 'pup'}`}
-            step={3}
-            onBack={onBack}
-            backLabel="Back to pups"
-          />
-          <Text style={styles.body}>
-            {breed.name} · {archetypeNames[archetype]}
-          </Text>
-        </View>
-        <PetPreview species={breed.species} breedId={breed.id} look={look} height={240} />
-        <View style={styles.group}>
-          <Text style={styles.groupTitle}>Name</Text>
-          <TextInput
-            value={name}
-            onChangeText={(value) => onChangeName(value.slice(0, nameLimit))}
-            maxLength={nameLimit}
-            style={styles.input}
-            autoCorrect={false}
-            autoFocus
-            accessibilityLabel="Name"
-          />
-          {hint ? <Text style={styles.hint}>{hint}</Text> : null}
-        </View>
-      </ScrollView>
-      <View style={styles.footer}>
-        <Pressable
-          style={[styles.choice, ready == null && styles.disabled]}
-          disabled={ready == null}
-          onPress={() => {
-            if (ready) {
-              onMeet(ready);
-            }
-          }}
-          accessibilityRole="button"
+    <KeyboardAvoidingView
+      style={[styles.root, { paddingTop }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      {split ? (
+        <AdoptSplit
+          header={header}
+          preview={(frame) =>
+            frame ? <PetPreview species={breed.species} breedId={breed.id} look={look} frame={frame} /> : null
+          }
         >
-          <Text style={styles.choiceLabel}>Meet {ready ?? ''}</Text>
-        </Pressable>
-      </View>
+          <View style={styles.column}>
+            <ScrollView style={styles.columnScroll} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+              <Text style={styles.body}>
+                {breed.name} · {archetypeNames[archetype]}
+              </Text>
+              {nameField}
+            </ScrollView>
+            {footer}
+          </View>
+        </AdoptSplit>
+      ) : (
+        <>
+          <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+            <View style={styles.intro}>
+              {header}
+              <Text style={styles.body}>
+                {breed.name} · {archetypeNames[archetype]}
+              </Text>
+            </View>
+            <PetPreview species={breed.species} breedId={breed.id} look={look} height={240} />
+            {nameField}
+          </ScrollView>
+          {footer}
+        </>
+      )}
     </KeyboardAvoidingView>
   );
 }
@@ -76,7 +107,13 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: '#F4F7FB',
-    paddingTop: 56,
+  },
+  column: {
+    flex: 1,
+    minHeight: 0,
+  },
+  columnScroll: {
+    flex: 1,
   },
   scroll: {
     paddingHorizontal: 20,

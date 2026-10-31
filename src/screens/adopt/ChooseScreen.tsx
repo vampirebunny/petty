@@ -4,6 +4,7 @@ import type { Breed } from '../../actor/types';
 import { archetypeNames } from '../../sim';
 import type { Archetype, AttributeSet, Look } from '../../sim';
 import { PetPreview } from '../../ui/PetPreview';
+import { AdoptSplit, useAdoptLayout } from './AdoptLayout';
 import { OnboardingHeader } from './OnboardingHeader';
 import { PupDetail } from './PupDetail';
 import { PupTile } from './PupTile';
@@ -20,40 +21,67 @@ type Props = {
 
 // Step 2: pick one of three pups. Three equal tiles, one detail card for the selected pup.
 export function ChooseScreen({ breed, look, offers, selected, onSelect, onBack, onNext }: Props) {
+  const { split, paddingTop } = useAdoptLayout();
   const young = breed.species === 'cat' ? 'kitten' : 'pup';
   const offer = offers.find((candidate) => candidate.archetype === selected) ?? offers[0];
+  const header = (
+    <OnboardingHeader title={`Choose your ${young}`} step={2} onBack={onBack} backLabel="Back to breed" />
+  );
+  const tiles = (
+    <View style={styles.tiles} accessibilityRole="radiogroup">
+      {offers.map((candidate) => (
+        <PupTile
+          key={candidate.archetype}
+          archetype={candidate.archetype}
+          selected={candidate.archetype === offer.archetype}
+          onSelect={() => onSelect(candidate.archetype)}
+        />
+      ))}
+    </View>
+  );
+  const footer = (
+    <View style={styles.footer}>
+      <Pressable style={styles.choice} onPress={onNext} accessibilityRole="button">
+        <Text style={styles.choiceLabel}>Adopt {archetypeNames[offer.archetype]}</Text>
+      </Pressable>
+    </View>
+  );
   return (
-    <View style={styles.root}>
-      <ScrollView contentContainerStyle={styles.scroll}>
-        <View style={styles.intro}>
-          <OnboardingHeader
-            title={`Choose your ${young}`}
-            step={2}
-            onBack={onBack}
-            backLabel="Back to breed"
-          />
-          <Text style={styles.body}>
-            Three {breed.name} {young}s. Each is good at something different.
-          </Text>
-        </View>
-        <PetPreview species={breed.species} breedId={breed.id} look={look} height={170} />
-        <View style={styles.tiles} accessibilityRole="radiogroup">
-          {offers.map((candidate) => (
-            <PupTile
-              key={candidate.archetype}
-              archetype={candidate.archetype}
-              selected={candidate.archetype === offer.archetype}
-              onSelect={() => onSelect(candidate.archetype)}
-            />
-          ))}
-        </View>
-        <PupDetail offer={offer} offers={offers} />
-      </ScrollView>
-      <View style={styles.footer}>
-        <Pressable style={styles.choice} onPress={onNext} accessibilityRole="button">
-          <Text style={styles.choiceLabel}>Adopt {archetypeNames[offer.archetype]}</Text>
-        </Pressable>
-      </View>
+    <View style={[styles.root, { paddingTop }]}>
+      {split ? (
+        <AdoptSplit
+          header={header}
+          preview={(frame) =>
+            frame ? <PetPreview species={breed.species} breedId={breed.id} look={look} frame={frame} /> : null
+          }
+        >
+          <View style={styles.column}>
+            <ScrollView style={styles.columnScroll} contentContainerStyle={styles.scroll}>
+              <Text style={styles.body}>
+                Three {breed.name} {young}s. Each is good at something different.
+              </Text>
+              {tiles}
+              <PupDetail offer={offer} offers={offers} />
+            </ScrollView>
+            {footer}
+          </View>
+        </AdoptSplit>
+      ) : (
+        <>
+          <ScrollView contentContainerStyle={styles.scroll}>
+            <View style={styles.intro}>
+              {header}
+              <Text style={styles.body}>
+                Three {breed.name} {young}s. Each is good at something different.
+              </Text>
+            </View>
+            <PetPreview species={breed.species} breedId={breed.id} look={look} height={170} />
+            {tiles}
+            <PupDetail offer={offer} offers={offers} />
+          </ScrollView>
+          {footer}
+        </>
+      )}
     </View>
   );
 }
@@ -62,7 +90,13 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: '#F4F7FB',
-    paddingTop: 56,
+  },
+  column: {
+    flex: 1,
+    minHeight: 0,
+  },
+  columnScroll: {
+    flex: 1,
   },
   scroll: {
     paddingHorizontal: 20,

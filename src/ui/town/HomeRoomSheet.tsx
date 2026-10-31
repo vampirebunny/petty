@@ -49,28 +49,30 @@ export function HomeRoomSheet({ rooms, reducedMotion, onClose, onPick }: Props) 
             <Text style={styles.subtitle}>Which room?</Text>
           </View>
         </GestureDetector>
-        <View style={[styles.grid, centered && styles.gridCentered]}>
-          {rooms.map((room) => {
-            const Icon = icons[room.id];
-            return (
-              <Pressable
-                key={room.id}
-                accessibilityRole="button"
-                accessibilityLabel={room.name}
-                onPress={() => onPick(room.id)}
-                style={styles.room}
-              >
-                {({ pressed }) => (
-                  <View style={[styles.roomFace, pressed && styles.roomPressed]}>
-                    <Icon size={88} />
-                    <View style={styles.pill}>
-                      <Text style={styles.pillText}>{room.name}</Text>
+        <View style={styles.gridWrap}>
+          <View style={[styles.grid, centered && styles.gridCentered]}>
+            {rooms.map((room) => {
+              const Icon = icons[room.id];
+              return (
+                <Pressable
+                  key={room.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={room.name}
+                  onPress={() => onPick(room.id)}
+                  style={styles.room}
+                >
+                  {({ pressed }) => (
+                    <View style={[styles.roomFace, pressed && styles.roomPressed]}>
+                      <Icon size={88} />
+                      <View style={styles.pill}>
+                        <Text style={styles.pillText}>{room.name}</Text>
+                      </View>
                     </View>
-                  </View>
-                )}
-              </Pressable>
-            );
-          })}
+                  )}
+                </Pressable>
+              );
+            })}
+          </View>
         </View>
         <Pressable accessibilityRole="button" accessibilityLabel="Back to map" onPress={onClose} style={styles.back}>
           <Text style={styles.backText}>Back to map</Text>
@@ -117,6 +119,11 @@ const styles = StyleSheet.create({
     color: '#6B6F8A',
     textAlign: 'center',
     marginBottom: 8,
+  },
+  gridWrap: {
+    alignSelf: 'center',
+    width: '100%',
+    maxWidth: 440,
   },
   grid: {
     flexDirection: 'row',

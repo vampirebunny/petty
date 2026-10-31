@@ -12,7 +12,7 @@
 
 **Phase D shipped** on `accounts-phase-b`. A guest sign-in that already belongs to an account restores that account, and a killed restore shows Finish signing in. `supabase/migrations/20261024230000_pull_has_handle.sql` makes `pull_account_state` report a saved handle. Apply that yourself; it does not delete users.
 
-**Phase E shipped** on `accounts-phase-b`. Welcome is the first screen when there is no local pet, including a reinstall whose Keychain session is still there. That session is pulled before adoption, and **Get started** is what installs the pet.
+**Phase E shipped** on `accounts-phase-b`. Welcome is the first screen when there is no local pet, including a reinstall whose Keychain session is still there. That session is pulled before adoption, and **Get started** is what installs the pet. On a landscape split the pink page fills the window and the logo, pets, headline, and button stay in a centered phone-width column.
 
 **Phase F shipped** on `accounts-phase-b`. A linked device asks **Continue here** before taking the slot, and standby keeps the sleeping pet until **Play here**.
 

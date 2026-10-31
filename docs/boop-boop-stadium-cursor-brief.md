@@ -57,6 +57,8 @@ Ambient animation (Reanimated/Skia, the same approach as existing wind-reactive 
 
 ## 3. Lobby (screen 1)
 
+On a landscape split the header scene fills the left side. The lobby, ticket, sign-up form, and starting gate sit in a phone-width column on the right. The sign-up form fills that column instead of a bottom sheet. A race stays full screen.
+
 Top to bottom:
 1. Header scene (section 2), with the back-to-map button top left and the pet chip top right (name, level, class).
 2. Energy and mood bars for the pet (existing stat values; they affect race performance).

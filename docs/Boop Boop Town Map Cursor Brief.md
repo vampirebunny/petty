@@ -35,7 +35,7 @@ All map art is drawn in code with react-native-svg, in the existing cotton candy
 
 - Starts below the header and fills the screen. Top corners rounded (32 pt). Mint grass with lighter and darker soft patches. Grass colors live in one theme object so time of day can tint them later.
 - The map is a fixed 390 by 640 space, cropped below the arcade. Scale it to the device width and keep the aspect ratio. It scrolls vertically when it is taller than the screen. On open, scroll so the pet is visible.
-- Portrait tablets center the map at a max width of 600 pt, with the grass color filling the sides. Landscape keeps the existing phone column (about 400 pt).
+- Portrait tablets center the map at a max width of 600 pt, with the grass color filling the sides. Landscape scales the map to the full window width, drops the top corner radius, and still scrolls vertically. The pet and place labels grow with that scale.
 - Paths: cream, two stacked strokes (outer tan ~26 pt, inner cream ~18 pt, round caps). Two round plazas join the paths. The lower plaza has a small fountain.
 - Decoration: a pond on the left, bush clusters, tiny pastel flower dots. Decoration is not tappable.
 

@@ -21,6 +21,7 @@ const noon = todAt(12);
 const frameMs = 1000 / 30;
 const pink = tints.pink;
 const pinkInk = candyInk(pink);
+export const welcomeBackground = '#FFF4F8';
 
 function welcomeWorld(): World {
   const source = {
@@ -147,11 +148,11 @@ export function WelcomeScreen({ onGetStarted }: Props) {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#FFF4F8',
+    backgroundColor: welcomeBackground,
   },
   screen: {
     flexGrow: 1,
-    backgroundColor: '#FFF4F8',
+    backgroundColor: welcomeBackground,
     alignItems: 'center',
     paddingTop: 64,
     paddingBottom: 28,

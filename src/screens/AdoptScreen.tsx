@@ -26,6 +26,7 @@ import { AccountSheet } from '../ui/AccountSheet';
 import { CandyShell, candyInk, tints } from '../ui/candy';
 import { fontFamily } from '../ui/font';
 import { PetPreview } from '../ui/PetPreview';
+import { AdoptSplit, useAdoptLayout } from './adopt/AdoptLayout';
 import { BreedCard } from './adopt/BreedCard';
 import { LookPicker } from './adopt/LookPicker';
 import { ChooseScreen } from './adopt/ChooseScreen';
@@ -162,6 +163,7 @@ function useExistingAccount(onBusyChange?: (busy: boolean) => void) {
 }
 
 export function AdoptScreen({ onAdopt, onBusyChange }: Props) {
+  const { split, paddingTop } = useAdoptLayout();
   const [draft, setDraft] = useState<AdoptionDraft | null>(null);
   const draftRef = useRef<AdoptionDraft | null>(null);
   const account = useExistingAccount(onBusyChange);
@@ -303,39 +305,66 @@ export function AdoptScreen({ onAdopt, onBusyChange }: Props) {
   }
 
   if (breed && draft.look) {
-    return (
-      <View style={styles.root}>
-        <View style={styles.sticky}>
-          <OnboardingHeader title="Adopt" step={1} />
-          {account.button}
-          <SpeciesToggle species={species} onChange={setSpecies} />
-          <PetPreview species={species} breedId={breed.id} look={draft.look} />
+    const look = draft.look;
+    const options = (
+      <>
+        <LookPicker breed={breed} look={look} onChange={(next) => update({ look: next })} />
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Breed</Text>
+          <Text style={styles.body}>Potential ranges for each breed.</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.breedRow}
+            style={styles.breedScroll}
+          >
+            {breedsFor(species).map((option) => (
+              <BreedCard
+                key={option.id}
+                breed={option}
+                selected={option.id === breed.id}
+                onSelect={() => setBreed(option)}
+              />
+            ))}
+          </ScrollView>
         </View>
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-          <LookPicker breed={breed} look={draft.look} onChange={(look) => update({ look })} />
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Breed</Text>
-            <Text style={styles.body}>Potential ranges for each breed.</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.breedRow}
-              style={styles.breedScroll}
-            >
-              {breedsFor(species).map((option) => (
-                <BreedCard
-                  key={option.id}
-                  breed={option}
-                  selected={option.id === breed.id}
-                  onSelect={() => setBreed(option)}
-                />
-              ))}
+        <Pressable style={styles.choice} onPress={() => update({ step: 'offers' })}>
+          <Text style={styles.choiceLabel}>Continue</Text>
+        </Pressable>
+      </>
+    );
+    return (
+      <View style={[styles.root, { paddingTop }]}>
+        {split ? (
+          <AdoptSplit
+            header={<OnboardingHeader title="Adopt" step={1} />}
+            preview={(frame) =>
+              frame ? <PetPreview species={species} breedId={breed.id} look={look} frame={frame} /> : null
+            }
+          >
+            <View style={styles.column}>
+              <View style={styles.lead}>
+                {account.button}
+                <SpeciesToggle species={species} onChange={setSpecies} />
+              </View>
+              <ScrollView style={styles.columnScroll} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+                {options}
+              </ScrollView>
+            </View>
+          </AdoptSplit>
+        ) : (
+          <>
+            <View style={styles.sticky}>
+              <OnboardingHeader title="Adopt" step={1} />
+              {account.button}
+              <SpeciesToggle species={species} onChange={setSpecies} />
+              <PetPreview species={species} breedId={breed.id} look={look} />
+            </View>
+            <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+              {options}
             </ScrollView>
-          </View>
-          <Pressable style={styles.choice} onPress={() => update({ step: 'offers' })}>
-            <Text style={styles.choiceLabel}>Continue</Text>
-          </Pressable>
-        </ScrollView>
+          </>
+        )}
         {account.signInSheet}
       </View>
     );
@@ -348,7 +377,18 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: '#F4F7FB',
-    paddingTop: 56,
+  },
+  column: {
+    flex: 1,
+    minHeight: 0,
+  },
+  columnScroll: {
+    flex: 1,
+  },
+  lead: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    gap: 12,
   },
   sticky: {
     paddingHorizontal: 20,

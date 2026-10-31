@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
 import { trackScreen } from '../analytics/analytics';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { CloudHopScreen } from '../minigames/cloudHop/CloudHopScreen';
 import { PaddlePawsScreen } from '../minigames/paddlePaws/PaddlePawsScreen';
 import { StayScreen } from '../minigames/stay/StayScreen';
@@ -11,12 +12,27 @@ import { CloudHopIcon } from '../ui/places/cloudHopIcon';
 import { PaddlePawsIcon } from '../ui/places/paddlePawsIcon';
 import { StayIcon } from '../ui/places/stayIcon';
 import { useContentWidth } from '../ui/PhoneColumn';
+import { phoneColumnWidth } from '../ui/wideLayout';
 
 type Props = {
   pet: PetState;
   reducedMotion: boolean;
   onClose: () => void;
 };
+
+// These two games are built for a tall screen. On a wide landscape window, keep a portrait column.
+function PortraitPlay({ backgroundColor, children }: { backgroundColor: string; children: ReactNode }) {
+  const { width, height } = useWindowDimensions();
+  const column = Math.min(phoneColumnWidth, width, Math.floor(height * 0.7));
+  if (width <= height || column >= width - 1) {
+    return <View style={styles.fill}>{children}</View>;
+  }
+  return (
+    <View style={[styles.fill, styles.portraitFrame, { backgroundColor }]}>
+      <View style={{ width: column, flex: 1 }}>{children}</View>
+    </View>
+  );
+}
 
 export function ArcadeScreen({ pet, reducedMotion, onClose }: Props) {
   const [game, setGame] = useState<'hop' | 'paddle' | 'stay' | null>(null);
@@ -28,19 +44,19 @@ export function ArcadeScreen({ pet, reducedMotion, onClose }: Props) {
 
   if (game === 'hop') {
     return (
-      <View style={styles.fill}>
+      <PortraitPlay backgroundColor="#2a2350">
         <CloudHopScreen pet={pet} reducedMotion={reducedMotion} onBack={() => setGame(null)} onMenu={() => setGame(null)} />
         <HandlePrompt petName={pet.name} idle={false} />
-      </View>
+      </PortraitPlay>
     );
   }
 
   if (game === 'paddle') {
     return (
-      <View style={styles.fill}>
+      <PortraitPlay backgroundColor="#143a62">
         <PaddlePawsScreen pet={pet} reducedMotion={reducedMotion} onBack={() => setGame(null)} onMenu={() => setGame(null)} />
         <HandlePrompt petName={pet.name} idle={false} />
-      </View>
+      </PortraitPlay>
     );
   }
 
@@ -87,6 +103,7 @@ export function ArcadeScreen({ pet, reducedMotion, onClose }: Props) {
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
+  portraitFrame: { alignItems: 'center' },
   root: { flex: 1, backgroundColor: '#F6F7FB', paddingTop: 64 },
   scroll: { paddingHorizontal: 16, paddingBottom: 40 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 24 },

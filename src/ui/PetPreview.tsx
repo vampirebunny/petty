@@ -18,6 +18,8 @@ type Props = {
   look: Look | null;
   // Fit the preview into this height, keeping the stage's proportions. Defaults to full width.
   height?: number;
+  // Fit the preview into a measured pane, keeping the stage's proportions.
+  frame?: { width: number; height: number };
 };
 
 // Shown while the pet is a puppy or kitten, since that is the pet the user is adopting.
@@ -44,12 +46,16 @@ function newWorld(breedId: string, look: Look | null): World {
 
 // A small Skia view of the pet being adopted. It only draws: the actor, scene, and look all
 // come from the same data the home screen uses.
-export function PetPreview({ species, breedId, look, height }: Props) {
+export function PetPreview({ species, breedId, look, height, frame }: Props) {
   const width = useContentWidth();
   const ratio = previewStageHeight / stageWidth;
+  const fitted =
+    frame && frame.width > 0 && frame.height > 0
+      ? fitPreview(frame.width, frame.height, ratio)
+      : null;
   const fullWidth = Math.min(560, Math.max(240, width - 40));
-  const viewWidth = height ? Math.min(fullWidth, height / ratio) : fullWidth;
-  const viewHeight = viewWidth * ratio;
+  const viewWidth = fitted ? fitted.width : height ? Math.min(fullWidth, height / ratio) : fullWidth;
+  const viewHeight = fitted ? fitted.height : viewWidth * ratio;
   const breed = breedId ?? fallbackBreed[species];
   const [picture, setPicture] = useState<SkPicture | null>(null);
   const worldRef = useRef<World | null>(null);
@@ -122,7 +128,13 @@ export function PetPreview({ species, breedId, look, height }: Props) {
   }, [viewHeight, viewWidth]);
 
   return (
-    <View style={[styles.frame, { width: viewWidth, height: viewHeight, backgroundColor: previewBackdrop }]}>
+    <View
+      style={[
+        styles.frame,
+        fitted ? styles.frameFill : null,
+        { width: viewWidth, height: viewHeight, backgroundColor: previewBackdrop },
+      ]}
+    >
       <Canvas pointerEvents="none" style={{ width: viewWidth, height: viewHeight }}>
         {picture ? <Picture picture={picture} /> : null}
       </Canvas>
@@ -130,10 +142,21 @@ export function PetPreview({ species, breedId, look, height }: Props) {
   );
 }
 
+function fitPreview(width: number, height: number, ratio: number) {
+  const pad = 16;
+  const boxW = Math.max(1, width - pad * 2);
+  const boxH = Math.max(1, height - pad * 2);
+  const viewWidth = Math.min(boxW, boxH / ratio);
+  return { width: viewWidth, height: viewWidth * ratio };
+}
+
 const styles = StyleSheet.create({
   frame: {
     alignSelf: 'center',
     borderRadius: 12,
     overflow: 'hidden',
+  },
+  frameFill: {
+    borderRadius: 0,
   },
 });

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { ChevronLeft, PawPrint } from 'lucide-react-native';
 import Animated, { cancelAnimation, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 import Svg, { Circle, Ellipse, Path } from 'react-native-svg';
@@ -8,6 +8,7 @@ import type { RoadSpot } from '../../sim/road';
 import type { PetState } from '../../sim/types';
 import { fontFamily } from '../font';
 import { useContentWidth } from '../PhoneColumn';
+import { isLandscapeSplit } from '../wideLayout';
 import { ArcadeIcon, SchoolIcon, ShopIcon, TreeIcon } from '../places/locationIcons';
 import { HomeCottage } from './HomeCottage';
 import { StadiumIcon } from './StadiumIcon';
@@ -56,7 +57,10 @@ function curve(edge: (typeof edges)[number]): string {
 
 export function TownScreen({ pet, species, roadSpot, reducedMotion, onStand, onEnter, onShop, onArcade, onStadium }: Props) {
   const contentWidth = useContentWidth();
-  const mapW = Math.min(maxMapWidth, contentWidth);
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const wide = isLandscapeSplit(windowWidth, windowHeight);
+  const [paneWidth, setPaneWidth] = useState(0);
+  const mapW = wide ? paneWidth || windowWidth : Math.min(maxMapWidth, contentWidth);
   const scale = mapW / mapWidth;
   const mapH = mapHeight * scale;
   const rooms = homeRooms(species);
@@ -267,22 +271,30 @@ export function TownScreen({ pet, species, roadSpot, reducedMotion, onStand, onE
     ? outing.points.filter((_, index) => index >= Math.floor(along * Math.max(0, outing.points.length - 1)) && index % 3 === 0)
     : [];
   const depth = 0.9 + 0.1 * Math.max(0, Math.min(1, spot.y / mapHeight));
+  const grown = scale > 1.2 ? scale : 1;
+  const shownPetW = petW * grown;
+  const shownPetH = petH * grown;
 
   return (
     <View style={styles.root}>
       <View style={styles.header}>
         {outing ? <BackButton onPress={stopWalk} /> : <View style={styles.backSpacer} />}
-        <View style={styles.titles}>
+        <View style={[styles.titles, wide && styles.titlesWide]}>
           <Text style={styles.title}>Boop Boop Town</Text>
           <Text style={styles.subtitle}>Pick a spot for {pet.name}</Text>
         </View>
       </View>
       <ScrollView
         ref={scrollRef}
-        style={styles.scroll}
+        style={[styles.scroll, wide && styles.scrollWide]}
         contentContainerStyle={styles.scrollContent}
         onLayout={(event) => {
-          viewport.current = event.nativeEvent.layout.height;
+          const { width, height } = event.nativeEvent.layout;
+          viewport.current = height;
+          if (wide) {
+            const next = Math.round(width);
+            setPaneWidth((prev) => (prev === next ? prev : next));
+          }
           if (!revealed.current) {
             revealed.current = true;
             scrollToPet(nodes[spotRef.current].y * scaleRef.current);
@@ -337,7 +349,7 @@ export function TownScreen({ pet, species, roadSpot, reducedMotion, onStand, onE
               ))}
             </Svg>
             {buildings.map((building) => (
-              <Door key={building.id} buildingId={building.id} scale={scale} onPress={() => tap(building.id)} />
+              <Door key={building.id} buildingId={building.id} scale={scale} labelScale={grown} onPress={() => tap(building.id)} />
             ))}
             {destBuilding ? (
               <Animated.View
@@ -357,26 +369,37 @@ export function TownScreen({ pet, species, roadSpot, reducedMotion, onStand, onE
               style={[
                 styles.pet,
                 {
-                  left: spot.x * scale - petW / 2,
-                  top: spot.y * scale - petH + 8,
+                  left: spot.x * scale - shownPetW / 2,
+                  top: spot.y * scale - shownPetH + 8 * grown,
+                  width: shownPetW,
+                  height: shownPetH,
                   transform: [{ scale: depth }],
                 },
               ]}
             >
               {leaving ? null : (
-                <TownPet pet={pet} walking={outing != null} face={face} reducedMotion={reducedMotion} width={petW} height={petH} />
+                <TownPet
+                  pet={pet}
+                  walking={outing != null}
+                  face={face}
+                  reducedMotion={reducedMotion}
+                  width={shownPetW}
+                  height={shownPetH}
+                />
               )}
             </View>
           </View>
         </View>
       </ScrollView>
       {outing ? (
-        <View style={styles.walkPill}>
-          <PawPrint size={18} color="#F59AC9" strokeWidth={2.4} />
-          <Text style={styles.walkText}>Walking to the {buildingById(outing.dest).name}</Text>
-          <Pressable accessibilityRole="button" accessibilityLabel="Skip" onPress={() => tap(outing.dest)} hitSlop={8}>
-            <Text style={styles.skip}>Skip</Text>
-          </Pressable>
+        <View style={styles.walkDock} pointerEvents="box-none">
+          <View style={styles.walkPill}>
+            <PawPrint size={18} color="#F59AC9" strokeWidth={2.4} />
+            <Text style={styles.walkText}>Walking to the {buildingById(outing.dest).name}</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel="Skip" onPress={() => tap(outing.dest)} hitSlop={8}>
+              <Text style={styles.skip}>Skip</Text>
+            </Pressable>
+          </View>
         </View>
       ) : null}
       {sheet ? (
@@ -394,7 +417,17 @@ export function TownScreen({ pet, species, roadSpot, reducedMotion, onStand, onE
   );
 }
 
-function Door({ buildingId, scale, onPress }: { buildingId: RoadSpot; scale: number; onPress: () => void }) {
+function Door({
+  buildingId,
+  scale,
+  labelScale,
+  onPress,
+}: {
+  buildingId: RoadSpot;
+  scale: number;
+  labelScale: number;
+  onPress: () => void;
+}) {
   const building = buildingById(buildingId);
   const width = building.w * scale;
   const artH = building.h * scale;
@@ -426,8 +459,8 @@ function Door({ buildingId, scale, onPress }: { buildingId: RoadSpot; scale: num
       ) : (
         <ArcadeIcon size={width} />
       )}
-      <View style={styles.label}>
-        <Text style={styles.labelText}>{building.name}</Text>
+      <View style={[styles.label, labelScale > 1 ? { marginTop: -18 * labelScale, borderRadius: 14 * labelScale } : null]}>
+        <Text style={[styles.labelText, labelScale > 1 ? { fontSize: 13 * labelScale } : null]}>{building.name}</Text>
       </View>
     </Pressable>
   );
@@ -484,6 +517,9 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 2,
   },
+  titlesWide: {
+    alignItems: 'center',
+  },
   title: {
     fontFamily: fontFamily.fredokaBold,
     fontSize: 32,
@@ -499,6 +535,10 @@ const styles = StyleSheet.create({
     backgroundColor: grass.ground,
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
+  },
+  scrollWide: {
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
   },
   scrollContent: {
     alignItems: 'center',
@@ -539,11 +579,16 @@ const styles = StyleSheet.create({
     width: petW,
     height: petH,
   },
-  walkPill: {
+  walkDock: {
     position: 'absolute',
     left: 16,
     right: 16,
     bottom: 24,
+    alignItems: 'center',
+  },
+  walkPill: {
+    width: '100%',
+    maxWidth: 480,
     backgroundColor: '#FFFFFF',
     borderRadius: 24,
     minHeight: 52,

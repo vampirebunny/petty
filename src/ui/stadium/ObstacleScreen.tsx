@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Canvas, Picture, Skia, useFont } from '@shopify/react-native-skia';
 import type { SkPicture } from '@shopify/react-native-skia';
 import * as Haptics from 'expo-haptics';
@@ -477,7 +477,7 @@ export function ObstacleScreen({ race, pet, reducedMotion, onFinish, onExit }: P
       </View>
       {finished && standings ? (
         <View style={styles.results}>
-          <View style={styles.standings}>
+          <ScrollView style={styles.resultsScroll} contentContainerStyle={styles.standings} showsVerticalScrollIndicator={false}>
             <Text style={styles.title}>
               {minePlace === 1 ? `${pet.name} won!` : minePlace ? `${pet.name} placed ${minePlace}${placeSuffix(minePlace)}!` : 'Finish!'}
             </Text>
@@ -492,12 +492,9 @@ export function ObstacleScreen({ race, pet, reducedMotion, onFinish, onExit }: P
               </Text>
             ))}
             <Text style={shared.copy}>{raceTagLabel(race)}.</Text>
-          </View>
-          {resultsReady ? (
-            <CandyButton role="go" label="Back to the Stadium" onPress={onExit} />
-          ) : (
-            <View style={styles.hold} onTouchStart={() => setQuiet((value) => value + 1)} />
-          )}
+          </ScrollView>
+          {resultsReady ? <CandyButton role="go" label="Back to the Stadium" onPress={onExit} /> : null}
+          {resultsReady ? null : <View style={styles.hold} onTouchStart={() => setQuiet((value) => value + 1)} />}
         </View>
       ) : (
         <ObstacleControls
@@ -539,7 +536,8 @@ const styles = StyleSheet.create({
   archCompact: { width: 8, height: 5, borderTopLeftRadius: 4, borderTopRightRadius: 4, borderWidth: 1.5, marginTop: 2 },
   cross: { fontFamily: fontFamily.fredokaBold, fontSize: 12, color: '#EE5A8E', lineHeight: 14 },
   crossCompact: { fontSize: 8, lineHeight: 10 },
-  results: { flex: 1, padding: 16, paddingBottom: 28, justifyContent: 'space-between' },
+  results: { flex: 1, minHeight: 0, padding: 16, paddingBottom: 28, gap: 12 },
+  resultsScroll: { flex: 1 },
   standings: { gap: 8 },
   hold: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
   standing: { fontFamily: fontFamily.bold, fontSize: 16, color: ink },

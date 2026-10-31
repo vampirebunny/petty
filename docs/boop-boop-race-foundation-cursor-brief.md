@@ -158,6 +158,8 @@ The function reads `races`, `race_entries`, `competition_events`, and `competiti
 - "[Pet] can race again at h:mm"
 - Back to Stadium
 
+The standings scroll. Back to the Stadium stays pinned under that list so it stays reachable when the window is short.
+
 Level-ups show the existing level-up moment after the results screen closes.
 
 ## 7. Pet modifiers (attributes, energy, mood)

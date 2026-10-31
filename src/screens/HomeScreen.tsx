@@ -2309,33 +2309,31 @@ export default function HomeScreen({ petApi }: Props) {
   if (state.roadSpot) {
     const townSpecies = breedById(state.breedId)?.species === 'cat' ? 'cat' : 'dog';
     return hosted(
-      <PhoneColumn>
-        <TownScreen
-          pet={state}
-          species={townSpecies}
-          roadSpot={state.roadSpot}
-          reducedMotion={reducedMotion}
-          onStand={(spot) => commitPet({ ...state, roadSpot: spot, asleep: false })}
-          onEnter={(sceneId) => {
-            const walksIn =
-              sceneId === 'livingroom' || sceneId === 'bedroom' || sceneId === 'catio' || sceneId === 'park' || sceneId === 'school';
-            setArriveId(walksIn ? sceneId : null);
-            setScene(sceneId);
-          }}
-          onShop={() => {
-            commitPet({ ...state, roadSpot: 'petShop', asleep: false });
-            setShopOpen(true);
-          }}
-          onArcade={() => {
-            commitPet({ ...state, roadSpot: 'arcade', asleep: false });
-            setArcadeOpen(true);
-          }}
-          onStadium={() => {
-            commitPet({ ...state, roadSpot: 'stadium', asleep: false });
-            setStadiumOpen(true);
-          }}
-        />
-      </PhoneColumn>
+      <TownScreen
+        pet={state}
+        species={townSpecies}
+        roadSpot={state.roadSpot}
+        reducedMotion={reducedMotion}
+        onStand={(spot) => commitPet({ ...state, roadSpot: spot, asleep: false })}
+        onEnter={(sceneId) => {
+          const walksIn =
+            sceneId === 'livingroom' || sceneId === 'bedroom' || sceneId === 'catio' || sceneId === 'park' || sceneId === 'school';
+          setArriveId(walksIn ? sceneId : null);
+          setScene(sceneId);
+        }}
+        onShop={() => {
+          commitPet({ ...state, roadSpot: 'petShop', asleep: false });
+          setShopOpen(true);
+        }}
+        onArcade={() => {
+          commitPet({ ...state, roadSpot: 'arcade', asleep: false });
+          setArcadeOpen(true);
+        }}
+        onStadium={() => {
+          commitPet({ ...state, roadSpot: 'stadium', asleep: false });
+          setStadiumOpen(true);
+        }}
+      />
     );
   }
 
@@ -3855,7 +3853,10 @@ export default function HomeScreen({ petApi }: Props) {
                     rarity: item.rarity,
                     first_time: findModal.isNew ? 1 : 0,
                   });
+                  tips.dismiss();
+                  stageHandle.current?.parkFindNoteInput();
                   setFindModal(null);
+                  setCollectionOpen(true);
                   commitPet({
                     ...state,
                     parkFinds: clearPendingModal(state.parkFinds),
