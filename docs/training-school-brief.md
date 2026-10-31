@@ -40,11 +40,11 @@ These override anything below that still reads the other way.
   - A new pet starts with only the three starter tricks, at 0%. Anything else must be bought and trained again.
 - **Separate trick lists for dogs and cats.** Each trick is either dog-only or cat-only.
 - **Shop lessons open from learned tricks, not age.**
-  - The first pair is for sale on day one.
-  - Each trick that moves from In Training to Learned, including Sit, Speak, and Paw, opens the next two.
+  - The first lesson is for sale on day one.
+  - Each trick that moves from In Training to Learned, including Sit, Speak, and Paw, opens the next one.
   - Lessons still waiting show under **"New lessons unlock as [name] learns new skills"** and cannot be bought. The preview says **"Learn more skills first"**.
-  - Dogs, in order: Down and Spin, High Five and Bow, Jump Up and Roll Over, Jump Through Hoop and Stand Tall, Catch and Jump the Hurdle, Through the Tunnel and Play Dead, Sing and Weave.
-  - Cats, in order: Spin and High Five, Jump Up and Lie Down, Jump the Hurdle and Stand Tall, Fetch and Jump Through Hoop, Through the Tunnel and Roll Over, Sing and Weave.
+  - Dogs, in order: Down, Spin, High Five, Bow, Jump Up, Roll Over, Jump Through Hoop, Stand Tall, Catch, Jump the Hurdle, Through the Tunnel, Play Dead, Sing, Weave.
+  - Cats, in order: Spin, High Five, Jump Up, Lie Down, Jump the Hurdle, Stand Tall, Fetch, Jump Through Hoop, Through the Tunnel, Roll Over, Sing, Weave.
 - **Duplicate purchases are not possible.** A trick the pet already owns, whether in training or learned, shows as "Owned" in the shop.
 - **No refunds**, which is consistent with the Pet Shop.
 - **All tricks are evergreen for now.** There are no limited-edition or exclusive tricks yet, but the schema leaves room for them later (see §2).
@@ -184,37 +184,37 @@ Players start with 1,000 Boops and accrue about 60 per hour. Prices below are th
 | Trick | Price | Opens after learned | Raises | Prop |
 |---|---|---|---|---|
 | Down | 150 | 0 | obedience | |
-| Spin | 150 | 0 | agility | |
-| High Five | 200 | 1 | obedience, affection | |
-| Bow | 250 | 1 | obedience | |
-| Jump Up | 400 | 2 | obedience | podium |
-| Roll Over | 300 | 2 | agility, obedience | |
-| Jump Through Hoop | 550 | 3 | agility, boldness | hoop |
-| Stand Tall | 350 | 3 | stamina, agility | |
-| Catch | 300 | 4 | agility | |
-| Jump the Hurdle | 500 | 4 | agility, boldness | hurdle |
-| Through the Tunnel | 450 | 5 | boldness | pink tunnel |
-| Play Dead | 500 | 5 | intelligence, obedience | |
-| Sing | 450 | 6 | boldness, affection | |
-| Weave | 650 | 6 | agility, intelligence | cone set |
+| Spin | 150 | 1 | agility | |
+| High Five | 200 | 2 | obedience, affection | |
+| Bow | 250 | 3 | obedience | |
+| Jump Up | 400 | 4 | obedience | podium |
+| Roll Over | 300 | 5 | agility, obedience | |
+| Jump Through Hoop | 550 | 6 | agility, boldness | hoop |
+| Stand Tall | 350 | 7 | stamina, agility | |
+| Catch | 300 | 8 | agility | |
+| Jump the Hurdle | 500 | 9 | agility, boldness | hurdle |
+| Through the Tunnel | 450 | 10 | boldness | pink tunnel |
+| Play Dead | 500 | 11 | intelligence, obedience | |
+| Sing | 450 | 12 | boldness, affection | |
+| Weave | 650 | 13 | agility, intelligence | cone set |
 
 **Cats**
 | Trick | Price | Opens after learned | Raises | Prop |
 |---|---|---|---|---|
 | Spin | 150 | 0 | agility | |
-| High Five | 200 | 0 | affection | |
-| Jump Up | 400 | 1 | obedience | podium |
-| Lie Down | 200 | 1 | obedience | |
-| Jump the Hurdle | 500 | 2 | agility, boldness | hurdle |
-| Stand Tall | 350 | 2 | stamina | |
-| Fetch | 500 | 3 | intelligence, boldness | |
-| Jump Through Hoop | 550 | 3 | agility, boldness | hoop |
-| Through the Tunnel | 400 | 4 | boldness | blue tunnel |
-| Roll Over | 400 | 4 | agility | |
-| Sing | 450 | 5 | boldness, affection | |
-| Weave | 650 | 5 | agility, intelligence | cone set |
+| High Five | 200 | 1 | affection | |
+| Jump Up | 400 | 2 | obedience | podium |
+| Lie Down | 200 | 3 | obedience | |
+| Jump the Hurdle | 500 | 4 | agility, boldness | hurdle |
+| Stand Tall | 350 | 5 | stamina | |
+| Fetch | 500 | 6 | intelligence, boldness | |
+| Jump Through Hoop | 550 | 7 | agility, boldness | hoop |
+| Through the Tunnel | 400 | 8 | boldness | blue tunnel |
+| Roll Over | 400 | 9 | agility | |
+| Sing | 450 | 10 | boldness, affection | |
+| Weave | 650 | 11 | agility, intelligence | cone set |
 
-- "Opens after learned" is how many tricks are already Learned before that lesson is for sale. Zero means day one. Sit, Speak, and Paw count. The shop does not use life stage.
+- "Opens after learned" is how many tricks are already Learned before that lesson is for sale. Zero is the one lesson for sale on day one. Each learned trick opens one more. Sit, Speak, and Paw count. The shop does not use life stage.
 - Either species can use a prop the other species' purchase granted. A pink tunnel and a blue tunnel are the same trick type.
 
 ---
@@ -230,7 +230,7 @@ Players start with 1,000 Boops and accrue about 60 per hour. Prices below are th
 ## 6. Acceptance checklist
 - [x] Training School is a door on Boop Boop Town. Taking the pet there opens the training room, and the school controls and the shorter phone stage are on screen with the field.
 - [ ] A new pet has Sit, Speak and Paw in In Training at 0%, and no other tricks.
-- [ ] The Trick Shop shows only tricks for the pet's species. The first pair is for sale immediately. Each learned trick opens the next two. Locked tricks say they unlock as the pet learns new skills and can't be bought. Owned tricks show their status.
+- [ ] The Trick Shop shows only tricks for the pet's species. The first lesson is for sale immediately. Each learned trick opens the next one. Locked tricks say they unlock as the pet learns new skills and can't be bought. Owned tricks show their status.
 - [ ] The preview plays the generic demo. Buying debits Boops through the ledger and adds the trick to In Training on both the school and Home.
 - [ ] The first-purchase tooltip appears once, anchored to the new button, then never again.
 - [ ] At the school, a successful attempt with "Yes" to a treat gives the full treat effect, leaves the treat count unchanged, works with 0 treats, and the prompt says the treat is free.

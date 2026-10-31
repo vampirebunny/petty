@@ -97,7 +97,7 @@ export function tricksForSpecies(species: TrickSpecies): TrickListing[] {
   return trickCatalog.filter((trick) => trick.species === species).sort((a, b) => a.sortOrder - b.sortOrder);
 }
 
-/** Shop order. The first pair is for sale immediately. Each learned trick, including Sit, Speak, and Paw, opens the next two. */
+/** Shop order. The first lesson is for sale immediately. Each learned trick, including Sit, Speak, and Paw, opens the next one. */
 const dogLessons = [
   'dog_down',
   'dog_spin',
@@ -140,7 +140,7 @@ export function learnedTrickCount(pet: PetState): number {
 
 /** How many shop lessons are for sale after this many tricks have been learned. */
 export function lessonsOpen(learned: number, total: number): number {
-  return Math.min(total, 2 + 2 * Math.max(0, learned));
+  return Math.min(total, 1 + Math.max(0, learned));
 }
 
 export function lessonUnlocked(pet: PetState, trickId: string): boolean {

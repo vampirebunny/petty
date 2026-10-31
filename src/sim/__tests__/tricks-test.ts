@@ -14,14 +14,14 @@ it('starts Paw locked and free, and keeps a bought trick', () => {
   expect(training.sit?.source).toBe('starter');
 
   const pup = testPet(1, 'retriever', 0, 'Pup', 'pet');
-  const bought = prepareTrickPurchase(pup, 'dog', 'dog_spin', 1000);
+  const bought = prepareTrickPurchase(pup, 'dog', 'dog_down', 1000);
   expect(bought.ok).toBe(true);
   if (!bought.ok) {
     return;
   }
   expect(bought.price).toBe(150);
-  expect(bought.pet.training.dog_spin).toMatchObject({ source: 'purchase', progress: 0, unlocked: true, mastered: false });
-  expect(prepareTrickPurchase(bought.pet, 'dog', 'dog_spin', 1000)).toEqual({ ok: false, reason: 'owned' });
+  expect(bought.pet.training.dog_down).toMatchObject({ source: 'purchase', progress: 0, unlocked: true, mastered: false });
+  expect(prepareTrickPurchase(bought.pet, 'dog', 'dog_down', 1000)).toEqual({ ok: false, reason: 'owned' });
 });
 
 function learned(pet: PetState, ids: string[]): PetState {
@@ -39,22 +39,21 @@ it('rejects the wrong species, a locked lesson, and a short balance', () => {
   const pup = testPet(1, 'retriever', 0, 'Pup', 'pet');
   expect(prepareTrickPurchase(pup, 'dog', 'cat_spin', 1000)).toEqual({ ok: false, reason: 'species' });
   expect(prepareTrickPurchase(pup, 'dog', 'dog_play_dead', 1000)).toEqual({ ok: false, reason: 'locked' });
-  expect(prepareTrickPurchase(pup, 'dog', 'dog_spin', 10)).toEqual({ ok: false, reason: 'insufficient_boops' });
+  expect(prepareTrickPurchase(pup, 'dog', 'dog_down', 10)).toEqual({ ok: false, reason: 'insufficient_boops' });
   expect(prepareTrickPurchase(pup, 'dog', 'nope', 1000)).toEqual({ ok: false, reason: 'unknown' });
 });
 
-it('opens the first shop pair immediately and two more for each learned trick', () => {
+it('opens the first shop lesson immediately and one more for each learned trick', () => {
   const pup = testPet(1, 'retriever', 0, 'Pup', 'pet');
-  expect(lessonsOpen(0, 14)).toBe(2);
+  expect(lessonsOpen(0, 14)).toBe(1);
   expect(lessonUnlocked(pup, 'dog_down')).toBe(true);
-  expect(lessonUnlocked(pup, 'dog_spin')).toBe(true);
-  expect(lessonUnlocked(pup, 'dog_high_five')).toBe(false);
+  expect(lessonUnlocked(pup, 'dog_spin')).toBe(false);
   const afterSit = learned(pup, ['sit']);
-  expect(lessonUnlocked(afterSit, 'dog_high_five')).toBe(true);
-  expect(lessonUnlocked(afterSit, 'dog_bow')).toBe(true);
-  expect(lessonUnlocked(afterSit, 'dog_jump_up')).toBe(false);
+  expect(lessonUnlocked(afterSit, 'dog_spin')).toBe(true);
+  expect(lessonUnlocked(afterSit, 'dog_high_five')).toBe(false);
   const ready = learned(pup, ['sit', 'speak']);
-  expect(lessonUnlocked(ready, 'dog_jump_up')).toBe(true);
+  expect(lessonUnlocked(ready, 'dog_high_five')).toBe(true);
+  expect(lessonUnlocked(ready, 'dog_bow')).toBe(false);
   expect(lessonOrder('dog')).toEqual([
     'dog_down',
     'dog_spin',
@@ -73,8 +72,9 @@ it('opens the first shop pair immediately and two more for each learned trick', 
   ]);
   const cat = testPet(1, 'domesticShorthair', 0, 'Kit', 'pet');
   expect(lessonUnlocked(cat, 'cat_spin')).toBe(true);
-  expect(lessonUnlocked(cat, 'cat_high_five')).toBe(true);
-  expect(lessonUnlocked(cat, 'cat_jump_up')).toBe(false);
+  expect(lessonUnlocked(cat, 'cat_high_five')).toBe(false);
+  expect(lessonUnlocked(learned(cat, ['sit']), 'cat_high_five')).toBe(true);
+  expect(lessonUnlocked(learned(cat, ['sit']), 'cat_jump_up')).toBe(false);
   expect(lessonOrder('cat')).toEqual([
     'cat_spin',
     'cat_high_five',
@@ -92,12 +92,12 @@ it('opens the first shop pair immediately and two more for each learned trick', 
 });
 
 it('learns a placeholder at the same tier-1 rate and pays its mastery once', () => {
-  const pup = testPet(1, 'retriever', 0, 'Pup', 'pet');
-  const bought = prepareTrickPurchase(pup, 'dog', 'dog_spin', 1000);
+  const fresh = testPet(1, 'retriever', 0, 'Pup', 'pet');
+  const bought = prepareTrickPurchase(learned(fresh, ['sit']), 'dog', 'dog_spin', 1000);
   if (!bought.ok) {
     throw new Error('expected a purchase');
   }
-  const sit = payRep(bought.pet, 'sit', 'treat', 1);
+  const sit = payRep(fresh, 'sit', 'treat', 1);
   const spin = payRep(bought.pet, 'dog_spin', 'treat', 1);
   expect(spin.training.dog_spin?.progress).toBe(sit.training.sit?.progress);
   expect(spin.training.dog_spin?.progress).toBeGreaterThan(0);
@@ -116,7 +116,14 @@ it('learns a placeholder at the same tier-1 rate and pays its mastery once', () 
 });
 
 it('charges the bundle price and grants one prop instance', () => {
-  const pup = learned(testPet(1, 'retriever', 0, 'Pup', 'pet'), ['sit', 'speak']);
+  const base = learned(testPet(1, 'retriever', 0, 'Pup', 'pet'), ['sit', 'speak', 'paw']);
+  const pup = {
+    ...base,
+    training: {
+      ...base.training,
+      dog_down: { ...base.training.sit!, id: 'dog_down', mastered: true, progress: 100, source: 'purchase' as const },
+    },
+  };
   const jump = prepareTrickPurchase(pup, 'dog', 'dog_jump_up', 1000);
   expect(jump.ok).toBe(true);
   if (!jump.ok) {

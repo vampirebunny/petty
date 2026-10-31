@@ -197,7 +197,7 @@ Small goals the game offers, not things the pet asks for. Ignoring one costs not
 - Add a `category` field (`basic` | `advanced`) to each trick. Don't reuse `tier`, which is already the numeric difficulty (`TrackDef.tier`).
 - **Basic:** every trick that doesn't need a prop, including the free starters Sit, Speak and Paw, plus Down, Spin, High Five, Bow, Roll Over, Catch, Stand Tall, Play Dead, Sing, and the cat's Lie Down and Fetch.
 - **Advanced:** every trick that needs a prop: Jump the Hurdle, Through the Tunnel, Jump Through Hoop, Jump Up (dogs and cats, podium), Weave. Place is not a trick (Jump Up replaced it); don't add it.
-- Shop lessons are not age-gated. The first pair is for sale immediately, and each learned trick (including Sit, Speak, and Paw) opens the next two, in the order in `docs/training-school-brief.md`. A race still requires the trick to be learned.
+- Shop lessons are not age-gated. The first lesson is for sale immediately, and each learned trick (including Sit, Speak, and Paw) opens the next one, in the order in `docs/training-school-brief.md`. A race still requires the trick to be learned.
 - **Cat Paw naming:** cats keep **High five** for the starter Paw track. Dogs see Paw. The purchasable High Five (`cat_high_five`) stays a separate trick. Do not rename the starter.
 - Come stays removed.
 - Keep the existing trick-to-attribute mappings in code.
