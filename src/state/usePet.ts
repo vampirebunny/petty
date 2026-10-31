@@ -3,6 +3,7 @@ import { Alert, AppState } from 'react-native';
 import * as Network from 'expo-network';
 
 import { flickToThrow } from '../input/flick';
+import { noteInviteMoment } from '../invites/session';
 import { cancelReminders, syncReminder } from '../reminders/notifications';
 import { AWAY_DECAY } from '../sim/awayDecayConfig';
 import { awayElapsedHours } from '../sim/awayDecay';
@@ -818,6 +819,7 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
       }
       const result = applyEvent(current, event);
       publish(result.state, result.cue);
+      noteInviteMoment();
     },
     [publish],
   );
@@ -835,6 +837,7 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
         pushBurst({ label: payout.label, amount: payout.amount, coinCount });
       }
       publish(settled.pet, result.cue);
+      noteInviteMoment();
       return { ...result, state: settled.pet };
     },
     [publish, pushBurst],

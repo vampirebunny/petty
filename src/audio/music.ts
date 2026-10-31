@@ -1,6 +1,7 @@
 import { createAudioPlayer } from 'expo-audio';
 import type { AudioPlayer } from 'expo-audio';
 
+import { syncCatwalkMusic } from './remoteCatwalkMusic';
 import { syncRemoteMusic } from './remoteMusic';
 import { configurePlayback } from './session';
 
@@ -34,9 +35,11 @@ export function addDownloadedTrack(uri: string): void {
   }
 }
 
-// Fills the playlist from disk, then downloads anything still missing.
+// Fills the scene playlist from disk, then downloads anything still missing —
+// including Catwalk runway tracks (no bundled fallback for those).
 export function prepareRemoteMusic(): void {
   syncRemoteMusic(addDownloadedTrack);
+  void syncCatwalkMusic();
 }
 
 const volume = 0.075;

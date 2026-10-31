@@ -43,6 +43,16 @@ beforeEach(() => {
   jest.spyOn(console, 'warn').mockImplementation(() => undefined);
 });
 
+async function asRelease(run: () => Promise<void>) {
+  const dev = __DEV__;
+  (globalThis as unknown as { __DEV__: boolean }).__DEV__ = false;
+  try {
+    await run();
+  } finally {
+    (globalThis as unknown as { __DEV__: boolean }).__DEV__ = dev;
+  }
+}
+
 afterEach(() => {
   jest.restoreAllMocks();
 });
@@ -58,7 +68,15 @@ it('reads prices from the current offering by store product id', async () => {
 it('ignores an offering that is not current', async () => {
   jest.mocked(Purchases.getOfferings).mockResolvedValue(offering(null, packs) as never);
   await expect(loadBoopsPrices()).resolves.toBeNull();
-  expect(console.warn).toHaveBeenCalledWith('RevenueCat has no current offering.');
+  expect(console.warn).not.toHaveBeenCalled();
+});
+
+it('warns about a missing offering outside development', async () => {
+  jest.mocked(Purchases.getOfferings).mockResolvedValue(offering(null, packs) as never);
+  await asRelease(async () => {
+    await expect(loadBoopsPrices()).resolves.toBeNull();
+    expect(console.warn).toHaveBeenCalledWith('RevenueCat has no current offering.');
+  });
 });
 
 it('omits a pack the current offering does not sell', async () => {
@@ -66,16 +84,14 @@ it('omits a pack the current offering does not sell', async () => {
   const prices = await loadBoopsPrices();
   expect(prices?.has('boops_600')).toBe(false);
   expect(prices?.size).toBe(5);
-  expect(console.warn).toHaveBeenCalledWith(
-    'Boops pack boops_600 is missing from the current offering. Store products: boops_16000, boops_2000, boops_3500, boops_45000, boops_7500.',
-  );
+  expect(console.warn).not.toHaveBeenCalled();
 });
 
 it('does not call the store before RevenueCat is configured', async () => {
   jest.mocked(Purchases.isConfigured).mockResolvedValue(false);
   await expect(loadBoopsPrices()).resolves.toBeNull();
   expect(Purchases.getOfferings).not.toHaveBeenCalled();
-  expect(console.warn).toHaveBeenCalledWith('RevenueCat is not configured.');
+  expect(console.warn).not.toHaveBeenCalled();
 });
 
 it('returns null when the store cannot be reached', async () => {
@@ -84,7 +100,11 @@ it('returns null when the store cannot be reached', async () => {
   });
   jest.mocked(Purchases.getOfferings).mockRejectedValue(error);
   await expect(loadBoopsPrices()).resolves.toBeNull();
-  expect(console.warn).toHaveBeenCalledWith(
-    'RevenueCat offerings could not be loaded. billing unavailable The version is not configured for billing',
-  );
+  expect(console.warn).not.toHaveBeenCalled();
+  await asRelease(async () => {
+    await expect(loadBoopsPrices()).resolves.toBeNull();
+    expect(console.warn).toHaveBeenCalledWith(
+      'RevenueCat offerings could not be loaded. billing unavailable The version is not configured for billing',
+    );
+  });
 });

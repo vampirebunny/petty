@@ -143,10 +143,14 @@ import { BlockConfirm, ReportSheet, ReportThanks } from '../ui/FriendDialogs';
 import { FriendNotifyPrompt } from '../ui/FriendNotifyPrompt';
 import { loadFriends, blockPlayer, reportPlayer } from '../friends/api';
 import { parseFriendLink } from '../friends/friendLink';
-import { onPetCam, reportPresentation, welcomeHomeHeld, welcomeHomeWasReplaced } from '../petCam/session';
+import { onPetCam, pendingCam, raceCallOpen, reportPresentation, welcomeHomeHeld, welcomeHomeWasReplaced } from '../petCam/session';
 import { closeFindFriends, findFriendsSnapshot, onFindFriends, openFindFriends } from '../friends/findOpen';
 import { track, trackScreen } from '../analytics/analytics';
 import type { Screen } from '../analytics/events';
+import { friendGameInviteOpen } from '../invites/session';
+import { useNpcInvitation } from '../invites/useNpcInvitation';
+import type { RunwayInvitation } from '../invites/types';
+import { InvitationOverlay } from '../ui/invites/InvitationOverlay';
 import { onFriendModalRequest } from '../friends/open';
 import { clearPendingAdd, readPendingAdd, savePendingAdd } from '../friends/pendingAdd';
 import { friendPromptShouldShow, newestRequestAt, readFriendSeenAt, writeFriendSeenAt } from '../friends/prompt';
@@ -477,7 +481,9 @@ export default function HomeScreen({ petApi }: Props) {
   const [shopOpen, setShopOpen] = useState(false);
   const [arcadeOpen, setArcadeOpen] = useState(false);
   const [catwalkOpen, setCatwalkOpen] = useState(false);
+  const [runwaySeed, setRunwaySeed] = useState<RunwayInvitation | null>(null);
   const [stadiumOpen, setStadiumOpen] = useState(false);
+  const [raceSeed, setRaceSeed] = useState<{ eventId: string; event: 'funRun' | 'dockDive' | 'sniffOut' | 'trickShow' | 'hurdles' | 'weave' | 'obstacle'; startsAt: number } | null>(null);
   const [stadiumGate, setStadiumGate] = useState(0);
   const [friendGameRoom, setFriendGameRoom] = useState<string | null>(null);
   const [friendCount, setFriendCount] = useState<number | undefined>(undefined);
@@ -1952,6 +1958,47 @@ export default function HomeScreen({ petApi }: Props) {
     dismissBurst();
   };
 
+  const inviteHome =
+    !!state &&
+    !state.roadSpot &&
+    (state.sceneId === 'livingroom' || state.sceneId === 'bedroom' || state.sceneId === 'catio');
+  const inviteBlocked = Boolean(
+    findModal ||
+      learnedTrick ||
+      badgeShow ||
+      burst ||
+      friendsOpen ||
+      settingsOpen ||
+      catwalkOpen ||
+      stadiumOpen ||
+      shopOpen ||
+      wardrobeOpen ||
+      arcadeOpen ||
+      collectionOpen ||
+      pantryOpen ||
+      playdateOpen ||
+      friendPrompt ||
+      playOpen ||
+      pendingCam() ||
+      raceCallOpen() ||
+      friendGameInviteOpen(),
+  );
+  const npcInvite = useNpcInvitation({
+    pet: state,
+    linked: readAccountLinked(),
+    home: inviteHome,
+    blocked: inviteBlocked,
+    onAccept: (invitation) => {
+      if (invitation.type === 'runway') {
+        setRunwaySeed(invitation);
+        setCatwalkOpen(true);
+        return;
+      }
+      setRaceSeed({ eventId: invitation.eventId, event: invitation.event, startsAt: invitation.startsAt });
+      setStadiumOpen(true);
+    },
+  });
+
   const hosted = (screen: ReactNode) => (
     <FindFriendsHost accountHandle={accountHandle} onChanged={() => setFriendTick((value) => value + 1)}>
       {screen}
@@ -2008,6 +2055,16 @@ export default function HomeScreen({ petApi }: Props) {
               setFriendTick((value) => value + 1);
             }
           }}
+        />
+      ) : null}
+      {npcInvite.invitation && inviteHome && !inviteBlocked ? (
+        <InvitationOverlay
+          invitation={npcInvite.invitation}
+          reducedMotion={reducedMotion}
+          onDismiss={npcInvite.dismiss}
+          onAccept={npcInvite.accept}
+          onDue={npcInvite.due}
+          onOpened={npcInvite.opened}
         />
       ) : null}
     </FindFriendsHost>
@@ -2184,9 +2241,11 @@ export default function HomeScreen({ petApi }: Props) {
         ownerId={state.ownerId || currentOwner()}
         owned={owned}
         reducedMotion={reducedMotion}
+        seed={runwaySeed}
         onClose={() => {
           commitPet({ ...state, roadSpot: 'catwalk', asleep: false });
           setCatwalkOpen(false);
+          setRunwaySeed(null);
         }}
       />,
     );
@@ -2206,6 +2265,7 @@ export default function HomeScreen({ petApi }: Props) {
           setStadiumOpen(false);
           setStadiumGate(0);
           setFriendGameRoom(null);
+          setRaceSeed(null);
         }}
         onCommit={commitPet}
         onTrain={() => {
@@ -2234,6 +2294,11 @@ export default function HomeScreen({ petApi }: Props) {
           setShopOpen(true);
         }}
         onAtGate={setAtGate}
+        openRace={raceSeed}
+        onInviteUnavailable={() => {
+          setStadiumOpen(false);
+          setRaceSeed(null);
+        }}
       />,
     );
   }

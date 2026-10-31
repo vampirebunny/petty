@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { ChevronLeft, Flag, Users, WifiOff } from 'lucide-react-native';
 
@@ -18,7 +18,8 @@ import {
 } from '../stadium/friendGames';
 import { gameplayConfig } from '../sim/gameplayConfig';
 import { applyFriendRaceResult, applyRaceRewards, noteFriendGameStarted } from '../sim/raceRewards';
-import { classForEvent, classForLevel, dropEndedSignup, eventLabel, isPlayableEvent, racesOf, skillBlock, withSignup, type RaceSignup, type SkillBlock } from '../sim/stadium';
+import { recordFormatEntered } from '../invites/store';
+import { classForEvent, classForLevel, dropEndedSignup, eventLabel, isPlayableEvent, racesOf, skillBlock, withSignup, type RaceEvent, type RaceSignup, type SkillBlock } from '../sim/stadium';
 import type { PetState } from '../sim/types';
 import { fontFamily } from '../ui/font';
 import { FitScale } from '../ui/FitScale';
@@ -41,6 +42,8 @@ import { FriendGameSetup } from '../ui/stadium/FriendGameSetup';
 import { NpcCalibrationStadium } from '../ui/stadium/NpcCalibrationDebug';
 import { FriendRoom, type FriendRoomExit } from '../ui/stadium/FriendRoom';
 import { AccountSheet } from '../ui/AccountSheet';
+import { raceStillValid, retargetRace } from '../invites/pick';
+import type { RaceOption } from '../invites/types';
 import { iconStroke } from '../ui/theme';
 
 type Props = {
@@ -58,6 +61,9 @@ type Props = {
   onMoodTreat: () => void;
   onShop: () => void;
   onAtGate: (atGate: boolean) => void;
+  /** Open the sign-up sheet for this invitation, skipping the lobby. */
+  openRace?: { eventId: string; event: RaceEvent; startsAt: number } | null;
+  onInviteUnavailable?: () => void;
 };
 
 type Screen = 'loading' | 'lobby' | 'ticket' | 'gate' | 'race' | 'friendSetup' | 'friendRoom';
@@ -114,6 +120,8 @@ export function StadiumScreen({
   onMoodTreat,
   onShop,
   onAtGate,
+  openRace = null,
+  onInviteUnavailable,
 }: Props) {
   const [now, setNow] = useState(() => serverNow());
   const [board, setBoard] = useState<StadiumBoard | null>(null);
@@ -143,6 +151,14 @@ export function StadiumScreen({
   const boardRef = useRef(board);
   const screenRef = useRef(screen);
   const atGateRef = useRef(onAtGate);
+  const openRaceRef = useRef(openRace);
+  const missRef = useRef(onInviteUnavailable);
+  const [hiddenInvite, setHiddenInvite] = useState<string | null>(null);
+
+  useEffect(() => {
+    openRaceRef.current = openRace;
+    missRef.current = onInviteUnavailable;
+  }, [openRace, onInviteUnavailable]);
 
   useEffect(() => {
     if (screen === 'gate' || screen === 'race') {
@@ -185,6 +201,9 @@ export function StadiumScreen({
       if (screenRef.current === 'loading') {
         setScreen('lobby');
       }
+      if (openRaceRef.current && screenRef.current === 'loading') {
+        missRef.current?.();
+      }
       return;
     }
     setBoardReason(null);
@@ -216,6 +235,35 @@ export function StadiumScreen({
     }, 1000);
     return () => clearInterval(timer);
   }, [load]);
+
+  const inviteKey = openRace ? `${openRace.eventId}:${openRace.startsAt}` : null;
+  const inviteSheet = useMemo(() => {
+    if (!openRace || !board || hiddenInvite === inviteKey) {
+      return null;
+    }
+    const options: RaceOption[] = board.slots.flatMap((slot) =>
+      slot.events.map((card) => ({
+        eventId: card.id,
+        event: card.event,
+        cup: card.cup,
+        classId: classForEvent(card.event, card.cup, board.classId),
+        state: card.state,
+        startsAt: slot.startsAt,
+      })),
+    );
+    const stored = options.find((row) => row.eventId === openRace.eventId);
+    const chosen = stored && raceStillValid(stored, serverNow()) ? stored : retargetRace(options, openRace.event, serverNow());
+    const slot = chosen ? board.slots.find((row) => row.events.some((card) => card.id === chosen.eventId)) : undefined;
+    const card = slot?.events.find((row) => row.id === chosen?.eventId);
+    return slot && card ? { card, slot } : null;
+  }, [board, hiddenInvite, inviteKey, openRace]);
+
+  useEffect(() => {
+    if (!openRace || !board || hiddenInvite === inviteKey || inviteSheet) {
+      return;
+    }
+    onInviteUnavailable?.();
+  }, [board, hiddenInvite, inviteKey, inviteSheet, onInviteUnavailable, openRace]);
 
   useEffect(() => {
     atGateRef.current(screen === 'gate' || screen === 'race' || screen === 'friendRoom');
@@ -269,14 +317,15 @@ export function StadiumScreen({
   };
 
   const signUp = async () => {
-    if (!sheet || busy) {
+    const current = sheet ?? inviteSheet;
+    if (!current || busy) {
       return;
     }
     setBusy(true);
     if (!racesOf(petRef.current).entered) {
       await askRaceReminderPermission();
     }
-    const result = await signUpFor(petRef.current.id, sheet.card.id);
+    const result = await signUpFor(petRef.current.id, current.card.id);
     setBusy(false);
     if (!result.ok) {
       if (result.offline) {
@@ -289,7 +338,13 @@ export function StadiumScreen({
       return;
     }
     commitRef.current(withSignup(petRef.current, result.data, serverNow()));
+    if (petRef.current.ownerId) {
+      void recordFormatEntered(petRef.current.ownerId, 'race', petRef.current.openedDays);
+    }
     setSheet(null);
+    if (inviteKey) {
+      setHiddenInvite(inviteKey);
+    }
     setScreen('ticket');
     void load();
   };
@@ -595,13 +650,14 @@ export function StadiumScreen({
           )}
         </View>
   );
+  const visibleSheet = sheet ?? inviteSheet;
   const signupSheet =
-    sheet && board ? (
+    visibleSheet && board ? (
       <SignUpSheet
         panel={split}
-        card={sheet.card}
-        slot={sheet.slot}
-        classId={classForEvent(sheet.card.event, sheet.card.cup, classId)}
+        card={visibleSheet.card}
+        slot={visibleSheet.slot}
+        classId={classForEvent(visibleSheet.card.event, visibleSheet.card.cup, classId)}
         capacity={board.capacity}
         petName={pet.name}
         energy={pet.needs.energy}
@@ -609,7 +665,12 @@ export function StadiumScreen({
         now={now}
         busy={busy}
         onSignUp={() => void signUp()}
-        onClose={() => setSheet(null)}
+        onClose={() => {
+          setSheet(null);
+          if (inviteKey) {
+            setHiddenInvite(inviteKey);
+          }
+        }}
       />
     ) : null;
   const notices = (

@@ -4,6 +4,11 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
 import { getSupabase } from '../compliance/supabase';
+import { currentOwner } from '../db/currentOwner';
+import { localDay } from '../economy/clock';
+import { markInvitePushOpened } from '../invites/push';
+import { requestNpcInvite } from '../invites/session';
+import { updateCounters } from '../invites/store';
 import { requestGate } from '../stadium/raceCall';
 import { requestFriendGame, requestFriendModal, requestRunwayShow } from './open';
 
@@ -92,7 +97,25 @@ function presentWhileOpen(): void {
   });
 }
 
+function noteFriendPush(): void {
+  try {
+    const ownerId = currentOwner();
+    void updateCounters(ownerId, (counters) => ({ ...counters, friendPushDay: localDay(Date.now()) })).catch(() => undefined);
+  } catch {
+    // The owner id is not ready yet. The next friend push can record the day.
+  }
+}
+
 function openFriendPush(data: PushData | undefined): void {
+  if (
+    data?.kind === 'friend_request' ||
+    data?.kind === 'friend_game' ||
+    data?.kind === 'runway_show' ||
+    data?.kind === 'runway_vote' ||
+    data?.kind === 'runway_results'
+  ) {
+    noteFriendPush();
+  }
   if (data?.kind === 'friend_request') {
     requestFriendModal();
   }
@@ -114,6 +137,11 @@ export function listenForFriendPushes(): void {
   presentWhileOpen();
   const open = (response: Notifications.NotificationResponse) => {
     const data = pushData(response.notification);
+    if (data?.kind === 'npc_invite') {
+      markInvitePushOpened();
+      requestNpcInvite();
+      return;
+    }
     openFriendPush(data);
     if (data?.kind === 'race') {
       requestGate(typeof data.raceId === 'string' ? data.raceId : null);
@@ -121,7 +149,11 @@ export function listenForFriendPushes(): void {
   };
   Notifications.addNotificationResponseReceivedListener(open);
   Notifications.addNotificationReceivedListener((notification) => {
-    openFriendPush(pushData(notification));
+    const data = pushData(notification);
+    if (data?.kind === 'npc_invite') {
+      return;
+    }
+    openFriendPush(data);
   });
   const launched = Notifications.getLastNotificationResponse();
   if (launched) {

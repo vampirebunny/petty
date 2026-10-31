@@ -12,6 +12,8 @@ type Props = {
   wornId: string | undefined;
   onPress: (itemId: string, worn: boolean) => void;
   reducedMotion: boolean;
+  /** Overrides the default Hats/Glasses/… plate when the section is reused (e.g. costume rack). */
+  title?: string;
 };
 
 function chunk<T>(items: T[], cols: number): T[][] {
@@ -22,7 +24,7 @@ function chunk<T>(items: T[], cols: number): T[][] {
   return rows;
 }
 
-export function ClosetSection({ slot, items, wornId, onPress, reducedMotion }: Props) {
+export function ClosetSection({ slot, items, wornId, onPress, reducedMotion, title }: Props) {
   if (items.length === 0) {
     return null;
   }
@@ -32,7 +34,7 @@ export function ClosetSection({ slot, items, wornId, onPress, reducedMotion }: P
   return (
     <View style={styles.card}>
       <Text accessibilityRole="header" style={styles.plate}>
-        {spec.title}
+        {title ?? spec.title}
       </Text>
       {rows.map((row, index) => (
         <View key={index} style={styles.row}>

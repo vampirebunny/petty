@@ -17,6 +17,7 @@ import { gameplayConfig } from '../sim/gameplayConfig';
 import { eventLabel, formatCountdown, racesOf, withSignup } from '../sim/stadium';
 import type { PetState } from '../sim/types';
 import { pushPetBeforeRead } from '../sync/queue';
+import { setFriendGameInviteOpen } from '../invites/session';
 import { FunModal } from './FunModal';
 
 type Props = {
@@ -75,6 +76,12 @@ export function FriendGameInviteModal({ pet, linked, hidden, reducedMotion, onCo
     (row) => !dismissed.includes(row.raceId) && row.startsAt - gameplayConfig.races.lockMs > now,
   );
   const invite = open.find((row) => row.raceId === focus) ?? open[0] ?? null;
+  const showing = !hidden && linked && invite != null;
+
+  useEffect(() => {
+    setFriendGameInviteOpen(showing);
+    return () => setFriendGameInviteOpen(false);
+  }, [showing]);
 
   useEffect(() => {
     if (!invite) return;

@@ -19,6 +19,9 @@ import { findFriendsSnapshot, onFindFriends, openFindFriends, openFriendScanner 
 import { friendPromptShouldShow } from '../friends/prompt';
 import { friendErrorCopy, inviteShareMessage } from '../friends/rules';
 import { track } from '../analytics/analytics';
+import { cancelNpcPush } from '../invites/push';
+import { readInvitePushes, writeInvitePushes } from '../invites/store';
+import { currentOwner } from '../db/currentOwner';
 import type { FriendRow } from '../friends/types';
 import { setSuppressOpenPath } from '../state/sessionGate';
 import { CandyShell, candyInk, tints } from './candy';
@@ -54,6 +57,7 @@ export function FriendsManage({ handle, careRemindersOn, onCareReminders, onClos
   const [thanks, setThanks] = useState<Person | null>(null);
   const [block, setBlock] = useState<Person | null>(null);
   const [friendNotes, setFriendNotes] = useState(true);
+  const [invitePushes, setInvitePushes] = useState(true);
   const [permission, setPermission] = useState<string>('undetermined');
   const [promptOpen, setPromptOpen] = useState(false);
 
@@ -88,6 +92,15 @@ export function FriendsManage({ handle, careRemindersOn, onCareReminders, onClos
         setFriendNotes(enabled);
       }
     });
+    try {
+      void readInvitePushes(currentOwner()).then((enabled) => {
+        if (!cancelled) {
+          setInvitePushes(enabled);
+        }
+      });
+    } catch {
+      // Owner id is not ready. The switch stays on, which is the default.
+    }
     void Notifications.getPermissionsAsync().then((current) => {
       if (!cancelled) {
         setPermission(current.status);
@@ -213,6 +226,26 @@ export function FriendsManage({ handle, careRemindersOn, onCareReminders, onClos
         >
           <Text style={styles.section}>Care reminders</Text>
           <Text style={styles.meta}>{careRemindersOn ? 'On' : 'Off'}</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="switch"
+          accessibilityState={{ checked: invitePushes }}
+          onPress={() => {
+            const next = !invitePushes;
+            setInvitePushes(next);
+            try {
+              void writeInvitePushes(currentOwner(), next);
+            } catch {
+              // The switch still updates. The next save can persist it.
+            }
+            if (!next) {
+              void cancelNpcPush();
+            }
+          }}
+          style={styles.switchRow}
+        >
+          <Text style={styles.section}>Race and runway invitations</Text>
+          <Text style={styles.meta}>{invitePushes ? 'On' : 'Off'}</Text>
         </Pressable>
         <Text style={styles.section}>Requests</Text>
         {incoming.length === 0 ? <Text style={styles.meta}>No requests right now.</Text> : null}

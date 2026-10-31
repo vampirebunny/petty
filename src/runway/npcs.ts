@@ -330,8 +330,11 @@ export function buildSoloShow(args: {
   trackId: string;
   pet: RunwayPetSnap;
   playerLooks: { lookNumber: 1 | 2 | 3; wardrobe: Partial<Record<OutfitSlot, string>>; costumes: string[] }[];
+  /** Pre-dressed contestants from an invitation. The show id stays the one they were dressed for. */
+  npcSubmissions?: RunwaySubmission[];
+  showId?: string;
 }): LocalRunwayShow {
-  const id = `solo-${args.ownerId}-${Date.now()}`;
+  const id = args.showId ?? `solo-${args.ownerId}-${Date.now()}`;
   const frozen = freezePlayerLooks(args.playerLooks);
   const playerSub: RunwaySubmission = {
     submissionId: `sub-${id}-self`,
@@ -341,8 +344,7 @@ export function buildSoloShow(args: {
     submittedAt: Date.now(),
     claimedCostumeIds: frozen.claimed,
   };
-  const npcs = pickNpcModels({ id });
-  const npcSubs = dressNpcModels(id, args.themeId, frozen.claimed, npcs);
+  const npcSubs = args.npcSubmissions ?? dressNpcModels(id, args.themeId, frozen.claimed, pickNpcModels({ id }));
   return {
     id,
     mode: 'solo',

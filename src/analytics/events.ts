@@ -135,6 +135,14 @@ export type AnalyticsEvents = {
   competition_enter: { type: RaceEvent; class: RaceClass; cup: RaceCup; live_players: number };
   competition_result: { type: RaceEvent; class: RaceClass; cup: RaceCup; placement: number; ribbon: Bit };
   competition_blocked: { type: RaceEvent; missing_trick: string };
+
+  invite_created: { type: 'runway' | 'race'; subject: string; trigger: 'first' | 'lapsed' | 'new' };
+  invite_shown: { type: 'runway' | 'race'; surface: 'in_app' | 'push' };
+  invite_opened: { type: 'runway' | 'race'; seconds_to_open: number };
+  invite_accepted: { type: 'runway' | 'race'; retargeted: Bit };
+  invite_dismissed: { type: 'runway' | 'race'; method: 'button' | 'tap_outside' };
+  invite_expired: { type: 'runway' | 'race' };
+  invite_event_completed: { type: 'runway' };
 };
 
 export type UserProps = {

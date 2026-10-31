@@ -7,6 +7,7 @@ import { gameplayConfig } from '../sim/gameplayConfig';
 import { eventLabel, raceReminderAt, racesOf } from '../sim/stadium';
 import { planReminders, reminderCopy } from './nextReminder';
 import { track } from '../analytics/analytics';
+import { scheduleNpcPush } from '../invites/push';
 
 let handlerReady = false;
 const raceCallId = 'race-call';
@@ -78,22 +79,26 @@ export async function syncReminder(
   try {
     ensureHandler();
     await Notifications.cancelAllScheduledNotificationsAsync();
+    const finish = async (value: boolean) => {
+      await scheduleNpcPush(pet, now);
+      return value;
+    };
     const raceDue = raceReminderAt(pet, now + readServerOffsetMs()) != null;
     if (!enabled && !care.enabled && !raceDue) {
-      return false;
+      return finish(false);
     }
     const current = await Notifications.getPermissionsAsync();
     let status = current.status;
     if (status !== 'granted') {
       if (!ask || status === 'denied') {
-        return status === 'denied' ? false : enabled;
+        return finish(status === 'denied' ? false : enabled);
       }
       const requested = await Notifications.requestPermissionsAsync();
       status = requested.status;
       track('notif_permission', { context: 'care', granted: status === 'granted' ? 1 : 0 });
     }
     if (status !== 'granted') {
-      return false;
+      return finish(false);
     }
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync('care', {
@@ -120,7 +125,7 @@ export async function syncReminder(
       });
     }
     if (!enabled && !care.enabled) {
-      return false;
+      return finish(false);
     }
     const reminders = planReminders(pet, now, { reminders: enabled, care: care.enabled, basicTreats: care.basicTreats });
     for (const reminder of reminders) {
@@ -136,7 +141,7 @@ export async function syncReminder(
         },
       });
     }
-    return true;
+    return finish(true);
   } catch {
     return enabled;
   }

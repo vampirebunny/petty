@@ -36,8 +36,8 @@ export type RunwayCostume = {
 export type RunwayTrack = {
   id: string;
   title: string;
-  /** Static require module id for local seed tracks. */
-  asset: number;
+  /** Object name in the public `catwalk-music` Storage bucket (and on disk under that folder). */
+  fileName: string;
 };
 
 export const runwayThemes: RunwayTheme[] = [
@@ -99,16 +99,16 @@ const themeSpecific: RunwayCostume[] = [
 export const runwayCostumes: RunwayCostume[] = [...themeSpecific, ...versatile];
 
 export const runwayTracks: RunwayTrack[] = [
-  { id: 'fashion-show-music', title: 'Fashion Show', asset: require('../../assets/runway-music/absolutesound-fashion-show-music-504647.mp3') },
-  { id: 'fashion-vogue', title: 'Fashion Vogue', asset: require('../../assets/runway-music/absolutesound-fashion-show-vogue-504648.mp3') },
-  { id: 'runway-flute', title: 'Runway Flute', asset: require('../../assets/runway-music/astronautflute-fashion-runway-music-554673.mp3') },
-  { id: 'runway-rebel', title: 'Runway Rebel', asset: require('../../assets/runway-music/bassloom-runway-rebel-553307.mp3') },
-  { id: 'fashion-runway', title: 'Fashion Runway', asset: require('../../assets/runway-music/bearstockmusic-fashion-runway-586679.mp3') },
-  { id: 'berry-runway', title: 'Berry Runway', asset: require('../../assets/runway-music/berrydeep-fashion-runway-565396.mp3') },
-  { id: 'runway-groove', title: 'Runway Groove', asset: require('../../assets/runway-music/echomoodz-runway-groove-246071.mp3') },
-  { id: 'runway-instrumental', title: 'Runway Instrumental', asset: require('../../assets/runway-music/maison_brava-runway-instrumental-376958.mp3') },
-  { id: 'runway-royalty', title: 'Runway Royalty', asset: require('../../assets/runway-music/maison_brava-runway-royalty-388307.mp3') },
-  { id: 'positive-fun', title: 'Positive Fun', asset: require('../../assets/runway-music/musictown-positive-fun-exploration-110144.mp3') },
+  { id: 'fashion-show-music', title: 'Fashion Show', fileName: 'absolutesound-fashion-show-music-504647.mp3' },
+  { id: 'fashion-vogue', title: 'Fashion Vogue', fileName: 'absolutesound-fashion-show-vogue-504648.mp3' },
+  { id: 'runway-flute', title: 'Runway Flute', fileName: 'astronautflute-fashion-runway-music-554673.mp3' },
+  { id: 'runway-rebel', title: 'Runway Rebel', fileName: 'bassloom-runway-rebel-553307.mp3' },
+  { id: 'fashion-runway', title: 'Fashion Runway', fileName: 'bearstockmusic-fashion-runway-586679.mp3' },
+  { id: 'berry-runway', title: 'Berry Runway', fileName: 'berrydeep-fashion-runway-565396.mp3' },
+  { id: 'runway-groove', title: 'Runway Groove', fileName: 'echomoodz-runway-groove-246071.mp3' },
+  { id: 'runway-instrumental', title: 'Runway Instrumental', fileName: 'maison_brava-runway-instrumental-376958.mp3' },
+  { id: 'runway-royalty', title: 'Runway Royalty', fileName: 'maison_brava-runway-royalty-388307.mp3' },
+  { id: 'positive-fun', title: 'Positive Fun', fileName: 'musictown-positive-fun-exploration-110144.mp3' },
 ];
 
 export function themeById(id: string): RunwayTheme | undefined {

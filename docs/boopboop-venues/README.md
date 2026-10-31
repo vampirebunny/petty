@@ -24,7 +24,7 @@ The full stack is 950 px tall. Scroll speed is a multiple of the pet's ground sp
 - Scale every layer by the same factor: `s = screenHeight / 950`, anchored to the bottom of the screen.
 - The pet's paws sit on the floor layer at y 62 (stack y 732), so the paw line is at `732 × s` from the top.
 - Each frame, for a layer with speed `k`: `offset = -((scroll × k × s) mod (1200 × s))`, then draw copies at `offset`, `offset + 1200 × s`, … until the screen is covered. `scroll` grows while the pet walks out and shrinks while it walks back; it stays still during the enter, pose, turn and exit steps.
-- In Skia, load each SVG once (`Skia.SVG.MakeFromString`), record it into a picture or image at the current scale, and reuse it for every copy. Don't re-parse per frame.
+- In Skia, load each SVG once (`Skia.SVG.MakeFromString` from the strings in `src/runway/venueSvgXml.ts`), draw with `canvas.drawSvg` at the layer's y/height × scale, and reuse the parsed SVG for every horizontal copy. Do not feed runway SVGs to React Native `Image` — Metro treats `.svg` as an asset binary and `Image` will not paint them (black stage). Don't re-parse per frame.
 - A screen taller than 950 × s (if you cap `s`): fill the space above the stack with the theme's sky color, which is the background rect in `1-sky.svg`.
 
 ## Style

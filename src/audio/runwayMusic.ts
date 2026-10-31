@@ -3,6 +3,7 @@ import type { AudioPlayer } from 'expo-audio';
 
 import { configurePlayback } from './session';
 import { holdMusic, isMusicEnabled } from './music';
+import { localCatwalkUri } from './remoteCatwalkMusic';
 import { trackById } from '../runway/catalog';
 
 const volume = 0.18;
@@ -20,13 +21,16 @@ function dispose(): void {
 
 function playLoop(trackId: string): void {
   const track = trackById(trackId);
-  if (!track) {
+  const uri = track ? localCatwalkUri(track.fileName) : null;
+  if (!uri) {
+    // Missing or not yet downloaded — stay silent, no fallback.
     dispose();
+    currentTrackId = null;
     return;
   }
   try {
     dispose();
-    const next = createAudioPlayer(track.asset, { keepAudioSessionActive: true });
+    const next = createAudioPlayer(uri, { keepAudioSessionActive: true });
     next.loop = true;
     next.volume = volume;
     player = next;

@@ -17,8 +17,10 @@ Each player submits 3 looks; the show's creator sets the theme and the music.
 
 - **3 looks:** each look is built from the player's owned wardrobe items (Closet) plus any available runway costume pieces (see Costumes). A look can use several pieces. Each look needs at least one piece, closet or costume.
 - **One piece per slot:** choosing another closet item or costume for a slot replaces what was there. Closet items and costumes share head, face, neck, body, and feet. Back is costumes only. Closet `OutfitSlot` stays the five everyday slots; costumes use a parallel slot type that includes `back`.
-- **Music:** one track from a list stored in Supabase for the whole show. The inviter picks it for a friend show (invitees hear it but don't choose it); the player picks it for a solo show. Playback loops that track for every round and every model, including across skips. The app mute switch silences it. If the track no longer exists, play silently. No error, no fallback track. Seed files are the ten mp3s in `docs/runway music/`.
-- **Theme:** solo shows, the player picks it. Friend shows, the inviter picks it when sending invites, and it applies to everyone. The theme sets the venue background and which costume pieces are on the rack.
+- **Music:** one track from a list stored in Supabase for the whole show. The inviter picks it for a friend show (invitees hear it but don't choose it); the player picks it for a solo show. Playback loops that track for every round and every model, including across skips. The app mute switch silences it. If the track is missing locally, play silently. No error, no fallback track, and **no bundled runway audio** (keeps the binary small). Source files are the ten re-encoded MP3s in `docs/runway music/` (128 kbps stereo). Host them in the public Storage bucket `catwalk-music` (same public-read pattern as `background-music`). Object names match the filenames and `runway_tracks.audio_path`. The client downloads every object into `Documents/catwalk-music/` when Home runs `prepareRemoteMusic` (and again on foreground / network restore), skipping any file that already exists with size > 0 — there is no content-hash check. To ship an updated take of a track, upload under a **new** object name and point `audio_path` / the client `fileName` at it.
+- **Theme:** solo shows, the player picks it. Friend shows, the inviter picks it when sending invites, and it applies to everyone. The theme sets the venue background and which costume pieces are on the rack. The theme picker shows a still of each venue (Skia composite of the layered SVGs): 2 columns on phones, 3 on mid-width, 4 on wide tablets.
+- **Music picker:** each row has a play control that previews ~10 seconds of the downloaded track (with a small sound-bars animation while it plays). Tapping the title chooses the track and continues. Missing local audio stays silent.
+- **Backstage:** wardrobe-style look builder on a dark grey page, with a live pet preview of the current look.
 - **Snapshot on submit:** the three looks lock forever. Store each worn item's id and a copy of the colorway it resolved to (its colors and its clothing pattern, which live together on the item). Store each costume the same way. Later Closet changes, and a later recolor of the catalog item, do not change the show. Playback uses the current drawing code for that shape with the saved colorway. There is no new closet model: players still pick items, not a color and a pattern on their own.
 - **No theme tags on wardrobe items.** Only costume pieces carry theme tags.
 
@@ -174,7 +176,7 @@ Suggested tables; adjust names to match existing conventions. Costume claims and
 - Drip unlock times derive from `invites_sent_at` + rack position, so no scheduled job is needed.
 - Votes store the voter only to enforce one vote each, and that vote cannot be changed. The app never displays who voted for whom. Account deletion removes the voter id and keeps the tally.
 - `poll_closes_at` is `voting_opens_at` plus the poll length (15 minutes). Set both when voting opens.
-- Theme, costume and track catalogs are downloaded like the Pet Shop catalog.
+- Theme and costume catalogs ship in the client (`src/runway/catalog.ts`) and are mirrored in Supabase seed tables. Track **metadata** is the same pattern (`runway_tracks` + client list). Track **audio** is Storage-only: downloaded like remote scene music (`src/audio/remoteCatwalkMusic.ts`), not like the Pet Shop catalog.
 
 ## Placeholder content
 
@@ -218,7 +220,9 @@ Astronaut helmet (Space Travelers) · Pirate hat and eye patch (Pirate Cove) · 
 
 A theme's rack is those pieces, in that order: its own theme-specific pieces, then the wildcards, then versatile pieces tagged for it. Do not invent more pieces to reach 12.
 
-**Music seed** (`docs/runway music/`)
+**Music seed** (`docs/runway music/` → upload to Storage bucket `catwalk-music`)
+
+Re-encoded as 128 kbps stereo, 44.1 kHz MP3 (same profile as scene background music). Not shipped in the app bundle — download-only via `syncCatwalkMusic` (kicked from `prepareRemoteMusic` on Home):
 
 - absolutesound-fashion-show-music-504647.mp3
 - absolutesound-fashion-show-vogue-504648.mp3
@@ -230,6 +234,10 @@ A theme's rack is those pieces, in that order: its own theme-specific pieces, th
 - maison_brava-runway-instrumental-376958.mp3
 - maison_brava-runway-royalty-388307.mp3
 - musictown-positive-fun-exploration-110144.mp3
+
+Public URL shape: `{SUPABASE_URL}/storage/v1/object/public/catwalk-music/{filename}`
+
+Failures: offline or a single bad download leaves other tracks alone, deletes the `.part` file, and retries on the next foreground / network restore. A show whose chosen file is not on disk yet plays with no music.
 
 ## Closed for this pass
 

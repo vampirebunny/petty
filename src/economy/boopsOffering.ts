@@ -11,7 +11,7 @@ import { revenueCatUnconfiguredReason, whenPurchasesConfigured } from './purchas
  */
 export async function loadBoopsPrices(): Promise<ReadonlyMap<string, string> | null> {
   if (!(await whenPurchasesConfigured())) {
-    console.warn(revenueCatUnconfiguredReason());
+    warnOffering(revenueCatUnconfiguredReason());
     return null;
   }
   let packages;
@@ -19,11 +19,11 @@ export async function loadBoopsPrices(): Promise<ReadonlyMap<string, string> | n
     const offerings = await Purchases.getOfferings();
     packages = offerings.current?.availablePackages;
   } catch (error) {
-    console.warn(`RevenueCat offerings could not be loaded. ${offeringErrorDetail(error)}`);
+    warnOffering(`RevenueCat offerings could not be loaded. ${offeringErrorDetail(error)}`);
     return null;
   }
   if (!packages) {
-    console.warn('RevenueCat has no current offering.');
+    warnOffering('RevenueCat has no current offering.');
     return null;
   }
   const byProductId = new Map(packages.map((pack) => [pack.product.identifier, pack.product.priceString]));
@@ -32,7 +32,7 @@ export async function loadBoopsPrices(): Promise<ReadonlyMap<string, string> | n
   for (const pack of boopsPacks) {
     const priceString = byProductId.get(pack.productId)?.trim();
     if (!priceString) {
-      console.warn(`Boops pack ${pack.productId} is missing from the current offering. Store products: ${returned}.`);
+      warnOffering(`Boops pack ${pack.productId} is missing from the current offering. Store products: ${returned}.`);
       continue;
     }
     prices.set(pack.productId, priceString);
@@ -51,9 +51,16 @@ export async function loadBoopsPackage(productId: string): Promise<PurchasesPack
       offerings.current?.availablePackages.find((pack) => pack.product.identifier === productId) ?? null
     );
   } catch (error) {
-    console.warn(`RevenueCat offerings could not be loaded. ${offeringErrorDetail(error)}`);
+    warnOffering(`RevenueCat offerings could not be loaded. ${offeringErrorDetail(error)}`);
     return null;
   }
+}
+
+function warnOffering(message: string) {
+  if (__DEV__) {
+    return;
+  }
+  console.warn(message);
 }
 
 function offeringErrorDetail(error: unknown): string {

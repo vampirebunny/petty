@@ -159,3 +159,7 @@ export function setRaceCallOpen(open: boolean): void {
     dismissCam();
   }
 }
+
+export function raceCallOpen(): boolean {
+  return raceCall;
+}

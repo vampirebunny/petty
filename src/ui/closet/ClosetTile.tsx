@@ -80,7 +80,10 @@ export const ClosetTile = memo(ClosetTileInner, (prev, next) => {
     prev.slot === next.slot &&
     prev.item.id === next.item.id &&
     prev.worn === next.worn &&
-    prev.reducedMotion === next.reducedMotion
+    prev.reducedMotion === next.reducedMotion &&
+    // Catwalk (and any multi-look picker) swaps onPress when the active look changes;
+    // skipping it left taps stuck on the previous look.
+    prev.onPress === next.onPress
   );
 });
 

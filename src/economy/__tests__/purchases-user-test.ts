@@ -13,7 +13,7 @@ jest.mock('react-native-purchases', () => ({
   default: {
     configure: jest.fn(),
     setLogLevel: jest.fn(async () => undefined),
-    LOG_LEVEL: { DEBUG: 'DEBUG' },
+    LOG_LEVEL: { DEBUG: 'DEBUG', ERROR: 'ERROR' },
     isConfigured: jest.fn(async () => false),
     getAppUserID: jest.fn(async () => 'user-a'),
     logIn: jest.fn(async () => ({ customerInfo: {}, created: false })),
@@ -61,6 +61,7 @@ it('configures with the auth user id and logs in only when that id changes', asy
   await syncPurchasesUser('user-a');
   await syncPurchasesUser('user-b');
   expect(Purchases.configure).toHaveBeenCalledTimes(1);
+  expect(Purchases.setLogLevel).toHaveBeenCalledWith('ERROR');
   expect(Purchases.configure).toHaveBeenCalledWith({ apiKey: 'public_key', appUserID: 'user-a' });
   expect(Purchases.logIn).toHaveBeenCalledTimes(1);
   expect(Purchases.logIn).toHaveBeenCalledWith('user-b');
