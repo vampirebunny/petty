@@ -8,7 +8,7 @@ Boop Boop Town is the road, not a picker laid over a hidden room. Leaving a plac
 
 The map is drawn in the cotton-candy style. This pass does not include Vet, Groomer, or their roads. A new place adds its own road when it is built.
 
-- **Doors:** Home, Pet Shop, Park, Training School, Arcade.
+- **Doors:** Home, Pet Shop, Park, Training School, Arcade, and Stadium. The Catwalk is drawn and does not open until its venue is built.
 - **Home rooms stay off the road.** Tapping Home walks the pet to Home, then a bottom sheet offers the room. Living room and Bedroom show for every pet. Catio shows for a cat, using the scene flags already on the catio (`playerOwned` and `species: 'cat'`), the same ownership as the other home rooms. Dogs see two rooms, centered.
 - **No Settings gear** on this screen.
 - Keep the scenes themselves. The grid and its unused styles are already removed.
@@ -33,11 +33,12 @@ All map art is drawn in code with react-native-svg, in the existing cotton candy
 
 ### Map
 
-- Starts below the header and fills the screen. Top corners rounded (32 pt). Mint grass with lighter and darker soft patches. Grass colors live in one theme object so time of day can tint them later.
-- The map is a fixed 390 by 640 space, cropped below the arcade. Scale it to the device width and keep the aspect ratio. It scrolls vertically when it is taller than the screen. On open, scroll so the pet is visible.
-- Portrait tablets center the map at a max width of 600 pt, with the grass color filling the sides. Landscape scales the map to the full window width, drops the top corner radius, and still scrolls vertically. The pet and place labels grow with that scale.
-- Paths: cream, two stacked strokes (outer tan ~26 pt, inner cream ~18 pt, round caps). Two round plazas join the paths. The lower plaza has a small fountain.
-- Decoration: a pond on the left, bush clusters, tiny pastel flower dots. Decoration is not tappable.
+- Starts below the header and fills the screen. Top corners stay rounded (32 pt) in portrait and on the landscape split. The grass, path, pond, and trees follow the app sky: clear mint by day, wetter greens in rain, and a pale snow palette as snow cover builds. Dawn and dusk wash the map warm. Night washes it blue, dims the header, and turns the door pills dark. Morning and afternoon stay the day colors. Rain streaks, snowflakes, and a rainbow are drawn on the map from the same weather the rooms use. Reduce Motion holds the streaks and flakes still.
+- Portrait, including an upright iPad and a Surface Duo on one screen, uses a 390 by 724 zigzag. Scale it to the width, up to 600 pt, and keep the aspect ratio. It scrolls vertically when it is taller than the pane. On open, scroll so the pet is visible.
+- The landscape split (short side at least 600, and wider than tall) uses a separate 1194 by 722 horizontal road, scaled to the full pane width. It scrolls vertically the same way. The pet and place labels grow with that scale. Title and subtitle sit on one row.
+- The header clears the status bar the way the other screens do (64 pt, plus the opened-Duo inset). The walk pill sits above the home indicator.
+- Paths: cream, two stacked strokes with round caps, plus a dashed center. The same cubics are drawn and walked. A bend under The Catwalk keeps the switchback on the path. It is not a door.
+- Decoration: a pond, trees, bush clusters, tiny pastel flower dots, and drifting clouds. Decoration is not tappable.
 
 ### Buildings
 
@@ -45,11 +46,15 @@ Each building is one button, at least 44 pt, with a soft ground shadow and a whi
 
 | Spot | Art |
 | --- | --- |
-| Home | Peach cottage, pink roof with a white heart. Must not look like Training School |
-| Pet Shop | Purple shop, striped lavender awning, pink and white scallops |
-| Park | Two round trees, bench, red ball on a lawn, wider than the other doors |
-| Training School | Pink schoolhouse with a bell tower and a yellow bell |
-| Arcade | Pink claw machine building with marquee lights |
+| Home | Peach cottage, coral roof, round window. Must not look like Training School |
+| Pet Shop | Teal shop, gold sign, teal and white scallops, an orange ball in the window |
+| Park | Garden gate between deeper green trees, flower beds, a ball on the lawn |
+| Training School | Blue schoolhouse with a bell tower and a yellow bell |
+| The Catwalk | Fashion house with a gold marquee, spotlights, and a runway carpet. Drawn for dogs and cats. A tap does nothing until the venue is built |
+| Arcade | Orange claw machine building with a gold marquee |
+| Stadium | The current arena art. Its own four pennants wave. No extra poles are drawn on top |
+
+Night dims each building and lights its windows. Snow caps the roofs and trees and hides the flower dots. Three path lamps glow at night. Smoke, the bell, the spotlights, the marquee lights, the clouds, the pond shine, the stadium pennants, the arcade claw, and the shop-window ball play. Reduce Motion holds them still.
 
 ### Pet
 
@@ -72,37 +77,9 @@ White sheet, 32 pt top corners, grab handle. Title "Home", subtitle "Which room?
 
 The road is data-driven and local to the app. It works offline.
 
-`roadSpot` on the pet is `'home' | 'petShop' | 'park' | 'trainingSchool' | 'arcade'` when the pet is on the road beside that door. Missing means the pet is inside `sceneId`, which is how every existing save already works.
+`roadSpot` on the pet is `'home' | 'petShop' | 'park' | 'trainingSchool' | 'arcade' | 'stadium'` when the pet is on the road beside that door. Missing means the pet is inside `sceneId`, which is how every existing save already works. The Catwalk is not a spot.
 
-### Building boxes and stand nodes (map space)
-
-Stand nodes sit on the path, just below the label.
-
-| Spot | Building box (x, y, w, h) | Stand node |
-| --- | --- | --- |
-| Home | 46, 22, 104, 96 | home (98, 136) |
-| Pet Shop | 234, 30, 110, 100 | petShop (289, 148) |
-| Park | 22, 226, 140, 110 | park (118, 354) |
-| Training School | 232, 212, 110, 108 | trainingSchool (290, 338) |
-| Arcade | 52, 418, 104, 110 | arcade (104, 560) |
-
-Nodes also include plazaA (195, 205) and plazaB (195, 410).
-
-### Edges
-
-Cubic Beziers in map space. The same curves are drawn and walked. Edges are walkable in both directions.
-
-```ts
-const EDGES = {
-  'home-plazaA': 'M98 136 C 120 175, 165 190, 195 205',
-  'petShop-plazaA': 'M289 148 C 270 180, 230 192, 195 205',
-  'plazaA-park': 'M195 205 C 185 260, 145 310, 118 354',
-  'plazaA-trainingSchool': 'M195 205 C 210 255, 260 300, 290 338',
-  'park-plazaB': 'M118 354 C 140 375, 175 395, 195 410',
-  'trainingSchool-plazaB': 'M290 338 C 270 365, 220 395, 195 410',
-  'plazaB-arcade': 'M195 410 C 175 455, 130 510, 104 560',
-};
-```
+The road is two layouts. Portrait visits Home, Pet Shop, Park, Training School, the Catwalk bend, Arcade, then Stadium. Widescreen runs Home, Pet Shop, Park, and Training School along the top, drops down the right side through the bend, then Arcade and Stadium along the bottom. Stand nodes sit on the path in front of each label. The Catwalk bend is a waypoint only. Crossing the landscape split mid-walk cancels the walk and puts the pet on that layout's stand node for the current door.
 
 ## Walking
 
@@ -112,7 +89,7 @@ Tapping a door starts the walk. There is no confirm step.
 2. Move along the curves at a constant speed (sample by arc length). Any trip takes at least 0.8 s and at most 2.5 s.
 3. Skip (the pill, or tapping the destination again) arrives at once.
 4. Tapping a different door mid-walk re-routes from the current point: back to the nearest node on the current edge, then on to the new door.
-5. Arrival at Home opens the room sheet. The pet stays outside Home. Choosing the living room, bedroom, catio, park, or training school cuts to that scene and the pet walks in from off the left. Reduce Motion skips the walk-in. Arrival at the Pet Shop or Arcade opens that screen. There is no zoom. The town pet is taken off the map before the place draws its own pet.
+5. Arrival at Home opens the room sheet. The pet stays outside Home. Choosing the living room, bedroom, catio, park, or training school cuts to that scene and the pet walks in from off the left. Reduce Motion skips the walk-in. Arrival at the Pet Shop, Arcade, or Stadium opens that screen. There is no zoom. The town pet is taken off the map before the place draws its own pet. The Catwalk is not a stop.
 6. Shop and Arcade, opened from the road, do not also play the in-room walk-off.
 
 ## Done when

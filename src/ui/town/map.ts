@@ -1,11 +1,9 @@
 import type { RoadSpot } from '../../sim/road';
 
-export const mapWidth = 390;
-export const mapHeight = 640;
-
 export type Point = { x: number; y: number };
 
-export type NodeId = RoadSpot | 'plazaA' | 'plazaB';
+/** `bend` is the switchback under The Catwalk. It is not a door. */
+export type NodeId = RoadSpot | 'bend';
 
 export type Cubic = {
   a: Point;
@@ -28,102 +26,184 @@ export type Building = {
   y: number;
   w: number;
   h: number;
+  /** Art width. The button is wider so the label can sit on one line. */
+  art: number;
+};
+
+export type PlaceBox = {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  art: number;
+};
+
+export type CloudSpec = {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  duration: number;
+  opacity: number;
+  /** 0–1, where the drift has already reached when the map opens. */
+  phase: number;
 };
 
 export const grass = {
-  ground: '#C9F2D6',
-  light: '#E5FAEE',
-  dark: '#A6E4BC',
-  pathOuter: '#E4CBA8',
-  pathInner: '#FFF6E4',
-  plaza: '#FFF6E4',
-  water: '#9FD4F2',
-  waterDeep: '#6EB8E8',
+  page: '#F5F6FB',
+  ground: '#D3F1DE',
+  light: '#E3F7EA',
+  dark: '#C6EBD3',
+  pathOuter: '#E2CDA6',
+  pathInner: '#FFF6E6',
+  pathDash: '#F1E2C6',
+  water: '#A9DAF7',
+  waterLine: '#7CC4F5',
+  ink: '#4B3B7A',
+  trunk: '#C98A66',
+  leaf: '#9FE3B4',
+  pine: '#7FD3A0',
+  bush: '#BFEFD4',
 };
 
-export const buildings: Building[] = [
-  { id: 'home', name: 'Home', x: 46, y: 22, w: 104, h: 96 },
-  { id: 'petShop', name: 'Pet Shop', x: 234, y: 30, w: 110, h: 100 },
-  { id: 'park', name: 'Park', x: 22, y: 226, w: 140, h: 110 },
-  { id: 'trainingSchool', name: 'Training School', x: 232, y: 212, w: 110, h: 108 },
-  { id: 'arcade', name: 'Arcade', x: 52, y: 418, w: 104, h: 110 },
-  { id: 'stadium', name: 'Stadium', x: 214, y: 418, w: 140, h: 132 },
-];
+export type TownLayout = {
+  id: 'portrait' | 'wide';
+  width: number;
+  height: number;
+  pathOuter: number;
+  pathInner: number;
+  buildings: Building[];
+  catwalk: PlaceBox;
+  nodes: Record<NodeId, Point>;
+  edges: Edge[];
+  /** Painted with the road. Not walked. */
+  extras: Cubic[];
+  clouds: CloudSpec[];
+};
 
-export const nodes: Record<NodeId, Point> = {
-  home: { x: 98, y: 136 },
-  petShop: { x: 289, y: 148 },
-  park: { x: 118, y: 354 },
-  trainingSchool: { x: 290, y: 338 },
-  arcade: { x: 104, y: 560 },
-  stadium: { x: 284, y: 558 },
-  plazaA: { x: 195, y: 205 },
-  plazaB: { x: 195, y: 410 },
+const portraitNodes: Record<NodeId, Point> = {
+  home: { x: 100, y: 140 },
+  petShop: { x: 290, y: 194 },
+  park: { x: 100, y: 304 },
+  trainingSchool: { x: 290, y: 358 },
+  bend: { x: 100, y: 468 },
+  arcade: { x: 290, y: 522 },
+  stadium: { x: 195, y: 650 },
+};
+
+const wideNodes: Record<NodeId, Point> = {
+  home: { x: 180, y: 169.3 },
+  petShop: { x: 460, y: 171.9 },
+  park: { x: 740, y: 175.5 },
+  trainingSchool: { x: 1020, y: 172 },
+  bend: { x: 1020, y: 526 },
+  arcade: { x: 740, y: 531.1 },
+  stadium: { x: 420, y: 534 },
 };
 
 function cubic(a: Point, c1: Point, c2: Point, b: Point): Cubic {
   return { a, c1, c2, b };
 }
 
-export const edges: Edge[] = [
-  {
-    id: 'home-plazaA',
-    from: 'home',
-    to: 'plazaA',
-    cubic: cubic(nodes.home, { x: 120, y: 175 }, { x: 165, y: 190 }, nodes.plazaA),
-  },
-  {
-    id: 'petShop-plazaA',
-    from: 'petShop',
-    to: 'plazaA',
-    cubic: cubic(nodes.petShop, { x: 270, y: 180 }, { x: 230, y: 192 }, nodes.plazaA),
-  },
-  {
-    id: 'plazaA-park',
-    from: 'plazaA',
-    to: 'park',
-    cubic: cubic(nodes.plazaA, { x: 185, y: 260 }, { x: 145, y: 310 }, nodes.park),
-  },
-  {
-    id: 'plazaA-trainingSchool',
-    from: 'plazaA',
-    to: 'trainingSchool',
-    cubic: cubic(nodes.plazaA, { x: 210, y: 255 }, { x: 260, y: 300 }, nodes.trainingSchool),
-  },
-  {
-    id: 'park-plazaB',
-    from: 'park',
-    to: 'plazaB',
-    cubic: cubic(nodes.park, { x: 140, y: 375 }, { x: 175, y: 395 }, nodes.plazaB),
-  },
-  {
-    id: 'trainingSchool-plazaB',
-    from: 'trainingSchool',
-    to: 'plazaB',
-    cubic: cubic(nodes.trainingSchool, { x: 270, y: 365 }, { x: 220, y: 395 }, nodes.plazaB),
-  },
-  {
-    id: 'plazaB-arcade',
-    from: 'plazaB',
-    to: 'arcade',
-    cubic: cubic(nodes.plazaB, { x: 175, y: 455 }, { x: 130, y: 510 }, nodes.arcade),
-  },
-  {
-    id: 'plazaB-stadium',
-    from: 'plazaB',
-    to: 'stadium',
-    cubic: cubic(nodes.plazaB, { x: 230, y: 455 }, { x: 270, y: 510 }, nodes.stadium),
-  },
-];
+function edge(id: string, from: NodeId, to: NodeId, c1: Point, c2: Point, nodes: Record<NodeId, Point>): Edge {
+  return { id, from, to, cubic: cubic(nodes[from], c1, c2, nodes[to]) };
+}
 
-export function buildingById(id: RoadSpot): Building {
-  const found = buildings.find((building) => building.id === id);
+const door = (id: RoadSpot, name: string, x: number, y: number, w: number, art: number, h: number): Building => ({
+  id,
+  name,
+  x,
+  y,
+  w,
+  h,
+  art,
+});
+
+export const portraitLayout: TownLayout = {
+  id: 'portrait',
+  width: 390,
+  height: 724,
+  pathOuter: 30,
+  pathInner: 20,
+  buildings: [
+    door('home', 'Home', 25, 16, 150, 120, 108),
+    door('petShop', 'Pet Shop', 215, 70, 150, 120, 108),
+    door('park', 'Park', 25, 180, 150, 120, 108),
+    door('trainingSchool', 'Training School', 215, 234, 150, 120, 108),
+    door('arcade', 'Arcade', 215, 398, 150, 120, 108),
+    door('stadium', 'Stadium', 105, 512, 180, 160, 150),
+  ],
+  catwalk: { x: 25, y: 344, w: 150, h: 108, art: 120 },
+  nodes: portraitNodes,
+  edges: [
+    edge('home-petShop', 'home', 'petShop', { x: 190, y: 140 }, { x: 260, y: 155 }, portraitNodes),
+    edge('petShop-park', 'petShop', 'park', { x: 320, y: 235 }, { x: 180, y: 280 }, portraitNodes),
+    edge('park-trainingSchool', 'park', 'trainingSchool', { x: 60, y: 316 }, { x: 200, y: 330 }, portraitNodes),
+    edge('trainingSchool-bend', 'trainingSchool', 'bend', { x: 320, y: 395 }, { x: 180, y: 440 }, portraitNodes),
+    edge('bend-arcade', 'bend', 'arcade', { x: 60, y: 480 }, { x: 200, y: 495 }, portraitNodes),
+    edge('arcade-stadium', 'arcade', 'stadium', { x: 330, y: 560 }, { x: 230, y: 620 }, portraitNodes),
+  ],
+  extras: [],
+  clouds: [
+    { x: 0, y: 150, w: 120, h: 44, duration: 60000, opacity: 0.75, phase: 0.2 },
+    { x: 0, y: 470, w: 96, h: 36, duration: 75000, opacity: 0.65, phase: 0.56 },
+  ],
+};
+
+export const wideLayout: TownLayout = {
+  id: 'wide',
+  width: 1194,
+  height: 722,
+  pathOuter: 32,
+  pathInner: 22,
+  buildings: [
+    door('home', 'Home', 95, 36, 170, 140, 126),
+    door('petShop', 'Pet Shop', 375, 36, 170, 140, 126),
+    door('park', 'Park', 655, 36, 170, 140, 126),
+    door('trainingSchool', 'Training School', 935, 36, 170, 140, 126),
+    door('arcade', 'Arcade', 655, 390, 170, 140, 126),
+    door('stadium', 'Stadium', 320, 362, 200, 180, 168.75),
+  ],
+  catwalk: { x: 935, y: 390, w: 170, h: 126, art: 140 },
+  nodes: wideNodes,
+  edges: [
+    edge('home-petShop', 'home', 'petShop', { x: 257, y: 167.3 }, { x: 348, y: 169.6 }, wideNodes),
+    edge('petShop-park', 'petShop', 'park', { x: 541.4, y: 173.6 }, { x: 633.8, y: 175.3 }, wideNodes),
+    edge('park-trainingSchool', 'park', 'trainingSchool', { x: 824.2, y: 175.6 }, { x: 917.1, y: 174.7 }, wideNodes),
+    edge('trainingSchool-bend', 'trainingSchool', 'bend', { x: 1170, y: 168 }, { x: 1170, y: 528 }, wideNodes),
+    edge('bend-arcade', 'bend', 'arcade', { x: 943.1, y: 525 }, { x: 843.1, y: 528.2 }, wideNodes),
+    edge('arcade-stadium', 'arcade', 'stadium', { x: 628.6, y: 534.3 }, { x: 513.5, y: 537.1 }, wideNodes),
+  ],
+  extras: [
+    cubic({ x: 120, y: 172 }, { x: 139.1, y: 170.7 }, { x: 159, y: 169.9 }, wideNodes.home),
+    cubic(wideNodes.stadium, { x: 300, y: 530 }, { x: 200, y: 560 }, { x: 110, y: 600 }),
+  ],
+  clouds: [
+    { x: 0, y: 250, w: 140, h: 52, duration: 60000, opacity: 0.75, phase: 0.33 },
+    { x: 0, y: 600, w: 110, h: 40, duration: 130000, opacity: 0.65, phase: 0.58 },
+  ],
+};
+
+export function layoutFor(wide: boolean): TownLayout {
+  return wide ? wideLayout : portraitLayout;
+}
+
+export function buildingById(layout: TownLayout, id: RoadSpot): Building {
+  const found = layout.buildings.find((building) => building.id === id);
   if (!found) {
-    return buildings[0];
+    return layout.buildings[0];
   }
   return found;
 }
 
-export function edgeBetween(from: NodeId, to: NodeId): Edge | null {
-  return edges.find((edge) => (edge.from === from && edge.to === to) || (edge.from === to && edge.to === from)) ?? null;
+export function edgeBetween(graph: Edge[], from: NodeId, to: NodeId): Edge | null {
+  return graph.find((item) => (item.from === from && item.to === to) || (item.from === to && item.to === from)) ?? null;
+}
+
+export function curvePath(cubic: Cubic): string {
+  return `M${cubic.a.x} ${cubic.a.y} C ${cubic.c1.x} ${cubic.c1.y}, ${cubic.c2.x} ${cubic.c2.y}, ${cubic.b.x} ${cubic.b.y}`;
+}
+
+export function roadCubics(layout: TownLayout): Cubic[] {
+  return [...layout.extras, ...layout.edges.map((item) => item.cubic)];
 }

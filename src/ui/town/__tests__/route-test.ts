@@ -1,37 +1,60 @@
 import { approachNode, legsBetween, legsFromProgress, routeNodes, tripSeconds } from '../route';
-import { edges, nodes } from '../map';
+import { portraitLayout, wideLayout, type TownLayout } from '../map';
+import { roadSpots } from '../../../sim/road';
 
-describe('town routes', () => {
-  it('walks home to the arcade on the road, and back again', () => {
-    const there = routeNodes('home', 'arcade');
-    const back = routeNodes('arcade', 'home');
+function connects(layout: TownLayout) {
+  expect(layout.nodes.bend).toBeTruthy();
+  expect(Object.keys(layout.nodes)).not.toContain('catwalk');
+  for (const spot of roadSpots) {
+    const there = routeNodes('home', spot, layout.edges);
+    const back = routeNodes(spot, 'home', layout.edges);
     expect(there[0]).toBe('home');
-    expect(there[there.length - 1]).toBe('arcade');
+    expect(there[there.length - 1]).toBe(spot);
+    if (spot === 'arcade' || spot === 'stadium') {
+      expect(there).toContain('bend');
+    } else {
+      expect(there).not.toContain('bend');
+    }
     expect(back).toEqual([...there].reverse());
     for (let i = 0; i < there.length - 1; i += 1) {
       const from = there[i];
       const to = there[i + 1];
-      expect(edges.some((edge) => (edge.from === from && edge.to === to) || (edge.from === to && edge.to === from))).toBe(true);
+      expect(
+        layout.edges.some((edge) => (edge.from === from && edge.to === to) || (edge.from === to && edge.to === from)),
+      ).toBe(true);
     }
-    const legs = legsBetween('home', 'arcade');
-    expect(legs.length).toBe(there.length - 1);
+  }
+}
+
+describe('town routes', () => {
+  it('walks every door on the portrait road, and back again', () => {
+    connects(portraitLayout);
+    const legs = legsBetween('home', 'arcade', portraitLayout.edges);
+    expect(legs.length).toBeGreaterThan(0);
     expect(tripSeconds(400)).toBeGreaterThanOrEqual(0.8);
     expect(tripSeconds(400)).toBeLessThanOrEqual(2.5);
     expect(tripSeconds(20)).toBe(0.8);
     expect(tripSeconds(2000)).toBe(2.5);
   });
 
+  it('walks every door on the widescreen road, and back again', () => {
+    connects(wideLayout);
+    const there = routeNodes('home', 'stadium', wideLayout.edges);
+    expect(there).toContain('trainingSchool');
+    expect(there.indexOf('arcade')).toBeGreaterThan(there.indexOf('trainingSchool'));
+  });
+
   it('sends a mid-edge reroute to the nearest node first', () => {
-    const edge = edges.find((item) => item.id === 'home-plazaA');
+    const edge = portraitLayout.edges.find((item) => item.id === 'home-petShop');
     expect(edge).toBeTruthy();
     if (!edge) {
       return;
     }
     expect(approachNode(edge, 0.15)).toBe('home');
-    expect(approachNode(edge, 0.85)).toBe('plazaA');
-    const towardShop = legsFromProgress(edge, 0.85, 'petShop');
-    expect(towardShop[0]?.t1 === 1 || towardShop[0]?.edge.to === 'plazaA').toBe(true);
-    expect(routeNodes('plazaA', 'petShop')).toEqual(['plazaA', 'petShop']);
-    expect(nodes.home.y).toBeGreaterThan(118);
+    expect(approachNode(edge, 0.85)).toBe('petShop');
+    const towardPark = legsFromProgress(edge, 0.85, 'park', portraitLayout.edges);
+    expect(towardPark[0]?.edge.to).toBe('petShop');
+    expect(routeNodes('petShop', 'park', portraitLayout.edges)).toEqual(['petShop', 'park']);
+    expect(portraitLayout.nodes.home.y).toBeGreaterThan(118);
   });
 });

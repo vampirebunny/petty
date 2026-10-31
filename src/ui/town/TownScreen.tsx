@@ -2,18 +2,19 @@ import { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { ChevronLeft, PawPrint } from 'lucide-react-native';
 import Animated, { cancelAnimation, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
-import Svg, { Circle, Ellipse, Path } from 'react-native-svg';
+import Svg, { Circle } from 'react-native-svg';
 
 import type { RoadSpot } from '../../sim/road';
 import type { PetState } from '../../sim/types';
 import { fontFamily } from '../font';
 import { useContentWidth } from '../PhoneColumn';
 import { isLandscapeSplit } from '../wideLayout';
-import { ArcadeIcon, SchoolIcon, ShopIcon, TreeIcon } from '../places/locationIcons';
-import { HomeCottage } from './HomeCottage';
-import { StadiumIcon } from './StadiumIcon';
+import { useOpenedDuoTopInset } from '../useDeviceOrientation';
+import { TownPlace } from './buildings';
+import { PondGlint, TownCloud, TownGround } from './mapArt';
 import { HomeRoomSheet } from './HomeRoomSheet';
-import { buildingById, buildings, edges, grass, mapHeight, mapWidth, nodes, type Point } from './map';
+import { buildingById, layoutFor, type Building, type PlaceBox, type Point } from './map';
+import { townLook, useTownSky } from './townSky';
 import { homeRooms } from './rooms';
 import {
   legsBetween,
@@ -50,20 +51,19 @@ const petW = 96;
 const petH = 72;
 const maxMapWidth = 600;
 
-function curve(edge: (typeof edges)[number]): string {
-  const { a, c1, c2, b } = edge.cubic;
-  return `M${a.x} ${a.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${b.x} ${b.y}`;
-}
-
 export function TownScreen({ pet, species, roadSpot, reducedMotion, onStand, onEnter, onShop, onArcade, onStadium }: Props) {
   const contentWidth = useContentWidth();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const wide = isLandscapeSplit(windowWidth, windowHeight);
+  const layout = layoutFor(wide);
+  const duoTop = useOpenedDuoTopInset();
   const [paneWidth, setPaneWidth] = useState(0);
   const mapW = wide ? paneWidth || windowWidth : Math.min(maxMapWidth, contentWidth);
-  const scale = mapW / mapWidth;
-  const mapH = mapHeight * scale;
+  const scale = mapW / layout.width;
+  const mapH = layout.height * scale;
   const rooms = homeRooms(species);
+  const { sky, now } = useTownSky(reducedMotion);
+  const { paint, chrome } = townLook(sky);
   const scrollRef = useRef<ScrollView>(null);
   const viewport = useRef(0);
   const revealed = useRef(false);
@@ -71,7 +71,7 @@ export function TownScreen({ pet, species, roadSpot, reducedMotion, onStand, onE
   const token = useRef(0);
   const [outing, setOuting] = useState<Outing | null>(null);
   const [along, setAlong] = useState(0);
-  const [spot, setSpot] = useState<Point>(nodes[roadSpot]);
+  const [spot, setSpot] = useState<Point>(layout.nodes[roadSpot]);
   const [face, setFace] = useState<1 | -1>(1);
   const [sheet, setSheet] = useState(false);
   const [leaving, setLeaving] = useState<RoadSpot | null>(null);
@@ -79,10 +79,20 @@ export function TownScreen({ pet, species, roadSpot, reducedMotion, onStand, onE
   const spotRef = useRef(roadSpot);
   const reducedRef = useRef(reducedMotion);
   const scaleRef = useRef(scale);
+  const layoutRef = useRef(layout);
+  const seenLayout = useRef(layout.id);
   const progressRef = useRef(0);
   const frameRef = useRef(0);
   const actions = useRef({ onStand, onEnter, onShop, onArcade, onStadium });
   const leavingRef = useRef(false);
+
+  const scrollToPet = (y: number) => {
+    const view = viewport.current;
+    if (view <= 0) {
+      return;
+    }
+    scrollRef.current?.scrollTo({ y: Math.max(0, y - view * 0.45), animated: false });
+  };
 
   useEffect(() => {
     actions.current = { onStand, onEnter, onShop, onArcade, onStadium };
@@ -119,26 +129,31 @@ export function TownScreen({ pet, species, roadSpot, reducedMotion, onStand, onE
   }, [leaving]);
 
   useEffect(() => {
+    layoutRef.current = layout;
+    scaleRef.current = scale;
     spotRef.current = roadSpot;
     reducedRef.current = reducedMotion;
-    scaleRef.current = scale;
-    if (!outingRef.current) {
-      setSpot(nodes[roadSpot]);
+    if (seenLayout.current !== layout.id) {
+      seenLayout.current = layout.id;
+      token.current += 1;
+      cancelAnimationFrame(frameRef.current);
+      outingRef.current = null;
+      setOuting(null);
+      setAlong(0);
+      const next = layout.nodes[roadSpot];
+      setSpot(next);
+      scrollToPet(next.y * scale);
+      return;
     }
-  }, [reducedMotion, roadSpot, scale]);
+    if (!outingRef.current) {
+      setSpot(layout.nodes[roadSpot]);
+    }
+  }, [layout, reducedMotion, roadSpot, scale]);
 
   useEffect(() => {
     pulse.value = withRepeat(withTiming(1, { duration: 900 }), -1, false);
     return () => cancelAnimation(pulse);
   }, [pulse]);
-
-  const scrollToPet = (y: number) => {
-    const view = viewport.current;
-    if (view <= 0) {
-      return;
-    }
-    scrollRef.current?.scrollTo({ y: Math.max(0, y - view * 0.45), animated: false });
-  };
 
   const syncProgress = (value: number, previous: number) => {
     setAlong(value);
@@ -164,7 +179,7 @@ export function TownScreen({ pet, species, roadSpot, reducedMotion, onStand, onE
     cancelAnimationFrame(frameRef.current);
     outingRef.current = null;
     setOuting(null);
-    setSpot(nodes[dest]);
+    setSpot(layoutRef.current.nodes[dest]);
     setAlong(0);
     const actionsNow = actions.current;
     if (dest === 'home') {
@@ -189,7 +204,7 @@ export function TownScreen({ pet, species, roadSpot, reducedMotion, onStand, onE
     setSheet(false);
     progressRef.current = 0;
     setAlong(0);
-    setSpot(next.points[0] ?? nodes[next.origin]);
+    setSpot(next.points[0] ?? layoutRef.current.nodes[next.origin]);
     const seconds = reducedRef.current ? 0 : tripSeconds(routeLength(next.legs));
     if (seconds <= 0) {
       progressRef.current = 1;
@@ -218,6 +233,7 @@ export function TownScreen({ pet, species, roadSpot, reducedMotion, onStand, onE
 
   const tap = (dest: RoadSpot) => {
     const current = outingRef.current;
+    const graph = layoutRef.current.edges;
     if (!current && dest === spotRef.current) {
       arrive(dest);
       return;
@@ -236,9 +252,9 @@ export function TownScreen({ pet, species, roadSpot, reducedMotion, onStand, onE
       const at = progressOnLegs(current.legs, progressRef.current);
       token.current += 1;
       cancelAnimationFrame(frameRef.current);
-      legs = at ? legsFromProgress(at.edge, at.t, dest) : legsBetween(spotRef.current, dest);
+      legs = at ? legsFromProgress(at.edge, at.t, dest, graph) : legsBetween(spotRef.current, dest, graph);
     } else {
-      legs = legsBetween(spotRef.current, dest);
+      legs = legsBetween(spotRef.current, dest, graph);
     }
     if (legs.length === 0) {
       arrive(dest);
@@ -257,7 +273,7 @@ export function TownScreen({ pet, species, roadSpot, reducedMotion, onStand, onE
     outingRef.current = null;
     setOuting(null);
     setAlong(0);
-    setSpot(nodes[current.origin]);
+    setSpot(layoutRef.current.nodes[current.origin]);
     actions.current.onStand(current.origin);
   };
 
@@ -266,27 +282,28 @@ export function TownScreen({ pet, species, roadSpot, reducedMotion, onStand, onE
     transform: [{ scale: 0.7 + pulse.value * 0.6 }],
   }));
 
-  const destBuilding = outing ? buildingById(outing.dest) : null;
+  const destNode = outing ? layout.nodes[outing.dest] : null;
   const dots = outing
     ? outing.points.filter((_, index) => index >= Math.floor(along * Math.max(0, outing.points.length - 1)) && index % 3 === 0)
     : [];
-  const depth = 0.9 + 0.1 * Math.max(0, Math.min(1, spot.y / mapHeight));
+  const depth = 0.9 + 0.1 * Math.max(0, Math.min(1, spot.y / layout.height));
   const grown = scale > 1.2 ? scale : 1;
   const shownPetW = petW * grown;
   const shownPetH = petH * grown;
+  const labelSize = (wide ? 16 : 15) * (grown > 1 ? grown : 1);
 
   return (
-    <View style={styles.root}>
-      <View style={styles.header}>
-        {outing ? <BackButton onPress={stopWalk} /> : <View style={styles.backSpacer} />}
+    <View style={[styles.root, { paddingTop: 64 + duoTop, backgroundColor: chrome.header }]}>
+      <View style={[styles.header, wide && styles.headerWide]}>
+        {outing ? <BackButton onPress={stopWalk} /> : null}
         <View style={[styles.titles, wide && styles.titlesWide]}>
-          <Text style={styles.title}>Boop Boop Town</Text>
-          <Text style={styles.subtitle}>Pick a spot for {pet.name}</Text>
+          <Text style={[styles.title, wide && styles.titleWide, { color: chrome.title }]}>Boop Boop Town</Text>
+          <Text style={[styles.subtitle, wide && styles.subtitleWide, { color: chrome.sub }]}>Pick a spot for {pet.name}</Text>
         </View>
       </View>
       <ScrollView
         ref={scrollRef}
-        style={[styles.scroll, wide && styles.scrollWide]}
+        style={[styles.scroll, { backgroundColor: paint.ground }]}
         contentContainerStyle={styles.scrollContent}
         onLayout={(event) => {
           const { width, height } = event.nativeEvent.layout;
@@ -297,69 +314,73 @@ export function TownScreen({ pet, species, roadSpot, reducedMotion, onStand, onE
           }
           if (!revealed.current) {
             revealed.current = true;
-            scrollToPet(nodes[spotRef.current].y * scaleRef.current);
+            scrollToPet(layoutRef.current.nodes[spotRef.current].y * scaleRef.current);
           }
         }}
       >
         <View style={{ width: mapW, height: mapH }}>
-          <View style={[styles.map, { width: mapW, height: mapH }]}>
-            <Svg width={mapW} height={mapH} viewBox={`0 0 ${mapWidth} ${mapHeight}`}>
-              <Path d={`M0 0 H${mapWidth} V${mapHeight} H0 Z`} fill={grass.ground} />
-              <Ellipse cx={70} cy={180} rx={90} ry={46} fill={grass.light} />
-              <Ellipse cx={300} cy={300} rx={110} ry={54} fill={grass.dark} opacity={0.45} />
-              <Ellipse cx={120} cy={500} rx={80} ry={36} fill={grass.light} />
-              <Ellipse cx={18} cy={280} rx={36} ry={18} fill={grass.waterDeep} />
-              <Ellipse cx={16} cy={276} rx={30} ry={13} fill={grass.water} />
-              <Ellipse cx={150} cy={250} rx={18} ry={12} fill="#7DCE63" />
-              <Ellipse cx={168} cy={256} rx={14} ry={10} fill="#9ADF7A" />
-              <Ellipse cx={250} cy={470} rx={16} ry={11} fill="#7DCE63" />
-              <Circle cx={40} cy={160} r={3} fill="#F7B6D6" />
-              <Circle cx={54} cy={168} r={2.4} fill="#FFE29A" />
-              <Circle cx={320} cy={190} r={3} fill="#C9B6FF" />
-              <Circle cx={80} cy={430} r={2.6} fill="#FFFFFF" />
-              <Circle cx={210} cy={520} r={3} fill="#F7B6D6" />
-              {edges.map((edge) => (
-                <Path
-                  key={`${edge.id}-out`}
-                  d={curve(edge)}
-                  stroke={grass.pathOuter}
-                  strokeWidth={26}
-                  fill="none"
-                  strokeLinecap="round"
-                />
-              ))}
-              {edges.map((edge) => (
-                <Path
-                  key={`${edge.id}-in`}
-                  d={curve(edge)}
-                  stroke={grass.pathInner}
-                  strokeWidth={18}
-                  fill="none"
-                  strokeLinecap="round"
-                />
-              ))}
-              <Circle cx={nodes.plazaA.x} cy={nodes.plazaA.y} r={24} fill={grass.pathOuter} />
-              <Circle cx={nodes.plazaA.x} cy={nodes.plazaA.y} r={16} fill={grass.plaza} />
-              <Circle cx={nodes.plazaB.x} cy={nodes.plazaB.y} r={26} fill={grass.pathOuter} />
-              <Circle cx={nodes.plazaB.x} cy={nodes.plazaB.y} r={18} fill={grass.plaza} />
-              <Circle cx={nodes.plazaB.x} cy={nodes.plazaB.y} r={8} fill={grass.water} />
-              <Circle cx={nodes.plazaB.x} cy={nodes.plazaB.y - 1} r={3} fill="#FFFFFF" opacity={0.8} />
-              {dots.map((dot, index) => (
-                <Circle key={`${dot.x}-${dot.y}-${index}`} cx={dot.x} cy={dot.y} r={3.2} fill="#F59AC9" />
-              ))}
-            </Svg>
-            {buildings.map((building) => (
-              <Door key={building.id} buildingId={building.id} scale={scale} labelScale={grown} onPress={() => tap(building.id)} />
+          <View style={[styles.map, { width: mapW, height: mapH, backgroundColor: paint.ground }]}>
+            <TownGround
+              layout={layout}
+              paint={paint}
+              chrome={chrome}
+              now={now}
+              reducedMotion={reducedMotion}
+              rainbow={sky.weather.rainbow}
+              wind={sky.weather.wind}
+            />
+            <PondGlint layout={layout} scale={scale} reducedMotion={reducedMotion} />
+            {dots.length > 0 ? (
+              <Svg width={mapW} height={mapH} viewBox={`0 0 ${layout.width} ${layout.height}`} style={StyleSheet.absoluteFill}>
+                {dots.map((dot, index) => (
+                  <Circle key={`${dot.x}-${dot.y}-${index}`} cx={dot.x} cy={dot.y} r={3.2} fill="#F59AC9" />
+                ))}
+              </Svg>
+            ) : null}
+            {layout.clouds.map((cloud) => (
+              <TownCloud
+                key={`${cloud.y}-${cloud.duration}`}
+                cloud={cloud}
+                scale={scale}
+                mapWidth={layout.width}
+                reducedMotion={reducedMotion}
+                fill={chrome.cloud}
+                alpha={chrome.cloudAlpha}
+              />
             ))}
-            {destBuilding ? (
+            <PlaceArt
+              box={layout.catwalk}
+              scale={scale}
+              labelSize={labelSize}
+              reducedMotion={reducedMotion}
+              night={chrome.night}
+              snow={chrome.snow}
+              pill={chrome.pill}
+              pillText={chrome.pillText}
+            />
+            {layout.buildings.map((building) => (
+              <Door
+                key={building.id}
+                building={building}
+                scale={scale}
+                labelSize={labelSize}
+                reducedMotion={reducedMotion}
+                night={chrome.night}
+                snow={chrome.snow}
+                pill={chrome.pill}
+                pillText={chrome.pillText}
+                onPress={() => tap(building.id)}
+              />
+            ))}
+            {destNode ? (
               <Animated.View
                 pointerEvents="none"
                 style={[
                   styles.pulse,
                   pulseStyle,
                   {
-                    left: (destBuilding.x + destBuilding.w / 2) * scale - 28,
-                    top: (destBuilding.y + destBuilding.h) * scale - 10,
+                    left: destNode.x * scale - 28,
+                    top: destNode.y * scale - 8,
                   },
                 ]}
               />
@@ -395,7 +416,7 @@ export function TownScreen({ pet, species, roadSpot, reducedMotion, onStand, onE
         <View style={styles.walkDock} pointerEvents="box-none">
           <View style={styles.walkPill}>
             <PawPrint size={18} color="#F59AC9" strokeWidth={2.4} />
-            <Text style={styles.walkText}>Walking to the {buildingById(outing.dest).name}</Text>
+            <Text style={styles.walkText}>Walking to the {buildingById(layout, outing.dest).name}</Text>
             <Pressable accessibilityRole="button" accessibilityLabel="Skip" onPress={() => tap(outing.dest)} hitSlop={8}>
               <Text style={styles.skip}>Skip</Text>
             </Pressable>
@@ -417,20 +438,65 @@ export function TownScreen({ pet, species, roadSpot, reducedMotion, onStand, onE
   );
 }
 
-function Door({
-  buildingId,
+function PlaceArt({
+  box,
   scale,
-  labelScale,
+  labelSize,
+  reducedMotion,
+  night,
+  snow,
+  pill,
+  pillText,
+  name = 'The Catwalk',
+}: {
+  box: PlaceBox;
+  scale: number;
+  labelSize: number;
+  reducedMotion: boolean;
+  night: boolean;
+  snow: boolean;
+  pill: string;
+  pillText: string;
+  name?: string;
+}) {
+  const artW = box.art * scale;
+  return (
+    <View
+      pointerEvents="none"
+      accessibilityRole="image"
+      accessibilityLabel={name}
+      style={[styles.door, { left: box.x * scale, top: box.y * scale, width: box.w * scale }]}
+    >
+      <TownPlace id="catwalk" width={artW} reducedMotion={reducedMotion} night={night} snow={snow} />
+      <View style={[styles.label, { marginTop: -6 * scale, backgroundColor: pill }]}>
+        <Text style={[styles.labelText, { fontSize: labelSize, color: pillText }]}>{name}</Text>
+      </View>
+    </View>
+  );
+}
+
+function Door({
+  building,
+  scale,
+  labelSize,
+  reducedMotion,
+  night,
+  snow,
+  pill,
+  pillText,
   onPress,
 }: {
-  buildingId: RoadSpot;
+  building: Building;
   scale: number;
-  labelScale: number;
+  labelSize: number;
+  reducedMotion: boolean;
+  night: boolean;
+  snow: boolean;
+  pill: string;
+  pillText: string;
   onPress: () => void;
 }) {
-  const building = buildingById(buildingId);
-  const width = building.w * scale;
-  const artH = building.h * scale;
+  const artW = building.art * scale;
   return (
     <Pressable
       accessibilityRole="button"
@@ -441,26 +507,14 @@ function Door({
         {
           left: building.x * scale,
           top: building.y * scale,
-          width,
-          height: Math.max(44, building.h * scale + 28),
+          width: building.w * scale,
+          minHeight: 44,
         },
       ]}
     >
-      {building.id === 'home' ? (
-        <HomeCottage width={width} height={artH} />
-      ) : building.id === 'petShop' ? (
-        <ShopIcon size={width} />
-      ) : building.id === 'park' ? (
-        <TreeIcon size={width} />
-      ) : building.id === 'trainingSchool' ? (
-        <SchoolIcon size={width} />
-      ) : building.id === 'stadium' ? (
-        <StadiumIcon width={width} />
-      ) : (
-        <ArcadeIcon size={width} />
-      )}
-      <View style={[styles.label, labelScale > 1 ? { marginTop: -18 * labelScale, borderRadius: 14 * labelScale } : null]}>
-        <Text style={[styles.labelText, labelScale > 1 ? { fontSize: 13 * labelScale } : null]}>{building.name}</Text>
+      <TownPlace id={building.id} width={artW} reducedMotion={reducedMotion} night={night} snow={snow} />
+      <View style={[styles.label, { marginTop: -6 * scale, backgroundColor: pill }]}>
+        <Text style={[styles.labelText, { fontSize: labelSize, color: pillText }]}>{building.name}</Text>
       </View>
     </Pressable>
   );
@@ -481,18 +535,18 @@ function BackButton({ onPress }: { onPress: () => void }) {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#F6F7FB',
-    paddingTop: 64,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingHorizontal: 12,
+    paddingHorizontal: 24,
+    paddingTop: 8,
     paddingBottom: 12,
   },
-  backSpacer: {
-    width: 8,
+  headerWide: {
+    paddingHorizontal: 48,
+    alignItems: 'center',
   },
   backHit: {
     width: 48,
@@ -518,27 +572,28 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   titlesWide: {
-    alignItems: 'center',
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 18,
   },
   title: {
     fontFamily: fontFamily.fredokaBold,
-    fontSize: 32,
-    color: '#2C2F4A',
+    fontSize: 34,
+  },
+  titleWide: {
+    fontSize: 38,
   },
   subtitle: {
     fontFamily: fontFamily.fredokaSemibold,
-    fontSize: 15,
-    color: '#6B6F8A',
+    fontSize: 17,
+  },
+  subtitleWide: {
+    fontSize: 18,
   },
   scroll: {
     flex: 1,
-    backgroundColor: grass.ground,
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
-  },
-  scrollWide: {
-    borderTopLeftRadius: 0,
-    borderTopRightRadius: 0,
   },
   scrollContent: {
     alignItems: 'center',
@@ -546,25 +601,23 @@ const styles = StyleSheet.create({
   },
   map: {
     overflow: 'hidden',
-    backgroundColor: grass.ground,
   },
   door: {
     position: 'absolute',
     alignItems: 'center',
   },
   label: {
-    marginTop: -18,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    minHeight: 24,
-    justifyContent: 'center',
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 5,
+    shadowColor: '#4B3B7A',
+    shadowOpacity: 0.18,
+    shadowRadius: 0,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   labelText: {
-    fontFamily: fontFamily.fredokaBold,
-    fontSize: 13,
-    color: '#2C2F4A',
+    fontFamily: fontFamily.fredokaSemibold,
   },
   pulse: {
     position: 'absolute',
@@ -583,7 +636,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 16,
     right: 16,
-    bottom: 24,
+    bottom: 36,
     alignItems: 'center',
   },
   walkPill: {

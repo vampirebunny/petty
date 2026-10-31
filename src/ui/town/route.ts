@@ -1,4 +1,4 @@
-import { edgeBetween, edges, type Cubic, type Edge, type NodeId, type Point } from './map';
+import { edgeBetween, type Cubic, type Edge, type NodeId, type Point } from './map';
 import type { RoadSpot } from '../../sim/road';
 
 export type Leg = {
@@ -42,9 +42,9 @@ export function approachNode(edge: Edge, t: number): NodeId {
   return walked <= total / 2 ? edge.from : edge.to;
 }
 
-function neighbors(id: NodeId): { node: NodeId; edge: Edge; length: number }[] {
+function neighbors(graph: Edge[], id: NodeId): { node: NodeId; edge: Edge; length: number }[] {
   const next: { node: NodeId; edge: Edge; length: number }[] = [];
-  for (const edge of edges) {
+  for (const edge of graph) {
     if (edge.from === id) {
       next.push({ node: edge.to, edge, length: edgeLength(edge) });
     } else if (edge.to === id) {
@@ -55,7 +55,7 @@ function neighbors(id: NodeId): { node: NodeId; edge: Edge; length: number }[] {
 }
 
 /** Shortest node list, including both ends. Empty when no route exists. */
-export function routeNodes(from: NodeId, to: NodeId): NodeId[] {
+export function routeNodes(from: NodeId, to: NodeId, graph: Edge[]): NodeId[] {
   if (from === to) {
     return [from];
   }
@@ -80,7 +80,7 @@ export function routeNodes(from: NodeId, to: NodeId): NodeId[] {
       break;
     }
     const soFar = dist.get(current) ?? Infinity;
-    for (const step of neighbors(current)) {
+    for (const step of neighbors(graph, current)) {
       const next = soFar + step.length;
       if (next < (dist.get(step.node) ?? Infinity)) {
         dist.set(step.node, next);
@@ -106,8 +106,8 @@ export function routeNodes(from: NodeId, to: NodeId): NodeId[] {
   return path;
 }
 
-function legBetween(from: NodeId, to: NodeId): Leg | null {
-  const edge = edgeBetween(from, to);
+function legBetween(graph: Edge[], from: NodeId, to: NodeId): Leg | null {
+  const edge = edgeBetween(graph, from, to);
   if (!edge) {
     return null;
   }
@@ -117,11 +117,11 @@ function legBetween(from: NodeId, to: NodeId): Leg | null {
   return { edge, t0: 1, t1: 0 };
 }
 
-export function legsBetween(from: NodeId, to: NodeId): Leg[] {
-  const nodes = routeNodes(from, to);
+export function legsBetween(from: NodeId, to: NodeId, graph: Edge[]): Leg[] {
+  const nodes = routeNodes(from, to, graph);
   const legs: Leg[] = [];
   for (let i = 0; i < nodes.length - 1; i += 1) {
-    const leg = legBetween(nodes[i], nodes[i + 1]);
+    const leg = legBetween(graph, nodes[i], nodes[i + 1]);
     if (leg) {
       legs.push(leg);
     }
@@ -130,10 +130,10 @@ export function legsBetween(from: NodeId, to: NodeId): Leg[] {
 }
 
 /** Walk back to the nearest node on this edge, then on to `dest`. */
-export function legsFromProgress(edge: Edge, t: number, dest: NodeId): Leg[] {
+export function legsFromProgress(edge: Edge, t: number, dest: NodeId, graph: Edge[]): Leg[] {
   const node = approachNode(edge, t);
   const back: Leg = { edge, t0: t, t1: node === edge.from ? 0 : 1 };
-  const rest = node === dest ? [] : legsBetween(node, dest);
+  const rest = node === dest ? [] : legsBetween(node, dest, graph);
   const legs = [back, ...rest];
   return legs.filter((leg) => Math.abs(leg.t1 - leg.t0) > 0.001);
 }
@@ -199,5 +199,5 @@ export function progressOnLegs(legs: Leg[], progress: number): { edge: Edge; t: 
 }
 
 export function isDoor(id: NodeId): id is RoadSpot {
-  return id !== 'plazaA' && id !== 'plazaB';
+  return id !== 'bend';
 }
