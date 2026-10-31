@@ -33,6 +33,8 @@ type Props = {
   onParkFindForce?: (variant: 'dig' | 'grass' | 'bush') => void;
   onParkFindResetCollection?: () => void;
   onParkFindResetChest?: () => void;
+  onRunwayInvite?: () => void;
+  onRaceInvite?: () => void;
 };
 
 const hourMs = 60 * 60 * 1000;
@@ -129,6 +131,8 @@ function DebugPanelBody({
   onParkFindForce,
   onParkFindResetCollection,
   onParkFindResetChest,
+  onRunwayInvite,
+  onRaceInvite,
 }: Props) {
   const [open, setOpen] = useState(false);
   const care = state.careWindow[state.careWindow.length - 1];
@@ -230,6 +234,16 @@ function DebugPanelBody({
           <Text style={styles.buttonLabel}>Retire</Text>
         </Pressable>
       </View>
+      {onRunwayInvite && onRaceInvite ? (
+        <View style={styles.actions}>
+          <Pressable style={styles.button} onPress={onRunwayInvite}>
+            <Text style={styles.buttonLabel}>Runway invite</Text>
+          </Pressable>
+          <Pressable style={styles.button} onPress={onRaceInvite}>
+            <Text style={styles.buttonLabel}>Race invite</Text>
+          </Pressable>
+        </View>
+      ) : null}
       {onParkFindForce ? (
         <View style={styles.actions}>
           <Pressable style={styles.button} onPress={() => onParkFindForce('dig')}>

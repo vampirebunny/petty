@@ -3,7 +3,7 @@ import { localDay } from '../economy/clock';
 import { serverNow } from '../db/accountMeta';
 import { runwayThemes, runwayTracks, themeById, type RunwayThemeId } from '../runway/catalog';
 import { dressNpcModels, pickNpcModels } from '../runway/npcs';
-import { classForEvent, classForLevel } from '../sim/stadium';
+import { classForEvent, classForLevel, isPlayableEvent } from '../sim/stadium';
 import type { PetState } from '../sim/types';
 import { fetchBoard, type StadiumBoard } from '../stadium/api';
 import { inviteConfig } from './config';
@@ -11,7 +11,7 @@ import { soonestRace } from './pick';
 import { cancelNpcPush } from './push';
 import { chooseFormat, daySpent, formatEligible, formatTrigger, spendDay } from './schedule';
 import { loadCounters, saveCounters } from './store';
-import type { Invitation, InviteSurface, RaceOption } from './types';
+import type { Invitation, InviteFormat, InviteSurface, RaceOption } from './types';
 
 export function boardRaceOptions(board: StadiumBoard): RaceOption[] {
   return board.slots.flatMap((slot) =>
@@ -133,4 +133,65 @@ export async function createInvitation(
   });
   track('invite_shown', { type: invitation.type, surface });
   return invitation;
+}
+
+/** Development only. Builds an invitation without spending the day or writing scheduler counters. */
+export async function createDebugInvitation(
+  pet: PetState,
+  format: InviteFormat,
+  linked: boolean,
+): Promise<Invitation | null> {
+  if (!pet.ownerId) {
+    return null;
+  }
+  const createdAt = Date.now();
+  if (format === 'race') {
+    const now = serverNow();
+    let board: Awaited<ReturnType<typeof fetchBoard>> | null = null;
+    if (linked) {
+      try {
+        board = await fetchBoard(pet.id);
+      } catch {
+        board = null;
+      }
+    }
+    const options = board?.ok ? boardRaceOptions(board.data) : [];
+    const future = options
+      .filter((row) => isPlayableEvent(row.event) && row.startsAt > now + 15_000)
+      .sort((a, b) => a.startsAt - b.startsAt);
+    const raceCard = future.find((row) => row.state === 'open') ?? future[0] ?? null;
+    const startsAt = raceCard?.startsAt ?? now + 5 * 60 * 1000;
+    return {
+      id: `invite-debug-${createdAt}`,
+      type: 'race',
+      createdAt,
+      expiresAt: startsAt,
+      surface: 'in_app',
+      trigger: 'first',
+      eventId: raceCard?.eventId ?? '',
+      event: raceCard?.event ?? 'funRun',
+      cup: raceCard?.cup ?? 'open',
+      classId: raceCard?.classId ?? classForLevel(pet.level),
+      startsAt,
+      bib: bibNumber(),
+    };
+  }
+  const counters = await loadCounters(pet.ownerId);
+  const themePick = pickTheme(counters.seenThemeIds);
+  const showId = `invite-${pet.ownerId}-${createdAt}`;
+  const track = runwayTracks[Math.floor(Math.random() * runwayTracks.length)] ?? runwayTracks[0];
+  const models = pickNpcModels({ id: showId });
+  return {
+    id: `invite-debug-${createdAt}`,
+    type: 'runway',
+    createdAt,
+    expiresAt: createdAt + inviteConfig.runwayExpireMs,
+    surface: 'in_app',
+    trigger: 'first',
+    themeId: themePick.id,
+    themeName: themeById(themePick.id)?.name ?? themePick.id,
+    trackId: track.id,
+    showId,
+    npcSubmissions: dressNpcModels(showId, themePick.id, [], models),
+  };
 }

@@ -107,7 +107,7 @@ export function InvitationOverlay({ invitation, reducedMotion, onDismiss, onAcce
     const handoff = reducedMotion ? 1 : inviteConfig.handoffMs;
     seal.value = withTiming(0, { duration: reducedMotion ? 1 : 220 });
     flap.value = withTiming(180, { duration: reducedMotion ? 1 : 420 });
-    peek.value = withDelay(reducedMotion ? 0 : 320, withTiming(-92, { duration: reducedMotion ? 1 : 500, easing: spring }));
+    peek.value = withDelay(reducedMotion ? 0 : 320, withTiming(-28, { duration: reducedMotion ? 1 : 500, easing: spring }));
     setTimeout(() => {
       setStage('reveal');
       drop.value = withTiming(1, { duration: reducedMotion ? 1 : 500 });
@@ -141,6 +141,8 @@ export function InvitationOverlay({ invitation, reducedMotion, onDismiss, onAcce
     ],
   }));
   const flapStyle = useAnimatedStyle(() => ({
+    // At 90° the lid is edge-on, so dropping it behind the card is invisible.
+    zIndex: flap.value < 90 ? 6 : 0,
     transform: [{ perspective: 900 }, { rotateX: `${flap.value}deg` }],
   }));
   const sealStyle = useAnimatedStyle(() => ({
@@ -163,12 +165,20 @@ export function InvitationOverlay({ invitation, reducedMotion, onDismiss, onAcce
     if (stage === 'leaving' || stage === 'opening') {
       return;
     }
+    if (stage === 'closed') {
+      open();
+      return;
+    }
     leave('tap_outside');
   };
 
   return (
     <View style={styles.fill} pointerEvents="box-none">
-      <Pressable accessibilityLabel="Dismiss invitation" onPress={outside} style={styles.dim} />
+      <Pressable
+        accessibilityLabel={stage === 'closed' ? 'Open invitation' : 'Dismiss invitation'}
+        onPress={outside}
+        style={styles.dim}
+      />
       <View pointerEvents="box-none" style={styles.center}>
         {stage !== 'leaving' ? (
           <Animated.View style={envStyle} pointerEvents={stage === 'closed' ? 'auto' : 'none'}>
@@ -212,48 +222,59 @@ function Envelope({
 }) {
   return (
     <View style={styles.envelope}>
-      <View style={styles.envelopeBack} />
-      <Animated.View style={[styles.peek, invitation.type === 'race' && styles.peekRace, peekStyle]}>
-        {invitation.type === 'runway' ? (
-          <Text style={styles.peekRunway}>THE CATWALK</Text>
-        ) : (
-          <Checker height={16} />
-        )}
-      </Animated.View>
-      <Svg width={300} height={200} viewBox="0 0 300 200" style={styles.pockets}>
-        <Polygon points="0,0 152,112 0,200" fill="#EFE0C6" />
-        <Polygon points="300,0 148,112 300,200" fill="#EFE0C6" />
-        <Polygon points="0,200 150,96 300,200" fill="#F6EBD7" />
-      </Svg>
+      <View style={styles.envelopeClip}>
+        <View style={styles.envelopeBack} />
+        <Animated.View style={[styles.peek, invitation.type === 'race' && styles.peekRace, peekStyle]}>
+          {invitation.type === 'runway' ? (
+            <Text style={styles.peekRunway}>THE CATWALK</Text>
+          ) : (
+            <Checker height={18} />
+          )}
+        </Animated.View>
+        <Svg width={300} height={200} viewBox="0 0 300 200" style={styles.sidePockets}>
+          <Polygon points="0,0 152,112 0,200" fill="#EFE0C6" />
+          <Polygon points="300,0 148,112 300,200" fill="#EFE0C6" />
+        </Svg>
+        <Svg width={300} height={200} viewBox="0 0 300 200" style={styles.bottomPocket}>
+          <Polygon points="0,200 150,96 300,200" fill="#F6EBD7" />
+        </Svg>
+        <View style={styles.label}>
+          <Text style={styles.labelText}>{"You're invited!"}</Text>
+        </View>
+      </View>
       <Animated.View style={[styles.flap, flapStyle]}>
         <Svg width={300} height={122} viewBox="0 0 300 122">
           <Path d="M18 0 H282 Q300 0 290 12 L163 112 Q150 122 137 112 L10 12 Q0 0 18 0 Z" fill="#EADAB9" />
         </Svg>
+        <Animated.View style={[styles.seal, sealStyle]}>
+          <Svg width={30} height={30} viewBox="0 0 30 30">
+            <Ellipse cx={15} cy={20} rx={7} ry={6} fill="#FFF3D6" />
+            <Ellipse cx={6.5} cy={12.5} rx={3} ry={3.6} fill="#FFF3D6" />
+            <Ellipse cx={11.5} cy={7.5} rx={3} ry={3.6} fill="#FFF3D6" />
+            <Ellipse cx={18.5} cy={7.5} rx={3} ry={3.6} fill="#FFF3D6" />
+            <Ellipse cx={23.5} cy={12.5} rx={3} ry={3.6} fill="#FFF3D6" />
+          </Svg>
+        </Animated.View>
       </Animated.View>
-      <Animated.View style={[styles.seal, sealStyle]}>
-        <Svg width={30} height={30} viewBox="0 0 30 30">
-          <Ellipse cx={15} cy={20} rx={7} ry={6} fill="#FFF3D6" />
-          <Ellipse cx={6.5} cy={12.5} rx={3} ry={3.6} fill="#FFF3D6" />
-          <Ellipse cx={11.5} cy={7.5} rx={3} ry={3.6} fill="#FFF3D6" />
-          <Ellipse cx={18.5} cy={7.5} rx={3} ry={3.6} fill="#FFF3D6" />
-          <Ellipse cx={23.5} cy={12.5} rx={3} ry={3.6} fill="#FFF3D6" />
-        </Svg>
-      </Animated.View>
-      <View style={styles.label}>
-        <Text style={styles.labelText}>{"You're invited!"}</Text>
-      </View>
     </View>
   );
 }
 
 function RunwayCard({ invitation }: { invitation: Extract<Invitation, { type: 'runway' }> }) {
   const band = themeBands[invitation.themeId];
+  const [artW, setArtW] = useState(0);
   return (
     <View style={styles.runway}>
       <Text style={styles.kicker}>THE CATWALK</Text>
       <Text style={styles.runwayTitle}>{"You're invited!"}</Text>
-      <View style={styles.themePanel}>
-        <ThemeStill themeId={invitation.themeId} width={256} height={112} />
+      <View
+        style={styles.themePanel}
+        onLayout={(event) => {
+          const next = Math.round(event.nativeEvent.layout.width);
+          setArtW((current) => (current === next ? current : next));
+        }}
+      >
+        {artW > 0 ? <ThemeStill themeId={invitation.themeId} width={artW} height={112} fit="cover" radius={0} /> : <View style={styles.themeArt} />}
         <View style={[styles.themeBand, { backgroundColor: band.band }]}>
           <Text style={[styles.themeEyebrow, { color: band.eyebrow }]}>THEME</Text>
           <Text style={[styles.themeName, { color: band.name }]}>{invitation.themeName}</Text>
@@ -364,31 +385,37 @@ const styles = StyleSheet.create({
   dim: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(38,16,54,0.55)' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   cardWrap: { alignItems: 'center', gap: 26 },
-  envelope: { width: 300, height: 200 },
-  envelopeBack: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: '#E3D1B2',
+  envelope: {
+    width: 300,
+    height: 200,
+    overflow: 'visible',
     borderRadius: 18,
+    backgroundColor: '#E3D1B2',
     shadowColor: '#1E0628',
     shadowOpacity: 0.45,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 16 },
   },
+  envelopeClip: { ...StyleSheet.absoluteFill, borderRadius: 18, overflow: 'hidden', zIndex: 1 },
+  envelopeBack: { ...StyleSheet.absoluteFill, backgroundColor: '#E3D1B2' },
   peek: {
     position: 'absolute',
-    left: 22,
-    right: 22,
-    top: 18,
-    height: 150,
+    left: 20,
+    right: 20,
+    top: 32,
+    height: 156,
     backgroundColor: '#FFF6FB',
-    borderRadius: 14,
+    borderRadius: 16,
     alignItems: 'center',
     paddingTop: 14,
+    zIndex: 1,
+    overflow: 'hidden',
   },
   peekRace: { backgroundColor: '#FFFDF7', paddingTop: 0, overflow: 'hidden' },
   peekRunway: { fontFamily: fontFamily.extraBold, fontSize: 11, letterSpacing: 2, color: '#8C3A72' },
-  pockets: { position: 'absolute', left: 0, top: 0 },
-  flap: { position: 'absolute', left: 0, top: 0, width: 300, height: 122 },
+  sidePockets: { position: 'absolute', left: 0, top: 0, zIndex: 1 },
+  bottomPocket: { position: 'absolute', left: 0, top: 0, zIndex: 2 },
+  flap: { position: 'absolute', left: 0, top: 0, width: 300, height: 130, overflow: 'visible', transformOrigin: 'center top' },
   seal: {
     position: 'absolute',
     left: 121,
@@ -399,7 +426,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#C08A2E',
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 5,
   },
   label: {
     position: 'absolute',
@@ -409,7 +435,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingHorizontal: 20,
     paddingVertical: 7,
-    zIndex: 6,
+    zIndex: 3,
     shadowColor: '#D6C3A0',
     shadowOpacity: 1,
     shadowRadius: 0,
@@ -435,7 +461,8 @@ const styles = StyleSheet.create({
   },
   kicker: { fontFamily: fontFamily.extraBold, fontSize: 12, letterSpacing: 2, color: '#8C3A72' },
   runwayTitle: { fontFamily: fontFamily.fredokaBold, fontSize: 34, color: '#5B1F4A' },
-  themePanel: { width: 256, height: 168, borderRadius: 20, overflow: 'hidden' },
+  themePanel: { alignSelf: 'stretch', height: 168, borderRadius: 20, overflow: 'hidden' },
+  themeArt: { height: 112, alignSelf: 'stretch' },
   themeBand: { height: 56, alignItems: 'center', justifyContent: 'center' },
   themeEyebrow: { fontFamily: fontFamily.extraBold, fontSize: 10, letterSpacing: 1 },
   themeName: { fontFamily: fontFamily.fredokaBold, fontSize: 16 },

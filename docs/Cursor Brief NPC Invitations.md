@@ -92,18 +92,18 @@ One shared envelope; two invitation designs. Match the mockup canvas "Boop Boop 
 
 1. **Arrive:** pops in at center with a springy scale bounce (0.4 → 1, about 0.55 s). Play `badge-earned.wav`.
 2. **Idle:** a small wobble (about ±3°) every 2.8 s, so it reads as tappable. Reduced motion skips the wobble.
-3. **Tap to open:** the seal scales up and fades (0.22 s), the flap flips up on its top edge (0.42 s), and the top of the invitation slides up out of the envelope (starts at 0.32 s).
+3. **Tap to open:** a tap on the envelope, or on the dim background around it, opens it. The seal scales up and fades (0.22 s) and the flap flips up on its top edge (0.42 s). While the envelope is closed the flap is the front layer, hinged on the top edge, with the paw seal on the flap. At 90°, when the flap is edge-on, it drops behind the letter and finishes above the envelope. The letter is a tall card inside the envelope, under the flap and the front pocket. It rises only enough for its header to show in the opening and stays inside.
 4. **Hand-off (at about 0.95 s):** the envelope drops off the bottom of the screen with a slight rotation and fades. The full invitation springs in from below to center (scale 0.65 → 1).
 5. **Buttons:** fade up 0.7 s after the invitation lands, on both cards, so they are tappable by about 2 s from the tap. Race safety pins still stagger in and may overlap that fade.
 
-The part that peeks out of the envelope matches its invitation: "THE CATWALK" on cream-pink for runway, a checkered strip on off-white for race.
+The letter's header matches its invitation: "THE CATWALK" on cream-pink for runway, a checkered strip on off-white for race.
 
 **Runway invitation (about 300 pt wide)**
 
 - Card `#FFF6FB` with a 6 pt `#F7CFE3` outer ring and 28 pt radius.
 - "THE CATWALK" in small spaced caps, `#8C3A72`.
 - "You're invited!" heading, `#5B1F4A`.
-- Theme panel (256×168 pt, 20 pt radius): the top 112 pt is `ThemeStill` for that theme. The bottom 56 pt is a name band with "THEME" over the theme name. Band colors are below. The mockup's 300×250 crop table is for its own drawings and does not apply to the venue art.
+- Theme panel (about 256×168 pt, 20 pt radius, stretched to the card): the top 112 pt is `ThemeStill` for that theme, cropped from the top of the venue so the art fills the frame. The bottom 56 pt is a name band with "THEME" over the theme name. Band colors are below. The mockup's 300×250 crop table is for its own drawings and does not apply to the venue art.
 - "Walk the runway in 3 looks" with three hanger icons.
 - Buttons: Accept `#C2337F` with white text; Maybe Next Time white with `#8E1F5B` text.
 
@@ -156,7 +156,7 @@ Accept skips the venue screens and the map walk. Maybe Next Time closes.
 **Maybe Next Time**
 
 - Closes the invitation: it shrinks and fades downward (about 0.4 s), and the overlay lifts.
-- Tapping outside the invitation, or outside the unopened envelope, counts as Maybe Next Time.
+- Tapping outside the revealed invitation counts as Maybe Next Time. Tapping outside the unopened envelope opens it.
 - Counts toward the dismissal back-off.
 
 **Expiry**
@@ -194,4 +194,5 @@ A race result stays on `competition_result`.
 
 - Costume pieces: the full theme rack is available at Accept, except pieces the seeded NPCs wear.
 - Envelope chime: `badge-earned.wav`.
-- Theme panel art: `ThemeStill`, with the band colors above.
+- Theme panel art: `ThemeStill`, cropped from the top of the venue so it fills the frame, with the band colors above.
+- Dev debug, development builds only: Settings has **Runway invite** and **Race invite**. They show the envelope immediately. They do not spend the day's invitation, and Maybe Next Time on one of them is not a dismissal. The race button uses the next playable board card. If the board has none, it shows a Fun Run preview.

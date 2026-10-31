@@ -5,12 +5,12 @@ import { serverNow } from '../db/accountMeta';
 import type { PetState } from '../sim/types';
 import { fetchBoard } from '../stadium/api';
 import { inviteConfig } from './config';
-import { boardRaceOptions, createInvitation } from './create';
+import { boardRaceOptions, createDebugInvitation, createInvitation } from './create';
 import { retargetRace } from './pick';
 import { dismissFormat } from './schedule';
 import { updateCounters } from './store';
 import { onInviteMoment, onNpcInviteRequest } from './session';
-import type { Invitation } from './types';
+import type { Invitation, InviteFormat } from './types';
 
 type Args = {
   pet: PetState | null;
@@ -26,6 +26,7 @@ export function useNpcInvitation({ pet, linked, home, blocked, onAccept }: Args)
   accept: () => void;
   due: (opened: boolean) => void;
   opened: () => void;
+  offerDebug: (format: InviteFormat) => Promise<boolean>;
 } {
   const [invitation, setInvitation] = useState<Invitation | null>(null);
   const [pulse, setPulse] = useState(0);
@@ -33,6 +34,7 @@ export function useNpcInvitation({ pet, linked, home, blocked, onAccept }: Args)
   const openedTracked = useRef(false);
   const busy = useRef(false);
   const pushPending = useRef(false);
+  const debugIds = useRef(new Set<string>());
   const argsRef = useRef({ pet, linked, home, blocked, onAccept });
 
   useEffect(() => {
@@ -78,10 +80,30 @@ export function useNpcInvitation({ pet, linked, home, blocked, onAccept }: Args)
     };
   }, [blocked, home, invitation, linked, pet, pulse]);
 
+  const offerDebug = (format: InviteFormat): Promise<boolean> => {
+    const petNow = argsRef.current.pet;
+    if (!petNow) {
+      return Promise.resolve(false);
+    }
+    return createDebugInvitation(petNow, format, argsRef.current.linked).then((next) => {
+      if (!next) {
+        return false;
+      }
+      debugIds.current.add(next.id);
+      shownAt.current = Date.now();
+      openedTracked.current = false;
+      setInvitation(next);
+      return true;
+    });
+  };
+
   const dismiss = (method: 'button' | 'tap_outside') => {
     const current = invitation;
     const ownerId = argsRef.current.pet?.ownerId;
-    if (!current || !ownerId) {
+    if (!current || !ownerId || debugIds.current.has(current.id)) {
+      if (current) {
+        debugIds.current.delete(current.id);
+      }
       setInvitation(null);
       return;
     }
@@ -150,7 +172,7 @@ export function useNpcInvitation({ pet, linked, home, blocked, onAccept }: Args)
     });
   };
 
-  return { invitation, dismiss, accept, due, opened };
+  return { invitation, dismiss, accept, due, opened, offerDebug };
 }
 
 export function secondsToOpen(shownAt: number, now = Date.now()): number {

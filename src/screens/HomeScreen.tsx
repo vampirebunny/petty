@@ -1994,7 +1994,9 @@ export default function HomeScreen({ petApi }: Props) {
         setCatwalkOpen(true);
         return;
       }
-      setRaceSeed({ eventId: invitation.eventId, event: invitation.event, startsAt: invitation.startsAt });
+      if (invitation.eventId) {
+        setRaceSeed({ eventId: invitation.eventId, event: invitation.event, startsAt: invitation.startsAt });
+      }
       setStadiumOpen(true);
     },
   });
@@ -3527,6 +3529,16 @@ export default function HomeScreen({ petApi }: Props) {
           }}
           onParkFindResetCollection={() => {
             commitPet({ ...state, parkFinds: resetCollection(state.parkFinds) });
+          }}
+          onRunwayInvite={() => {
+            void npcInvite.offerDebug('runway');
+          }}
+          onRaceInvite={() => {
+            void npcInvite.offerDebug('race').then((shown) => {
+              if (!shown) {
+                flash('No open race to invite.');
+              }
+            });
           }}
           onParkFindResetChest={() => {
             resetChestIntroFlags();
