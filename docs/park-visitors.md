@@ -35,7 +35,7 @@ A hello starts only when both sides allow it.
 - If both would only tolerate a hello, they do not cross the park. They can still greet when a wander brings them within about 70px.
 - If both want to meet, they meet halfway.
 
-Your pet and the visitor each roll about every 8 seconds while idle. Outgoing starts a hello about 55% of the time, friendly or aloof about 28%, and shy never starts one. One hello per visitor. Two visitors may greet each other once if your pet is sitting it out. That greeting does not pay mood.
+Your pet and the visitor each roll about every 8 seconds while idle. Outgoing starts a hello about 55% of the time, friendly or aloof about 28%, and shy never starts one. One hello per visitor. Two visitors may greet each other once if your pet is sitting it out. That greeting does not pay mood. A park-find prompt holds your pet, so a hello does not start until the prompt is gone.
 
 The hello lasts 2–6 seconds, then both go back to wandering. A dog and a dog may bow. A cat and a cat may sit. Anyone aloof, or a dog and a cat, sniffs. A player command, including feed, play, sleep, cuddle, or a trick, cancels the hello immediately. There is no mood penalty.
 

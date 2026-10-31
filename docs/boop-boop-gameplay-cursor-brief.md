@@ -210,7 +210,7 @@ The lobby, sign-up, race call, and starting gate are in `docs/boop-boop-stadium-
 
 ## 9. Live races (phase 7)
 
-- Open scheduled races are for anyone online, guests included. Friends who sign up for the same slot and class are placed in the same race when there's room. Private races with friends only are the friend games addendum (`docs/boop-boop-friend-games-addendum.md`), which needs an account. Think intramural vs. varsity: friend games give no XP, ribbons, trophies, race badges, or rest; open races are the record.
+- Open scheduled races are for anyone online, guests included. Friends who sign up for the same slot and class are placed in the same race when there's room. Private races with friends only are the friend games addendum (`docs/boop-boop-friend-games-addendum.md`), which needs an account. Think intramural vs. varsity: friend games give no XP, ribbons, trophies, race badges, or rest, and they do not require the event's tricks; open and veteran races are the record and still do.
 - Within a class, fill races in sign-up order. When a race fills, open another.
 - The server sends one synchronized countdown start (Supabase Realtime).
 - Each phone simulates its own pet from its own player's input and broadcasts its state for others to display (Fun Run, Hurdles, Obstacle Course). Dock Dive shares each jump's result instead.

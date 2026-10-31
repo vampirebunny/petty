@@ -46,9 +46,6 @@ export type ParkFindVisit = {
   goldFlashUntil: number;
   decals: DigDecal[];
   particles: FindParticle[];
-  lastInputAt: number;
-  /** Seconds of continuous idle readiness. */
-  idleAcc: number;
 };
 
 export type ParkFindDebug = {
@@ -187,26 +184,43 @@ export function createParkFindVisit(
     goldFlashUntil: 0,
     decals: [],
     particles: [],
-    lastInputAt: now,
-    idleAcc: 0,
   };
 }
 
-function findIdle(actor: Actor, visit: ParkFindVisit, now: number): boolean {
-  if (actor.task.type !== 'idle') return false;
-  if (actor.task.greet && actor.task.greet.phase === 'run') return false;
-  if (actor.play) return false;
-  const carrying = false; // toys checked by caller via world items if needed
-  void carrying;
-  if (now - visit.lastInputAt < parkFinds.idleSec) return false;
-  return visit.idleAcc >= parkFinds.idleSec;
+/** Drop whatever the pet is doing so the notice hold can own the body. */
+function settleForNotice(world: World, actor: Actor, spot: { x: number; y: number }): void {
+  const carried = world.items.find((item) => item.state === 'carried' && item.holderId === actor.id);
+  if (carried) {
+    carried.state = 'free';
+    carried.holderId = undefined;
+    carried.x = actor.mouth.x;
+    carried.y = actor.y + 1;
+    carried.z = Math.max(0, actor.y - actor.z - actor.mouth.y);
+    carried.vx = actor.face * 30;
+    carried.vy = 0;
+    carried.vz = 0;
+  }
+  actor.play = null;
+  actor.direction = null;
+  actor.zoom = null;
+  actor.cuddle = null;
+  actor.furniture = null;
+  actor.asleep = false;
+  actor.task = { type: 'idle', stage: 'parkNotice', t: 0, bats: 0, cool: 0 };
+  actor.idle = { mode: 'still', t: 0, dur: 999, target: null, sit: false, arrived: true };
+  if (Math.abs(spot.x - actor.x) > 4) {
+    actor.face = spot.x >= actor.x ? 1 : -1;
+  }
 }
 
-export function noteParkFindInput(world: World, now = world.t): void {
-  if (world.parkFindVisit) {
-    world.parkFindVisit.lastInputAt = now;
-    world.parkFindVisit.idleAcc = 0;
+function releaseNoticeHold(world: World): void {
+  const host = world.actors.find((actor) => !actor.guest);
+  if (!host || host.task.type !== 'idle' || host.task.stage !== 'parkNotice') {
+    return;
   }
+  host.task.stage = '';
+  host.idle.dur = 0;
+  host.idle.t = 0.01;
 }
 
 export function dismissParkFindPrompt(world: World): void {
@@ -215,6 +229,7 @@ export function dismissParkFindPrompt(world: World): void {
   visit.prompting = false;
   visit.used = true;
   visit.armed = false;
+  releaseNoticeHold(world);
   visit.grassTuft = null;
   visit.bushShake = 0;
   visit.variant = null;
@@ -242,6 +257,7 @@ export function acceptParkFindPrompt(
   if (!item) {
     visit.grassTuft = null;
     visit.bushShake = 0;
+    releaseNoticeHold(world);
     return null;
   }
   visit.running = true;
@@ -255,7 +271,7 @@ export function acceptParkFindPrompt(
   return item;
 }
 
-/** Start notice cue + prompt when idle gate passes. */
+/** Start the notice cue when its timer is up. The pet does not have to be idle. */
 export function tickParkFindVisit(
   world: World,
   actor: Actor,
@@ -266,8 +282,6 @@ export function tickParkFindVisit(
   if (!visit || (visit.used && !visit.running && !visit.prompting)) {
     return;
   }
-  visit.idleAcc = actor.task.type === 'idle' ? visit.idleAcc + dt : 0;
-
   if (visit.prompting) {
     // Prompt stays until "Let's see!" or another player action — no auto-timeout.
     if (visit.variant === 'grass' && visit.grassTuft) {
@@ -286,11 +300,7 @@ export function tickParkFindVisit(
   if (world.t < visit.noticeAt) {
     return;
   }
-  if (!findIdle(actor, visit, world.t)) {
-    return;
-  }
 
-  // Begin notice / cue.
   visit.prompting = true;
   visit.promptStartedAt = world.t;
   if (visit.variant === 'grass') {
@@ -299,12 +309,7 @@ export function tickParkFindVisit(
   if (visit.variant === 'bush') {
     visit.bushShake = 1.5;
   }
-  // Freeze pet in place for notice beat via a short parkFind notice before prompt.
-  // Prompt UI handles the pause; pet stays in idle still looking at spot.
-  actor.idle = { mode: 'still', t: 0, dur: 999, target: null, sit: false, arrived: true };
-  if (Math.abs(visit.spot.x - actor.x) > 4) {
-    actor.face = visit.spot.x >= actor.x ? 1 : -1;
-  }
+  settleForNotice(world, actor, visit.spot);
   void species;
 }
 
@@ -327,8 +332,6 @@ export function forceParkFindNoticeNow(
   } else if (!visit.spot) {
     visit.spot = pickFindSpot(world.scene, actor, world.rng, world.stageBleed);
   }
-  visit.idleAcc = parkFinds.idleSec;
-  visit.lastInputAt = world.t - parkFinds.idleSec;
   world.parkFindVisit = visit;
 }
 

@@ -58,7 +58,7 @@ These override the sections below. The old addendum is folded in here.
 | Weave | — | — | cancelled |
 
 - All ship events are open to dogs and cats. The cat trick catalog must include Jump the Hurdle and Through the Tunnel so cats can qualify for Hurdles and Obstacle Course.
-- The trick check runs server-side at sign-up, as in the Stadium brief.
+- The trick check runs server-side at sign-up for open and veteran races, as in the Stadium brief. Friend games do not require these tricks.
 - The engine supports three event types. **Race:** first to the finish line, ranked by time. **Distance:** best attempt wins. **Rounds:** last pet standing or best score. This brief builds the race type fully. Distance is used by Dock Dive. Rounds were for cancelled events and are not needed for the ship roster.
 
 ## 2. Race lifecycle
@@ -117,9 +117,10 @@ To make replays match exactly:
 
 **Live sync (Supabase Realtime)**
 - Fun Run, Hurdles, and Obstacle Course use one broadcast channel per race: `race:{raceId}:run` (the gate's presence channel on `race:{raceId}` may still be closing). Code: `src/stadium/raceSync.ts`.
-- About 10 times a second (`raceSyncConfig.syncHz`), each phone sends its own runner state: `{ entryId, t, x, v, jumpX, airM, duckX, duckUntilX, clipAtMs, outcomes, outcomeMs, finishMs }`. Those are the same fields the renderers read for the local pet, so other lanes leap, duck, tip hurdles, and bonk tunnels from the sender's own outcomes.
+- About 10 times a second (`raceSyncConfig.syncHz`), each phone sends its own runner state. The payload is packed (`packLiveState`): `{ entryId, t, x, v }` every tick, plus current jump/duck/clip/finish scalars and the outcome list when they are set. Empty defaults stay off the wire. A jump, duck, clip, bonk, new outcome, or finish is sent immediately, not held for the next 10 Hz slot. Those are the same fields the renderers read for the local pet, so other lanes leap, duck, tip hurdles, and bonk tunnels from the sender's own outcomes. Code: `src/stadium/liveTrack.ts`, `src/stadium/raceSync.ts`.
 - Other humans are drawn only from these updates. Phones never simulate them. Their provisional finish comes from the broadcast `finishMs`.
-- Other pets are drawn 120 ms behind (`interpDelayMs`) and interpolated between updates, so they glide instead of jumping. A slow connection only makes *other* pets look slightly behind; it never changes the player's own race or results. Updates older than `staleMs` freeze that pet and show "Reconnecting".
+- Other pets are drawn 240 ms behind (`interpDelayMs`) and interpolated between updates, so they glide instead of jumping. If the next packet is late, they coast on the last speed for up to `extrapolateMs` (180 ms) instead of freezing; a finished racer holds. A slow connection only makes *other* pets look slightly behind; it never changes the player's own race or results. Updates older than `staleMs` freeze that pet and show "Reconnecting".
+- The race canvas follows the display refresh (`useRaceLoop`). The 60 Hz sim still catch-up steps; HUD React state (timer, mini-map, cues) updates at `uiHz` (10). The countdown clock stops polling after the Go! second.
 - The stream runs only when the line-up has two or more live players.
 - The Supabase client pins Realtime protocol `1.0.0` (`src/compliance/supabase.ts`). Protocol `2.0.0` encodes broadcasts as binary frames that Hermes does not decode reliably, so presence works but position updates never arrive.
 

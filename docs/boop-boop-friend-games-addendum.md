@@ -15,12 +15,12 @@ Alongside open scheduled races (anyone online, guests included), a player can cr
 ## Creating a game
 
 1. In the Stadium, the player taps **Race with friends**.
-2. Picks the event: **Fun Run, Hurdles, or Obstacle Course** (same trick rules as open races). Dock Dive is not offered; it isn't a good live race. Sniff Out, Trick Show, and Weave are cancelled.
+2. Picks the event: **Fun Run, Hurdles, or Obstacle Course**. Any pet can enter, whether or not it has learned the tricks those events need in an open or veteran race. Dock Dive is not offered; it isn't a good live race. Sniff Out, Trick Show, and Weave are cancelled.
 3. Picks when it starts: **in 2, 5, or 15 minutes** (default 5; `gameplayConfig.friendGames.delaysMin`).
 4. Selects up to 5 friends. The list shows friends only:
    - **Recent** at the top: the 5 friends this player invited most recently (stored per player, not per pet), newest first.
    - **All friends** below.
-   - A friend whose pet lacks a trick on the chosen course shows dimmed and can't be selected, with the reason (e.g. "Needs Jump the Hurdle").
+   - A friend with no pet yet shows dimmed and can't be selected ("No pet yet"). A missing trick does not block them.
 5. Taps **Send invites**. This completes the "Start a friends game" tutorial action and suggestion.
 
 There is no scheduling for a specific date and time yet. That is a possible later brief (time zones are easy; reminders, RSVPs, and overlap rules are the work).
@@ -47,6 +47,7 @@ There is no scheduling for a specific date and time yet. That is a possible late
 
 - Starts at the game's start time, not on the slot schedule.
 - Every pet races on **Open** class settings, whatever its level.
+- No trick gate. Hurdles and Obstacle Course still require Jump the Hurdle (and Through the Tunnel, for Obstacle) in open and veteran races. Friend games do not. `create_friend_game` stores an empty `required_tricks` list, and accepting an invite does not check training. Migration `20261030140000_friend_games_no_trick_gate.sql`.
 - Same events, controls, scoring, and energy/mood effects as open races.
 - Each pet shows its real coat, age, and outfit from the server copy of the pet.
 - A player who drops mid-race keeps racing on their own phone. Other phones freeze that pet and show "Reconnecting". A missing report is DNF. No NPC autoplay.
@@ -62,7 +63,7 @@ There is no scheduling for a specific date and time yet. That is a possible late
 
 A friend game is a private race, so it reuses the whole open-race lifecycle (lock, presence, start, live sync, `race_report` replay, ranking, `race_state`). Migration `20261030110000_friend_games.sql`:
 
-- Each game gets its own `competition_slots` row (`private = true`, negative id), a `competition_events` row with `cup = 'friends'`, and a `races` row in class `open` with `host_player_id`. Private slots never show on the lobby board.
+- Each game gets its own `competition_slots` row (`private = true`, negative id), a `competition_events` row with `cup = 'friends'` and an empty `required_tricks` list, and a `races` row in class `open` with `host_player_id`. Private slots never show on the lobby board. `20261030140000_friend_games_no_trick_gate.sql` drops the trick check from create and accept, and clears tricks already stored on friends-cup events.
 - `friend_game_invites` (`race_id`, `inviter_id`, `invitee_id`, `status` pending / accepted / declined / withdrawn, `notified_at`).
 - `advance_races`: friends races never get NPCs, and cancel at lock or start unless the host and at least one friend are checked in. Pending invites are withdrawn at lock. `stadium_finish_cooldown` skips them.
 - RPCs: `friend_game_candidates`, `create_friend_game`, `list_friend_game_invites`, `respond_friend_game_invite`, `friend_game_state`, `friend_game_heartbeat`, `leave_friend_game`. `get_upcoming_slots` returns `friend_game_race_id` for the pet's active friend game.

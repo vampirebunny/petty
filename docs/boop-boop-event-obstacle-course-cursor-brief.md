@@ -5,7 +5,7 @@ Builds on: Race Foundation brief + Addendum, Race Poses brief, and Hurdles brief
 ## Entry
 
 - Type: **race** (ranked by finish time).
-- Tricks needed: **Jump the Hurdle** and **Through the Tunnel**. Both gates are on again (`skillBlock` on the client, `stadium_required_tricks('obstacle')` in the applied `20261030130000_launch_race_schedule.sql`). Obstacle Course alternates with Hurdles as the third card. It is not in every slot.
+- Tricks needed for open and veteran races: **Jump the Hurdle** and **Through the Tunnel**. Both gates are on again for those cups (`skillBlock` on the client, `stadium_required_tricks('obstacle')` in the applied `20261030130000_launch_race_schedule.sql`). Friend games skip them (`20261030140000_friend_games_no_trick_gate.sql`). Obstacle Course alternates with Hurdles as the third card. It is not in every slot.
 - The hardest event; best suited to Open class and up, but open to every class. Races by level class like Hurdles.
 - The phone opens `ObstacleScreen`; the rules live in `race-sim/obstacle.ts`.
   - `20261029440000_obstacle_course.sql` runs Obstacle races through the same lock, countdown, and start as Fun Run and Hurdles.

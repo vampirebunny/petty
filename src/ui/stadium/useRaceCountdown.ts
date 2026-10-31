@@ -10,10 +10,15 @@ export function useRaceCountdown(startsAt: number, finished: boolean) {
   const lastCountBeat = useRef<number | null>(null);
   const startSound = useRef(false);
 
+  const going = now >= startsAt;
+  // Keep the clock through the "Go!" second, then stop so the race tick is not fighting 20 Hz React updates.
+  const counting = now < startsAt + 1000;
+
   useEffect(() => {
+    if (finished || !counting) return;
     const timer = setInterval(() => setNow(serverNow()), 50);
     return () => clearInterval(timer);
-  }, []);
+  }, [counting, finished, startsAt]);
 
   useEffect(() => {
     preloadRaceStart();
@@ -21,7 +26,6 @@ export function useRaceCountdown(startsAt: number, finished: boolean) {
   }, []);
 
   const untilStart = startsAt - now;
-  const going = untilStart <= 0;
   const beat = countBeat(untilStart);
   const countLabel = countLabelFor(untilStart);
 

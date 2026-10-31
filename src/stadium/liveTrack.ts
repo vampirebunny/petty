@@ -3,7 +3,11 @@ export const raceSyncConfig = {
   /** Broadcasts per second from each phone. */
   syncHz: 10,
   /** Other pets are drawn this far behind the race clock, so there is usually a newer sample to glide toward. */
-  interpDelayMs: 120,
+  interpDelayMs: 240,
+  /** Coast this far past the last sample when the next packet is late, so remotes do not hitch. */
+  extrapolateMs: 180,
+  /** Timer and mini-map React updates per second. The canvas follows the display refresh. */
+  uiHz: 10,
   /** No update for this long freezes that pet and shows "Reconnecting". */
   staleMs: 3000,
   /** Samples kept per racer. */
@@ -82,6 +86,38 @@ export function liveStateOf(entryId: string, runner: LiveSource, airM = 0): Live
   };
 }
 
+/** True when a pose, outcome, or finish changed and the packet should go out even inside the rate limit. */
+export function liveChanged(prev: LiveState | null, next: LiveState): boolean {
+  if (!prev) return true;
+  return (
+    (next.finishMs != null && prev.finishMs == null) ||
+    next.jumpX !== prev.jumpX ||
+    next.airM !== prev.airM ||
+    next.duckX !== prev.duckX ||
+    next.duckUntilX !== prev.duckUntilX ||
+    next.clipAtMs !== prev.clipAtMs ||
+    next.bonkAtMs !== prev.bonkAtMs ||
+    next.outcomes.length !== prev.outcomes.length
+  );
+}
+
+/** Drops default / empty fields. Broadcast is unreliable, so current scalars and the full outcome list stay on every packet that has them. */
+export function packLiveState(state: LiveState): Record<string, unknown> {
+  const row: Record<string, unknown> = { entryId: state.entryId, t: state.t, x: state.x, v: state.v };
+  if (state.finishMs != null) row.finishMs = state.finishMs;
+  if (state.jumpX != null) row.jumpX = state.jumpX;
+  if (state.airM) row.airM = state.airM;
+  if (state.duckX != null) row.duckX = state.duckX;
+  if (state.duckUntilX) row.duckUntilX = state.duckUntilX;
+  if (state.clipAtMs != null) row.clipAtMs = state.clipAtMs;
+  if (state.bonkAtMs != null) row.bonkAtMs = state.bonkAtMs;
+  if (state.outcomes.length > 0) {
+    row.outcomes = state.outcomes;
+    row.outcomeMs = state.outcomeMs;
+  }
+  return row;
+}
+
 export function parseLiveState(value: unknown): LiveState | null {
   const row = value && typeof value === 'object' ? (value as Record<string, unknown>) : null;
   if (!row || typeof row.entryId !== 'string' || !row.entryId) return null;
@@ -135,12 +171,14 @@ export function pushSample(track: LiveTrack | undefined, sample: LiveState, now:
 /**
  * Where to draw a racer at `renderMs` of race time (already behind the clock by `interpDelayMs`).
  * Distance and speed glide between samples; jumps, ducks, and outcomes come from the earlier sample.
+ * Past the newest sample, coast on that sample's speed for up to `extrapolateMs` (unless they already finished).
  */
 export function sampleLive(
   track: LiveTrack | undefined,
   renderMs: number,
   now: number,
   staleMs = raceSyncConfig.staleMs,
+  extrapolateMs = raceSyncConfig.extrapolateMs,
 ): LiveView | null {
   if (!track || track.samples.length === 0) return null;
   const { samples } = track;
@@ -153,7 +191,11 @@ export function sampleLive(
   if (i < 0) return { ...samples[0], stale: false };
   const a = samples[i];
   const b = samples[i + 1];
-  if (!b) return { ...a, stale: false };
+  if (!b) {
+    if (a.finishMs != null) return { ...a, stale: false };
+    const dt = Math.min(Math.max(0, renderMs - a.t), extrapolateMs);
+    return { ...a, t: a.t + dt, x: a.x + a.v * (dt / 1000), stale: false };
+  }
   const u = (renderMs - a.t) / (b.t - a.t);
   return { ...a, t: renderMs, x: a.x + (b.x - a.x) * u, v: a.v + (b.v - a.v) * u, stale: false };
 }

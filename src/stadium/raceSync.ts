@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, type RefObject } from 'react';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
 import { getSupabase } from '../compliance/supabase';
-import { parseLiveState, pushSample, raceSyncConfig, type LiveState, type LiveTrack } from './liveTrack';
+import { liveChanged, packLiveState, parseLiveState, pushSample, raceSyncConfig, type LiveState, type LiveTrack } from './liveTrack';
 
 const event = 'run';
 
@@ -17,7 +17,7 @@ export function useRaceSync(raceId: string, live: boolean): {
   const remotes = useRef(new Map<string, LiveTrack>());
   const channelRef = useRef<RealtimeChannel | null>(null);
   const ready = useRef(false);
-  const last = useRef({ at: 0, t: -1, finished: false });
+  const last = useRef<{ at: number; state: LiveState | null }>({ at: 0, state: null });
 
   useEffect(() => {
     const supabase = getSupabase();
@@ -45,11 +45,11 @@ export function useRaceSync(raceId: string, live: boolean): {
     const channel = channelRef.current;
     if (!channel || !ready.current) return;
     const now = Date.now();
-    const finishing = state.finishMs != null && !last.current.finished;
-    if (state.t === last.current.t && !finishing) return;
-    if (!finishing && now - last.current.at < 1000 / raceSyncConfig.syncHz) return;
-    last.current = { at: now, t: state.t, finished: state.finishMs != null };
-    void channel.send({ type: 'broadcast', event, payload: state });
+    const urgent = liveChanged(last.current.state, state);
+    if (state.t === last.current.state?.t && !urgent) return;
+    if (!urgent && now - last.current.at < 1000 / raceSyncConfig.syncHz) return;
+    last.current = { at: now, state };
+    void channel.send({ type: 'broadcast', event, payload: packLiveState(state) });
   }, []);
 
   return { remotes, send };

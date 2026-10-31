@@ -12,7 +12,7 @@ export type FriendCandidate = {
   handle: string;
   pet: FriendPet | null;
   hasPet: boolean;
-  /** The first trick the friend's pet still needs for this course. */
+  /** Leftover from older servers. Friend games ignore it; open and veteran races still require tricks. */
   missingTrick: string | null;
   lastInvitedAt: number | null;
 };

@@ -45,7 +45,7 @@ Finds only happen **in the park**, only when unlocked, and only when the pet not
 - **Not every visit, and at most once per visit.** A visit runs from entering the park scene until leaving it.
 - **The pet's first completed find is guaranteed** (`firstVisitFindChance` = 1.0). Track this per pet with a `firstFindVisitDone` flag. Finds are not level-gated, so this is the first park visit that records a find. Set the flag only when an item is actually revealed, so an ignored prompt or an early exit carries the guarantee to the next visit.
 - Every later visit: when the player enters the park, roll `visitFindChance` (0.25). If it fails, nothing happens this visit.
-- If it succeeds, pick a random notice time `noticeMinSec`–`noticeMaxSec` (20–90) of park time. When that time comes, wait until the pet is **idle** (no task, not carrying a toy, not mid-play, no player input for `idleSec` = 4), then the pet **notices** something.
+- If it succeeds, pick a random notice time `noticeMinSec`–`noticeMaxSec` (5–10, in `parkFindsConfig`) of park time. When that time comes, the pet notices immediately. It does not wait to be idle, to finish play, or for the player to stop tapping. The pet stops what it is doing, drops a carried toy, and holds still facing the spot until the player taps **Let's see!** or another action. A park visitor does not start a hello during that hold.
 - After that one notice, whatever happens (found, ignored or left), there are no more finds until the next visit.
 
 **The notice and the prompt**

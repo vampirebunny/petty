@@ -597,7 +597,9 @@ function considerHellos(world: World, direct: Direct): void {
   if (due) {
     book.helloAt = world.t + rules.helloInterval;
   }
-  const sides = sidesOf(world).filter(freeSide);
+  const sides = sidesOf(world).filter(
+    (side) => freeSide(side) && (side.guest != null || world.parkFindVisit?.prompting !== true),
+  );
   for (let i = 0; i < sides.length; i += 1) {
     for (let j = i + 1; j < sides.length; j += 1) {
       const pair = orderedPair(sides[i], sides[j]);

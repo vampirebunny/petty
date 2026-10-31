@@ -37,6 +37,7 @@ import { RaceAction } from './RaceAction';
 import { raceInputOpen } from './raceCountdown';
 import { actorOf, breedOf, classOf, modsOf, placeSuffix, raceLabelFont, raceLabelSize } from './raceField';
 import { useRaceCountdown } from './useRaceCountdown';
+import { useRaceLoop } from './useRaceLoop';
 import { ink, shared } from './parts';
 
 const legsPerMeter = racePoses.legsPerMeter * racePoses.funRunScroll;
@@ -80,6 +81,7 @@ export function FunRunScreen({ race, pet, reducedMotion, onFinish, onExit }: Pro
   const stageHeight = Math.round(Math.min(320, Math.max(240, width * 0.72)));
   const [armedQuiet, setArmedQuiet] = useState<number | null>(null);
   const lastHaptic = useRef(0);
+  const uiAt = useRef(0);
   const playerMods = useRef<Modifiers | null>(null);
   const rewarded = useRef(false);
   const sent = useRef(false);
@@ -136,10 +138,7 @@ export function FunRunScreen({ race, pet, reducedMotion, onFinish, onExit }: Pro
     };
   });
 
-  useEffect(() => {
-    let alive = true;
-    const tick = () => {
-      if (!alive) return;
+  useRaceLoop((dt) => {
       const at = serverNow();
       const elapsed = Math.max(0, at - race.startsAt);
       let player: RunnerState | null = null;
@@ -150,13 +149,12 @@ export function FunRunScreen({ race, pet, reducedMotion, onFinish, onExit }: Pro
           const view = sampleLive(remotes.current.get(row.key), elapsed - raceSyncConfig.interpDelayMs, Date.now());
           if (view?.stale) stale.current.add(row.key);
           else stale.current.delete(row.key);
-          runners.current.set(row.key, {
-            ...createRunner(),
-            x: view?.x ?? 0,
-            v: view?.v ?? 0,
-            tMs: view?.t ?? 0,
-            finishMs: view?.finishMs ?? null,
-          });
+          const remote = runners.current.get(row.key) ?? createRunner();
+          remote.x = view?.x ?? 0;
+          remote.v = view?.v ?? 0;
+          remote.tMs = view?.t ?? 0;
+          remote.finishMs = view?.finishMs ?? null;
+          runners.current.set(row.key, remote);
           continue;
         }
         const state = runners.current.get(row.key) ?? createRunner();
@@ -208,7 +206,6 @@ export function FunRunScreen({ race, pet, reducedMotion, onFinish, onExit }: Pro
         }
       }
       }
-      const dt = 0.05;
       const livePet = petRef.current;
       for (const row of field) {
         const breed = breedOf(row, livePet);
@@ -233,6 +230,7 @@ export function FunRunScreen({ race, pet, reducedMotion, onFinish, onExit }: Pro
         const showing = preview.mode !== 'off' && previewActor.current && previewBreed.current;
         const follow = mine ? (runners.current.get(mine.key)?.x ?? 0) : 0;
         const camera = showing ? preview.clock * 3 : follow;
+        const sky = skyAt(new Date(at));
         const env: Env = {
           tod: todAt(solarHour(new Date(at))),
           t: at / 1000,
@@ -241,8 +239,8 @@ export function FunRunScreen({ race, pet, reducedMotion, onFinish, onExit }: Pro
           waterLevel: 0,
           glows: [],
           feeding: [],
-          sky: skyAt(new Date(at)),
-          wind: skyAt(new Date(at)).weather.wind,
+          sky,
+          wind: sky.weather.wind,
         };
         const recorder = Skia.PictureRecorder();
         const canvas = recorder.beginRecording(Skia.XYWHRect(0, 0, width, trackH));
@@ -259,16 +257,14 @@ export function FunRunScreen({ race, pet, reducedMotion, onFinish, onExit }: Pro
         drawRaceTrack(canvas, width, trackH, env, camera, racers, config.distanceM, legsPerMeter, labelFont);
         picture.value = recorder.finishRecordingAsPicture();
       }
-      const xs: Record<string, number> = {};
-      for (const row of field) xs[row.key] = runners.current.get(row.key)?.x ?? 0;
-      setFrame({ v: player?.v ?? 0, tMs: player?.tMs ?? 0, xs });
-    };
-    const timer = setInterval(tick, 50);
-    return () => {
-      alive = false;
-      clearInterval(timer);
-    };
-  }, [config.distanceM, config.maxMs, config.stepHz, field, finished, going, labelFont, live, mine, picture, race.classId, race.configVersion, race.raceId, race.seed, race.startsAt, reducedMotion, remotes, send, stageHeight, width]);
+      const now = Date.now();
+      if (now - uiAt.current >= 1000 / raceSyncConfig.uiHz) {
+        uiAt.current = now;
+        const xs: Record<string, number> = {};
+        for (const row of field) xs[row.key] = runners.current.get(row.key)?.x ?? 0;
+        setFrame({ v: player?.v ?? 0, tMs: player?.tMs ?? 0, xs });
+      }
+  });
 
   // The screen opens before the start, while the server may still be adding NPCs.
   const settled = lineup.status === 'running' || lineup.status === 'finished' || lineup.status === 'cancelled';

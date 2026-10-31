@@ -5,7 +5,6 @@ export const parkFinds = {
   visitFindChance: 0.25,
   noticeMinSec: 5,
   noticeMaxSec: 10,
-  idleSec: 1,
   /** 0 = never auto-dismiss; prompt waits for "Let's see!" or another action. */
   promptTimeoutSec: 0,
   bushChance: 0.4,

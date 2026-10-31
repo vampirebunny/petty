@@ -915,6 +915,9 @@ function isBusy(actor: Actor): boolean {
   if (actor.task.greet && actor.task.greet.phase === 'run') {
     return true;
   }
+  if (actor.task.stage === 'parkNotice') {
+    return true;
+  }
   // A finished trick leaves him sitting. That pose does not hold a meal or a nap hostage.
   if (actor.task.type === 'sit' && actor.task.stage === '') {
     return false;

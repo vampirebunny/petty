@@ -1,4 +1,14 @@
-import { liveFinish, liveStateOf, parseLiveState, pushSample, sampleLive, type LiveState } from '../liveTrack';
+import {
+  liveChanged,
+  liveFinish,
+  liveStateOf,
+  packLiveState,
+  parseLiveState,
+  pushSample,
+  raceSyncConfig,
+  sampleLive,
+  type LiveState,
+} from '../liveTrack';
 
 function state(t: number, x: number, extra: Partial<LiveState> = {}): LiveState {
   return {
@@ -56,12 +66,33 @@ it('interpolates distance between the two samples around the render time', () =>
   expect(view?.stale).toBe(false);
 });
 
-it('keeps samples in race order and holds the newest when the clock runs ahead', () => {
+it('keeps samples in race order and coasts a little when the clock runs ahead', () => {
   let track = pushSample(undefined, state(1100, 11), 0);
   track = pushSample(track, state(1000, 10), 0);
   expect(track.samples.map((s) => s.t)).toEqual([1000, 1100]);
-  expect(sampleLive(track, 5000, 0)?.x).toBe(11);
+  expect(sampleLive(track, 1100 + 80, 0)?.x).toBeCloseTo(11 + 8 * 0.08);
+  expect(sampleLive(track, 5000, 0)?.x).toBeCloseTo(11 + 8 * (raceSyncConfig.extrapolateMs / 1000));
   expect(sampleLive(track, 500, 0)?.x).toBe(10);
+});
+
+it('does not coast a racer that already finished', () => {
+  const track = pushSample(undefined, state(9000, 70, { finishMs: 8900, v: 8 }), 0);
+  expect(sampleLive(track, 9400, 0)?.x).toBe(70);
+});
+
+it('packs empty live fields off the wire and still parses', () => {
+  const live = liveStateOf('me', { x: 4, v: 7, tMs: 800, finishMs: null });
+  expect(packLiveState(live)).toEqual({ entryId: 'me', t: 800, x: 4, v: 7 });
+  expect(parseLiveState(packLiveState(live))).toMatchObject({ entryId: 'me', x: 4, jumpX: null, outcomes: [] });
+});
+
+it('sends at once when a jump, outcome, or finish appears', () => {
+  const idle = state(1000, 10);
+  expect(liveChanged(null, idle)).toBe(true);
+  expect(liveChanged(idle, state(1100, 11))).toBe(false);
+  expect(liveChanged(idle, state(1100, 11, { jumpX: 10 }))).toBe(true);
+  expect(liveChanged(idle, state(1100, 11, { outcomes: ['perfect'], outcomeMs: [1080] }))).toBe(true);
+  expect(liveChanged(idle, state(1100, 11, { finishMs: 1090 }))).toBe(true);
 });
 
 it('goes stale after the timeout and recovers on the next update', () => {
@@ -69,7 +100,7 @@ it('goes stale after the timeout and recovers on the next update', () => {
   const frozen = sampleLive(track, 4000, 3500);
   expect(frozen).toMatchObject({ stale: true, x: 10, v: 0 });
   track = pushSample(track, state(4200, 40), 3600);
-  expect(sampleLive(track, 4300, 3600)).toMatchObject({ stale: false, x: 40 });
+  expect(sampleLive(track, 4200, 3600)).toMatchObject({ stale: false, x: 40 });
 });
 
 it('reports the finish from the newest sample that has one', () => {

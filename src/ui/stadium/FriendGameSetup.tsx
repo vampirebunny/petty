@@ -5,7 +5,7 @@ import { Check } from 'lucide-react-native';
 import { openFindFriends } from '../../friends/findOpen';
 import { fetchCandidates, friendGameErrorCopy, splitRecent, type FriendCandidate, type FriendGameEvent } from '../../stadium/friendGames';
 import { gameplayConfig } from '../../sim/gameplayConfig';
-import { eventLabel, skillBlock, trickNameFor } from '../../sim/stadium';
+import { eventLabel } from '../../sim/stadium';
 import type { PetState } from '../../sim/types';
 import { fontFamily } from '../font';
 import { FriendFace } from '../FriendFace';
@@ -14,6 +14,7 @@ import { CandyButton } from './CandyButton';
 import { EventIcon, ink, shared, softInk } from './parts';
 
 type Props = {
+  /** Host pet. Friend games do not check its tricks; open and veteran races still do. */
   pet: PetState;
   busy: boolean;
   onSend: (event: FriendGameEvent, delayMin: number, invitees: string[]) => void;
@@ -22,7 +23,7 @@ type Props = {
 
 const lilac = '#7853E6';
 
-export function FriendGameSetup({ pet, busy, onSend, onBack }: Props) {
+export function FriendGameSetup({ busy, onSend, onBack }: Props) {
   const { events, delaysMin, defaultDelayMin, maxInvites } = gameplayConfig.friendGames;
   const [event, setEvent] = useState<FriendGameEvent>('funRun');
   const [delay, setDelay] = useState<number>(defaultDelayMin);
@@ -46,13 +47,12 @@ export function FriendGameSetup({ pet, busy, onSend, onBack }: Props) {
 
   const rows = loaded?.event === event ? loaded.rows : null;
   const error = loaded?.event === event ? loaded.error : null;
-  const chosen = picked.filter((id) => rows?.some((row) => row.userId === id && row.hasPet && !row.missingTrick));
-  const own = skillBlock(pet, event);
+  const chosen = picked.filter((id) => rows?.some((row) => row.userId === id && row.hasPet));
   const { recent, rest } = splitRecent(rows ?? []);
   const full = chosen.length >= maxInvites;
 
   const toggle = (row: FriendCandidate) => {
-    if (!row.hasPet || row.missingTrick) return;
+    if (!row.hasPet) return;
     setPicked((current) => {
       if (current.includes(row.userId)) return current.filter((id) => id !== row.userId);
       return current.length >= maxInvites ? current : [...current, row.userId];
@@ -61,8 +61,8 @@ export function FriendGameSetup({ pet, busy, onSend, onBack }: Props) {
 
   const friendRow = (row: FriendCandidate) => {
     const on = chosen.includes(row.userId);
-    const blocked = !row.hasPet || row.missingTrick != null;
-    const reason = !row.hasPet ? 'No pet yet' : row.missingTrick ? `Needs ${trickNameFor(row.missingTrick)}` : null;
+    const blocked = !row.hasPet;
+    const reason = !row.hasPet ? 'No pet yet' : null;
     const disabled = blocked || (!on && full);
     return (
       <Pressable
@@ -111,7 +111,6 @@ export function FriendGameSetup({ pet, busy, onSend, onBack }: Props) {
           </Pressable>
         ))}
       </View>
-      {own ? <Text style={styles.warn}>{pet.name} needs {own.trickName} for this race.</Text> : null}
 
       <Text style={shared.section}>Starts in</Text>
       <View style={styles.chips}>
@@ -152,7 +151,7 @@ export function FriendGameSetup({ pet, busy, onSend, onBack }: Props) {
       <CandyButton
         role="friends"
         label={busy ? 'Sending…' : 'Send invites'}
-        disabled={busy || chosen.length === 0 || own != null}
+        disabled={busy || chosen.length === 0}
         onPress={() => onSend(event, delay, chosen)}
       />
       <CandyButton role="secondary" label="Back to the Stadium" onPress={onBack} />
@@ -206,11 +205,6 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.fredokaSemibold,
     fontSize: 15,
     color: ink,
-  },
-  warn: {
-    fontFamily: fontFamily.semibold,
-    fontSize: 13,
-    color: '#B4432F',
   },
   group: {
     fontFamily: fontFamily.fredokaSemibold,

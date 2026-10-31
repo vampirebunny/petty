@@ -46,6 +46,7 @@ import { ObstacleControls } from './ObstacleControls';
 import { raceInputOpen } from './raceCountdown';
 import { actorOf, breedOf, classOf, modsOf, placeSuffix, raceLabelFont, raceLabelSize } from './raceField';
 import { useRaceCountdown } from './useRaceCountdown';
+import { useRaceLoop } from './useRaceLoop';
 import { ink, shared } from './parts';
 
 type Props = {
@@ -92,6 +93,7 @@ export function ObstacleScreen({ race, pet, reducedMotion, onFinish, onExit }: P
   const ducks = useRef(new Map<string, number>());
   const landed = useRef(new Set<string>());
   const seen = useRef({ jumps: 0, ducks: 0, outcomes: 0 });
+  const uiAt = useRef({ at: 0, cue: null as ObstacleButton | null, outcomes: 0 });
   const petRef = useRef(pet);
   const playerMods = useRef<Modifiers | null>(null);
   const rewarded = useRef(false);
@@ -140,10 +142,7 @@ export function ObstacleScreen({ race, pet, reducedMotion, onFinish, onExit }: P
     };
   });
 
-  useEffect(() => {
-    let alive = true;
-    const tick = () => {
-      if (!alive) return;
+  useRaceLoop((dt) => {
       const at = serverNow();
       const elapsed = Math.max(0, at - race.startsAt);
       const stepMs = 1000 / config.stepHz;
@@ -155,22 +154,21 @@ export function ObstacleScreen({ race, pet, reducedMotion, onFinish, onExit }: P
             if (view?.stale) stale.current.add(row.key);
             else stale.current.delete(row.key);
             const outcomes = (view?.outcomes ?? []) as ObstacleOutcome[];
-            runners.current.set(row.key, {
-              ...createObstacleRunner(),
-              x: view?.x ?? 0,
-              v: view?.v ?? 0,
-              tMs: view?.t ?? 0,
-              finishMs: view?.finishMs ?? null,
-              jumpX: view?.jumpX ?? null,
-              jumpAirM: view?.airM ?? 0,
-              duckX: view?.duckX ?? null,
-              duckUntilX: view?.duckUntilX ?? 0,
-              clipAtMs: view?.clipAtMs ?? null,
-              bonkAtMs: view?.bonkAtMs ?? null,
-              outcomes,
-              outcomeMs: view?.outcomeMs ?? [],
-              next: outcomes.length,
-            });
+            const remote = runners.current.get(row.key) ?? createObstacleRunner();
+            remote.x = view?.x ?? 0;
+            remote.v = view?.v ?? 0;
+            remote.tMs = view?.t ?? 0;
+            remote.finishMs = view?.finishMs ?? null;
+            remote.jumpX = view?.jumpX ?? null;
+            remote.jumpAirM = view?.airM ?? 0;
+            remote.duckX = view?.duckX ?? null;
+            remote.duckUntilX = view?.duckUntilX ?? 0;
+            remote.clipAtMs = view?.clipAtMs ?? null;
+            remote.bonkAtMs = view?.bonkAtMs ?? null;
+            remote.outcomes = outcomes;
+            remote.outcomeMs = view?.outcomeMs ?? [];
+            remote.next = outcomes.length;
+            runners.current.set(row.key, remote);
             continue;
           }
           const state = runners.current.get(row.key) ?? createObstacleRunner();
@@ -243,7 +241,6 @@ export function ObstacleScreen({ race, pet, reducedMotion, onFinish, onExit }: P
         }
       }
 
-      const dt = 0.05;
       const livePet = petRef.current;
       for (const row of field) {
         const breed = breedOf(row, livePet);
@@ -303,6 +300,7 @@ export function ObstacleScreen({ race, pet, reducedMotion, onFinish, onExit }: P
       if (width > 0) {
         const trackH = stageHeight;
         const follow = mine ? (runners.current.get(mine.key)?.x ?? 0) : 0;
+        const sky = skyAt(new Date(at));
         const env: Env = {
           tod: todAt(solarHour(new Date(at))),
           t: at / 1000,
@@ -311,8 +309,8 @@ export function ObstacleScreen({ race, pet, reducedMotion, onFinish, onExit }: P
           waterLevel: 0,
           glows: [],
           feeding: [],
-          sky: skyAt(new Date(at)),
-          wind: skyAt(new Date(at)).weather.wind,
+          sky,
+          wind: sky.weather.wind,
         };
         const recorder = Skia.PictureRecorder();
         const canvas = recorder.beginRecording(Skia.XYWHRect(0, 0, width, trackH));
@@ -345,24 +343,27 @@ export function ObstacleScreen({ race, pet, reducedMotion, onFinish, onExit }: P
         picture.value = recorder.finishRecordingAsPicture();
       }
 
-      const xs: Record<string, number> = {};
-      for (const row of field) xs[row.key] = runners.current.get(row.key)?.x ?? 0;
       const upcoming = player ? (obstacles[player.next] ?? null) : null;
-      const cue: ObstacleButton | null = upcoming ? (upcoming.kind === 'hurdle' ? 'jump' : 'duck') : null;
-      setFrame({
-        at,
-        tMs: player?.tMs ?? 0,
-        cue: going ? cue : null,
-        xs,
-        outcomes: player ? [...player.outcomes] : [],
-      });
-    };
-    const timer = setInterval(tick, 50);
-    return () => {
-      alive = false;
-      clearInterval(timer);
-    };
-  }, [classId, config, course, distanceM, field, going, labelFont, live, mine, obstacles, picture, race.raceId, race.seed, race.startsAt, reducedMotion, remotes, send, stageHeight, version, width]);
+      const cue: ObstacleButton | null = going && upcoming ? (upcoming.kind === 'hurdle' ? 'jump' : 'duck') : null;
+      const outcomes = player ? player.outcomes : [];
+      const now = Date.now();
+      if (
+        now - uiAt.current.at >= 1000 / raceSyncConfig.uiHz ||
+        cue !== uiAt.current.cue ||
+        outcomes.length !== uiAt.current.outcomes
+      ) {
+        uiAt.current = { at: now, cue, outcomes: outcomes.length };
+        const xs: Record<string, number> = {};
+        for (const row of field) xs[row.key] = runners.current.get(row.key)?.x ?? 0;
+        setFrame({
+          at,
+          tMs: player?.tMs ?? 0,
+          cue,
+          xs,
+          outcomes: [...outcomes],
+        });
+      }
+  });
 
   // The screen opens before the start, while the server may still be adding NPCs.
   const settled = lineup.status === 'running' || lineup.status === 'finished' || lineup.status === 'cancelled';

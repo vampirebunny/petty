@@ -100,7 +100,6 @@ import {
   createParkFindVisit,
   dismissParkFindPrompt,
   forceParkFindNoticeNow,
-  noteParkFindInput,
 } from '../parkFinds/visit';
 import type { FindVariant } from '../parkFinds/types';
 import { isParkFindsUnlocked } from '../sim/parkFindsConfig';
@@ -963,7 +962,6 @@ export function PetView({
         return { itemId };
       },
       parkFindNoteInput: () => {
-        noteParkFindInput(worldRef.current);
         if (worldRef.current.parkFindVisit?.prompting) {
           dismissParkFindPrompt(worldRef.current);
           redrawRef.current();

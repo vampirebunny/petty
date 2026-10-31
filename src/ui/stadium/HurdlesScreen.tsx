@@ -41,6 +41,7 @@ import { RaceAction } from './RaceAction';
 import { raceInputOpen } from './raceCountdown';
 import { actorOf, breedOf, classOf, modsOf, placeSuffix, raceLabelFont, raceLabelSize } from './raceField';
 import { useRaceCountdown } from './useRaceCountdown';
+import { useRaceLoop } from './useRaceLoop';
 import { ink, shared } from './parts';
 
 type Props = {
@@ -74,6 +75,7 @@ export function HurdlesScreen({ race, pet, reducedMotion, onFinish, onExit }: Pr
   const sizes = useRef(new Map<string, { barZ: number; apex: number }>());
   const landed = useRef(new Set<string>());
   const seen = useRef({ jumps: 0, outcomes: 0 });
+  const uiAt = useRef({ at: 0, outcomes: 0 });
   const petRef = useRef(pet);
   const playerMods = useRef<Modifiers | null>(null);
   const rewarded = useRef(false);
@@ -122,10 +124,7 @@ export function HurdlesScreen({ race, pet, reducedMotion, onFinish, onExit }: Pr
     };
   });
 
-  useEffect(() => {
-    let alive = true;
-    const tick = () => {
-      if (!alive) return;
+  useRaceLoop((dt) => {
       const at = serverNow();
       const elapsed = Math.max(0, at - race.startsAt);
       const stepMs = 1000 / config.stepHz;
@@ -137,18 +136,17 @@ export function HurdlesScreen({ race, pet, reducedMotion, onFinish, onExit }: Pr
             if (view?.stale) stale.current.add(row.key);
             else stale.current.delete(row.key);
             const outcomes = (view?.outcomes ?? []) as HurdleOutcome[];
-            runners.current.set(row.key, {
-              ...createHurdleRunner(),
-              x: view?.x ?? 0,
-              v: view?.v ?? 0,
-              tMs: view?.t ?? 0,
-              finishMs: view?.finishMs ?? null,
-              jumpX: view?.jumpX ?? null,
-              clipAtMs: view?.clipAtMs ?? null,
-              outcomes,
-              outcomeMs: view?.outcomeMs ?? [],
-              next: outcomes.length,
-            });
+            const remote = runners.current.get(row.key) ?? createHurdleRunner();
+            remote.x = view?.x ?? 0;
+            remote.v = view?.v ?? 0;
+            remote.tMs = view?.t ?? 0;
+            remote.finishMs = view?.finishMs ?? null;
+            remote.jumpX = view?.jumpX ?? null;
+            remote.clipAtMs = view?.clipAtMs ?? null;
+            remote.outcomes = outcomes;
+            remote.outcomeMs = view?.outcomeMs ?? [];
+            remote.next = outcomes.length;
+            runners.current.set(row.key, remote);
             continue;
           }
           const state = runners.current.get(row.key) ?? createHurdleRunner();
@@ -217,7 +215,6 @@ export function HurdlesScreen({ race, pet, reducedMotion, onFinish, onExit }: Pr
         }
       }
 
-      const dt = 0.05;
       const livePet = petRef.current;
       for (const row of field) {
         const breed = breedOf(row, livePet);
@@ -267,6 +264,7 @@ export function HurdlesScreen({ race, pet, reducedMotion, onFinish, onExit }: Pr
       if (width > 0) {
         const trackH = stageHeight;
         const follow = mine ? (runners.current.get(mine.key)?.x ?? 0) : 0;
+        const sky = skyAt(new Date(at));
         const env: Env = {
           tod: todAt(solarHour(new Date(at))),
           t: at / 1000,
@@ -275,8 +273,8 @@ export function HurdlesScreen({ race, pet, reducedMotion, onFinish, onExit }: Pr
           waterLevel: 0,
           glows: [],
           feeding: [],
-          sky: skyAt(new Date(at)),
-          wind: skyAt(new Date(at)).weather.wind,
+          sky,
+          wind: sky.weather.wind,
         };
         const recorder = Skia.PictureRecorder();
         const canvas = recorder.beginRecording(Skia.XYWHRect(0, 0, width, trackH));
@@ -304,16 +302,15 @@ export function HurdlesScreen({ race, pet, reducedMotion, onFinish, onExit }: Pr
         drawRaceTrack(canvas, width, trackH, env, follow, racers, distanceM, legsPerMeter, labelFont);
         picture.value = recorder.finishRecordingAsPicture();
       }
-      const xs: Record<string, number> = {};
-      for (const row of field) xs[row.key] = runners.current.get(row.key)?.x ?? 0;
-      setFrame({ at, tMs: player?.tMs ?? 0, xs, outcomes: player ? [...player.outcomes] : [] });
-    };
-    const timer = setInterval(tick, 50);
-    return () => {
-      alive = false;
-      clearInterval(timer);
-    };
-  }, [classId, config, distanceM, field, going, hurdles, labelFont, live, mine, picture, race.raceId, race.seed, race.startsAt, reducedMotion, remotes, send, stageHeight, version, width]);
+      const outcomes = player ? player.outcomes : [];
+      const now = Date.now();
+      if (now - uiAt.current.at >= 1000 / raceSyncConfig.uiHz || outcomes.length !== uiAt.current.outcomes) {
+        uiAt.current = { at: now, outcomes: outcomes.length };
+        const xs: Record<string, number> = {};
+        for (const row of field) xs[row.key] = runners.current.get(row.key)?.x ?? 0;
+        setFrame({ at, tMs: player?.tMs ?? 0, xs, outcomes: [...outcomes] });
+      }
+  });
 
   // The screen opens before the start, while the server may still be adding NPCs.
   const settled = lineup.status === 'running' || lineup.status === 'finished' || lineup.status === 'cancelled';
