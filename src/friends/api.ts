@@ -9,6 +9,13 @@ const cacheKey = 'petty.friends.cache';
 const traits: Trait[] = ['stamina', 'agility', 'intelligence', 'boldness', 'affection', 'obedience'];
 const outfitSlots = new Set<OutfitSlot>(['hat', 'glasses', 'neckwear', 'jacket', 'boots']);
 
+function wearDefsOf(value: unknown): FriendPet['wearDefs'] {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return undefined;
+  }
+  return value as FriendPet['wearDefs'];
+}
+
 function ownedOf(value: unknown): { slot: OutfitSlot; id: string }[] | undefined {
   if (!Array.isArray(value)) {
     return undefined;
@@ -69,6 +76,7 @@ export function petOf(value: unknown): FriendPet | null {
     breedId,
     look,
     equipped,
+    wearDefs: wearDefsOf(row.wearDefs),
     owned: ownedOf(row.owned),
     ageDays: typeof row.ageDays === 'number' ? row.ageDays : 0,
     weight: typeof row.weight === 'number' ? row.weight : 0,

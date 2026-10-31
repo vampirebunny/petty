@@ -23,6 +23,8 @@ Applied by the owner through `20261024250000_ledger_source_ambiguity.sql`, inclu
 
 `20261028153000_background_music_bucket.sql` creates the public `background-music` bucket, or marks the existing one public, and adds `background_music_public_read` so anon and signed-in clients can read objects. Hosted Storage rejects `DELETE` on `storage.objects` and `storage.buckets`, so this migration does not remove the bucket or its files. Upload the scene tracks that are not bundled in the app after it is applied. The app downloads those files by public URL and does not read a table.
 
+`20261031150000_park_presence.sql` is applied. It adds `park_presence` for friends who are in the park at the same time, friend-only read policies, and enter, heartbeat, outfit, and leave RPCs. Stale rows older than 90 seconds are deleted inside those RPCs. The same migration lets a player read their own `friendships` and `blocks` rows and adds `park_presence`, `friendships`, and `blocks` to the existing `supabase_realtime` publication so one Postgres Changes channel can deliver joins, leaves, outfits, unfriends, and blocks. It does not turn off public Realtime access. `delete_friend_data` also removes that player's presence row. See [the park friends brief](../docs/park-friends-brief.md).
+
 `20261028170000_iap_boops.sql` is applied. It adds `webhook_events`, `boops_packs`, `iap_events`, and `apply_iap_webhook`. The RevenueCat webhook credits Boops packs through that function. See [the IAP brief](../docs/boops-iap-brief.md).
 
 `20261028180000_iap_service_grants.sql` is applied. `service_role` can insert and update `webhook_events` and read `boops_packs`. Without that, the webhook returns `{"error":"unavailable"}`. After the grant, a RevenueCat test event returned `{"ok":true}`.

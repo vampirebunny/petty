@@ -14,6 +14,8 @@ About 70% of visitors are animals from the owner's playdate cast. The rest are o
 
 They enter from the left or the right, whichever is farther from your pet, at least about 120px from your pet and from the other visitor. About half of the visitors rolled when the park opens are already on the grass instead of walking in. They stand on a different depth from your pet, at least about 45px apart, and keep the same visit length. Anyone who shows up while you stay still walks in from the edge. Reduced motion still walks them on and off. It does not add zoomies.
 
+Friend pets are a separate roll. Up to five friends can be on the grass at the same time as this one NPC visitor. A hello with a friend pays the same +2 mood into the same 10-minute cap. See [park-friends-brief.md](park-friends-brief.md).
+
 ## Sociability
 
 There is no separate sociability stat. Boldness is whether someone walks up. Affection is whether they want to be friendly. Both are the shown scores from the Traits panel, the same scale as playdate shyness (boldness under 40).

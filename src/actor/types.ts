@@ -776,6 +776,8 @@ export type ParkGuestPhase = 'enter' | 'wander' | 'hello' | 'leave';
 export type ParkGuestState = {
   actorId: string;
   snapshotId: string;
+  kind: 'npc' | 'friend';
+  userId?: string;
   boldness: number;
   affection: number;
   species: Species;

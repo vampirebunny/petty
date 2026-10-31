@@ -1,5 +1,9 @@
+jest.mock('@react-native-async-storage/async-storage', () =>
+  require('@react-native-async-storage/async-storage/jest/async-storage-mock'),
+);
+
 import { scenes } from '../scenes';
-import { createWorld, setWorldScene, spawnActor, startUserTask, update } from '../sim';
+import { createWorld, setDirection, setWorldScene, spawnActor, startUserTask, update } from '../sim';
 import type { ActorSource, ParkOffer } from '../types';
 import { parkStrangerOffer } from '../../playdate/npcs';
 import {
@@ -12,6 +16,7 @@ import {
   seekChance,
   socialBand,
   socialIntent,
+  syncFriendGuests,
   syncParkVisitors,
 } from '../parkVisitors';
 
@@ -313,6 +318,59 @@ describe('park visitor sim', () => {
     expect(guest!.idle.mode).not.toBe('nap');
     expect(guest!.task.type).not.toBe('sleep');
     expect(guest!.asleep).toBe(false);
+  });
+
+  it('keeps the NPC roll while a friend is on the grass', () => {
+    const { world } = parkWorld();
+    syncParkVisitors(world, {
+      enabled: true,
+      offers: [offer('walker', 20, 20)],
+      stranger: null,
+    });
+    world.rng = () => 0.9;
+    syncFriendGuests(
+      world,
+      [
+        {
+          userId: 'friend-1',
+          handle: 'maple',
+          enteredAt: 1,
+          settled: true,
+          offer: offer('pal', 80, 80),
+        },
+      ],
+      spawnActor,
+      setDirection,
+    );
+    steps(world, 1);
+    expect(world.park!.guests.filter((guest) => guest.kind === 'friend')).toHaveLength(1);
+    expect(world.park!.guests.filter((guest) => guest.kind === 'npc')).toHaveLength(1);
+  });
+
+  it('pays a friend hello into the visitor mood cap', () => {
+    const { world, actor } = parkWorld();
+    world.rng = () => 0;
+    syncFriendGuests(
+      world,
+      [
+        {
+          userId: 'friend-1',
+          handle: 'maple',
+          enteredAt: 1,
+          settled: true,
+          offer: offer('pal', 80, 80),
+        },
+      ],
+      spawnActor,
+      setDirection,
+    );
+    const guest = world.actors.find((row) => row.guest);
+    expect(guest).toBeTruthy();
+    guest!.x = actor.x + 40;
+    guest!.y = actor.y;
+    steps(world, 80);
+    expect(actor.moodPops.reduce((sum, amount) => sum + amount, 0)).toBe(2);
+    expect(world.park!.moodAt).toHaveLength(1);
   });
 
   it('can arrive from the cast or as a stranger', () => {

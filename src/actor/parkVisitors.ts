@@ -1,3 +1,7 @@
+import { obstaclesIn } from './furniture';
+import { friendSpot } from '../parkFriends/spots';
+import { parkFriendRules } from '../parkFriends/rules';
+import type { ParkFriendSpawn } from '../parkFriends/snapshot';
 import { stageDayThresholds } from '../sim/config';
 import { breedById } from './breeds';
 import { snapFacing } from './facing';
@@ -230,12 +234,16 @@ export function stepParkVisitors(world: World, spawn: Spawn, direct: Direct): vo
     }
   } else if (world.t >= book.nextCheck) {
     book.nextCheck = world.t + checkGap(world.rng());
-    if (book.guests.length < rules.maxOnScreen && world.rng() < arriveChance(book.guests.length)) {
+    if (npcGuests(book).length < rules.maxOnScreen && world.rng() < arriveChance(npcGuests(book).length)) {
       spawnVisitor(world, spawn);
     }
   }
   advanceGuests(world, direct);
   considerHellos(world, direct);
+}
+
+function npcGuests(book: ParkBook): ParkGuestState[] {
+  return book.guests.filter((guest) => guest.kind !== 'friend');
 }
 
 function checkGap(roll: number): number {
@@ -413,7 +421,7 @@ function entrySide(world: World, y: number): { fromLeft: boolean; entryX: number
 
 function spawnVisitor(world: World, spawn: Spawn, at?: Vec, wandering = false): Actor | null {
   const book = world.park;
-  if (!book || book.guests.length >= rules.maxOnScreen) {
+  if (!book || npcGuests(book).length >= rules.maxOnScreen) {
     return null;
   }
   const offer = pickOffer(world);
@@ -457,6 +465,7 @@ function spawnVisitor(world: World, spawn: Spawn, at?: Vec, wandering = false): 
   const guest: ParkGuestState = {
     actorId: actor.id,
     snapshotId: offer.id,
+    kind: 'npc',
     boldness: offer.boldness,
     affection: offer.affection,
     species: offer.species,
@@ -497,6 +506,140 @@ export function addWanderingGuest(world: World, offer: ParkOffer, at: Vec, spawn
   book.recentId = null;
   const actor = spawnVisitor(world, spawn, at, true);
   return actor;
+}
+
+function applyFriendOffer(actor: Actor, guest: ParkGuestState, offer: ParkOffer): void {
+  actor.breedId = offer.breedId;
+  actor.look = offer.look;
+  actor.equipped = { ...offer.equipped };
+  actor.wearDefs = offer.wearDefs;
+  actor.ageDays = offer.ageDays;
+  actor.weight = offer.weight;
+  guest.snapshotId = offer.id;
+  guest.boldness = offer.boldness;
+  guest.affection = offer.affection;
+  guest.species = offer.species;
+  guest.ageDays = offer.ageDays;
+}
+
+function friendBodies(world: World): { x: number; y: number }[] {
+  return world.actors.map((actor) => ({ x: actor.x, y: actor.y }));
+}
+
+function placeFriend(world: World, friend: ParkFriendSpawn, spawn: Spawn): void {
+  const book = world.park;
+  if (!book) {
+    return;
+  }
+  const staying = book.guests.filter((guest) => guest.kind === 'friend' && guest.phase !== 'leave');
+  if (staying.length >= parkFriendRules.maxOnScreen) {
+    return;
+  }
+  const offer = friend.offer;
+  const floor = world.scene.floor;
+  const obstacles = obstaclesIn(world.scene, null).map((obstacle) => ({
+    x: obstacle.x,
+    y: obstacle.y,
+    hw: obstacle.hw,
+    hd: obstacle.hd,
+  }));
+  const spot = friendSpot(offer.id, floor, friendBodies(world), obstacles);
+  const fromLeft = world.rng() < 0.5;
+  const at = friend.settled ? spot : { x: fromLeft ? floor.xMin - 70 : floor.xMax + 70, y: spot.y };
+  const actor = spawn(
+    {
+      id: `friend-${friend.userId}-${book.nonce}`,
+      breedId: offer.breedId,
+      ageDays: offer.ageDays,
+      weight: offer.weight,
+      vitality: offer.vitality,
+      equipped: offer.equipped,
+      wearDefs: offer.wearDefs,
+      look: offer.look,
+      asleep: false,
+      seed: offer.seed,
+      energy: 0.8,
+      mood: 0.8,
+      hydration: 0.8,
+      cuddleAffinity: Math.min(1, Math.max(0, offer.affection / 100)),
+      stats: {
+        stamina: 0.5,
+        agility: 0.5,
+        boldness: Math.min(1, Math.max(0, offer.boldness / 100)),
+        obedience: 0.5,
+      },
+    },
+    at,
+  );
+  book.nonce += 1;
+  actor.guest = true;
+  if (!friend.settled) {
+    snapFacing(actor, fromLeft ? 1 : -1);
+  }
+  const guest: ParkGuestState = {
+    actorId: actor.id,
+    snapshotId: offer.id,
+    kind: 'friend',
+    userId: friend.userId,
+    boldness: offer.boldness,
+    affection: offer.affection,
+    species: offer.species,
+    ageDays: offer.ageDays,
+    leaveAt: Number.POSITIVE_INFINITY,
+    hardLeaveAt: Number.POSITIVE_INFINITY,
+    phase: friend.settled ? 'wander' : 'enter',
+    helloUntil: 0,
+    partnerId: null,
+    done: false,
+    paid: false,
+    tried: false,
+  };
+  if (friend.settled) {
+    actor.task = { type: 'idle', stage: '', t: 0, bats: 0, cool: 0 };
+    actor.idle = { mode: 'still', t: 0, dur: 3 + world.rng() * 3.5, target: null, sit: false, arrived: true };
+  } else {
+    actor.task = {
+      type: 'travel',
+      stage: 'enter',
+      t: 0,
+      bats: 0,
+      cool: 0,
+      poi: spot,
+    };
+  }
+  book.guests.push(guest);
+  world.actors.push(actor);
+}
+
+export function syncFriendGuests(world: World, friends: readonly ParkFriendSpawn[], spawn: Spawn, direct: Direct): void {
+  const book = world.park;
+  if (!book?.enabled || world.scene.id !== 'park') {
+    return;
+  }
+  const wanted = new Map(friends.map((friend) => [friend.userId, friend]));
+  for (const guest of book.guests) {
+    if (guest.kind !== 'friend' || !guest.userId) {
+      continue;
+    }
+    const next = wanted.get(guest.userId);
+    const actor = actorById(world, guest.actorId);
+    if (!next) {
+      if (guest.phase !== 'leave' && actor) {
+        if (guest.phase === 'hello') {
+          finishHello(world, guest, direct, false);
+        }
+        startLeave(world, actor, guest);
+      }
+      continue;
+    }
+    wanted.delete(guest.userId);
+    if (actor && guest.phase !== 'leave') {
+      applyFriendOffer(actor, guest, next.offer);
+    }
+  }
+  for (const friend of wanted.values()) {
+    placeFriend(world, friend, spawn);
+  }
 }
 
 function settlePhases(world: World): void {

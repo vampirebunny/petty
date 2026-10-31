@@ -156,6 +156,8 @@ import { handlePromptIsStrict, onHandlePrompt } from '../compliance/handlePrompt
 import { openPathSuppressed } from '../state/sessionGate';
 import { WardrobeScreen } from './WardrobeScreen';
 import { parkOfferFromSnapshot, parkStrangerOffer, withPlayerAge } from '../playdate/npcs';
+import { useParkFriends } from '../parkFriends/useParkFriends';
+import { ParkFriendsBubble } from '../ui/ParkFriendsBubble';
 import { usePlaydates } from '../state/usePlaydates';
 import { formatCooldown } from '../playdate/cooldown';
 import { DebugPanel } from '../ui/DebugPanel';
@@ -564,6 +566,7 @@ export default function HomeScreen({ petApi }: Props) {
     (nonce: number) => parkStrangerOffer(state?.ownerId || 'guest', nonce),
     [state?.ownerId],
   );
+  const parkFriends = useParkFriends(controlsSceneId === 'park', state);
   const owned = outfitsOwned();
   const closetKey = owned.map((item) => `${item.slot}:${item.id}`).join(',');
   const toyKey = home.toys.join(',');
@@ -3638,6 +3641,7 @@ export default function HomeScreen({ petApi }: Props) {
               parkVisitors
               parkOffers={parkOffers}
               parkStranger={parkStranger}
+              parkFriends={parkFriends}
               onParkFindUi={(signal) => {
                 setParkPrompt(signal.prompting);
                 if (signal.revealed) {
@@ -3732,6 +3736,9 @@ export default function HomeScreen({ petApi }: Props) {
             species={species === 'cat' ? 'cat' : 'dog'}
             onCheer={() => stageHandle.current?.cheer()}
           />
+          {controlsSceneId === 'park' ? (
+            <ParkFriendsBubble friends={parkFriends.map((friend) => ({ userId: friend.userId, handle: friend.handle }))} />
+          ) : null}
         </View>
         </View>
         {holdTarget ? (

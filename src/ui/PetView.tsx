@@ -19,6 +19,7 @@ import {
   isSceneTravel,
   sceneById,
   sceneForSpecies,
+  setDirection,
   setWorldScene,
   settleOnResume,
   spawnActor,
@@ -77,7 +78,8 @@ import { useStageSize } from './useStageSize';
 import type { StageFrame } from './wideLayout';
 import type { CuddleOut, CuddleTouch, CuddleZone, Scene, TimeOfDay, World } from '../actor';
 import type { ParkOffer } from '../actor/types';
-import { syncParkVisitors } from '../actor/parkVisitors';
+import { syncFriendGuests, syncParkVisitors } from '../actor/parkVisitors';
+import type { ParkFriendSpawn } from '../parkFriends/snapshot';
 import { birdVisitSeed } from '../actor/birds';
 import { playChirp, playVoice } from '../audio/voice';
 import { attributeScore, drinkHydrationGain, feedEnergyGain, feedHungerDrop } from '../sim';
@@ -211,6 +213,7 @@ type Props = {
   parkVisitors?: boolean;
   parkOffers?: ParkOffer[];
   parkStranger?: (nonce: number) => ParkOffer;
+  parkFriends?: ParkFriendSpawn[];
   /** Park finds UI: prompt visibility, modal due after drop, reveal for persisting. */
   onParkFindUi?: (signal: {
     prompting: boolean;
@@ -306,6 +309,7 @@ export function PetView({
   parkVisitors = false,
   parkOffers = [],
   parkStranger,
+  parkFriends = [],
   onParkFindUi,
 }: Props) {
   const { viewWidth, viewHeight } = useStageSize(frame, undefined, heightShare);
@@ -321,6 +325,7 @@ export function PetView({
   const parkOffersRef = useRef(parkOffers);
   const parkStrangerRef = useRef(parkStranger);
   const parkOnRef = useRef(parkVisitors);
+  const parkFriendsRef = useRef(parkFriends);
   const onParkFindUiRef = useRef(onParkFindUi);
   const parkFindUiSent = useRef({ prompting: false, modalItemId: null as string | null, revealedId: null as string | null });
   const parkVisitOn = useRef(false);
@@ -339,7 +344,8 @@ export function PetView({
     parkOffersRef.current = parkOffers;
     parkStrangerRef.current = parkStranger;
     parkOnRef.current = parkVisitors;
-  }, [parkOffers, parkStranger, parkVisitors]);
+    parkFriendsRef.current = parkFriends;
+  }, [parkFriends, parkOffers, parkStranger, parkVisitors]);
   useLayoutEffect(() => {
     onParkFindUiRef.current = onParkFindUi;
   }, [onParkFindUi]);
@@ -1094,6 +1100,9 @@ export function PetView({
         offers: parkOffersRef.current,
         stranger: parkStrangerRef.current ?? null,
       });
+      if (world.park?.enabled) {
+        syncFriendGuests(world, parkFriendsRef.current, spawnActor, setDirection);
+      }
       const now = new Date();
       const sky = skyAt(now);
       world.stageBleed = stageBleed(widthRef.current, heightRef.current);

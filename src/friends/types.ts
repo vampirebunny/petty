@@ -1,3 +1,4 @@
+import type { WearItem } from '../actor/wardrobe';
 import type { Equipped, Look, OutfitSlot, Stats } from '../sim/types';
 
 export type FriendPet = {
@@ -6,6 +7,8 @@ export type FriendPet = {
   breedId: string;
   look: Look;
   equipped: Equipped;
+  /** Drawing defs for equipped pieces, so a friend can render a catalog item they have not downloaded. */
+  wearDefs?: Partial<Record<OutfitSlot, WearItem>>;
   // Closet pieces this player owns. Missing on a card saved before that list existed.
   owned?: { slot: OutfitSlot; id: string }[];
   ageDays: number;
