@@ -153,7 +153,6 @@ import { listenForFriendPushes, registerFriendPushToken } from '../friends/push'
 import type { FriendRow } from '../friends/types';
 import { handlePromptIsStrict, onHandlePrompt } from '../compliance/handlePrompt';
 import { openPathSuppressed } from '../state/sessionGate';
-import { FacingLab } from './FacingLab';
 import { WardrobeScreen } from './WardrobeScreen';
 import { parkOfferFromSnapshot, parkStrangerOffer, withPlayerAge } from '../playdate/npcs';
 import { usePlaydates } from '../state/usePlaydates';
@@ -594,7 +593,6 @@ export default function HomeScreen({ petApi }: Props) {
     setStadiumOpen(false);
   }
   const whereUid = useId().replace(/:/g, '');
-  const [facingOpen, setFacingOpen] = useState(false);
   const [clothingOpen, setClothingOpen] = useState(false);
   const [colorwaysOpen, setColorwaysOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -1911,7 +1909,6 @@ export default function HomeScreen({ petApi }: Props) {
     commitPet({ ...state, roadSpot: 'stadium', asleep: false });
     setPlaydateOpen(false);
     setSettingsOpen(false);
-    setFacingOpen(false);
     setClothingOpen(false);
     setColorwaysOpen(false);
     setArcadeOpen(false);
@@ -2142,14 +2139,6 @@ export default function HomeScreen({ petApi }: Props) {
         </PhoneColumn>
         <HandlePrompt petName={state.name} idle={false} />
       </>
-    );
-  }
-
-  if (facingOpen) {
-    return hosted(
-      <PhoneColumn>
-        <FacingLab reducedMotion={reducedMotion} onClose={() => setFacingOpen(false)} />
-      </PhoneColumn>
     );
   }
 
@@ -3432,12 +3421,6 @@ export default function HomeScreen({ petApi }: Props) {
           onHour={setHour}
           onReset={reset}
           onNewPet={retire}
-          onFlip={() => stageHandle.current?.flipFace()}
-          onTimeScale={(scale) => stageHandle.current?.setTimeScale(scale)}
-          onPlayGreeting={(id) => stageHandle.current?.playGreeting(id)}
-          greetingIds={() => stageHandle.current?.greetingIds() ?? []}
-          greetingLabel={() => stageHandle.current?.label() ?? ''}
-          onFacing={() => setFacingOpen(true)}
           onClothing={() => setClothingOpen(true)}
           onColorways={() => setColorwaysOpen(true)}
           onGrant={(id) => {
@@ -3469,7 +3452,6 @@ export default function HomeScreen({ petApi }: Props) {
 
   const homeIdle =
     stageReady &&
-    !facingOpen &&
     !clothingOpen &&
     !playOpen &&
     !heldPlay &&

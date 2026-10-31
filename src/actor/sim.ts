@@ -26,7 +26,7 @@ import { askFurnitureOff, furnitureBusy, stepFurniture, tryFurnitureIdle } from 
 import { askHouseLeave, HOUSE_REST, houseInside, houseLift, stepHouse, wantsHouseRest } from './conservatory';
 import { bedCushionPoint, bedCushionReach, movePiece, obstaclesIn, steerAim } from './furniture';
 import { applyGesture, gestureOwns, gestureWantsCamera } from './gestures';
-import { GREET, greetClip, motionMods, planGreeting, scriptFor } from './greetings';
+import { GREET, greetClip, motionMods, planGreeting } from './greetings';
 import { BIRD_SPECIES, spawnBirds, stepBirds } from './birds';
 import type { Bird, BirdThreat, BirdWorld } from './birds';
 import { abortParkHello, clearParkGuests, stepParkVisitors } from './parkVisitors';
@@ -2501,17 +2501,6 @@ function clampPropY(type: PlacedTrickProp['type'], y: number, yMin: number, yMax
     return clamp(y, yMin, yMax);
   }
   return clamp(y, lo, hi);
-}
-
-export function debugFlipFace(actor: Actor): void {
-  snapFacing(actor, actor.face >= 0 ? -1 : 1);
-}
-
-export function debugGreeting(world: World, actor: Actor, id: string, ageDays: number, vitality: number, energy: number): void {
-  const plan = scriptFor(id, ageDays, vitality, energy, world.rng);
-  if (plan) {
-    beginGreeting(world, actor, plan);
-  }
 }
 
 export { planGreeting };

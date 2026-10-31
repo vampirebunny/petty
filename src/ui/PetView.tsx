@@ -49,10 +49,7 @@ import {
   beginGreeting,
   patGreeting,
   takePendingGreeting,
-  debugFlipFace,
-  debugGreeting,
   planGreeting,
-  greetingIds,
   statusOf,
   syncActor,
   syncWorldFood,
@@ -107,11 +104,6 @@ import { isParkFindsUnlocked } from '../sim/parkFindsConfig';
 // What the home screen can ask of the pet while Cuddle is on. Points are stage coordinates.
 export type StageHandle = {
   pat: () => 'bonus' | 'repeat' | 'interrupt' | 'none';
-  flipFace: () => void;
-  setTimeScale: (scale: number) => void;
-  playGreeting: (id: string) => void;
-  greetingIds: () => string[];
-  label: () => string;
   furnitureAt: (x: number, y: number) => string | null;
   trickPropAt: (x: number, y: number) => string | null;
   moveTrickProp: (instanceId: string, x: number, y: number) => void;
@@ -713,46 +705,6 @@ export function PetView({
         const actor = worldRef.current.actors[0];
         return actor ? patGreeting(worldRef.current, actor) : 'none';
       },
-      flipFace: () => {
-        const actor = worldRef.current.actors[0];
-        if (actor) {
-          debugFlipFace(actor);
-        }
-      },
-      setTimeScale: (scale: number) => {
-        worldRef.current.timeScale = scale;
-      },
-      playGreeting: (id: string) => {
-        const actor = worldRef.current.actors[0];
-        const current = petRef.current;
-        if (!actor) {
-          return;
-        }
-        if (id === 'short' || id === 'long') {
-          const plan = planGreeting({
-            species: breedById(current.breedId)?.species === 'cat' ? 'cat' : 'dog',
-            elapsedH: id === 'long' ? 13 : 4 / 60,
-            energy: current.needs.energy,
-            affection: current.attributes.current.affection,
-            boldness: current.attributes.current.boldness,
-            affectionPotential: current.attributes.potential.affection,
-            boldnessPotential: current.attributes.potential.boldness,
-            ageDays: current.ageDays,
-            vitality: current.vitality,
-            asleep: false,
-            reduced: false,
-            lastId: null,
-            rng: worldRef.current.rng,
-          });
-          if (plan) {
-            beginGreeting(worldRef.current, actor, plan);
-          }
-          return;
-        }
-        debugGreeting(worldRef.current, actor, id, current.ageDays, current.vitality, current.needs.energy);
-      },
-      greetingIds: () => greetingIds(breedById(petRef.current.breedId)?.species === 'cat' ? 'cat' : 'dog'),
-      label: () => worldRef.current.greetLabel ?? '',
       furnitureAt: (x, y) => (travelRef.current ? null : furnitureAt(worldRef.current.scene, x, y)),
       trickPropAt: (x, y) => (travelRef.current ? null : trickPropAt(worldRef.current, x, y)),
       moveTrickProp: (instanceId, x, y) => {

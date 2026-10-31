@@ -9,9 +9,9 @@ import { catalog } from '../economy/catalog';
 import { applyCatalogNow } from '../economy/shopState';
 import { DefPreview } from '../dev/DefPreview';
 import { NpcCalibrationDebug } from './stadium/NpcCalibrationDebug';
-import { attributeScore, stageOf, traits } from '../sim';
+import { stageOf } from '../sim';
 import { visualLifespanDays } from '../sim/config';
-import type { Mood, PetState, Trait } from '../sim/types';
+import type { Mood, PetState } from '../sim/types';
 import type { PetCue } from '../state/usePet';
 
 type Props = {
@@ -26,12 +26,6 @@ type Props = {
   onHour: (hour: number | null) => void;
   onReset: () => void;
   onNewPet: () => void;
-  onFlip?: () => void;
-  onTimeScale?: (scale: number) => void;
-  onPlayGreeting?: (id: string) => void;
-  greetingIds?: () => string[];
-  greetingLabel?: () => string;
-  onFacing?: () => void;
   onClothing?: () => void;
   onColorways?: () => void;
   onGrant?: (id: string) => void;
@@ -64,15 +58,6 @@ function formatHour(hour: number): string {
   const m = Math.floor((hour - h) * 60);
   return `${((h + 11) % 12) + 1}:${String(m).padStart(2, '0')} ${h >= 12 && h < 24 ? 'pm' : 'am'}`;
 }
-
-const traitLabel: Record<Trait, string> = {
-  stamina: 'Stamina',
-  agility: 'Agility',
-  intelligence: 'Intelligence',
-  boldness: 'Boldness',
-  affection: 'Affection',
-  obedience: 'Obedience',
-};
 
 function format(value: number): string {
   return value.toFixed(1);
@@ -137,12 +122,6 @@ function DebugPanelBody({
   onHour,
   onReset,
   onNewPet,
-  onFlip,
-  onTimeScale,
-  onPlayGreeting,
-  greetingIds,
-  greetingLabel,
-  onFacing,
   onClothing,
   onColorways,
   onGrant,
@@ -152,12 +131,7 @@ function DebugPanelBody({
   onParkFindResetChest,
 }: Props) {
   const [open, setOpen] = useState(false);
-  const [shownGreeting, setShownGreeting] = useState('');
   const care = state.careWindow[state.careWindow.length - 1];
-  const play = (id: string) => {
-    onPlayGreeting?.(id);
-    setShownGreeting(greetingLabel?.() ?? '');
-  };
 
   return (
     <View style={styles.panel}>
@@ -178,16 +152,7 @@ function DebugPanelBody({
       <Text style={styles.line}>Asleep {state.asleep ? 'yes' : 'no'}</Text>
       <Text style={styles.line}>Mood {mood}</Text>
       <Text style={styles.line}>Cue {cue.kind}</Text>
-      <Text style={styles.line}>Greeting {shownGreeting || 'none'}</Text>
       <View style={styles.actions}>
-        <Pressable style={styles.button} onPress={onFlip}>
-          <Text style={styles.buttonLabel}>Turn</Text>
-        </Pressable>
-        {onFacing ? (
-          <Pressable style={styles.button} onPress={onFacing}>
-            <Text style={styles.buttonLabel}>Facing</Text>
-          </Pressable>
-        ) : null}
         {typeof __DEV__ !== 'undefined' && __DEV__ && onClothing ? (
           <Pressable style={styles.button} onPress={onClothing}>
             <Text style={styles.buttonLabel}>Clothing</Text>
@@ -198,24 +163,6 @@ function DebugPanelBody({
             <Text style={styles.buttonLabel}>Colorways</Text>
           </Pressable>
         ) : null}
-        {[1, 0.5, 0.2].map((scale) => (
-          <Pressable key={scale} style={styles.button} onPress={() => onTimeScale?.(scale)}>
-            <Text style={styles.buttonLabel}>{scale}×</Text>
-          </Pressable>
-        ))}
-      </View>
-      <View style={styles.actions}>
-        <Pressable style={styles.button} onPress={() => play('short')}>
-          <Text style={styles.buttonLabel}>Short</Text>
-        </Pressable>
-        <Pressable style={styles.button} onPress={() => play('long')}>
-          <Text style={styles.buttonLabel}>Long</Text>
-        </Pressable>
-        {(greetingIds?.() ?? []).map((id) => (
-          <Pressable key={id} style={styles.button} onPress={() => play(id)}>
-            <Text style={styles.buttonLabel}>{id}</Text>
-          </Pressable>
-        ))}
       </View>
       <Text style={styles.line}>Stage {stageOf(state.ageDays)}</Text>
       <Text style={styles.line}>Senior band {state.seniorBand ?? 'none'}</Text>
@@ -229,11 +176,6 @@ function DebugPanelBody({
       <Text style={styles.line}>
         Level {state.level} · xp {Math.floor(state.xpIntoLevel)} / {state.xpTotal}
       </Text>
-      {traits.map((trait) => (
-        <Text key={trait} style={styles.line}>
-          {traitLabel[trait]} {format(attributeScore(state, trait))} / {state.attributes.potential[trait]}
-        </Text>
-      ))}
       <RangeControl
         label="Age"
         min={0}

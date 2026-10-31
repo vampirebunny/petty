@@ -287,10 +287,6 @@ const catalog: Built[] = [
 
 const settle: GreetStep = { move: { to: 'center', speed: 0.6 }, untilArrive: true, dur: 2.4 };
 
-export function greetingIds(species: 'dog' | 'cat'): string[] {
-  return catalog.filter((item) => item.species === species).map((item) => item.id);
-}
-
 export type GreetContext = {
   species: 'dog' | 'cat';
   elapsedH: number;
