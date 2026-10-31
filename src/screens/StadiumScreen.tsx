@@ -602,16 +602,12 @@ export function StadiumScreen({
       {block ? (
         <FunModal
           title={block.trickName}
-          body={
-            block.reason === 'age'
-              ? `${block.trickName} unlocks when ${pet.name} is older, at the ${block.stageLabel} stage. The Fun Run and Fetch & Swat are open now.`
-              : `${pet.name} needs to learn ${block.trickName} for this race.`
-          }
+          body={`${pet.name} needs to learn ${block.trickName} for this race.`}
           icon={Flag}
           tint="lilac"
           reducedMotion={reducedMotion}
-          primary={block.reason === 'now' ? { label: 'Training School', onPress: onTrain, closeFirst: true } : { label: 'OK', onPress: () => setBlock(null) }}
-          secondary={block.reason === 'now' ? { label: 'Not now', onPress: () => setBlock(null) } : undefined}
+          primary={{ label: 'Training School', onPress: onTrain, closeFirst: true }}
+          secondary={{ label: 'Not now', onPress: () => setBlock(null) }}
         />
       ) : null}
 

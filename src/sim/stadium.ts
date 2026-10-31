@@ -1,8 +1,7 @@
-import { stageOf } from './attributes';
 import { gameplayConfig } from './gameplayConfig';
 import { trickListing } from './tricks';
 import { speciesOf } from './tracks';
-import type { PetState, Stage } from './types';
+import type { PetState } from './types';
 
 export type RaceEvent = 'funRun' | 'dockDive' | 'sniffOut' | 'trickShow' | 'hurdles' | 'weave' | 'obstacle';
 export type RaceClass = 'beginner' | 'novice' | 'open' | 'expert' | 'championship' | 'veteran';
@@ -29,18 +28,6 @@ export type RaceRecord = {
 export type SkillBlock = {
   trickId: string;
   trickName: string;
-  reason: 'now' | 'age';
-  stageLabel: string;
-};
-
-const stageOrder: Stage[] = ['puppy', 'olderPuppy', 'adolescent', 'adult', 'senior'];
-
-const stageLabels: Record<Stage, string> = {
-  puppy: 'puppy',
-  olderPuppy: 'older puppy',
-  adolescent: 'adolescent',
-  adult: 'adult',
-  senior: 'senior',
 };
 
 const raceEvents: RaceEvent[] = ['funRun', 'dockDive', 'sniffOut', 'trickShow', 'hurdles', 'weave', 'obstacle'];
@@ -167,10 +154,6 @@ export function requiredTricks(event: RaceEvent, species: 'dog' | 'cat'): string
   return (trickKeys[event] ?? []).map((key) => trickIdFor(species, key));
 }
 
-function stageReached(ageDays: number, need: Stage): boolean {
-  return stageOrder.indexOf(stageOf(ageDays)) >= stageOrder.indexOf(need);
-}
-
 export function skillBlock(state: PetState, event: RaceEvent): SkillBlock | null {
   const species = speciesOf(state.breedId);
   for (const key of trickKeys[event] ?? []) {
@@ -179,12 +162,9 @@ export function skillBlock(state: PetState, event: RaceEvent): SkillBlock | null
       continue;
     }
     const listing = trickListing(trickId);
-    const need = listing?.minAgeStage ?? 'adolescent';
     return {
       trickId,
       trickName: listing?.name ?? trickLabels[key] ?? eventLabel(event),
-      reason: stageReached(state.ageDays, need) ? 'now' : 'age',
-      stageLabel: stageLabels[need],
     };
   }
   return null;

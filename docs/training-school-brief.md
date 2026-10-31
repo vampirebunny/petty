@@ -39,9 +39,12 @@ These override anything below that still reads the other way.
   - A retired pet keeps its tricks, and still has them when it appears as an NPC or playdate partner.
   - A new pet starts with only the three starter tricks, at 0%. Anything else must be bought and trained again.
 - **Separate trick lists for dogs and cats.** Each trick is either dog-only or cat-only.
-- **Tricks are gated by age stage.**
-  - A trick the pet is too young for still shows in the Trick Shop, locked.
-  - It displays **"Unlocks at older age"** and cannot be bought.
+- **Shop lessons open from learned tricks, not age.**
+  - The first pair is for sale on day one.
+  - Each trick that moves from In Training to Learned, including Sit, Speak, and Paw, opens the next two.
+  - Lessons still waiting show under **"New lessons unlock as [name] learns new skills"** and cannot be bought. The preview says **"Learn more skills first"**.
+  - Dogs, in order: Down and Spin, High Five and Bow, Jump Up and Roll Over, Jump Through Hoop and Stand Tall, Catch and Jump the Hurdle, Through the Tunnel and Play Dead, Sing and Weave.
+  - Cats, in order: Spin and High Five, Jump Up and Lie Down, Jump the Hurdle and Stand Tall, Fetch and Jump Through Hoop, Through the Tunnel and Roll Over, Sing and Weave.
 - **Duplicate purchases are not possible.** A trick the pet already owns, whether in training or learned, shows as "Owned" in the shop.
 - **No refunds**, which is consistent with the Pet Shop.
 - **All tricks are evergreen for now.** There are no limited-edition or exclusive tricks yet, but the schema leaves room for them later (see §2).
@@ -94,7 +97,7 @@ The field list below is the shape of a catalog row and of the pet's training ent
 | `description` | text | one short line for the preview |
 | `is_starter` | bool | true for sit/speak/paw; never shown in the shop |
 | `price_boops` | int | 0 for starters |
-| `min_age_stage` | enum | uses the existing life-stage enum (puppy/kitten → senior) |
+| `min_age_stage` | enum | stored on the row; the shop does not read it. Lessons open from the learned-trick count. |
 | `difficulty` | numeric | stored for later; not applied |
 | `attributes_raised` | jsonb | e.g. `{ "agility": 2, "obedience": 1 }`, using the existing attribute keys |
 | `pet_animation_key` | text | the animation the player's pet performs |
@@ -118,7 +121,7 @@ The field list below is the shape of a catalog row and of the pet's training ent
 - When a pet is created, seed Sit, Speak, and Paw. Paw starts locked.
 - **Purchase:**
   - Debit Boops through the existing ledger, then add the trick on that pet at 0%, unlocked, not mastered, `source: 'purchase'`.
-  - Validate four things: the species matches, the pet meets `min_age_stage`, the pet doesn't already own the trick, and the balance is sufficient.
+  - Validate four things: the species matches, the lesson is open for how many tricks this pet has learned, the pet doesn't already own the trick, and the balance is sufficient.
   - Use the same local ledger path the Pet Shop uses for evergreen items. The new pet state is what gets saved.
 
 ---
@@ -148,7 +151,7 @@ The field list below is the shape of a catalog row and of the pet's training ent
 - Each card shows the trick's icon or illustration, its name, and its price with the gold paw-print coin.
 - Card states:
   - **Available**: shows the price.
-  - **Locked**: dimmed, with a lock and "Unlocks at older age".
+  - **Locked**: dimmed, with a lock, under "New lessons unlock as [name] learns new skills".
   - **Owned**: an "In Training" or "Learned ✓" chip.
 - Tapping a card opens the **Preview modal**:
   - A looping demo of an adult golden retriever or adult domestic shorthair, default coat, no clothes, playing that trick's success script. Not the player's pet. A furniture trick shows its prop in the preview and says which prop the purchase includes.
@@ -156,7 +159,7 @@ The field list below is the shape of a catalog row and of the pet's training ent
   - The attributes it raises, shown with the existing attribute icons.
   - A **"Learn for X Boops"** button.
   - If the player can't afford it, the button shows *"Not enough Boops"* and a disabled state.
-  - If the trick is locked, the button is replaced by "Unlocks at older age".
+  - If the trick is locked, the button is replaced by "Learn more skills first".
   - No cart: buying a trick is a single purchase with a one-tap confirm.
 - Modals must match the game's fun aesthetic, not system dialogs.
 
@@ -178,40 +181,40 @@ The field list below is the shape of a catalog row and of the pet's training ent
 Players start with 1,000 Boops and accrue about 60 per hour. Prices below are the amount charged. A furniture row's price is the bundle price, and the purchase grants the one prop named in the last column. Come and Crawl are not in the app.
 
 **Dogs**
-| Trick | Price | Min age | Raises | Prop |
+| Trick | Price | Opens after learned | Raises | Prop |
 |---|---|---|---|---|
-| Down | 150 | puppy | obedience | |
-| Spin | 150 | puppy | agility | |
-| High Five | 200 | older puppy | obedience, affection | |
-| Bow | 250 | older puppy | obedience | |
-| Jump Up | 400 | older puppy | obedience | podium |
-| Roll Over | 300 | adolescent | agility, obedience | |
-| Catch | 300 | adolescent | agility | |
-| Stand Tall | 350 | adolescent | stamina, agility | |
-| Through the Tunnel | 450 | adolescent | boldness | pink tunnel |
-| Jump the Hurdle | 500 | adolescent | agility, boldness | hurdle |
-| Jump Through Hoop | 550 | adolescent | agility, boldness | hoop |
-| Play Dead | 500 | adult | intelligence, obedience | |
-| Sing | 450 | adult | boldness, affection | |
-| Weave | 650 | adult | agility, intelligence | cone set |
+| Down | 150 | 0 | obedience | |
+| Spin | 150 | 0 | agility | |
+| High Five | 200 | 1 | obedience, affection | |
+| Bow | 250 | 1 | obedience | |
+| Jump Up | 400 | 2 | obedience | podium |
+| Roll Over | 300 | 2 | agility, obedience | |
+| Jump Through Hoop | 550 | 3 | agility, boldness | hoop |
+| Stand Tall | 350 | 3 | stamina, agility | |
+| Catch | 300 | 4 | agility | |
+| Jump the Hurdle | 500 | 4 | agility, boldness | hurdle |
+| Through the Tunnel | 450 | 5 | boldness | pink tunnel |
+| Play Dead | 500 | 5 | intelligence, obedience | |
+| Sing | 450 | 6 | boldness, affection | |
+| Weave | 650 | 6 | agility, intelligence | cone set |
 
 **Cats**
-| Trick | Price | Min age | Raises | Prop |
+| Trick | Price | Opens after learned | Raises | Prop |
 |---|---|---|---|---|
-| Spin | 150 | puppy | agility | |
-| High Five | 200 | older puppy | affection | |
-| Lie Down | 200 | older puppy | obedience | |
-| Jump Up | 400 | older puppy | obedience | podium |
-| Through the Tunnel | 400 | older puppy | boldness | blue tunnel |
-| Roll Over | 400 | adolescent | agility | |
-| Stand Tall | 350 | adolescent | stamina | |
-| Jump the Hurdle | 500 | adolescent | agility, boldness | hurdle |
-| Jump Through Hoop | 550 | adolescent | agility, boldness | hoop |
-| Fetch | 500 | adult | intelligence, boldness | |
-| Sing | 450 | adult | boldness, affection | |
-| Weave | 650 | adult | agility, intelligence | cone set |
+| Spin | 150 | 0 | agility | |
+| High Five | 200 | 0 | affection | |
+| Jump Up | 400 | 1 | obedience | podium |
+| Lie Down | 200 | 1 | obedience | |
+| Jump the Hurdle | 500 | 2 | agility, boldness | hurdle |
+| Stand Tall | 350 | 2 | stamina | |
+| Fetch | 500 | 3 | intelligence, boldness | |
+| Jump Through Hoop | 550 | 3 | agility, boldness | hoop |
+| Through the Tunnel | 400 | 4 | boldness | blue tunnel |
+| Roll Over | 400 | 4 | agility | |
+| Sing | 450 | 5 | boldness, affection | |
+| Weave | 650 | 5 | agility, intelligence | cone set |
 
-- Life stages use the code enum for both species: `puppy`, `olderPuppy`, `adolescent`, `adult`, `senior`. Kitten is `puppy`. Older kitten is `olderPuppy`.
+- "Opens after learned" is how many tricks are already Learned before that lesson is for sale. Zero means day one. Sit, Speak, and Paw count. The shop does not use life stage.
 - Either species can use a prop the other species' purchase granted. A pink tunnel and a blue tunnel are the same trick type.
 
 ---
@@ -227,7 +230,7 @@ Players start with 1,000 Boops and accrue about 60 per hour. Prices below are th
 ## 6. Acceptance checklist
 - [x] Training School is a door on Boop Boop Town. Taking the pet there opens the training room, and the school controls and the shorter phone stage are on screen with the field.
 - [ ] A new pet has Sit, Speak and Paw in In Training at 0%, and no other tricks.
-- [ ] The Trick Shop shows only tricks for the pet's species. Locked tricks say "Unlocks at older age" and can't be bought. Owned tricks show their status.
+- [ ] The Trick Shop shows only tricks for the pet's species. The first pair is for sale immediately. Each learned trick opens the next two. Locked tricks say they unlock as the pet learns new skills and can't be bought. Owned tricks show their status.
 - [ ] The preview plays the generic demo. Buying debits Boops through the ledger and adds the trick to In Training on both the school and Home.
 - [ ] The first-purchase tooltip appears once, anchored to the new button, then never again.
 - [ ] At the school, a successful attempt with "Yes" to a treat gives the full treat effect, leaves the treat count unchanged, works with 0 treats, and the prompt says the treat is free.

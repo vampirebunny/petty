@@ -97,6 +97,65 @@ export function tricksForSpecies(species: TrickSpecies): TrickListing[] {
   return trickCatalog.filter((trick) => trick.species === species).sort((a, b) => a.sortOrder - b.sortOrder);
 }
 
+/** Shop order. The first pair is for sale immediately. Each learned trick, including Sit, Speak, and Paw, opens the next two. */
+const dogLessons = [
+  'dog_down',
+  'dog_spin',
+  'dog_high_five',
+  'dog_bow',
+  'dog_jump_up',
+  'dog_roll_over',
+  'dog_hoop',
+  'dog_stand_tall',
+  'dog_catch',
+  'dog_hurdle',
+  'dog_tunnel',
+  'dog_play_dead',
+  'dog_sing',
+  'dog_weave',
+] as const;
+
+const catLessons = [
+  'cat_spin',
+  'cat_high_five',
+  'cat_jump_up',
+  'cat_lie_down',
+  'cat_hurdle',
+  'cat_stand_tall',
+  'cat_fetch',
+  'cat_hoop',
+  'cat_tunnel',
+  'cat_roll_over',
+  'cat_sing',
+  'cat_weave',
+] as const;
+
+export function lessonOrder(species: TrickSpecies): readonly string[] {
+  return species === 'cat' ? catLessons : dogLessons;
+}
+
+export function learnedTrickCount(pet: PetState): number {
+  return Object.values(pet.training).filter((track) => track?.mastered).length;
+}
+
+/** How many shop lessons are for sale after this many tricks have been learned. */
+export function lessonsOpen(learned: number, total: number): number {
+  return Math.min(total, 2 + 2 * Math.max(0, learned));
+}
+
+export function lessonUnlocked(pet: PetState, trickId: string): boolean {
+  const listing = trickListing(trickId);
+  if (!listing) {
+    return false;
+  }
+  const order = lessonOrder(listing.species);
+  const index = order.indexOf(trickId);
+  if (index < 0) {
+    return false;
+  }
+  return index < lessonsOpen(learnedTrickCount(pet), order.length);
+}
+
 export function ageAllowsTrick(ageDays: number, minAgeStage: Stage): boolean {
   return stageOrder.indexOf(stageOf(ageDays)) >= stageOrder.indexOf(minAgeStage);
 }
@@ -105,7 +164,7 @@ export type GrantedTrickProp = { instanceId: string; type: TrickPropType; source
 
 export type TrickQuote =
   | { ok: true; pet: PetState; price: number; prop: GrantedTrickProp | null }
-  | { ok: false; reason: 'unknown' | 'species' | 'age' | 'owned' | 'insufficient_boops' };
+  | { ok: false; reason: 'unknown' | 'species' | 'locked' | 'owned' | 'insufficient_boops' };
 
 export function trickPrice(listing: Pick<TrickListing, 'priceBoops' | 'priceWithoutProp' | 'propType'>, ownsProp: boolean): number {
   if (ownsProp && listing.propType != null && listing.priceWithoutProp != null) {
@@ -128,8 +187,8 @@ export function prepareTrickPurchase(
   if (listing.species !== species) {
     return { ok: false, reason: 'species' };
   }
-  if (!ageAllowsTrick(pet.ageDays, listing.minAgeStage)) {
-    return { ok: false, reason: 'age' };
+  if (!lessonUnlocked(pet, trickId)) {
+    return { ok: false, reason: 'locked' };
   }
   if (pet.training[trickId]) {
     return { ok: false, reason: 'owned' };

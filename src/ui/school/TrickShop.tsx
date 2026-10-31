@@ -5,7 +5,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { PawCoin } from '../../components/currency/PawCoin';
-import { ageAllowsTrick, trickPrice, tricksForSpecies, type TrickListing } from '../../sim/tricks';
+import { lessonOrder, lessonUnlocked, trickPrice, tricksForSpecies, type TrickListing } from '../../sim/tricks';
 import type { PetState } from '../../sim/types';
 import { fontFamily } from '../font';
 import { iconStroke } from '../theme';
@@ -14,7 +14,6 @@ import {
   colorFamilyOf,
   isQuickLearn,
   shopOrder,
-  stageAgeLabel,
   traitLabel,
   trickIsNew,
   trickOfTheDay,
@@ -56,8 +55,12 @@ export function TrickShop({
   const ownedTypes = useMemo(() => new Set(ownedPropTypes), [ownedPropTypes]);
   const [filter, setFilter] = useState<Filter>('all');
   const [open, setOpen] = useState<TrickListing | null>(null);
-  const locked = tricks.filter((trick) => !pet.training[trick.id] && !ageAllowsTrick(pet.ageDays, trick.minAgeStage));
-  const buyable = tricks.filter((trick) => pet.training[trick.id] || ageAllowsTrick(pet.ageDays, trick.minAgeStage));
+  const byListing = new Map(tricks.map((trick) => [trick.id, trick]));
+  const locked = lessonOrder(species).flatMap((id) => {
+    const trick = byListing.get(id);
+    return trick && !pet.training[trick.id] && !lessonUnlocked(pet, trick.id) ? [trick] : [];
+  });
+  const buyable = tricks.filter((trick) => pet.training[trick.id] || lessonUnlocked(pet, trick.id));
   const featured = trickOfTheDay(
     buyable.filter((trick) => !pet.training[trick.id]),
     ownerId,
@@ -91,7 +94,7 @@ export function TrickShop({
     onDismissPreviewTip?.();
   };
   const openTrack = open ? pet.training[open.id] : undefined;
-  const openLocked = open != null && !ageAllowsTrick(pet.ageDays, open.minAgeStage);
+  const openLocked = open != null && !pet.training[open.id] && !lessonUnlocked(pet, open.id);
 
   return (
     <View style={styles.wrap}>
@@ -144,7 +147,7 @@ export function TrickShop({
       {locked.length > 0 ? (
         <View style={styles.lockedBox}>
           <View style={styles.lockedHead}>
-            <Text style={styles.lockedTitle}>When {pet.name} is older</Text>
+            <Text style={styles.lockedTitle}>New lessons unlock as {pet.name} learns new skills</Text>
             <Text style={styles.lockedCount}>
               {locked.length} trick{locked.length === 1 ? '' : 's'}
             </Text>
@@ -165,9 +168,6 @@ export function TrickShop({
                   <Text style={styles.lockedName} numberOfLines={1}>
                     {trick.name}
                   </Text>
-                  <Text style={styles.lockedAge} numberOfLines={1}>
-                    At {stageAgeLabel(trick.minAgeStage, species)} age
-                  </Text>
                 </View>
               </Pressable>
             ))}
@@ -183,7 +183,6 @@ export function TrickShop({
         locked={openLocked}
         learned={Boolean(openTrack?.mastered)}
         inTraining={Boolean(openTrack) && !openTrack?.mastered}
-        ageLabel={open ? stageAgeLabel(open.minAgeStage, species) : ''}
         reducedMotion={reducedMotion}
         onClose={() => setOpen(null)}
         onBuy={() => {
@@ -416,7 +415,6 @@ function PreviewSheet({
   locked,
   learned,
   inTraining,
-  ageLabel,
   reducedMotion,
   onClose,
   onBuy,
@@ -430,7 +428,6 @@ function PreviewSheet({
   locked: boolean;
   learned: boolean;
   inTraining: boolean;
-  ageLabel: string;
   reducedMotion: boolean;
   onClose: () => void;
   onBuy: () => void;
@@ -506,7 +503,7 @@ function PreviewSheet({
                 {locked ? (
                   <View style={styles.buyOff}>
                     <Lock size={16} strokeWidth={iconStroke + 0.4} color={secondary} />
-                    <Text style={styles.buyOffText}>At {ageLabel} age</Text>
+                    <Text style={styles.buyOffText}>Learn more skills first</Text>
                   </View>
                 ) : learned ? (
                   <View style={styles.buyOff}>
@@ -650,7 +647,6 @@ const styles = StyleSheet.create({
   },
   lockedCopy: { flex: 1 },
   lockedName: { fontFamily: fontFamily.fredokaSemibold, fontSize: 14, color: ink },
-  lockedAge: { fontFamily: fontFamily.bold, fontSize: 12, color: secondary },
   demo: { borderRadius: 20, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   play: {
     width: 56,
