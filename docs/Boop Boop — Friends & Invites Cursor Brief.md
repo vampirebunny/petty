@@ -266,6 +266,7 @@ The delete-account edge function calls `delete_friend_data` before `deleteUser`.
 - push\_tokens for the player
 - reports filed by the player; reports about the player are anonymized (reported\_id set to null, a deleted flag kept) so the moderation record stays without identifying them
 - the player's notification settings
+- runway shows the player is in: keep the shows, looks, and vote tallies. Set their handle to "Former player" and their pet name to "Pup" (dog) or "Kitty" (cat). Remove the voter id from their votes. If they hosted, anonymize the host the same way. The rules are in the fashion show brief.
 
 After deletion:
 

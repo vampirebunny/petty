@@ -8,7 +8,7 @@ Boop Boop Town is the road, not a picker laid over a hidden room. Leaving a plac
 
 The map is drawn in the cotton-candy style. This pass does not include Vet, Groomer, or their roads. A new place adds its own road when it is built.
 
-- **Doors:** Home, Pet Shop, Park, Training School, Arcade, and Stadium. The Catwalk is drawn and does not open until its venue is built.
+- **Doors:** Home, Pet Shop, Park, Training School, The Catwalk, Arcade, and Stadium. Tapping The Catwalk walks the pet there and opens the venue. The screen is specified in `docs/Boop Boop Fashion Show — Cursor Brief.md`.
 - **Home rooms stay off the road.** Tapping Home walks the pet to Home, then a bottom sheet offers the room. Living room and Bedroom show for every pet. Catio shows for a cat, using the scene flags already on the catio (`playerOwned` and `species: 'cat'`), the same ownership as the other home rooms. Dogs see two rooms, centered.
 - **No Settings gear** on this screen.
 - Keep the scenes themselves. The grid and its unused styles are already removed.
@@ -37,7 +37,7 @@ All map art is drawn in code with react-native-svg, in the existing cotton candy
 - Portrait, including an upright iPad and a Surface Duo on one screen, uses a 390 by 724 zigzag. Scale it to the width, up to 600 pt, and keep the aspect ratio. It scrolls vertically when it is taller than the pane. On open, scroll so the pet is visible.
 - The landscape split (short side at least 600, and wider than tall) uses a separate 1194 by 722 horizontal road, scaled to the full pane width. It scrolls vertically the same way. The pet and place labels grow with that scale. Title and subtitle sit on one row.
 - The header clears the status bar the way the other screens do (64 pt, plus the opened-Duo inset). The walk pill sits above the home indicator.
-- Paths: cream, two stacked strokes with round caps, plus a dashed center. The same cubics are drawn and walked. A bend under The Catwalk keeps the switchback on the path. It is not a door.
+- Paths: cream, two stacked strokes with round caps, plus a dashed center. The same cubics are drawn and walked. A bend under The Catwalk keeps the switchback on the path. The Catwalk is a door on that bend.
 - Decoration: a pond, trees, bush clusters, tiny pastel flower dots, and drifting clouds. Decoration is not tappable.
 
 ### Buildings
@@ -50,7 +50,7 @@ Each building is one button, at least 44 pt, with a soft ground shadow and a whi
 | Pet Shop | Teal shop, gold sign, teal and white scallops, an orange ball in the window |
 | Park | Garden gate between deeper green trees, flower beds, a ball on the lawn |
 | Training School | Blue schoolhouse with a bell tower and a yellow bell |
-| The Catwalk | Fashion house with a gold marquee, spotlights, and a runway carpet. Drawn for dogs and cats. A tap does nothing until the venue is built |
+| The Catwalk | Fashion house with a gold marquee, spotlights, and a runway carpet. Drawn for dogs and cats. A tap walks the pet there and opens the venue |
 | Arcade | Orange claw machine building with a gold marquee |
 | Stadium | The current arena art. Its own four pennants wave. No extra poles are drawn on top |
 
@@ -77,9 +77,9 @@ White sheet, 32 pt top corners, grab handle. Title "Home", subtitle "Which room?
 
 The road is data-driven and local to the app. It works offline.
 
-`roadSpot` on the pet is `'home' | 'petShop' | 'park' | 'trainingSchool' | 'arcade' | 'stadium'` when the pet is on the road beside that door. Missing means the pet is inside `sceneId`, which is how every existing save already works. The Catwalk is not a spot.
+`roadSpot` on the pet is `'home' | 'petShop' | 'park' | 'trainingSchool' | 'catwalk' | 'arcade' | 'stadium'` when the pet is on the road beside that door. Missing means the pet is inside `sceneId`, which is how every existing save already works.
 
-The road is two layouts. Portrait visits Home, Pet Shop, Park, Training School, the Catwalk bend, Arcade, then Stadium. Widescreen runs Home, Pet Shop, Park, and Training School along the top, drops down the right side through the bend, then Arcade and Stadium along the bottom. Stand nodes sit on the path in front of each label. The Catwalk bend is a waypoint only. Crossing the landscape split mid-walk cancels the walk and puts the pet on that layout's stand node for the current door.
+The road is two layouts. Portrait visits Home, Pet Shop, Park, Training School, the Catwalk bend, Arcade, then Stadium. Widescreen runs Home, Pet Shop, Park, and Training School along the top, drops down the right side through the bend, then Arcade and Stadium along the bottom. Stand nodes sit on the path in front of each label, including The Catwalk. The bend stays so the switchback remains on the path. Crossing the landscape split mid-walk cancels the walk and puts the pet on that layout's stand node for the current door.
 
 ## Walking
 
@@ -89,7 +89,7 @@ Tapping a door starts the walk. There is no confirm step.
 2. Move along the curves at a constant speed (sample by arc length). Any trip takes at least 0.8 s and at most 2.5 s.
 3. Skip (the pill, or tapping the destination again) arrives at once.
 4. Tapping a different door mid-walk re-routes from the current point: back to the nearest node on the current edge, then on to the new door.
-5. Arrival at Home opens the room sheet. The pet stays outside Home. Choosing the living room, bedroom, catio, park, or training school cuts to that scene and the pet walks in from off the left. Reduce Motion skips the walk-in. Arrival at the Pet Shop, Arcade, or Stadium opens that screen. There is no zoom. The town pet is taken off the map before the place draws its own pet. The Catwalk is not a stop.
+5. Arrival at Home opens the room sheet. The pet stays outside Home. Choosing the living room, bedroom, catio, park, or training school cuts to that scene and the pet walks in from off the left. Reduce Motion skips the walk-in. Arrival at the Pet Shop, Arcade, Stadium, or The Catwalk opens that screen. There is no zoom. The town pet is taken off the map before the place draws its own pet.
 6. Shop and Arcade, opened from the road, do not also play the in-room walk-off.
 
 ## Done when
