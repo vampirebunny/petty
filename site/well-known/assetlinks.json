@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "app.mylisto.boop",
+    "sha256_cert_fingerprints": ["F2:D6:33:CD:BD:2E:D9:28:DA:6E:6B:69:E0:96:13:8B:68:49:DA:B4:F9:ED:07:59:EB:49:02:27:B5:B4:36:F1"]
+  }
+}]

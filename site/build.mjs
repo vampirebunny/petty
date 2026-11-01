@@ -80,6 +80,10 @@ await copyFile(
   path.join(root, "well-known", "apple-app-site-association"),
   path.join(dist, ".well-known", "apple-app-site-association"),
 );
+await copyFile(
+  path.join(root, "well-known", "assetlinks.json"),
+  path.join(dist, ".well-known", "assetlinks.json"),
+);
 
 for (const page of pages) {
   const markdown = await readFile(path.join(docsDir, page.file), "utf8");
