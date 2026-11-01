@@ -1,15 +1,16 @@
 import type { ImageSourcePropType } from 'react-native';
 
-export type LobbyVenue = 'arcade' | 'catwalk' | 'stadium';
+export type LobbyVenue = 'arcade' | 'catwalk';
 /** Phone banner is 700×360. The tall cut is 600×800 and fills the widescreen left pane. */
 export type LobbyCut = 'phone' | 'tall';
 
 export const lobbyPhoneAspect = 700 / 360;
 
-export const lobbyHeroFill: Record<LobbyVenue, string> = {
+export const lobbyHeroFill = {
   arcade: '#160F36',
   catwalk: '#3E2F6E',
-  stadium: '#2E2470',
+  // Shown for a frame before the Stadium's live sky paints.
+  stadium: '#A9D4F0',
 };
 
 type HeroMedia = {
@@ -36,16 +37,6 @@ export const lobbyHeroes: Record<LobbyVenue, Record<LobbyCut, HeroMedia>> = {
     tall: {
       video: require('../../../assets/lobby/catwalk-tall.mp4'),
       poster: require('../../../assets/lobby/catwalk-tall.png'),
-    },
-  },
-  stadium: {
-    phone: {
-      video: require('../../../assets/lobby/stadium-phone.mp4'),
-      poster: require('../../../assets/lobby/stadium-phone.png'),
-    },
-    tall: {
-      video: require('../../../assets/lobby/stadium-tall.mp4'),
-      poster: require('../../../assets/lobby/stadium-tall.png'),
     },
   },
 };
