@@ -4,7 +4,7 @@
 
 Build the Stadium place on the map: where players see upcoming races, sign up, get called back when a race is about to start, and gather at the starting gate. The race itself (gameplay) is a separate brief; this one ends by handing off to a placeholder race screen.
 
-**Status: shipped** through the starting gate. Race gameplay is in `docs/boop-boop-race-foundation-cursor-brief.md`. Fun Run, Hurdles, Dock Dive, Obstacle Course, and 800 Meters are playable. Solo results go through the deployed `race_report` Edge Function. Sniff Out, Trick Show, and Weave are cancelled. The launch board is applied (`20261030130000_launch_race_schedule.sql`): 5-minute slots, Fun Run and Dock Dive every slot, Hurdles and Obstacle Course alternating, trick gates restored, and a 1-minute rest per event. `20261101120000_eight_hundred_meters.sql` is applied and adds 800 Meters to every slot. `20261101160000_one_race_per_slot.sql` is applied: one active entry per start time.
+**Status: shipped** through the starting gate. Race gameplay is in `docs/boop-boop-race-foundation-cursor-brief.md`. Fun Run, Hurdles, Dock Dive, Obstacle Course, and 800 Meters are playable. Solo results go through the deployed `race_report` Edge Function. Sniff Out, Trick Show, and Weave are cancelled. The launch board is applied (`20261030130000_launch_race_schedule.sql`): 5-minute slots, Fun Run and Dock Dive every slot, Hurdles and Obstacle Course alternating, trick gates restored, and a 1-minute rest per event. `20261101120000_eight_hundred_meters.sql` is applied and adds 800 Meters to every slot. `20261101160000_one_race_per_slot.sql` is applied: one active entry per start time. `20261101195000_race_condition.sql` is applied: new races use the condition stamps (`funrun-3`, `meters800-2`, `hurdles-4`, `obstacle-8`, `dockdive-2`).
 
 ## Global rules
 
@@ -77,7 +77,7 @@ Energy, mood, and hydration bars are on the sign-up sheet, the ticket, and Fun R
 - On the player's **first** sign-up ever, request notification permission here (contextual, not at launch). If declined, sign-up still works; the in-app race call still shows.
 
 **Sign-up rules:**
-- Free entry, no energy or hydration minimum. Each race input spends 0.2 energy and 0.3 hydration, and both stop at 0. Fun Run and 800 Meters get slower as either falls into a penalty band. See the race foundation brief.
+- Free entry, no energy or hydration minimum. On the current stamps a run tap spends 0.04 energy and 0.05 hydration, and a jump or duck spends 1.0 and 1.2. Both stop at 0. Energy, hydration, and mood become one condition multiplier. See the race foundation brief. Older stamps keep 0.2 and 0.3 and their bands.
 - **One active sign-up per start time.** A second event in that same slot shows "Same time". Other slots stay open.
 - Players can sign up for any slot shown (up to ~15 min ahead).
 - Blocked when that event's 1-minute rest (from the last race's start) is still running at the new race's start. The rest is written with the results; withdrawing, missing the gate, or a cancelled race does not start it. A pet can enter a different event during the rest.

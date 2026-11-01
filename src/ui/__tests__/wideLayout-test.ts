@@ -7,6 +7,8 @@ import {
   isLandscapeSplit,
   isSurfaceDuoModel,
   phoneColumnWidth,
+  splitColumnWidth,
+  trophyCaseMaxWidth,
   stageSizeFor,
   schoolStackedHeightShare,
   stackedHeightShare,
@@ -23,6 +25,18 @@ describe('isLandscapeSplit', () => {
     expect(isLandscapeSplit(540, 720)).toBe(false);
     expect(isLandscapeSplit(1114, 720)).toBe(true);
     expect(isLandscapeSplit(720, 1114)).toBe(false);
+  });
+});
+
+describe('splitColumnWidth', () => {
+  it('keeps a phone window full width', () => {
+    expect(splitColumnWidth(390, 844)).toBe(390);
+  });
+
+  it('caps landscape at the given max, and Trophy Case is wider than a phone column', () => {
+    expect(splitColumnWidth(1194, 834)).toBe(phoneColumnWidth);
+    expect(splitColumnWidth(1194, 834, trophyCaseMaxWidth)).toBe(trophyCaseMaxWidth);
+    expect(trophyCaseMaxWidth).toBeGreaterThan(phoneColumnWidth);
   });
 });
 

@@ -1,9 +1,10 @@
 import type { RaceClassId } from './config.ts';
+import { conditionOf, meterRates, spendPool, usesCondition, type DrainPool, type MeterRates } from './condition.ts';
 import { npcSpeed, takeRaceEnergy, type Modifiers } from './funRun.ts';
 import { hashSeed, mulberry32 } from './rng.ts';
 
 // Published versions are immutable. Tuning adds a new version; races keep the one they were created with.
-export const OBSTACLE_VERSION = 'obstacle-7';
+export const OBSTACLE_VERSION = 'obstacle-8';
 
 type ObstacleClass = {
   speed: number;
@@ -214,10 +215,9 @@ const obstacleV6: ObstacleConfig = {
 
 const steadyOpen: ObstacleClass = { ...fastOpen, npcSpeed: [7.2, 9] };
 
-// obstacle-7: same miss costs as 6, NPCs slower, so a steady clean run (about 4 RUN taps a second) wins.
-export const obstacleConfig: ObstacleConfig = {
+const obstacleV7: ObstacleConfig = {
   ...obstacleV6,
-  version: OBSTACLE_VERSION,
+  version: 'obstacle-7',
   classes: {
     beginner: { ...obstacleV6.classes.beginner, npcSpeed: [6.4, 8.2] },
     novice: { ...obstacleV6.classes.novice, npcSpeed: [6.8, 8.6] },
@@ -228,6 +228,12 @@ export const obstacleConfig: ObstacleConfig = {
   },
 };
 
+// obstacle-8: condition multiplies run speed, RUN acceleration, and the top-speed cap.
+export const obstacleConfig: ObstacleConfig = {
+  ...obstacleV7,
+  version: OBSTACLE_VERSION,
+};
+
 const obstacleVersions: Record<string, ObstacleConfig> = {
   'obstacle-1': obstacleV1,
   'obstacle-2': obstacleV2,
@@ -235,11 +241,12 @@ const obstacleVersions: Record<string, ObstacleConfig> = {
   'obstacle-4': obstacleV4,
   'obstacle-5': obstacleV5,
   'obstacle-6': obstacleV6,
+  'obstacle-7': obstacleV7,
   [OBSTACLE_VERSION]: obstacleConfig,
 };
 
 export function obstacleConfigFor(version: string): ObstacleConfig {
-  return obstacleVersions[version] ?? obstacleConfig;
+  return obstacleVersions[version] ?? obstacleV7;
 }
 
 /** False when this bundle predates the version, so a replay would use the wrong course and rules. */
@@ -306,6 +313,7 @@ export type ObstacleRunner = {
   ducks: number[];
   /** Energy still left for this pet. Null until the first player step copies the start value. */
   energyLeft: number | null;
+  hydrationLeft: number | null;
 };
 
 type Course = ObstacleCourse & {
@@ -430,12 +438,13 @@ function baseSpeed(course: Course, mods: Modifiers | null, npc: ObstacleNpc | nu
     const [lo, hi] = course.config.npcSpeedSpread;
     return course.cls.speed * lerp(lo, hi, roll);
   }
+  if (usesCondition(course.config.version)) return course.cls.speed;
   const mood = mods ? clamp((unit(mods.mood) - 0.5) / 0.5, 0, 1) : 0;
   return course.cls.speed * (1 + course.config.moodSpeed * mood);
 }
 
 function boostMs(course: Course, mods: Modifiers | null): number {
-  if (!mods) return course.config.perfectBoostMs;
+  if (!mods || usesCondition(course.config.version)) return course.config.perfectBoostMs;
   const energy = clamp((unit(mods.energy) - 0.4) / 0.4, 0, 1);
   return course.config.perfectBoostMs * lerp(0.5, 1, energy);
 }
@@ -489,6 +498,7 @@ export function createObstacleRunner(): ObstacleRunner {
     jumps: [],
     ducks: [],
     energyLeft: null,
+    hydrationLeft: null,
   };
 }
 
@@ -581,6 +591,7 @@ function cruiseStep(
   mods: Modifiers | null,
   npc: ObstacleNpc | null,
   dt: number,
+  scale = 1,
 ): void {
   const config = course.config;
   const sprint = sectionAt(course, state.x);
@@ -588,7 +599,7 @@ function cruiseStep(
   let cruise = state.cruise ?? (config.tapDrive && !npc ? 0 : base);
   if (tapZone) {
     if (npc) {
-      const target = Math.min(config.topSpeed, npcSpeed(npc, state.tMs, config.npcSprintVersion));
+      const target = Math.min(config.topSpeed * scale, npcSpeed(npc, state.tMs, config.npcSprintVersion) * scale);
       // On tapDrive courses NPCs hold class speed; on pink sprints they ramp like Fun Run NPCs.
       const goal = config.tapDrive ? base : target;
       cruise += clamp(goal - cruise, -config.rampMps2 * dt, config.rampMps2 * dt);
@@ -599,7 +610,7 @@ function cruiseStep(
       const stamina = mods ? unit(mods.stamina) : 0.5;
       const power = 1 - config.fadeAmount * (1 - stamina) * along;
       for (const tap of taps) {
-        if (acceptTap(state, tap, config)) cruise = Math.min(config.topSpeed, cruise + config.tapAccel * power);
+        if (acceptTap(state, tap, config)) cruise = Math.min(config.topSpeed * scale, cruise + config.tapAccel * power * scale);
       }
       cruise = Math.max(base * config.sprintFloor, cruise * Math.exp(-config.fadePerSec * dt));
     }
@@ -621,6 +632,7 @@ export function stepObstacleRunner(
   version: string,
   courseSeed: string,
   plan: readonly number[] | null = null,
+  rates: MeterRates | null = null,
 ): void {
   if (state.finishMs != null) return;
   const course = courseFor(classId, version, courseSeed);
@@ -628,10 +640,10 @@ export function stepObstacleRunner(
   const stepMs = 1000 / config.stepHz;
   const dt = stepMs / 1000;
   const next = state.tMs + stepMs;
-  let charged = 0;
+  let runInputs = 0;
+  let actionInputs = 0;
   const playerMods = npc ? null : mods;
   const half = obstacleZoneHalfWidth(classId, playerMods, version);
-  const base = baseSpeed(course, playerMods, npc);
   const obstacle = course.obstacles[state.next] ?? null;
   const open = sectionAt(course, state.x) == null;
 
@@ -647,17 +659,39 @@ export function stepObstacleRunner(
   } else {
     for (const input of inputs) {
       if (input.tMs < state.tMs || input.tMs >= next) continue;
-      charged += 1;
+      if (input.button === 'jump' || input.button === 'duck') actionInputs += 1;
+      else runInputs += 1;
       if (input.button === 'jump') wantJump = true;
       else if (input.button === 'duck') wantDuck = true;
       else taps.push(input.tMs);
     }
   }
 
+  const conditionRace = usesCondition(version) && (npc != null || playerMods != null);
+  const pool: DrainPool | null = conditionRace
+    ? {
+        energy: state.energyLeft ?? (npc ? 100 : (playerMods?.energy ?? 0)),
+        hydration: state.hydrationLeft ?? (npc ? 100 : (playerMods?.hydration ?? 0)),
+        mood: npc ? 100 : (playerMods?.mood ?? 0),
+      }
+    : null;
+  if (pool && !npc) {
+    spendPool(pool, version, 'run', runInputs);
+    spendPool(pool, version, 'action', actionInputs);
+  }
+  if (pool && npc && (wantJump || wantDuck)) spendPool(pool, version, 'action', 1);
+  if (pool) {
+    state.energyLeft = pool.energy;
+    state.hydrationLeft = pool.hydration;
+  }
   const liveMods =
     playerMods == null
       ? null
-      : { ...playerMods, energy: (state.energyLeft = takeRaceEnergy(state.energyLeft, playerMods.energy, charged)) };
+      : conditionRace
+        ? { ...playerMods, energy: pool?.energy ?? playerMods.energy, hydration: pool?.hydration ?? playerMods.hydration }
+        : { ...playerMods, energy: (state.energyLeft = takeRaceEnergy(state.energyLeft, playerMods.energy, runInputs + actionInputs)) };
+  const scale = pool ? conditionOf(pool.energy, pool.hydration, pool.mood) : 1;
+  const base = baseSpeed(course, npc ? null : liveMods, npc) * scale;
   const free = open && obstacle != null && !isObstacleAirborne(state) && !isDucking(state);
   if (wantJump && free) {
     state.jumpX = state.x;
@@ -677,9 +711,17 @@ export function stepObstacleRunner(
     else state.spoiled = true;
   }
 
-  cruiseStep(state, course, base, taps, liveMods, npc, dt);
+  cruiseStep(state, course, base, taps, liveMods, npc, dt, scale);
   state.v = (state.cruise ?? base) * speedFactor(state, config);
-  state.x += state.v * dt;
+  const moved = state.v * dt;
+  state.x += moved;
+  if (pool && npc) {
+    const pace = meterRates(version, rates);
+    pool.energy = Math.max(0, pool.energy - moved * pace.energyPerMeter);
+    pool.hydration = Math.max(0, pool.hydration - moved * pace.hydrationPerMeter);
+    state.energyLeft = pool.energy;
+    state.hydrationLeft = pool.hydration;
+  }
   state.tMs = next;
 
   while (state.next < course.obstacles.length) {
@@ -716,6 +758,7 @@ export function runObstacle(
   classId: RaceClassId,
   version: string,
   courseSeed: string,
+  rates: MeterRates | null = null,
 ): ObstacleRunner {
   const config = obstacleConfigFor(version);
   const state = createObstacleRunner();
@@ -731,7 +774,7 @@ export function runObstacle(
       if (sorted[cursor].tMs >= state.tMs) due.push(sorted[cursor]);
       cursor += 1;
     }
-    stepObstacleRunner(state, due, mods, npc, classId, version, courseSeed, plan);
+    stepObstacleRunner(state, due, mods, npc, classId, version, courseSeed, plan, rates);
   }
   return state;
 }

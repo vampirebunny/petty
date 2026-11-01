@@ -5,15 +5,17 @@ import {
   coastRunner,
   RACE_INPUT_ENERGY,
   RACE_INPUT_HYDRATION,
+  conditionOf,
   configFor,
   createRunner,
   neutralModifiers,
+  runDiveSeries,
   runFunRun,
   speedScale,
   stepRunner,
 } from '../../../supabase/functions/_shared/race-sim/index.ts';
 import { testPet } from '../__fixtures__/pets';
-import { applyRaceRewards, spendRaceTap } from '../raceRewards';
+import { applyRaceOutcome, applyRaceRewards, spendRaceInput, spendRaceTap } from '../raceRewards';
 
 const now = Date.UTC(2026, 0, 1, 12, 0, 0);
 
@@ -100,13 +102,13 @@ it('keeps the one Open Fun Run field in reach of a steady tapper', () => {
 
 it('runs 800 Meters on a track 13 times as long as Fun Run', () => {
   const fun = configFor('funrun-2');
-  const long = configFor(METERS_800_VERSION);
+  const long = configFor('meters800-1');
   expect(long.distanceM).toBeCloseTo(fun.distanceM * METERS_800_SCALE);
   expect(long.maxMs).toBe(fun.maxMs * METERS_800_SCALE);
   const tapping = (perSec: number, maxMs: number) =>
     Array.from({ length: Math.floor((maxMs / 1000) * perSec) }, (_, index) => Math.round((index * 1000) / perSec));
   const short = runFunRun(tapping(5, fun.maxMs), neutralModifiers, null, 'funrun-2').finishMs;
-  const extended = runFunRun(tapping(5, long.maxMs), neutralModifiers, null, METERS_800_VERSION).finishMs;
+  const extended = runFunRun(tapping(5, long.maxMs), neutralModifiers, null, 'meters800-1').finishMs;
   expect(short).not.toBeNull();
   expect(extended).not.toBeNull();
   expect(extended!).toBeGreaterThan(short! * 12);
@@ -152,7 +154,7 @@ it('applies race rewards once and skips race XP during the tutorial', () => {
   const finish = { raceId: 'race-1', event: 'funRun', classId: 'beginner', place: 1, at: now };
   const paid = applyRaceRewards(pet, finish, now);
   expect(paid.appliedRaceIds).toEqual(['race-1']);
-  expect(paid.ribbons?.[0]).toMatchObject({ place: 1, event: 'funRun' });
+  expect(paid.ribbons).toEqual(pet.ribbons);
   expect(paid.level).toBe(pet.level + 1);
   expect(paid.tutorialSeen).toContain('race');
   expect(paid.races?.entered).toBe(true);
@@ -180,6 +182,14 @@ it('applies race rewards once and skips race XP during the tutorial', () => {
   expect(signed.races?.entered).toBe(true);
   expect(applyRaceRewards(signed, { ...finish, raceId: 'race-1' }, now).races?.signup).toBeNull();
   expect(paid.badges).toContain('off-to-the-races');
+  expect(paid.badges).not.toContain('first-win');
+  const leftoverWin = applyRaceRewards(
+    { ...pet, ribbons: [{ raceId: 'old', event: 'funRun', classId: 'beginner', place: 1, at: now }] },
+    { ...finish, raceId: 'race-leftover' },
+    now,
+  );
+  expect(leftoverWin.ribbons).toHaveLength(1);
+  expect(leftoverWin.badges).toContain('first-win');
   expect(applyRaceRewards(paid, finish, now)).toBe(paid);
 
   const grown = applyRaceRewards(
@@ -193,7 +203,8 @@ it('applies race rewards once and skips race XP during the tutorial', () => {
     now,
   );
   expect(grown.xpTotal).toBe(pet.xpTotal + 100);
-  expect(grown.badges).toContain('blue-ribbon');
+  expect(grown.badges).toContain('first-win');
+  expect(grown.badges).not.toContain('blue-ribbon');
   expect(grown.badges).toContain('moving-up');
 });
 
@@ -201,7 +212,13 @@ it('leaves Moving Up to the level-class events', () => {
   const pet = { ...testPet(4, 'retriever', now, 'Maple', 'pet'), level: 3 };
   const run = applyRaceRewards(pet, { raceId: 'run', event: 'funRun', classId: 'open', place: 2, at: now }, now);
   expect(run.badges).not.toContain('moving-up');
-  const hurdles = applyRaceRewards(run, { raceId: 'hop', event: 'hurdles', classId: 'novice', place: 2, at: now }, now);
+  expect(run.ribbons ?? []).toEqual(pet.ribbons ?? []);
+  const hurdles = applyRaceRewards(
+    { ...run, ribbons: [{ raceId: 'old-hop', event: 'hurdles', classId: 'novice', place: 2, at: now }] },
+    { raceId: 'hop', event: 'hurdles', classId: 'novice', place: 2, at: now },
+    now,
+  );
+  expect(hurdles.ribbons).toHaveLength(1);
   expect(hurdles.badges).toContain('moving-up');
 });
 
@@ -224,4 +241,95 @@ it('coasts finishers past the line without changing the finish time', () => {
   expect(gone.x).toBe(distanceM + coastPastM + 1);
   expect(gone.tMs).toBe(14000);
   expect(gone.finishMs).toBe(11000);
+});
+
+it('scales Fun Run top speed by condition on funrun-3', () => {
+  const rows: [number, number, number, number, number][] = [
+    [100, 100, 100, 1, 11],
+    [90, 90, 90, 0.995, 10.945],
+    [70, 70, 70, 0.955, 10.505],
+    [100, 100, 0, 0.88, 9.68],
+    [30, 30, 70, 0.803, 8.833],
+    [0, 100, 100, 0.8, 8.8],
+    [0, 0, 0, 0.5, 5.5],
+  ];
+  for (const [energy, hydration, mood, condition, cap] of rows) {
+    expect(conditionOf(energy, hydration, mood)).toBeCloseTo(condition, 3);
+    expect(11 * conditionOf(energy, hydration, mood)).toBeCloseTo(cap, 3);
+  }
+});
+
+it('spends a run tap and a jump on the condition versions and stops at zero', () => {
+  const pet = testPet(4, 'retriever', now, 'Maple', 'pet');
+  const tap = spendRaceInput(pet, 'run', 'funrun-3');
+  expect(tap.needs.energy).toBeCloseTo(pet.needs.energy - 0.04);
+  expect(tap.hydration).toBeCloseTo(pet.hydration - 0.05);
+  const jump = spendRaceInput(pet, 'action', 'hurdles-4');
+  expect(jump.needs.energy).toBeCloseTo(pet.needs.energy - 1);
+  expect(jump.hydration).toBeCloseTo(pet.hydration - 1.2);
+  const empty = { ...pet, hydration: 0, needs: { ...pet.needs, energy: 0 } };
+  expect(spendRaceInput(empty, 'run', 'funrun-3')).toBe(empty);
+  const dryRun = spendRaceInput({ ...pet, needs: { ...pet.needs, energy: 0 } }, 'action', 'obstacle-8');
+  expect(dryRun.needs.energy).toBe(0);
+  expect(dryRun.hydration).toBeCloseTo(pet.hydration - 1.2);
+});
+
+it('spends a Fun Run tap the 20-per-second cap rejects', () => {
+  const burst = Array.from({ length: 25 }, (_, index) => index * 10);
+  const full = { ...neutralModifiers, energy: 100, mood: 100, hydration: 100 };
+  const raced = runFunRun(burst, full, null, 'funrun-3');
+  expect(raced.accepted).toHaveLength(20);
+  expect(raced.energyLeft).toBeCloseTo(100 - 25 * 0.04);
+  expect(raced.hydrationLeft).toBeCloseTo(100 - 25 * 0.05);
+});
+
+it('uses Dock Dive condition after the release and carries it to the next attempt', () => {
+  const mods = { energy: 100, mood: 100, hydration: 100, stamina: 0, agility: 50, intelligence: 50 };
+  const attempt = [
+    { at: 200, down: true },
+    { at: 900, down: false },
+  ];
+  const series = runDiveSeries([attempt, attempt], mods, 'open', 'dockdive-2');
+  expect(series.pool.energy).toBeCloseTo(100 - 0.16);
+  expect(series.pool.hydration).toBeCloseTo(100 - 0.2);
+  expect(series.results[0].distanceM).toBeLessThan(series.results[0].flop ? 2 : 100);
+  expect(series.results[1].distanceM).toBeLessThanOrEqual(series.results[0].distanceM);
+});
+
+it('changes mood once from the server place, including a DNF and a friend game', () => {
+  const pet = testPet(4, 'retriever', now, 'Maple', 'pet');
+  const start = pet.needs.happiness;
+  const finish = { raceId: 'race-mood', event: 'funRun', classId: 'open', place: 1, at: now };
+  const won = applyRaceOutcome(pet, finish, now, { didFinish: true, friends: false });
+  expect(won.needs.happiness).toBe(Math.min(100, start + 8));
+  expect(applyRaceOutcome(won, finish, now, { didFinish: true, friends: false }).needs.happiness).toBe(won.needs.happiness);
+  const dnf = applyRaceOutcome(pet, { ...finish, raceId: 'race-dnf', place: 6 }, now, { didFinish: false, friends: false });
+  expect(dnf.needs.happiness).toBe(Math.max(0, start - 5));
+  expect(dnf.ribbons ?? []).toEqual(pet.ribbons ?? []);
+  expect(dnf.appliedRaceIds).toContain('race-dnf');
+  const friend = applyRaceOutcome(pet, { ...finish, raceId: 'race-friend', place: 2 }, now, { didFinish: true, friends: true });
+  expect(friend.needs.happiness).toBe(Math.min(100, start + 4));
+  expect(friend.ribbons ?? []).toEqual(pet.ribbons ?? []);
+});
+
+it('finishes the 800 with a full player and a full NPC within 1% condition', () => {
+  const config = configFor(METERS_800_VERSION);
+  const full = { ...neutralModifiers, energy: 100, mood: 100, hydration: 100 };
+  const player = createRunner();
+  const every = 0.04 / 0.044;
+  let nextTapAt = 0;
+  while (player.finishMs == null && player.tMs < config.maxMs) {
+    const due: number[] = [];
+    while (nextTapAt <= player.x && nextTapAt < config.distanceM) {
+      due.push(player.tMs);
+      nextTapAt += every;
+    }
+    stepRunner(player, due, full, null, METERS_800_VERSION);
+  }
+  const npc = runFunRun([], full, { classId: 'open', skill: 0.5, seed: 'fade' }, METERS_800_VERSION);
+  expect(player.finishMs).not.toBeNull();
+  expect(npc.finishMs).not.toBeNull();
+  const playerCondition = conditionOf(player.energyLeft ?? 0, player.hydrationLeft ?? 0, 100);
+  const npcCondition = conditionOf(npc.energyLeft ?? 0, npc.hydrationLeft ?? 0, 100);
+  expect(Math.abs(playerCondition - npcCondition)).toBeLessThan(0.01);
 });

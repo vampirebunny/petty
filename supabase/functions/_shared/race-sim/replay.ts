@@ -1,9 +1,10 @@
+import { conditionOf, drainPool, spendPool, usesCondition, type MeterRates } from './condition.ts';
 import { configFor, type RaceClassId } from './config.ts';
 import {
   diveScore,
   dockDiveConfigFor,
   npcDives,
-  runDive,
+  runDiveSeries,
   type DiveInput,
   type DiveScore,
 } from './dockDive.ts';
@@ -30,6 +31,8 @@ export type ReplayFinish = {
   } | null;
   /** Accepted Fun Run / Obstacle RUN taps, for bot checks. */
   acceptedTaps: number[];
+  /** Condition at the end of a condition-version replay. Null on older versions. */
+  condition: number | null;
 };
 
 export type ReplayRace = {
@@ -155,36 +158,74 @@ function isTapRace(event: RaceEventType): boolean {
 }
 
 function emptyFinish(): ReplayFinish {
-  return { finishMs: null, scoreDm: null, detail: null, acceptedTaps: [] };
+  return { finishMs: null, scoreDm: null, detail: null, acceptedTaps: [], condition: null };
+}
+
+function withCondition(
+  version: string,
+  finish: Omit<ReplayFinish, 'condition'>,
+  energy: number | null,
+  hydration: number | null,
+  mood: number,
+): ReplayFinish {
+  return {
+    ...finish,
+    condition: usesCondition(version) ? conditionOf(energy ?? 0, hydration ?? 0, mood) : null,
+  };
 }
 
 export function replayPlayer(
   race: ReplayRace,
   mods: Modifiers,
   inputLog: RaceInputLog,
+  rates: MeterRates | null = null,
 ): ReplayFinish {
   const { event, classId, seed, configVersion } = race;
   if (isTapRace(event) && 'taps' in inputLog) {
-    const result = runFunRun(inputLog.taps, mods, null, configVersion);
-    return { finishMs: result.finishMs, scoreDm: null, detail: null, acceptedTaps: result.accepted };
+    const result = runFunRun(inputLog.taps, mods, null, configVersion, rates);
+    return withCondition(
+      configVersion,
+      { finishMs: result.finishMs, scoreDm: null, detail: null, acceptedTaps: result.accepted },
+      result.energyLeft,
+      result.hydrationLeft,
+      mods.mood,
+    );
   }
   if (event === 'hurdles' && 'jumps' in inputLog) {
     const result = runHurdles(inputLog.jumps, mods, null, classId, configVersion, seed);
-    return { finishMs: result.finishMs, scoreDm: null, detail: null, acceptedTaps: [] };
+    return withCondition(
+      configVersion,
+      { finishMs: result.finishMs, scoreDm: null, detail: null, acceptedTaps: [] },
+      result.energyLeft,
+      result.hydrationLeft,
+      mods.mood,
+    );
   }
   if (event === 'dockDive' && 'attempts' in inputLog) {
-    const results = inputLog.attempts.map((attempt) => runDive(attempt, mods, classId, configVersion));
-    const score = diveScore(results, configVersion);
-    return {
-      finishMs: score.bestAtMs,
-      scoreDm: Math.round(score.bestM * 10),
-      detail: diveDetail(results, score),
-      acceptedTaps: [],
-    };
+    const series = runDiveSeries(inputLog.attempts, mods, classId, configVersion, false);
+    const score = diveScore(series.results, configVersion);
+    return withCondition(
+      configVersion,
+      {
+        finishMs: score.bestAtMs,
+        scoreDm: Math.round(score.bestM * 10),
+        detail: diveDetail(series.results, score),
+        acceptedTaps: [],
+      },
+      series.pool.energy,
+      series.pool.hydration,
+      series.pool.mood,
+    );
   }
   if (event === 'obstacle' && 'inputs' in inputLog) {
-    const result = runObstacle(inputLog.inputs, mods, null, classId, configVersion, seed);
-    return { finishMs: result.finishMs, scoreDm: null, detail: null, acceptedTaps: result.accepted };
+    const result = runObstacle(inputLog.inputs, mods, null, classId, configVersion, seed, rates);
+    return withCondition(
+      configVersion,
+      { finishMs: result.finishMs, scoreDm: null, detail: null, acceptedTaps: result.accepted },
+      result.energyLeft,
+      result.hydrationLeft,
+      mods.mood,
+    );
   }
   return emptyFinish();
 }
@@ -193,33 +234,42 @@ export function replayNpc(
   race: ReplayRace,
   entryId: string,
   skill: number,
+  rates: MeterRates | null = null,
 ): ReplayFinish {
   const { event, classId, seed, configVersion } = race;
   const npcSeed = `${seed}:${entryId}`;
   const npcSkill = clamp(skill, 0, 1);
   if (isTapRace(event)) {
-    const result = runFunRun([], neutralModifiers, { classId, skill: npcSkill, seed: npcSeed }, configVersion);
-    return { finishMs: result.finishMs, scoreDm: null, detail: null, acceptedTaps: [] };
+    const result = runFunRun([], neutralModifiers, { classId, skill: npcSkill, seed: npcSeed }, configVersion, rates);
+    return withCondition(configVersion, { finishMs: result.finishMs, scoreDm: null, detail: null, acceptedTaps: [] }, result.energyLeft ?? 100, result.hydrationLeft ?? 100, 100);
   }
   if (event === 'hurdles') {
     const npc = { classId, skill: npcSkill, seed: npcSeed };
     const result = runHurdles([], null, npc, classId, configVersion, seed);
-    return { finishMs: result.finishMs, scoreDm: null, detail: null, acceptedTaps: [] };
+    return withCondition(configVersion, { finishMs: result.finishMs, scoreDm: null, detail: null, acceptedTaps: [] }, result.energyLeft ?? 100, result.hydrationLeft ?? 100, 100);
   }
   if (event === 'dockDive') {
     const results = npcDives({ classId, skill: npcSkill, seed: npcSeed }, configVersion);
     const score = diveScore(results, configVersion);
-    return {
-      finishMs: score.bestAtMs,
-      scoreDm: Math.round(score.bestM * 10),
-      detail: diveDetail(results, score),
-      acceptedTaps: [],
-    };
+    const pool = drainPool(null, configVersion, true);
+    if (usesCondition(configVersion)) spendPool(pool, configVersion, 'run', dockDiveConfigFor(configVersion).attempts * 2);
+    return withCondition(
+      configVersion,
+      {
+        finishMs: score.bestAtMs,
+        scoreDm: Math.round(score.bestM * 10),
+        detail: diveDetail(results, score),
+        acceptedTaps: [],
+      },
+      pool.energy,
+      pool.hydration,
+      pool.mood,
+    );
   }
   if (event === 'obstacle') {
     const npc = { classId, skill: npcSkill, seed: npcSeed };
-    const result = runObstacle([], null, npc, classId, configVersion, seed);
-    return { finishMs: result.finishMs, scoreDm: null, detail: null, acceptedTaps: [] };
+    const result = runObstacle([], null, npc, classId, configVersion, seed, rates);
+    return withCondition(configVersion, { finishMs: result.finishMs, scoreDm: null, detail: null, acceptedTaps: [] }, result.energyLeft ?? 100, result.hydrationLeft ?? 100, 100);
   }
   return emptyFinish();
 }

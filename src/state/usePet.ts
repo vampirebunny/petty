@@ -70,7 +70,7 @@ import {
 } from '../sim/dailyOutfit';
 import { skyAt } from '../actor/sky';
 import { localDay } from '../economy/clock';
-import { syncBadges } from '../sim/badges';
+import { aliasBadgeId, syncBadges } from '../sim/badges';
 import { sqlitePetStorage } from '../db/sqlitePetStorage';
 import { emptyPlaydateSave, petHasCompletedPlaydate } from '../playdate/save';
 import { loadPlaydateSave } from '../playdate/storage';
@@ -307,10 +307,10 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
       knownBadgePet.current = next.id;
       knownBadges.current = [];
     }
-    const previous = new Set(knownBadges.current);
+    const previous = new Set(knownBadges.current.map(aliasBadgeId));
     if (stateRef.current?.id === next.id) {
       for (const id of stateRef.current.badges ?? []) {
-        previous.add(id);
+        previous.add(aliasBadgeId(id));
       }
     }
     const synced = syncBadges(next, Date.now());

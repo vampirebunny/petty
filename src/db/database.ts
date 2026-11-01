@@ -148,6 +148,38 @@ CREATE TABLE IF NOT EXISTS item_defs (
   def_json TEXT NOT NULL,
   first_seen_version INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS award_cache (
+  owner_id TEXT NOT NULL,
+  pet_id TEXT NOT NULL,
+  award_id TEXT NOT NULL,
+  definition_id TEXT NOT NULL,
+  json TEXT NOT NULL,
+  PRIMARY KEY (owner_id, award_id)
+);
+CREATE TABLE IF NOT EXISTS award_progress_cache (
+  owner_id TEXT NOT NULL,
+  pet_id TEXT NOT NULL,
+  counter_key TEXT NOT NULL,
+  value REAL NOT NULL,
+  json TEXT NOT NULL,
+  PRIMARY KEY (owner_id, pet_id, counter_key)
+);
+CREATE TABLE IF NOT EXISTS award_definitions_cache (
+  id TEXT PRIMARY KEY NOT NULL,
+  json TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS award_worn_cache (
+  owner_id TEXT NOT NULL,
+  pet_id TEXT NOT NULL,
+  theme_id TEXT NOT NULL,
+  piece_id TEXT NOT NULL,
+  PRIMARY KEY (owner_id, pet_id, theme_id, piece_id)
+);
+CREATE TABLE IF NOT EXISTS award_theme_rack_cache (
+  theme_id TEXT NOT NULL,
+  piece_id TEXT NOT NULL,
+  PRIMARY KEY (theme_id, piece_id)
+);
 `;
 
 const DROP_LEGACY = `
@@ -170,6 +202,11 @@ DROP TABLE IF EXISTS shop_day;
 DROP TABLE IF EXISTS shop_pick_history;
 DROP TABLE IF EXISTS shop_catalog_cache;
 DROP TABLE IF EXISTS item_defs;
+DROP TABLE IF EXISTS award_cache;
+DROP TABLE IF EXISTS award_progress_cache;
+DROP TABLE IF EXISTS award_definitions_cache;
+DROP TABLE IF EXISTS award_worn_cache;
+DROP TABLE IF EXISTS award_theme_rack_cache;
 DROP TABLE IF EXISTS meta;
 `;
 

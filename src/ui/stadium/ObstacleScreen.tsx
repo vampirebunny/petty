@@ -44,21 +44,22 @@ import { fontFamily } from '../font';
 import { CandyButton } from './CandyButton';
 import { ObstacleControls } from './ObstacleControls';
 import { raceInputOpen } from './raceCountdown';
-import { actorOf, breedOf, classOf, modsOf, placeSuffix, raceLabelFont, raceLabelSize } from './raceField';
+import { actorOf, breedOf, classOf, modsOf, placeSuffix, raceLabelFont, raceLabelSize, stampedRates } from './raceField';
 import { useRaceCountdown } from './useRaceCountdown';
 import { useRaceLoop } from './useRaceLoop';
 import { ink, shared } from './parts';
+import { RaceResultsStrip } from './RaceResultsStrip';
+import { minePlaceOf, withFinishPlaces, type TimeStanding } from './standings';
 
 type Props = {
   race: RaceView;
   pet: PetState;
   reducedMotion: boolean;
-  onFinish: (place: number) => void;
-  onSpend: () => void;
+  onFinish: (place: number, view: RaceView) => void;
+  onSpend: (kind: 'run' | 'action') => void;
   onExit: () => void;
 };
 
-type Standing = { key: string; name: string; finishMs: number | null; place: number | null; mine: boolean };
 type Popup = { text: string; tone: ObstacleOutcome; until: number };
 
 const popupMs = 900;
@@ -74,7 +75,7 @@ const roomyMarkers = 12;
 export function ObstacleScreen({ race, pet, reducedMotion, onFinish, onSpend, onExit }: Props) {
   const [width, setWidth] = useState(0);
   const [finalRace, setFinalRace] = useState<RaceView | null>(null);
-  const [provisional, setProvisional] = useState<Standing[] | null>(null);
+  const [provisional, setProvisional] = useState<TimeStanding[] | null>(null);
   const [waiting, setWaiting] = useState(false);
   const [frame, setFrame] = useState({
     at: 0,
@@ -97,7 +98,6 @@ export function ObstacleScreen({ race, pet, reducedMotion, onFinish, onSpend, on
   const uiAt = useRef({ at: 0, cue: null as ObstacleButton | null, outcomes: 0 });
   const petRef = useRef(pet);
   const playerMods = useRef<Modifiers | null>(null);
-  const rewarded = useRef(false);
   const sent = useRef(false);
   const grantRef = useRef<(view: RaceView) => void>(() => undefined);
   const blank = useMemo(() => {
@@ -109,7 +109,7 @@ export function ObstacleScreen({ race, pet, reducedMotion, onFinish, onSpend, on
   const [lineup, setLineup] = useState(race);
   const field = useMemo(() => [...lineup.players, ...lineup.npcs], [lineup.npcs, lineup.players]);
   const mine = field.find((row) => row.mine) ?? race.players[0];
-  if (!playerMods.current) playerMods.current = modsOf(mine, pet);
+  if (playerMods.current == null) playerMods.current = modsOf(mine, pet);
   const live = lineup.players.length > 1;
   const { remotes, send } = useRaceSync(race.raceId, live);
   const stale = useRef(new Set<string>());
@@ -136,11 +136,20 @@ export function ObstacleScreen({ race, pet, reducedMotion, onFinish, onSpend, on
   useEffect(() => {
     grantRef.current = (view) => {
       setFinalRace(view);
-      if (rewarded.current) return;
-      const placed = [...view.players, ...view.npcs].find((entry) => entry.mine && entry.place && entry.finishMs != null);
-      if (!placed?.place) return;
-      rewarded.current = true;
-      onFinish(placed.place);
+      const ranked = withFinishPlaces(
+        [...view.players, ...view.npcs].map((entry) => ({
+          key: entry.key,
+          name: entry.petName,
+          finishMs: entry.finishMs,
+          place: entry.place,
+          mine: entry.mine,
+        })),
+      );
+      const place = minePlaceOf(ranked);
+      if (place == null) {
+        return;
+      }
+      onFinish(place, view);
     };
   });
 
@@ -189,7 +198,7 @@ export function ObstacleScreen({ race, pet, reducedMotion, onFinish, onSpend, on
               if (state.tMs >= config.maxMs) break;
               const next = state.tMs + stepMs;
               const due = row.mine ? inputs.current.filter((input) => input.tMs >= state.tMs && input.tMs < next) : [];
-              stepObstacleRunner(state, due, row.mine ? playerMods.current : null, npc, classId, version, race.seed, plan);
+              stepObstacleRunner(state, due, row.mine ? playerMods.current : null, npc, classId, version, race.seed, plan, stampedRates(race.energyPerMeter, race.hydrationPerMeter));
             } else {
               const before = state.tMs;
               coastRunner(state, stepMs, distanceM);
@@ -227,13 +236,13 @@ export function ObstacleScreen({ race, pet, reducedMotion, onFinish, onSpend, on
                 return { key: row.key, name: row.petName, finishMs: liveFinish(remotes.current.get(row.key)), place: null, mine: false };
               }
               const npc = row.npc ? { classId, skill: row.skill ?? 0.5, seed: `${race.seed}:${row.key}` } : null;
-              const result = runObstacle(row.mine ? inputs.current : [], row.mine ? playerMods.current : null, npc, classId, version, race.seed);
+              const result = runObstacle(row.mine ? inputs.current : [], row.mine ? playerMods.current : null, npc, classId, version, race.seed, stampedRates(race.energyPerMeter, race.hydrationPerMeter));
               return { key: row.key, name: row.petName, finishMs: result.finishMs, place: null, mine: row.mine };
             })
             .sort((a, b) => (a.finishMs ?? 1e9) - (b.finishMs ?? 1e9));
           sent.current = true;
           setWaiting(true);
-          setProvisional(standings);
+          setProvisional(withFinishPlaces(standings));
           const mineStanding = standings.find((row) => row.mine);
           const log = obstacleLog(inputs.current);
           void deliverRaceReport(
@@ -400,12 +409,19 @@ export function ObstacleScreen({ race, pet, reducedMotion, onFinish, onSpend, on
     return () => clearInterval(timer);
   }, [finalRace?.status, race.raceId, waiting]);
 
-  const standings = finalRace
-    ? [...finalRace.players, ...finalRace.npcs]
-        .map((row) => ({ key: row.key, name: row.petName, finishMs: row.finishMs, place: row.place, mine: row.mine }))
-        .sort((a, b) => (a.place ?? 99) - (b.place ?? 99))
+  const official = finalRace?.status === 'finished';
+  const standings = official
+    ? withFinishPlaces(
+        [...finalRace.players, ...finalRace.npcs].map((row) => ({
+          key: row.key,
+          name: row.petName,
+          finishMs: row.finishMs,
+          place: row.place,
+          mine: row.mine,
+        })),
+      )
     : provisional;
-  const minePlace = standings?.find((row) => row.mine)?.place;
+  const minePlace = official ? minePlaceOf(standings) : null;
   useCompetitionResult(race, resultsReady, minePlace ?? undefined);
   const stat = obstacleStat(frame.outcomes, obstacles.length, 0);
   const showPopup = popup != null && frame.at < popup.until;
@@ -419,7 +435,7 @@ export function ObstacleScreen({ race, pet, reducedMotion, onFinish, onSpend, on
     // step it lands in, or the scene skips it while the replay and the results count it.
     const simMs = mine ? (runners.current.get(mine.key)?.tMs ?? 0) : 0;
     inputs.current.push({ tMs: Math.max(at - race.startsAt, simMs), button });
-    onSpend();
+    onSpend(button === 'run' ? 'run' : 'action');
   };
 
   return (
@@ -486,6 +502,7 @@ export function ObstacleScreen({ race, pet, reducedMotion, onFinish, onSpend, on
               {minePlace === 1 ? `${pet.name} won!` : minePlace ? `${pet.name} placed ${minePlace}${placeSuffix(minePlace)}!` : 'Finish!'}
             </Text>
             {finalRace?.status === 'finished' ? null : <Text style={shared.copy}>Provisional</Text>}
+            <RaceResultsStrip race={finalRace ?? race} place={minePlace ?? null} petId={pet.id} />
             <Text style={shared.strong}>
               Obstacles {stat.clean}/{stat.total} · Perfect {stat.perfect}
             </Text>

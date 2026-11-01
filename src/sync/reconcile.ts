@@ -1,3 +1,4 @@
+import { refreshAwardsCache } from '../awards/cache';
 import { getCachedInstallId } from '../compliance/identity';
 import { getSupabase } from '../compliance/supabase';
 import {
@@ -82,6 +83,13 @@ export async function reconcileFromServer(claim?: ClaimResult | null): Promise<b
     }
     if (typeof pulled.server_revision === 'number') {
       setSyncedRevision(pulled.server_revision);
+    }
+    if (pulled.pet && pulled.pet.id) {
+      try {
+        await refreshAwardsCache(pulled.pet.id);
+      } catch {
+        // Offline display keeps the last cache if the awards tables are missing or the read fails.
+      }
     }
     notifyInstallState();
     return true;

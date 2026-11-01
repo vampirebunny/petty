@@ -83,14 +83,14 @@ Exactly like Fun Run and Hurdles: every pet lines up with its toes on the start 
 ## Pet modifiers (inside the ±10% cap)
 
 - **Agility** widens hurdle and tunnel zones, up to +10%.
-- **Mood** up to +3% base speed.
-- **Energy:** low energy shortens the Perfect boost (Hurdles rule). Each jump, duck, or RUN tap spends 0.2 first.
-- **Hydration** does not change the race. Each of those inputs still spends 0.3.
+- **Condition** (`obstacle-8`) multiplies run speed, RUN tap acceleration, and the 11 m/s cap. The Perfect boost is always 500 ms.
+- A RUN tap spends 0.04 energy and 0.05 hydration. A jump or duck spends 1.0 and 1.2, including a press that does not fire.
+- `obstacle-7` and earlier keep mood up to +3% base speed, a Perfect boost shortened by low energy, and 0.2 energy and 0.3 hydration on every input.
 
 ## NPCs
 
 - Per-obstacle miss and Perfect chances from skill, as Hurdles (tunnels use the same numbers). A missing NPC jumps or ducks too early.
-- NPC base speed is drawn from the class band above with the NPC's seed (`obstacle-5` used class speed × 1.26–1.40).
+- NPC base speed is drawn from the class band above with the NPC's seed (`obstacle-5` used class speed × 1.26–1.40). On `obstacle-8` that speed, and the sprint cap, are multiplied by condition. NPCs start at 100/100/100, lose energy and hydration per meter, and spend 1.0 and 1.2 each time they jump or duck, including a miss.
 
 ## Sim, input log and server check
 

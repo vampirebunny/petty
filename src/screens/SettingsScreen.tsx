@@ -12,8 +12,9 @@ import { setAuthTransition } from '../state/sessionGate';
 import type { PetState } from '../sim/types';
 import { AccountSheet } from '../ui/AccountSheet';
 import { FriendsManage } from '../ui/FriendsManage';
-import { BadgeShelf } from '../ui/badges/BadgeShelf';
+import { TrophyCaseScreen, type TrophyCaseTab } from './TrophyCaseScreen';
 import { CandyShell, GRAY, candyInk, tints } from '../ui/candy';
+import { TrophyCaseCard } from '../ui/trophyCase/TrophyCaseCard';
 import { CandySwitch } from '../ui/closet/CandySwitch';
 import { fontFamily } from '../ui/font';
 import { HandleScreen } from '../ui/HandleScreen';
@@ -35,6 +36,8 @@ type Props = {
   musicOn: boolean;
   onSound: () => void;
   onMusic: () => void;
+  onStadium?: () => void;
+  initialCaseTab?: TrophyCaseTab | null;
 };
 
 type SignedIn = {
@@ -69,6 +72,8 @@ export function SettingsScreen({
   musicOn,
   onSound,
   onMusic,
+  onStadium,
+  initialCaseTab = null,
 }: Props) {
   const duoTop = useOpenedDuoTopInset();
   const { width, height } = useWindowDimensions();
@@ -79,6 +84,7 @@ export function SettingsScreen({
   const [sheetOpen, setSheetOpen] = useState(false);
   const [sheetReason, setSheetReason] = useState<'settings' | 'friends'>('settings');
   const [friendsOpen, setFriendsOpen] = useState(false);
+  const [caseOpen, setCaseOpen] = useState(() => initialCaseTab != null);
   const [handleOpen, setHandleOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [typed, setTyped] = useState('');
@@ -189,6 +195,20 @@ export function SettingsScreen({
     ? `Signed in as @${shown.handle}${shown.providers ? ` · ${shown.providers}` : ''}`
     : `Signed in with ${shown?.providers || 'your account'} · Pick your handle`;
 
+  if (caseOpen) {
+    return (
+      <TrophyCaseScreen
+        pet={pet}
+        initialTab={initialCaseTab ?? 'races'}
+        onClose={() => setCaseOpen(false)}
+        onStadium={() => {
+          setCaseOpen(false);
+          onStadium?.();
+        }}
+      />
+    );
+  }
+
   if (friendsOpen && linked) {
     return (
       <PhoneColumn backgroundColor="#F7F1EA">
@@ -261,6 +281,16 @@ export function SettingsScreen({
         )}
       </Pressable>
     );
+
+  const badgesSlot = (
+    <TrophyCaseCard
+      key={pet.id}
+      petId={pet.id}
+      petName={petName}
+      leftover={pet.ribbons ?? []}
+      onOpen={() => setCaseOpen(true)}
+    />
+  );
 
   const friendsButton = (
     <Pressable
@@ -377,7 +407,7 @@ export function SettingsScreen({
             </View>
             <View style={styles.wideColumn}>{soundToggles}</View>
           </View>
-          <BadgeShelf badges={pet.badges ?? []} />
+          {badgesSlot}
         </ScrollView>
       ) : (
         <ScrollView style={styles.scroll} contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
@@ -385,7 +415,7 @@ export function SettingsScreen({
           {accountLine}
           <TraitBars pet={pet} />
           {friendsButton}
-          <BadgeShelf badges={pet.badges ?? []} />
+          {badgesSlot}
           {logOutBlock}
           {deleteBlock}
         </ScrollView>

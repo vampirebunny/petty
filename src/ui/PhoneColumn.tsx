@@ -2,7 +2,7 @@ import { createContext, useContext } from 'react';
 import type { ReactNode } from 'react';
 import { StyleSheet, View, useWindowDimensions } from 'react-native';
 
-import { isLandscapeSplit, phoneColumnWidth } from './wideLayout';
+import { isLandscapeSplit, phoneColumnWidth, splitColumnWidth } from './wideLayout';
 
 const ContentWidthContext = createContext<number | null>(null);
 
@@ -19,12 +19,20 @@ export function useLimitedContentWidth(): number | null {
 
 // On a landscape tablet, Duo, or foldable, keep one phone-width column in the middle.
 // The frame behind it fills the window. Phones and portrait tablets render the child as-is.
-export function PhoneColumn({ children, backgroundColor }: { children: ReactNode; backgroundColor?: string }) {
+export function PhoneColumn({
+  children,
+  backgroundColor,
+  maxWidth = phoneColumnWidth,
+}: {
+  children: ReactNode;
+  backgroundColor?: string;
+  maxWidth?: number;
+}) {
   const { width, height } = useWindowDimensions();
   if (!isLandscapeSplit(width, height)) {
     return children;
   }
-  const column = Math.min(phoneColumnWidth, width);
+  const column = splitColumnWidth(width, height, maxWidth);
   return (
     <View style={[styles.frame, backgroundColor != null ? { backgroundColor } : null]}>
       <ContentWidthContext.Provider value={column}>

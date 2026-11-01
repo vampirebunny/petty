@@ -33,10 +33,12 @@ import { fontFamily } from '../font';
 import { CandyButton } from './CandyButton';
 import { RaceAction } from './RaceAction';
 import { raceInputOpen } from './raceCountdown';
-import { actorOf, breedOf, classOf, modsOf, placeSuffix, raceLabelFont, raceLabelSize } from './raceField';
+import { actorOf, breedOf, classOf, modsOf, placeSuffix, raceLabelFont, raceLabelSize, stampedRates } from './raceField';
 import { useRaceCountdown } from './useRaceCountdown';
 import { useRaceLoop } from './useRaceLoop';
 import { ReadyBars, ink, shared } from './parts';
+import { RaceResultsStrip } from './RaceResultsStrip';
+import { minePlaceOf, withFinishPlaces, type TimeStanding } from './standings';
 
 const legsPerMeter = racePoses.legsPerMeter * racePoses.funRunScroll;
 
@@ -44,19 +46,17 @@ type Props = {
   race: RaceView;
   pet: PetState;
   reducedMotion: boolean;
-  onFinish: (place: number) => void;
-  onSpend: () => void;
+  onFinish: (place: number, view: RaceView) => void;
+  onSpend: (kind: 'run' | 'action') => void;
   onExit: () => void;
 };
-
-type Standing = { key: string; name: string; finishMs: number | null; place: number | null; mine: boolean };
 
 const bars = 8;
 
 export function FunRunScreen({ race, pet, reducedMotion, onFinish, onSpend, onExit }: Props) {
   const [width, setWidth] = useState(0);
   const [finalRace, setFinalRace] = useState<RaceView | null>(null);
-  const [provisional, setProvisional] = useState<Standing[] | null>(null);
+  const [provisional, setProvisional] = useState<TimeStanding[] | null>(null);
   const [waiting, setWaiting] = useState(false);
   const [frame, setFrame] = useState({ v: 0, tMs: 0, xs: {} as Record<string, number> });
   const taps = useRef<number[]>([]);
@@ -69,7 +69,6 @@ export function FunRunScreen({ race, pet, reducedMotion, onFinish, onSpend, onEx
   const lastHaptic = useRef(0);
   const uiAt = useRef(0);
   const playerMods = useRef<Modifiers | null>(null);
-  const rewarded = useRef(false);
   const sent = useRef(false);
   const grantRef = useRef<(view: RaceView) => void>(() => undefined);
   const blank = useMemo(() => {
@@ -81,7 +80,7 @@ export function FunRunScreen({ race, pet, reducedMotion, onFinish, onSpend, onEx
   const [lineup, setLineup] = useState(race);
   const field = useMemo(() => [...lineup.players, ...lineup.npcs], [lineup.npcs, lineup.players]);
   const mine = field.find((row) => row.mine) ?? race.players[0];
-  if (!playerMods.current) playerMods.current = modsOf(mine, pet);
+  if (playerMods.current == null) playerMods.current = modsOf(mine, pet);
   const live = lineup.players.length > 1;
   const { remotes, send } = useRaceSync(race.raceId, live);
   const stale = useRef(new Set<string>());
@@ -98,11 +97,20 @@ export function FunRunScreen({ race, pet, reducedMotion, onFinish, onSpend, onEx
   useEffect(() => {
     grantRef.current = (view) => {
       setFinalRace(view);
-      if (rewarded.current) return;
-      const placed = [...view.players, ...view.npcs].find((entry) => entry.mine && entry.place && entry.finishMs != null);
-      if (!placed?.place) return;
-      rewarded.current = true;
-      onFinish(placed.place);
+      const ranked = withFinishPlaces(
+        [...view.players, ...view.npcs].map((entry) => ({
+          key: entry.key,
+          name: entry.petName,
+          finishMs: entry.finishMs,
+          place: entry.place,
+          mine: entry.mine,
+        })),
+      );
+      const place = minePlaceOf(ranked);
+      if (place == null) {
+        return;
+      }
+      onFinish(place, view);
     };
   });
 
@@ -138,7 +146,7 @@ export function FunRunScreen({ race, pet, reducedMotion, onFinish, onSpend, onEx
             if (row.mine && !playerMods.current) {
               playerMods.current = modsOf(row, petRef.current);
             }
-            stepRunner(state, due, row.mine && playerMods.current ? playerMods.current : modsOf(row, null), npc, race.configVersion);
+            stepRunner(state, due, row.mine && playerMods.current ? playerMods.current : modsOf(row, null), npc, race.configVersion, stampedRates(race.energyPerMeter, race.hydrationPerMeter));
           } else {
             const before = state.tMs;
             coastRunner(state, stepMs, config.distanceM);
@@ -157,14 +165,14 @@ export function FunRunScreen({ race, pet, reducedMotion, onFinish, onSpend, onEx
             const spec = row.npc
               ? { classId: classOf(race.classId), skill: row.skill ?? 0.5, seed: `${race.seed}:${row.key}` }
               : null;
-            const result = runFunRun(row.mine ? taps.current : [], row.mine && playerMods.current ? playerMods.current : modsOf(row, null), spec, race.configVersion);
+            const result = runFunRun(row.mine ? taps.current : [], row.mine && playerMods.current ? playerMods.current : modsOf(row, null), spec, race.configVersion, stampedRates(race.energyPerMeter, race.hydrationPerMeter));
             return { key: row.key, name: row.petName, finishMs: result.finishMs, place: null, mine: row.mine };
           })
           .sort((a, b) => (a.finishMs ?? 1e9) - (b.finishMs ?? 1e9));
         if (!sent.current) {
           sent.current = true;
           setWaiting(true);
-          setProvisional(standings);
+          setProvisional(withFinishPlaces(standings));
           const mineStanding = standings.find((row) => row.mine);
           const log = funRunLog(taps.current);
           void deliverRaceReport(
@@ -256,12 +264,19 @@ export function FunRunScreen({ race, pet, reducedMotion, onFinish, onSpend, onEx
   }, [finalRace?.status, race.raceId, waiting]);
 
   const filled = Math.round((frame.v / config.topSpeed) * bars);
-  const standings = finalRace
-    ? [...finalRace.players, ...finalRace.npcs]
-        .map((row) => ({ key: row.key, name: row.petName, finishMs: row.finishMs, place: row.place, mine: row.mine }))
-        .sort((a, b) => (a.place ?? 99) - (b.place ?? 99))
+  const official = finalRace?.status === 'finished';
+  const standings: TimeStanding[] | null = official
+    ? withFinishPlaces(
+        [...finalRace.players, ...finalRace.npcs].map((row) => ({
+          key: row.key,
+          name: row.petName,
+          finishMs: row.finishMs,
+          place: row.place,
+          mine: row.mine,
+        })),
+      )
     : provisional;
-  const minePlace = standings?.find((row) => row.mine)?.place;
+  const minePlace = official ? minePlaceOf(standings) : null;
   useCompetitionResult(race, resultsReady, minePlace ?? undefined);
 
   const tap = () => {
@@ -272,7 +287,7 @@ export function FunRunScreen({ race, pet, reducedMotion, onFinish, onSpend, onEx
     // step it lands in, or the scene skips it while the replay and the results count it.
     const simMs = mine ? (runners.current.get(mine.key)?.tMs ?? 0) : 0;
     taps.current.push(Math.max(at - race.startsAt, simMs));
-    onSpend();
+    onSpend('run');
     const local = Date.now();
     if (local - lastHaptic.current < 50) return;
     lastHaptic.current = local;
@@ -320,6 +335,7 @@ export function FunRunScreen({ race, pet, reducedMotion, onFinish, onSpend, onEx
           <ScrollView style={styles.resultsScroll} contentContainerStyle={styles.standings} showsVerticalScrollIndicator={false}>
             <Text style={styles.title}>{minePlace === 1 ? `${pet.name} won!` : minePlace ? `${pet.name} placed ${minePlace}${placeSuffix(minePlace)}!` : 'Finish!'}</Text>
             {finalRace?.status === 'finished' ? null : <Text style={shared.copy}>Provisional</Text>}
+            <RaceResultsStrip race={finalRace ?? race} place={minePlace ?? null} petId={pet.id} />
             {standings.map((row, index) => (
               <Text key={row.key} style={styles.standing}>
                 {row.place ?? index + 1}. {row.name}

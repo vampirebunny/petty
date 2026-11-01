@@ -23,7 +23,9 @@ race_id, pet_id, player_id, event, class (the race class, not the pet's level), 
 | Fun Run, Hurdles, Obstacle Course | finish time (ms) | time | lower |
 | Dock Dive | best distance (score_dm) | distance | higher |
 
-`metric_adj` is that second replay. The skill grid uses the same neutral baseline. NPC attributes in the sim then apply on top, the same way a real pet's modifiers do.
+`metric_adj` is that second replay. On `funrun-3`, `meters800-2`, `hurdles-4`, `obstacle-8`, and `dockdive-2` that replay starts at 100 energy, 100 hydration, and 100 mood, with stamina, agility, and intelligence still at 50. Older versions keep the 85/85/85 neutral set, which sat on a flat band. The skill grid uses that same baseline. `race_report` also stores each finisher's condition at the line on `race_entries.condition_finish` (`20261101195000_race_condition.sql`, applied).
+
+The nightly job sets NPC run drain from real taps. For Fun Run, 800 Meters, and Obstacle Course it reads `race_entries.input_log` for finishes in the top quartile of finish time, divides run taps by the course length, and stores `taps per meter × 0.04` and `× 0.05` on `npc_calibration`. Hurdles and Dock Dive have no per-meter rate. Lock copies those rates onto the race. A null rate means the config default (0.044 energy and 0.055 hydration per meter). A later job run does not change a race already stamped. The job logs the average `condition_finish` for players and NPCs per event. It does not resimulate the week. A new config version still starts from its own `replayNpc` grid and does not copy the previous curve. Fun Run and 800 NPC speed ranges on the new stamps are the previous ranges times 1/1.1.
 
 Logged for stadium races only. Skipped:
 

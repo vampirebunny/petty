@@ -70,13 +70,12 @@ Each player gets 3 attempts; the best counts.
 ## Pet modifiers (inside the ±10% cap)
 
 - **Stamina** adds up to +5% to the distance at a full bar. It does not change the run-up: a faster run would move the edge and break the shared rhythm.
-- **Mood** adds up to +5% to the distance, from mood 50 (none) to 100 (full).
-- **Energy** and **hydration** do not change the jump. The press and the release each spend 0.2 energy and 0.3 hydration.
-- A belly flop is always 1.0 m.
+- **Condition** (`dockdive-2`) multiplies that distance after the stamina bonus. The press and the release each spend 0.04 energy and 0.05 hydration. Distance uses condition after the release. A later attempt sees the earlier spend. `dockdive-1` keeps mood up to +5% and spends 0.2 energy and 0.3 hydration on the press and the release.
+- A belly flop is always 1.0 m. It has no release, so only the press spends.
 
 ## NPCs
 
-- Each NPC's three distances are drawn from the seed: mean = lerp(class low, class high, skill), with ±0.6 m spread and a 10% chance of a belly flop per attempt.
+- Each NPC's three distances are drawn from the seed: mean = lerp(class low, class high, skill), with ±0.6 m spread and a 10% chance of a belly flop per attempt. On `dockdive-2` a clean jump is multiplied by condition. NPCs start at 100/100/100 and spend 0.08 energy and 0.1 hydration per attempt before that jump.
 - Class ranges for the mean: Beginner 3.5–5.5 m, Novice 4.0–6.0, Open and Veteran 4.5–6.5, Expert 5.0–7.0, Championship 5.5–7.5 m.
 - NPCs are not drawn as pets. Only their flags show on the ruler. The phone computes all three jumps from the seed (`npcDives`) for the standings and reports them with its own result.
 

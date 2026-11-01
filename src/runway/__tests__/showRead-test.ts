@@ -54,6 +54,7 @@ function detail(submissions: RunwaySubmission[]): RunwayShowDetail {
     claimedCostumeIds: [],
     contestants: [],
     submissions,
+    awards: [],
   };
 }
 
@@ -95,6 +96,46 @@ describe('friend runway reads', () => {
     expect(show?.submissions[0]?.looks.map((look) => look.lookNumber)).toEqual([1, 2, 3]);
     expect(show?.submissions[0]?.submittedAt).toBeGreaterThan(0);
     expect(lookForRound(show?.submissions[0]?.looks ?? [], 1)?.lookNumber).toBe(2);
+    expect(show?.awards).toEqual([]);
+  });
+
+  it('parses viewer awards on a show', () => {
+    const show = parseShowDetail({
+      ok: true,
+      id: 'show-1',
+      theme_id: 'royal',
+      track_id: 'track',
+      deadline: '2026-10-31T21:00:00Z',
+      created_at: '2026-10-31T20:00:00Z',
+      contestants: [],
+      submissions: [],
+      awards: [
+        {
+          id: 'a1',
+          pet_id: 'pet-1',
+          award_definition_id: 'stamp_royal_debut',
+          source: 'runway',
+          show_id: 'show-1',
+          earned_at: '2026-11-01T12:00:00Z',
+          config_version: 1,
+          pet_snapshot: {},
+        },
+      ],
+    });
+    expect(show?.awards).toEqual([
+      {
+        id: 'a1',
+        petId: 'pet-1',
+        definitionId: 'stamp_royal_debut',
+        source: 'runway',
+        raceId: null,
+        showId: 'show-1',
+        placing: null,
+        earnedAt: '2026-11-01T12:00:00Z',
+        configVersion: 1,
+        snapshot: {},
+      },
+    ]);
   });
 
   it('merges a friend who submitted after the screen was loaded', () => {

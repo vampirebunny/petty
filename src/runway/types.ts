@@ -35,6 +35,8 @@ export type FrozenLook = {
 
 export type RunwayPetSnap = {
   snapshotId: string;
+  id?: string;
+  petId?: string;
   source: 'self' | 'npc' | 'friend';
   name: string;
   species: 'dog' | 'cat';
@@ -71,6 +73,8 @@ export type LocalRunwayShow = {
   soloRackIds?: string[];
   /** Player-facing list order: self first for the host viewer. */
   hidden?: boolean;
+  /** Set after a successful record_solo_runway_walk so wrap retries do not double-grant. */
+  awardedAt?: number;
 };
 
 export type RunwaySave = {

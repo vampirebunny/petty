@@ -188,6 +188,30 @@ describe('obstacle course sim', () => {
     }
   });
 
+  it('keeps a Perfect boost at 500 ms on obstacle-8', () => {
+    const length = (configVersion: string, energy: number) => {
+      const config = obstacleConfigFor(configVersion);
+      const course = obstacleCourse('beginner', configVersion, 'boost');
+      const state = createObstacleRunner();
+      const mods = { energy, mood: 100, hydration: 100, stamina: 50, agility: 50, intelligence: 50 };
+      let pressed = -1;
+      while (state.outcomes.length === 0 && state.tMs < config.maxMs) {
+        const due: ObstacleInput[] = [];
+        const ahead = course.obstacles[state.next];
+        if (ahead && pressed < state.next && state.x >= zoneCenter(ahead, configVersion)) {
+          pressed = state.next;
+          due.push({ tMs: state.tMs, button: ahead.kind === 'hurdle' ? 'jump' : 'duck' });
+        }
+        stepObstacleRunner(state, due, mods, null, 'beginner', configVersion, 'boost');
+      }
+      expect(state.outcomes[0]).toBe('perfect');
+      return state.boostUntilMs - state.outcomeMs[0];
+    };
+    expect(length('obstacle-8', 0)).toBe(500);
+    expect(length('obstacle-8', 100)).toBe(500);
+    expect(length('obstacle-7', 0)).toBe(250);
+  });
+
   it('counts the wrong button as a miss', () => {
     const course = obstacleCourse('open', version, seed);
     const hurdle = course.obstacles.findIndex((o) => o.kind === 'hurdle');

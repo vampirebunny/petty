@@ -17,6 +17,7 @@ export type RunwayRpcError =
   | 'contestant'
   | 'voted'
   | 'offline'
+  | 'pet'
   | 'unknown';
 
 type RpcResult<T> = { ok: true; data: T } | { ok: false; error: RunwayRpcError; costumeId?: string };
@@ -78,7 +79,7 @@ export async function submitRunwayLooks(
   petName: string,
   looks: object[],
   costumeIds: string[],
-): Promise<RpcResult<{ submission_id: string; voting_opened?: boolean }>> {
+): Promise<RpcResult<{ submission_id: string; voting_opened?: boolean; awards?: unknown[] }>> {
   const supabase = getSupabase();
   if (!supabase) {
     return { ok: false, error: 'offline' };
@@ -100,7 +101,37 @@ export async function submitRunwayLooks(
   }
 }
 
-export async function castRunwayVote(showId: string, submissionId: string): Promise<RpcResult<{ results_revealed?: boolean }>> {
+export async function recordSoloRunwayWalk(input: {
+  themeId: string;
+  trackId: string;
+  petId: string;
+  petSnapshot: object;
+  looks: object[];
+  localDay: string;
+}): Promise<RpcResult<{ show_id: string; awards?: unknown[] }>> {
+  const supabase = getSupabase();
+  if (!supabase) {
+    return { ok: false, error: 'offline' };
+  }
+  try {
+    const { data, error } = await supabase.rpc('record_solo_runway_walk', {
+      p_theme_id: input.themeId,
+      p_track_id: input.trackId,
+      p_pet_id: input.petId,
+      p_pet_snapshot: input.petSnapshot,
+      p_looks: input.looks,
+      p_local_day: input.localDay,
+    });
+    if (error) {
+      return { ok: false, error: 'unknown' };
+    }
+    return parseRow(data);
+  } catch {
+    return { ok: false, error: 'offline' };
+  }
+}
+
+export async function castRunwayVote(showId: string, submissionId: string): Promise<RpcResult<{ results_revealed?: boolean; awards?: unknown[] }>> {
   const supabase = getSupabase();
   if (!supabase) {
     return { ok: false, error: 'offline' };
@@ -215,6 +246,8 @@ export function runwayErrorCopy(error: RunwayRpcError): string {
       return 'Sign in to invite friends.';
     case 'offline':
       return 'You are offline.';
+    case 'pet':
+      return 'Could not save that show to this pet. Try again after signing in.';
     default:
       return 'Something went wrong. Try again.';
   }

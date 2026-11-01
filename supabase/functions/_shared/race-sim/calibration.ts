@@ -54,10 +54,10 @@ export function shouldLogResult(input: { metric: number | null; friend: boolean;
 }
 
 export function knownConfig(event: RaceEventType, version: string): boolean {
-  if (event === 'funRun') return version === 'funrun-1' || version === CONFIG_VERSION;
-  if (event === 'hurdles') return version === 'hurdles-1' || version === 'hurdles-2' || version === HURDLES_VERSION;
-  if (event === 'dockDive') return version === DOCK_DIVE_VERSION;
-  if (event === 'meters800') return version === METERS_800_VERSION;
+  if (event === 'funRun') return version === 'funrun-1' || version === 'funrun-2' || version === CONFIG_VERSION;
+  if (event === 'hurdles') return version === 'hurdles-1' || version === 'hurdles-2' || version === 'hurdles-3' || version === HURDLES_VERSION;
+  if (event === 'dockDive') return version === 'dockdive-1' || version === DOCK_DIVE_VERSION;
+  if (event === 'meters800') return version === 'meters800-1' || version === METERS_800_VERSION;
   return isObstacleVersion(version);
 }
 

@@ -1,3 +1,4 @@
+import { mapAwardRow, type CachedAward } from '../awards/cache';
 import { getSupabase } from '../compliance/supabase';
 import { noteServerTime } from '../db/accountMeta';
 import { Sentry } from '../monitoring/sentry';
@@ -99,8 +100,11 @@ export type RaceView = {
   startsAt: number;
   seed: string;
   configVersion: string;
+  energyPerMeter: number | null;
+  hydrationPerMeter: number | null;
   players: LineupRow[];
   npcs: LineupRow[];
+  awards: CachedAward[];
 };
 
 export type StadiumResult<T> = { ok: true; data: T } | { ok: false; offline: boolean; reason: string };
@@ -253,6 +257,16 @@ function equippedOf(value: unknown): Equipped | null {
   return out as Equipped;
 }
 
+function parseAwards(value: unknown): CachedAward[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.flatMap((item) => {
+    const mapped = mapAwardRow(rowOf(item));
+    return mapped ? [mapped] : [];
+  });
+}
+
 function lineupRow(value: unknown, index: number, npc: boolean): LineupRow {
   const item = rowOf(value);
   const coat = rowOf(item.coat);
@@ -303,8 +317,11 @@ export function parseRace(value: unknown): RaceView | null {
     startsAt,
     seed: text(row.seed) ?? '',
     configVersion: text(row.config_version) ?? 'funrun-1',
+    energyPerMeter: num(row.energy_per_meter),
+    hydrationPerMeter: num(row.hydration_per_meter),
     players: rows.filter((entry) => !entry.npc),
     npcs: npcRows.length > 0 ? npcRows : legacyNpcs.map((entry, index) => lineupRow(entry, index, true)),
+    awards: parseAwards(row.awards),
   };
 }
 

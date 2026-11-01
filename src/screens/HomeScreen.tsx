@@ -137,6 +137,7 @@ import { PlaydateScreen } from './PlaydateScreen';
 import { ClothingLab } from './ClothingLab';
 import { ColorwaySheet } from './ColorwaySheet';
 import { SettingsScreen } from './SettingsScreen';
+import type { TrophyCaseTab } from './TrophyCaseScreen';
 import { AccountSheet } from '../ui/AccountSheet';
 import { FindFriendsHost } from '../ui/FindFriendsHost';
 import { FriendRequestModal } from '../ui/FriendRequestModal';
@@ -189,7 +190,7 @@ import { careConfig } from '../sim/careConfig';
 import { formatRest, isResting, restRemainingMs, treatProgressPreview } from '../sim/training';
 import { BadgeCelebration } from '../ui/BadgeCelebration';
 import { badgeLabel } from '../sim/badges';
-import { Archive, Cookie, Droplet, HandHeart, Moon, PawPrint, Sparkles } from 'lucide-react-native';
+import { Archive, Cookie, Droplet, HandHeart, Moon, Sparkles } from 'lucide-react-native';
 import { playBadgeChime } from '../audio/badge';
 import { GREET } from '../actor/greetings';
 import { PetView } from '../ui/PetView';
@@ -612,6 +613,7 @@ export default function HomeScreen({ petApi }: Props) {
   const [clothingOpen, setClothingOpen] = useState(false);
   const [colorwaysOpen, setColorwaysOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [caseLaunch, setCaseLaunch] = useState<TrophyCaseTab | null>(null);
   const [incomingFriends, setIncomingFriends] = useState<FriendRow[]>([]);
   const [friendTick, setFriendTick] = useState(0);
   const [requestsOpen, setRequestsOpen] = useState(false);
@@ -2079,7 +2081,6 @@ export default function HomeScreen({ petApi }: Props) {
         <BadgeCelebration
           title={trackName(learnedTrick, species)}
           caption="New skill learned!"
-          Icon={PawPrint}
           reducedMotion={reducedMotion}
           onDone={finishLearned}
         />
@@ -2261,7 +2262,17 @@ export default function HomeScreen({ petApi }: Props) {
         onSound={toggleSound}
         onMusic={toggleMusic}
         onFriendsChanged={() => setFriendTick((value) => value + 1)}
-        onClose={() => setSettingsOpen(false)}
+        onClose={() => {
+          setSettingsOpen(false);
+          setCaseLaunch(null);
+        }}
+        initialCaseTab={caseLaunch}
+        onStadium={() => {
+          setSettingsOpen(false);
+          setCaseLaunch(null);
+          commitPet({ ...state, roadSpot: 'stadium', asleep: false });
+          setStadiumOpen(true);
+        }}
       />
       <HandlePrompt petName={state.name} idle={false} />
     </>
@@ -2319,6 +2330,10 @@ export default function HomeScreen({ petApi }: Props) {
           showId={runwayShowId}
           pendingFriends={incomingFriends.length > 0}
           onSettings={openSettings}
+          onSeeAwards={() => {
+            setCaseLaunch('runway');
+            setSettingsOpen(true);
+          }}
           onClose={() => {
             commitPet({ ...state, roadSpot: 'catwalk', asleep: false });
             setCatwalkOpen(false);

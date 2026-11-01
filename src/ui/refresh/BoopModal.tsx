@@ -73,11 +73,11 @@ export function BoopModal({
 
   const card = (
     <Animated.View style={[styles.cardWrap, cardStyle]}>
+      <View style={[styles.badge, { backgroundColor: tone.tint }]}>
+        <Icon size={34} color={tone.main} strokeWidth={2} />
+      </View>
       <View style={styles.edge} />
       <LinearGradient colors={[ui.card, ui.card, ui.modalSheen]} locations={[0, 0.55, 1]} style={styles.card}>
-        <View style={[styles.badge, { backgroundColor: tone.tint }]}>
-          <Icon size={34} color={tone.main} strokeWidth={2} />
-        </View>
         <Text style={styles.title}>{title}</Text>
         <Text style={styles.body}>{body}</Text>
         {item ? (
@@ -131,12 +131,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 32,
-    paddingTop: 56,
+    paddingTop: 24,
     paddingBottom: 24,
   },
   cardWrap: {
     width: '100%',
     maxWidth: 420,
+    alignItems: 'center',
+    overflow: 'visible',
   },
   edge: {
     position: 'absolute',
@@ -148,6 +150,7 @@ const styles = StyleSheet.create({
     backgroundColor: ui.modalEdge,
   },
   card: {
+    alignSelf: 'stretch',
     borderRadius: ui.radius.modal,
     borderWidth: 3,
     borderColor: ui.card,
@@ -159,13 +162,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   badge: {
-    position: 'absolute',
-    top: -40,
+    zIndex: 2,
     width: 80,
     height: 80,
     borderRadius: 40,
     borderWidth: 5,
     borderColor: ui.card,
+    marginBottom: -40,
     alignItems: 'center',
     justifyContent: 'center',
   },

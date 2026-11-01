@@ -109,6 +109,25 @@ describe('hurdles sim', () => {
     expect(run.outcomes[0]).toBe('perfect');
   });
 
+  it('keeps a Perfect boost at 500 ms on hurdles-4', () => {
+    const length = (version: string, energy: number) => {
+      const state = createHurdleRunner();
+      const centers = hurdleCourse('beginner', version, 'boost').hurdles.map((hurdle) => hurdle - zoneBeforeM);
+      const mods = { energy, mood: 100, hydration: 100, stamina: 50, agility: 50, intelligence: 50 };
+      const taps: number[] = [];
+      while (state.outcomes.length === 0 && state.tMs < hurdlesConfig.maxMs) {
+        const due = taps.length < centers.length && state.x >= centers[taps.length] ? [state.tMs] : [];
+        if (due.length > 0) taps.push(state.tMs);
+        stepHurdleRunner(state, due, mods, null, 'beginner', version, 'boost');
+      }
+      expect(state.outcomes[0]).toBe('perfect');
+      return state.boostUntilMs - state.outcomeMs[0];
+    };
+    expect(length('hurdles-4', 0)).toBe(500);
+    expect(length('hurdles-4', 100)).toBe(500);
+    expect(length('hurdles-3', 0)).toBe(250);
+  });
+
   it('widens the zone with agility, up to 10%', () => {
     const base = zoneHalfWidth('beginner', null, version);
     const agile = zoneHalfWidth('beginner', { energy: 80, mood: 80, hydration: 85, stamina: 50, agility: 100, intelligence: 50 }, version);

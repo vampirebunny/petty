@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { ChevronLeft, Flag, Users, WifiOff } from 'lucide-react-native';
 
+import { mergeRaceAwards, readAwardsCache, refreshAwardsCache } from '../awards/cache';
+import { calendarDaysBetween, localDay } from '../economy/clock';
 import { readAccountLinked, serverNow } from '../db/accountMeta';
 import { track, trackScreen } from '../analytics/analytics';
 import { pushPetBeforeRead } from '../sync/queue';
@@ -19,7 +21,7 @@ import {
   type FriendGameState,
 } from '../stadium/friendGames';
 import { gameplayConfig } from '../sim/gameplayConfig';
-import { applyFriendRaceResult, applyRaceRewards, noteFriendGameStarted, spendRaceTap } from '../sim/raceRewards';
+import { applyRaceOutcome, noteFriendGameStarted, spendRaceInput } from '../sim/raceRewards';
 import { recordFormatEntered } from '../invites/store';
 import { classForEvent, classForLevel, dropEndedSignup, eventLabel, isPlayableEvent, racesOf, replaceSignups, signedUpRaces, skillBlock, withFriendGame, withSignup, withoutSignup, type FriendGameCall, type RaceEvent, type RaceSignup, type SignedUpRace, type SkillBlock } from '../sim/stadium';
 import type { PetState } from '../sim/types';
@@ -145,6 +147,7 @@ export function StadiumScreen({
   const [boardReason, setBoardReason] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const sending = useRef(false);
+  const outcomeRaceId = useRef<string | null>(null);
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const split = isLandscapeSplit(windowWidth, windowHeight);
   const petRef = useRef(pet);
@@ -611,22 +614,58 @@ export function StadiumScreen({
         race={race}
         pet={pet}
         reducedMotion={reducedMotion}
-        onSpend={() => {
-          const next = spendRaceTap(petRef.current);
+        onSpend={(kind) => {
+          const next = spendRaceInput(petRef.current, kind, race.configVersion);
           if (next === petRef.current) return;
           petRef.current = next;
           commitRef.current(next);
         }}
-        onFinish={(place) => {
-          if (race.cup === 'friends') {
-            commitRef.current(applyFriendRaceResult(petRef.current, race.raceId));
+        onFinish={(place, view) => {
+          const mine = [...view.players, ...view.npcs].find((entry) => entry.mine);
+          const didFinish = mine?.finishMs != null;
+          const friends = race.cup === 'friends';
+          const pet = petRef.current;
+          if (!friends && didFinish) {
+            let known = new Set<string>();
+            try {
+              known = new Set(readAwardsCache(pet.id).awards.map((award) => award.definitionId));
+            } catch {
+              known = new Set();
+            }
+            const merged = mergeRaceAwards(pet.id, view.awards, { event: view.event, classId: view.classId });
+            const days = calendarDaysBetween(localDay(pet.bornAt), localDay(serverNow()));
+            for (const award of merged) {
+              if (known.has(award.definitionId)) {
+                continue;
+              }
+              known.add(award.definitionId);
+              track('award_granted', { award_id: award.definitionId, days_since_adoption: days });
+            }
+            if (view.status === 'finished') {
+              void refreshAwardsCache(pet.id).catch(() => undefined);
+            }
+          }
+          if (outcomeRaceId.current === race.raceId) {
+            return;
+          }
+          outcomeRaceId.current = race.raceId;
+          if (friends) {
+            commitRef.current(
+              applyRaceOutcome(
+                pet,
+                { raceId: race.raceId, event: race.event, classId: race.classId, place, at: serverNow() },
+                serverNow(),
+                { didFinish, friends: true },
+              ),
+            );
             return;
           }
           commitRef.current(
-            applyRaceRewards(
-              petRef.current,
+            applyRaceOutcome(
+              pet,
               { raceId: race.raceId, event: race.event, classId: race.classId, place, at: serverNow() },
               serverNow(),
+              { didFinish, friends: false },
             ),
           );
         }}

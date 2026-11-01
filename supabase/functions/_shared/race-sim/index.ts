@@ -51,6 +51,27 @@ export {
   type GridPoint,
   type MetricKind,
 } from './calibration.ts';
+export {
+  ACTION_ENERGY,
+  ACTION_HYDRATION,
+  baselineModifiers,
+  conditionOf,
+  drainPool,
+  ENERGY_WEIGHT,
+  HYDRATION_WEIGHT,
+  inputCost,
+  meterRates,
+  MOOD_WEIGHT,
+  NPC_ENERGY_PER_METER,
+  NPC_HYDRATION_PER_METER,
+  RUN_ENERGY,
+  RUN_HYDRATION,
+  spendPool,
+  usesCondition,
+  type DrainPool,
+  type MeterRates,
+  type RaceInputKind,
+} from './condition.ts';
 export { coastFloorMps, coastPastM, coastRunner, type CoastState } from './coast.ts';
 export {
   RACE_INPUT_ENERGY,
@@ -103,6 +124,7 @@ export {
   meterAt,
   npcDives,
   runDive,
+  runDiveSeries,
   runUp,
   spotAt,
   stepDive,

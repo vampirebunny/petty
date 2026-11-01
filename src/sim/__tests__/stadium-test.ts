@@ -173,6 +173,46 @@ it('reads the server board, entry, and race line-up', () => {
   });
   expect(race?.players[0].mine).toBe(true);
   expect(race?.npcs[0]).toMatchObject({ petName: 'Pip', npc: true, lane: 2 });
+  expect(race?.awards).toEqual([]);
+});
+
+it('parses viewer awards on a finished race', () => {
+  const race = parseRace({
+    race_id: 'r',
+    status: 'finished',
+    class: 'novice',
+    event_type: 'hurdles',
+    starts_at: '2026-01-01T00:55:00Z',
+    entries: [],
+    awards: [
+      {
+        id: 'a1',
+        pet_id: 'pet-1',
+        award_definition_id: 'ribbon',
+        source: 'race',
+        race_id: 'r',
+        place: 1,
+        earned_at: '2026-11-01T12:00:00Z',
+        config_version: 1,
+        pet_snapshot: { event_type: 'hurdles', class: 'novice' },
+      },
+      { id: 'bad' },
+    ],
+  });
+  expect(race?.awards).toEqual([
+    {
+      id: 'a1',
+      petId: 'pet-1',
+      definitionId: 'ribbon',
+      source: 'race',
+      raceId: 'r',
+      showId: null,
+      placing: 1,
+      earnedAt: '2026-11-01T12:00:00Z',
+      configVersion: 1,
+      snapshot: { event_type: 'hurdles', class: 'novice' },
+    },
+  ]);
 });
 
 it('parses other players pet looks and outfits, but never for NPCs', () => {

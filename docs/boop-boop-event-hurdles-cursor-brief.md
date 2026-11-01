@@ -6,7 +6,7 @@ Builds on: Race Foundation brief + Addendum, Race Poses brief (leap, stumble). R
 
 - Type: **race** (ranked by finish time).
 - Trick needed for open and veteran races: **Jump the Hurdle** (dogs and cats; the cat catalog needs this trick). The gate is on again for those cups: `skillBlock` on the client and `stadium_required_tricks('hurdles')` in the applied `20261030130000_launch_race_schedule.sql`. Friend games skip it (`20261030140000_friend_games_no_trick_gate.sql`).
-- `20261029400000_start_hurdle_races.sql` runs Hurdles through the same lock, countdown, and start as Fun Run. The phone opens `HurdlesScreen`; the rules live in `race-sim/hurdles.ts` (`hurdles-3`; `hurdles-1` and `hurdles-2` are kept frozen). Races the server stamped `funrun-1` fall back to the current version. Obstacle Course is the remaining unbuilt ship event and still shows "Race coming soon". Sniff Out, Trick Show, and Weave are cancelled.
+- `20261029400000_start_hurdle_races.sql` runs Hurdles through the same lock, countdown, and start as Fun Run. The phone opens `HurdlesScreen`; the rules live in `race-sim/hurdles.ts` (`hurdles-4`; `hurdles-1`, `hurdles-2`, and `hurdles-3` are kept frozen). Races the server stamped `funrun-1` or `funrun-2` use `hurdles-3`. Sniff Out, Trick Show, and Weave are cancelled.
 
 ## How it plays
 
@@ -62,16 +62,16 @@ The pet runs on its own at the class speed. The player taps **JUMP** when the pe
 ## Pet modifiers (inside the ±10% cap)
 
 - **Agility** widens the zone, up to +10% at full agility.
-- **Mood** adds up to +3% to run speed.
-- **Energy:** a Perfect boost is 500 ms at energy 80 or above, and shortens in a straight line to 250 ms at 40 or below. Each jump spends 0.2 first, so a later Perfect can be shorter.
-- **Hydration** does not change the race. Each jump still spends 0.3.
+- **Condition** (`hurdles-4`) multiplies run speed. Energy, hydration, and mood have no other effect. The Perfect boost is always 500 ms.
+- Each jump spends 1.0 energy and 1.2 hydration, including a press that does not leave the ground. There is no run tap.
+- `hurdles-3` and the `funrun-1` / `funrun-2` stamps keep the older rule: mood up to +3% run speed, Perfect boost from 500 ms down to 250 ms, and 0.2 energy per jump. Hydration did not change those races.
 
 ## NPCs
 
 From the NPC skill (0–1), per hurdle, drawn from the race seed:
 - Clip chance = lerp(clipMax, clipMin, skill): Beginner 35%→10%, Novice 30%→8%, Open 25%→6%, Expert 20%→5%, Championship 15%→3%.
 - Perfect chance (when not clipping) = lerp(20%, 60%, skill).
-- NPC run speed = class speed × (0.97–1.03 from the seed).
+- NPC run speed = class speed × (0.97–1.03 from the seed). On `hurdles-4` that speed is multiplied by condition. NPCs start at 100/100/100 and spend 1.0 energy and 1.2 hydration each time they jump, including a miss. They have no per-meter drain.
 
 ## Sim, input log and server check
 

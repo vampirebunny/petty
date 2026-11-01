@@ -58,7 +58,8 @@ There is no scheduling for a specific date and time yet. That is a possible late
 
 - **None** beyond the race itself: no XP, ribbons, trophies, or race badges (First Race, Blue Ribbon, Moving Up, Ribbon Rack). It does not count for "Compete in the Stadium".
 - No event rest.
-- The same cost as an open race: 0.2 energy and 0.3 hydration per input (tap, jump, duck, or a dock hold or release). Both stop at 0. Fun Run and 800 Meters slow down as energy or hydration falls into a penalty band.
+- The same input costs and condition multiplier as an open race on that config version. Both energy and hydration stop at 0.
+- Mood still changes once from the placing: 1st +8, 2nd or 3rd +4, any other finish 0, DNF −5. There is still no XP or ribbon.
 - Results screen shows final placings for everyone in the game.
 
 ## Data and server

@@ -8,7 +8,7 @@ import {
   METERS_800_VERSION,
   isObstacleVersion,
   isReplayEvent,
-  neutralModifiers,
+  baselineModifiers,
   parseInputLog,
   parseModifiers,
   playedMetric,
@@ -33,6 +33,25 @@ type EntryRow = {
   modifiers: unknown;
   finish_ms: number | null;
 };
+
+async function readMeterRates(
+  admin: SupabaseClient,
+  raceId: string,
+): Promise<{ energyPerMeter: number; hydrationPerMeter: number } | null> {
+  const row = await admin.from('races').select('energy_per_meter, hydration_per_meter').eq('id', raceId).maybeSingle();
+  if (row.error || !row.data) return null;
+  const energy = Number(row.data.energy_per_meter);
+  const hydration = Number(row.data.hydration_per_meter);
+  if (row.data.energy_per_meter == null || row.data.hydration_per_meter == null) return null;
+  if (!Number.isFinite(energy) || !Number.isFinite(hydration)) return null;
+  return { energyPerMeter: energy, hydrationPerMeter: hydration };
+}
+
+async function writeCondition(admin: SupabaseClient, entryId: string, condition: number | null): Promise<void> {
+  if (condition == null || !Number.isFinite(condition)) return;
+  const saved = await admin.from('race_entries').update({ condition_finish: condition }).eq('id', entryId);
+  if (saved.error) console.error('condition_finish update failed', saved.error);
+}
 
 function npcPayload(entryId: string, finish: ReplayFinish): Record<string, unknown> {
   if (finish.finishMs == null) {
@@ -161,14 +180,14 @@ Deno.serve(async (req) => {
     event: eventRaw,
     classId: classIdOf(loaded.data.class),
     seed: typeof loaded.data.seed === 'string' ? loaded.data.seed : '',
-    configVersion: typeof loaded.data.config_version === 'string' ? loaded.data.config_version : 'funrun-2',
+    configVersion: typeof loaded.data.config_version === 'string' ? loaded.data.config_version : 'funrun-3',
   };
 
   if (race.event === 'obstacle' && !isObstacleVersion(race.configVersion)) {
     console.error('race_report is older than the race config; redeploy it', race.configVersion);
     return json({ error: `config ${race.configVersion} not deployed` }, 409);
   }
-  if (race.event === 'meters800' && race.configVersion !== METERS_800_VERSION) {
+  if (race.event === 'meters800' && race.configVersion !== METERS_800_VERSION && race.configVersion !== 'meters800-1') {
     console.error('race_report is older than the race config; redeploy it', race.configVersion);
     return json({ error: `config ${race.configVersion} not deployed` }, 409);
   }
@@ -181,9 +200,13 @@ Deno.serve(async (req) => {
     return json({ error: 'inputLog too large' }, 400);
   }
 
-  const player = replayPlayer(race, parseModifiers(mine.modifiers), inputLog);
+  const rates = await readMeterRates(admin, raceId);
+  const player = replayPlayer(race, parseModifiers(mine.modifiers), inputLog, rates);
   const npcs = entries.filter((row) => row.is_npc && row.status === 'checked_in' && row.finish_ms == null);
-  const npcFinishes = npcs.map((row) => npcPayload(row.id, replayNpc(race, row.id, row.skill ?? 0.5)));
+  const npcFinishes = npcs.map((row) => {
+    const finish = replayNpc(race, row.id, row.skill ?? 0.5, rates);
+    return { id: row.id, finish, payload: npcPayload(row.id, finish) };
+  });
 
   const flags: {
     kind: 'mismatch' | 'bot_like';
@@ -230,7 +253,7 @@ Deno.serve(async (req) => {
     p_race_id: raceId,
     p_player_id: caller.id,
     p_finish_ms: player.finishMs == null ? null : Math.round(player.finishMs),
-    p_npc_finishes: npcFinishes,
+    p_npc_finishes: npcFinishes.map((row) => row.payload),
     p_score_dm: player.scoreDm,
     p_detail: player.detail,
     p_input_log: inputLog as RaceInputLog,
@@ -239,6 +262,8 @@ Deno.serve(async (req) => {
     console.error('apply_verified_race_report failed', applied.error);
     return json({ error: applied.error.message }, 500);
   }
+  await writeCondition(admin, mine.id, player.condition);
+  for (const row of npcFinishes) await writeCondition(admin, row.id, row.finish.condition);
   await logRaceResult(admin, {
     raceId,
     event: race.event,
@@ -278,7 +303,7 @@ async function logRaceResult(
     if (!input.petId || !shouldLogResult({ metric: played?.metric ?? null, friend: input.friend, anonymous: input.anonymous }) || !played) {
       return;
     }
-    const neutral = replayPlayer(input.race, neutralModifiers, input.inputLog);
+    const neutral = replayPlayer(input.race, baselineModifiers(input.configVersion), input.inputLog, null);
     const adjusted = playedMetric(input.event, neutral.finishMs, neutral.scoreDm);
     if (!adjusted) return;
     const inserted = await admin.from('race_results').upsert(

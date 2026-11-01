@@ -1,3 +1,4 @@
+import { conditionOf, inputCost, meterRates, usesCondition, type MeterRates } from './condition.ts';
 import { configFor, type FunRunConfig, type RaceClassId } from './config.ts';
 import { hashSeed, mulberry32 } from './rng.ts';
 
@@ -30,12 +31,12 @@ function spendRaceStat(left: number | null, start: number, inputs: number, cost:
   return Math.max(0, base - inputs * cost);
 }
 
-export function takeRaceEnergy(energyLeft: number | null, start: number, inputs: number): number {
-  return spendRaceStat(energyLeft, start, inputs, RACE_INPUT_ENERGY);
+export function takeRaceEnergy(energyLeft: number | null, start: number, inputs: number, cost = RACE_INPUT_ENERGY): number {
+  return spendRaceStat(energyLeft, start, inputs, cost);
 }
 
-export function takeRaceHydration(hydrationLeft: number | null, start: number, inputs: number): number {
-  return spendRaceStat(hydrationLeft, start, inputs, RACE_INPUT_HYDRATION);
+export function takeRaceHydration(hydrationLeft: number | null, start: number, inputs: number, cost = RACE_INPUT_HYDRATION): number {
+  return spendRaceStat(hydrationLeft, start, inputs, cost);
 }
 
 export type NpcSpec = {
@@ -134,6 +135,7 @@ export function stepRunner(
   mods: Modifiers,
   npc: NpcSpec | null,
   version: string,
+  rates: MeterRates | null = null,
 ): void {
   if (state.finishMs != null) {
     return;
@@ -142,28 +144,47 @@ export function stepRunner(
   const dt = 1 / config.stepHz;
   const stepMs = 1000 / config.stepHz;
   const next = state.tMs + stepMs;
+  const conditionRace = usesCondition(version);
+  const run = inputCost(version, 'run');
   if (npc) {
-    state.v = npcSpeed(npc, state.tMs, version);
+    if (conditionRace) {
+      if (state.energyLeft == null) state.energyLeft = 100;
+      if (state.hydrationLeft == null) state.hydrationLeft = 100;
+      const scale = conditionOf(state.energyLeft, state.hydrationLeft, 100);
+      state.v = npcSpeed(npc, state.tMs, version) * scale;
+    } else {
+      state.v = npcSpeed(npc, state.tMs, version);
+    }
   } else {
     if (state.energyLeft == null) state.energyLeft = mods.energy;
     if (state.hydrationLeft == null) state.hydrationLeft = mods.hydration;
     const power = tapPower(state.x, mods, config);
+    const liveScale = () =>
+      conditionRace
+        ? conditionOf(state.energyLeft ?? mods.energy, state.hydrationLeft ?? mods.hydration, mods.mood)
+        : speedScale({ ...mods, energy: state.energyLeft ?? mods.energy, hydration: state.hydrationLeft ?? mods.hydration }, config);
     for (const tap of taps) {
       if (tap < state.tMs || tap >= next) {
         continue;
       }
-      state.energyLeft = takeRaceEnergy(state.energyLeft, mods.energy, 1);
-      state.hydrationLeft = takeRaceHydration(state.hydrationLeft, mods.hydration, 1);
-      const scale = speedScale({ ...mods, energy: state.energyLeft, hydration: state.hydrationLeft }, config);
+      state.energyLeft = takeRaceEnergy(state.energyLeft, mods.energy, 1, run.energy);
+      state.hydrationLeft = takeRaceHydration(state.hydrationLeft, mods.hydration, 1, run.hydration);
+      const scale = liveScale();
       if (acceptTap(state, tap, config)) {
         state.v = Math.min(config.topSpeed * scale, state.v + config.tapAccel * power * scale);
       }
     }
     state.v *= Math.exp(-config.fadePerSec * dt);
-    const cap = config.topSpeed * speedScale({ ...mods, energy: state.energyLeft, hydration: state.hydrationLeft }, config);
+    const cap = config.topSpeed * liveScale();
     state.v = Math.min(cap, state.v);
   }
-  state.x += state.v * dt;
+  const moved = state.v * dt;
+  state.x += moved;
+  if (npc && conditionRace && state.energyLeft != null && state.hydrationLeft != null) {
+    const pace = meterRates(version, rates);
+    state.energyLeft = Math.max(0, state.energyLeft - moved * pace.energyPerMeter);
+    state.hydrationLeft = Math.max(0, state.hydrationLeft - moved * pace.hydrationPerMeter);
+  }
   state.tMs = next;
   if (state.x >= config.distanceM) {
     state.finishMs = state.tMs;
@@ -173,7 +194,13 @@ export function stepRunner(
   }
 }
 
-export function runFunRun(taps: readonly number[], mods: Modifiers, npc: NpcSpec | null, version: string): RunnerState {
+export function runFunRun(
+  taps: readonly number[],
+  mods: Modifiers,
+  npc: NpcSpec | null,
+  version: string,
+  rates: MeterRates | null = null,
+): RunnerState {
   const state = createRunner();
   const config = configFor(version);
   const sorted = [...taps].sort((a, b) => a - b);
@@ -188,7 +215,7 @@ export function runFunRun(taps: readonly number[], mods: Modifiers, npc: NpcSpec
       }
       cursor += 1;
     }
-    stepRunner(state, due, mods, npc, version);
+    stepRunner(state, due, mods, npc, version, rates);
   }
   return state;
 }

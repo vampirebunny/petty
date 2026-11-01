@@ -1,9 +1,10 @@
+import { conditionOf, spendPool, usesCondition, type DrainPool } from './condition.ts';
 import type { RaceClassId } from './config.ts';
 import { takeRaceEnergy, type Modifiers } from './funRun.ts';
 import { hashSeed, mulberry32 } from './rng.ts';
 
 // Published versions are immutable. Tuning adds a new version; races keep the one they were created with.
-export const HURDLES_VERSION = 'hurdles-3';
+export const HURDLES_VERSION = 'hurdles-4';
 
 type HurdleClass = {
   speed: number;
@@ -91,9 +92,9 @@ const hurdlesV2: HurdlesConfig = {
 
 // hurdles-3: Open, Veteran, Expert, and Championship draw each gap from the race seed, between the
 // hurdles-2 even gap and 1.5x it. The course grows to fit (100 to 137.5 m); the run-out stays 10 m.
-export const hurdlesConfig: HurdlesConfig = {
+const hurdlesV3: HurdlesConfig = {
   ...hurdlesV2,
-  version: HURDLES_VERSION,
+  version: 'hurdles-3',
   classes: {
     ...evenClasses,
     open: { ...evenClasses.open, gapSpread: 1.5 },
@@ -103,15 +104,24 @@ export const hurdlesConfig: HurdlesConfig = {
   },
 };
 
+// hurdles-4: condition multiplies run speed. The Perfect boost stays 500 ms.
+export const hurdlesConfig: HurdlesConfig = {
+  ...hurdlesV3,
+  version: HURDLES_VERSION,
+};
+
 const hurdleVersions: Record<string, HurdlesConfig> = {
   'hurdles-1': hurdlesV1,
   'hurdles-2': hurdlesV2,
+  'hurdles-3': hurdlesV3,
   [HURDLES_VERSION]: hurdlesConfig,
+  // Hurdles races were stamped with the Fun Run version. Those keep hurdles-3.
+  'funrun-1': hurdlesV3,
+  'funrun-2': hurdlesV3,
 };
 
-// The server stamps races with the Fun Run version until it stamps a hurdles one; they get the default.
 export function hurdlesConfigFor(version: string): HurdlesConfig {
-  return hurdleVersions[version] ?? hurdlesConfig;
+  return hurdleVersions[version] ?? hurdlesV3;
 }
 
 export type HurdleOutcome = 'perfect' | 'good' | 'clip';
@@ -140,6 +150,8 @@ export type HurdleRunner = {
   jumps: number[];
   /** Energy still left for this pet. Null until the first player step copies the start value. */
   energyLeft: number | null;
+  /** Hydration still left. Used by hurdles-4. Null until the first step on that version. */
+  hydrationLeft: number | null;
 };
 
 /** Where the hurdles stand and where the line is. Every racer in a race shares one course. */
@@ -213,12 +225,13 @@ function runSpeed(course: Course, mods: Modifiers | null, npc: HurdleNpc | null)
     const [lo, hi] = course.config.npcSpeedSpread;
     return course.cls.speed * lerp(lo, hi, roll);
   }
+  if (usesCondition(course.config.version)) return course.cls.speed;
   const mood = mods ? clamp((unit(mods.mood) - 0.5) / 0.5, 0, 1) : 0;
   return course.cls.speed * (1 + course.config.moodSpeed * mood);
 }
 
 function boostMs(course: Course, mods: Modifiers | null): number {
-  if (!mods) return course.config.perfectBoostMs;
+  if (!mods || usesCondition(course.config.version)) return course.config.perfectBoostMs;
   // Low energy shortens the Perfect boost, down to half below 40.
   const energy = clamp((unit(mods.energy) - 0.4) / 0.4, 0, 1);
   return course.config.perfectBoostMs * lerp(0.5, 1, energy);
@@ -258,6 +271,7 @@ export function createHurdleRunner(): HurdleRunner {
     boostUntilMs: 0,
     jumps: [],
     energyLeft: null,
+    hydrationLeft: null,
   };
 }
 
@@ -314,22 +328,40 @@ export function stepHurdleRunner(
   const stepMs = 1000 / config.stepHz;
   const next = state.tMs + stepMs;
   const dueInputs = npc ? 0 : jumps.filter((at) => at >= state.tMs && at < next).length;
-  const liveMods =
-    mods == null
-      ? null
-      : { ...mods, energy: npc ? mods.energy : (state.energyLeft = takeRaceEnergy(state.energyLeft, mods.energy, dueInputs)) };
-  const half = zoneHalfWidth(classId, npc ? null : liveMods, version);
-
+  const conditionRace = usesCondition(version) && (npc != null || mods != null);
+  const pool: DrainPool | null = conditionRace
+    ? {
+        energy: state.energyLeft ?? (npc ? 100 : (mods?.energy ?? 0)),
+        hydration: state.hydrationLeft ?? (npc ? 100 : (mods?.hydration ?? 0)),
+        mood: npc ? 100 : (mods?.mood ?? 0),
+      }
+    : null;
+  if (pool) {
+    if (!npc && dueInputs > 0) spendPool(pool, version, 'action', dueInputs);
+  }
   const wantsJump = npc
     ? plan != null && state.next < plan.length && state.pendingJumpX == null && state.x >= plan[state.next]
     : jumps.some((at) => at >= state.tMs && at < next);
+  if (pool && npc && wantsJump) spendPool(pool, version, 'action', 1);
+  if (pool) {
+    state.energyLeft = pool.energy;
+    state.hydrationLeft = pool.hydration;
+  }
+  const liveMods =
+    mods == null
+      ? null
+      : conditionRace
+        ? { ...mods, energy: pool?.energy ?? mods.energy, hydration: pool?.hydration ?? mods.hydration, mood: pool?.mood ?? mods.mood }
+        : { ...mods, energy: npc ? mods.energy : (state.energyLeft = takeRaceEnergy(state.energyLeft, mods.energy, dueInputs)) };
+  const half = zoneHalfWidth(classId, npc ? null : liveMods, version);
   if (wantsJump && !isAirborne(state, version) && state.next < course.hurdles.length) {
     state.jumpX = state.x;
     state.pendingJumpX = state.x;
     state.jumps.push(state.tMs);
   }
 
-  state.v = runSpeed(course, liveMods, npc) * speedFactor(state, course);
+  const pace = pool ? conditionOf(pool.energy, pool.hydration, pool.mood) : 1;
+  state.v = runSpeed(course, npc ? null : liveMods, npc) * pace * speedFactor(state, course);
   state.x += state.v * (stepMs / 1000);
   state.tMs = next;
 

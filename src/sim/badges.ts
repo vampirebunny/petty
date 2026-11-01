@@ -1,3 +1,4 @@
+import { ribbonFacts } from '../awards/cache';
 import { calendarDaysBetween, localDay } from '../economy/clock';
 import { gameplayConfig } from './gameplayConfig';
 import { grantBadgeXp } from './progress';
@@ -15,7 +16,7 @@ const labels: Record<string, string> = {
   'dressed-up': 'Dressed Up',
   'playmate': 'Playmate',
   'off-to-the-races': 'First Race',
-  'blue-ribbon': 'Blue Ribbon',
+  'first-win': 'First Win',
   'moving-up': 'Moving Up',
   'ribbon-rack-bronze': 'Ribbon Rack · Bronze',
   'ribbon-rack-silver': 'Ribbon Rack · Silver',
@@ -34,8 +35,34 @@ const labels: Record<string, string> = {
   'finder-gold': 'Finder · Gold',
 };
 
+const FIRST_WIN = 'first-win';
+const FIRST_WIN_LEGACY = 'blue-ribbon';
+
+export function aliasBadgeId(id: string): string {
+  return id === FIRST_WIN_LEGACY ? FIRST_WIN : id;
+}
+
+function aliasBadgeList(ids: string[]): { ids: string[]; changed: boolean } {
+  const next: string[] = [];
+  const seen = new Set<string>();
+  let changed = false;
+  for (const id of ids) {
+    const mapped = aliasBadgeId(id);
+    if (mapped !== id) {
+      changed = true;
+    }
+    if (seen.has(mapped)) {
+      changed = true;
+      continue;
+    }
+    seen.add(mapped);
+    next.push(mapped);
+  }
+  return { ids: next, changed };
+}
+
 export function badgeLabel(id: string): string {
-  return labels[id] ?? id;
+  return labels[aliasBadgeId(id)] ?? id;
 }
 
 function xpFor(id: string): number {
@@ -95,15 +122,25 @@ function earnedIds(state: PetState): string[] {
   if (state.races?.entered) {
     ids.push('off-to-the-races');
   }
-  const ribbons = state.ribbons ?? [];
+  const ribbons = ribbonFacts(state.id, state.ribbons);
   if (ribbons.some((row) => row.place === 1)) {
-    ids.push('blue-ribbon');
+    ids.push(FIRST_WIN);
   }
   // Fun Run and 800 Meters are one Open field for every level, so their ribbons don't show a class step.
-  if (ribbons.some((row) => row.event !== 'funRun' && row.event !== 'meters800' && row.classId !== 'beginner' && row.classId !== 'veteran')) {
+  if (
+    ribbons.some(
+      (row) =>
+        row.event !== 'funRun' &&
+        row.event !== 'meters800' &&
+        row.classId !== 'beginner' &&
+        row.classId !== 'veteran' &&
+        row.classId !== 'none' &&
+        row.classId !== '',
+    )
+  ) {
     ids.push('moving-up');
   }
-  const won = ribbons.filter((row) => row.place >= 1 && row.place <= 3).length;
+  const won = ribbons.length;
   ids.push(...tiers('ribbon-rack', won, gameplayConfig.badges.ribbons));
   ids.push(...tiers('best-friend-streak', state.openedStreak ?? 0, gameplayConfig.badges.streak));
   ids.push(...tiers('devoted', state.openedDays ?? 0, gameplayConfig.badges.devoted));
@@ -123,14 +160,16 @@ export function syncBadges(state: PetState, now: number): PetState {
     openedDays += 1;
     openedStreak = last && calendarDaysBetween(last, today) === 1 ? openedStreak + 1 : 1;
   }
+  const badges = aliasBadgeList(state.badges ?? []);
+  const skipped = aliasBadgeList(state.badgeXpSkipped ?? []);
   const counted: PetState = {
     ...state,
     openedDays,
     openedStreak,
     lastOpenedDay: today,
     hadPlaydate: state.hadPlaydate ?? false,
-    badges: state.badges ?? [],
-    badgeXpSkipped: state.badgeXpSkipped ?? [],
+    badges: badges.ids,
+    badgeXpSkipped: skipped.ids,
   };
   const fresh = earnedIds(counted).filter((id) => !counted.badges.includes(id));
   const sameDay = last === today;
@@ -141,7 +180,7 @@ export function syncBadges(state: PetState, now: number): PetState {
     state.openedStreak != null &&
     state.lastOpenedDay != null &&
     state.hadPlaydate != null;
-  if (sameDay && fresh.length === 0 && fieldsReady) {
+  if (sameDay && fresh.length === 0 && fieldsReady && !badges.changed && !skipped.changed) {
     return state;
   }
   let next: PetState = { ...counted, badges: [...counted.badges, ...fresh] };
@@ -156,6 +195,6 @@ export function syncBadges(state: PetState, now: number): PetState {
 }
 
 export function awardedBadgeIds(before: PetState, after: PetState): string[] {
-  const had = new Set(before.badges ?? []);
-  return (after.badges ?? []).filter((id) => !had.has(id));
+  const had = new Set((before.badges ?? []).map(aliasBadgeId));
+  return (after.badges ?? []).filter((id) => !had.has(aliasBadgeId(id)));
 }

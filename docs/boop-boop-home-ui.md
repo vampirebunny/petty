@@ -64,7 +64,7 @@ Wardrobe, the Pet Shop, the playdate outfit step, adoption, and the Stadium put 
 
 Boop Boop Town uses a portrait zigzag scaled to the width, up to 600 pt, and a horizontal road at full width on the landscape split. Both keep the top corner radius and scroll vertically when the map is taller than the pane. The map uses the same sky and season as the rooms: night dims the buildings, the header, and the door pills; grass and trees turn with the foliage; flowers bloom by season (spring tulips, summer sunflowers, autumn mums, none in winter or snow, and no dead blooms); and rain, snow, and the rainbow are drawn on the grass. The stadium keeps one set of waving pennants. Tapping The Catwalk walks the pet there and opens the venue. The room choices stay a centered group.
 
-Get started keeps its phone-width column. The pink page fills the rest of the window.
+Get started keeps its phone-width column. The pink page fills the rest of the window. The Trophy Case on landscape is 880pt (`trophyCaseMaxWidth`), not the 400pt control column.
 
 Cloud Hop and Paddle Paws stay portrait on a landscape window: a column at most 400pt wide, centered, with that game's background on either side. Stay uses the full window.
 

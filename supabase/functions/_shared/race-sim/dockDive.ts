@@ -1,9 +1,10 @@
+import { conditionOf, drainPool, spendPool, usesCondition, type DrainPool } from './condition.ts';
 import type { RaceClassId } from './config.ts';
 import type { Modifiers } from './funRun.ts';
 import { hashSeed, mulberry32 } from './rng.ts';
 
 // dockdive-1 is immutable. Tuning adds a new version; races keep the one they were created with.
-export const DOCK_DIVE_VERSION = 'dockdive-1';
+export const DOCK_DIVE_VERSION = 'dockdive-2';
 
 type DiveClass = {
   periodMs: number;
@@ -12,8 +13,8 @@ type DiveClass = {
   npcMean: readonly [number, number];
 };
 
-export const dockDiveConfig = {
-  version: DOCK_DIVE_VERSION,
+const dockDiveV1 = {
+  version: 'dockdive-1',
   attempts: 3,
   // Each attempt window, then a 3-2-1 before the next GO.
   windowMs: 6000,
@@ -48,15 +49,21 @@ export const dockDiveConfig = {
   } as const satisfies Record<RaceClassId, DiveClass>,
 };
 
-export type DockDiveConfig = typeof dockDiveConfig;
+export type DockDiveConfig = typeof dockDiveV1;
+
+export const dockDiveConfig: DockDiveConfig = {
+  ...dockDiveV1,
+  version: DOCK_DIVE_VERSION,
+};
 
 const diveVersions: Record<string, DockDiveConfig> = {
+  'dockdive-1': dockDiveV1,
   [DOCK_DIVE_VERSION]: dockDiveConfig,
 };
 
-// Races created before the server stamped dockdive-1 carry the Fun Run version; they get the default.
+// A stamp this bundle does not know keeps dockdive-1. funrun stamps used to fall through to whatever was current.
 export function dockDiveConfigFor(version: string): DockDiveConfig {
-  return diveVersions[version] ?? dockDiveConfig;
+  return diveVersions[version] ?? dockDiveV1;
 }
 
 export function diveClass(classId: RaceClassId, version: string): DiveClass {
@@ -159,7 +166,10 @@ export function diveBonus(mods: Modifiers | null, version: string): number {
 export function diveDistance(power: number, spot: number, mods: Modifiers | null, version: string): number {
   const config = dockDiveConfigFor(version);
   const raw = config.baseM + config.powerM * Math.pow(clamp(power, 0, 1), config.powerExp) * spot;
-  return tenth(raw * diveBonus(mods, version));
+  if (!usesCondition(version)) return tenth(raw * diveBonus(mods, version));
+  const stamina = mods ? config.staminaBonus * unit(mods.stamina) : 0;
+  const condition = mods ? conditionOf(mods.energy, mods.hydration, mods.mood) : 1;
+  return tenth(raw * (1 + stamina) * condition);
 }
 
 export function createDive(): DiveState {
@@ -173,6 +183,7 @@ export function stepDive(
   mods: Modifiers | null,
   classId: RaceClassId,
   version: string,
+  pool?: DrainPool,
 ): void {
   if (state.result) return;
   const config = dockDiveConfigFor(version);
@@ -185,18 +196,22 @@ export function stepDive(
     state.result = { distanceM: config.flopM, flop: true, takeoffMs: state.tMs, power: 0, spot: 0 };
     return;
   }
+  const liveMods = (): Modifiers | null =>
+    pool && mods ? { ...mods, energy: pool.energy, hydration: pool.hydration, mood: pool.mood } : mods;
   for (const input of inputs) {
     if (input.down) {
+      if (pool && usesCondition(version)) spendPool(pool, version, 'run');
       if (state.holdFromMs == null) state.holdFromMs = state.tMs;
       continue;
     }
+    if (pool && usesCondition(version)) spendPool(pool, version, 'run');
     if (state.holdFromMs == null) continue;
     const held = state.tMs - state.holdFromMs;
     state.holdFromMs = null;
     if (held < config.minHoldMs) continue;
     const power = meterAt(held, classId, version);
     const spot = spotAt(state.x, classId, version);
-    state.result = { distanceM: diveDistance(power, spot, mods, version), flop: false, takeoffMs: state.tMs, power, spot };
+    state.result = { distanceM: diveDistance(power, spot, liveMods(), version), flop: false, takeoffMs: state.tMs, power, spot };
     return;
   }
   state.tMs += stepMs;
@@ -210,20 +225,40 @@ export function advanceDive(
   mods: Modifiers | null,
   classId: RaceClassId,
   version: string,
+  pool?: DrainPool,
 ): void {
   const stepMs = 1000 / dockDiveConfigFor(version).stepHz;
   while (!state.result && state.tMs + stepMs <= untilMs) {
     const end = state.tMs + stepMs;
     const due = inputs.filter((input) => input.at >= state.tMs && input.at < end);
-    stepDive(state, due, mods, classId, version);
+    stepDive(state, due, mods, classId, version, pool);
   }
 }
 
-export function runDive(inputs: readonly DiveInput[], mods: Modifiers | null, classId: RaceClassId, version: string): DiveResult {
+export function runDive(
+  inputs: readonly DiveInput[],
+  mods: Modifiers | null,
+  classId: RaceClassId,
+  version: string,
+  pool?: DrainPool,
+): DiveResult {
   const state = createDive();
   const sorted = [...inputs].sort((a, b) => a.at - b.at);
-  advanceDive(state, sorted, dockDiveConfigFor(version).windowMs, mods, classId, version);
+  const drain = pool ?? (usesCondition(version) ? drainPool(mods, version, false) : undefined);
+  advanceDive(state, sorted, dockDiveConfigFor(version).windowMs, mods, classId, version, drain);
   return state.result ?? { distanceM: 0, flop: false, takeoffMs: dockDiveConfigFor(version).windowMs, power: 0, spot: 0 };
+}
+
+export function runDiveSeries(
+  attempts: readonly (readonly DiveInput[])[],
+  mods: Modifiers | null,
+  classId: RaceClassId,
+  version: string,
+  npc = false,
+): { results: DiveResult[]; pool: DrainPool } {
+  const pool = drainPool(mods, version, npc);
+  const results = attempts.map((attempt) => runDive(attempt, mods, classId, version, pool));
+  return { results, pool };
 }
 
 // Three jumps drawn from the race seed.
@@ -235,12 +270,21 @@ export function npcDives(npc: DiveNpc, version: string): DiveResult[] {
   const edge = edgeMs(npc.classId, version);
   const stepMs = 1000 / config.stepHz;
   const max = tenth(config.baseM + config.powerM);
+  const pool = drainPool(null, version, true);
   return Array.from({ length: config.attempts }, () => {
+    if (usesCondition(version)) spendPool(pool, version, 'run', 2);
+    const condition = usesCondition(version) ? conditionOf(pool.energy, pool.hydration, pool.mood) : 1;
     const spread = (rng() * 2 - 1) * config.npcSpreadM;
     const flop = rng() < config.npcFlop;
     const lead = Math.round((rng() * config.npcLeadMs) / stepMs) * stepMs;
     if (flop) return { distanceM: config.flopM, flop: true, takeoffMs: edge, power: 0, spot: 0 };
-    return { distanceM: clamp(tenth(mean + spread), config.baseM, max), flop: false, takeoffMs: edge - stepMs - lead, power: 1, spot: 1 };
+    return {
+      distanceM: clamp(tenth((mean + spread) * condition), config.baseM, max),
+      flop: false,
+      takeoffMs: edge - stepMs - lead,
+      power: 1,
+      spot: 1,
+    };
   });
 }
 

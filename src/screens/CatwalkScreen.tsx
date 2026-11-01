@@ -5,10 +5,15 @@ import { ChevronLeft, Clock } from 'lucide-react-native';
 
 import { breedById } from '../actor/breeds';
 import { outfitSlots, wearItem } from '../actor/wardrobe';
+import { applyShowAwards } from '../awards/apply';
+import { readAwardsCache, refreshAwardsCache, type CachedAward } from '../awards/cache';
+import { soloShowsOnKey } from '../awards/ids';
+import { localDay } from '../economy/clock';
 import { track, trackScreen } from '../analytics/analytics';
 import { listenPreview, previewRunwayTrack, stopRunwayPreview } from '../audio/runwayPreview';
 import { syncCatwalkMusic } from '../audio/remoteCatwalkMusic';
 import { readAccountLinked, serverNow } from '../db/accountMeta';
+import { pushPetBeforeRead } from '../sync/queue';
 import { loadFriends } from '../friends/api';
 import type { FriendRow } from '../friends/types';
 import { recordFormatEntered } from '../invites/store';
@@ -22,6 +27,7 @@ import {
   hideRunwayShowRemote,
   listMyRunwayShows,
   notifyRunwayShow,
+  recordSoloRunwayWalk,
   respondRunwayInvite,
   runwayErrorCopy,
   submitRunwayLooks,
@@ -69,6 +75,7 @@ import { lobbyPhoneAspect } from '../ui/lobby/heroes';
 import { CatwalkFrame } from '../ui/runway/CatwalkFrame';
 import { MusicMenu } from '../ui/runway/MusicMenu';
 import { RunwayView } from '../ui/runway/RunwayView';
+import { StampEarnedModal } from '../ui/runway/StampEarnedModal';
 import { CandyButton } from '../ui/stadium/CandyButton';
 import { PrimaryButton } from '../ui/refresh/PrimaryButton';
 import { BoopModal } from '../ui/refresh/BoopModal';
@@ -118,6 +125,7 @@ type Props = {
   pendingFriends?: boolean;
   onSettings: () => void;
   onClose: () => void;
+  onSeeAwards?: () => void;
 };
 
 type Step = 'lobby' | 'theme' | 'invite' | ShowStep | 'runway' | 'past';
@@ -158,6 +166,7 @@ export function CatwalkScreen({
   pendingFriends = false,
   onSettings,
   onClose,
+  onSeeAwards,
 }: Props) {
   const { width, height } = useWindowDimensions();
   const split = isLandscapeSplit(width, height);
@@ -192,6 +201,10 @@ export function CatwalkScreen({
   const [accountOpen, setAccountOpen] = useState(false);
   const [soloShowId] = useState(() => seed?.showId ?? `solo-${ownerId}-${Date.now()}`);
   const [nowTick, setNowTick] = useState(() => Date.now());
+  const [wrapAwards, setWrapAwards] = useState<CachedAward[] | null>(null);
+  const [capLine, setCapLine] = useState<string | null>(null);
+  const leaveAfterCelebrate = useRef(false);
+  const wrapping = useRef(false);
 
   const npcFriend = Boolean(seed && seed.type === 'runway');
   const liveFriend = !npcFriend && liveId != null;
@@ -240,6 +253,42 @@ export function CatwalkScreen({
     petRef.current = pet;
   }, [pet]);
 
+  const presentAwards = useCallback(async (rows: unknown[], solo: boolean) => {
+    const current = petRef.current;
+    let known = new Set<string>();
+    try {
+      known = new Set(readAwardsCache(current.id).awards.map((award) => award.definitionId));
+    } catch {
+      known = new Set();
+    }
+    let fresh = applyShowAwards(current.id, current.bornAt, rows);
+    try {
+      await refreshAwardsCache(current.id);
+      const cached = readAwardsCache(current.id).awards.filter((award) => !known.has(award.definitionId));
+      if (cached.length > fresh.length) {
+        fresh = cached;
+      }
+    } catch {
+      // Keep the rows we just merged.
+    }
+    if (fresh.length === 0) {
+      return false;
+    }
+    setWrapAwards(fresh);
+    if (!solo) {
+      setCapLine(null);
+      return true;
+    }
+    try {
+      const day = localDay(serverNow());
+      const row = readAwardsCache(current.id).progress.find((item) => item.key === soloShowsOnKey(day));
+      setCapLine(row && row.value >= 3 ? "Today's solo shows are counted. Friend shows always count." : null);
+    } catch {
+      setCapLine(null);
+    }
+    return true;
+  }, []);
+
   const openDetail = useCallback((next: RunwayShowDetail, force?: Step) => {
     setDetail(next);
     setLiveId(next.id);
@@ -264,7 +313,10 @@ export function CatwalkScreen({
       return;
     }
     setStep(routed);
-  }, []);
+    if (next.awards.length > 0) {
+      void presentAwards(next.awards, false);
+    }
+  }, [presentAwards]);
 
   useEffect(() => {
     if (!showId || seed) {
@@ -492,6 +544,8 @@ export function CatwalkScreen({
         npcSubmissions: seed?.npcSubmissions,
         pet: {
           snapshotId: `self-${pet.id}`,
+          id: pet.id,
+          petId: pet.id,
           source: 'self',
           name: pet.name,
           species,
@@ -531,6 +585,8 @@ export function CatwalkScreen({
       liveId,
       {
         snapshotId: `self-${pet.id}`,
+        id: pet.id,
+        petId: pet.id,
         source: 'self',
         name: pet.name,
         species,
@@ -552,6 +608,7 @@ export function CatwalkScreen({
     if (result.data.voting_opened) {
       void notifyRunwayShow(liveId, 'runway_vote');
     }
+    void presentAwards(result.data.awards ?? [], false);
     const loaded = await getRunwayShow(liveId);
     setBusy(false);
     if (!loaded.ok) {
@@ -634,6 +691,7 @@ export function CatwalkScreen({
     if (result.data.results_revealed) {
       void notifyRunwayShow(liveId, 'runway_results');
     }
+    void presentAwards(result.data.awards ?? [], false);
     const loaded = await getRunwayShow(liveId);
     setBusy(false);
     if (!loaded.ok) {
@@ -718,8 +776,40 @@ export function CatwalkScreen({
     await refreshRemote();
   };
 
+  const celebration = wrapAwards ? (
+    <StampEarnedModal
+      awards={wrapAwards}
+      petId={pet.id}
+      capLine={capLine}
+      onSeeAwards={
+        onSeeAwards
+          ? () => {
+              setWrapAwards(null);
+              setCapLine(null);
+              if (leaveAfterCelebrate.current) {
+                leaveAfterCelebrate.current = false;
+                setShow(null);
+                setStep(watchReturn);
+              }
+              onSeeAwards();
+            }
+          : undefined
+      }
+      onDone={() => {
+        setWrapAwards(null);
+        setCapLine(null);
+        if (leaveAfterCelebrate.current) {
+          leaveAfterCelebrate.current = false;
+          setShow(null);
+          setStep(watchReturn);
+        }
+      }}
+    />
+  ) : null;
+
   if (step === 'runway' && show) {
     return (
+      <>
       <RunwayView
         show={show}
         viewerSubmissionId={viewerId ?? show.submissions[0]?.submissionId}
@@ -729,10 +819,63 @@ export function CatwalkScreen({
           if (seed && watchReturn === 'lobby') {
             track('invite_event_completed', { type: 'runway' });
           }
-          setShow(null);
-          setStep(watchReturn);
+          const current = show;
+          const leave = () => {
+            setShow(null);
+            setStep(watchReturn);
+          };
+          if (current?.mode !== 'solo' || current.awardedAt) {
+            leave();
+            return;
+          }
+          if (wrapping.current) {
+            return;
+          }
+          wrapping.current = true;
+          void (async () => {
+            const walker = current.submissions[0];
+            const pushed = await pushPetBeforeRead(petRef.current);
+            if (pushed.reason) {
+              setError(
+                pushed.reason === 'not authenticated' || pushed.reason === 'not_active'
+                  ? 'Sign in to save this show.'
+                  : runwayErrorCopy('pet'),
+              );
+              wrapping.current = false;
+              leave();
+              return;
+            }
+            const result = await recordSoloRunwayWalk({
+              themeId: current.themeId,
+              trackId: current.trackId,
+              petId: pet.id,
+              petSnapshot: { ...walker?.pet, id: pet.id, petId: pet.id },
+              looks: walker?.looks ?? [],
+              localDay: localDay(serverNow()),
+            });
+            if (!result.ok) {
+              setError(runwayErrorCopy(result.error));
+              wrapping.current = false;
+              leave();
+              return;
+            }
+            const saved = { ...current, awardedAt: Date.now() };
+            setShow(saved);
+            const store = await loadRunwaySave(ownerId);
+            await saveRunwaySave(ownerId, rememberShow(store, saved));
+            leaveAfterCelebrate.current = true;
+            const shown = await presentAwards(result.data.awards ?? [], true);
+            wrapping.current = false;
+            if (shown) {
+              return;
+            }
+            leaveAfterCelebrate.current = false;
+            leave();
+          })();
         }}
       />
+      {celebration}
+      </>
     );
   }
 
@@ -832,6 +975,7 @@ export function CatwalkScreen({
         />
       ) : null}
       {accountOpen ? <AccountSheet reason="friends" petName={pet.name} onClose={() => setAccountOpen(false)} /> : null}
+      {celebration}
     </>
   );
 

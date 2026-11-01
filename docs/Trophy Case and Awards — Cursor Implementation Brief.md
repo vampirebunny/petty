@@ -9,24 +9,26 @@ Build the Trophy Case: a new screen opened from Settings where each pet's ribbon
 **Sources (in priority order):**
 
 1. **This brief** for build steps and wiring.
-2. **[Awards design brief](https://claude.ai/artifact/FFrq54pwjY9AsSAYvvRQ4L)** for every rule and threshold: award tracks, tiers, data model, config keys. Where the two disagree, this brief wins.
-3. **[Awards mocks canvas](https://claude.ai/artifact/G9njfCispkobSFrKCBBR9Z)** for layout and art. Match it. The art components (Trophy, Ribbon, Stamp, Badge, Cover, Sash) are the source of truth for shapes and colors.
+2. **[Awards design brief](https://claude.ai/artifact/FFrq54pwjY9AsSAYvvRQ4L)** (also attached as awards-design-brief.md) for every rule and threshold: award tracks, tiers, data model, config keys. Where the two disagree, this brief wins.
+3. **[Lookbook Mocks.html](Lookbook%20Mocks.html)** for layout and art (the packed awards canvas: Trophy, Ribbon, Stamp, Badge, Cover, Sash, and the Trophy Case / Settings pages). Match it. The art components are the source of truth for shapes and colors.
 
 **Build order** (each step ships on its own):
 
-1. Art components (Trophy, Ribbon, Stamp, Badge, Cover, Sash).
-2. Data tables and the award-granting server functions.
-3. Race wiring: ribbons and trophies granted on race results.
-4. Runway wiring: stamps and runway awards granted on shows.
-5. Trophy Case screen with Races, Runway and Badges tabs, including the empty state.
-6. Badges redesign and move into the Trophy Case.
-7. Settings page update.
+1. Art components (Trophy, Ribbon, Stamp, Badge, Cover, Sash). **Shipped** — parametric `react-native-svg` in [`src/ui/awards/`](../src/ui/awards/). Hex pins are on the Settings shelf and both celebration overlays. `blue-ribbon` migrates to `first-win` on load.
+2. Data tables and the award-granting server functions. **Shipped** — [`supabase/migrations/20261101180000_awards.sql`](../supabase/migrations/20261101180000_awards.sql) (applied): `award_definitions`, `awards`, `award_progress`, `runway_pieces_worn`, `awards_config`, `grant_race_awards` / `grant_runway_awards` (service_role only). Phone cache in [`src/awards/cache.ts`](../src/awards/cache.ts).
+3. Race wiring: ribbons and trophies granted on race results. **Shipped** — [`supabase/migrations/20261101190000_race_grant_awards.sql`](../supabase/migrations/20261101190000_race_grant_awards.sql) (applied): `stadium_rank` calls `grant_race_awards`; `race_state_for` returns this viewer's awards; the phone merges the cache, stops writing `state.ribbons`, and ribbon badges read `ribbonFacts`. Modest results strip on the four race result panels. Title and ribbon wait for `status === 'finished'` so a local 2nd does not flip to 3rd.
+4. Runway wiring: stamps and runway awards granted on shows. **Shipped** — [`supabase/migrations/20261101200000_runway_grant_awards.sql`](../supabase/migrations/20261101200000_runway_grant_awards.sql) (applied): `submit_runway_looks` / `cast_runway_vote` / `open_runway_voting_if_due` call `grant_runway_awards`; `record_solo_runway_walk` persists a solo row then grants (after `pushPetBeforeRead`); the phone merges the cache and celebrates stamps. **See Awards** opens the Trophy Case on the Runway tab.
+5. Trophy Case screen with Races, Runway and Badges tabs, including the empty state. **Shipped** — [`src/screens/TrophyCaseScreen.tsx`](../src/screens/TrophyCaseScreen.tsx) opens from Settings. Tabs Races | Runway | Badges, empty Races state, and the phone awards cache (including `runway_pieces_worn`). Landscape uses `trophyCaseMaxWidth` (880), not the 400pt phone column.
+6. Badges redesign and move into the Trophy Case. **Shipped** — Badges tab is One-time + Tiered. Settings no longer has a Badges row or `BadgeShelf`.
+7. Settings page update. **Shipped** — Trophy Case card (filled and empty) sits in the Badges slot. Phone order and the landscape three-column layout stay as shipped. The card reads `readAwardsCache` first so Settings works offline. A stamp-only pet fills the shelf with stamps.
+
+All four award migrations are applied (`20261101180000`, `20261101190000`, `20261101195000` race condition stamps, `20261101200000`).
 
 **Out of scope now:** Hall of Fame screen, retirement itself, friends viewing each other's case.
 
 ## Shared art components
 
-Port the six art components from the canvas as parametric React Native SVG components (`react-native-svg`), copying their paths, gradients and colors exactly. Don't redraw them and don't ship one image per variant.
+Shipped in [`src/ui/awards/`](../src/ui/awards/) (`Trophy`, `Ribbon`, `Stamp`, `Badge`, `Cover`, `Sash`, `eventEmblems`, `svgId`). Ported from the canvas as parametric `react-native-svg` components, copying paths, gradients and colors. Don't redraw them and don't ship one image per variant.
 
 | Component | Canvas file | Props |
 | --- | --- | --- |
@@ -54,14 +56,19 @@ The Races tab, Trophy detail and Race results mocks show the right layout, but t
 
 ## 1. Settings page
 
-Replace the Badges row with a Trophy Case card. Mocks: `Settings.dc.html` (with awards) and `CaseCardEmpty.dc.html` (none yet).
+Replace the Badges row with a Trophy Case card. Mocks: `Settings.dc.html` (with awards) and `CaseCardEmpty.dc.html` (none yet). Use those mocks for the **card** (shelf, counts, empty state, gold Open). Do not rebuild Settings to match the mock's page order or chrome.
 
-**New order:** Sign in or create account → Traits → **Trophy Case card** → Friends → Delete my account. Remove the Badges section; badges move into the Trophy Case (step 2).
+**Keep the shipped Settings layout.** The Trophy Case card sits in the Badges slot; nothing else moves.
+
+- **Phone:** Sounds → Music → Account → Traits → Friends → **Trophy Case card** → Log out → Delete.
+- **Landscape:** three columns (Traits | account + Friends + delete | Sounds and Music). The card is full width under them, same slot as today's badge shelf.
+
+Remove the Badges section; badges move into the Trophy Case (step 2).
 
 **Trophy Case card (current pet only):**
 
 - Title "Trophy Case" with "Maple's best" (pet's name) on the right.
-- A shelf showing the pet's top 3 pieces, tallest in the middle. Pick by highest trophy `size` earned, newest first on ties. If the pet has fewer than 3 trophies, fill with its best ribbons (1st before 2nd, higher class first).
+- A shelf showing the pet's top 3 pieces, tallest in the middle. Pick by highest trophy `size` earned, newest first on ties. If the pet has fewer than 3 trophies, fill with its best ribbons (1st before 2nd, higher class first), then newest stamps.
 - Three count chips: trophies, ribbons, stamps for the current pet. Ribbons count every ribbon won, not distinct ones.
 - Gold glossy **Open Trophy Case** button. Tapping the shelf also opens it.
 
@@ -77,9 +84,9 @@ The card reads from the awards tables (step 5), cached locally so Settings opens
 
 Badges become glossy hexagon pins with no tails, so a rosette with tails always means a competition ribbon. Mocks: `Badge.dc.html` and `BadgesTab.dc.html`.
 
-- **Replace all badge art** with the `Badge` component. Keep the existing badge logic and data: 25 badges (10 one-time, 5 series × 3 tiers), still belonging to the pet, still awarded when the action happens even if done before the prompt.
-- **Rename** "Blue Ribbon" to **First Win** so it doesn't read as a race ribbon (test data only, so rename its id too).
-- **Where they show:** only in the Trophy Case Badges tab, in two sections, One-time and Tiered. Remove the Badges row from Settings.
+- **Replace all badge art** with the `Badge` component. **Shipped** — Settings shelf and both celebration overlays use hex pins (`badgeArt.ts`). Keep the existing badge logic and storage (pet JSON, syncBadges); only the art and display change: 25 badges (10 one-time, 5 series × 3 tiers), still belonging to the pet, still awarded when the action happens even if done before the prompt.
+- **Rename** "Blue Ribbon" to **First Win**. **Shipped** — `syncBadges` rewrites a saved `blue-ribbon` to `first-win` once and does not grant it again.
+- **Where they show:** only in the Trophy Case Badges tab, in two sections, One-time and Tiered. Settings no longer has a Badges row.
 
 **One-time badges** (3-column grid, in this order):
 
@@ -107,6 +114,12 @@ Badges become glossy hexagon pins with no tails, so a rosette with tails always 
 | Finder | acorn | green | 10 / 25 / 50 park finds |
 
 Header count: "7 of 10" for one-time, plus the total across all 25. All icons listed are already drawn in `Badge.dc.html`.
+
+**No tailed rosettes outside competitions.** **Shipped.** The "Badge earned!" modal shows the hex pin for that badge. The trick-learned overlay shows a purple hex pin with the `stars` icon (`tier: none`).
+
+**Renaming blue-ribbon:** **Shipped.** `syncBadges` replaces a saved `blue-ribbon` with `first-win` once and saves. Don't keep the old id with a new label.
+
+**Ribbon-based badges:** the server grants ribbons. The phone does not append `state.ribbons`. Ribbon Rack, First Win and Moving Up read from the local awards cache (plus any leftover historical `state.ribbons`, deduped by race id). The cache is filled from each race state's award payload and refreshed from the `awards` table. Friend games, practice, cancelled races and NPCs grant nothing.
 
 ## 3. Trophy Case
 
@@ -139,11 +152,11 @@ A new full-screen page opened from Settings, with three tabs: **Races | Runway |
 **Celebrations** on results screens:
 
 - **Race results** (mock `RaceResults.dc.html`): the ribbon drops in large; any new trophy gets a "New trophy" card; then one "Next up" line with the closest unearned goal.
-- **Runway show end** (mock `StampEarned.dc.html`): a "New stamp!" modal over the dimmed venue, the stamp stamped on at a slight angle, then the Lookbook progress. Several new awards at once show one after another, biggest last.
+- **Runway show end** (mock `StampEarned.dc.html`): a "New stamp!" modal over the dimmed venue, the stamp hanging over the top of the card at a slight angle. The last button is **See Awards** and opens the Trophy Case on the Runway tab. Several new awards at once show one after another, biggest last.
 
 ## Data model and granting
 
-Awards are owned by the player and linked to the pet that won them, and only the server writes them. Tables and rules follow the [Awards design brief](https://claude.ai/artifact/FFrq54pwjY9AsSAYvvRQ4L) (Data model section): `award_definitions`, `awards`, `award_progress`.
+Awards are owned by the player and linked to the pet that won them, and only the server writes them. Badges are not awards here: the 25 badges stay on the pet JSON and keep using syncBadges on the phone. These tables hold only competition awards: ribbons, trophies, stamps, Cover Stars, friend-show awards, the Crowd Favorite sash and lifetime trophies. Tables and rules follow the [Awards design brief](https://claude.ai/artifact/FFrq54pwjY9AsSAYvvRQ4L) (Data model section): `award_definitions`, `awards`, `award_progress`.
 
 **Every `awards` row stores:** `player_id`, `pet_id`, a `pet_snapshot` (name, species, breed, coat, avatar seed at the time won), `award_definition_id`, `source` (race or runway), `race_id` or `show_id`, `placing` for ribbons, `earned_at`, `config_version`.
 
@@ -288,19 +301,21 @@ Retirement isn't built yet, but awards must be ready for it now: every award sta
 
 ## Acceptance checklist
 
-- [ ] Trophy, Ribbon, Stamp, Badge, Cover and Sash render like the canvas at every size, earned and unearned, with several instances on screen keeping their own colors.
-- [ ] Settings shows the Trophy Case card (filled and empty) between Traits and Friends; the Badges row is gone.
-- [ ] Trophy Case opens from Settings with Races, Runway and Badges tabs; a new pet sees the empty state.
-- [ ] A 1st-place solo race grants exactly one blue ribbon, even when the report is retried.
-- [ ] The third Novice Fun Run win grants the Novice Fun Run trophy, and the results screen celebrates it.
+- [x] Trophy, Ribbon, Stamp, Badge, Cover and Sash render like the canvas at every size, earned and unearned, with several instances on screen keeping their own colors.
+- [x] Badge art is hex pins (shelf + both celebration overlays). `blue-ribbon` migrates to `first-win` on load.
+- [x] Settings shows the Trophy Case card (filled and empty) in the Badges slot; the Badges row is gone. Phone order and the landscape three-column layout stay as shipped.
+- [x] Trophy Case opens from Settings with Races, Runway and Badges tabs; a new pet sees the empty state.
+- [x] A 1st-place solo race grants exactly one ribbon (`place` 1), even when the report is retried. Unique on `(race_id, pet_id)`.
+- [x] Fun Run and 800 Meters never get class trophies. Friend games, cancelled races and NPCs grant nothing. `grant_race_awards` runs from `stadium_rank`.
+- [x] Ribbon Rack, First Win and Moving Up read the awards cache (plus leftover `state.ribbons`, deduped by race id). The phone no longer appends `state.ribbons`.
+- [ ] The third Novice Weave win grants the Novice Weave trophy, and the results screen celebrates it.
 - [ ] A loss resets the Championship streak and the Win Streak count.
-- [ ] Practice runs, cancelled races and NPCs grant nothing.
-- [ ] A first solo show in a theme grants Debut; the fifth counted show grants Encore; a fourth solo show in a day doesn't count toward Encore.
-- [ ] A friend show grants Runway Party to every submitter when voting opens, and Crowd Favorite plus Showstopper to the winner(s) when results publish.
-- [ ] Full Rack is granted once every theme-specific piece has been worn; the theme page shows pieces worn.
+- [x] A first solo show in a theme grants Debut; the fifth counted show grants Encore; a fourth solo show in a day doesn't count toward Encore. `record_solo_runway_walk` persists `mode=solo` then `grant_runway_awards(..., 'solo_walked')`.
+- [x] A friend show grants Runway Party to every submitter when voting opens, and Crowd Favorite plus Showstopper to the winner(s) when results publish. `submit_runway_looks` / `cast_runway_vote` / `open_runway_voting_if_due` call `grant_runway_awards`.
+- [x] Full Rack is granted once every theme-specific piece has been worn; the theme page shows pieces worn.
 - [ ] The Lookbook Bronze, Silver and Gold trophies are granted when their stamp sets are complete across evergreen themes.
 - [ ] Raising a threshold in config never removes an earned award.
-- [ ] Settings and the Trophy Case show cached awards offline.
+- [x] Settings and the Trophy Case show cached awards offline.
 - [ ] Deleting the account removes the player's awards and progress.
 
 ## Open decisions (don't build yet)

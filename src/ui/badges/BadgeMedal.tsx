@@ -1,6 +1,5 @@
-import { SvgXml } from 'react-native-svg';
-
-import { badgeSvgXml } from './svgXml';
+import { Badge } from '../awards/Badge';
+import { badgeArt } from '../awards/badgeArt';
 
 type Props = {
   id: string;
@@ -8,9 +7,9 @@ type Props = {
 };
 
 export function BadgeMedal({ id, size = 56 }: Props) {
-  const xml = badgeSvgXml[id];
-  if (!xml) {
+  const art = badgeArt(id);
+  if (!art) {
     return null;
   }
-  return <SvgXml xml={xml} width={size} height={size} />;
+  return <Badge icon={art.icon} color={art.color} tier={art.tier} size={size} />;
 }

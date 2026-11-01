@@ -1,3 +1,4 @@
+import { mapAwardRow, type CachedAward } from '../awards/cache';
 import type { Colorway } from '../actor/wardrobe';
 import type { Look } from '../sim/types';
 import type { CostumeSlot, FrozenLook, FrozenPiece, LocalRunwayShow, RunwayPetSnap, RunwaySubmission } from './types';
@@ -35,6 +36,7 @@ export type RunwayShowDetail = {
   claimedCostumeIds: string[];
   contestants: RunwayContestant[];
   submissions: RunwaySubmission[];
+  awards: CachedAward[];
 };
 
 export type RunwayShowSummary = {
@@ -332,7 +334,19 @@ export function parseShowDetail(data: unknown): RunwayShowDetail | null {
     claimedCostumeIds: strList(row.claimed_costume_ids),
     contestants: contestantsOf(row.contestants),
     submissions: submissionsOf(row.submissions),
+    awards: parseAwardRows(row.awards),
   };
+}
+
+export function parseAwardRows(value: unknown): CachedAward[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.flatMap((item) => {
+    const row = asObject(item);
+    const mapped = row ? mapAwardRow(row) : null;
+    return mapped ? [mapped] : [];
+  });
 }
 
 export function parseShowList(data: unknown): { shows: RunwayShowSummary[]; recent: RecentInvitee[] } | null {

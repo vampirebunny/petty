@@ -8,6 +8,9 @@ import {
   RACE_CLASSES,
   WIN_WINDOW_DAYS,
   WINDOW_DAYS,
+  RUN_ENERGY,
+  RUN_HYDRATION,
+  configFor,
   currentCatalog,
   decideCurve,
   defaultCurve,
@@ -15,7 +18,10 @@ import {
   isRaceClass,
   isReplayEvent,
   knownConfig,
+  median,
   metricKind,
+  obstacleCourse,
+  usesCondition,
   nextOffset,
   playerMedians,
   replayNpc,
@@ -342,7 +348,121 @@ async function runCalibration(admin: SupabaseClient, nowMs: number): Promise<{ s
     updated += 1;
   }
 
+  await tuneConditionRates(admin);
+
   return { seeded, updated, pending };
+}
+
+type FinishRow = {
+  finish_ms: number | null;
+  is_npc: boolean;
+  condition_finish: number | null;
+  input_log: unknown;
+  races:
+    | {
+        config_version: string;
+        seed: string;
+        class: string;
+        competition_events: { event_type: string } | { event_type: string }[];
+      }
+    | {
+        config_version: string;
+        seed: string;
+        class: string;
+        competition_events: { event_type: string } | { event_type: string }[];
+      }[];
+};
+
+function one<T>(value: T | T[] | null | undefined): T | null {
+  if (Array.isArray(value)) return value[0] ?? null;
+  return value ?? null;
+}
+
+function runTapCount(event: string, log: unknown): number | null {
+  if (!log || typeof log !== 'object') return null;
+  const row = log as { taps?: unknown; inputs?: unknown };
+  if (event === 'funRun' || event === 'meters800') return Array.isArray(row.taps) ? row.taps.length : null;
+  if (event === 'obstacle' && Array.isArray(row.inputs)) {
+    return row.inputs.filter((input) => input && typeof input === 'object' && (input as { button?: string }).button === 'run').length;
+  }
+  return null;
+}
+
+function courseMeters(event: string, version: string, classId: string, seed: string): number | null {
+  if (event === 'funRun' || event === 'meters800') return configFor(version).distanceM;
+  if (event === 'obstacle' && isRaceClass(classId)) return obstacleCourse(classId, version, seed).distanceM;
+  return null;
+}
+
+async function tuneConditionRates(admin: SupabaseClient): Promise<void> {
+  let rows: FinishRow[] = [];
+  try {
+    rows = await fetchAll<FinishRow>((from, to) =>
+      admin
+        .from('race_entries')
+        .select('finish_ms, is_npc, condition_finish, input_log, races!inner(config_version, seed, class, competition_events!inner(event_type))')
+        .not('finish_ms', 'is', null)
+        .order('id')
+        .range(from, to),
+    );
+  } catch (error) {
+    console.error('condition rates skipped', error);
+    return;
+  }
+
+  const taps = new Map<string, { finishMs: number; perMeter: number }[]>();
+  const conditions = new Map<string, { players: number[]; npcs: number[] }>();
+  for (const row of rows) {
+    const race = one(row.races);
+    const eventRow = race ? one(race.competition_events) : null;
+    const event = eventRow?.event_type;
+    if (!race || !event || !usesCondition(race.config_version)) continue;
+    const finishMs = asNumber(row.finish_ms);
+    if (!Number.isFinite(finishMs)) continue;
+    const bucket = conditions.get(event) ?? { players: [], npcs: [] };
+    const condition = asNumber(row.condition_finish);
+    if (Number.isFinite(condition)) {
+      if (row.is_npc) bucket.npcs.push(condition);
+      else bucket.players.push(condition);
+    }
+    conditions.set(event, bucket);
+    if (row.is_npc || event === 'hurdles' || event === 'dockDive') continue;
+    const count = runTapCount(event, row.input_log);
+    const distance = courseMeters(event, race.config_version, race.class, race.seed);
+    if (count == null || distance == null || distance <= 0) continue;
+    const key = `${event}|${race.config_version}`;
+    const list = taps.get(key) ?? [];
+    list.push({ finishMs, perMeter: count / distance });
+    taps.set(key, list);
+  }
+
+  for (const [event, bucket] of conditions) {
+    const mean = (values: number[]) => (values.length === 0 ? null : values.reduce((sum, value) => sum + value, 0) / values.length);
+    console.log(
+      'condition_finish',
+      JSON.stringify({
+        event,
+        players: mean(bucket.players),
+        npcs: mean(bucket.npcs),
+        nPlayers: bucket.players.length,
+        nNpcs: bucket.npcs.length,
+      }),
+    );
+  }
+
+  for (const [key, list] of taps) {
+    const [event, version] = key.split('|');
+    if (!event || !version || list.length === 0) continue;
+    const sorted = [...list].sort((a, b) => a.finishMs - b.finishMs);
+    const keep = Math.max(1, Math.ceil(sorted.length * 0.25));
+    const rate = median(sorted.slice(0, keep).map((row) => row.perMeter));
+    const saved = await admin
+      .from('npc_calibration')
+      .update({ energy_per_meter: rate * RUN_ENERGY, hydration_per_meter: rate * RUN_HYDRATION })
+      .eq('event', event)
+      .eq('config_version', version);
+    if (saved.error) console.error('condition rates update failed', saved.error);
+  }
 }
 
 function sampleAt(grid: GridPoint[], skill: number): number | null {

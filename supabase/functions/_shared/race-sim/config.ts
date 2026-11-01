@@ -1,6 +1,6 @@
 // Published versions are immutable. Tuning adds a new version; races keep the one they were created with.
 
-export const CONFIG_VERSION = 'funrun-2';
+export const CONFIG_VERSION = 'funrun-3';
 
 export type RaceClassId = 'beginner' | 'novice' | 'open' | 'expert' | 'championship' | 'veteran';
 
@@ -44,9 +44,9 @@ export type FunRunConfig = typeof funRunV1;
 // funrun-2: Fun Run is one Open field for every level. NPCs start at full speed, so Open sits near the
 // old Beginner range: 4.5 taps/s beats the slowest, 5 places about third, and the fastest takes
 // 8 taps/s, or 6 with mood and energy above 90.
-export const funRunConfig: FunRunConfig = {
+const funRunV2: FunRunConfig = {
   ...funRunV1,
-  version: CONFIG_VERSION,
+  version: 'funrun-2',
   npcRanges: { ...funRunV1.npcRanges, open: [8.2, 9.6] },
   // Each of mood and energy: +5% above 90, no change from 65 through 90, −3% below 65, −5% below 45.
   // Hydration has no boost: no change at 65 and above, −3% below 65, −5% below 45.
@@ -58,10 +58,36 @@ export const funRunConfig: FunRunConfig = {
   statLowerDrop: 0.05,
 };
 
+// funrun-3: one condition multiplier instead of the bands. NPC ranges drop by 1/1.1 because a full
+// pet no longer gets the old +10% from mood and energy both sitting above 90.
+const npcScale = 1 / 1.1;
+
+function scaleRanges(ranges: FunRunConfig['npcRanges']): FunRunConfig['npcRanges'] {
+  const scaled = {} as Record<RaceClassId, NpcRange>;
+  for (const classId of Object.keys(ranges) as RaceClassId[]) {
+    const range = ranges[classId];
+    scaled[classId] = [range[0] * npcScale, range[1] * npcScale];
+  }
+  return scaled;
+}
+
+export const funRunConfig: FunRunConfig = {
+  ...funRunV2,
+  version: CONFIG_VERSION,
+  npcRanges: scaleRanges(funRunV2.npcRanges),
+};
+
 // 800 Meters is the same Open Fun Run field on a track 13 times as long.
 // The time limit scales with the track so a pet who can finish Fun Run can finish this too.
 export const METERS_800_SCALE = 13;
-export const METERS_800_VERSION = 'meters800-1';
+export const METERS_800_VERSION = 'meters800-2';
+
+const meters800V1: FunRunConfig = {
+  ...funRunV2,
+  version: 'meters800-1',
+  distanceM: funRunV2.distanceM * METERS_800_SCALE,
+  maxMs: funRunV2.maxMs * METERS_800_SCALE,
+};
 
 export const meters800Config: FunRunConfig = {
   ...funRunConfig,
@@ -72,10 +98,12 @@ export const meters800Config: FunRunConfig = {
 
 const versions: Record<string, FunRunConfig> = {
   'funrun-1': funRunV1,
+  'funrun-2': funRunV2,
   [CONFIG_VERSION]: funRunConfig,
+  'meters800-1': meters800V1,
   [METERS_800_VERSION]: meters800Config,
 };
 
 export function configFor(version: string): FunRunConfig {
-  return versions[version] ?? funRunConfig;
+  return versions[version] ?? funRunV2;
 }

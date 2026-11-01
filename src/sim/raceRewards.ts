@@ -1,5 +1,6 @@
+import { ribbonFacts } from '../awards/cache';
 import { localDay } from '../economy/clock';
-import { RACE_INPUT_ENERGY, RACE_INPUT_HYDRATION } from '../../supabase/functions/_shared/race-sim/index.ts';
+import { RACE_INPUT_ENERGY, RACE_INPUT_HYDRATION, inputCost, type RaceInputKind } from '../../supabase/functions/_shared/race-sim/index.ts';
 import { gameplayConfig } from './gameplayConfig';
 import { grantXp, noteTutorialAction } from './progress';
 import { syncBadges } from './badges';
@@ -32,10 +33,21 @@ function xpForPlace(place: number): number {
 }
 
 export function ribbonCount(state: PetState): number {
-  return (state.ribbons ?? []).filter((row) => row.place >= 1 && row.place <= 3).length;
+  return ribbonFacts(state.id, state.ribbons).length;
 }
 
 /** One race input. Energy and hydration each stop at 0, and a tap at 0 still counts. */
+export function spendRaceInput(state: PetState, kind: RaceInputKind, version: string): PetState {
+  const cost = inputCost(version, kind);
+  if (state.needs.energy <= 0 && state.hydration <= 0) return state;
+  return {
+    ...state,
+    hydration: Math.max(0, state.hydration - cost.hydration),
+    needs: { ...state.needs, energy: Math.max(0, state.needs.energy - cost.energy) },
+  };
+}
+
+/** Older callers. A run tap on the band-based versions. */
 export function spendRaceTap(state: PetState): PetState {
   if (state.needs.energy <= 0 && state.hydration <= 0) return state;
   return {
@@ -43,6 +55,45 @@ export function spendRaceTap(state: PetState): PetState {
     hydration: Math.max(0, state.hydration - RACE_INPUT_HYDRATION),
     needs: { ...state.needs, energy: Math.max(0, state.needs.energy - RACE_INPUT_ENERGY) },
   };
+}
+
+export function moodDeltaForPlace(place: number, didFinish: boolean): number {
+  if (!didFinish) return -5;
+  if (place === 1) return 8;
+  if (place === 2 || place === 3) return 4;
+  return 0;
+}
+
+function withRaceMood(state: PetState, place: number, didFinish: boolean): PetState {
+  const happiness = Math.min(100, Math.max(0, state.needs.happiness + moodDeltaForPlace(place, didFinish)));
+  if (happiness === state.needs.happiness) return state;
+  return { ...state, needs: { ...state.needs, happiness } };
+}
+
+export function applyRaceOutcome(
+  state: PetState,
+  finish: RaceFinish,
+  now: number,
+  outcome: { didFinish: boolean; friends: boolean },
+): PetState {
+  const applied = state.appliedRaceIds ?? [];
+  if (!finish.raceId || applied.includes(finish.raceId) || finish.place < 1) return state;
+  const mooded = withRaceMood(state, finish.place, outcome.didFinish);
+  if (outcome.friends) return applyFriendRaceResult(mooded, finish.raceId);
+  if (!outcome.didFinish) {
+    const record = racesOf(mooded);
+    return {
+      ...mooded,
+      appliedRaceIds: [...applied, finish.raceId],
+      races: {
+        signup: record.signups.filter((row) => row.raceId !== finish.raceId)[0] ?? null,
+        signups: record.signups.filter((row) => row.raceId !== finish.raceId),
+        entered: record.entered,
+        friendGame: record.friendGame,
+      },
+    };
+  }
+  return applyRaceRewards(mooded, finish, now);
 }
 
 export function applyRaceRewards(state: PetState, finish: RaceFinish, now: number): PetState {
@@ -56,7 +107,6 @@ export function applyRaceRewards(state: PetState, finish: RaceFinish, now: numbe
   const record = racesOf(state);
   let next: PetState = {
     ...state,
-    ribbons: [...(state.ribbons ?? []), finish],
     appliedRaceIds: [...applied, finish.raceId],
     raceXpDay: day,
     raceXpCount: pay ? count + 1 : count,

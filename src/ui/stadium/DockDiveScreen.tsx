@@ -25,6 +25,7 @@ import {
   attemptGoMs,
   compareDives,
   createDive,
+  drainPool,
   diveClass,
   diveScore,
   diveTotalMs,
@@ -34,8 +35,8 @@ import {
   runUp,
   type DiveInput,
   type DiveResult,
-  type DiveScore,
   type DiveState,
+  type DrainPool,
   type Modifiers,
 } from '../../../supabase/functions/_shared/race-sim/index.ts';
 import type { Env } from '../skia/env';
@@ -46,13 +47,15 @@ import { countBeat, countLabels } from './raceCountdown';
 import { actorOf, breedOf, classOf, modsOf, placeSuffix } from './raceField';
 import { useRaceCountdown } from './useRaceCountdown';
 import { ink, shared } from './parts';
+import { RaceResultsStrip } from './RaceResultsStrip';
+import { minePlaceOf, withPlaces } from './standings';
 
 type Props = {
   race: RaceView;
   pet: PetState;
   reducedMotion: boolean;
-  onFinish: (place: number) => void;
-  onSpend: () => void;
+  onFinish: (place: number, view: RaceView) => void;
+  onSpend: (kind: 'run' | 'action') => void;
   onExit: () => void;
 };
 
@@ -181,7 +184,7 @@ export function DockDiveScreen({ race, pet, reducedMotion, onFinish, onSpend, on
   const bests = useRef<{ best: number; popups: { attempt: number; text: string; big: boolean }[] }>({ best: 0, popups: [] });
   const petRef = useRef(pet);
   const playerMods = useRef<Modifiers | null>(null);
-  const rewarded = useRef(false);
+  const drain = useRef<DrainPool | null>(null);
   const sent = useRef(false);
   const grantRef = useRef<(view: RaceView) => void>(() => undefined);
   const lastBeat = useRef<string | null>(null);
@@ -252,11 +255,23 @@ export function DockDiveScreen({ race, pet, reducedMotion, onFinish, onSpend, on
   useEffect(() => {
     grantRef.current = (view) => {
       setFinalRace(view);
-      if (rewarded.current) return;
-      const placed = [...view.players, ...view.npcs].find((entry) => entry.mine && entry.place && entry.finishMs != null);
-      if (!placed?.place) return;
-      rewarded.current = true;
-      onFinish(placed.place);
+      const ranked = withPlaces(
+        [...view.players, ...view.npcs].map((entry) => ({
+          key: entry.key,
+          name: entry.petName,
+          finishMs: entry.finishMs,
+          place: entry.place,
+          mine: entry.mine,
+          score: entry.scoreDm,
+        })),
+        (row) => row.score,
+        false,
+      );
+      const place = minePlaceOf(ranked);
+      if (place == null) {
+        return;
+      }
+      onFinish(place, view);
     };
   });
 
@@ -278,13 +293,16 @@ export function DockDiveScreen({ race, pet, reducedMotion, onFinish, onSpend, on
       const since = at - race.startsAt;
       const now = since < 0 ? 0 : Math.min(config.attempts - 1, Math.floor(since / gapMs));
       const nowLocal = since - attemptGoMs(now, version);
-      if (since >= 0 && !playerMods.current) playerMods.current = modsOf(mine, petRef.current);
+      if (since >= 0 && !playerMods.current) {
+        playerMods.current = modsOf(mine, petRef.current);
+        drain.current = drainPool(playerMods.current, version, false);
+      }
       let changed = false;
       if (since >= 0) {
         for (let k = 0; k <= now; k += 1) {
           const state = dives.current[k];
           if (state.result) continue;
-          advanceDive(state, inputs.current[k], k < now ? config.windowMs : Math.min(nowLocal, config.windowMs), playerMods.current, classId, version);
+          advanceDive(state, inputs.current[k], k < now ? config.windowMs : Math.min(nowLocal, config.windowMs), playerMods.current, classId, version, drain.current ?? undefined);
           // advanceDive sets `result`; read it fresh past the narrowing above.
           const result = dives.current[k].result as DiveResult | null;
           if (!result) continue;
@@ -322,15 +340,19 @@ export function DockDiveScreen({ race, pet, reducedMotion, onFinish, onSpend, on
         });
         scored.sort((a, b) => compareDives(a.score, b.score));
         setProvisional(
-          scored.map(({ row, score }) => ({
-            key: row.key,
-            name: row.petName,
-            mine: row.mine,
-            npc: row.npc,
-            place: null,
-            bestM: score.bestM,
-            bestAttempt: score.bestAttempt,
-          })),
+          withPlaces(
+            scored.map(({ row, score }) => ({
+              key: row.key,
+              name: row.petName,
+              mine: row.mine,
+              npc: row.npc,
+              place: null as number | null,
+              bestM: score.bestM,
+              bestAttempt: score.bestAttempt,
+            })),
+            (row) => row.bestM,
+            false,
+          ),
         );
         setWaiting(true);
         const mineScored = scored.find((item) => item.row.mine);
@@ -461,9 +483,10 @@ export function DockDiveScreen({ race, pet, reducedMotion, onFinish, onSpend, on
     return () => clearInterval(timer);
   }, [finalRace?.status, race.raceId, waiting]);
 
-  const standings: Standing[] | null = finalRace
-    ? [...finalRace.players, ...finalRace.npcs]
-        .map((row) => ({
+  const official = finalRace?.status === 'finished';
+  const standings: Standing[] | null = official
+    ? withPlaces(
+        [...finalRace.players, ...finalRace.npcs].map((row) => ({
           key: row.key,
           name: row.petName,
           mine: row.mine,
@@ -471,11 +494,12 @@ export function DockDiveScreen({ race, pet, reducedMotion, onFinish, onSpend, on
           place: row.place,
           bestM: row.scoreDm == null ? null : row.scoreDm / 10,
           bestAttempt: row.bestAttempt,
-        }))
-        .sort((a, b) => (a.place ?? 99) - (b.place ?? 99))
+        })),
+        (row) => row.bestM,
+        false,
+      )
     : provisional;
-  const mineStanding = standings?.find((row) => row.mine);
-  const minePlace = mineStanding?.place;
+  const minePlace = official ? minePlaceOf(standings) : null;
   useCompetitionResult(race, resultsReady, minePlace ?? undefined);
   const mineScore = diveScore(mineResults, version);
 
@@ -490,7 +514,7 @@ export function DockDiveScreen({ race, pet, reducedMotion, onFinish, onSpend, on
     if (at0 >= config.windowMs || state.result) return;
     holdAttempt.current = index;
     inputs.current[index].push({ at: at0, down: true });
-    onSpend();
+    onSpend('run');
   };
 
   const lift = () => {
@@ -501,7 +525,7 @@ export function DockDiveScreen({ race, pet, reducedMotion, onFinish, onSpend, on
     const at0 = Math.max(serverNow() - race.startsAt - attemptGoMs(index, version), state.tMs);
     if (state.result) return;
     inputs.current[index].push({ at: at0, down: false });
-    onSpend();
+    onSpend('run');
     void Haptics.selectionAsync();
   };
 
@@ -542,6 +566,7 @@ export function DockDiveScreen({ race, pet, reducedMotion, onFinish, onSpend, on
               {minePlace === 1 ? `${pet.name} won!` : minePlace ? `${pet.name} placed ${minePlace}${placeSuffix(minePlace)}!` : 'Splash!'}
             </Text>
             {finalRace?.status === 'finished' ? null : <Text style={shared.copy}>Provisional</Text>}
+            <RaceResultsStrip race={finalRace ?? race} place={minePlace ?? null} petId={pet.id} />
             <Text style={shared.strong}>
               Best {mineScore.bestM.toFixed(1)} m (attempt {mineScore.bestAttempt + 1})
             </Text>

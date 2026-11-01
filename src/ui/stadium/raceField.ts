@@ -2,7 +2,7 @@ import { breedById, defaultLook, resolveBreed, resolveBreedById, spawnActor } fr
 import type { Actor, Breed } from '../../actor';
 import type { PetState } from '../../sim/types';
 import type { LineupRow } from '../../stadium/api';
-import { neutralModifiers, type Modifiers, type RaceClassId } from '../../../supabase/functions/_shared/race-sim/index.ts';
+import { neutralModifiers, type MeterRates, type Modifiers, type RaceClassId } from '../../../supabase/functions/_shared/race-sim/index.ts';
 
 /** Canvas labels on the race track, such as "Reconnecting". */
 export const raceLabelFont = require('@expo-google-fonts/fredoka/700Bold/Fredoka_700Bold.ttf');
@@ -33,6 +33,7 @@ export function actorOf(row: LineupRow, pet: PetState, breed: Breed): Actor {
 }
 
 export function modsOf(row: LineupRow | undefined, pet: PetState | null): Modifiers {
+  if (row?.mine && row.modifiers) return row.modifiers;
   if (row?.mine && pet) {
     return {
       energy: pet.needs.energy,
@@ -44,6 +45,11 @@ export function modsOf(row: LineupRow | undefined, pet: PetState | null): Modifi
     };
   }
   return row?.modifiers ?? neutralModifiers;
+}
+
+export function stampedRates(energyPerMeter: number | null, hydrationPerMeter: number | null): MeterRates | null {
+  if (energyPerMeter == null && hydrationPerMeter == null) return null;
+  return { energyPerMeter: energyPerMeter ?? Number.NaN, hydrationPerMeter: hydrationPerMeter ?? Number.NaN };
 }
 
 export function classOf(id: string): RaceClassId {

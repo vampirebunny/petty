@@ -8,6 +8,8 @@ export const largeShortSide = 600;
 export const rotateShortSide = 520;
 // Home controls, and every other screen, stay about as wide as a phone.
 export const phoneColumnWidth = 400;
+// Trophy Case is a shelf, so landscape gets more than a phone column.
+export const trophyCaseMaxWidth = 880;
 // Share of the window height a stacked stage may take, so the controls below stay reachable.
 export const stackedHeightShare = 0.62;
 // Training School on a stacked phone. Half the window is already how tall the other
@@ -57,6 +59,13 @@ export function isSurfaceDuoModel(model: string, manufacturer = '', extra = ''):
 // Landscape on a tablet, spanned Duo, or unfolded foldable. Portrait stays stacked.
 export function isLandscapeSplit(width: number, height: number): boolean {
   return isLargeWindow(width, height) && width > height;
+}
+
+export function splitColumnWidth(width: number, height: number, maxWidth = phoneColumnWidth): number {
+  if (!isLandscapeSplit(width, height)) {
+    return width;
+  }
+  return Math.min(maxWidth, width);
 }
 
 // Status icons on an opened Duo's right screen cover a Boop total parked at the screen edge.
