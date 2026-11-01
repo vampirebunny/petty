@@ -20,9 +20,9 @@ These override the sections below. The old addendum is folded in here.
 
 **Results.** Solo: the phone reports its own finish time and the NPC times it simulated, and the server stores and ranks them. Once the replay Edge Function exists, the server recomputes both from the seed. Live: publish when every live player has reported, or 10 seconds after the first report. Anyone missing is DNF. Phones show provisional standings until the server ranking arrives.
 
-**Rewards.** The server never writes the pet document. It writes placings. The phone applies XP, a ribbon log (`raceId`, event, class, place, date), and badges once per race id. Energy is spent during the race, 0.25 per accepted input, and never goes below 0. A Fun Run or 800 Meters tap, a hurdle jump, an obstacle jump, duck, or RUN tap, and each dock-dive press and release all count. Finishing does not charge again. Race XP is capped at 8 races a day and is skipped below level 10. Ribbons are still awarded then. "Race in the Stadium" is a tutorial goal that completes when the pet finishes a race. Badges: First Race (id `off-to-the-races`), Blue Ribbon, Moving Up (a ribbon in a level class above Beginner; Fun Run and 800 Meters ribbons don't count), Ribbon Rack (5 / 25 / 100). Furniture waits.
+**Rewards.** The server never writes the pet document. It writes placings. The phone applies XP, a ribbon log (`raceId`, event, class, place, date), and badges once per race id. Energy is spent during the race, 0.4 per accepted input, and never goes below 0. Fun Run and 800 Meters apply that falling energy to each later tap and to the top-speed cap. Hurdles and Obstacle Course apply it to the next Perfect boost. Mood stays at the value from the start. A Fun Run or 800 Meters tap, a hurdle jump, an obstacle jump, duck, or RUN tap, and each dock-dive press and release all count. Finishing does not charge again. Race XP is capped at 8 races a day and is skipped below level 10. Ribbons are still awarded then. "Race in the Stadium" is a tutorial goal that completes when the pet finishes a race. Badges: First Race (id `off-to-the-races`), Blue Ribbon, Moving Up (a ribbon in a level class above Beginner; Fun Run and 800 Meters ribbons don't count), Ribbon Rack (5 / 25 / 100). Furniture waits.
 
-**Modifiers and config.** At lock, the server snapshots energy, mood, and attributes from the pet's last synced document. Config versions are immutable. Each race keeps the version it was created with.
+**Modifiers and config.** At lock, the server snapshots mood, attributes, and the energy the race starts from. Energy then falls by 0.4 on each input. Config versions are immutable. Each race keeps the version it was created with.
 
 **Live races.** Open sign-ups are for anyone online, guests included (a guest has no handle, so the name tag shows the pet name only). Fun Run, Hurdles, and Obstacle Course stream each pet's state (section 5). Dock Dive keeps its per-jump flags on `race:{raceId}:dives`. Other players' pets show their real coat, age, and outfit from the server copy of the pet. A player who drops mid-race keeps racing on their own phone; other phones freeze that pet and show "Reconnecting", and a missing report is DNF. There is no NPC autoplay.
 
@@ -163,7 +163,7 @@ Level-ups show the existing level-up moment after the results screen closes.
 
 The pet's stats should matter, but **the player's skill should matter more.**
 
-Computed once at GO! from the pet's current energy and mood (the bars on screen) and fixed for the race. Stamina, agility, and intelligence still come from the lock snapshot when the server has one.
+Mood, stamina, agility, and intelligence are taken at the start and stay fixed. Energy starts there too, then falls by 0.4 on each input, and the race uses the energy still left. The server replay starts from the locked energy and spends the same 0.4 per input in the log, so the finish matches the phone.
 
 | Input | Effect (Fun Run) | Notes for later events |
 | --- | --- | --- |
@@ -173,7 +173,7 @@ Computed once at GO! from the pet's current energy and mood (the bars on screen)
 | Energy | Shifts each tap and the top-speed cap | All races |
 | Mood | Shifts each tap and the top-speed cap | All events |
 
-Energy and mood each apply on their own, and they stack. Above 90%: **+5%**. From 80% through 90%: no change. Below 80%: **−5%**. Below 70%: **−10%**. Both above 90% is a 12.1 m/s cap. Both below 70% is 8.8 m/s. The same factor multiplies the push of every tap, so the bonus shows up before the pet is already at the cap.
+Energy and mood each apply on their own, and they stack. Above 90%: **+5%**. From 65% through 90%: no change. Below 65%: **−3%**. Below 45%: **−5%**. Both above 90% is a 12.1 m/s cap. Both below 45% is a 9.9 m/s cap. The same factor multiplies the push of every tap, so the bonus shows up before the pet is already at the cap.
 
 Send the modifiers with the race start so the server replays with the same values.
 

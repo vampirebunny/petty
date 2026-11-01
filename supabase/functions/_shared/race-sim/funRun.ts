@@ -17,6 +17,15 @@ export const neutralModifiers: Modifiers = {
   intelligence: 50,
 };
 
+/** Energy spent by one race input. The same amount comes off the pet and off the speed used for the rest of the race. */
+export const RACE_INPUT_ENERGY = 0.4;
+
+export function takeRaceEnergy(energyLeft: number | null, start: number, inputs: number): number {
+  const base = energyLeft == null ? start : energyLeft;
+  if (inputs <= 0 || base <= 0) return Math.max(0, base);
+  return Math.max(0, base - inputs * RACE_INPUT_ENERGY);
+}
+
 export type NpcSpec = {
   classId: RaceClassId;
   skill: number;
@@ -29,6 +38,8 @@ export type RunnerState = {
   tMs: number;
   finishMs: number | null;
   accepted: number[];
+  /** Energy still left for this pet. Null until the first player step copies the start value. */
+  energyLeft: number | null;
 };
 
 function clamp(value: number, lo: number, hi: number): number {
@@ -77,7 +88,7 @@ export function npcSpeed(spec: NpcSpec, tMs: number, version: string): number {
 }
 
 export function createRunner(): RunnerState {
-  return { x: 0, v: 0, tMs: 0, finishMs: null, accepted: [] };
+  return { x: 0, v: 0, tMs: 0, finishMs: null, accepted: [], energyLeft: null };
 }
 
 function acceptTap(state: RunnerState, tMs: number, config: FunRunConfig): boolean {
@@ -108,17 +119,21 @@ export function stepRunner(
   if (npc) {
     state.v = npcSpeed(npc, state.tMs, version);
   } else {
-    const scale = speedScale(mods, config);
+    if (state.energyLeft == null) state.energyLeft = mods.energy;
     const power = tapPower(state.x, mods, config);
     for (const tap of taps) {
       if (tap < state.tMs || tap >= next) {
         continue;
       }
+      state.energyLeft = takeRaceEnergy(state.energyLeft, mods.energy, 1);
+      const scale = speedScale({ ...mods, energy: state.energyLeft }, config);
       if (acceptTap(state, tap, config)) {
         state.v = Math.min(config.topSpeed * scale, state.v + config.tapAccel * power * scale);
       }
     }
     state.v *= Math.exp(-config.fadePerSec * dt);
+    const cap = config.topSpeed * speedScale({ ...mods, energy: state.energyLeft }, config);
+    state.v = Math.min(cap, state.v);
   }
   state.x += state.v * dt;
   state.tMs = next;

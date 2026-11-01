@@ -1,4 +1,5 @@
 import { localDay } from '../economy/clock';
+import { RACE_INPUT_ENERGY } from '../../supabase/functions/_shared/race-sim/index.ts';
 import { gameplayConfig } from './gameplayConfig';
 import { grantXp, noteTutorialAction } from './progress';
 import { syncBadges } from './badges';
@@ -39,7 +40,7 @@ export function spendRaceTap(state: PetState): PetState {
   if (state.needs.energy <= 0) return state;
   return {
     ...state,
-    needs: { ...state.needs, energy: Math.max(0, state.needs.energy - 0.25) },
+    needs: { ...state.needs, energy: Math.max(0, state.needs.energy - RACE_INPUT_ENERGY) },
   };
 }
 

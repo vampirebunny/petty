@@ -47,6 +47,13 @@ export const funRunConfig: FunRunConfig = {
   ...funRunV1,
   version: CONFIG_VERSION,
   npcRanges: { ...funRunV1.npcRanges, open: [8.2, 9.6] },
+  // Each of mood and energy: +5% above 90, no change from 65 through 90, −3% below 65, −5% below 45.
+  statHigh: 0.9,
+  statLow: 0.65,
+  statLower: 0.45,
+  statHighBoost: 0.05,
+  statLowDrop: 0.03,
+  statLowerDrop: 0.05,
 };
 
 // 800 Meters is the same Open Fun Run field on a track 13 times as long.

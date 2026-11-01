@@ -58,7 +58,7 @@ There is no scheduling for a specific date and time yet. That is a possible late
 
 - **None** beyond the race itself: no XP, ribbons, trophies, or race badges (First Race, Blue Ribbon, Moving Up, Ribbon Rack). It does not count for "Compete in the Stadium".
 - No event rest.
-- The same energy cost as an open race: 0.25 energy per input (tap, jump, duck, or a dock hold or release). Energy stops at 0.
+- The same energy cost as an open race: 0.4 energy per input (tap, jump, duck, or a dock hold or release). Energy stops at 0, and Fun Run and 800 Meters slow down as it falls.
 - Results screen shows final placings for everyone in the game.
 
 ## Data and server

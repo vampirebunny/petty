@@ -1,5 +1,5 @@
 import type { RaceClassId } from './config.ts';
-import { npcSpeed, type Modifiers } from './funRun.ts';
+import { npcSpeed, takeRaceEnergy, type Modifiers } from './funRun.ts';
 import { hashSeed, mulberry32 } from './rng.ts';
 
 // Published versions are immutable. Tuning adds a new version; races keep the one they were created with.
@@ -304,6 +304,8 @@ export type ObstacleRunner = {
   acted: number;
   jumps: number[];
   ducks: number[];
+  /** Energy still left for this pet. Null until the first player step copies the start value. */
+  energyLeft: number | null;
 };
 
 type Course = ObstacleCourse & {
@@ -486,6 +488,7 @@ export function createObstacleRunner(): ObstacleRunner {
     acted: -1,
     jumps: [],
     ducks: [],
+    energyLeft: null,
   };
 }
 
@@ -625,6 +628,7 @@ export function stepObstacleRunner(
   const stepMs = 1000 / config.stepHz;
   const dt = stepMs / 1000;
   const next = state.tMs + stepMs;
+  let charged = 0;
   const playerMods = npc ? null : mods;
   const half = obstacleZoneHalfWidth(classId, playerMods, version);
   const base = baseSpeed(course, playerMods, npc);
@@ -643,12 +647,17 @@ export function stepObstacleRunner(
   } else {
     for (const input of inputs) {
       if (input.tMs < state.tMs || input.tMs >= next) continue;
+      charged += 1;
       if (input.button === 'jump') wantJump = true;
       else if (input.button === 'duck') wantDuck = true;
       else taps.push(input.tMs);
     }
   }
 
+  const liveMods =
+    playerMods == null
+      ? null
+      : { ...playerMods, energy: (state.energyLeft = takeRaceEnergy(state.energyLeft, playerMods.energy, charged)) };
   const free = open && obstacle != null && !isObstacleAirborne(state) && !isDucking(state);
   if (wantJump && free) {
     state.jumpX = state.x;
@@ -668,7 +677,7 @@ export function stepObstacleRunner(
     else state.spoiled = true;
   }
 
-  cruiseStep(state, course, base, taps, playerMods, npc, dt);
+  cruiseStep(state, course, base, taps, liveMods, npc, dt);
   state.v = (state.cruise ?? base) * speedFactor(state, config);
   state.x += state.v * dt;
   state.tMs = next;
@@ -685,7 +694,7 @@ export function stepObstacleRunner(
       state.spoiled = true;
     }
     if (state.x < ahead.at) break;
-    judge(state, course, half, playerMods);
+    judge(state, course, half, liveMods);
   }
 
   if (state.bonkAtMs != null && state.bonkOutMs == null && state.x >= state.bonkExitX) {

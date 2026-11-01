@@ -1,5 +1,5 @@
 import type { RaceClassId } from './config.ts';
-import type { Modifiers } from './funRun.ts';
+import { takeRaceEnergy, type Modifiers } from './funRun.ts';
 import { hashSeed, mulberry32 } from './rng.ts';
 
 // Published versions are immutable. Tuning adds a new version; races keep the one they were created with.
@@ -138,6 +138,8 @@ export type HurdleRunner = {
   clipAtMs: number | null;
   boostUntilMs: number;
   jumps: number[];
+  /** Energy still left for this pet. Null until the first player step copies the start value. */
+  energyLeft: number | null;
 };
 
 /** Where the hurdles stand and where the line is. Every racer in a race shares one course. */
@@ -255,6 +257,7 @@ export function createHurdleRunner(): HurdleRunner {
     clipAtMs: null,
     boostUntilMs: 0,
     jumps: [],
+    energyLeft: null,
   };
 }
 
@@ -310,7 +313,12 @@ export function stepHurdleRunner(
   const config = course.config;
   const stepMs = 1000 / config.stepHz;
   const next = state.tMs + stepMs;
-  const half = zoneHalfWidth(classId, npc ? null : mods, version);
+  const dueInputs = npc ? 0 : jumps.filter((at) => at >= state.tMs && at < next).length;
+  const liveMods =
+    mods == null
+      ? null
+      : { ...mods, energy: npc ? mods.energy : (state.energyLeft = takeRaceEnergy(state.energyLeft, mods.energy, dueInputs)) };
+  const half = zoneHalfWidth(classId, npc ? null : liveMods, version);
 
   const wantsJump = npc
     ? plan != null && state.next < plan.length && state.pendingJumpX == null && state.x >= plan[state.next]
@@ -321,7 +329,7 @@ export function stepHurdleRunner(
     state.jumps.push(state.tMs);
   }
 
-  state.v = runSpeed(course, mods, npc) * speedFactor(state, course);
+  state.v = runSpeed(course, liveMods, npc) * speedFactor(state, course);
   state.x += state.v * (stepMs / 1000);
   state.tMs = next;
 
@@ -330,7 +338,7 @@ export function stepHurdleRunner(
     if (state.pendingJumpX != null && state.pendingJumpX + config.airM <= course.hurdles[state.next]) {
       state.pendingJumpX = null;
     }
-    judge(state, course, half, npc ? null : mods);
+    judge(state, course, half, npc ? null : liveMods);
   }
 
   if (state.x >= course.distanceM) {

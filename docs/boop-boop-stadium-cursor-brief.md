@@ -75,7 +75,7 @@ Energy and mood bars are on the sign-up sheet and the ticket, not on this lobby.
 - On the player's **first** sign-up ever, request notification permission here (contextual, not at launch). If declined, sign-up still works; the in-app race call still shows.
 
 **Sign-up rules:**
-- Free entry, no energy minimum. Each accepted race input spends 0.25 energy, and energy stops at 0. See the race foundation brief.
+- Free entry, no energy minimum. Each accepted race input spends 0.4 energy, and energy stops at 0. Fun Run and 800 Meters get slower as that energy falls. See the race foundation brief.
 - **One active sign-up per start time.** A second event in that same slot shows "Same time". Other slots stay open.
 - Players can sign up for any slot shown (up to ~15 min ahead).
 - Blocked when that event's 1-minute rest (from the last race's start) is still running at the new race's start. The rest is written with the results; withdrawing, missing the gate, or a cancelled race does not start it. A pet can enter a different event during the rest.

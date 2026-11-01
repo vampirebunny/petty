@@ -81,6 +81,7 @@ export function FunRunScreen({ race, pet, reducedMotion, onFinish, onSpend, onEx
   const [lineup, setLineup] = useState(race);
   const field = useMemo(() => [...lineup.players, ...lineup.npcs], [lineup.npcs, lineup.players]);
   const mine = field.find((row) => row.mine) ?? race.players[0];
+  if (!playerMods.current) playerMods.current = modsOf(mine, pet);
   const live = lineup.players.length > 1;
   const { remotes, send } = useRaceSync(race.raceId, live);
   const stale = useRef(new Set<string>());

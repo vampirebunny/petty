@@ -3,6 +3,7 @@ import {
   METERS_800_VERSION,
   coastPastM,
   coastRunner,
+  RACE_INPUT_ENERGY,
   configFor,
   createRunner,
   neutralModifiers,
@@ -34,20 +35,36 @@ it('holds top speed from a fast tap', () => {
     for (let at = 0; at < config.maxMs; at += gap) {
       if (at >= state.tMs && at < next) due.push(at);
     }
-    stepRunner(state, due, neutralModifiers, null, 'funrun-1');
+    stepRunner(state, due, { ...neutralModifiers, energy: 100 }, null, 'funrun-1');
     peak = Math.max(peak, state.v);
   }
   expect(peak).toBeGreaterThan(config.topSpeed * 0.95);
 });
 
 it('raises or lowers the top-speed cap from mood and energy', () => {
-  const config = configFor('funrun-1');
+  const older = configFor('funrun-1');
   const base = { ...neutralModifiers };
+  expect(speedScale({ ...base, mood: 95, energy: 95 }, older)).toBeCloseTo(1.1);
+  expect(speedScale({ ...base, mood: 90, energy: 80 }, older)).toBeCloseTo(1);
+  expect(speedScale({ ...base, mood: 75, energy: 85 }, older)).toBeCloseTo(0.95);
+  expect(speedScale({ ...base, mood: 65, energy: 69 }, older)).toBeCloseTo(0.8);
+  expect(speedScale({ ...base, mood: 91, energy: 70 }, older)).toBeCloseTo(1);
+
+  const config = configFor('funrun-2');
   expect(speedScale({ ...base, mood: 95, energy: 95 }, config)).toBeCloseTo(1.1);
-  expect(speedScale({ ...base, mood: 90, energy: 80 }, config)).toBeCloseTo(1);
-  expect(speedScale({ ...base, mood: 75, energy: 85 }, config)).toBeCloseTo(0.95);
-  expect(speedScale({ ...base, mood: 65, energy: 69 }, config)).toBeCloseTo(0.8);
-  expect(speedScale({ ...base, mood: 91, energy: 70 }, config)).toBeCloseTo(1);
+  expect(speedScale({ ...base, mood: 90, energy: 65 }, config)).toBeCloseTo(1);
+  expect(speedScale({ ...base, mood: 64, energy: 85 }, config)).toBeCloseTo(0.97);
+  expect(speedScale({ ...base, mood: 44, energy: 50 }, config)).toBeCloseTo(0.92);
+  expect(speedScale({ ...base, mood: 91, energy: 44 }, config)).toBeCloseTo(1);
+});
+
+it('slows a Fun Run once taps spend energy across a band', () => {
+  const taps = Array.from({ length: 40 }, (_, index) => index * 200);
+  const slipping = runFunRun(taps, { ...neutralModifiers, mood: 85, energy: 66 }, null, 'funrun-2');
+  const steady = runFunRun(taps, { ...neutralModifiers, mood: 85, energy: 100 }, null, 'funrun-2');
+  expect(slipping.energyLeft).toBeLessThan(65);
+  expect(steady.energyLeft).toBeGreaterThan(65);
+  expect(steady.finishMs).toBeLessThan(slipping.finishMs!);
 });
 
 it('runs farther on the same taps when mood and energy are high', () => {
@@ -85,7 +102,7 @@ it('runs 800 Meters on a track 13 times as long as Fun Run', () => {
   expect(short).not.toBeNull();
   expect(extended).not.toBeNull();
   expect(extended!).toBeGreaterThan(short! * 12);
-  expect(extended!).toBeLessThan(short! * 13);
+  expect(extended!).toBeLessThan(short! * 14);
 });
 
 it('drops taps past 20 in one second', () => {
@@ -103,15 +120,17 @@ it('reads the pet fields the race snapshot uses', () => {
   expect(typeof pet.attributes.current.intelligence).toBe('number');
 });
 
-it('spends a quarter energy per race input and stops at zero', () => {
+it('spends energy per race input and stops at zero', () => {
   const pet = testPet(4, 'retriever', now, 'Maple', 'pet');
   const once = spendRaceTap(pet);
-  expect(once.needs.energy).toBeCloseTo(pet.needs.energy - 0.25);
+  expect(once.needs.energy).toBeCloseTo(pet.needs.energy - RACE_INPUT_ENERGY);
   const empty = spendRaceTap({ ...pet, needs: { ...pet.needs, energy: 0 } });
   expect(empty.needs.energy).toBe(0);
   expect(spendRaceTap(empty)).toBe(empty);
-  const scrap = spendRaceTap({ ...pet, needs: { ...pet.needs, energy: 0.1 } });
-  expect(scrap.needs.energy).toBe(0);
+  const scrap = spendRaceTap({ ...pet, needs: { ...pet.needs, energy: 0.5 } });
+  expect(scrap.needs.energy).toBeCloseTo(0.1);
+  const dust = spendRaceTap({ ...pet, needs: { ...pet.needs, energy: 0.05 } });
+  expect(dust.needs.energy).toBe(0);
 });
 
 it('applies race rewards once and skips race XP during the tutorial', () => {

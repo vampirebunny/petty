@@ -52,7 +52,19 @@ export {
   type MetricKind,
 } from './calibration.ts';
 export { coastFloorMps, coastPastM, coastRunner, type CoastState } from './coast.ts';
-export { createRunner, neutralModifiers, npcSpeed, runFunRun, speedScale, stepRunner, type Modifiers, type NpcSpec, type RunnerState } from './funRun.ts';
+export {
+  RACE_INPUT_ENERGY,
+  createRunner,
+  neutralModifiers,
+  npcSpeed,
+  runFunRun,
+  speedScale,
+  stepRunner,
+  takeRaceEnergy,
+  type Modifiers,
+  type NpcSpec,
+  type RunnerState,
+} from './funRun.ts';
 export {
   HURDLES_VERSION,
   createHurdleRunner,
