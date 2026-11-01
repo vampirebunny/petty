@@ -1,7 +1,9 @@
 import { careConfig } from '../sim/careConfig';
 
-// Every invitation timing number lives here.
+// Every invitation rule number lives here.
 export const inviteConfig = {
+  /** NPC invitations wait until the pet reaches this level. */
+  minLevel: 6,
   /** A race invite uses a card that starts at least this far out. */
   leadMs: 2 * 60 * 1000,
   runwayExpireMs: 24 * 60 * 60 * 1000,

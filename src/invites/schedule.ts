@@ -34,6 +34,10 @@ export function daySpent(counters: InviteCounters, today: string): boolean {
   return counters.shownDay === today;
 }
 
+export function invitesUnlocked(level: number): boolean {
+  return level >= inviteConfig.minLevel;
+}
+
 export function formatEligible(
   row: FormatState,
   openedDays: number,

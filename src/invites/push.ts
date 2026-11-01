@@ -3,7 +3,7 @@ import * as Notifications from 'expo-notifications';
 
 import { localDay } from '../economy/clock';
 import type { PetState } from '../sim/types';
-import { nextPushAt, noteAppOpen } from './schedule';
+import { invitesUnlocked, nextPushAt, noteAppOpen } from './schedule';
 import { loadCounters, saveCounters } from './store';
 
 export const npcInvitePushId = 'npc-invite';
@@ -36,6 +36,14 @@ export async function scheduleNpcPush(pet: PetState, now: number): Promise<void>
   }
   const taken = openedFromPush;
   openedFromPush = false;
+  if (!invitesUnlocked(pet.level)) {
+    const counters = await loadCounters(pet.ownerId);
+    if (counters.pendingPushAt != null) {
+      await saveCounters(pet.ownerId, { ...counters, pendingPushAt: null });
+    }
+    await cancelNpcPush();
+    return;
+  }
   let counters = noteAppOpen(await loadCounters(pet.ownerId), now, taken);
   if (!counters.pushesEnabled) {
     counters = { ...counters, pendingPushAt: null };

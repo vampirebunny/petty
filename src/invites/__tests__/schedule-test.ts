@@ -6,6 +6,7 @@ import {
   freshCounters,
   freshFormat,
   inQuietHours,
+  invitesUnlocked,
   nextPushAt,
   noteAppOpen,
   quietSafeAt,
@@ -17,6 +18,12 @@ function at(year: number, month: number, day: number, hour: number, minute = 0):
 }
 
 describe('invitation schedule', () => {
+  it('holds invitations until the pet reaches the minimum level', () => {
+    expect(invitesUnlocked(1)).toBe(false);
+    expect(invitesUnlocked(inviteConfig.minLevel - 1)).toBe(false);
+    expect(invitesUnlocked(inviteConfig.minLevel)).toBe(true);
+  });
+
   it('offers a format the first time, then waits four active days', () => {
     const row = freshFormat();
     expect(formatEligible(row, 3, 0, false)).toBe(true);

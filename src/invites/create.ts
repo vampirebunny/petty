@@ -9,7 +9,7 @@ import { fetchBoard, type StadiumBoard } from '../stadium/api';
 import { inviteConfig } from './config';
 import { soonestRace } from './pick';
 import { cancelNpcPush } from './push';
-import { chooseFormat, daySpent, formatEligible, formatTrigger, spendDay } from './schedule';
+import { chooseFormat, daySpent, formatEligible, formatTrigger, invitesUnlocked, spendDay } from './schedule';
 import { loadCounters, saveCounters } from './store';
 import type { Invitation, InviteFormat, InviteSurface, RaceOption } from './types';
 
@@ -43,7 +43,7 @@ export async function createInvitation(
   surface: InviteSurface,
   linked: boolean,
 ): Promise<Invitation | null> {
-  if (!pet.ownerId) {
+  if (!pet.ownerId || !invitesUnlocked(pet.level)) {
     return null;
   }
   const now = Date.now();

@@ -47,6 +47,8 @@ Rules:
 
 Put every number in config.
 
+**Level 6.** No invitation, in-app or push, until the pet is at least level 6. Time before that does not spend the day's invitation, and it does not start the push timer. Once the pet reaches level 6, the rules below apply on the next eligible action and the next app open.
+
 **In-app (player is in the app)**
 
 - Show only while the pet is in the house: living room, bedroom, or catio, with no map destination.
@@ -195,4 +197,4 @@ A race result stays on `competition_result`.
 - Costume pieces: the full theme rack is available at Accept, except pieces the seeded NPCs wear.
 - Envelope chime: `badge-earned.wav`.
 - Theme panel art: `ThemeStill`, cropped from the top of the venue so it fills the frame, with the band colors above.
-- Dev debug, development builds only: Settings has **Runway invite** and **Race invite**. They show the envelope immediately. They do not spend the day's invitation, and Maybe Next Time on one of them is not a dismissal. The race button uses the next playable board card. If the board has none, it shows a Fun Run preview.
+- Dev debug, development builds only: Settings has **Runway invite** and **Race invite**. They show the envelope immediately, including before level 6. They do not spend the day's invitation, and Maybe Next Time on one of them is not a dismissal. The race button uses the next playable board card. If the board has none, it shows a Fun Run preview.
