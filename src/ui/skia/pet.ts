@@ -6,7 +6,7 @@ import { strutFoot } from '../../actor/data/strut';
 import type { Actor, Breed, Geom, Pose } from '../../actor';
 import { blendedTheta, facingFit, projectLocal } from '../../actor/facing';
 import { facingConfig } from '../../actor/data/facing';
-import { carriedMouth, headFaceOf, headShift, noseOf, reachOf, rearOf, torsoPoint } from '../../actor/geometry';
+import { carriedMouth, headBob, headFaceOf, headShift, noseOf, reachOf, rearOf, torsoPoint } from '../../actor/geometry';
 import { racePoses } from '../../actor/data/locomotion';
 import { flightExtend, liftScaleOf } from '../../actor/locomotion';
 import { jumpConfig } from '../../actor/jump';
@@ -1112,7 +1112,11 @@ export function drawActor(
   c.restore();
   const nx = head.x - 2 - base.x;
   const ny = head.y + 3 - base.y;
-  const along = neckAxis(head, base, geom.headR);
+  // The stride dips the head by 1.4px. That is enough to push neckFlat across the
+  // lie cutoff, which paints the scarf under the skull for half of each step.
+  const bobShare = Math.max(0, 1 - pose.headDown - pose.headRest);
+  const neckHead = { x: head.x, y: head.y - headBob(actor.phase, pose.walk) * bobShare };
+  const along = neckAxis(neckHead, base, geom.headR);
   // perpendicular to the neck, always pointing down the screen
   const perp = along.x >= 0 ? { x: -along.y, y: along.x } : { x: along.y, y: -along.x };
   const neck = { x: base.x + nx * 0.62, y: base.y + ny * 0.62 };
@@ -1214,7 +1218,7 @@ export function drawActor(
     if (!neckwear || !neckAnchor || neckAnchor.mode === 'knot') {
       return;
     }
-    const chin = chinAnchor(head, base, R, pitch, cat, view, collarJawOf(face, R), pose.lie);
+    const chin = chinAnchor(neckHead, base, R, pitch, cat, view, collarJawOf(face, R), pose.lie);
     const sway = Math.sin(t * 3) * 0.08 + Math.sin(t * 11) * clamp(actor.speed / 120, 0, 1) * 0.12;
     const chest = markingOf(markings, 'chest')?.color ?? baseColor;
     c.save();

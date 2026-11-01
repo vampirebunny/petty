@@ -1,4 +1,5 @@
-import { chinAnchor, neckAxis } from '../cosmetics';
+import { headBob } from '../../../actor/geometry';
+import { chinAnchor, neckAxis, neckwearUnderHead } from '../cosmetics';
 
 jest.mock('@shopify/react-native-skia', () => ({
   ClipOp: {},
@@ -24,6 +25,19 @@ it('parks sleep neckwear under the jaw', () => {
   expect(chin.y).toBeGreaterThan(head.y + r * 0.4);
   expect(chin.y).toBeLessThan(head.y + r);
   expect(Math.abs(chin.x - head.x)).toBeLessThan(r * 0.25);
+});
+
+it('keeps a walking scarf off the lie cutoff', () => {
+  const base = { x: 0, y: 0 };
+  const r = 20;
+  const still = { x: 14, y: -9 };
+  const phase = Math.PI / 4;
+  expect(headBob(phase, 1)).toBeCloseTo(1.4);
+  expect(neckwearUnderHead(neckAxis(still, base, r))).toBe(false);
+  const bobbed = { x: still.x, y: still.y + headBob(phase, 1) };
+  expect(neckwearUnderHead(neckAxis(bobbed, base, r))).toBe(true);
+  const worn = { x: bobbed.x, y: bobbed.y - headBob(phase, 1) };
+  expect(neckwearUnderHead(neckAxis(worn, base, r))).toBe(false);
 });
 
 it('leaves an upright neck on the throat', () => {

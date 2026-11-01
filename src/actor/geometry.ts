@@ -421,6 +421,12 @@ export function carriedMouth(breed: Breed, geom: Geom, face: HeadFace, rear: num
   return { x, y };
 }
 
+// Screen-space dip of the head during a stride. Neckwear subtracts this back out:
+// the same 1.4px pushes a standing neck across the lie cutoff and hides the scarf.
+export function headBob(phase: number, walk: number): number {
+  return Math.sin(phase * 2) * 1.4 * walk;
+}
+
 // Side keeps the head forward. 3/4 is about 55% of that reach. Front and back sit on the chest.
 function headReach(foreshorten: number): number {
   const f = Math.max(0, Math.min(1, foreshorten));
@@ -496,7 +502,7 @@ export function bodyFrame(
   }
   const natural = torsoPoint(geom, theta, dy, headX, headY);
   natural.x += 10 * pose.sit;
-  natural.y += Math.sin(phase * 2) * 1.4 * pose.walk;
+  natural.y += headBob(phase, pose.walk);
   const pitchBase = -0.1 * pose.sit - 0.3 * barkOpen;
   const eatPitch = 0.7;
   const restPitch = 0.12;
