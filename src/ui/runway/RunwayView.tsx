@@ -14,7 +14,7 @@ import { quietRunwayTrack, startRunwayTrack, stopRunwayTrack } from '../../audio
 import { themeById, type RunwayThemeId } from '../../runway/catalog';
 import { runwayConfig } from '../../runway/config';
 import { equipFromFrozenLook } from '../../runway/lookEquip';
-import { buildBeats, modelsForViewer, skipToNextModel, skipToNextRound, venueScrolls } from '../../runway/playback';
+import { buildBeats, lookForRound, modelsForViewer, skipToNextModel, skipToNextRound, venueScrolls } from '../../runway/playback';
 import type { LocalRunwayShow } from '../../runway/types';
 import {
   layerOffset,
@@ -46,6 +46,7 @@ type Props = {
   show: LocalRunwayShow;
   viewerSubmissionId?: string;
   reducedMotion: boolean;
+  doneLabel?: string;
   onDone: () => void;
 };
 
@@ -65,7 +66,7 @@ function petScreenX(stepId: string, progress: number, width: number): number {
   return center;
 }
 
-export function RunwayView({ show, viewerSubmissionId, reducedMotion, onDone }: Props) {
+export function RunwayView({ show, viewerSubmissionId, reducedMotion, doneLabel = 'Return to The Catwalk', onDone }: Props) {
   const { width, height } = useWindowDimensions();
   const themeId = (themeById(show.themeId)?.id ?? 'space') as RunwayThemeId;
   const scale = venueScale(height);
@@ -257,7 +258,7 @@ export function RunwayView({ show, viewerSubmissionId, reducedMotion, onDone }: 
       drawPetShadow(canvas, petCenterX, pawScreenY, scale);
 
       const model = models[beat.modelIndex];
-      const look = model?.submission.looks[beat.lookIndex];
+      const look = model ? lookForRound(model.submission.looks, beat.lookIndex) : undefined;
       const pet = model?.submission.pet;
       if (pet && look) {
         try {
@@ -444,14 +445,14 @@ export function RunwayView({ show, viewerSubmissionId, reducedMotion, onDone }: 
       {ended ? (
         <FunModal
           title="That's a wrap!"
-          body="What a show. Want to watch it again?"
+          body={doneLabel === 'Continue' ? 'What a show. Continue when you are ready to vote.' : 'What a show. Want to watch it again?'}
           icon={Clapperboard}
           tint="lilac"
           sparkle
           reducedMotion={reducedMotion}
           primary={{ label: 'Replay', onPress: replayShow }}
           secondary={{
-            label: 'Return to The Catwalk',
+            label: doneLabel,
             onPress: () => onDoneRef.current(),
             closeFirst: true,
           }}
