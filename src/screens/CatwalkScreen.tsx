@@ -755,6 +755,7 @@ export function CatwalkScreen({
           weight={pet.weight}
           vitality={pet.vitality}
           look={pet.look}
+          asleep={pet.asleep}
           equipped={draftEquip.equipped}
           wearDefs={draftEquip.wearDefs}
           backWear={draftEquip.backWear}

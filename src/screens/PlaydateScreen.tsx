@@ -284,6 +284,7 @@ export function PlaydateScreen({ pet, save, now, remaining, reducedMotion, onSav
             vitality: pet.vitality,
             look: pet.look,
             seed: pet.attributes.seed,
+            asleep: pet.asleep,
           }}
           owned={owned}
           equipped={outfit}

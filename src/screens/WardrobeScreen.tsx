@@ -106,6 +106,7 @@ export function WardrobeScreen({
           vitality: pet.vitality,
           look: pet.look,
           seed: pet.attributes.seed,
+          asleep: pet.asleep,
         }}
         owned={owned}
         equipped={equipped}

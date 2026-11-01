@@ -49,7 +49,7 @@ export function WardrobePicker({ subject, owned, equipped, onEquip, reducedMotio
     <View style={[styles.root, split && styles.split]}>
       <View style={[styles.sticky, split && styles.previewPane]}>
         <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-          <OutfitPreview {...subject} equipped={equipped} width={previewW} height={previewH} t={t} pose="sit" bare />
+          <OutfitPreview {...subject} equipped={equipped} width={previewW} height={previewH} t={t} pose="sit" />
         </View>
         <View style={styles.status}>
           <Text style={styles.statusText} numberOfLines={2}>
