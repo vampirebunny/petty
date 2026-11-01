@@ -527,7 +527,12 @@ registerProp('fence', drawFence);
 registerProp('treasureChest', (c, prop, env) => {
   const w = prop.w ?? parkFinds.chestWidth;
   const h = w * (240 / 260);
-  castShadow(c, env, 0, 2, w * 0.42, 5, h * 0.4);
+  const lifted = env.liftedId === prop.id;
+  // The closed sprite's feet end 29 units above the bottom of its 240-tall canvas.
+  // A shadow on the floor anchor falls in that gap and the chest looks like it is floating.
+  // Picked up to move, that gap is the hover.
+  const foot = (29 / 240) * h;
+  castShadow(c, env, 0, lifted ? 2 : 2 - foot, w * 0.42, 5, h * 0.4);
   const image = chestSkia();
   if (image) {
     const paint = Skia.Paint();
