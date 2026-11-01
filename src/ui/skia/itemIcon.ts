@@ -104,3 +104,55 @@ export function itemIconPicture(slot: OutfitSlot, item: WearItem, bg: string): S
   pictures.set(key, picture);
   return picture;
 }
+
+export type IconBounds = { x: number; y: number; width: number; height: number };
+
+const fullBox: IconBounds = { x: 0, y: 0, width: ICON_BOX, height: ICON_BOX };
+const bounds = new Map<string, IconBounds>();
+// Reach past the box so strokes that spill over an edge still count.
+const BOUNDS_PAD = 10;
+
+// The painted area of an icon in icon-box units. Each slot draws at a different spot and size,
+// so tiles fit this area instead of the whole box.
+export function itemIconBounds(slot: OutfitSlot, item: WearItem, bg: string): IconBounds {
+  const key = `${slot}:${item.id}:${bg}`;
+  const hit = bounds.get(key);
+  if (hit) {
+    return hit;
+  }
+  const side = ICON_BOX + BOUNDS_PAD * 2;
+  const surface = Skia.Surface.Make(side, side);
+  const pixels = (() => {
+    if (!surface) {
+      return null;
+    }
+    const canvas = surface.getCanvas();
+    canvas.clear(Skia.Color('transparent'));
+    canvas.translate(BOUNDS_PAD, BOUNDS_PAD);
+    canvas.drawPicture(itemIconPicture(slot, item, bg));
+    surface.flush();
+    return surface.makeImageSnapshot().readPixels();
+  })();
+  let found = fullBox;
+  if (pixels) {
+    let minX = side;
+    let minY = side;
+    let maxX = -1;
+    let maxY = -1;
+    for (let y = 0; y < side; y++) {
+      for (let x = 0; x < side; x++) {
+        if (pixels[(y * side + x) * 4 + 3] > 8) {
+          minX = Math.min(minX, x);
+          maxX = Math.max(maxX, x);
+          minY = Math.min(minY, y);
+          maxY = Math.max(maxY, y);
+        }
+      }
+    }
+    if (maxX >= minX && maxY >= minY) {
+      found = { x: minX - BOUNDS_PAD, y: minY - BOUNDS_PAD, width: maxX - minX + 1, height: maxY - minY + 1 };
+    }
+  }
+  bounds.set(key, found);
+  return found;
+}

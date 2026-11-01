@@ -72,11 +72,11 @@ import { RunwayView } from '../ui/runway/RunwayView';
 import { CandyButton } from '../ui/stadium/CandyButton';
 import { PrimaryButton } from '../ui/refresh/PrimaryButton';
 import { BoopModal } from '../ui/refresh/BoopModal';
-import { ItemTile } from '../ui/refresh/ItemTile';
+import { GoSomewhere } from '../ui/refresh/GoSomewhere';
+import { StatStrip } from '../ui/refresh/StatStrip';
+import { ItemIconArt } from '../ui/refresh/ItemIconArt';
+import { ItemTile, itemArtSize } from '../ui/refresh/ItemTile';
 import { SlotTabs } from '../ui/refresh/SlotTabs';
-import { ui } from '../ui/refresh/tokens';
-import { ICON_BOX, itemIconPicture } from '../ui/skia/itemIcon';
-import { Canvas, Group, Picture } from '@shopify/react-native-skia';
 import { costumeRackImages } from '../runway/costumeRackImages';
 import { ink, softInk } from '../ui/stadium/parts';
 import { iconStroke } from '../ui/theme';
@@ -774,25 +774,16 @@ export function CatwalkScreen({
       style={[styles.header, lobby ? (split ? styles.headerLobbySplit : styles.headerLobby) : null]}
       pointerEvents="box-none"
     >
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={lobby ? 'Back to map' : 'Back'}
-        onPress={goBack}
-        style={styles.back}
-      >
-        <ChevronLeft size={22} color={ink} strokeWidth={iconStroke} />
-      </Pressable>
+      {lobby ? (
+        <HeaderBrand uid="catwalk-settings" pendingFriends={pendingFriends} onSettings={onSettings} />
+      ) : (
+        <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={goBack} style={styles.back}>
+          <ChevronLeft size={22} color={ink} strokeWidth={iconStroke} />
+        </Pressable>
+      )}
       <Text style={[styles.headerTitle, lobby ? styles.headerTitleLobby : null]} numberOfLines={1}>
         {runwayConfig.venueName}
       </Text>
-      {lobby ? (
-        <HeaderBrand
-          style={styles.headerBrand}
-          uid="catwalk-settings"
-          pendingFriends={pendingFriends}
-          onSettings={onSettings}
-        />
-      ) : null}
     </View>
   );
 
@@ -849,6 +840,24 @@ export function CatwalkScreen({
   if (step === 'lobby') {
     body = (
       <>
+        <StatStrip
+          tummy={100 - pet.needs.hunger}
+          water={pet.hydration}
+          energy={pet.needs.energy}
+          mood={pet.needs.happiness}
+          reducedMotion={reducedMotion}
+        />
+        <GoSomewhere
+          petName={pet.name}
+          placeId="catwalk"
+          placeName="Catwalk"
+          at
+          reducedMotion={reducedMotion}
+          onPress={() => {
+            stopRunwayPreview();
+            onClose();
+          }}
+        />
         {lobbyCards.length > 0 ? <Text style={styles.section}>Show invites</Text> : null}
         {lobbyCards.map((row) => {
           const action = lobbyShowLabel(row, nowTick);
@@ -1082,7 +1091,7 @@ export function CatwalkScreen({
                     reducedMotion={reducedMotion}
                     state={taken ? 'used' : locked ? 'locked' : current.costumes.includes(piece.id) ? 'selected' : 'default'}
                     tag={taken ? 'Taken' : countdownLabel ?? undefined}
-                    art={costumeRackImages[piece.id] ? <Image source={costumeRackImages[piece.id]} style={{ width: 64, height: 52 }} resizeMode="contain" /> : null}
+                    art={costumeRackImages[piece.id] ? <Image source={costumeRackImages[piece.id]} style={itemArtSize} resizeMode="contain" /> : null}
                     onPress={() => toggleCostume(piece.id)}
                   />
                 );
@@ -1093,13 +1102,7 @@ export function CatwalkScreen({
                   label={item.label}
                   reducedMotion={reducedMotion}
                   state={current.wardrobe[closetTab] === item.id ? 'selected' : 'default'}
-                  art={
-                    <Canvas style={{ width: 64, height: 52 }}>
-                      <Group transform={[{ scale: 52 / ICON_BOX }]}>
-                        <Picture picture={itemIconPicture(closetTab, item, ui.card)} />
-                      </Group>
-                    </Canvas>
-                  }
+                  art={<ItemIconArt slot={closetTab} item={item} />}
                   onPress={() => toggleWardrobe(closetTab, item.id)}
                 />
               ))}
@@ -1361,9 +1364,6 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     minWidth: 0,
   },
-  headerBrand: {
-    marginLeft: 'auto',
-  },
   headerTitle: {
     fontFamily: fontFamily.fredokaBold,
     fontSize: 26,
@@ -1413,7 +1413,7 @@ const styles = StyleSheet.create({
   lookText: { fontFamily: fontFamily.semibold, fontSize: 14, color: softInk },
   lookTextOn: { color: ink, fontFamily: fontFamily.fredokaBold },
   rack: { gap: 8 },
-  rackRow: { flexDirection: 'row', gap: 4, alignItems: 'stretch' },
+  rackRow: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -5 },
   countdown: { fontFamily: fontFamily.fredokaBold, fontSize: 32, color: ink },
   voteRow: {
     flexDirection: 'row',

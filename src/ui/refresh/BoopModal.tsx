@@ -79,9 +79,7 @@ export function BoopModal({
           <Icon size={34} color={tone.main} strokeWidth={2} />
         </View>
         <Text style={styles.title}>{title}</Text>
-        <Text style={styles.body} numberOfLines={3}>
-          {body}
-        </Text>
+        <Text style={styles.body}>{body}</Text>
         {item ? (
           <View style={styles.item}>
             <Text style={styles.itemName}>{item.name}</Text>
@@ -99,25 +97,21 @@ export function BoopModal({
   );
 
   return (
-    <Animated.View style={[styles.layer, top != null && { top }, layerStyle]} pointerEvents="box-none">
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Dismiss"
-        disabled={!dismissible}
-        onPress={() => {
-          if (secondary) {
-            press(secondary.onPress, secondary.closeFirst);
-          }
-        }}
-        style={styles.scrim}
-      />
-      {top != null ? (
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-          {card}
-        </ScrollView>
-      ) : (
-        card
-      )}
+    <Animated.View style={[styles.layer, top != null && { top }, layerStyle]}>
+      <ScrollView style={styles.fill} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" bounces={false}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Dismiss"
+          disabled={!dismissible}
+          onPress={() => {
+            if (secondary) {
+              press(secondary.onPress, secondary.closeFirst);
+            }
+          }}
+          style={StyleSheet.absoluteFill}
+        />
+        {card}
+      </ScrollView>
     </Animated.View>
   );
 }
@@ -126,18 +120,19 @@ const styles = StyleSheet.create({
   layer: {
     ...StyleSheet.absoluteFill,
     zIndex: 40,
+    backgroundColor: ui.scrim,
+  },
+  fill: {
+    flex: 1,
+  },
+  // The badge sits 40pt above the card, so the top padding keeps it on screen when the card scrolls.
+  scroll: {
+    flexGrow: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 32,
-  },
-  scrim: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: ui.scrim,
-  },
-  scroll: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    paddingVertical: 24,
+    paddingTop: 56,
+    paddingBottom: 24,
   },
   cardWrap: {
     width: '100%',

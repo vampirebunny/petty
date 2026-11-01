@@ -1,14 +1,18 @@
 import { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { Pressable } from 'react-native-gesture-handler';
 import { Bone, Droplet, Heart, Moon, Package, Shirt, Sparkles, Utensils } from 'lucide-react-native';
 
+import { candyInk } from '../candy';
 import { fontFamily } from '../font';
 import { ActionCard, ActionGrid } from './ActionCard';
+import { Gloss } from './Gloss';
+import { GoSomewhere } from './GoSomewhere';
 import { needWord, StatStrip } from './StatStrip';
 import { TabSwitcher, type HomeTab } from './TabSwitcher';
 import { TrainingRow } from './TrainingRow';
 import { ui } from './tokens';
+import { isLandscapeSplit } from '../wideLayout';
 
 export type DeckAction = {
   id: string;
@@ -48,6 +52,8 @@ type Props = {
   training: TrainItem[];
   learned: LearnedItem[];
   onSchool: () => void;
+  place: { id: string; name: string };
+  onGoSomewhere: () => void;
   suggestedId: string | null;
   note: string | null;
 };
@@ -57,6 +63,8 @@ function byId(list: DeckAction[], id: string): DeckAction | undefined {
 }
 
 export function HomeDeck(props: Props) {
+  const { width, height } = useWindowDimensions();
+  const split = isLandscapeSplit(width, height);
   const [tab, setTab] = useState<HomeTab>('care');
   const [toast, setToast] = useState<string | null>(null);
   const suggestedTab: HomeTab | null =
@@ -97,7 +105,7 @@ export function HomeDeck(props: Props) {
 
   return (
     <View style={styles.root}>
-      <View style={styles.pinned}>
+      <View style={[styles.pinned, split && styles.pinnedSplit]}>
         <StatStrip
           tummy={props.tummy}
           water={props.water}
@@ -105,16 +113,24 @@ export function HomeDeck(props: Props) {
           mood={props.mood}
           reducedMotion={props.reducedMotion}
         />
+        <GoSomewhere
+          petName={props.petName}
+          placeId={props.place.id}
+          placeName={props.place.name}
+          reducedMotion={props.reducedMotion}
+          onPress={props.onGoSomewhere}
+        />
         <TabSwitcher value={tab} onChange={setTab} alerts={alerts} />
       </View>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         {toast ? <Text style={styles.toast}>{toast}</Text> : null}
         {props.note ? <Text style={styles.toast}>{props.note}</Text> : null}
         {tab === 'care' ? (
-          <ActionGrid>
+          <ActionGrid compact>
             <ActionCard
               icon={Utensils}
               title="Feed"
+              size="quarter"
               sublabel={feed?.blockedReason ?? `${props.petName} is ${tummyWord}`}
               accent="care"
               state={stateFor(feed)}
@@ -125,6 +141,7 @@ export function HomeDeck(props: Props) {
             <ActionCard
               icon={Droplet}
               title="Water"
+              size="quarter"
               sublabel={water?.blockedReason ?? needWord('water', props.water)}
               accent="care"
               state={stateFor(water)}
@@ -135,7 +152,8 @@ export function HomeDeck(props: Props) {
             <ActionCard
               icon={Bone}
               title="Treat"
-              sublabel={`${props.treatCount} in your bag`}
+              size="quarter"
+              sublabel={`${props.treatCount} in bag`}
               accent="care"
               state={stateFor(treat)}
               reducedMotion={props.reducedMotion}
@@ -144,7 +162,8 @@ export function HomeDeck(props: Props) {
             <ActionCard
               icon={Moon}
               title={props.asleep ? 'Wake' : 'Sleep'}
-              sublabel={props.asleep ? 'Wake up' : 'Restores energy'}
+              size="quarter"
+              sublabel={props.asleep ? 'Wake up' : 'Rest up'}
               accent="care"
               state={stateFor(sleep)}
               reducedMotion={props.reducedMotion}
@@ -153,38 +172,38 @@ export function HomeDeck(props: Props) {
           </ActionGrid>
         ) : null}
         {tab === 'bond' ? (
-          <View style={styles.stack}>
-            <ActionGrid>
-              <ActionCard
-                icon={Heart}
-                title="Cuddle"
-                sublabel="A pat and a cuddle"
-                accent="bond"
-                state={stateFor(byId(props.bond, 'cuddle'))}
-                reducedMotion={props.reducedMotion}
-                onPress={() => byId(props.bond, 'cuddle')?.onPress()}
-              />
-              <ActionCard
-                icon={Sparkles}
-                title="Play"
-                sublabel="Throw a toy"
-                accent="bond"
-                state={stateFor(byId(props.bond, 'play'))}
-                reducedMotion={props.reducedMotion}
-                onPress={() => byId(props.bond, 'play')?.onPress()}
-              />
-            </ActionGrid>
+          <ActionGrid compact>
+            <ActionCard
+              icon={Heart}
+              title="Cuddle"
+              size="quarter"
+              sublabel="Pat and cuddle"
+              accent="bond"
+              state={stateFor(byId(props.bond, 'cuddle'))}
+              reducedMotion={props.reducedMotion}
+              onPress={() => byId(props.bond, 'cuddle')?.onPress()}
+            />
+            <ActionCard
+              icon={Sparkles}
+              title="Play"
+              size="quarter"
+              sublabel="Throw a toy"
+              accent="bond"
+              state={stateFor(byId(props.bond, 'play'))}
+              reducedMotion={props.reducedMotion}
+              onPress={() => byId(props.bond, 'play')?.onPress()}
+            />
             <ActionCard
               icon={Heart}
               title="Playdate"
+              size="quarter"
               sublabel={props.playdateLabel}
               accent="bond"
-              size="full"
               state={stateFor(byId(props.bond, 'playdate'))}
               reducedMotion={props.reducedMotion}
               onPress={() => byId(props.bond, 'playdate')?.onPress()}
             />
-          </View>
+          </ActionGrid>
         ) : null}
         {tab === 'train' ? (
           <View style={styles.stack}>
@@ -205,50 +224,52 @@ export function HomeDeck(props: Props) {
             <View style={styles.chips}>
               {props.learned.map((trick) => (
                 <Pressable key={trick.id} accessibilityRole="button" onPress={trick.onPress} style={styles.chip}>
+                  <Gloss radius={22} />
                   <Text style={styles.chipText}>{trick.label}</Text>
                 </Pressable>
               ))}
               <Pressable accessibilityRole="button" onPress={props.onSchool} style={styles.chip}>
+                <Gloss radius={22} />
                 <Text style={styles.chipText}>More at Training School ›</Text>
               </Pressable>
             </View>
           </View>
         ) : null}
         {tab === 'style' ? (
-          <View style={styles.stack}>
-            <ActionGrid>
-              <ActionCard
-                icon={Shirt}
-                title="Wardrobe"
-                sublabel={props.outfitLabel}
-                accent="style"
-                state={stateFor(byId(props.style, 'wardrobe'))}
-                reducedMotion={props.reducedMotion}
-                onPress={() => byId(props.style, 'wardrobe')?.onPress()}
-              />
-              <ActionCard
-                icon={Package}
-                title="Storage"
-                sublabel="Food, treats and toys"
-                accent="style"
-                state={stateFor(byId(props.style, 'storage'))}
-                reducedMotion={props.reducedMotion}
-                onPress={() => byId(props.style, 'storage')?.onPress()}
-              />
-            </ActionGrid>
+          <ActionGrid compact>
+            <ActionCard
+              icon={Shirt}
+              title="Wardrobe"
+              size="quarter"
+              sublabel={props.outfitLabel}
+              accent="style"
+              state={stateFor(byId(props.style, 'wardrobe'))}
+              reducedMotion={props.reducedMotion}
+              onPress={() => byId(props.style, 'wardrobe')?.onPress()}
+            />
+            <ActionCard
+              icon={Package}
+              title="Storage"
+              size="quarter"
+              sublabel="Furniture and props"
+              accent="style"
+              state={stateFor(byId(props.style, 'storage'))}
+              reducedMotion={props.reducedMotion}
+              onPress={() => byId(props.style, 'storage')?.onPress()}
+            />
             {byId(props.style, 'collection') ? (
               <ActionCard
                 icon={Sparkles}
                 title="Collection"
-                sublabel={`Everything ${props.petName} has found`}
+                size="quarter"
+                sublabel="Park finds"
                 accent="style"
-                size="full"
                 state={stateFor(byId(props.style, 'collection'))}
                 reducedMotion={props.reducedMotion}
                 onPress={() => byId(props.style, 'collection')?.onPress()}
               />
             ) : null}
-          </View>
+          </ActionGrid>
         ) : null}
       </ScrollView>
     </View>
@@ -261,10 +282,15 @@ const styles = StyleSheet.create({
     backgroundColor: ui.bg,
   },
   pinned: {
-    gap: ui.space.gap,
+    gap: 6,
     paddingHorizontal: ui.space.gutter,
     paddingTop: 8,
+    // Phone: pull the strip up under the stage. Widescreen: the column clips, so stay flush.
     marginTop: -34,
+  },
+  pinnedSplit: {
+    marginTop: 0,
+    paddingTop: 12,
   },
   scroll: {
     padding: ui.space.gutter,
@@ -294,13 +320,18 @@ const styles = StyleSheet.create({
     minHeight: 44,
     paddingHorizontal: 14,
     borderRadius: ui.radius.pill,
-    backgroundColor: ui.card,
+    backgroundColor: ui.candy.train.base,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: ui.gloss.top,
+    borderBottomWidth: 4,
+    borderBottomColor: ui.candy.train.lip,
   },
   chipText: {
     fontFamily: fontFamily.fredokaSemibold,
     fontSize: 14,
-    color: ui.ink,
+    color: candyInk(ui.candy.train),
   },
 });

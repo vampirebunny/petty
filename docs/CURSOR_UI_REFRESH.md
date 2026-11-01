@@ -18,6 +18,15 @@ These override the phase notes where they disagree.
 - Restyle park finds and friend requests. Do not restyle game invites or account sheets (`AccountSheet`, the handle form).
 - The Care tab may scroll. Landscape home stays a scene plus a phone-width column.
 - New press and modal motion read the existing Reduce Motion flag. There is no new setting.
+- Home buttons are candy, not white cards. Care is pink, Bond is sky, Train is lilac, and Style is aqua, using the `CandyFace` gradient and gloss with that flavor's lip as the edge. The active tab takes its section's candy. The pink button and the Train pill carry the same gloss. An unavailable card stays flat gray.
+- Care, Bond, and Style use four quarter tiles in a row on a phone (`ActionCard` size `quarter`). Playdate and Collection sit in that row with the other Bond and Style actions.
+- `GoSomewhere` sits under the `StatStrip` and opens the town map. The scene still keeps a small location chip. On a phone the strip overlaps the stage by 34pt; on a landscape split that overlap is off so the strip is not clipped.
+- Sounds and Music are candy lilac rows with glossy switches at the top of Settings. There is no Sound section title. On a landscape Settings split, Traits, Friends, and Badges are on the left; sound, account, and delete stay on the right.
+- Wardrobe Done is green (`PrimaryButton` tone `green`). The daily toggle label is "Automatically choose new outfit every day". Item tiles are three across and scroll down; art fills most of the tile by measuring each icon's painted bounds (`ItemIconArt`). On a landscape split the living-room preview fills the whole left pane.
+- Catwalk lobby, Arcade lobby, and Stadium lobby have no back button. Each shows the `StatStrip`, then `GoSomewhere` ("[pet] is at the …"), with the logo and settings on the left of the header. Later Catwalk and Stadium steps keep their step-back control.
+- Catwalk runway shows draw no ground shadow under the models.
+- Training success, out-of-treats, and break dialogs stay on `TrainingSheet` / `FunModal`. Home bed, chest, wardrobe daily-outfit, and Catwalk judge/wrap cards use `BoopModal`.
+- The HTML Lookbook and Control Panel redesign mocks are removed; the refresh tokens and this brief are the reference.
 - New components take color from the refresh tokens. `src/ui/theme.ts` and `src/ui/closet/closetStyle.ts` stay for screens this pass does not touch.
 
 Work in the phases below, in order. Finish each phase, run the app, and confirm its checklist before starting the next. Keep commits per phase.
@@ -98,7 +107,7 @@ Build `PrimaryButton`: same mechanics, gradient `primary.top → primary.bottom`
 |---|---|---|
 | Header | safe area + ~60 | App icon, pet name, Lv + XP bar, Boops pill, settings button (44×44). Same data as now, tidied. |
 | Pet scene | ~34% of screen height, min 240 | Unchanged scene. Add `LocationChip` top-left. |
-| `StatStrip` | ~76, overlaps scene bottom by 34 | Replaces the four big rings. |
+| `StatStrip` | ~60; phone overlaps scene by 34, landscape flush | Replaces the four big rings. |
 | `TabSwitcher` | 52 | Care · Bond · Train · Style |
 | Tab content | rest | Only this area scrolls, and only if it overflows. |
 
@@ -106,30 +115,31 @@ Rules: 16pt side padding, 12pt gaps. Tab switcher and stat strip never scroll aw
 
 ### Components
 - **`ActionCard`** — props `icon, title, sublabel, accent ('care'|'bond'|'train'|'style'), state ('default'|'suggested'|'unavailable'), size ('half'|'full'), onPress, onUnavailablePress`.
-  - half: 2-column grid tile, min height 108, 44pt icon circle (accent tint fill, accent stroke icon, inner top highlight white 85%, inner bottom shade ink 6%) at top-left, Fredoka 19 title, Nunito 13 sublabel below.
+  - quarter: 4-across tile (~23% width), min height 96, centered white icon bubble + title + sublabel (shipped Home layout).
+  - half: 2-column grid tile, min height 108 (kept for denser layouts).
   - full: row — icon left, title + sublabel, chevron right; min height 76.
   - `suggested`: 2pt care-accent border, pink-tinted gloss bottom (#FDEAF1), small "Suggested" pill top-right (care accent bg, white 11pt bold).
   - `unavailable`: PressableCard disabled variant, grey icon, sublabel **must** state the reason ("Full · again in 2h", "Out of treats · Pet Shop"). Tapping shows the reason as a toast. Never grey out without a reason.
 - **`StatStrip`** — one white card, 4 equal columns (Tummy, Water, Energy, Mood). Each: colored label + `NN%` on one line, 6pt bar, existing word label (Peckish, Full, Zoomy!, Joyful!). Bars animate 300ms ease-out on change. Rename "Hydration" → "Water" in this UI.
 - **`TabSwitcher`** — segmented control on `segmentTrack`. Active = white raised pill (2pt edge), `ink` text; inactive = transparent, `inkMuted`. Prop `alerts: Set<tabId>` → 8pt care-accent dot after the tab name.
 - **`TrainingRow`** — icon circle (train accent), trick name, `NN%` in train accent, 8pt progress bar, right-side pill: "Train" (train-accent gradient #8C6EE6→#6E4FD0, edge #4E34A6) or, while resting, a disabled pill with clock icon + `m:ss` countdown ticking every second.
-- **`LocationChip`** — white 94% pill, 36pt, over the scene top-left: place icon + place name + chevron. Opens the existing Where-to map. Replaces the "Where / Go somewhere" card.
+- **`LocationChip`** — white 94% pill, 36pt, over the scene top-left: place icon + place name + chevron. Opens the map. The panel also has `GoSomewhere` under the strip.
 
 ### Tab contents
 | Tab | Contents | Sublabels |
 |---|---|---|
-| Care | 2×2 half cards: Feed, Water, Treat, Sleep (care accent) | Feed: tummy word ("Fluffs is peckish"); Water: water state; Treat: "N in your bag"; Sleep: "Restores energy" |
-| Bond | Cuddle, Play (half) + Playdate (full) (bond accent) | Playdate: cooldown countdown if on cooldown, else "Invite a friend's pet to the park" |
+| Care | Quarter tiles: Feed, Water, Treat, Sleep (care accent) | Feed: tummy word; Water: water state; Treat: "N in bag"; Sleep: "Rest up" |
+| Bond | Quarter tiles: Cuddle, Play, Playdate (bond accent) | Playdate: cooldown or "Meet a friend" |
 | Train | "IN TRAINING" label → TrainingRows; "LEARNED · TAP TO PERFORM" label → white pill chips per learned trick; final chip "More at Training School ›" | progress % and rest countdown from existing state |
-| Style | Wardrobe, Storage (half) + Collection (full) (style accent) | Wardrobe: short outfit summary; Storage: "Food, treats and toys"; Collection: "Everything [pet] has found" |
+| Style | Quarter tiles: Wardrobe, Storage, Collection when unlocked (style accent) | Wardrobe: outfit summary; Storage: "Furniture and props"; Collection: "Park finds" |
 
 Inside the Training School keep the existing rule: show only In Training and the Trick Shop, no tab switcher.
 
 ### Moves / removals
 - Big stat rings → `StatStrip`.
-- "Where" section → `LocationChip`.
+- "Where" section → `LocationChip` on the scene plus `GoSomewhere` under the strip.
 - "Try this" bubble: when the current suggestion maps to a panel button, set that button to `suggested`, add its tab to `alerts`, and hide the bubble. Keep the bubble only for suggestions with no panel button (e.g. go to the park). Only one suggested button at a time.
-- Sounds + Music toggles → Settings page (gear), new "Sound" group. Keep their saved values.
+- Sounds + Music toggles → Settings page (gear), candy switch rows with no Sound title. Keep their saved values.
 - Locked trick cards (e.g. High five) → removed from Home; locked/age-gated tricks only live in the Training School Trick Shop.
 - Delete the old section components once nothing imports them.
 
@@ -140,7 +150,7 @@ Inside the Training School keep the existing rule: show only In Training and the
 - [ ] Unavailable buttons show and toast their reason
 - [ ] Rest countdown ticks in the trick pill
 - [ ] Sound/Music work from Settings
-- [ ] Location chip opens the map; pressed state + haptic on every card
+- [ ] Location chip and Go somewhere open the map; pressed state + haptic on every card
 
 ---
 
@@ -150,7 +160,7 @@ Used by both the Wardrobe and the Catwalk.
 
 - **Slots (unified names):** Hats, Glasses, Neck, Body, Boots. Jackets/vests **and** costume wings/jetpack go under Body; costume crowns/headbands go under Hats. Map existing attachment points to these; don't rename data, just the UI labels.
 - **`SlotTabs`** — horizontal scrolling pills, 44pt tall. Each pill: the slot's representative item icon (22pt) + label. Active: 2pt `equipped.main` border, `equipped.text` label, edge `#BFE3E0`. A 7pt `equipped.main` dot when something in that slot is worn (in the current outfit / look).
-- **`ItemTile`** — 3-column grid, 10pt gaps, tile height 112, radius 22. Item art 64×52 `contain`, name Fredoka 600 13pt, max 2 lines, centered. States:
+- **`ItemTile`** — 3-column wrapping grid that scrolls down, tile height ~140, radius 22. Item art ~100×92, zoomed to the painted bounds via `ItemIconArt`, name Fredoka 600 13pt, max 2 lines, centered. States:
 
 | State | Look | Where |
 |---|---|---|
@@ -173,11 +183,11 @@ Replace the tan/khaki layout and green Continue.
 | Zone | Height | Notes |
 |---|---|---|
 | Header | safe area + 52 | Back button (44 circle), "[Pet]'s wardrobe" Fredoka 700 22, Boops pill |
-| Pet stage | ~236 | Rounded 28 card, bg #ECE7F7, soft floor ellipse #DCD4EE, pet close-up centered. Wearing chips along its bottom edge. |
-| Daily toggle row | 52 | White card: shuffle icon (style accent), label "New outfit every day", switch (on = `equipped.main`). Same setting + same first-open tooltip as today. |
+| Pet stage | phone ~236 card; landscape full left pane | Living room behind the pet. Phone: rounded card. Landscape: edge-to-edge left pane. Wearing chips along the bottom. |
+| Daily toggle row | 52 | White card: shuffle icon (style accent), label "Automatically choose new outfit every day", switch (on = `equipped.main`). Same setting + same first-open tooltip as today. |
 | SlotTabs | 44 | |
 | ItemTile grid | rest | active slot only; scrolls inside its area |
-| Footer | 56 + safe area | `PrimaryButton` "Done", pinned |
+| Footer | 56 + safe area | Green `PrimaryButton` "Done", pinned |
 
 **Wearing chips** replace the "Wearing: …" sentence and "Take it all off": one white chip per worn item (icon + short name + ×); × removes that item. "Take off all" is a text button (#5A3DBA) at the right end. With nothing worn the row says "Tap something to try it on."
 
@@ -189,7 +199,7 @@ Replace the tan/khaki layout and green Continue.
 
 | Zone | Height | Notes |
 |---|---|---|
-| Runway scene | ~210 | Existing theme scene, shortened. Back button + "The Catwalk" (white Fredoka 700 24, text shadow) over it. Music chip top-right — **inviter only** — opens the existing track picker. |
+| Runway scene | ~210 | Existing theme scene, shortened. Lobby: logo + settings on the left, title, no back. Later steps keep Back + title. Music chip top-right — **inviter only**. |
 | Look strip | 60 | 3 cards: mini thumbnail, "Look N", status ("Editing" in care accent / "N pieces" / "Empty"). Editing look: 2.5pt primary-pink border. Empty: dashed outline + plus. Tap to switch look. |
 | Source switch | 48 | Segmented "My closet" · "Costume rack"; rack shows a "N new" pink badge when pieces dropped since last viewed. |
 | SlotTabs | 44 | dots reflect the look being edited |

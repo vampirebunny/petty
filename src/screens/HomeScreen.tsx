@@ -176,6 +176,7 @@ import { SchoolControls } from '../ui/school/SchoolControls';
 import type { SchoolControlsHandle } from '../ui/school/SchoolControls';
 import { onAccountFlags, readAccountLinked, readSchoolTrickTip, setSchoolTrickTip } from '../db/accountMeta';
 import { BoopModal } from '../ui/refresh/BoopModal';
+import { FunModal } from '../ui/FunModal';
 import { TrainingSheet } from '../ui/TrainingSheet';
 import { missCopy } from '../ui/trainingResult';
 import { HandlePrompt } from '../ui/HandleScreen';
@@ -184,10 +185,11 @@ import { ReauthPrompt } from '../ui/ReauthPrompt';
 import { TreatPicker } from '../ui/TreatPicker';
 import { AttributePops, trainingPopColor, traitPopColor } from '../ui/AttributePops';
 import type { PointPop } from '../ui/AttributePops';
-import { formatRest, isResting, restRemainingMs } from '../sim/training';
+import { careConfig } from '../sim/careConfig';
+import { formatRest, isResting, restRemainingMs, treatProgressPreview } from '../sim/training';
 import { BadgeCelebration } from '../ui/BadgeCelebration';
 import { badgeLabel } from '../sim/badges';
-import { Archive, Clock, Cookie, Droplet, HandHeart, Moon, PawPrint, Sparkles } from 'lucide-react-native';
+import { Archive, Cookie, Droplet, HandHeart, Moon, PawPrint, Sparkles } from 'lucide-react-native';
 import { playBadgeChime } from '../audio/badge';
 import { GREET } from '../actor/greetings';
 import { PetView } from '../ui/PetView';
@@ -2897,15 +2899,33 @@ export default function HomeScreen({ petApi }: Props) {
     }
     stage.depart(() => setShopOpen(true));
   };
-  const leaveForTown = (sceneId: string) => {
-    if (state.care.pendingReward) {
-      const trackId = state.care.pendingReward.trackId;
-      const paid = resolveTraining('none');
-      if (paid) {
-        noteGain(trackId, paid.before, paid.after);
-      }
-      setDialog(null);
+  const settlePendingReward = () => {
+    if (!state.care.pendingReward) {
+      return;
     }
+    const trackId = state.care.pendingReward.trackId;
+    const paid = resolveTraining('none');
+    if (paid) {
+      noteGain(trackId, paid.before, paid.after);
+    }
+    setDialog(null);
+  };
+  const goToSchool = () => {
+    settlePendingReward();
+    tips.dismiss();
+    const go = () => {
+      setArriveId('school');
+      setScene('school');
+    };
+    const stage = stageHandle.current;
+    if (!stage) {
+      go();
+      return;
+    }
+    stage.depart(go);
+  };
+  const leaveForTown = (sceneId: string) => {
+    settlePendingReward();
     const spot = roadSpotForScene(sceneId);
     commitPet({ ...state, asleep: false });
     const go = () => {
@@ -2927,18 +2947,27 @@ export default function HomeScreen({ petApi }: Props) {
   if (shownDialog?.kind === 'good') {
     const trackId = shownDialog.trackId;
     const label = trickTitle(trackId);
+    const progress = Math.round(state.training[trackId]?.progress ?? 0);
+    const bonus = Math.round(treatProgressPreview(state, trackId));
     const treatCount = economyApi.inventory.find((row) => row.itemId === basicTreatId)?.qty ?? 0;
     trainingDialog = (
-      <BoopModal
-        title="Nailed it!"
-        body={atSchool ? `${state.name} is so proud. Treats are on the house.` : `${state.name} ${label} on cue. Give a treat for a bigger training boost?`}
-        icon={Cookie}
-        accent="train"
+      <TrainingSheet
+        header="success"
+        title={`${label}, nailed it!`}
+        body={atSchool ? `${state.name} is so proud. Treats are on the house.` : `${state.name} is so proud. Reward the good work?`}
         reducedMotion={reducedMotion}
         top={sheetTop}
-        item={atSchool ? undefined : { name: 'Treats', count: `${treatCount} left` }}
+        progress={{
+          label,
+          detail: bonus > 0 ? `${progress}%  +${bonus}% with treat` : `${progress}%`,
+          fill: progress,
+          color: '#F0A020',
+        }}
         primary={{
           label: 'Give a treat',
+          tone: 'butter',
+          icon: 'bone',
+          badge: atSchool ? undefined : `${treatCount} left`,
           onPress: () => {
             const startBite = (applied?: typeof state) => {
               const paid = resolveTraining('treat', applied, true);
@@ -2969,7 +2998,7 @@ export default function HomeScreen({ petApi }: Props) {
           },
         }}
         secondary={{
-          label: 'Not this time',
+          label: 'No treat this time',
           closeFirst: true,
           onPress: () => {
             const paid = resolveTraining('none');
@@ -3032,11 +3061,11 @@ export default function HomeScreen({ petApi }: Props) {
   } else if (shownDialog?.kind === 'out') {
     const trackId = shownDialog.trackId;
     trainingDialog = (
-      <BoopModal
+      <FunModal
         title="Uh oh, no treats left!"
         body={`The Pet Shop has more treats. ${state.name} still had fun practicing.`}
         icon={Cookie}
-        accent="care"
+        tint="peach"
         reducedMotion={reducedMotion}
         top={sheetTop}
         primary={{
@@ -3056,27 +3085,42 @@ export default function HomeScreen({ petApi }: Props) {
   } else if (shownDialog?.kind === 'break') {
     const track = state.training[shownDialog.trackId];
     const remainMs = track ? restRemainingMs(track, clock) : 0;
+    const label = trickTitle(shownDialog.trackId);
     const windOwned = economyApi.inventory.find((row) => row.itemId === 'second_wind')?.qty ?? 0;
     const offer = secondWindOffer(state, shownDialog.trackId, windOwned, clock);
     const focused = track?.hadNoTreat === true;
     trainingDialog = (
-      <BoopModal
-        title={focused ? 'Focus ran out!' : `${state.name} needs a break`}
+      <TrainingSheet
+        header="break"
+        title={focused ? 'Focus ran out!' : 'What a session!'}
         body={
           focused
             ? `${state.name} needs a breather. Second Wind treats help ${state.name} stay focused longer.`
-            : `Training picks up again in ${track ? formatRest(remainMs) : '0:00'}. A Second Wind cookie ends the break right away.`
+            : `Great work on ${label}!`
         }
-        icon={Clock}
-        accent="train"
         reducedMotion={reducedMotion}
         top={sheetTop}
-        item={offer === 'wait' ? undefined : { name: 'Second Wind cookie', count: `You have ${windOwned}` }}
+        remain={{ label: track ? formatRest(remainMs) : '0:00', fraction: remainMs / careConfig.trickRestMs }}
+        wind={
+          offer === 'wait'
+            ? undefined
+            : {
+                owned: windOwned,
+                species,
+              }
+        }
         primary={
-          offer === 'use'
-            ? {
-                label: 'Use cookie',
+          offer === 'wait'
+            ? undefined
+            : {
+                label: offer === 'use' ? 'Use Second Wind' : 'Visit Pet Shop',
+                tone: offer === 'use' ? 'sky' : 'butter',
+                icon: offer === 'use' ? undefined : 'shop',
                 onPress: () => {
+                  if (offer === 'shop') {
+                    leaveForShop();
+                    return;
+                  }
                   const requestId = newRequestId();
                   const used = economyApi.useItem(state, 'second_wind', { trickId: shownDialog.trackId }, requestId);
                   if (!used.ok || !used.pet) {
@@ -3087,15 +3131,8 @@ export default function HomeScreen({ petApi }: Props) {
                   dismissSheet();
                 },
               }
-            : offer === 'shop'
-              ? { label: 'Visit Pet Shop', onPress: () => leaveForShop() }
-              : { label: 'OK', closeFirst: true, onPress: () => dismissSheet() }
         }
-        secondary={
-          offer === 'wait'
-            ? undefined
-            : { label: 'OK', closeFirst: true, onPress: () => dismissSheet() }
-        }
+        secondary={{ label: "I'll wait", closeFirst: true, onPress: () => dismissSheet() }}
       />
     );
   }
@@ -3454,11 +3491,11 @@ export default function HomeScreen({ petApi }: Props) {
           asleep={state.asleep}
           playdateLabel={
             playdates.remaining > 0
-              ? `Next playdate in ${formatCooldown(playdates.remaining)}`
-              : "Invite a friend's pet to the park"
+              ? `Next in ${formatCooldown(playdates.remaining)}`
+              : 'Meet a friend'
           }
           outfitLabel={
-            Object.keys(state.equipped).length > 0 ? `${Object.keys(state.equipped).length} pieces on` : 'Nothing on yet'
+            Object.keys(state.equipped).length > 0 ? `${Object.keys(state.equipped).length} on` : 'Dress up'
           }
           training={trainingIds(state, species).flatMap((id) => {
             const track = state.training[id];
@@ -3477,7 +3514,9 @@ export default function HomeScreen({ petApi }: Props) {
             ];
           })}
           learned={learned}
-          onSchool={() => leaveForTown('school')}
+          onSchool={goToSchool}
+          place={{ id: controlsScene.iconId ?? controlsScene.id, name: controlsScene.name }}
+          onGoSomewhere={() => leaveForTown(controlsScene.id)}
           suggestedId={(() => {
             for (const slot of state.suggestions ?? []) {
               const focus = suggestionFocus(slot.id);

@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
-import { ChevronLeft } from 'lucide-react-native';
 
 import { trackScreen } from '../analytics/analytics';
 import { CloudHopScreen } from '../minigames/cloudHop/CloudHopScreen';
@@ -13,11 +12,12 @@ import { fontFamily } from '../ui/font';
 import { HandlePrompt } from '../ui/HandleScreen';
 import { HeaderBrand } from '../ui/HeaderBrand';
 import { LobbyHero } from '../ui/lobby/LobbyHero';
+import { GoSomewhere } from '../ui/refresh/GoSomewhere';
+import { StatStrip } from '../ui/refresh/StatStrip';
 import { lobbyHeroFill, lobbyPhoneAspect } from '../ui/lobby/heroes';
 import { CloudHopIcon } from '../ui/places/cloudHopIcon';
 import { PaddlePawsIcon } from '../ui/places/paddlePawsIcon';
 import { StayIcon } from '../ui/places/stayIcon';
-import { iconStroke } from '../ui/theme';
 import { isLandscapeSplit, phoneColumnWidth } from '../ui/wideLayout';
 
 type Props = {
@@ -85,14 +85,6 @@ export function ArcadeScreen({ pet, reducedMotion, pendingFriends = false, onSet
 
   const art = (
     <LobbyHero venue="arcade" cut={split ? 'tall' : 'phone'} reducedMotion={reducedMotion} label="Glowing game cabinets">
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Leave"
-        onPress={onClose}
-        style={[styles.back, split ? styles.backTall : styles.backPhone]}
-      >
-        <ChevronLeft size={22} color="#2C2F4A" strokeWidth={iconStroke} />
-      </Pressable>
       <HeaderBrand
         style={[styles.brand, split ? styles.brandTall : styles.brandPhone]}
         uid="arcade-settings"
@@ -107,6 +99,14 @@ export function ArcadeScreen({ pet, reducedMotion, pendingFriends = false, onSet
 
   const games = (
     <>
+      <StatStrip
+        tummy={100 - pet.needs.hunger}
+        water={pet.hydration}
+        energy={pet.needs.energy}
+        mood={pet.needs.happiness}
+        reducedMotion={reducedMotion}
+      />
+      <GoSomewhere petName={pet.name} placeId="arcade" placeName="Arcade" at reducedMotion={reducedMotion} onPress={onClose} />
       <Text style={styles.subtitle}>Pick a game for {pet.name}</Text>
       <View style={styles.grid}>
         <Pressable accessibilityRole="button" accessibilityLabel="Cloud Hop" onPress={() => setGame('hop')} style={styles.tile}>
@@ -185,25 +185,14 @@ const styles = StyleSheet.create({
     borderLeftWidth: StyleSheet.hairlineWidth,
     borderLeftColor: '#E4D7F2',
   },
-  back: {
-    position: 'absolute',
-    left: 12,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  backPhone: { top: 8 },
-  backTall: { top: 52 },
-  brand: { position: 'absolute', right: 12 },
+  brand: { position: 'absolute', left: 12 },
   brandPhone: { top: 6 },
   brandTall: { top: 50 },
   heroTitle: {
     position: 'absolute',
-    left: 120,
-    right: 128,
+    // Clears the logo and settings on the left; the same inset on the right keeps the title centered.
+    left: 124,
+    right: 124,
     textAlign: 'center',
     color: '#FFFFFF',
     fontFamily: fontFamily.fredokaBold,

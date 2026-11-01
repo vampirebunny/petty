@@ -1,7 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Pressable } from 'react-native-gesture-handler';
-import { Canvas, Group, Picture } from '@shopify/react-native-skia';
 import { X } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 
@@ -11,10 +10,10 @@ import type { Equipped, OutfitSlot } from '../sim/types';
 import { fontFamily } from './font';
 import { OutfitPreview, useOutfitClock, type OutfitSubject } from './OutfitPreview';
 import { useLimitedContentWidth } from './PhoneColumn';
+import { ItemIconArt } from './refresh/ItemIconArt';
 import { ItemTile } from './refresh/ItemTile';
 import { SlotTabs, type ClosetTab } from './refresh/SlotTabs';
 import { ui } from './refresh/tokens';
-import { ICON_BOX, itemIconPicture } from './skia/itemIcon';
 import { isLandscapeSplit } from './wideLayout';
 
 type Props = {
@@ -37,8 +36,11 @@ export function WardrobePicker({ subject, owned, equipped, onEquip, reducedMotio
   const limited = useLimitedContentWidth();
   const split = limited == null && isLandscapeSplit(windowWidth, windowHeight);
   const width = limited ?? windowWidth;
-  const previewW = Math.min(420, (split ? windowWidth / 2 : width) - 32);
+  const previewW = Math.min(420, width - 32);
   const previewH = 236;
+  const [pane, setPane] = useState({ width: 0, height: 0 });
+  // The phone card frames the pet at 3.2 across 420pt. A wide pane keeps that framing, so the pet grows with it.
+  const paneZoom = 3.2 * Math.max(1, pane.width / 420);
   const [tab, setTab] = useState<ClosetTab>('hat');
   const worn = outfitSlots.flatMap((slot) => {
     const item = wearItem(slot, equipped[slot]);
@@ -68,13 +70,7 @@ export function WardrobePicker({ subject, owned, equipped, onEquip, reducedMotio
             label={item.label}
             state={equipped[tab] === item.id ? 'selected' : 'default'}
             reducedMotion={reducedMotion}
-            art={
-              <Canvas style={styles.icon}>
-                <Group transform={[{ scale: 52 / ICON_BOX }]}>
-                  <Picture picture={itemIconPicture(tab, item, ui.card)} />
-                </Group>
-              </Canvas>
-            }
+            art={<ItemIconArt slot={tab} item={item} />}
             onPress={() => equip(tab, equipped[tab] === item.id ? null : item.id)}
           />
         ))}
@@ -87,12 +83,42 @@ export function WardrobePicker({ subject, owned, equipped, onEquip, reducedMotio
   );
 
   const stage = (
-    <View style={[styles.sticky, split && styles.previewPane]}>
-      <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-        <OutfitPreview {...subject} equipped={equipped} width={previewW} height={previewH} t={t} pose="sit" />
+    <View
+      style={[styles.sticky, split && styles.previewPane]}
+      onLayout={
+        split
+          ? (event) => {
+              const { width: w, height: h } = event.nativeEvent.layout;
+              setPane((current) => (current.width === w && current.height === h ? current : { width: w, height: h }));
+            }
+          : undefined
+      }
+    >
+      <View
+        pointerEvents="none"
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        style={split ? StyleSheet.absoluteFill : undefined}
+      >
+        {split ? (
+          pane.width > 0 ? (
+            <OutfitPreview
+              {...subject}
+              equipped={equipped}
+              width={pane.width}
+              height={pane.height}
+              zoom={paneZoom}
+              rounded={false}
+              t={t}
+              pose="sit"
+            />
+          ) : null
+        ) : (
+          <OutfitPreview {...subject} equipped={equipped} width={previewW} height={previewH} t={t} pose="sit" />
+        )}
       </View>
-      <View style={styles.chips}>
-        {worn.length === 0 ? <Text style={styles.empty}>Tap something to try it on.</Text> : null}
+      <View style={[styles.chips, split && styles.chipsOver]}>
+        {worn.length === 0 ? <Text style={[styles.empty, split && styles.emptyOver]}>Tap something to try it on.</Text> : null}
         {worn.map((row) => (
           <Pressable
             key={row.slot}
@@ -118,7 +144,7 @@ export function WardrobePicker({ subject, owned, equipped, onEquip, reducedMotio
               bump();
             }}
           >
-            <Text style={styles.takeAll}>Take off all</Text>
+            <Text style={[styles.takeAll, split && styles.takeAllOver]}>Take off all</Text>
           </Pressable>
         ) : null}
       </View>
@@ -149,7 +175,28 @@ const styles = StyleSheet.create({
   previewPane: {
     flex: 1,
     minWidth: 0,
+    justifyContent: 'flex-end',
+    paddingBottom: 20,
+    overflow: 'hidden',
+  },
+  takeAllOver: {
+    overflow: 'hidden',
+    paddingHorizontal: 12,
+    lineHeight: 36,
+    minHeight: 36,
+    borderRadius: ui.radius.pill,
+    backgroundColor: ui.card,
+  },
+  chipsOver: {
     justifyContent: 'center',
+  },
+  emptyOver: {
+    overflow: 'hidden',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: ui.radius.pill,
+    backgroundColor: ui.card,
+    color: ui.ink,
   },
   chips: {
     flexDirection: 'row',
@@ -195,12 +242,9 @@ const styles = StyleSheet.create({
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
-    padding: 16,
-  },
-  icon: {
-    width: 64,
-    height: 52,
+    paddingHorizontal: 11,
+    paddingTop: 12,
+    paddingBottom: 6,
   },
   footer: {
     paddingHorizontal: 16,

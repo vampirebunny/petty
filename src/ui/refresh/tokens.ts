@@ -1,3 +1,5 @@
+import { tints } from '../candy';
+
 export const ui = {
   bg: '#F4F2FA',
   card: '#FFFFFF',
@@ -20,6 +22,7 @@ export const ui = {
   itemRow: '#F1ECFA',
 
   primary: { top: '#EE6F98', bottom: '#D6406F', edge: '#A92D55' },
+  primaryGreen: { top: '#47C27E', bottom: '#239457', edge: '#186B3E' },
   equipped: { main: '#1F8A84', edge: '#9ED3CF', text: '#17635E', tabEdge: '#BFE3E0' },
   trainPill: { top: '#8C6EE6', bottom: '#6E4FD0', edge: '#4E34A6' },
 
@@ -29,6 +32,14 @@ export const ui = {
     train: { main: '#6E4FD0', tint: '#ECE6FA' },
     style: { main: '#1F7A74', tint: '#DFF2F0' },
   },
+
+  candy: {
+    care: tints.pink,
+    bond: tints.sky,
+    train: tints.lilac,
+    style: tints.aqua,
+  },
+  gloss: { top: 'rgba(255,255,255,0.6)', bottom: 'rgba(255,255,255,0)', spark: 'rgba(255,255,255,0.9)' },
 
   stat: {
     tummy: { fill: '#E8803A', track: '#F1ECE6', label: '#B8501A' },

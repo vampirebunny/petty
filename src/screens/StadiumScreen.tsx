@@ -45,6 +45,8 @@ import { NpcCalibrationStadium } from '../ui/stadium/NpcCalibrationDebug';
 import { FriendRoom, type FriendRoomExit } from '../ui/stadium/FriendRoom';
 import { AccountSheet } from '../ui/AccountSheet';
 import { HeaderBrand } from '../ui/HeaderBrand';
+import { GoSomewhere } from '../ui/refresh/GoSomewhere';
+import { StatStrip } from '../ui/refresh/StatStrip';
 import { raceStillValid, retargetRace } from '../invites/pick';
 import type { RaceOption } from '../invites/types';
 import { iconStroke } from '../ui/theme';
@@ -639,36 +641,47 @@ export function StadiumScreen({
   }
 
   const art = <StadiumHeader nextStart={slots[0]?.startsAt ?? null} reducedMotion={reducedMotion} />;
+  const subScreen = screen === 'friendSetup' || screen === 'friendRoom' || screen === 'ticket';
   const headerBar = (
           <View style={styles.headerBar} pointerEvents="box-none">
             <View style={styles.headerLead}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={
-                  screen === 'friendSetup' || screen === 'friendRoom' || screen === 'ticket' ? 'Back to the Stadium' : 'Back to the map'
-                }
-                onPress={() => {
-                  if (screen === 'friendSetup' || screen === 'ticket') {
-                    setScreen('lobby');
-                  } else if (screen === 'friendRoom') {
-                    screenRef.current = 'lobby';
-                    setScreen('lobby');
-                    void load();
-                  } else {
-                    onClose();
-                  }
-                }}
-                style={styles.back}
-              >
-                <ChevronLeft size={22} strokeWidth={iconStroke + 1} color={ink} />
-              </Pressable>
               <HeaderBrand uid="stadium-settings" pendingFriends={pendingFriends} onSettings={onSettings} />
+              {subScreen ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Back to the Stadium"
+                  onPress={() => {
+                    if (screen === 'friendRoom') {
+                      screenRef.current = 'lobby';
+                      setScreen('lobby');
+                      void load();
+                      return;
+                    }
+                    setScreen('lobby');
+                  }}
+                  style={styles.back}
+                >
+                  <ChevronLeft size={22} strokeWidth={iconStroke + 1} color={ink} />
+                </Pressable>
+              ) : null}
             </View>
             <PetChip name={pet.name} level={pet.level} classId={classId} />
           </View>
   );
   const controls = (
         <View style={styles.body}>
+          {subScreen ? null : (
+            <>
+              <StatStrip
+                tummy={100 - pet.needs.hunger}
+                water={pet.hydration}
+                energy={pet.needs.energy}
+                mood={pet.needs.happiness}
+                reducedMotion={reducedMotion}
+              />
+              <GoSomewhere petName={pet.name} placeId="stadium" placeName="Stadium" at reducedMotion={reducedMotion} onPress={onClose} />
+            </>
+          )}
           {offline ? (
             <View style={[shared.card, styles.offline]}>
               <WifiOff size={28} color={softInk} strokeWidth={iconStroke + 0.5} />

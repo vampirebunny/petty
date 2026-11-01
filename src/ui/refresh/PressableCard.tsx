@@ -1,10 +1,11 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useId, useState, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Pressable } from 'react-native-gesture-handler';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
+import { CandyFace, type Tint } from '../candy';
 import { ui } from './tokens';
 
 type Props = {
@@ -16,6 +17,7 @@ type Props = {
   radius?: number;
   accessibilityLabel?: string;
   selected?: boolean;
+  tint?: Tint;
 };
 
 export function PressableCard({
@@ -27,7 +29,9 @@ export function PressableCard({
   radius = ui.radius.card,
   accessibilityLabel,
   selected = false,
+  tint,
 }: Props) {
+  const uid = useId().replace(/:/g, '');
   const [pressed, setPressed] = useState(false);
   const down = useSharedValue(0);
   useEffect(() => {
@@ -56,10 +60,20 @@ export function PressableCard({
       onPressOut={() => setPressed(false)}
       style={styles.hit}
     >
-      <View style={[styles.edge, { borderRadius: radius, height: disabled ? 0 : 5, backgroundColor: disabled ? 'transparent' : ui.cardEdge }]} />
-      <Animated.View style={[styles.faceWrap, !disabled && styles.faceLift, faceStyle]}>
+      <View
+        style={[
+          styles.edge,
+          { borderRadius: radius, backgroundColor: disabled ? 'transparent' : (tint?.lip ?? ui.cardEdge) },
+        ]}
+      />
+      <Animated.View style={[styles.faceWrap, !disabled && styles.faceLift, tint && !disabled && { shadowColor: tint.lip }, faceStyle]}>
         {disabled ? (
           <View style={[styles.face, styles.disabled, { borderRadius: radius }]}>{children}</View>
+        ) : tint ? (
+          <View style={[styles.face, styles.candy, { borderRadius: radius }, selected && { borderColor: ui.equipped.main }]}>
+            <CandyFace tint={tint} radius={radius} uid={uid} />
+            {children}
+          </View>
         ) : (
           <LinearGradient
             colors={[ui.card, ui.card, ui.cardSheenBottom]}
@@ -81,6 +95,7 @@ const styles = StyleSheet.create({
   },
   edge: {
     position: 'absolute',
+    top: 5,
     left: 0,
     right: 0,
     bottom: 0,
@@ -97,6 +112,9 @@ const styles = StyleSheet.create({
   face: {
     borderWidth: 2,
     overflow: 'hidden',
+  },
+  candy: {
+    borderColor: ui.gloss.top,
   },
   disabled: {
     backgroundColor: ui.disabledBg,

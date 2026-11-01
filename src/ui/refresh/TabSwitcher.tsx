@@ -1,7 +1,10 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { Pressable } from 'react-native-gesture-handler';
+import { LinearGradient } from 'expo-linear-gradient';
 
+import { candyInk } from '../candy';
 import { fontFamily } from '../font';
+import { Gloss } from './Gloss';
 import { ui } from './tokens';
 
 export type HomeTab = 'care' | 'bond' | 'train' | 'style';
@@ -25,6 +28,7 @@ export function TabSwitcher({ value, onChange, alerts }: Props) {
       {tabs.map((tab) => {
         const active = tab.id === value;
         const alert = alerts?.has(tab.id) === true;
+        const candy = ui.candy[tab.id];
         return (
           <Pressable
             key={tab.id}
@@ -32,9 +36,15 @@ export function TabSwitcher({ value, onChange, alerts }: Props) {
             accessibilityState={{ selected: active }}
             accessibilityLabel={alert ? `${tab.label}, suggested` : tab.label}
             onPress={() => onChange(tab.id)}
-            style={[styles.tab, active && styles.active]}
+            style={[styles.tab, active && [styles.active, { borderBottomColor: candy.lip }]]}
           >
-            <Text style={[styles.label, active ? styles.labelOn : styles.labelOff]}>{tab.label}</Text>
+            {active ? (
+              <>
+                <LinearGradient colors={[candy.top, candy.base, candy.bottom]} locations={[0, 0.45, 1]} style={styles.fill} />
+                <Gloss radius={22} />
+              </>
+            ) : null}
+            <Text style={[styles.label, active ? { color: candyInk(candy) } : styles.labelOff]}>{tab.label}</Text>
             {alert ? <View style={styles.dot} /> : null}
           </Pressable>
         );
@@ -61,16 +71,17 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   active: {
-    backgroundColor: ui.card,
-    borderBottomWidth: 2,
-    borderBottomColor: ui.cardEdge,
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: ui.gloss.top,
+    borderBottomWidth: 3,
+  },
+  fill: {
+    ...StyleSheet.absoluteFill,
   },
   label: {
     fontFamily: fontFamily.fredokaSemibold,
     fontSize: 14,
-  },
-  labelOn: {
-    color: ui.ink,
   },
   labelOff: {
     color: ui.inkMuted,

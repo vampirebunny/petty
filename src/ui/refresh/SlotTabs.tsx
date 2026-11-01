@@ -22,7 +22,7 @@ type Props = {
 
 export function SlotTabs({ value, onChange, worn }: Props) {
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.bar} contentContainerStyle={styles.row}>
       {tabs.map((tab) => {
         const active = tab.id === value;
         return (
@@ -43,6 +43,10 @@ export function SlotTabs({ value, onChange, worn }: Props) {
 }
 
 const styles = StyleSheet.create({
+  bar: {
+    flexGrow: 0,
+    flexShrink: 0,
+  },
   row: {
     gap: 8,
     paddingHorizontal: 16,

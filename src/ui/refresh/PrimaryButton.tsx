@@ -6,6 +6,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-na
 import * as Haptics from 'expo-haptics';
 
 import { fontFamily } from '../font';
+import { Gloss } from './Gloss';
 import { ui } from './tokens';
 
 type Props = {
@@ -15,9 +16,11 @@ type Props = {
   disabled?: boolean;
   reducedMotion?: boolean;
   compact?: boolean;
+  tone?: 'pink' | 'green';
 };
 
-export function PrimaryButton({ label, accessibilityLabel, onPress, disabled = false, reducedMotion = false, compact = false }: Props) {
+export function PrimaryButton({ label, accessibilityLabel, onPress, disabled = false, reducedMotion = false, compact = false, tone = 'pink' }: Props) {
+  const colors = tone === 'green' ? ui.primaryGreen : ui.primary;
   const [pressed, setPressed] = useState(false);
   const down = useSharedValue(0);
   useEffect(() => {
@@ -42,14 +45,15 @@ export function PrimaryButton({ label, accessibilityLabel, onPress, disabled = f
       onPressOut={() => setPressed(false)}
       style={styles.hit}
     >
+      {disabled ? null : <Animated.View style={[styles.edge, { borderRadius: ui.radius.pill, backgroundColor: colors.edge }]} />}
       <Animated.View style={faceStyle}>
         <LinearGradient
-          colors={disabled ? [ui.disabledBg, ui.disabledBg] : [ui.primary.top, ui.primary.bottom]}
+          colors={disabled ? [ui.disabledBg, ui.disabledBg] : [colors.top, colors.bottom]}
           style={[styles.face, { height, borderRadius: ui.radius.pill, marginBottom: disabled ? 0 : 5 }]}
         >
-          <Text style={[styles.label, disabled && styles.disabledLabel]}>{label}</Text>
+          {disabled ? null : <Gloss radius={height / 2} />}
+          <Text style={[styles.label, { textShadowColor: colors.edge }, disabled && styles.disabledLabel]}>{label}</Text>
         </LinearGradient>
-        {disabled ? null : <Animated.View style={[styles.edge, { borderRadius: ui.radius.pill }]} />}
       </Animated.View>
     </Pressable>
   );
@@ -64,19 +68,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 1,
+    borderWidth: 1.5,
+    borderColor: ui.gloss.top,
   },
   edge: {
     position: 'absolute',
+    top: 5,
     left: 0,
     right: 0,
     bottom: 0,
-    height: 5,
-    backgroundColor: ui.primary.edge,
   },
   label: {
     color: ui.card,
     fontFamily: fontFamily.fredokaSemibold,
     fontSize: 18,
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   disabledLabel: {
     color: ui.disabledInk,

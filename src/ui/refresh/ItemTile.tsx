@@ -6,6 +6,9 @@ import { fontFamily } from '../font';
 import { PressableCard } from './PressableCard';
 import { ui } from './tokens';
 
+// Every caller draws its art at this size so a hat and a jacket fill the tile the same way.
+export const itemArtSize = { width: 100, height: 92 };
+
 export type TileState = 'default' | 'selected' | 'locked' | 'used' | 'shop';
 
 type Props = {
@@ -63,14 +66,18 @@ export function ItemTile({ label, state = 'default', art, tag, onPress, reducedM
 
 const styles = StyleSheet.create({
   cell: {
-    width: '31%',
+    width: '33.333%',
+    paddingHorizontal: 5,
+    paddingBottom: 10,
   },
   body: {
-    height: 112,
+    height: 140,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 6,
-    gap: 4,
+    paddingHorizontal: 6,
+    paddingTop: 8,
+    paddingBottom: 6,
+    gap: 2,
   },
   shop: {
     borderWidth: 2.5,
@@ -79,8 +86,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
   },
   art: {
-    height: 52,
-    width: 64,
+    ...itemArtSize,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -90,6 +96,7 @@ const styles = StyleSheet.create({
   name: {
     fontFamily: fontFamily.fredokaSemibold,
     fontSize: 13,
+    lineHeight: 15,
     color: ui.ink,
     textAlign: 'center',
   },

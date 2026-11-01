@@ -100,9 +100,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     backgroundColor: ui.card,
     borderRadius: ui.radius.card,
-    paddingVertical: 10,
+    paddingVertical: 7,
     paddingHorizontal: 8,
-    minHeight: 76,
+    minHeight: 60,
     shadowColor: ui.ink,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.08,
@@ -110,7 +110,7 @@ const styles = StyleSheet.create({
   },
   col: {
     flex: 1,
-    gap: 4,
+    gap: 3,
     paddingHorizontal: 4,
   },
   value: {

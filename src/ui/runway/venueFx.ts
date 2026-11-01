@@ -506,12 +506,3 @@ export function drawVenueFlashes(
     canvas.drawRect(Skia.XYWHRect(0, 0, opts.width, opts.height), paintFill('rgba(255,255,255,0.22)'));
   }
 }
-
-/** Draw a soft ground shadow under the pet. */
-export function drawPetShadow(canvas: SkCanvas, cx: number, pawY: number, scale: number): void {
-  canvas.drawOval(
-    Skia.XYWHRect(cx - 70 * scale, pawY + 4 * scale - 9 * scale, 140 * scale, 18 * scale),
-    paintFill('rgba(0,0,0,0.3)'),
-  );
-}
-

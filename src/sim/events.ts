@@ -301,6 +301,7 @@ export function applyEvent(state: PetState, event: PetEvent): EventResult {
     if (event.seconds > 0) {
       next = noteTutorialAction(next, 'cuddle');
       next = completeSuggestion(next, 'cuddle', Date.now());
+      next = completeSuggestion(next, 'pat', Date.now());
     }
     return { state: withDerived(next), cue: { kind: 'none' } };
   }

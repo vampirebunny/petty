@@ -33,7 +33,6 @@ import { drawPetOnly } from '../skia/world';
 import {
   advanceVenueFx,
   createVenueFxRuntime,
-  drawPetShadow,
   drawVenueBeams,
   drawVenueExtras,
   drawVenueFlashes,
@@ -255,7 +254,6 @@ export function RunwayView({ show, viewerSubmissionId, reducedMotion, doneLabel 
       }
 
       const pawScreenY = stageTop + venuePawY * scale;
-      drawPetShadow(canvas, petCenterX, pawScreenY, scale);
 
       const model = models[beat.modelIndex];
       const look = model ? lookForRound(model.submission.looks, beat.lookIndex) : undefined;

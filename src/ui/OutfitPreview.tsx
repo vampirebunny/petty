@@ -30,6 +30,8 @@ type Props = OutfitSubject & {
   bare?: boolean;
   // World y placed at 62% of the canvas height. The closet lowers this so the pet sits on the rug.
   cameraY?: number;
+  /** Rounded corners for a card; off when the preview fills a whole pane. */
+  rounded?: boolean;
 };
 
 export type OutfitPose = 'idle' | 'sit' | 'lie' | 'walk';
@@ -133,6 +135,7 @@ export function OutfitPreview({
   pose = 'sit',
   bare = false,
   cameraY = 400,
+  rounded = true,
 }: Props) {
   const picture = useMemo(() => {
     const actor = spawnActor(
@@ -157,7 +160,7 @@ export function OutfitPreview({
   }, [ageDays, asleep, backWear, bare, breedId, cameraY, equipped, height, look, pose, seed, t, vitality, wearDefs, weight, width, zoom]);
 
   return (
-    <Canvas style={[styles.canvas, { width, height }]} pointerEvents="none">
+    <Canvas style={[rounded && styles.canvas, { width, height }]} pointerEvents="none">
       <Picture picture={picture} />
     </Canvas>
   );

@@ -100,9 +100,13 @@ function stampDay(state: PetState, now: number): PetState {
     ...state,
     suggestionDay: today,
     suggestionCompletions: 0,
+    suggestionsDone: [],
     suggestions: [],
   };
 }
+
+// Needs come back only when the need does, so they may be offered again the same day.
+const repeatable = new Set(['feed', 'water', 'nap']);
 
 function trainingSuggestion(state: PetState): string | null {
   if (state.level < gameplayConfig.suggestions.trainingFromLevel) {
@@ -144,7 +148,8 @@ function candidates(state: PetState, ctx: SuggestionContext): string[] {
   const training = trainingSuggestion(state);
   if (training) ids.push(training);
   if (state.level >= gameplayConfig.suggestions.findsFromLevel && ctx.unfound !== false) ids.push('find');
-  return ids;
+  const done = new Set(state.suggestionsDone ?? []);
+  return ids.filter((id) => repeatable.has(id) || !done.has(id));
 }
 
 function keepSlot(slot: SuggestionSlot, state: PetState, ctx: SuggestionContext, allowed: Set<string>): boolean {
@@ -237,6 +242,7 @@ export function completeSuggestion(state: PetState, key: string, now: number, ct
   next = {
     ...next,
     suggestions: (next.suggestions ?? []).filter((slot) => slot.id !== hit.id),
+    suggestionsDone: tutorial ? next.suggestionsDone : [...(next.suggestionsDone ?? []), hit.id],
   };
   if (!tutorial && next.level >= gameplayConfig.tutorialLevel) {
     next = {

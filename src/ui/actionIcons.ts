@@ -26,8 +26,12 @@ import {
   TreePine,
   Cat,
   Gift,
+  Gamepad2,
+  Flag,
 } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
+
+import type { TintName } from './candy';
 
 export type ActionSpecies = 'dog' | 'cat';
 
@@ -77,13 +81,19 @@ export const placeIcons: Record<string, LucideIcon> = {
   bedroom: Bed,
   park: TreePine,
   catio: Cat,
+  catwalk: Shirt,
+  arcade: Gamepad2,
+  stadium: Flag,
 };
 
-export const placeFlavors: Record<string, 'peach' | 'periwinkle' | 'pistachio' | 'orchid'> = {
+export const placeFlavors: Record<string, TintName> = {
   livingroom: 'peach',
   bedroom: 'periwinkle',
   park: 'pistachio',
   catio: 'orchid',
+  catwalk: 'pink',
+  arcade: 'lilac',
+  stadium: 'sky',
 };
 
 export function iconFor(actionId: string, species: ActionSpecies = 'dog'): LucideIcon | null {

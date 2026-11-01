@@ -2,7 +2,7 @@ import { localDay } from '../../economy/clock';
 import { testPet } from '../__fixtures__/pets';
 import { applyEvent } from '../events';
 import { gameplayConfig } from '../gameplayConfig';
-import { noteSuggestionRep, syncSuggestions } from '../suggestions';
+import { completeSuggestion, noteSuggestionRep, syncSuggestions } from '../suggestions';
 import type { PetState } from '../types';
 
 const now = new Date(2026, 5, 2, 12).getTime();
@@ -74,6 +74,24 @@ it('hides the row at the daily cap and brings it back the next day', () => {
   const restored = syncSuggestions(capped, nextDay);
   expect(restored.suggestionCompletions).toBe(0);
   expect(restored.suggestions).toHaveLength(2);
+});
+
+it('does not offer a finished suggestion again until the next day', () => {
+  const pet = syncSuggestions({ ...grown(), suggestions: [{ id: 'pat' }, { id: 'play' }] }, now);
+  const done = completeSuggestion(completeSuggestion(pet, 'play', now), 'pat', now);
+  expect(done.suggestions.some((slot) => slot.id === 'play' || slot.id === 'pat')).toBe(false);
+  expect(syncSuggestions(done, now).suggestions.some((slot) => slot.id === 'play' || slot.id === 'pat')).toBe(false);
+
+  const tomorrow = syncSuggestions({ ...done, needs: { ...done.needs, hunger: 0 } }, nextDay);
+  expect(tomorrow.suggestionsDone).toEqual([]);
+  expect(tomorrow.suggestions.some((slot) => slot.id === 'pat')).toBe(true);
+});
+
+it('offers Feed again the same day once the tummy is hungry again', () => {
+  const fed = completeSuggestion(syncSuggestions(grown(), now), 'feed', now);
+  expect(fed.suggestionsDone).toContain('feed');
+  const hungry = syncSuggestions({ ...fed, needs: { ...fed.needs, hunger: 80 }, suggestions: [] }, now);
+  expect(hungry.suggestions.some((slot) => slot.id === 'feed')).toBe(true);
 });
 
 it('completes a practice suggestion on the fifth rep', () => {

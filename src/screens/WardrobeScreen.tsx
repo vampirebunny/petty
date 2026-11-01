@@ -123,11 +123,11 @@ export function WardrobeScreen({
                 onPress={onSwitch}
                 style={styles.toggle}
               >
-                <Text style={styles.toggleLabel}>New outfit every day</Text>
+                <Text style={styles.toggleLabel}>Automatically choose new outfit every day</Text>
                 <CandySwitch on={dailyOutfitOn} />
               </Pressable>
             </View>
-            <PrimaryButton label="Done" onPress={onClose} reducedMotion={reducedMotion} />
+            <PrimaryButton label="Done" tone="green" onPress={onClose} reducedMotion={reducedMotion} />
           </View>
         }
       />

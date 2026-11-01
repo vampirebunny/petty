@@ -160,6 +160,8 @@ export type PetState = {
   suggestions: SuggestionSlot[];
   suggestionCompletions: number;
   suggestionDay: string;
+  /** Suggestions finished on `suggestionDay`. They are not offered again that day. Missing on an older save. */
+  suggestionsDone?: string[];
   /** Local copy of the Stadium sign-up, for the race call and its notification. Missing on an older save. */
   races?: import('./stadium').RaceRecord;
   /** Every finish. Ribbon counts and the Ribbon Rack badge come from places 1–3. */
