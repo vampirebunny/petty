@@ -8,7 +8,7 @@ import { outfitSlots, wearItem } from '../actor/wardrobe';
 import { track, trackScreen } from '../analytics/analytics';
 import { listenPreview, previewRunwayTrack, stopRunwayPreview } from '../audio/runwayPreview';
 import { syncCatwalkMusic } from '../audio/remoteCatwalkMusic';
-import { readAccountLinked } from '../db/accountMeta';
+import { readAccountLinked, serverNow } from '../db/accountMeta';
 import { loadFriends } from '../friends/api';
 import type { FriendRow } from '../friends/types';
 import { recordFormatEntered } from '../invites/store';
@@ -45,7 +45,16 @@ import {
   type RecentInvitee,
   type ShowStep,
 } from '../runway/showRead';
-import { deleteSoloShow, hideFriendShow, loadRunwaySave, rememberShow, saveRunwaySave, visibleShows } from '../runway/storage';
+import {
+  deleteSoloShow,
+  hideFriendShow,
+  loadRunwaySave,
+  loadSeenResults,
+  markResultsSeen,
+  rememberShow,
+  saveRunwaySave,
+  visibleShows,
+} from '../runway/storage';
 import type { LocalRunwayShow } from '../runway/types';
 import type { Equipped, OutfitSlot, PetState } from '../sim/types';
 import { AccountSheet } from '../ui/AccountSheet';
@@ -152,13 +161,14 @@ export function CatwalkScreen({ pet, ownerId, owned, reducedMotion, seed = null,
   const [watchReturn, setWatchReturn] = useState<Step>('lobby');
   const [history, setHistory] = useState<LocalRunwayShow[]>([]);
   const [remoteShows, setRemoteShows] = useState<RunwayShowSummary[]>([]);
+  const [seenResults, setSeenResults] = useState<string[]>([]);
   const [recent, setRecent] = useState<RecentInvitee[]>([]);
   const [detail, setDetail] = useState<RunwayShowDetail | null>(null);
   const [liveId, setLiveId] = useState<string | null>(seed ? null : showId);
   const [friends, setFriends] = useState<FriendRow[]>([]);
   const [friendQuery, setFriendQuery] = useState('');
   const [chosen, setChosen] = useState<string[]>([]);
-  const [deadlineMinutes, setDeadlineMinutes] = useState<30 | 60 | 1440>(30);
+  const [deadlineMinutes, setDeadlineMinutes] = useState<15 | 30 | 60 | 1440>(15);
   const [voteFor, setVoteFor] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -313,10 +323,23 @@ export function CatwalkScreen({ pet, ownerId, owned, reducedMotion, seed = null,
       }
       setHistory(visibleShows(save));
     });
+    void loadSeenResults(ownerId).then((seen) => {
+      if (alive) {
+        setSeenResults(seen);
+      }
+    });
     return () => {
       alive = false;
     };
   }, [ownerId, step]);
+
+  const resultsShowId = step === 'results' && detail?.resultsRevealedAt != null ? detail.id : null;
+  useEffect(() => {
+    if (!resultsShowId) {
+      return;
+    }
+    void markResultsSeen(ownerId, resultsShowId).then(setSeenResults);
+  }, [ownerId, resultsShowId]);
 
   useEffect(() => {
     if (step !== 'invite') {
@@ -524,7 +547,7 @@ export function CatwalkScreen({ pet, ownerId, owned, reducedMotion, seed = null,
     setBusy(true);
     setError(null);
     stopRunwayPreview();
-    const deadline = new Date(Date.now() + deadlineMinutes * 60 * 1000).toISOString();
+    const deadline = new Date(serverNow() + deadlineMinutes * 60 * 1000).toISOString();
     const created = await createRunwayShow(themeId, trackId, deadline, chosen);
     if (!created.ok) {
       setError(runwayErrorCopy(created.error));
@@ -648,7 +671,7 @@ export function CatwalkScreen({ pet, ownerId, owned, reducedMotion, seed = null,
       return;
     }
     const submitted = loaded.data.contestants.some((person) => person.isMe && person.submitted);
-    const needsLooks = !submitted && showNeedsLooks(loaded.data, Date.now());
+    const needsLooks = !submitted && showNeedsLooks(loaded.data, nowTick);
     const dismissed = loaded.data.myStatus === 'declined' && loaded.data.resultsRevealedAt == null;
     openDetail(loaded.data, dismissed ? 'join' : needsLooks ? 'backstage' : undefined);
   };
@@ -733,7 +756,9 @@ export function CatwalkScreen({ pet, ownerId, owned, reducedMotion, seed = null,
   );
 
   const lobbyCards = remoteShows.filter((row) => row.resultsRevealedAt == null && row.myStatus === 'invited' && !row.amHost);
-  const joinedShows = remoteShows.filter((row) => joinedShow(row));
+  const joinedShows = remoteShows.filter(
+    (row) => joinedShow(row) && !(row.resultsRevealedAt != null && seenResults.includes(row.id)),
+  );
   const query = friendQuery.trim().toLowerCase().replace(/^@/, '');
   const recentIds = new Set(recent.map((row) => row.userId));
   const matched = friends.filter((row) => !query || row.handle.toLowerCase().includes(query));
@@ -943,6 +968,7 @@ export function CatwalkScreen({ pet, ownerId, owned, reducedMotion, seed = null,
         <Text style={styles.kicker}>Submit by</Text>
         <View style={styles.row}>
           {([
+            [15, '15 min'],
             [30, '30 min'],
             [60, '1 hour'],
             [1440, '24 hours'],

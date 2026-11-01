@@ -1,6 +1,6 @@
 # Cursor Brief Addendum: Friend Games
 
-**Shipped.** Migration `20261030110000_friend_games.sql` and the `notify_friend_game` Edge Function are deployed. The client is `src/stadium/friendGames.ts`, `FriendGameSetup`, `FriendRoom`, and `FriendGameInviteModal`.
+**Shipped.** Migration `20261030110000_friend_games.sql` and the `notify_friend_game` and `notify_friend_game_accept` Edge Functions are deployed. The client is `src/stadium/friendGames.ts`, `FriendGameSetup`, `FriendRoom`, and `FriendGameInviteModal`.
 
 An addition to the gameplay progression brief. Built on live open races (phase 7, **shipped**): synchronized countdown on server time, each phone simulates its own pet and streams its state (`race:{raceId}:run`), and the server replays and verifies results. All numbers go in the gameplay config.
 
@@ -69,4 +69,4 @@ A friend game is a private race, so it reuses the whole open-race lifecycle (loc
 - `friend_game_invites` (`race_id`, `inviter_id`, `invitee_id`, `status` pending / accepted / declined / withdrawn, `notified_at`).
 - `advance_races`: friends races never get NPCs, and cancel at lock or start unless the host and at least one friend are checked in. Pending invites are withdrawn at lock. `stadium_finish_cooldown` skips them.
 - RPCs: `friend_game_candidates`, `create_friend_game`, `list_friend_game_invites`, `respond_friend_game_invite`, `friend_game_state`, `friend_game_heartbeat`, `leave_friend_game`. `get_upcoming_slots` returns `friend_game_race_id` for the pet's active friend game.
-- Edge Function `notify_friend_game` sends the invite pushes (`data: { kind: 'friend_game', raceId }`). A foreground delivery opens the invite modal; a background or closed app shows the system notification, and a tap opens the modal. `notify_friend_game_accept` sends the "someone joined" pushes described under Invites. Deploy that function with the other notify functions.
+- Edge Function `notify_friend_game` sends the invite pushes (`data: { kind: 'friend_game', raceId }`). A foreground delivery opens the invite modal; a background or closed app shows the system notification, and a tap opens the modal. `notify_friend_game_accept` is deployed and sends the "someone joined" pushes described under Invites.

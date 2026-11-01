@@ -47,6 +47,31 @@ export function hideFriendShow(save: RunwaySave, showId: string): RunwaySave {
   };
 }
 
+function seenKey(ownerId: string): string {
+  return `petty.runway.seenResults.${ownerId}`;
+}
+
+/** Friend shows whose results this player has opened. They leave the lobby and stay in Past Shows. */
+export async function loadSeenResults(ownerId: string): Promise<string[]> {
+  try {
+    const raw = await AsyncStorage.getItem(seenKey(ownerId));
+    const parsed = raw ? (JSON.parse(raw) as unknown) : [];
+    return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function markResultsSeen(ownerId: string, showId: string): Promise<string[]> {
+  const seen = await loadSeenResults(ownerId);
+  if (seen.includes(showId)) {
+    return seen;
+  }
+  const next = [showId, ...seen].slice(0, 200);
+  await AsyncStorage.setItem(seenKey(ownerId), JSON.stringify(next));
+  return next;
+}
+
 export function visibleShows(save: RunwaySave): LocalRunwayShow[] {
   return save.history.filter((row) => !row.hidden);
 }

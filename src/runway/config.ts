@@ -12,8 +12,8 @@ export const runwayConfig = {
   dripFirstUnlockMin: 5,
   /** Minutes between subsequent tranches. */
   dripTrancheGapMin: 2,
-  /** Friend show deadline must be at least this many minutes from create. */
-  minDeadlineMin: 30,
+  /** Friend show deadline must be at least this many minutes from create. Below the shortest choice (15) so send time and clock drift never reject it. */
+  minDeadlineMin: 10,
   pollCloseMin: 15,
   poseEnabled: true,
   runwayZoom: 1.8,

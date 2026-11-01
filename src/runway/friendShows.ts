@@ -204,7 +204,7 @@ export function runwayErrorCopy(error: RunwayRpcError): string {
     case 'deadline_past':
       return 'Pick a deadline in the future.';
     case 'deadline_too_soon':
-      return 'Pick a deadline at least 30 minutes from now.';
+      return 'That deadline is too soon. Pick a longer one.';
     case 'costume_taken':
       return 'Someone already claimed that costume. Pick another piece.';
     case 'voted':
