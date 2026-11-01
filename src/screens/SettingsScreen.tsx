@@ -18,9 +18,10 @@ import { CandySwitch } from '../ui/closet/CandySwitch';
 import { fontFamily } from '../ui/font';
 import { HandleScreen } from '../ui/HandleScreen';
 import { iconStroke, theme } from '../ui/theme';
+import { PhoneColumn } from '../ui/PhoneColumn';
 import { TraitBars } from '../ui/TraitBars';
 import { useOpenedDuoTopInset } from '../ui/useDeviceOrientation';
-import { isLandscapeSplit, phoneColumnWidth } from '../ui/wideLayout';
+import { isLandscapeSplit } from '../ui/wideLayout';
 
 type Props = {
   pet: PetState;
@@ -190,109 +191,104 @@ export function SettingsScreen({
 
   if (friendsOpen && linked) {
     return (
-      <FriendsManage
-        handle={shown?.handle ?? null}
-        careRemindersOn={careRemindersOn}
-        onCareReminders={onCareReminders}
-        onClose={() => setFriendsOpen(false)}
-        onChanged={onFriendsChanged}
-        onPickHandle={() => {
-          setFriendsOpen(false);
-          setHandleOpen(true);
-        }}
-      />
+      <PhoneColumn backgroundColor="#F7F1EA">
+        <FriendsManage
+          handle={shown?.handle ?? null}
+          careRemindersOn={careRemindersOn}
+          onCareReminders={onCareReminders}
+          onClose={() => setFriendsOpen(false)}
+          onChanged={onFriendsChanged}
+          onPickHandle={() => {
+            setFriendsOpen(false);
+            setHandleOpen(true);
+          }}
+        />
+      </PhoneColumn>
     );
   }
 
-  const preferences = (
-    <>
-      {[
-        { id: 'sound', label: 'Sounds', on: soundOn, onPress: onSound, Icon: soundOn ? Volume2 : VolumeX },
-        { id: 'music', label: 'Music', on: musicOn, onPress: onMusic, Icon: Music },
-      ].map(({ id, label, on, onPress, Icon }) => (
-        <Pressable
-          key={id}
-          accessibilityRole="switch"
-          accessibilityLabel={label}
-          accessibilityState={{ checked: on }}
-          onPress={() => {
-            void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            onPress();
-          }}
-          style={styles.rowHit}
-        >
-          {({ pressed }) => (
-            <CandyShell tint={tints.lilac} radius={22} uid={`settings-${id}`} pressed={pressed} style={[styles.row, styles.toggleRow]}>
-              <View style={[styles.toggleBubble, { shadowColor: tints.lilac.lip }]}>
-                <Icon color={tints.lilac.icon} size={18} strokeWidth={iconStroke + 0.5} />
-              </View>
-              <Text style={[styles.rowText, styles.toggleText, { color: candyInk(tints.lilac) }]}>{label}</Text>
-              <CandySwitch on={on} />
-            </CandyShell>
-          )}
-        </Pressable>
-      ))}
-      {linked && !shown ? (
-        <Text style={styles.line}>Signed in</Text>
-      ) : linked ? (
-        shown?.handle ? (
-          <Text style={styles.line}>{signedLine}</Text>
-        ) : (
-          <Pressable accessibilityRole="button" onPress={() => setHandleOpen(true)}>
-            <Text style={styles.link}>{signedLine}</Text>
-          </Pressable>
-        )
-      ) : (
-        <Pressable accessibilityRole="button" onPress={() => {
-          setSheetReason('settings');
-          setSheetOpen(true);
-        }} style={styles.rowHit}>
-          {({ pressed }) => (
-            <CandyShell tint={tints.pink} radius={22} uid="settings-sign-in" pressed={pressed} style={styles.row}>
-              <Text style={[styles.rowText, { color: candyInk(tints.pink) }]}>Sign in or create account</Text>
-            </CandyShell>
-          )}
-        </Pressable>
+  const soundToggles = [
+    { id: 'sound', label: 'Sounds', on: soundOn, onPress: onSound, Icon: soundOn ? Volume2 : VolumeX },
+    { id: 'music', label: 'Music', on: musicOn, onPress: onMusic, Icon: Music },
+  ].map(({ id, label, on, onPress, Icon }) => (
+    <Pressable
+      key={id}
+      accessibilityRole="switch"
+      accessibilityLabel={label}
+      accessibilityState={{ checked: on }}
+      onPress={() => {
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        onPress();
+      }}
+      style={styles.rowHit}
+    >
+      {({ pressed }) => (
+        <CandyShell tint={tints.lilac} radius={22} uid={`settings-${id}`} pressed={pressed} style={[styles.row, styles.toggleRow]}>
+          <View style={[styles.toggleBubble, { shadowColor: tints.lilac.lip }]}>
+            <Icon color={tints.lilac.icon} size={18} strokeWidth={iconStroke + 0.5} />
+          </View>
+          <Text style={[styles.rowText, styles.toggleText, { color: candyInk(tints.lilac) }]}>{label}</Text>
+          <CandySwitch on={on} />
+        </CandyShell>
       )}
-    </>
-  );
+    </Pressable>
+  ));
 
-  const petSide = (
-    <>
-      <TraitBars pet={pet} />
+  const accountLine =
+    linked && !shown ? (
+      <Text style={styles.line}>Signed in</Text>
+    ) : linked ? (
+      shown?.handle ? (
+        <Text style={styles.line}>{signedLine}</Text>
+      ) : (
+        <Pressable accessibilityRole="button" onPress={() => setHandleOpen(true)}>
+          <Text style={styles.link}>{signedLine}</Text>
+        </Pressable>
+      )
+    ) : (
       <Pressable
         accessibilityRole="button"
         onPress={() => {
-          if (!linked) {
-            setSheetReason('friends');
-            setSheetOpen(true);
-            return;
-          }
-          setFriendsOpen(true);
+          setSheetReason('settings');
+          setSheetOpen(true);
         }}
         style={styles.rowHit}
       >
         {({ pressed }) => (
-          <CandyShell tint={tints.mint} radius={22} uid="settings-friends" pressed={pressed} style={styles.row}>
-            <Text style={[styles.rowText, { color: candyInk(tints.mint) }]}>
-              {pendingFriends > 0 ? `Friends (${pendingFriends})` : 'Friends'}
-            </Text>
+          <CandyShell tint={tints.pink} radius={22} uid="settings-sign-in" pressed={pressed} style={styles.row}>
+            <Text style={[styles.rowText, { color: candyInk(tints.pink) }]}>Sign in or create account</Text>
           </CandyShell>
         )}
       </Pressable>
-      <BadgeShelf badges={pet.badges ?? []} />
-    </>
+    );
+
+  const friendsButton = (
+    <Pressable
+      accessibilityRole="button"
+      onPress={() => {
+        if (!linked) {
+          setSheetReason('friends');
+          setSheetOpen(true);
+          return;
+        }
+        setFriendsOpen(true);
+      }}
+      style={styles.rowHit}
+    >
+      {({ pressed }) => (
+        <CandyShell tint={tints.mint} radius={22} uid="settings-friends" pressed={pressed} style={styles.row}>
+          <Text style={[styles.rowText, { color: candyInk(tints.mint) }]}>
+            {pendingFriends > 0 ? `Friends (${pendingFriends})` : 'Friends'}
+          </Text>
+        </CandyShell>
+      )}
+    </Pressable>
   );
 
-  const accountActions = (
+  const logOutBlock = (
     <>
       {linked ? (
-        <Pressable
-          accessibilityRole="button"
-          disabled={working}
-          onPress={askLogOut}
-          style={styles.rowHit}
-        >
+        <Pressable accessibilityRole="button" disabled={working} onPress={askLogOut} style={styles.rowHit}>
           {({ pressed }) => (
             <CandyShell tint={tints.lilac} radius={22} uid="settings-log-out" pressed={pressed} style={styles.row}>
               <Text style={[styles.rowText, { color: candyInk(tints.lilac) }]}>Log out</Text>
@@ -310,6 +306,11 @@ export function SettingsScreen({
           )}
         </Pressable>
       ) : null}
+    </>
+  );
+
+  const deleteBlock = (
+    <>
       <Pressable
         accessibilityRole="button"
         disabled={working}
@@ -363,20 +364,30 @@ export function SettingsScreen({
         <Text style={styles.title}>Settings</Text>
       </View>
       {split ? (
-        <View style={styles.split}>
-          <ScrollView style={styles.scroll} contentContainerStyle={[styles.body, styles.column]} keyboardShouldPersistTaps="handled">
-            {petSide}
-          </ScrollView>
-          <ScrollView style={styles.scroll} contentContainerStyle={[styles.body, styles.column]} keyboardShouldPersistTaps="handled">
-            {preferences}
-            {accountActions}
-          </ScrollView>
-        </View>
+        <ScrollView style={styles.scroll} contentContainerStyle={styles.wideBody} keyboardShouldPersistTaps="handled">
+          <View style={styles.wideTop}>
+            <View style={styles.wideColumn}>
+              <TraitBars pet={pet} />
+            </View>
+            <View style={styles.wideColumn}>
+              {accountLine}
+              {logOutBlock}
+              {friendsButton}
+              {deleteBlock}
+            </View>
+            <View style={styles.wideColumn}>{soundToggles}</View>
+          </View>
+          <BadgeShelf badges={pet.badges ?? []} />
+        </ScrollView>
       ) : (
         <ScrollView style={styles.scroll} contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-          {preferences}
-          {petSide}
-          {accountActions}
+          {soundToggles}
+          {accountLine}
+          <TraitBars pet={pet} />
+          {friendsButton}
+          <BadgeShelf badges={pet.badges ?? []} />
+          {logOutBlock}
+          {deleteBlock}
         </ScrollView>
       )}
       <Modal transparent visible={confirmOpen} animationType="fade" onRequestClose={() => setConfirmOpen(false)}>
@@ -526,16 +537,21 @@ const styles = StyleSheet.create({
   scroll: {
     flex: 1,
   },
-  split: {
-    flex: 1,
-    flexDirection: 'row',
-    gap: 8,
-    paddingHorizontal: 12,
+  wideBody: {
+    paddingHorizontal: 28,
+    paddingTop: 12,
+    paddingBottom: 32,
+    gap: 28,
   },
-  column: {
-    width: '100%',
-    maxWidth: phoneColumnWidth + 80,
-    alignSelf: 'center',
+  wideTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 24,
+  },
+  wideColumn: {
+    flex: 1,
+    minWidth: 0,
+    gap: 14,
   },
   body: {
     paddingHorizontal: 20,

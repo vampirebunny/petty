@@ -2250,21 +2250,19 @@ export default function HomeScreen({ petApi }: Props) {
 
   const settingsScreen = (
     <>
-      <PhoneColumn>
-        <SettingsScreen
-          pet={state}
-          petName={state.name}
-          pendingFriends={incomingFriends.length}
-          careRemindersOn={remindersOn}
-          onCareReminders={setRemindersOn}
-          soundOn={soundOn}
-          musicOn={musicOn}
-          onSound={toggleSound}
-          onMusic={toggleMusic}
-          onFriendsChanged={() => setFriendTick((value) => value + 1)}
-          onClose={() => setSettingsOpen(false)}
-        />
-      </PhoneColumn>
+      <SettingsScreen
+        pet={state}
+        petName={state.name}
+        pendingFriends={incomingFriends.length}
+        careRemindersOn={remindersOn}
+        onCareReminders={setRemindersOn}
+        soundOn={soundOn}
+        musicOn={musicOn}
+        onSound={toggleSound}
+        onMusic={toggleMusic}
+        onFriendsChanged={() => setFriendTick((value) => value + 1)}
+        onClose={() => setSettingsOpen(false)}
+      />
       <HandlePrompt petName={state.name} idle={false} />
     </>
   );
