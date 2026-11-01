@@ -132,7 +132,7 @@ export const catalog: CatalogItem[] = [
     available: true,
     species: ['dog'],
     reaction: 'hop',
-    effects: { casual: { hunger: basicCasual.hunger, weight: basicCasual.weight, mood: 0 }, training: null, fill: 'energy' },
+    effects: { casual: { hunger: basicCasual.hunger, weight: basicCasual.weight, mood: treatMoodGain }, training: null, fill: 'energy' },
   },
   {
     id: 'treat_tuna',
@@ -142,7 +142,7 @@ export const catalog: CatalogItem[] = [
     available: true,
     species: ['cat'],
     reaction: 'hop',
-    effects: { casual: { hunger: basicCasual.hunger, weight: basicCasual.weight, mood: 0 }, training: null, fill: 'energy' },
+    effects: { casual: { hunger: basicCasual.hunger, weight: basicCasual.weight, mood: treatMoodGain }, training: null, fill: 'energy' },
   },
   {
     id: 'food_fish',

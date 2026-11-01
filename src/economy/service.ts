@@ -475,9 +475,11 @@ function commitUse(pet: PetState, item: CatalogItem, opts: UseOpts, key: string,
   ]);
   if (item.kind === 'treat') {
     const effects = opts.context === 'training' ? item.effects?.training : item.effects?.casual;
-    let next = pet;
+    const fillsEnergy = item.effects?.fill === 'energy';
+    const source = fillsEnergy ? { ...pet, needs: { ...pet.needs, energy: 100 } } : pet;
+    let next = source;
     if (effects) {
-      const applied = applyTreatEffects(pet, effects, opts.context !== 'training' && item.effects?.fill == null);
+      const applied = applyTreatEffects(source, effects, opts.context !== 'training' && item.effects?.fill == null);
       if (!applied.ok || !applied.pet) {
         throw new Error(applied.ok ? 'unknown' : applied.reason);
       }

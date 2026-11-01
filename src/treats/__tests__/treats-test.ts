@@ -61,7 +61,7 @@ it('fills energy or mood and still allows a biscuit when the tummy is not empty'
     return;
   }
   expect(jerky.state.needs.energy).toBe(100);
-  expect(jerky.state.needs.happiness).toBe(30);
+  expect(jerky.state.needs.happiness).toBe(50);
   expect(jerky.state.needs.hunger).toBe(0);
   expect(jerky.reaction).toBe('hop');
 

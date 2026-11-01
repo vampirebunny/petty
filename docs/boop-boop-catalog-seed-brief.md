@@ -247,7 +247,7 @@ Logic (every lookup is scoped to `auth.uid()`):
 | Item | Role | Rule |
 |---|---|---|
 | `biscuit` | Training treat | Unchanged |
-| `treat_jerky` (dog), `treat_tuna` (cat) | **Energy treat** | Sets energy to **100**. Refused when energy ≥ **95**: "Already full of energy!" **Waive the hunger gate**, so it works on a full pet. Applies one biscuit's casual hunger and weight effect, clamped as usual. Reaction: `hop`. |
+| `treat_jerky` (dog), `treat_tuna` (cat) | **Energy treat** | Sets energy to **100** and raises mood by **20**. Refused when energy ≥ **95**: "Already full of energy!" **Waive the hunger gate**, so it works on a full pet. Applies one biscuit's casual hunger and weight effect, clamped as usual. The energy fill counts toward the mood gate, so a tired pet still gets the +20. Reaction: `hop`. |
 | `special` Salmon Bites (any) | **Mood treat** | Sets happiness to **100**. Refused when ≥ **95**: "Already super happy!" Hunger gate waived; biscuit-level hunger and weight. Reaction **by species**: dogs `wag_burst`, cats `purr_headbump`. |
 | `food_gourmet` (any), `food_steak` (dog), `food_fish` (cat) | **Premium meal** | Served in the bowl, replacing the kibble for one meal, as today. **When eaten, set hunger to 0 (a full tummy)**, with a weight effect of one normal kibble meal. **Diet quality +0.25** instead of a meal's +0.08 (capped at 1). Over the 7-day care window, this raises the vitality target. **Remove** the XP ×1.5 and energy ×1.2 multipliers and the mood bonuses (gourmet 12, fish 8). Mood is the mood treat's job now. |
 

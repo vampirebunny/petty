@@ -42,7 +42,10 @@ export function giveTreat(state: PetState, treatId: string, now: number): TreatR
   }
   const kind = treatById(treatId)!;
   const item = catalogItem(treatId);
-  let next = applyEffects(state, kind.effects, now);
+  // Energy is filled before the mood check, so a tired pet still gets the treat's mood.
+  const base =
+    item?.effects?.fill === 'energy' ? { ...state, needs: { ...state.needs, energy: 100 } } : state;
+  let next = applyEffects(base, kind.effects, now);
   if (item?.effects?.fill === 'energy') {
     next = { ...next, needs: { ...next.needs, energy: 100 } };
   }
