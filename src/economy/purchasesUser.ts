@@ -5,6 +5,7 @@ import Purchases from 'react-native-purchases';
 let configuredUserId: string | null = null;
 let pending: Promise<void> = Promise.resolve();
 let unconfiguredReason = 'RevenueCat is not configured.';
+let devLogsInstalled = false;
 
 /** Expo Go has no App Store or Play Billing, so RevenueCat stays unconfigured there. */
 function runningInExpoGo(): boolean {
@@ -66,6 +67,9 @@ async function applyPurchasesUser(userId: string | null): Promise<void> {
       : 'RevenueCat is not configured because the public SDK key is missing. Set EXPO_PUBLIC_REVENUECAT_IOS_KEY and EXPO_PUBLIC_REVENUECAT_ANDROID_KEY.';
     return;
   }
+  if (__DEV__) {
+    installDevPurchaseLogs();
+  }
   if (configuredUserId === userId) {
     return;
   }
@@ -93,6 +97,35 @@ async function applyPurchasesUser(userId: string | null): Promise<void> {
   configuredUserId = userId;
 }
 
+/**
+ * The SDK logs an error when an offering has no store products. That is expected
+ * until the dashboard is filled in, and the default handler prints it with console.error.
+ * Replace that handler before configure so the default one is never installed.
+ */
+function installDevPurchaseLogs(): void {
+  if (devLogsInstalled) {
+    return;
+  }
+  devLogsInstalled = true;
+  Purchases.setLogHandler((logLevel, message) => {
+    if (isEmptyOfferingsConfigurationLog(message)) {
+      return;
+    }
+    if (logLevel === Purchases.LOG_LEVEL.ERROR) {
+      console.error(`[RevenueCat] ${message}`);
+    }
+  });
+}
+
+function isEmptyOfferingsConfigurationLog(message: string): boolean {
+  return (
+    message.includes('why-are-offerings-empty') ||
+    message.includes('no App Store products registered') ||
+    message.includes('no Play Store products registered') ||
+    message.includes('OfferingsManager.Error error 1')
+  );
+}
+
 function errorDetail(error: unknown): string {
   if (error && typeof error === 'object' && 'message' in error) {
     const message = String(error.message);
@@ -109,4 +142,5 @@ export function resetPurchasesUserForTests(): void {
   configuredUserId = null;
   pending = Promise.resolve();
   unconfiguredReason = 'RevenueCat is not configured.';
+  devLogsInstalled = false;
 }

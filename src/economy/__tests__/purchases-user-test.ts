@@ -13,6 +13,7 @@ jest.mock('react-native-purchases', () => ({
   default: {
     configure: jest.fn(),
     setLogLevel: jest.fn(async () => undefined),
+    setLogHandler: jest.fn(),
     LOG_LEVEL: { DEBUG: 'DEBUG', ERROR: 'ERROR' },
     isConfigured: jest.fn(async () => false),
     getAppUserID: jest.fn(async () => 'user-a'),
@@ -31,6 +32,7 @@ function keyName(): string {
 beforeEach(() => {
   resetPurchasesUserForTests();
   jest.mocked(Purchases.configure).mockClear();
+  jest.mocked(Purchases.setLogHandler).mockReset();
   jest.mocked(Purchases.logIn).mockClear();
   jest.mocked(Purchases.logOut).mockClear();
   jest.mocked(Purchases.isConfigured).mockReset();
@@ -61,11 +63,38 @@ it('configures with the auth user id and logs in only when that id changes', asy
   await syncPurchasesUser('user-a');
   await syncPurchasesUser('user-b');
   expect(Purchases.configure).toHaveBeenCalledTimes(1);
+  expect(Purchases.setLogHandler).toHaveBeenCalledTimes(1);
   expect(Purchases.setLogLevel).toHaveBeenCalledWith('ERROR');
   expect(Purchases.configure).toHaveBeenCalledWith({ apiKey: 'public_key', appUserID: 'user-a' });
   expect(Purchases.logIn).toHaveBeenCalledTimes(1);
   expect(Purchases.logIn).toHaveBeenCalledWith('user-b');
   expect(Purchases.logOut).not.toHaveBeenCalled();
+});
+
+it('hides the empty store offerings error and keeps other RevenueCat errors', async () => {
+  process.env[keyName()] = 'public_key';
+  let handler: ((level: string, message: string) => void) | undefined;
+  jest.mocked(Purchases.setLogHandler).mockImplementation((next) => {
+    handler = next as (level: string, message: string) => void;
+  });
+  const error = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+  try {
+    await syncPurchasesUser('user-a');
+    expect(handler).toBeDefined();
+    handler!(
+      'ERROR',
+      'Error fetching offerings - There are no App Store products registered in the RevenueCat dashboard. https://rev.cat/why-are-offerings-empty',
+    );
+    handler!(
+      'ERROR',
+      'Error fetching offerings - The operation couldn’t be completed. (RevenueCat.OfferingsManager.Error error 1.)',
+    );
+    handler!('ERROR', 'The purchase failed.');
+    expect(error).toHaveBeenCalledTimes(1);
+    expect(error).toHaveBeenCalledWith('[RevenueCat] The purchase failed.');
+  } finally {
+    error.mockRestore();
+  }
 });
 
 it('lets a guest buy under the install id, then follows a later account id', async () => {
