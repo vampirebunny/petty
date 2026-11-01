@@ -23,7 +23,7 @@ import { PlaydateResults } from '../ui/PlaydateResults';
 import type { ResultsNote } from '../ui/PlaydateResults';
 import { PlaydateStage } from '../ui/PlaydateStage';
 import { SnapshotStill } from '../ui/SnapshotStill';
-import { CandyButton } from '../ui/closet/CandyButton';
+import { PrimaryButton } from '../ui/refresh/PrimaryButton';
 import { PlaydateFriends } from '../ui/PlaydateFriends';
 import { fontFamily } from '../ui/font';
 import { PhoneColumn } from '../ui/PhoneColumn';
@@ -301,10 +301,11 @@ export function PlaydateScreen({ pet, save, now, remaining, reducedMotion, onSav
             });
           }}
           footer={
-            <CandyButton
+            <PrimaryButton
               label={cooling ? countdown : 'Start'}
               accessibilityLabel={cooling ? countdown : 'Start playdate'}
               disabled={cooling}
+              reducedMotion={reducedMotion}
               onPress={start}
             />
           }

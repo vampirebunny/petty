@@ -6,7 +6,8 @@ import { respondFriendRequest } from '../friends/api';
 import type { FriendRow } from '../friends/types';
 import { FriendFace } from './FriendFace';
 import { fontFamily } from './font';
-import { iconStroke, theme } from './theme';
+import { ui } from './refresh/tokens';
+import { iconStroke } from './theme';
 
 type Props = {
   rows: FriendRow[];
@@ -37,7 +38,7 @@ export function FriendRequestModal({ rows, onClose, onChanged, onAccepted, onRep
           <View style={styles.head}>
             <Text style={styles.title}>Friend requests</Text>
             <Pressable accessibilityRole="button" accessibilityLabel="Close" onPress={onClose}>
-              <X color={theme.ink} size={20} strokeWidth={iconStroke} />
+              <X color={ui.ink} size={20} strokeWidth={iconStroke} />
             </Pressable>
           </View>
           <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
@@ -74,7 +75,7 @@ export function FriendRequestModal({ rows, onClose, onChanged, onAccepted, onRep
 const styles = StyleSheet.create({
   dim: {
     flex: 1,
-    backgroundColor: 'rgba(36, 48, 68, 0.4)',
+    backgroundColor: ui.scrim,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
@@ -83,8 +84,10 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 400,
     maxHeight: '80%',
-    backgroundColor: '#FFF8F3',
-    borderRadius: 28,
+    backgroundColor: ui.card,
+    borderRadius: ui.radius.modal,
+    borderWidth: 3,
+    borderColor: ui.card,
     padding: 16,
     gap: 8,
   },
@@ -96,7 +99,7 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: fontFamily.fredokaBold,
     fontSize: 22,
-    color: theme.ink,
+    color: ui.ink,
   },
   list: {
     flexGrow: 0,
@@ -116,12 +119,12 @@ const styles = StyleSheet.create({
   handle: {
     fontFamily: fontFamily.fredokaBold,
     fontSize: 16,
-    color: theme.ink,
+    color: ui.ink,
   },
   meta: {
     fontFamily: fontFamily.bold,
     fontSize: 14,
-    color: theme.muted,
+    color: ui.inkMuted,
   },
   actions: {
     flexDirection: 'row',
@@ -131,6 +134,6 @@ const styles = StyleSheet.create({
   link: {
     fontFamily: fontFamily.extraBold,
     fontSize: 14,
-    color: '#35207A',
+    color: ui.primary.bottom,
   },
 });

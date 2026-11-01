@@ -27,7 +27,7 @@ import {
   venueTileWidth,
   venueXml,
 } from '../../runway/venue';
-import { FunModal } from '../FunModal';
+import { BoopModal } from '../refresh/BoopModal';
 import { fontFamily } from '../font';
 import { drawPetOnly } from '../skia/world';
 import {
@@ -443,12 +443,11 @@ export function RunwayView({ show, viewerSubmissionId, reducedMotion, doneLabel 
         </View>
       ) : null}
       {ended ? (
-        <FunModal
+        <BoopModal
           title="That's a wrap!"
           body={doneLabel === 'Continue' ? 'What a show. Continue when you are ready to vote.' : 'What a show. Want to watch it again?'}
           icon={Clapperboard}
-          tint="lilac"
-          sparkle
+          accent="train"
           reducedMotion={reducedMotion}
           primary={{ label: 'Replay', onPress: replayShow }}
           secondary={{

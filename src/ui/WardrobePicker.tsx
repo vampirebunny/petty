@@ -1,16 +1,20 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Pressable } from 'react-native-gesture-handler';
+import { Canvas, Group, Picture } from '@shopify/react-native-skia';
+import { X } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 
 import type { OwnedItem } from '../actor/closet';
 import { outfitSlots, wearItem } from '../actor/wardrobe';
 import type { Equipped, OutfitSlot } from '../sim/types';
-import { ClosetSection } from './closet/ClosetSection';
-import { closet } from './closet/closetStyle';
 import { fontFamily } from './font';
 import { OutfitPreview, useOutfitClock, type OutfitSubject } from './OutfitPreview';
 import { useLimitedContentWidth } from './PhoneColumn';
+import { ItemTile } from './refresh/ItemTile';
+import { SlotTabs, type ClosetTab } from './refresh/SlotTabs';
+import { ui } from './refresh/tokens';
+import { ICON_BOX, itemIconPicture } from './skia/itemIcon';
 import { isLandscapeSplit } from './wideLayout';
 
 type Props = {
@@ -20,24 +24,33 @@ type Props = {
   onEquip: (slot: OutfitSlot, itemId: string | null) => void;
   reducedMotion: boolean;
   footer?: ReactNode;
+  onShop?: () => void;
 };
 
 function bump() {
   void Haptics.selectionAsync();
 }
 
-export function WardrobePicker({ subject, owned, equipped, onEquip, reducedMotion, footer }: Props) {
+export function WardrobePicker({ subject, owned, equipped, onEquip, reducedMotion, footer, onShop }: Props) {
   const t = useOutfitClock(reducedMotion);
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const limited = useLimitedContentWidth();
-  // A closet that has the whole window splits. Inside a phone column it stays stacked.
   const split = limited == null && isLandscapeSplit(windowWidth, windowHeight);
   const width = limited ?? windowWidth;
   const previewW = Math.min(420, (split ? windowWidth / 2 : width) - 32);
-  const previewH = 260;
-  const wornLabels = outfitSlots.flatMap((slot) => {
-    const label = wearItem(slot, equipped[slot])?.label;
-    return label ? [label] : [];
+  const previewH = 236;
+  const [tab, setTab] = useState<ClosetTab>('hat');
+  const worn = outfitSlots.flatMap((slot) => {
+    const item = wearItem(slot, equipped[slot]);
+    return item ? [{ slot, item }] : [];
+  });
+  const wornTabs = new Set(worn.map((row) => row.slot as ClosetTab));
+  const items = owned.flatMap((item) => {
+    if (item.slot !== tab) {
+      return [];
+    }
+    const wear = wearItem(tab, item.id);
+    return wear ? [wear] : [];
   });
 
   const equip = (slot: OutfitSlot, itemId: string | null) => {
@@ -45,54 +58,77 @@ export function WardrobePicker({ subject, owned, equipped, onEquip, reducedMotio
     bump();
   };
 
-  return (
-    <View style={[styles.root, split && styles.split]}>
-      <View style={[styles.sticky, split && styles.previewPane]}>
-        <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-          <OutfitPreview {...subject} equipped={equipped} width={previewW} height={previewH} t={t} pose="sit" />
-        </View>
-        <View style={styles.status}>
-          <Text style={styles.statusText} numberOfLines={2}>
-            {wornLabels.length > 0 ? `Wearing: ${wornLabels.join(', ')}` : 'Nothing on yet. Tap something to try it on.'}
-          </Text>
-        </View>
-        {wornLabels.length > 0 ? (
+  const choices = (
+    <>
+      <SlotTabs value={tab} onChange={setTab} worn={wornTabs} />
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.grid}>
+        {items.map((item) => (
+          <ItemTile
+            key={item.id}
+            label={item.label}
+            state={equipped[tab] === item.id ? 'selected' : 'default'}
+            reducedMotion={reducedMotion}
+            art={
+              <Canvas style={styles.icon}>
+                <Group transform={[{ scale: 52 / ICON_BOX }]}>
+                  <Picture picture={itemIconPicture(tab, item, ui.card)} />
+                </Group>
+              </Canvas>
+            }
+            onPress={() => equip(tab, equipped[tab] === item.id ? null : item.id)}
+          />
+        ))}
+        {onShop ? (
+          <ItemTile label="Get more" state="shop" reducedMotion={reducedMotion} onPress={onShop} />
+        ) : null}
+      </ScrollView>
+      {footer ? <View style={styles.footer}>{footer}</View> : null}
+    </>
+  );
+
+  const stage = (
+    <View style={[styles.sticky, split && styles.previewPane]}>
+      <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+        <OutfitPreview {...subject} equipped={equipped} width={previewW} height={previewH} t={t} pose="sit" />
+      </View>
+      <View style={styles.chips}>
+        {worn.length === 0 ? <Text style={styles.empty}>Tap something to try it on.</Text> : null}
+        {worn.map((row) => (
+          <Pressable
+            key={row.slot}
+            accessibilityRole="button"
+            accessibilityLabel={`Take off ${row.item.label}`}
+            onPress={() => equip(row.slot, null)}
+            style={styles.chip}
+          >
+            <Text style={styles.chipText} numberOfLines={1}>
+              {row.item.label}
+            </Text>
+            <X size={14} color={ui.ink} />
+          </Pressable>
+        ))}
+        {worn.length > 0 ? (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Take it all off"
+            accessibilityLabel="Take off all"
             onPress={() => {
-              for (const slot of outfitSlots) {
-                if (wearItem(slot, equipped[slot])) {
-                  onEquip(slot, null);
-                }
+              for (const row of worn) {
+                onEquip(row.slot, null);
               }
               bump();
             }}
-            style={styles.clear}
           >
-            <Text style={styles.clearLabel}>Take it all off</Text>
+            <Text style={styles.takeAll}>Take off all</Text>
           </Pressable>
         ) : null}
-        {footer}
       </View>
-      <ScrollView style={[styles.scroll, split && styles.options]} contentContainerStyle={styles.scrollContent}>
-        {outfitSlots.map((slot) => (
-          <ClosetSection
-            key={slot}
-            slot={slot}
-            wornId={equipped[slot]}
-            reducedMotion={reducedMotion}
-            items={owned.flatMap((item) => {
-              if (item.slot !== slot) {
-                return [];
-              }
-              const wear = wearItem(slot, item.id);
-              return wear ? [wear] : [];
-            })}
-            onPress={(itemId, worn) => equip(slot, worn ? null : itemId)}
-          />
-        ))}
-      </ScrollView>
+    </View>
+  );
+
+  return (
+    <View style={[styles.root, split && styles.split]}>
+      {stage}
+      {split ? <View style={styles.options}>{choices}</View> : choices}
     </View>
   );
 }
@@ -100,7 +136,7 @@ export function WardrobePicker({ subject, owned, equipped, onEquip, reducedMotio
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: closet.page,
+    backgroundColor: ui.bg,
   },
   split: {
     flexDirection: 'row',
@@ -108,59 +144,66 @@ const styles = StyleSheet.create({
   sticky: {
     alignItems: 'center',
     gap: 8,
-    paddingBottom: 12,
-    backgroundColor: closet.page,
+    paddingBottom: 8,
   },
   previewPane: {
     flex: 1,
     minWidth: 0,
     justifyContent: 'center',
-    paddingBottom: 24,
   },
-  status: {
-    alignSelf: 'stretch',
-    minHeight: 44,
+  chips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
     paddingHorizontal: 16,
-    justifyContent: 'center',
-  },
-  statusText: {
-    color: closet.status.text,
-    fontSize: 13,
-    fontFamily: fontFamily.bold,
-  },
-  clear: {
-    alignSelf: 'flex-start',
-    marginHorizontal: 16,
-    minHeight: 44,
-    paddingHorizontal: 14,
-    borderRadius: 22,
-    backgroundColor: closet.status.buttonBg,
-    borderWidth: 2,
-    borderColor: closet.status.buttonBorder,
     alignItems: 'center',
-    justifyContent: 'center',
   },
-  clearLabel: {
-    color: closet.status.text,
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    minHeight: 36,
+    paddingHorizontal: 10,
+    borderRadius: ui.radius.pill,
+    backgroundColor: ui.card,
+  },
+  chipText: {
+    maxWidth: 120,
+    fontFamily: fontFamily.fredokaSemibold,
     fontSize: 13,
-    fontFamily: fontFamily.extraBold,
+    color: ui.ink,
+  },
+  empty: {
+    fontFamily: fontFamily.semibold,
+    fontSize: 13,
+    color: ui.inkMuted,
+  },
+  takeAll: {
+    fontFamily: fontFamily.fredokaSemibold,
+    fontSize: 13,
+    color: ui.takeOff,
+    minHeight: 44,
+    textAlignVertical: 'center',
+  },
+  options: {
+    flex: 1,
+    minWidth: 0,
   },
   scroll: {
     flex: 1,
-    backgroundColor: closet.scroll.bg,
-    borderTopWidth: 6,
-    borderTopColor: closet.scroll.topBorder,
   },
-  options: {
-    minWidth: 0,
-    borderTopWidth: 0,
-    borderLeftWidth: 6,
-    borderLeftColor: closet.scroll.topBorder,
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    padding: 16,
   },
-  scrollContent: {
-    paddingHorizontal: 14,
-    paddingTop: 14,
-    paddingBottom: 32,
-    gap: 14,
+  icon: {
+    width: 64,
+    height: 52,
+  },
+  footer: {
+    paddingHorizontal: 16,
+    paddingBottom: 12,
   },
 });

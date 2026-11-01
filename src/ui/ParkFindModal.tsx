@@ -1,4 +1,4 @@
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -6,14 +6,15 @@ import Animated, {
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
-import * as Haptics from 'expo-haptics';
 import { useEffect } from 'react';
 
 import { conditionCopyFor } from '../parkFinds/conditionCopy';
 import { findTitle } from '../parkFinds/collection';
 import { parkFindColorArt } from '../parkFinds/artMap';
 import type { ParkFindCatalogRow } from '../parkFinds/types';
-import { CandyShell, candyInk, tints } from './candy';
+import { fontFamily } from './font';
+import { PrimaryButton } from './refresh/PrimaryButton';
+import { ui } from './refresh/tokens';
 
 const rarityColors: Record<string, string> = {
   common: '#CFC3EA',
@@ -32,8 +33,6 @@ type Props = {
 };
 
 export function ParkFindModal({ petName, item, isNew, count, reducedMotion, onAdd }: Props) {
-  const flavor = tints.orchid;
-  const ink = candyInk(flavor);
   const bob = useSharedValue(0);
   const art = parkFindColorArt(item.art_key, '3x');
   const copy = conditionCopyFor(item.condition_type, item.condition_value);
@@ -58,8 +57,8 @@ export function ParkFindModal({ petName, item, isNew, count, reducedMotion, onAd
 
   return (
     <View style={styles.backdrop}>
-      <CandyShell tint={flavor} radius={28} uid="park-find-modal" style={styles.card}>
-        <Text style={[styles.title, { color: ink }]}>{findTitle(petName, item.name)}</Text>
+      <View style={styles.card}>
+        <Text style={styles.title}>{findTitle(petName, item.name)}</Text>
         <View style={styles.glow}>
           <Animated.View style={artStyle}>
             {art ? (
@@ -87,21 +86,10 @@ export function ParkFindModal({ petName, item, isNew, count, reducedMotion, onAd
               {item.rarity.charAt(0).toUpperCase() + item.rarity.slice(1)}
             </Text>
           </View>
-          {side ? <Text style={[styles.side, { color: ink }]}>{side}</Text> : null}
+          {side ? <Text style={styles.side}>{side}</Text> : null}
         </View>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => {
-            void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            onAdd();
-          }}
-          style={({ pressed }) => [styles.hit, pressed && styles.pressed]}
-        >
-          <View style={[styles.button, { backgroundColor: flavor.icon }]}>
-            <Text style={styles.buttonText}>Add to collection</Text>
-          </View>
-        </Pressable>
-      </CandyShell>
+        <PrimaryButton label="Add to collection" reducedMotion={reducedMotion} onPress={onAdd} />
+      </View>
     </View>
   );
 }
@@ -109,7 +97,7 @@ export function ParkFindModal({ petName, item, isNew, count, reducedMotion, onAd
 const styles = StyleSheet.create({
   backdrop: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(20, 12, 40, 0.45)',
+    backgroundColor: ui.scrim,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 60,
@@ -121,10 +109,15 @@ const styles = StyleSheet.create({
     padding: 20,
     alignItems: 'center',
     gap: 12,
+    backgroundColor: ui.card,
+    borderRadius: ui.radius.modal,
+    borderWidth: 3,
+    borderColor: ui.card,
   },
   title: {
-    fontSize: 20,
-    fontWeight: '800',
+    fontFamily: fontFamily.fredokaBold,
+    fontSize: 24,
+    color: ui.ink,
     textAlign: 'center',
   },
   glow: {
@@ -151,7 +144,7 @@ const styles = StyleSheet.create({
   chip: { borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 },
   legendary: { backgroundColor: '#F5D76E' },
   chipText: { fontWeight: '800', fontSize: 13, color: '#3A2A55' },
-  side: { fontSize: 14, fontWeight: '600' },
+  side: { fontFamily: fontFamily.semibold, fontSize: 14, color: ui.inkMuted },
   hit: { alignSelf: 'stretch', marginTop: 4 },
   pressed: { transform: [{ scale: 0.97 }] },
   button: { borderRadius: 20, paddingVertical: 12, alignItems: 'center' },

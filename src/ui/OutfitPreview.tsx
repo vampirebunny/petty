@@ -38,8 +38,20 @@ export type OutfitPose = 'idle' | 'sit' | 'lie' | 'walk';
 const IDLE_WAG_RATE = 5;
 const BLINK_EVERY = 2.6;
 const BLINK_SHUT = 0.12;
+const SIT_FOR = 4;
+const WALK_FOR = 2.8;
+const IDLE_CYCLE = SIT_FOR + WALK_FOR;
+const WALK_SPAN = 28;
 
-function applyPreviewMotion(actor: Actor, t: number, sleeping: boolean): void {
+function faceWalk(actor: Actor, face: 1 | -1): void {
+  actor.face = face;
+  actor.octant = face > 0 ? 'E' : 'W';
+  actor.octantFrom = actor.octant;
+  actor.octantTarget = actor.octant;
+  actor.octantBlend = 1;
+}
+
+function applyPreviewMotion(actor: Actor, t: number, sleeping: boolean, pose: OutfitPose): void {
   if (sleeping) {
     actor.asleep = true;
     actor.pose.sit = 0;
@@ -54,12 +66,38 @@ function applyPreviewMotion(actor: Actor, t: number, sleeping: boolean): void {
     actor.blinkT = 2;
     actor.wagPh = 0;
     actor.breathPh = t * Math.PI * 2 * actor.pose.breathRate;
+    actor.x = 320;
     return;
+  }
+  const loop = pose === 'sit' || pose === 'idle';
+  const u = ((t % IDLE_CYCLE) + IDLE_CYCLE) % IDLE_CYCLE;
+  const walking = pose === 'walk' || (loop && t > 0 && u >= SIT_FOR);
+  if (walking) {
+    actor.pose.sit = 0;
+    actor.pose.headTurn = 0;
+    actor.pose.lie = 0;
+    actor.pose.walk = 1;
+    actor.speed = 60;
+    actor.phase = t * 6;
+    if (loop) {
+      const walkT = (u - SIT_FOR) / WALK_FOR;
+      const goingRight = walkT < 0.5;
+      const local = goingRight ? walkT * 2 : (1 - walkT) * 2;
+      actor.x = 320 - WALK_SPAN + local * WALK_SPAN * 2;
+      faceWalk(actor, goingRight ? 1 : -1);
+    }
+  } else if (pose === 'sit') {
+    actor.pose.walk = 0;
+    actor.pose.sit = 1;
+    actor.pose.headTurn = 1;
+    actor.pose.wagAmp = 0.3;
+    actor.x = 320;
+    faceWalk(actor, 1);
   }
   actor.breathPh = t * Math.PI * 2 * actor.pose.breathRate;
   actor.wagPh = t * IDLE_WAG_RATE;
-  const u = ((t % BLINK_EVERY) + BLINK_EVERY) % BLINK_EVERY;
-  actor.blinkT = u > BLINK_EVERY - BLINK_SHUT ? BLINK_EVERY - u : 2;
+  const blink = ((t % BLINK_EVERY) + BLINK_EVERY) % BLINK_EVERY;
+  actor.blinkT = blink > BLINK_EVERY - BLINK_SHUT ? BLINK_EVERY - blink : 2;
 }
 
 export function useOutfitClock(reducedMotion: boolean): number {
@@ -103,16 +141,7 @@ export function OutfitPreview({
     );
     actor.speed = 36;
     const sleeping = asleep || pose === 'lie';
-    if (!sleeping && pose === 'sit') {
-      actor.pose.sit = 1;
-      actor.pose.headTurn = 1;
-      actor.pose.wagAmp = 0.3;
-    } else if (!sleeping && pose === 'walk') {
-      actor.pose.walk = 1;
-      actor.speed = 60;
-      actor.phase = t * 6;
-    }
-    applyPreviewMotion(actor, t, sleeping);
+    applyPreviewMotion(actor, t, sleeping, pose);
     const world = createWorld([actor], seed || 1, sceneById('livingroom'));
     world.t = t;
     const recorder = Skia.PictureRecorder();

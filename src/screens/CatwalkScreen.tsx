@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { ChevronLeft, Clock } from 'lucide-react-native';
 
 import { breedById } from '../actor/breeds';
@@ -62,29 +62,25 @@ import type { LocalRunwayShow } from '../runway/types';
 import type { Equipped, OutfitSlot, PetState } from '../sim/types';
 import { AccountSheet } from '../ui/AccountSheet';
 import { HeaderBrand } from '../ui/HeaderBrand';
-import { ClosetSection } from '../ui/closet/ClosetSection';
-import { tileColumns } from '../ui/closet/closetStyle';
 import { fontFamily } from '../ui/font';
-import { FunModal } from '../ui/FunModal';
 import { OutfitPreview, useOutfitClock } from '../ui/OutfitPreview';
 import { BackstageStage, LobbyBanner, ThemeBanner } from '../ui/runway/CatwalkArt';
 import { lobbyPhoneAspect } from '../ui/lobby/heroes';
 import { CatwalkFrame } from '../ui/runway/CatwalkFrame';
-import { CostumeTile } from '../ui/runway/CostumeTile';
 import { MusicMenu } from '../ui/runway/MusicMenu';
 import { RunwayView } from '../ui/runway/RunwayView';
 import { CandyButton } from '../ui/stadium/CandyButton';
+import { PrimaryButton } from '../ui/refresh/PrimaryButton';
+import { BoopModal } from '../ui/refresh/BoopModal';
+import { ItemTile } from '../ui/refresh/ItemTile';
+import { SlotTabs } from '../ui/refresh/SlotTabs';
+import { ui } from '../ui/refresh/tokens';
+import { ICON_BOX, itemIconPicture } from '../ui/skia/itemIcon';
+import { Canvas, Group, Picture } from '@shopify/react-native-skia';
+import { costumeRackImages } from '../runway/costumeRackImages';
 import { ink, softInk } from '../ui/stadium/parts';
 import { iconStroke } from '../ui/theme';
 import { isLandscapeSplit, phoneColumnWidth } from '../ui/wideLayout';
-
-function chunk<T>(items: T[], cols: number): T[][] {
-  const rows: T[][] = [];
-  for (let i = 0; i < items.length; i += cols) {
-    rows.push(items.slice(i, i + cols));
-  }
-  return rows;
-}
 
 function formatWhen(ms: number): string {
   return new Date(ms).toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' });
@@ -146,7 +142,7 @@ function phoneArtHeight(step: Step, width: number): number {
     return Math.round(w / lobbyPhoneAspect);
   }
   if (step === 'backstage') {
-    return Math.round(w * 0.78);
+    return 210;
   }
   // Theme stills are 4:3, so the hero matches the thumbnail framing.
   return Math.round(w * 0.75);
@@ -173,6 +169,8 @@ export function CatwalkScreen({
   const [trackId, setTrackId] = useState(seed?.trackId ?? runwayTracks[0]?.id ?? 'fashion-show-music');
   const [looks, setLooks] = useState<DraftLook[]>(() => emptyLooks(pet.equipped));
   const [lookIndex, setLookIndex] = useState(0);
+  const [closetTab, setClosetTab] = useState<'hat' | 'glasses' | 'neckwear' | 'jacket' | 'boots'>('hat');
+  const [rackOn, setRackOn] = useState(false);
   const [show, setShow] = useState<LocalRunwayShow | null>(null);
   const [viewerId, setViewerId] = useState<string | undefined>();
   const [watchReturn, setWatchReturn] = useState<Step>('lobby');
@@ -833,12 +831,11 @@ export function CatwalkScreen({
   const notices = (
     <>
       {step === 'judge' ? (
-        <FunModal
+        <BoopModal
           title="Submissions are closed"
           body="But you can still be a judge! We'll let you know when voting opens."
           icon={Clock}
-          tint="lilac"
-          sparkle
+          accent="train"
           reducedMotion={reducedMotion}
           primary={{ label: 'Got it', onPress: () => setStep('lobby'), closeFirst: true }}
         />
@@ -1039,54 +1036,16 @@ export function CatwalkScreen({
       </>
     );
   } else if (step === 'backstage') {
+    const rackPieces = rack.filter((piece) => piece.slot === closetTab || (closetTab === 'jacket' && piece.slot === 'back'));
+    const closetPieces = owned.flatMap((row) => {
+      if (row.slot !== closetTab) {
+        return [];
+      }
+      const wear = wearItem(closetTab, row.id);
+      return wear ? [wear] : [];
+    });
     body = (
       <>
-        {outfitSlots.map((slot) => (
-          <ClosetSection
-            key={slot}
-            slot={slot}
-            wornId={current.wardrobe[slot]}
-            reducedMotion={reducedMotion}
-            items={owned.flatMap((row) => {
-              if (row.slot !== slot) {
-                return [];
-              }
-              const wear = wearItem(slot, row.id);
-              return wear ? [wear] : [];
-            })}
-            onPress={(itemId) => toggleWardrobe(slot, itemId)}
-          />
-        ))}
-        <View style={styles.rack}>
-          <Text style={styles.kicker}>Costume rack</Text>
-          {liveFriend && unlockedCount < rack.length ? (
-            <Text style={styles.cardBody}>Costumes begin unlocking in 5 minutes and then every few minutes after that.</Text>
-          ) : null}
-          {chunk(rack, tileColumns).map((row, index) => (
-            <View key={index} style={styles.rackRow}>
-              {row.map((piece) => {
-                const locked = costumeLocked(piece.id);
-                const taken = npcTaken.has(piece.id);
-                const countdownLabel = locked && nextUnlockAt != null ? formatRemain(nextUnlockAt - nowTick) : null;
-                return (
-                  <CostumeTile
-                    key={piece.id}
-                    id={piece.id}
-                    label={piece.name}
-                    worn={current.costumes.includes(piece.id)}
-                    locked={locked}
-                    taken={taken}
-                    countdownLabel={countdownLabel}
-                    onPress={() => toggleCostume(piece.id)}
-                  />
-                );
-              })}
-              {Array.from({ length: tileColumns - row.length }, (_, pad) => (
-                <View key={`pad-${pad}`} style={styles.flex} />
-              ))}
-            </View>
-          ))}
-        </View>
         <MusicMenu
           trackId={trackId}
           previewId={previewId}
@@ -1094,6 +1053,60 @@ export function CatwalkScreen({
           onSelect={musicLocked ? undefined : setTrackId}
           lockedLabel={musicLocked}
         />
+        <View style={styles.row}>
+          <Pressable accessibilityRole="button" onPress={() => setRackOn(false)} style={[styles.deadline, !rackOn && styles.deadlineOn]}>
+            <Text style={styles.deadlineText}>My closet</Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" onPress={() => setRackOn(true)} style={[styles.deadline, rackOn && styles.deadlineOn]}>
+            <Text style={styles.deadlineText}>Costume rack</Text>
+          </Pressable>
+        </View>
+        <SlotTabs
+          value={closetTab}
+          onChange={setClosetTab}
+          worn={new Set(outfitSlots.filter((slot) => current.wardrobe[slot] || (slot === 'jacket' && current.costumes.some((id) => costumeById(id)?.slot === 'back'))))}
+        />
+        {rackOn && liveFriend && nextUnlockAt != null ? (
+          <Text style={styles.cardBody}>New piece in {formatRemain(nextUnlockAt - nowTick)} · each costume, one model per show</Text>
+        ) : null}
+        <View style={styles.rackRow}>
+          {rackOn
+            ? rackPieces.map((piece) => {
+                const locked = costumeLocked(piece.id);
+                const taken = npcTaken.has(piece.id);
+                const countdownLabel = locked && nextUnlockAt != null ? formatRemain(nextUnlockAt - nowTick) : null;
+                return (
+                  <ItemTile
+                    key={piece.id}
+                    label={piece.name}
+                    reducedMotion={reducedMotion}
+                    state={taken ? 'used' : locked ? 'locked' : current.costumes.includes(piece.id) ? 'selected' : 'default'}
+                    tag={taken ? 'Taken' : countdownLabel ?? undefined}
+                    art={costumeRackImages[piece.id] ? <Image source={costumeRackImages[piece.id]} style={{ width: 64, height: 52 }} resizeMode="contain" /> : null}
+                    onPress={() => toggleCostume(piece.id)}
+                  />
+                );
+              })
+            : closetPieces.map((item) => (
+                <ItemTile
+                  key={item.id}
+                  label={item.label}
+                  reducedMotion={reducedMotion}
+                  state={current.wardrobe[closetTab] === item.id ? 'selected' : 'default'}
+                  art={
+                    <Canvas style={{ width: 64, height: 52 }}>
+                      <Group transform={[{ scale: 52 / ICON_BOX }]}>
+                        <Picture picture={itemIconPicture(closetTab, item, ui.card)} />
+                      </Group>
+                    </Canvas>
+                  }
+                  onPress={() => toggleWardrobe(closetTab, item.id)}
+                />
+              ))}
+        </View>
+        {rackOn && rackPieces.length === 0 ? (
+          <Text style={styles.cardBody}>No {closetTab} pieces on the rack for this show. Try your closet.</Text>
+        ) : null}
         {error ? <Text style={styles.error}>{error}</Text> : null}
       </>
     );
@@ -1277,21 +1290,26 @@ export function CatwalkScreen({
       dock={
         step === 'backstage' ? (
           <View style={styles.lookBar}>
-            {looks.map((look, i) => (
-              <Pressable key={look.lookNumber} onPress={() => setLookIndex(i)} style={[styles.lookChip, lookIndex === i && styles.lookChipOn]}>
-                <Text style={[styles.lookText, lookIndex === i && styles.lookTextOn]}>Look {i + 1}</Text>
-              </Pressable>
-            ))}
+            {looks.map((look, i) => {
+              const pieces = look.costumes.length + Object.keys(look.wardrobe).length;
+              const editing = lookIndex === i;
+              return (
+                <Pressable key={look.lookNumber} onPress={() => setLookIndex(i)} style={[styles.lookChip, editing && styles.lookChipOn]}>
+                  <Text style={[styles.lookText, editing && styles.lookTextOn]}>Look {i + 1}</Text>
+                  <Text style={styles.cardBody}>{editing ? 'Editing' : pieces > 0 ? `${pieces} pieces` : 'Empty'}</Text>
+                </Pressable>
+              );
+            })}
           </View>
         ) : null
       }
       footer={
         step === 'backstage' ? (
           <View style={styles.footer}>
-            <CandyButton
-              role="primary"
+            <PrimaryButton
               label={nextLabel}
               disabled={busy || (lastLook && !looksValid)}
+              reducedMotion={reducedMotion}
               onPress={() => {
                 if (lookIndex < looks.length - 1) {
                   setLookIndex(lookIndex + 1);

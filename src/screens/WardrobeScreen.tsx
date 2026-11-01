@@ -7,11 +7,11 @@ import type { Equipped, OutfitSlot, PetState } from '../sim/types';
 import { seenDailyOutfitTooltip, setSeenDailyOutfitTooltip } from '../storage/dailyOutfitTip';
 import { BoopCounter } from '../ui/BoopCounter';
 import { useOpenedDuoBoopEdge, useOpenedDuoTopInset } from '../ui/useDeviceOrientation';
-import { CandyButton } from '../ui/closet/CandyButton';
+import { PrimaryButton } from '../ui/refresh/PrimaryButton';
+import { BoopModal } from '../ui/refresh/BoopModal';
 import { CandySwitch } from '../ui/closet/CandySwitch';
 import { closet } from '../ui/closet/closetStyle';
 import { fontFamily } from '../ui/font';
-import { FunModal } from '../ui/FunModal';
 import { CandyTooltip } from '../ui/tips/CandyTooltip';
 import { WardrobePicker } from '../ui/WardrobePicker';
 
@@ -112,9 +112,9 @@ export function WardrobeScreen({
         equipped={equipped}
         onEquip={onEquip}
         reducedMotion={reducedMotion}
+        onShop={onOpenStore}
         footer={
           <View style={styles.footer}>
-            <CandyButton label="Continue" onPress={onClose} style={styles.continue} />
             <View ref={switchRef} collapsable={false} onLayout={placeTip} style={styles.toggleWrap}>
               <Pressable
                 accessibilityRole="switch"
@@ -123,10 +123,11 @@ export function WardrobeScreen({
                 onPress={onSwitch}
                 style={styles.toggle}
               >
-                <Text style={styles.toggleLabel}>Automatically choose a new outfit each day</Text>
+                <Text style={styles.toggleLabel}>New outfit every day</Text>
                 <CandySwitch on={dailyOutfitOn} />
               </Pressable>
             </View>
+            <PrimaryButton label="Done" onPress={onClose} reducedMotion={reducedMotion} />
           </View>
         }
       />
@@ -146,13 +147,13 @@ export function WardrobeScreen({
         </Pressable>
       ) : null}
       {askToday ? (
-        <FunModal
-          title="Choose today's outfit?"
-          body="Yes picks from the closet now. Start tomorrow keeps this look."
+        <BoopModal
+          title="New look every day?"
+          body={`We'll pick something from ${pet.name}'s closet each morning. Want a fresh outfit right now too?`}
           icon={Shirt}
-          tint="lilac"
+          accent="style"
           reducedMotion={reducedMotion}
-          primary={{ label: 'Yes', onPress: () => { onPickDailyOutfit(); setAskToday(false); } }}
+          primary={{ label: 'Yes, pick one now', onPress: () => { onPickDailyOutfit(); setAskToday(false); } }}
           secondary={{ label: 'Start tomorrow', onPress: () => setAskToday(false) }}
         />
       ) : null}

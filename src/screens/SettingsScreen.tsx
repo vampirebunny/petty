@@ -27,6 +27,10 @@ type Props = {
   careRemindersOn: boolean;
   onCareReminders: (enabled: boolean) => void;
   onFriendsChanged: () => void;
+  soundOn: boolean;
+  musicOn: boolean;
+  onSound: () => void;
+  onMusic: () => void;
 };
 
 type SignedIn = {
@@ -49,7 +53,19 @@ function providerPhrase(identities: { provider: string }[]): string {
   return '';
 }
 
-export function SettingsScreen({ pet, petName, onClose, pendingFriends, careRemindersOn, onCareReminders, onFriendsChanged }: Props) {
+export function SettingsScreen({
+  pet,
+  petName,
+  onClose,
+  pendingFriends,
+  careRemindersOn,
+  onCareReminders,
+  onFriendsChanged,
+  soundOn,
+  musicOn,
+  onSound,
+  onMusic,
+}: Props) {
   const duoTop = useOpenedDuoTopInset();
   const [tick, setTick] = useState(0);
   const linked = readAccountLinked();
@@ -205,6 +221,13 @@ export function SettingsScreen({ pet, petName, onClose, pendingFriends, careRemi
         <Text style={styles.title}>Settings</Text>
       </View>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+        <Text style={styles.line}>Sound</Text>
+        <Pressable accessibilityRole="switch" accessibilityState={{ checked: soundOn }} onPress={onSound}>
+          <Text style={styles.link}>{soundOn ? 'Sounds on' : 'Sounds off'}</Text>
+        </Pressable>
+        <Pressable accessibilityRole="switch" accessibilityState={{ checked: musicOn }} onPress={onMusic}>
+          <Text style={styles.link}>{musicOn ? 'Music on' : 'Music off'}</Text>
+        </Pressable>
         {linked && !shown ? (
           <Text style={styles.line}>Signed in</Text>
         ) : linked ? (

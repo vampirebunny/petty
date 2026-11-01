@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { AccessibilityInfo, AppState, Linking, Platform, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
-import { Gesture, GestureDetector, Pressable, ScrollView } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector, Pressable } from 'react-native-gesture-handler';
 import { runOnJS, useSharedValue } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
@@ -28,7 +28,6 @@ import {
   countsAsBed,
   otherBedInRoom,
   pieceLabel,
-  roomRestBadge,
   shopSku,
   stowWarning,
   TREASURE_CHEST_ID,
@@ -60,7 +59,7 @@ import { flushStayTime } from '../minigames/stay/scores';
 import { PantryScreen } from './PantryScreen';
 import { PetShopScreen } from './PetShopScreen';
 import { TreasureChestScreen } from './TreasureChestScreen';
-import { placeFlavors, placeIcons, speciesLabel } from '../ui/actionIcons';
+import { speciesLabel } from '../ui/actionIcons';
 import { ParkFindPrompt } from '../ui/ParkFindPrompt';
 import { ParkFindModal } from '../ui/ParkFindModal';
 import {
@@ -80,7 +79,7 @@ import {
   resetChestIntroFlags,
 } from '../parkFinds/playerFlags';
 import { setParkFindDebug } from '../parkFinds/visit';
-import { CandyShell, candyInk, tints } from '../ui/candy';
+import { tints } from '../ui/candy';
 import { HeaderBrand } from '../ui/HeaderBrand';
 import { LevelBar } from '../ui/LevelBar';
 import { LevelUpFloat } from '../ui/LevelUpFloat';
@@ -89,7 +88,6 @@ import { acceptStageOrigin } from '../components/currency/windowSample';
 import { BoopCounter } from '../ui/BoopCounter';
 import type { BoopCounterHandle } from '../ui/BoopCounter';
 import { fontFamily } from '../ui/font';
-import { iconStroke } from '../ui/theme';
 import { useAccountHandle } from '../state/useAccountHandle';
 import { usePet } from '../state/usePet';
 import { grantDevItem } from '../dev/grant';
@@ -105,7 +103,7 @@ import { trackName } from '../sim/tracks';
 import { failBand, trickListing } from '../sim/tricks';
 import { gameplayConfig } from '../sim/gameplayConfig';
 import { xpCost } from '../sim/progress';
-import { recordParkFind, suggestionSignature, syncSuggestions } from '../sim/suggestions';
+import { recordParkFind, suggestionFocus, suggestionSignature, syncSuggestions } from '../sim/suggestions';
 import { catalogForSpecies } from '../parkFinds/catalog';
 import { SuggestionPill } from '../ui/SuggestionRow';
 import { economyConfig } from '../economy/economyConfig';
@@ -122,7 +120,9 @@ import {
   treasureChestPlacement,
 } from '../db/playerHome';
 import { ghostDelayMs, ghostEligible, startCuddleSession } from '../cuddle/guidance';
-import { HomeActionPanel } from '../ui/HomeActionPanel';
+import { trainingIds } from '../ui/TrainingRings';
+import { HomeDeck } from '../ui/refresh/HomeDeck';
+import { LocationChip, locationChipStyle } from '../ui/refresh/LocationChip';
 import { ToyCard } from '../ui/ToyCard';
 import { PropCard } from '../ui/PropCard';
 import { HoldPieceSheet } from '../ui/HoldPieceSheet';
@@ -170,14 +170,12 @@ import { ParkFriendsBubble } from '../ui/ParkFriendsBubble';
 import { usePlaydates } from '../state/usePlaydates';
 import { formatCooldown } from '../playdate/cooldown';
 import { DebugPanel } from '../ui/DebugPanel';
-import { NeedRings } from '../ui/NeedRings';
 import { needHold, presentNeeds, sumHolds } from '../ui/needHold';
 import type { NeedHold } from '../ui/needHold';
-import { TrainingRings } from '../ui/TrainingRings';
 import { SchoolControls } from '../ui/school/SchoolControls';
 import type { SchoolControlsHandle } from '../ui/school/SchoolControls';
 import { onAccountFlags, readAccountLinked, readSchoolTrickTip, setSchoolTrickTip } from '../db/accountMeta';
-import { FunModal } from '../ui/FunModal';
+import { BoopModal } from '../ui/refresh/BoopModal';
 import { TrainingSheet } from '../ui/TrainingSheet';
 import { missCopy } from '../ui/trainingResult';
 import { HandlePrompt } from '../ui/HandleScreen';
@@ -186,11 +184,10 @@ import { ReauthPrompt } from '../ui/ReauthPrompt';
 import { TreatPicker } from '../ui/TreatPicker';
 import { AttributePops, trainingPopColor, traitPopColor } from '../ui/AttributePops';
 import type { PointPop } from '../ui/AttributePops';
-import { careConfig } from '../sim/careConfig';
-import { formatRest, isResting, restRemainingMs, treatProgressPreview } from '../sim/training';
+import { formatRest, isResting, restRemainingMs } from '../sim/training';
 import { BadgeCelebration } from '../ui/BadgeCelebration';
 import { badgeLabel } from '../sim/badges';
-import { Archive, ChevronRight, Cookie, Droplet, HandHeart, Moon, PawPrint, Sparkles } from 'lucide-react-native';
+import { Archive, Clock, Cookie, Droplet, HandHeart, Moon, PawPrint, Sparkles } from 'lucide-react-native';
 import { playBadgeChime } from '../audio/badge';
 import { GREET } from '../actor/greetings';
 import { PetView } from '../ui/PetView';
@@ -610,7 +607,6 @@ export default function HomeScreen({ petApi }: Props) {
     setArcadeOpen(false);
     setStadiumOpen(false);
   }
-  const whereUid = useId().replace(/:/g, '');
   const [clothingOpen, setClothingOpen] = useState(false);
   const [colorwaysOpen, setColorwaysOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -2259,6 +2255,10 @@ export default function HomeScreen({ petApi }: Props) {
           pendingFriends={incomingFriends.length}
           careRemindersOn={remindersOn}
           onCareReminders={setRemindersOn}
+          soundOn={soundOn}
+          musicOn={musicOn}
+          onSound={toggleSound}
+          onMusic={toggleMusic}
           onFriendsChanged={() => setFriendTick((value) => value + 1)}
           onClose={() => setSettingsOpen(false)}
         />
@@ -2518,6 +2518,7 @@ export default function HomeScreen({ petApi }: Props) {
       id: 'feed',
       label: 'Feed',
       blocked: !!feedReason,
+      blockedReason: feedReason,
       need: tummy < needThreshold ? 'Hungry!' : null,
       onPress: () => askFeedRef.current(),
     },
@@ -2525,6 +2526,7 @@ export default function HomeScreen({ petApi }: Props) {
       id: 'refill',
       label: 'Water',
       blocked: !!waterReason,
+      blockedReason: waterReason,
       need: state.hydration < needThreshold ? 'Thirsty!' : null,
       onPress: () => askWaterRef.current(),
     },
@@ -2801,11 +2803,6 @@ export default function HomeScreen({ petApi }: Props) {
         playLearnedTrick(track.id);
       },
     }));
-  const tricks = learned.map((trick) => ({
-    ...trick,
-    fresh: popped != null && !popped.includes(trick.id),
-  }));
-
   const savedHome = () => {
     const ownerId = currentOwner();
     return { pieces: furnitureOf(ownerId), placements: layoutOf(ownerId, homeSpecies) };
@@ -2863,26 +2860,6 @@ export default function HomeScreen({ petApi }: Props) {
           },
         ]
       : []),
-    {
-      id: soundOn ? 'sound' : 'soundOff',
-      label: 'Sounds',
-      switch: true,
-      checked: soundOn,
-      onPress: () => {
-        tips.dismiss();
-        toggleSound();
-      },
-    },
-    {
-      id: musicOn ? 'music' : 'musicOff',
-      label: 'Music',
-      switch: true,
-      checked: musicOn,
-      onPress: () => {
-        tips.dismiss();
-        toggleMusic();
-      },
-    },
   ];
 
   const seenTutorial = state?.tutorialSeen ?? [];
@@ -2950,27 +2927,18 @@ export default function HomeScreen({ petApi }: Props) {
   if (shownDialog?.kind === 'good') {
     const trackId = shownDialog.trackId;
     const label = trickTitle(trackId);
-    const progress = Math.round(state.training[trackId]?.progress ?? 0);
-    const bonus = Math.round(treatProgressPreview(state, trackId));
     const treatCount = economyApi.inventory.find((row) => row.itemId === basicTreatId)?.qty ?? 0;
     trainingDialog = (
-      <TrainingSheet
-        header="success"
-        title={`${label}, nailed it!`}
-        body={atSchool ? `${state.name} is so proud. Treats are on the house.` : `${state.name} is so proud. Reward the good work?`}
+      <BoopModal
+        title="Nailed it!"
+        body={atSchool ? `${state.name} is so proud. Treats are on the house.` : `${state.name} ${label} on cue. Give a treat for a bigger training boost?`}
+        icon={Cookie}
+        accent="train"
         reducedMotion={reducedMotion}
         top={sheetTop}
-        progress={{
-          label,
-          detail: bonus > 0 ? `${progress}%  +${bonus}% with treat` : `${progress}%`,
-          fill: progress,
-          color: '#F0A020',
-        }}
+        item={atSchool ? undefined : { name: 'Treats', count: `${treatCount} left` }}
         primary={{
           label: 'Give a treat',
-          tone: 'butter',
-          icon: 'bone',
-          badge: atSchool ? undefined : `${treatCount} left`,
           onPress: () => {
             const startBite = (applied?: typeof state) => {
               const paid = resolveTraining('treat', applied, true);
@@ -3001,7 +2969,7 @@ export default function HomeScreen({ petApi }: Props) {
           },
         }}
         secondary={{
-          label: 'No treat this time',
+          label: 'Not this time',
           closeFirst: true,
           onPress: () => {
             const paid = resolveTraining('none');
@@ -3064,11 +3032,11 @@ export default function HomeScreen({ petApi }: Props) {
   } else if (shownDialog?.kind === 'out') {
     const trackId = shownDialog.trackId;
     trainingDialog = (
-      <FunModal
+      <BoopModal
         title="Uh oh, no treats left!"
         body={`The Pet Shop has more treats. ${state.name} still had fun practicing.`}
         icon={Cookie}
-        tint="peach"
+        accent="care"
         reducedMotion={reducedMotion}
         top={sheetTop}
         primary={{
@@ -3088,42 +3056,27 @@ export default function HomeScreen({ petApi }: Props) {
   } else if (shownDialog?.kind === 'break') {
     const track = state.training[shownDialog.trackId];
     const remainMs = track ? restRemainingMs(track, clock) : 0;
-    const label = trickTitle(shownDialog.trackId);
     const windOwned = economyApi.inventory.find((row) => row.itemId === 'second_wind')?.qty ?? 0;
     const offer = secondWindOffer(state, shownDialog.trackId, windOwned, clock);
     const focused = track?.hadNoTreat === true;
     trainingDialog = (
-      <TrainingSheet
-        header="break"
-        title={focused ? 'Focus ran out!' : 'What a session!'}
+      <BoopModal
+        title={focused ? 'Focus ran out!' : `${state.name} needs a break`}
         body={
           focused
             ? `${state.name} needs a breather. Second Wind treats help ${state.name} stay focused longer.`
-            : `Great work on ${label}!`
+            : `Training picks up again in ${track ? formatRest(remainMs) : '0:00'}. A Second Wind cookie ends the break right away.`
         }
+        icon={Clock}
+        accent="train"
         reducedMotion={reducedMotion}
         top={sheetTop}
-        remain={{ label: track ? formatRest(remainMs) : '0:00', fraction: remainMs / careConfig.trickRestMs }}
-        wind={
-          offer === 'wait'
-            ? undefined
-            : {
-                owned: windOwned,
-                species,
-              }
-        }
+        item={offer === 'wait' ? undefined : { name: 'Second Wind cookie', count: `You have ${windOwned}` }}
         primary={
-          offer === 'wait'
-            ? undefined
-            : {
-                label: offer === 'use' ? 'Use Second Wind' : 'Visit Pet Shop',
-                tone: offer === 'use' ? 'sky' : 'butter',
-                icon: offer === 'use' ? undefined : 'shop',
+          offer === 'use'
+            ? {
+                label: 'Use cookie',
                 onPress: () => {
-                  if (offer === 'shop') {
-                    leaveForShop();
-                    return;
-                  }
                   const requestId = newRequestId();
                   const used = economyApi.useItem(state, 'second_wind', { trickId: shownDialog.trackId }, requestId);
                   if (!used.ok || !used.pet) {
@@ -3134,8 +3087,15 @@ export default function HomeScreen({ petApi }: Props) {
                   dismissSheet();
                 },
               }
+            : offer === 'shop'
+              ? { label: 'Visit Pet Shop', onPress: () => leaveForShop() }
+              : { label: 'OK', closeFirst: true, onPress: () => dismissSheet() }
         }
-        secondary={{ label: "I'll wait", closeFirst: true, onPress: () => dismissSheet() }}
+        secondary={
+          offer === 'wait'
+            ? undefined
+            : { label: 'OK', closeFirst: true, onPress: () => dismissSheet() }
+        }
       />
     );
   }
@@ -3474,99 +3434,65 @@ export default function HomeScreen({ petApi }: Props) {
       <SilentModeHint visible={silentHintOpen} onClose={dismissSilentHint} />
     </>
   ) : (
-    <ScrollView style={styles.controls} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        {atSchool ? null : (
-          <NeedRings
-            needs={presentNeeds(state.needs, sumHolds(treatHolds))}
-            hydration={state.hydration}
-            energyMark={roomRestBadge(home.pieces, home.placements, controlsScene.id, state.asleep)}
-          />
-        )}
+    <View style={styles.controls}>
         {welcomeBack ? (
           <Pressable onPress={dismissWelcome} accessibilityRole="button">
             <Text style={styles.hint}>{state.name} missed you!</Text>
           </Pressable>
         ) : null}
-        <View style={styles.where}>
-          <Text style={styles.sectionTitle}>Where</Text>
-          <Pressable
-            onPress={() => leaveForTown(controlsScene.id)}
-            accessibilityRole="button"
-            accessibilityLabel={`Go somewhere. ${state.name} is in the ${controlsScene.name}`}
-          >
-            {({ pressed }) => {
-              const flavor = placeFlavors[controlsScene.iconId ?? controlsScene.id] ?? 'peach';
-              const tint = tints[flavor];
-              const Icon = placeIcons[controlsScene.iconId ?? controlsScene.id] ?? placeIcons.livingroom;
-              const ink = candyInk(tint);
-              return (
-                <CandyShell tint={tint} radius={24} pressed={pressed} uid={whereUid} style={styles.whereRow}>
-                  <View style={[styles.whereBubble, { shadowColor: tint.lip }]}>
-                    <Icon size={24} strokeWidth={iconStroke + 1} color={tint.icon} />
-                  </View>
-                  <View style={styles.whereCopy}>
-                    <Text style={[styles.whereKicker, { color: ink }]}>{state.name} is in the</Text>
-                    <Text style={[styles.whereName, { color: ink }]} numberOfLines={1}>
-                      {controlsScene.name}
-                    </Text>
-                  </View>
-                  <View style={[styles.wherePill, { shadowColor: tint.lip }]}>
-                    <Text style={[styles.wherePillText, { color: ink }]} numberOfLines={1}>
-                      Go somewhere
-                    </Text>
-                    <ChevronRight size={16} strokeWidth={iconStroke + 1} color={ink} />
-                  </View>
-                </CandyShell>
-              );
-            }}
-          </Pressable>
-        </View>
-        <TrainingRings
-          pet={state}
-          species={species}
-          onPractice={practice}
-          highlightId={trickTip?.id ?? freshUnlockId}
+        <HomeDeck
+          petName={state.name}
           reducedMotion={reducedMotion}
-          now={clock}
-          disabled={dialogLive || biteWaiting}
-          freeTreats={atSchool}
-          tip={
-            trickTip
-              ? {
-                  id: trickTip.id,
-                  bold: trickTip.name,
-                  text: `${trickTip.name} was added to your In Training section! Practice it here — or anywhere from Home.`,
-                }
-              : null
-          }
-        />
-        {playdates.remaining > 0 ? (
-          <Text style={styles.hint}>Next playdate in {formatCooldown(playdates.remaining)}</Text>
-        ) : null}
-        <HomeActionPanel
-          species={species}
-          reducedMotion={reducedMotion}
+          tummy={100 - presentNeeds(state.needs, sumHolds(treatHolds)).hunger}
+          water={state.hydration}
+          energy={presentNeeds(state.needs, sumHolds(treatHolds)).energy}
+          mood={presentNeeds(state.needs, sumHolds(treatHolds)).happiness}
           care={careActions}
           bond={bondActions}
           style={styleActions}
-          tricks={tricks}
-          onProps={
-            tricks.length > 0
-              ? () => {
-                  setPropChoices(
-                    trickPropsOf(currentOwner()).map((prop) => ({
-                      id: prop.instanceId,
-                      label: trickListing(prop.sourceTrickId)?.propName ?? prop.type,
-                      type: prop.type,
-                      sourceTrickId: prop.sourceTrickId,
-                    })),
-                  );
-                  setPropOpen(true);
-                }
-              : undefined
+          treatCount={economyApi.inventory.find((row) => row.itemId === basicTreatId)?.qty ?? 0}
+          asleep={state.asleep}
+          playdateLabel={
+            playdates.remaining > 0
+              ? `Next playdate in ${formatCooldown(playdates.remaining)}`
+              : "Invite a friend's pet to the park"
           }
+          outfitLabel={
+            Object.keys(state.equipped).length > 0 ? `${Object.keys(state.equipped).length} pieces on` : 'Nothing on yet'
+          }
+          training={trainingIds(state, species).flatMap((id) => {
+            const track = state.training[id];
+            if (!track?.unlocked || track.mastered) {
+              return [];
+            }
+            return [
+              {
+                id,
+                name: trackName(id, species),
+                progress: track.progress,
+                resting: isResting(track, clock),
+                remainLabel: formatRest(restRemainingMs(track, clock)),
+                onPress: () => practice(id),
+              },
+            ];
+          })}
+          learned={learned}
+          onSchool={() => leaveForTown('school')}
+          suggestedId={(() => {
+            for (const slot of state.suggestions ?? []) {
+              const focus = suggestionFocus(slot.id);
+              if (focus.kind === 'prop' && focus.prop === 'food') return 'feed';
+              if (focus.kind === 'prop' && focus.prop === 'water') return 'refill';
+              if (focus.kind === 'prop' && focus.prop === 'bed') return state.asleep ? 'wake' : 'rest';
+              if (focus.kind === 'action' && focus.id === 'play') return 'play';
+              if (focus.kind === 'action' && focus.id === 'wardrobe') return 'wardrobe';
+              if (focus.kind === 'pet') return 'cuddle';
+              if (focus.kind === 'track') return focus.id;
+            }
+            return null;
+          })()}
+          note={note}
         />
-        {note ? <Text style={styles.hint}>{note}</Text> : null}
         <CuddleHelpSheet visible={helpOpen} onClose={() => setHelpOpen(false)} />
         <SilentModeHint visible={silentHintOpen} onClose={dismissSilentHint} />
         <DebugPanel
@@ -3617,7 +3543,7 @@ export default function HomeScreen({ petApi }: Props) {
             setChestTip(false);
           }}
         />
-    </ScrollView>
+    </View>
   );
 
   const homeIdle =
@@ -3686,6 +3612,9 @@ export default function HomeScreen({ petApi }: Props) {
                 : { width: '100%', height: '100%', overflow: 'hidden' }
             }
           >
+            <View pointerEvents="box-none" style={locationChipStyle()}>
+              <LocationChip place={controlsScene.name} onPress={() => leaveForTown(controlsScene.id)} />
+            </View>
             <PetView
               frame={stageFrame}
               heightShare={!split && atSchool ? schoolStackedHeightShare : undefined}
@@ -3877,7 +3806,13 @@ export default function HomeScreen({ petApi }: Props) {
         </StageTouch>
         <View pointerEvents="box-none" style={styles.tipAnchor}>
           <SuggestionPill
-            suggestions={suggestionSlots}
+            suggestions={suggestionSlots.filter((slot) => {
+              const focus = suggestionFocus(slot.id);
+              if (focus.kind === 'prop' || focus.kind === 'action' || focus.kind === 'pet' || focus.kind === 'track') {
+                return false;
+              }
+              return true;
+            })}
             species={species === 'cat' ? 'cat' : 'dog'}
             onCheer={() => stageHandle.current?.cheer()}
           />
@@ -3943,21 +3878,21 @@ export default function HomeScreen({ petApi }: Props) {
       {pops ? <AttributePops pops={pops} reducedMotion={reducedMotion} onDone={clearPops} /> : null}
       </View>
       {bedTip ? (
-        <FunModal
+        <BoopModal
           title="New bed"
           body="Your new bed is in Storage. Place it in a room to use it."
           icon={Moon}
-          tint="lilac"
+          accent="train"
           reducedMotion={reducedMotion}
           primary={{ label: 'OK', onPress: () => setBedTip(false) }}
         />
       ) : null}
       {bedSwap ? (
-        <FunModal
+        <BoopModal
           title="Swap beds?"
           body={`The ${bedSwap.name} will go to Storage.`}
           icon={Moon}
-          tint="lilac"
+          accent="train"
           reducedMotion={reducedMotion}
           primary={{
             label: 'Swap',
@@ -4023,11 +3958,11 @@ export default function HomeScreen({ petApi }: Props) {
           })()
         : null}
       {chestIntroOpen ? (
-        <FunModal
+        <BoopModal
           title="Treasure Chest"
           body="Your collection is stored in your Treasure Chest"
           icon={Archive}
-          tint="orchid"
+          accent="style"
           reducedMotion={reducedMotion}
           primary={{
             label: 'Place treasure chest',

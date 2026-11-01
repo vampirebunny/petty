@@ -1,6 +1,6 @@
 # Home screen UI
 
-The pet screen's action panel is cotton-candy: glossy pink, blue, and lilac controls. Need rings, training cards, the Where card, the room height, and the gear stay as they were. The debug Settings link at the bottom of Home shows in a development build, including Expo Go, and stays off in a release build.
+The pet screen's control panel is a stat strip over the scene and four tabs: Care, Bond, Train, and Style. A location chip on the scene opens Boop Boop Town. The gear stays. Sounds and Music are switches at the top of Settings and keep the same saved values. The debug Settings link at the bottom of Home shows in a development build, including Expo Go, and stays off in a release build.
 
 The home clock does not re-render the scene every second. It updates while a trick is resting, while the break sheet is open, once a minute at the training school for the shop's "New in" line, and once more when that countdown ends. The playdate cooldown line ticks only while a cooldown is running. A cuddle, a held piece, and a flick sample the finger once per frame. Taps, the start of a drag, and the release stay immediate.
 
@@ -12,13 +12,15 @@ Go somewhere leaves the living room, bedroom, catio, park, or training school. T
 
 ## Sections
 
-Care (pink): Feed, Water, Treat, Sleep. Sleep says Wake only once the pet is actually asleep.
+The strip shows Tummy, Water, Energy, and Mood. Tummy is the inverse of stored hunger. Water is stored hydration. Each bar uses the 75, 50, and 25 bands: Yummy, Peckish, Rumbly, Starving; Full, Sipping, Thirsty, Parched; Zoomy, Chill, Sleepy, Exhausted; Joyful, Content, Meh, Gloomy. The panel opens on Care and keeps that tab until Home unmounts. The tab body can scroll. A suggestion that maps to a panel button highlights that button and dots its tab. Park, Stadium, and the other suggestions with no panel button stay a bubble.
 
-Bond (blue): Cuddle, Play, Playdate. Playdate's label stays Playdate. The cooldown stays on the "Next playdate in …" line.
+Care: Feed, Water, Treat, Sleep. Sleep says Wake only once the pet is actually asleep.
 
-Style & sound (lilac): Wardrobe, Storage, Traits, Sounds, Music. Traits opens the personality scores under the buttons. Wardrobe opens the wardrobe. Storage lists owned furniture and trick props that are not out. Sounds and Music are switches.
+Bond: Cuddle, Play, and a full-width Playdate. Playdate's label stays Playdate. The cooldown stays on the "Next playdate in …" line.
 
-Learned tricks sit under those sections in the blue candy style. Badges are lilac coins and appear only after Sit, Speak, or Paw is awarded. The grey coins stay hidden. Mastered tricks also stay as trick buttons.
+Train: one row per trick that is unlocked and not mastered, then chips for learned tricks, then "More at Training School". Locked tricks stay off Home. The Training School still shows In Training and the Trick Shop.
+
+Style: Wardrobe, Storage, and Collection once park finds are unlocked. Wardrobe opens the wardrobe. Storage lists owned furniture and trick props that are not out. Collection opens the park-find chest.
 
 Play opens a Toy Box card under the preview. It lists toys the pet owns. Tapping one throws or holds that toy and closes the card.
 
@@ -38,7 +40,7 @@ Saved furniture can come back only in a scene that belongs to the player. Living
 
 Feed and Water follow the bowls saved in the room on screen. They do not follow bowls that exist only in the room template. A food bowl placed in the bedroom or the catio turns Feed on there. A water bowl turns Water on unless that bowl is already full. Leaving the room and coming back draws the saved spots again. A placement that does not save is taken off the floor. A bowl still counts when its saved record has no contents: a water id holds water, and any other bowl holds food.
 
-While the app is open and the pet is asleep on a bed, rest pays +5 energy every 5 seconds times that bed's multiplier. The standard bed is 1×. Premium beds are 2× and deluxe beds are 2.5×, and those show a glow plus ×2 or ×2.5 on the energy ring. Guests and park visitors do not get the multiplier. Closing the app does not keep paying the bed rate. Bought beds go to Storage, with a one-time note. Extra food bowl and Extra water bowl stay in the Furniture section of the Pet Shop while the player owns fewer than three of that kind. The beds are in that same section. A room holds one bed, and the Pup Cabana counts as that bed. The pet walks onto the cushion from any side and lies in the middle, on top of the cushion. A standard bed is 2,500, and each bowl is 600. Marshmallow Mat (dog) and Cushion Stack (cat) are 4,500 and rest at 2×. Peach Chaise (dog) and Sultan Pillow (cat) are 6,500 and rest at 2.5×. The Pup Cabana is 6,000, dog only, and rests at 2×. It is open on every side, twice as wide and tall as the dog beds, and the canopy draws behind the pet.
+While the app is open and the pet is asleep on a bed, rest pays +5 energy every 5 seconds times that bed's multiplier. The standard bed is 1×. Premium beds are 2× and deluxe beds are 2.5×. The Energy bar does not draw that multiplier. Guests and park visitors do not get the multiplier. Closing the app does not keep paying the bed rate. Bought beds go to Storage, with a one-time note. Extra food bowl and Extra water bowl stay in the Furniture section of the Pet Shop while the player owns fewer than three of that kind. The beds are in that same section. A room holds one bed, and the Pup Cabana counts as that bed. The pet walks onto the cushion from any side and lies in the middle, on top of the cushion. A standard bed is 2,500, and each bowl is 600. Marshmallow Mat (dog) and Cushion Stack (cat) are 4,500 and rest at 2×. Peach Chaise (dog) and Sultan Pillow (cat) are 6,500 and rest at 2.5×. The Pup Cabana is 6,000, dog only, and rests at 2×. It is open on every side, twice as wide and tall as the dog beds, and the canopy draws behind the pet.
 
 A tap never moves a prop. Floor flicks and cuddle strokes are unchanged. Cuddle does not open the choice.
 
@@ -56,7 +58,7 @@ After a prop tip has been seen, that prop shimmers while its need stays under 30
 
 Phones stay portrait. A tablet or an unfolded foldable may rotate once its shorter side is at least 520dp. The landscape split starts at 600dp. Surface Duo rotates on one screen (about 540×720). Opened wide, hinge vertical, the window is about 1114×720 and uses the landscape split. Opened with the hinge horizontal, the window is about 720×1114 and stays stacked. Portrait, including an upright iPad, keeps the scene stacked above the controls.
 
-In landscape, the header (logo, name, Boop counter) stays full width. On an opened Surface Duo the Boop total sits further in from the right edge, clear of the clock and status icons. The scene fills the left side. The controls sit in a column on the right, at most 400pt. When that column is narrower, the rings, Where card, training, and action panel scale down together so they stay on screen. The Toy Box, Pantry, Storage, and Prop cards open in that column, under the header. A tap on the scene still closes them. The seam is not locked to a fold hinge.
+In landscape, the header (logo, name, Boop counter) stays full width. On an opened Surface Duo the Boop total sits further in from the right edge, clear of the clock and status icons. The scene fills the left side. The controls sit in a column on the right, at most 400pt. The Toy Box, Pantry, Storage, and Prop cards open in that column, under the header. A tap on the scene still closes them. The seam is not locked to a fold hinge.
 
 Wardrobe, the Pet Shop, the playdate outfit step, adoption, and the Stadium put the preview on the left and the choices on the right. Adoption uses that split for the design, choose, name, and meet steps. The step title stays across the top. The Stadium uses it for the lobby, ticket, sign-up form, and starting gate. The sign-up form fills that column instead of a bottom sheet. A race stays full screen. After a race the standings scroll, and Back to the Stadium stays under the list.
 
