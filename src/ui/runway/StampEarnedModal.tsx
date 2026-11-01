@@ -7,6 +7,7 @@ import { trophyArt } from '../../awards/trophyArt';
 import { Cover, Sash, Stamp, Trophy } from '../awards';
 import { fontFamily } from '../font';
 import { PrimaryButton } from '../refresh/PrimaryButton';
+import { ui } from '../refresh/tokens';
 
 type Props = {
   awards: CachedAward[];
@@ -61,10 +62,12 @@ export function StampEarnedModal({ awards, petId, capLine, onDone, onSeeAwards }
   }
   const current = ordered[Math.min(index, ordered.length - 1)];
   const last = index >= ordered.length - 1;
-  const finish = last && onSeeAwards ? onSeeAwards : onDone;
+  const canSeeAwards = last && Boolean(onSeeAwards);
+  const dismiss = last ? onDone : () => setIndex((value) => value + 1);
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={finish}>
-      <Pressable style={styles.dim} onPress={last ? finish : () => setIndex((value) => value + 1)}>
+    <Modal visible transparent animationType="fade" onRequestClose={last ? onDone : dismiss}>
+      <View style={styles.dim}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={dismiss} accessibilityLabel="Dismiss" />
         <View style={styles.wrap}>
           <View style={styles.art}>
             <AwardArt id={current.definitionId} />
@@ -76,15 +79,24 @@ export function StampEarnedModal({ awards, petId, capLine, onDone, onSeeAwards }
               label={last ? onSeeAwards ? 'See Awards' : 'Nice' : 'Next'}
               onPress={() => {
                 if (last) {
-                  finish();
+                  if (onSeeAwards) {
+                    onSeeAwards();
+                    return;
+                  }
+                  onDone();
                   return;
                 }
                 setIndex((value) => value + 1);
               }}
             />
+            {canSeeAwards ? (
+              <Pressable accessibilityRole="button" accessibilityLabel="Close" onPress={onDone} style={styles.close}>
+                <Text style={styles.closeLabel}>Close</Text>
+              </Pressable>
+            ) : null}
           </View>
         </View>
-      </Pressable>
+      </View>
     </Modal>
   );
 }
@@ -101,6 +113,7 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 360,
     alignItems: 'center',
+    zIndex: 1,
   },
   art: {
     zIndex: 2,
@@ -129,5 +142,20 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     color: '#7A6390',
     textAlign: 'center',
+  },
+  close: {
+    alignSelf: 'stretch',
+    minHeight: 50,
+    borderRadius: ui.radius.pill,
+    backgroundColor: ui.card,
+    borderBottomWidth: 5,
+    borderBottomColor: ui.cardEdge,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  closeLabel: {
+    fontFamily: fontFamily.fredokaSemibold,
+    fontSize: 16,
+    color: ui.disabledInk,
   },
 });

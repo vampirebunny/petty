@@ -801,7 +801,7 @@ export function CatwalkScreen({
         if (leaveAfterCelebrate.current) {
           leaveAfterCelebrate.current = false;
           setShow(null);
-          setStep(watchReturn);
+          setStep('lobby');
         }
       }}
     />
