@@ -23,7 +23,7 @@ function run(world: ReturnType<typeof createWorld>, seconds: number): void {
   }
 }
 
-it('walks a sleeping pet off the right edge, including a collapse nap', () => {
+it('walks a sleeping pet off the right edge', () => {
   const pup = spawnActor(source({ asleep: true }));
   const world = createWorld([pup], 1, scenes.livingroom);
   pup.x = 110;

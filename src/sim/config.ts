@@ -37,11 +37,9 @@ export const playMoodIntervalSec = 3;
 export const playMoodActCount = 5;
 // World px/s. Slower than this is the toy sitting, not moving.
 export const playMoveSpeed = 40;
-// Empty energy drops the pet for this long, then they wake with a little energy back.
+// User sleep pays energy on each of these seconds, until energy is full.
 export const collapseSleepSec = 5;
-export const collapseWakeEnergy = 10;
-// User sleep pays this much energy on each 5 second mark, until energy is full.
-// A bed multiplies it. Sleeping with no bed in reach pays the slower floor rate.
+// A bed multiplies this grant. Sleeping with no bed in reach pays the slower floor rate.
 export const sleepEnergyGain = 5;
 export const floorRestGain = 3;
 

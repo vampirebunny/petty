@@ -3,7 +3,6 @@ import {
   activityHungerPerHour,
   activityHydrationPerHour,
   collapseSleepSec,
-  collapseWakeEnergy,
   liveRestGrant,
   decayPerHour,
   healthyWeightBand,
@@ -412,7 +411,7 @@ export function spawnActor(source: ActorSource, at?: Vec): Actor {
 }
 
 export function setDirection(actor: Actor, direction: Direction | null): void {
-  // A nap, a meal, or a collapse already owns the body. A hello must not stand the pet back up.
+  // A nap or a meal already owns the body. A hello must not stand the pet back up.
   if (direction && (actor.task.type === 'sleep' || actor.task.type === 'eat' || actor.collapseLeft > 0)) {
     actor.direction = null;
     return;
@@ -648,7 +647,7 @@ function clearActorForTravel(world: World, actor: Actor): void {
 }
 
 // Walks the pet off the right edge so a scene change can fade the empty room.
-// Sleep and a collapse nap do not block the walk. The caller puts the pet back to sleep after they arrive.
+// Sleep does not block the walk. The caller puts the pet back to sleep after they arrive.
 export function startSceneExit(world: World, actor: Actor): void {
   actor.collapseLeft = 0;
   clearActorForTravel(world, actor);
@@ -1088,7 +1087,7 @@ function applyGlance(world: World, actor: Actor, dt: number): void {
 }
 
 function careHeld(world: World, actor: Actor, kind: CareInvite): boolean {
-  // A room change has to finish. A collapse nap is already sleep.
+  // A room change has to finish.
   if (actor.task.type === 'travel' || actor.collapseLeft > 0) {
     return true;
   }
@@ -1134,9 +1133,9 @@ function releaseForCare(world: World, actor: Actor): void {
   releaseCarried(world, actor);
 }
 
-// A tap fills or readies the prop and sends him unless a trip, a collapse, a greeting, or another meal owns him.
+// A tap fills or readies the prop and sends him unless a trip, a greeting, or another meal owns him.
 // Sleep and feed do not wait on those. A drink waits only for the meal or nap already underway.
-// A room change and a collapse nap are the only turns a care tap keeps.
+// A room change is the only turn a care tap keeps.
 // A bowl that was only marked full still starts the walk: stocking food queues the invite before the cue arrives.
 // A serving flag with no matching task is stale, so the same tap can start the walk instead of sticking.
 export function inviteCare(world: World, actor: Actor, kind: CareInvite): 'went' | 'queued' | 'already' {
@@ -1350,10 +1349,6 @@ function grantEnergyPop(actor: Actor, requested: number): number {
   actor.energy = Math.min(1, actor.energy + gain / 100);
   actor.energyPops.push(gain);
   return gain;
-}
-
-function grantRestEnergy(actor: Actor): void {
-  grantEnergyPop(actor, collapseWakeEnergy);
 }
 
 export function takeEnergyPops(actor: Actor): number[] {
@@ -1978,24 +1973,6 @@ function steerDirection(
   return { move, vmax, wagRate, faceCamera };
 }
 
-function beginCollapse(world: World, actor: Actor): void {
-  releaseCarried(world, actor);
-  actor.asleep = true;
-  actor.task = taskOf('sleep', 'sleeping');
-  actor.collapseLeft = collapseSleepSec;
-  actor.pantT = 0;
-  actor.play = null;
-  actor.zoom = null;
-  cancelJump(actor);
-}
-
-function finishCollapse(world: World, actor: Actor): void {
-  actor.collapseLeft = 0;
-  actor.asleep = false;
-  grantRestEnergy(actor);
-  goIdle(world, actor);
-}
-
 function spawnHearts(actor: Actor, world: World): void {
   if (!GREET.HEARTS || world.reducedMotion) {
     return;
@@ -2544,14 +2521,6 @@ function updateActor(world: World, actor: Actor, dt: number): void {
   if (!breed) {
     return;
   }
-  if (actor.collapseLeft > 0) {
-    actor.collapseLeft = Math.max(0, actor.collapseLeft - dt);
-    if (actor.collapseLeft <= 0) {
-      finishCollapse(world, actor);
-    }
-  } else if (!world.noNap && !actor.guest && !actor.asleep && actor.energy * 100 + actor.pendingEnergy <= 0) {
-    beginCollapse(world, actor);
-  }
   const houseRest = actor.house?.phase === 'rest';
   if (actor.asleep && actor.collapseLeft <= 0 && actor.task.type === 'sleep' && (actor.task.stage === 'sleeping' || houseRest)) {
     actor.sleepSec += dt;
@@ -2917,7 +2886,7 @@ function updateActor(world: World, actor: Actor, dt: number): void {
         y: clamp(bed.y, floor.yMin, floor.yMax),
       };
       move = spot;
-      vmax = limit * 0.5;
+      vmax = Math.max(limit * 0.5, facingConfig.restSpeed);
       if (Math.hypot(spot.x - actor.x, spot.y - actor.y) < 8 && actor.speed < 20) {
         actor.task.stage = 'sleeping';
         actor.x = spot.x;
@@ -3003,7 +2972,7 @@ function updateActor(world: World, actor: Actor, dt: number): void {
     const spot = poi ? { x: poi.x - face * standOff, y: poi.y } : null;
     if (actor.task.stage === 'go' && spot) {
       move = spot;
-      vmax = limit * 0.5;
+      vmax = Math.max(limit * 0.5, facingConfig.restSpeed);
       if (Math.hypot(spot.x - actor.x, spot.y - actor.y) < 4 && actor.speed < 15) {
         actor.task = { ...actor.task, stage: 'eating', t: 0 };
         sideLock = face;
@@ -3529,19 +3498,25 @@ function updateActor(world: World, actor: Actor, dt: number): void {
   const goalDist = move ? Math.hypot((traveling ? move.x : move.x) - actor.x, move.y - actor.y) : Infinity;
   const slowing = Math.hypot(desired.x, desired.y) < actor.speed * 0.85;
   const ignoreAim = goalDist < facingConfig.arriveIgnore && slowing;
+  const careGo =
+    (actor.task.type === 'sleep' && (actor.task.stage === 'go' || actor.task.stage === 'house')) ||
+    (actor.task.type === 'eat' && actor.task.stage === 'go');
   if (!cabanaFace && (skidding || scriptedSkid)) {
     aimOctant(actor, actor.octant);
   } else if (!cabanaFace && (greetingStill || (eating && sideLock == null))) {
     aimOctant(actor, sideOctant(actor.face));
   } else if (!cabanaFace && sideLock != null) {
     aimOctant(actor, sideOctant(sideLock));
+  } else if (!cabanaFace && careGo && move) {
+    // A tired walk can stay under rest speed. Face the bowl or bed anyway so he turns instead of sliding back.
+    aimOctant(actor, octantFromVelocity(move.x - actor.x, move.y - actor.y, actor.octantTarget));
   } else if (!cabanaFace && !ignoreAim && Math.hypot(actor.aimVx, actor.aimVy) >= facingConfig.restSpeed) {
     aimOctant(actor, octantFromVelocity(actor.aimVx, actor.aimVy, actor.octantTarget));
   } else if (!cabanaFace && !ignoreAim && actor.speed < facingConfig.restSpeed) {
     aimOctant(actor, sideOctant(actor.face));
   }
   if (!cabanaFace && holdForTurn(actor) && !actor.jump && !skidding && !scriptedSkid) {
-    if (goalDist < facingConfig.turnStop) {
+    if (goalDist < facingConfig.turnStop || careGo) {
       desired.x = 0;
       desired.y = 0;
       actor.vx = 0;

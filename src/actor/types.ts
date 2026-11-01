@@ -559,11 +559,11 @@ export type Actor = {
   look: Look | null;
   variant: Variant;
   asleep: boolean;
-  // Seconds left in a collapse nap after energy hits 0. 0 means not collapsing.
+  // Unused leftover. Always 0. Kept so older saves and tests stay valid.
   collapseLeft: number;
   // Seconds toward the next rest-energy tick. A user sleep pays every 5 seconds.
   sleepSec: number;
-  // Energy-point amounts waiting to be shown, one per rest or collapse burst.
+  // Energy-point amounts waiting to be shown, one per rest burst.
   energyPops: number[];
   // Mood-point amounts waiting to be shown, one per cuddle burst.
   moodPops: number[];
@@ -725,7 +725,7 @@ export type World = {
   silhouette?: boolean;
   // Debug: adult dog silhouettes standing and lying on the cabana cushion.
   cabanaFit?: boolean;
-  // Pets never nap or collapse on their own. Other idles still run.
+  // Pets never nap on their own. Other idles still run.
   noNap?: boolean;
   // The toy gestures and play use. Missing means the ball.
   toyKind?: string;

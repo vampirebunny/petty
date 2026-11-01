@@ -122,7 +122,6 @@ import {
 import { ghostDelayMs, ghostEligible, startCuddleSession } from '../cuddle/guidance';
 import { trainingIds } from '../ui/TrainingRings';
 import { HomeDeck } from '../ui/refresh/HomeDeck';
-import { LocationChip, locationChipStyle } from '../ui/refresh/LocationChip';
 import { ToyCard } from '../ui/ToyCard';
 import { PropCard } from '../ui/PropCard';
 import { HoldPieceSheet } from '../ui/HoldPieceSheet';
@@ -3664,9 +3663,6 @@ export default function HomeScreen({ petApi }: Props) {
                 : { width: '100%', height: '100%', overflow: 'hidden' }
             }
           >
-            <View pointerEvents="box-none" style={locationChipStyle()}>
-              <LocationChip place={controlsScene.name} onPress={() => leaveForTown(controlsScene.id)} />
-            </View>
             <PetView
               frame={stageFrame}
               heightShare={!split && atSchool ? schoolStackedHeightShare : undefined}

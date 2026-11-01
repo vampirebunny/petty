@@ -20,7 +20,7 @@ These override the phase notes where they disagree.
 - New press and modal motion read the existing Reduce Motion flag. There is no new setting.
 - Home buttons are candy, not white cards. Care is pink, Bond is sky, Train is lilac, and Style is aqua, using the `CandyFace` gradient and gloss with that flavor's lip as the edge. The active tab takes its section's candy. The pink button and the Train pill carry the same gloss. An unavailable card stays flat gray.
 - Care, Bond, and Style use four quarter tiles in a row on a phone (`ActionCard` size `quarter`). Playdate and Collection sit in that row with the other Bond and Style actions.
-- `GoSomewhere` sits under the `StatStrip` and opens the town map. The scene still keeps a small location chip. On a phone the strip overlaps the stage by 34pt; on a landscape split that overlap is off so the strip is not clipped.
+- `GoSomewhere` sits under the `StatStrip` and opens the town map. The scene has no location chip. On a phone the strip overlaps the stage by 34pt; on a landscape split that overlap is off so the strip is not clipped.
 - Sounds and Music are candy lilac rows with glossy switches at the top of Settings. There is no Sound section title. On a landscape Settings screen: Traits | account + Friends + delete | Sounds and Music, with the Trophy Case card full width underneath.
 - Wardrobe Done is green (`PrimaryButton` tone `green`). The daily toggle label is "Automatically choose new outfit every day". Item tiles are three across and scroll down; art fills most of the tile by measuring each icon's painted bounds (`ItemIconArt`). On a landscape split the living-room preview fills the whole left pane.
 - Catwalk lobby, Arcade lobby, and Stadium lobby have no back button. Each shows the `StatStrip`, then `GoSomewhere` ("[pet] is at the …"), with the logo and settings on the left of the header. Later Catwalk and Stadium steps keep their step-back control.
@@ -107,7 +107,7 @@ Build `PrimaryButton`: same mechanics, gradient `primary.top → primary.bottom`
 | Zone | Height | Notes |
 |---|---|---|
 | Header | safe area + ~60 | App icon, pet name, Lv + XP bar, Boops pill, settings button (44×44). Same data as now, tidied. |
-| Pet scene | ~34% of screen height, min 240 | Unchanged scene. Add `LocationChip` top-left. |
+| Pet scene | ~34% of screen height, min 240 | Unchanged scene. No location chip on the scene. |
 | `StatStrip` | ~60; phone overlaps scene by 34, landscape flush | Replaces the four big rings. |
 | `TabSwitcher` | 52 | Care · Bond · Train · Style |
 | Tab content | rest | Only this area scrolls, and only if it overflows. |
@@ -124,7 +124,7 @@ Rules: 16pt side padding, 12pt gaps. Tab switcher and stat strip never scroll aw
 - **`StatStrip`** — one white card, 4 equal columns (Tummy, Water, Energy, Mood). Each: colored label + `NN%` on one line, 6pt bar, existing word label (Peckish, Full, Zoomy!, Joyful!). Bars animate 300ms ease-out on change. Rename "Hydration" → "Water" in this UI.
 - **`TabSwitcher`** — segmented control on `segmentTrack`. Active = white raised pill (2pt edge), `ink` text; inactive = transparent, `inkMuted`. Prop `alerts: Set<tabId>` → 8pt care-accent dot after the tab name.
 - **`TrainingRow`** — icon circle (train accent), trick name, `NN%` in train accent, 8pt progress bar, right-side pill: "Train" (train-accent gradient #8C6EE6→#6E4FD0, edge #4E34A6) or, while resting, a disabled pill with clock icon + `m:ss` countdown ticking every second.
-- **`LocationChip`** — white 94% pill, 36pt, over the scene top-left: place icon + place name + chevron. Opens the map. The panel also has `GoSomewhere` under the strip.
+- **`GoSomewhere`** — under the stat strip: place icon + "[pet] is in/at the …" + chevron. Opens the map. The scene has no location chip.
 
 ### Tab contents
 | Tab | Contents | Sublabels |
@@ -138,7 +138,7 @@ Inside the Training School keep the existing rule: show only In Training and the
 
 ### Moves / removals
 - Big stat rings → `StatStrip`.
-- "Where" section → `LocationChip` on the scene plus `GoSomewhere` under the strip.
+- "Where" section → `GoSomewhere` under the strip. The scene has no location chip.
 - "Try this" bubble: when the current suggestion maps to a panel button, set that button to `suggested`, add its tab to `alerts`, and hide the bubble. Keep the bubble only for suggestions with no panel button (e.g. go to the park). Only one suggested button at a time.
 - Sounds + Music toggles → Settings page (gear), candy switch rows with no Sound title. Keep their saved values.
 - Locked trick cards (e.g. High five) → removed from Home; locked/age-gated tricks only live in the Training School Trick Shop.
@@ -151,7 +151,7 @@ Inside the Training School keep the existing rule: show only In Training and the
 - [ ] Unavailable buttons show and toast their reason
 - [ ] Rest countdown ticks in the trick pill
 - [ ] Sound/Music work from Settings
-- [ ] Location chip and Go somewhere open the map; pressed state + haptic on every card
+- [ ] Go somewhere opens the map; pressed state + haptic on every card
 
 ---
 

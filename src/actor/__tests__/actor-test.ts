@@ -373,20 +373,21 @@ it('tops up the last sleep tick so energy stops at 100', () => {
   expect(pup.energy).toBeCloseTo(1, 5);
 });
 
-it('collapses to sleep at empty energy and wakes with a little energy', () => {
+it('stays awake at empty energy and still takes a command', () => {
   const pup = actor();
   pup.energy = 0;
   const world = createWorld([pup], 11);
+  world.noNap = true;
   update(world, 0.05);
-  expect(pup.asleep).toBe(true);
-  expect(pup.task.type).toBe('sleep');
-  expect(pup.collapseLeft).toBeGreaterThan(0);
-  expect(startUserTask(world, pup, 'fetch')).toBe(false);
+  expect(pup.asleep).toBe(false);
+  expect(pup.task.type).not.toBe('sleep');
+  expect(pup.collapseLeft).toBe(0);
+  expect(startUserTask(world, pup, 'fetch')).toBe(true);
   for (let step = 0; step < 120; step += 1) {
     update(world, 0.05);
   }
   expect(pup.asleep).toBe(false);
-  expect(takeEnergyDelta(pup)).toBeCloseTo(10, 5);
+  expect(pup.task.type).not.toBe('sleep');
 });
 
 it('burns weight while playing even when the pet is too slow to sprint', () => {

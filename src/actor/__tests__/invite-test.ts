@@ -1,6 +1,7 @@
 import { newCuddle } from '../cuddle';
 import { applyFurniture, furnitureDefinition } from '../furniture';
 import { createWorld, inviteCare, setDirection, spawnActor, startHeld, syncActor, syncWorldFood, takeEnergyPops, takePendingRest, update } from '../sim';
+import { snapFacing } from '../facing';
 import { scenes } from '../scenes';
 import type { ActorSource } from '../types';
 
@@ -60,6 +61,18 @@ it('restarts a meal when the bowl is full but the eat task was dropped', () => {
   expect(actor.task.type).toBe('eat');
   expect(actor.task.kind).not.toBe('drink');
   expect(world.serving).toBe('food');
+});
+
+it('sends an empty-energy pet to the bowl instead of putting him to sleep', () => {
+  const { world, actor } = pup();
+  actor.energy = 0;
+  world.foodStocked = true;
+  expect(inviteCare(world, actor, 'food')).toBe('went');
+  expect(actor.task.type).toBe('eat');
+  expect(actor.asleep).toBe(false);
+  update(world, 0.05);
+  expect(actor.task.type).toBe('eat');
+  expect(actor.asleep).toBe(false);
 });
 
 it('sends a sitting pet to bed instead of leaving the invite stuck', () => {
@@ -236,6 +249,33 @@ it('walks to a bowl prop when the scene has no food point', () => {
   expect(inviteCare(world, actor, 'food')).toBe('went');
   expect(actor.task.type).toBe('eat');
   expect(actor.task.poi?.propId).toBe('livingroom-food');
+});
+
+it('turns to face the bed instead of sliding backward at empty energy', () => {
+  const { world, actor } = pup();
+  actor.x = 400;
+  actor.y = 440;
+  actor.energy = 0;
+  actor.tired = true;
+  actor.vx = 0;
+  actor.vy = 0;
+  actor.speed = 0;
+  snapFacing(actor, 1);
+  expect(inviteCare(world, actor, 'bed')).toBe('went');
+  let moonwalked = false;
+  let facedBed = false;
+  for (let step = 0; step < 800 && actor.task.stage === 'go'; step += 1) {
+    update(world, 0.05);
+    if (actor.speed > 3 && actor.vx < -2 && actor.face > 0) {
+      moonwalked = true;
+    }
+    if (actor.face < 0) {
+      facedBed = true;
+    }
+  }
+  expect(moonwalked).toBe(false);
+  expect(facedBed).toBe(true);
+  expect(actor.task.stage).toBe('sleeping');
 });
 
 it('lies down when the bed center is outside the standing range', () => {
