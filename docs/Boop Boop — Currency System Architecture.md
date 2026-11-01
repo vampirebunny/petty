@@ -214,8 +214,8 @@ Buying and using are separate steps: a purchase turns Boops into inventory, and 
 **Treat rules**
 
 - Each treat's catalog entry has two effects, `effects.casual` and `effects.training`. The `context` passed to `use()` picks one.
-- **Casual:** today's behavior. Refused when hunger is 0; applies the full hunger, weight and mood effect.
-- **Training:** skips the hunger gate, keeps the full mood effect, and applies a quarter of the hunger and weight. The training sim separately applies full credit and half the focus cost; that stays training logic, not part of the item effect.
+- **Casual:** refused when hunger is 0. A biscuit drops hunger by 10, adds 0.04 weight, and raises mood by 20.
+- **Training:** skips the hunger gate, keeps the full +20 mood, and applies a quarter of the hunger and weight. The training sim separately applies full credit and half the focus cost; that stays training logic, not part of the item effect.
 - This round, training spends basic treats only. Special treats are casual only and get a training effect in a later round.
 
 **Premium food rules**

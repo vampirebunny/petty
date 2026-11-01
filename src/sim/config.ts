@@ -68,7 +68,7 @@ export const startingToys = ['ball'] as const;
 
 export const treatHungerDrop = 10;
 export const treatWeightGain = 0.04;
-export const treatMoodGain = 10;
+export const treatMoodGain = 20;
 
 export const petHappinessGain = 6;
 // A continuous cuddle stroke of this long pays a flat mood burst.

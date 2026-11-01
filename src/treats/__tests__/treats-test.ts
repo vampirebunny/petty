@@ -13,7 +13,7 @@ it('applies treat hunger and weight with no daily cap', () => {
     return;
   }
   expect(first.state.needs.hunger).toBe(30);
-  expect(first.state.needs.happiness).toBe(pet.needs.happiness + 10);
+  expect(first.state.needs.happiness).toBe(pet.needs.happiness + 20);
   expect(first.state.weight).toBeCloseTo(pet.weight + 0.04, 5);
 
   const again = giveTreat(first.state, 'biscuit', 1_000);
@@ -39,7 +39,7 @@ it('gives a training treat the same mood and a smaller bite', () => {
   if (!paid.ok) {
     return;
   }
-  expect(paid.state.needs.happiness).toBe(pet.needs.happiness + 10);
+  expect(paid.state.needs.happiness).toBe(pet.needs.happiness + 20);
   expect(paid.state.needs.hunger).toBeCloseTo(37.5, 5);
 });
 
