@@ -1,5 +1,14 @@
 import { lookForRound } from '../playback';
-import { joinedShow, joinedShowHint, mergeShowDetails, parseShowDetail, showNeedsLooks, type RunwayShowDetail } from '../showRead';
+import {
+  joinedShow,
+  joinedShowHint,
+  mergeShowDetails,
+  parseShowDetail,
+  showInJoinedLobby,
+  showNeedsLooks,
+  submissionsAreClosed,
+  type RunwayShowDetail,
+} from '../showRead';
 import type { RunwaySubmission } from '../types';
 
 function submission(id: string, at: number): RunwaySubmission {
@@ -128,5 +137,21 @@ describe('joined lobby shows', () => {
     expect(joinedShowHint(base, 1_000)).toBe('Select looks');
     expect(joinedShowHint({ ...base, myStatus: 'submitted' }, 1_000)).toBe('You already submitted');
     expect(showNeedsLooks({ ...base, myStatus: 'submitted' }, 1_000)).toBe(false);
+  });
+
+  it('drops a closed show from the lobby after it is opened, until voting or results', () => {
+    const closed = { ...base, id: 'show-1', deadlineAt: 500 };
+    expect(submissionsAreClosed(closed, 1_000)).toBe(true);
+    expect(joinedShowHint(closed, 1_000)).toBe('Submissions are closed');
+    expect(showInJoinedLobby(closed, 1_000, [], [])).toBe(true);
+    expect(showInJoinedLobby(closed, 1_000, [], ['show-1'])).toBe(false);
+
+    const voting = { ...closed, votingOpensAt: 800, pollClosesAt: 5_000 };
+    expect(submissionsAreClosed(voting, 1_000)).toBe(false);
+    expect(showInJoinedLobby(voting, 1_000, [], ['show-1'])).toBe(true);
+
+    const results = { ...voting, resultsRevealedAt: 900 };
+    expect(showInJoinedLobby(results, 1_000, [], ['show-1'])).toBe(true);
+    expect(showInJoinedLobby(results, 1_000, ['show-1'], ['show-1'])).toBe(false);
   });
 });

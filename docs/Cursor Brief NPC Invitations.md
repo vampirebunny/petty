@@ -40,7 +40,7 @@ Rules:
 - **Only invite to a race the pet can enter.** The card state is `open` (required tricks, not resting, not already in a race, slot still before the lock) and the event is playable: Fun Run, Hurdles, Dock Dive, or Obstacle Course. Guests and a failed board fetch get no race invitation. Energy is not a sign-up check.
 - **The race is the soonest qualifying card that starts at least 2 minutes out.** A slot inside that window is skipped. Slots are 5 minutes. Hurdles is not in every slot, so "next start" is the next board card of that event, not the next clock boundary.
 - **NPC runway shows run locally.** They have no judging and no real players, so they work offline.
-- **Costume pieces:** unlock the theme's full rack at Accept, minus pieces the seeded NPCs are already wearing. The friend-show drip does not apply.
+- **Costume pieces:** unlock a seeded third of the catalog at Accept (the solo rack, 8 of 23). The rest stay locked. Pieces the seeded NPCs are already wearing are Taken. The friend-show drip does not apply.
 - **First race invitation** prefers a Fun Run when that card is open.
 
 ## When invitations are sent

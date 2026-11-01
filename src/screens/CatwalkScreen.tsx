@@ -28,16 +28,17 @@ import {
 } from '../runway/friendShows';
 import { equipFromDraft } from '../runway/lookEquip';
 import { buildSoloShow, freezePlayerLooks } from '../runway/npcs';
-import { friendNextUnlockAt, friendUnlockCount, soloShowRack } from '../runway/rack';
+import { friendNextUnlockAt, friendUnlockCount, soloShowRackIds } from '../runway/rack';
 import {
-  joinedShow,
   joinedShowHint,
   lobbyShowLabel,
   localShowFromDetail,
   mergeShowDetails,
   mySubmissionId,
   routeShow,
+  showInJoinedLobby,
   showNeedsLooks,
+  submissionsAreClosed,
   votingStillOpen,
   type RunwayContestant,
   type RunwayShowDetail,
@@ -49,7 +50,9 @@ import {
   deleteSoloShow,
   hideFriendShow,
   loadRunwaySave,
+  loadSeenClosedSubmissions,
   loadSeenResults,
+  markClosedSubmissionsSeen,
   markResultsSeen,
   rememberShow,
   saveRunwaySave,
@@ -162,6 +165,7 @@ export function CatwalkScreen({ pet, ownerId, owned, reducedMotion, seed = null,
   const [history, setHistory] = useState<LocalRunwayShow[]>([]);
   const [remoteShows, setRemoteShows] = useState<RunwayShowSummary[]>([]);
   const [seenResults, setSeenResults] = useState<string[]>([]);
+  const [seenClosed, setSeenClosed] = useState<string[]>([]);
   const [recent, setRecent] = useState<RecentInvitee[]>([]);
   const [detail, setDetail] = useState<RunwayShowDetail | null>(null);
   const [liveId, setLiveId] = useState<string | null>(seed ? null : showId);
@@ -179,7 +183,6 @@ export function CatwalkScreen({ pet, ownerId, owned, reducedMotion, seed = null,
 
   const npcFriend = Boolean(seed && seed.type === 'runway');
   const liveFriend = !npcFriend && liveId != null;
-  const friendRack = npcFriend || liveFriend;
 
   useEffect(() => {
     trackScreen('catwalk');
@@ -328,6 +331,11 @@ export function CatwalkScreen({ pet, ownerId, owned, reducedMotion, seed = null,
         setSeenResults(seen);
       }
     });
+    void loadSeenClosedSubmissions(ownerId).then((seen) => {
+      if (alive) {
+        setSeenClosed(seen);
+      }
+    });
     return () => {
       alive = false;
     };
@@ -364,9 +372,16 @@ export function CatwalkScreen({ pet, ownerId, owned, reducedMotion, seed = null,
   }, [detail?.claimedCostumeIds, npcFriend, seed]);
 
   const invitesSentAt = seed?.createdAt ?? detail?.invitesSentAt ?? nowTick;
-  const rack = friendRack ? allCostumes() : soloShowRack(soloShowId);
-  const unlockedCount = friendRack ? friendUnlockCount(invitesSentAt, nowTick) : rack.length;
-  const nextUnlockAt = friendRack ? friendNextUnlockAt(invitesSentAt, nowTick) : null;
+  const rack = allCostumes();
+  const soloOpenIds = useMemo(() => new Set(soloShowRackIds(soloShowId)), [soloShowId]);
+  const unlockedCount = liveFriend ? friendUnlockCount(invitesSentAt, nowTick) : soloOpenIds.size;
+  const nextUnlockAt = liveFriend ? friendNextUnlockAt(invitesSentAt, nowTick) : null;
+  const costumeLocked = (costumeId: string) => {
+    if (!liveFriend) {
+      return !soloOpenIds.has(costumeId);
+    }
+    return rack.findIndex((piece) => piece.id === costumeId) >= unlockedCount;
+  };
 
   const current = looks[lookIndex] ?? looks[0];
   const draftEquip = useMemo(
@@ -394,11 +409,7 @@ export function CatwalkScreen({ pet, ownerId, owned, reducedMotion, seed = null,
 
   const toggleCostume = (costumeId: string) => {
     const piece = costumeById(costumeId);
-    if (!piece || npcTaken.has(costumeId)) {
-      return;
-    }
-    const pieceIndex = allCostumes().findIndex((row) => row.id === costumeId);
-    if (friendRack && pieceIndex >= unlockedCount) {
+    if (!piece || npcTaken.has(costumeId) || costumeLocked(costumeId)) {
       return;
     }
     setLooks((rows) =>
@@ -670,6 +681,9 @@ export function CatwalkScreen({ pet, ownerId, owned, reducedMotion, seed = null,
       setError(runwayErrorCopy(loaded.error));
       return;
     }
+    if (submissionsAreClosed(loaded.data, nowTick)) {
+      setSeenClosed(await markClosedSubmissionsSeen(ownerId, loaded.data.id));
+    }
     const submitted = loaded.data.contestants.some((person) => person.isMe && person.submitted);
     const needsLooks = !submitted && showNeedsLooks(loaded.data, nowTick);
     const dismissed = loaded.data.myStatus === 'declined' && loaded.data.resultsRevealedAt == null;
@@ -756,9 +770,7 @@ export function CatwalkScreen({ pet, ownerId, owned, reducedMotion, seed = null,
   );
 
   const lobbyCards = remoteShows.filter((row) => row.resultsRevealedAt == null && row.myStatus === 'invited' && !row.amHost);
-  const joinedShows = remoteShows.filter(
-    (row) => joinedShow(row) && !(row.resultsRevealedAt != null && seenResults.includes(row.id)),
-  );
+  const joinedShows = remoteShows.filter((row) => showInJoinedLobby(row, nowTick, seenResults, seenClosed));
   const query = friendQuery.trim().toLowerCase().replace(/^@/, '');
   const recentIds = new Set(recent.map((row) => row.userId));
   const matched = friends.filter((row) => !query || row.handle.toLowerCase().includes(query));
@@ -1018,14 +1030,13 @@ export function CatwalkScreen({ pet, ownerId, owned, reducedMotion, seed = null,
         ))}
         <View style={styles.rack}>
           <Text style={styles.kicker}>Costume rack</Text>
-          {friendRack && unlockedCount < rack.length ? (
+          {liveFriend && unlockedCount < rack.length ? (
             <Text style={styles.cardBody}>Costumes begin unlocking in 5 minutes and then every few minutes after that.</Text>
           ) : null}
           {chunk(rack, tileColumns).map((row, index) => (
             <View key={index} style={styles.rackRow}>
               {row.map((piece) => {
-                const catalogIndex = allCostumes().findIndex((rowPiece) => rowPiece.id === piece.id);
-                const locked = friendRack && catalogIndex >= unlockedCount;
+                const locked = costumeLocked(piece.id);
                 const taken = npcTaken.has(piece.id);
                 const countdownLabel = locked && nextUnlockAt != null ? formatRemain(nextUnlockAt - nowTick) : null;
                 return (

@@ -452,10 +452,53 @@ export function joinedShowHint(
   if (votingStillOpen(show, now)) {
     return show.voted ? 'Vote already cast; polls still open' : 'Cast your vote';
   }
-  if (show.myStatus === 'judge' || (show.deadlineAt != null && show.deadlineAt <= now)) {
+  if (submissionsAreClosed(show, now)) {
     return 'Submissions are closed';
   }
   return 'You already submitted';
+}
+
+/** Deadline has passed and this player has nothing to do until voting or results. */
+export function submissionsAreClosed(
+  show: {
+    amHost: boolean;
+    myStatus: string;
+    deadlineAt: number | null;
+    votingOpensAt: number | null;
+    pollClosesAt: number | null;
+    resultsRevealedAt: number | null;
+  },
+  now: number,
+): boolean {
+  if (show.resultsRevealedAt != null || show.myStatus === 'declined' || showNeedsLooks(show, now) || votingStillOpen(show, now)) {
+    return false;
+  }
+  return show.myStatus === 'judge' || (show.deadlineAt != null && show.deadlineAt <= now);
+}
+
+/** Joined shows that still belong on the lobby. A seen results card, or a closed-submissions card the player already opened, stays in Past Shows. */
+export function showInJoinedLobby(
+  show: {
+    id: string;
+    amHost: boolean;
+    myStatus: string;
+    deadlineAt: number | null;
+    votingOpensAt: number | null;
+    pollClosesAt: number | null;
+    resultsRevealedAt: number | null;
+    voted: boolean;
+  },
+  now: number,
+  seenResults: readonly string[],
+  seenClosed: readonly string[],
+): boolean {
+  if (!joinedShow(show)) {
+    return false;
+  }
+  if (show.resultsRevealedAt != null && seenResults.includes(show.id)) {
+    return false;
+  }
+  return !(submissionsAreClosed(show, now) && seenClosed.includes(show.id));
 }
 
 export function lobbyShowLabel(

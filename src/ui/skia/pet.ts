@@ -275,6 +275,9 @@ function idleKey(actor: Actor, breed: Breed, floor: { yMin: number; yMax: number
         .map((slot) => `${slot}:${defs[slot as keyof typeof defs]?.id ?? ''}`)
         .join(',')
     : '';
+  // Back is not an equipped slot. Without it, a cached sit (the 3/4 preview) keeps the bare pet
+  // when a cape, wings, or jetpack is added.
+  const back = actor.backWear?.id ?? '';
   const poseBits = (Object.keys(pose) as (keyof Pose)[]).map((key) => {
     const value = pose[key];
     return typeof value === 'number' ? Math.round(value * 100) : value;
@@ -289,6 +292,7 @@ function idleKey(actor: Actor, breed: Breed, floor: { yMin: number; yMax: number
     variant.oneEarFlop ? 1 : 0,
     worn,
     cuts,
+    back,
     actor.octant,
     actor.octantFrom,
     actor.face,

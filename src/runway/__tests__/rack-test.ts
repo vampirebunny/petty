@@ -1,5 +1,5 @@
 import { allCostumes } from '../catalog';
-import { friendUnlockCount, soloRackSize, soloShowRack, soloShowRackIds } from '../rack';
+import { friendUnlockCount, soloCostumeLocked, soloRackSize, soloShowRack, soloShowRackIds } from '../rack';
 
 describe('runway rack', () => {
   it('seeds a stable solo rack of round(catalog/3) pieces', () => {
@@ -13,6 +13,9 @@ describe('runway rack', () => {
     expect(new Set(a).size).toBe(8);
     const other = soloShowRackIds('show-other');
     expect(other).not.toEqual(a);
+    const locked = catalog.filter((piece) => soloCostumeLocked('show-stable', piece.id));
+    expect(locked.length).toBe(catalog.length - 8);
+    expect(locked.some((piece) => a.includes(piece.id))).toBe(false);
   });
 
   it('unlocks friend drip in 8 / 8 / 7 tranches', () => {

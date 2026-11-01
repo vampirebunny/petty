@@ -44,6 +44,11 @@ export function soloShowRackIds(showId: string): string[] {
   return soloShowRack(showId).map((piece) => piece.id);
 }
 
+/** Solo shows unlock a seeded third immediately. The rest of the catalog stays locked. */
+export function soloCostumeLocked(showId: string, costumeId: string): boolean {
+  return !soloShowRackIds(showId).includes(costumeId);
+}
+
 /**
  * Friend drip unlock count from invites_sent_at.
  * Tranche 1 at +5m (8), tranche 2 at +7m (16), tranche 3 at +9m (23).
