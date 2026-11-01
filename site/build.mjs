@@ -67,7 +67,7 @@ function pageHtml({ title, bodyHtml }) {
 await rm(dist, { recursive: true, force: true });
 await mkdir(dist, { recursive: true });
 await copyFile(path.join(root, "styles.css"), path.join(dist, "styles.css"));
-await copyFile(path.join(root, "..", "assets", "icon.png"), path.join(dist, "icon.png"));
+await copyFile(path.join(root, "icon.png"), path.join(dist, "icon.png"));
 await copyFile(path.join(root, "preview.png"), path.join(dist, "preview.png"));
 await copyFile(path.join(root, "apple-touch-icon.png"), path.join(dist, "apple-touch-icon.png"));
 await copyFile(path.join(root, "home.html"), path.join(dist, "index.html"));
