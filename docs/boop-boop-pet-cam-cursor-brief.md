@@ -4,8 +4,6 @@
 
 When the player comes back after being away for a while, an overlay sometimes appears that looks like a video player: **"Check out your Pet Cam while you were away."** The player taps play and watches a short clip of their pet doing something funny at home. Daytime clips play in black and white; clips recorded at night play in green night vision.
 
-Reference demo (look and feel only; the art and poses there are placeholders): [Boop Boop Pet Cam.html](Boop%20Boop%20Pet%20Cam.html).
-
 ## Global rules
 
 - **Build on existing systems; don't rebuild them.** Clips are short prescripted, seeded scripts, the same idea as playdates. Reuse the playdate beat schema and seeded RNG, the greeting gesture/pose keyframes, the turning system (yaw / `faceCamera` path, never the dead `faceCam` channel), locomotion, the `drawWorld` camera hook, the room/scene renderer, the sky/time-of-day code in `src/actor/sky/`, and the cosmetics renderer.

@@ -2,8 +2,6 @@
 
 Builds on: Race Foundation brief + Addendum, Race Poses brief (leap, stumble). Read those first; this brief only adds what's specific to Hurdles.
 
-Visual reference: Stadium canvas, screen 7 (Hurdles). Feel reference: `race-demo.html` (Hurdles mode).
-
 ## Entry
 
 - Type: **race** (ranked by finish time).

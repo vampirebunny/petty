@@ -4,8 +4,6 @@
 
 Build the Stadium place on the map: where players see upcoming races, sign up, get called back when a race is about to start, and gather at the starting gate. The race itself (gameplay) is a separate brief; this one ends by handing off to a placeholder race screen.
 
-Visual reference: the "Boop Boop Stadium" design canvas, screens 1–5 (Stadium lobby, Sign-up sheet, Signed up, Race call, Starting gate). Use the mocks for layout, hierarchy and copy. **Where this brief and the mocks disagree, this brief wins** (notably the starting gate's lane and NPC rules, section 6).
-
 **Status: shipped** through the starting gate. Race gameplay is in `docs/boop-boop-race-foundation-cursor-brief.md`. Fun Run, Hurdles, Dock Dive, and Obstacle Course are playable. Solo results go through the deployed `race_report` Edge Function. Sniff Out, Trick Show, and Weave are cancelled. The launch board is applied (`20261030130000_launch_race_schedule.sql`): 5-minute slots, Fun Run and Dock Dive every slot, Hurdles and Obstacle Course alternating, trick gates restored, and a 1-minute rest per event.
 
 ## Global rules

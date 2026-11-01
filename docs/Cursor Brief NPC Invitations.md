@@ -75,7 +75,7 @@ Put every number in config.
 
 ## Envelope and invitation design
 
-One shared envelope; two invitation designs. Match the mockup canvas "Boop Boop Invitations" for layout and color. Fonts: Fredoka for headings and buttons, Nunito for body. No sparkles, no speech balloons, no white-dot decoration.
+One shared envelope; two invitation designs. Fonts: Fredoka for headings and buttons, Nunito for body. No sparkles, no speech balloons, no white-dot decoration.
 
 **Scene behind it:** dim the current scene with a dark overlay (about 55%). The pet keeps idling underneath.
 

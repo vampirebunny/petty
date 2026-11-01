@@ -30,10 +30,6 @@ These override the sections below. The old addendum is folded in here.
 
 **Build order.** (1) sim and config, (2) race screen and scene, (3) NPCs and solo Fun Run, (4) scene polish, (5) ~~server replay Edge Function~~ (**shipped** — `20261029450000_race_replay.sql` applied; `race_report` deployed), (6) ~~live races~~ (**shipped** — Fun Run, Hurdles, and Obstacle Course stream state on `race:{raceId}:run`; real looks from `20261030100000_race_state_pet_looks.sql`).
 
-**References**
-- Design canvas "Boop Boop Stadium", screens 6–8 (Fun Run, Hurdles, Results), for layout.
-- `race-demo.html` (attached): a crude browser prototype of Fun Run and Hurdles. Use it to learn the **feel**: speed, tap response, jump timing, countdown, pop-up feedback, results. Don't port its code. It's a single-file prototype and none of its structure is meant for the app.
-
 ## Global rules
 
 - **Every number is config, not hardcoded:** per event and per class, plus global values (tap cap, sync rate, timeouts, rewards). One `raceConfig` module, ideally loaded from Supabase so it can be tuned without a release.
