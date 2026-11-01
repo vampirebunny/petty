@@ -34,7 +34,9 @@
     },
     "android": {
       "package": "app.mylisto.boop",
-      "blockedPermissions": ["com.google.android.gms.permission.AD_ID"],
+      "blockedPermissions": [
+        "com.google.android.gms.permission.AD_ID"
+      ],
       "googleServicesFile": "./google-services.json",
       "intentFilters": [
         {
@@ -150,7 +152,8 @@
             "withoutAdIdSupport": true
           }
         }
-      ]
+      ],
+      "expo-video"
     ],
     "extra": {
       "eas": {

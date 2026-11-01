@@ -67,6 +67,7 @@ import { fontFamily } from '../ui/font';
 import { FunModal } from '../ui/FunModal';
 import { OutfitPreview, useOutfitClock } from '../ui/OutfitPreview';
 import { BackstageStage, LobbyBanner, ThemeBanner } from '../ui/runway/CatwalkArt';
+import { lobbyPhoneAspect } from '../ui/lobby/heroes';
 import { CatwalkFrame } from '../ui/runway/CatwalkFrame';
 import { CostumeTile } from '../ui/runway/CostumeTile';
 import { MusicMenu } from '../ui/runway/MusicMenu';
@@ -139,7 +140,7 @@ function emptyLooks(equipped: Equipped): DraftLook[] {
 function phoneArtHeight(step: Step, width: number): number {
   const w = Math.min(width, 560);
   if (step === 'lobby' || step === 'past' || step === 'judge') {
-    return Math.round(w * (180 / 350));
+    return Math.round(w / lobbyPhoneAspect);
   }
   if (step === 'backstage') {
     return Math.round(w * 0.78);
@@ -732,7 +733,7 @@ export function CatwalkScreen({ pet, ownerId, owned, reducedMotion, seed = null,
 
   const art =
     step === 'lobby' || step === 'past' || step === 'judge' ? (
-      <LobbyBanner />
+      <LobbyBanner reducedMotion={reducedMotion} />
     ) : step === 'backstage' ? (
       <BackstageStage themeId={themeId}>
         <OutfitPreview

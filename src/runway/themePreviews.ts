@@ -2,9 +2,6 @@ import type { ImageSourcePropType } from 'react-native';
 
 import type { RunwayThemeId } from './catalog';
 
-// Metro picks @2x / @3x from the same folder by screen density.
-export const lobbyHero: ImageSourcePropType = require('../../assets/runway/lobby-hero.png');
-
 export const themePreviewImages: Record<RunwayThemeId, ImageSourcePropType> = {
   space: require('../../assets/runway-themes/space.png'),
   sea: require('../../assets/runway-themes/sea.png'),

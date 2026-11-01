@@ -17,7 +17,7 @@ Build the Stadium place on the map: where players see upcoming races, sign up, g
 - No speech balloons over pets; no tooltips or banners on the starting gate or during races.
 - The Stadium needs a connection. Offline: show the header plus a friendly "The Stadium needs internet to race" state with a back button. Everything else in the app keeps working offline.
 - Use **server time** for every countdown (keep a server-clock offset); never trust the device clock for slot times.
-- Respect the OS "reduce motion" setting: stop the ambient animations (section 2) and keep the header static.
+- Respect the OS "reduce motion" setting: show the header poster instead of the video (section 2).
 
 ---
 
@@ -34,31 +34,21 @@ Build the Stadium place on the map: where players see upcoming races, sign up, g
 
 ## 2. Stadium header (lobby screen)
 
-Build the header as a **scene in the existing scene system** (same pattern as the park and living room in `scenes.ts` / `props.ts`), not as a static image. That way it automatically gets the same sky, time of day, weather, sun/moon (with moon phases) and seasonal behavior as every other place. **Weather and time of day must match what the park and living room show at that moment**: read from the same shared weather/time source, never roll weather separately for the Stadium.
+The header is a muted looping video in `assets/lobby/`, not a live sky scene.
 
-New props, drawn in the existing prop style (outline weight, cotton candy palette):
-- `stadiumFacade`: pink curved front wall with a lighter top stripe, arched windows, central gate with bars and a pink paw emblem
-- `stadiumStands`: lavender stands curving above the facade
-- `crowd`: rows of small pastel pet heads peeking over the rim, a few holding tiny flags
-- `scoreboard`: on posts above the stands; shows "NEXT RACE" and the next slot time (live data, not fixed text)
-- `lightTower` (×2): poles with lamp heads, left and right
-- `pennant`: flag on a pole (two on the rim, small ones in the crowd)
-- `bunting`: triangle flags strung along the facade
-- `ribbonBanner`: lavender ribbon with folded tails; the "Stadium" title is real text on top (accessible heading), not drawn into the art
+- `stadium-phone.mp4` and `stadium-phone.png` — 700×360. Phones and portrait. The banner is the full width at that aspect.
+- `stadium-tall.mp4` and `stadium-tall.png` — 600×800. Fills the left pane on a landscape split.
 
-Ambient animation (Reanimated/Skia, the same approach as existing wind-reactive props):
-- **Pennants and bunting wave**: sine-wave flutter with different phase per flag. Amplitude and speed come from the shared wind/weather state (calm = gentle, windy = strong). Reuse the existing pennant/wind logic if there is one.
-- **Fans move about**: each head bobs 1–3 px with its own random phase and period (0.8–1.6 s); small sideways sways now and then. Every ~20–30 s (random), a "wave" ripples across the crowd left to right. Crowd flags wiggle.
-- **Light towers**: lamps on and soft beams visible at dusk, evening and night, with a slow ±5° sweep; off (no beams) in daytime.
-- **Weather**: rain shows rain particles and a wet sheen like other scenes; snow adds snowflakes and snow caps on the rim, towers and scoreboard; rare rainbows follow the existing rules.
-- Pause all header animation when the screen isn't focused or the app is in the background. Keep it light: one header scene, no per-frame allocations.
+Play the MP4 with expo-video: muted, looping, no controls, `contentFit="cover"`. The PNG is the first frame. It sits under the video until that frame renders, and it is the only frame when Reduce Motion is on. Playback pauses in the background. Leaving the Stadium releases the player.
+
+"Stadium" and the next race time are real text over the clear top band, not drawn into the art. The back button and the pet chip stay on top of the hero. This hero keeps its falling confetti. The art does not follow the park's weather or time of day.
 
 ## 3. Lobby (screen 1)
 
-On a landscape split the header scene fills the left side. The lobby, ticket, sign-up form, and starting gate sit in a phone-width column on the right. The sign-up form fills that column instead of a bottom sheet. A race stays full screen.
+On a landscape split the tall hero fills the left side. The lobby, ticket, sign-up form, and starting gate sit in a phone-width column on the right. The sign-up form fills that column instead of a bottom sheet. A race stays full screen.
 
 Top to bottom:
-1. Header scene (section 2), with the back-to-map button top left and the pet chip top right (name, level, class).
+1. Header (section 2), with the back-to-map button top left and the pet chip top right (name, level, class).
 2. Energy and mood bars for the pet (existing stat values; they affect race performance).
 3. **Your races**, when the pet is in any: the open-race sign-up and the friend game, soonest first. Each row shows the event, the start time, and the class (or "Friend game"). **Open** goes to that race's page: the ticket for an open race, the waiting room for a friend game. Entering the Stadium always lands on the lobby. Back from the ticket returns here.
 4. "Upcoming races" with time-slot buttons for the next 3 slots (e.g. 3:05 / 3:10 / 3:15, each with "in m:ss"). The next slot is selected by default. The list rolls forward as slots start.
@@ -145,10 +135,10 @@ Server functions (RPC or edge functions): `get_upcoming_slots(pet_id)` returns s
 ## 9. Build order
 
 1. Data and server functions, with the slot generator and rotation rule
-2. Lobby with live slots and card states (static header art is fine at first)
+2. Lobby with live slots and card states (the poster is fine until the video is wired)
 3. Sign-up sheet and ticket, including one-active-entry, cooldown and withdraw
 4. Local notification, deep link and in-app race call
 5. Starting gate with presence, line-up lock and the start rules (NPCs only when solo), handing off to the placeholder race screen
-6. Header scene with props, ambient animation, shared weather/time and reduce-motion support
+6. Header video, poster, and reduce-motion support (section 2)
 
 Each step should ship working on its own.

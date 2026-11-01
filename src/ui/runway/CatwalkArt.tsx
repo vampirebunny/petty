@@ -1,17 +1,28 @@
 import type { ReactNode } from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import { themeById } from '../../runway/catalog';
-import { lobbyHero, themePreview } from '../../runway/themePreviews';
+import { themePreview } from '../../runway/themePreviews';
 import { fontFamily } from '../font';
+import { LobbyHero } from '../lobby/LobbyHero';
+import { lobbyHeroFill } from '../lobby/heroes';
+import { isLandscapeSplit } from '../wideLayout';
 
-const stageFill = '#3E2F6E';
+const stageFill = lobbyHeroFill.catwalk;
 
-export function LobbyBanner() {
+export function LobbyBanner({ reducedMotion }: { reducedMotion: boolean }) {
+  const { width, height } = useWindowDimensions();
+  const tall = isLandscapeSplit(width, height);
   return (
     <View style={styles.fill}>
-      <Image source={lobbyHero} style={styles.image} resizeMode="contain" accessibilityLabel="A lit fashion-show stage" />
-      <Text style={styles.strut}>Strut your stuff</Text>
+      <LobbyHero
+        venue="catwalk"
+        cut={tall ? 'tall' : 'phone'}
+        reducedMotion={reducedMotion}
+        label="A lit fashion-show stage"
+      >
+        <Text style={[styles.strut, tall ? styles.strutTall : styles.strutPhone]}>Strut your stuff</Text>
+      </LobbyHero>
     </View>
   );
 }
@@ -52,15 +63,17 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 16,
     right: 16,
-    top: 108,
     textAlign: 'center',
     color: '#FFFFFF',
     fontFamily: fontFamily.fredokaBold,
     fontSize: 28,
-    textShadowColor: 'rgba(42, 27, 74, 0.45)',
+    textShadowColor: 'rgba(42, 27, 74, 0.85)',
     textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 6,
+    textShadowRadius: 8,
   },
+  // Below the header, in the clear band above the runway.
+  strutPhone: { top: 100 },
+  strutTall: { top: '14%' },
   pill: {
     position: 'absolute',
     left: 16,

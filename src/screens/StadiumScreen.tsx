@@ -24,7 +24,7 @@ import { classForEvent, classForLevel, dropEndedSignup, eventLabel, isPlayableEv
 import type { PetState } from '../sim/types';
 import { fontFamily } from '../ui/font';
 import { FitScale } from '../ui/FitScale';
-import { STADIUM_STAGE } from '../ui/skia/stadium';
+import { lobbyHeroFill, lobbyPhoneAspect } from '../ui/lobby/heroes';
 import { isLandscapeSplit, phoneColumnWidth } from '../ui/wideLayout';
 import { FunModal } from '../ui/FunModal';
 import { CandyButton } from '../ui/stadium/CandyButton';
@@ -85,12 +85,6 @@ type Status = 'ok' | 'offline' | 'error';
 
 const statusTop = 48;
 
-function stadiumArtWidth(paneW: number, paneH: number, top: number): number {
-  const ratio = STADIUM_STAGE.h / STADIUM_STAGE.w;
-  const byHeight = Math.max(1, (paneH - top) / ratio);
-  return Math.max(1, Math.min(paneW, byHeight));
-}
-
 function failureCopy(reason: string, name: string): string {
   if (reason.includes('busy')) return `${name} is already in a race.`;
   if (reason.includes('resting')) return `${name} needs a short rest before this race.`;
@@ -143,10 +137,8 @@ export function StadiumScreen({
   const [boardReason, setBoardReason] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const sending = useRef(false);
-  const [width, setWidth] = useState(0);
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const split = isLandscapeSplit(windowWidth, windowHeight);
-  const [pane, setPane] = useState<{ width: number; height: number } | null>(null);
   const petRef = useRef(pet);
   const loadGen = useRef(0);
   const commitRef = useRef(onCommit);
@@ -583,11 +575,7 @@ export function StadiumScreen({
     );
   }
 
-  const artWidth = split && pane ? stadiumArtWidth(pane.width, pane.height, statusTop) : width;
-  const art =
-    artWidth > 0 ? (
-      <StadiumHeader width={artWidth} top={statusTop} nextStart={slots[0]?.startsAt ?? null} reducedMotion={reducedMotion} />
-    ) : null;
+  const art = <StadiumHeader nextStart={slots[0]?.startsAt ?? null} reducedMotion={reducedMotion} />;
   const headerBar = (
           <View style={styles.headerBar} pointerEvents="box-none">
             <Pressable
@@ -783,16 +771,7 @@ export function StadiumScreen({
     return (
       <View style={styles.root}>
         <View style={styles.splitBody}>
-          <View
-            style={styles.stagePane}
-            onLayout={(event) => {
-              const nextW = Math.round(event.nativeEvent.layout.width);
-              const nextH = Math.round(event.nativeEvent.layout.height);
-              setPane((prev) => (prev && prev.width === nextW && prev.height === nextH ? prev : { width: nextW, height: nextH }));
-            }}
-          >
-            {art}
-          </View>
+          <View style={styles.stagePane}>{art}</View>
           <FitScale designWidth={phoneColumnWidth} style={styles.controlColumn}>
             {signupSheet ?? (
               <ScrollView style={styles.columnScroll} contentContainerStyle={[styles.scroll, styles.columnScrollContent]} bounces={false}>
@@ -808,9 +787,9 @@ export function StadiumScreen({
   }
 
   return (
-    <View style={styles.root} onLayout={(event) => setWidth(Math.round(event.nativeEvent.layout.width))}>
+    <View style={styles.root}>
       <ScrollView contentContainerStyle={styles.scroll} bounces={false}>
-        <View>
+        <View style={styles.phoneHero}>
           {art}
           {headerBar}
         </View>
@@ -834,6 +813,11 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
   },
+  phoneHero: {
+    width: '100%',
+    aspectRatio: lobbyPhoneAspect,
+    backgroundColor: lobbyHeroFill.stadium,
+  },
   stagePane: {
     flexGrow: 1,
     flexShrink: 1,
@@ -841,8 +825,7 @@ const styles = StyleSheet.create({
     width: 0,
     minWidth: 0,
     overflow: 'hidden',
-    alignItems: 'center',
-    backgroundColor: pageFill,
+    backgroundColor: lobbyHeroFill.stadium,
   },
   controlColumn: {
     flexGrow: 0,
