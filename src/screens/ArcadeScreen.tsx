@@ -11,6 +11,7 @@ import type { PetState } from '../sim/types';
 import { FitScale } from '../ui/FitScale';
 import { fontFamily } from '../ui/font';
 import { HandlePrompt } from '../ui/HandleScreen';
+import { HeaderBrand } from '../ui/HeaderBrand';
 import { LobbyHero } from '../ui/lobby/LobbyHero';
 import { lobbyHeroFill, lobbyPhoneAspect } from '../ui/lobby/heroes';
 import { CloudHopIcon } from '../ui/places/cloudHopIcon';
@@ -22,6 +23,8 @@ import { isLandscapeSplit, phoneColumnWidth } from '../ui/wideLayout';
 type Props = {
   pet: PetState;
   reducedMotion: boolean;
+  pendingFriends?: boolean;
+  onSettings: () => void;
   onClose: () => void;
 };
 
@@ -42,7 +45,7 @@ function PortraitPlay({ backgroundColor, children }: { backgroundColor: string; 
 // The phone artwork keeps its title band at the top. Start the picture below the status bar so that band stays on screen.
 const bannerTop = 52;
 
-export function ArcadeScreen({ pet, reducedMotion, onClose }: Props) {
+export function ArcadeScreen({ pet, reducedMotion, pendingFriends = false, onSettings, onClose }: Props) {
   const [game, setGame] = useState<'hop' | 'paddle' | 'stay' | null>(null);
   const { width, height } = useWindowDimensions();
   const split = isLandscapeSplit(width, height);
@@ -90,6 +93,12 @@ export function ArcadeScreen({ pet, reducedMotion, onClose }: Props) {
       >
         <ChevronLeft size={22} color="#2C2F4A" strokeWidth={iconStroke} />
       </Pressable>
+      <HeaderBrand
+        style={[styles.brand, split ? styles.brandTall : styles.brandPhone]}
+        uid="arcade-settings"
+        pendingFriends={pendingFriends}
+        onSettings={onSettings}
+      />
       <Text accessibilityRole="header" style={[styles.heroTitle, split ? styles.heroTitleTall : styles.heroTitlePhone]}>
         Arcade
       </Text>
@@ -188,10 +197,13 @@ const styles = StyleSheet.create({
   },
   backPhone: { top: 8 },
   backTall: { top: 52 },
+  brand: { position: 'absolute', right: 12 },
+  brandPhone: { top: 6 },
+  brandTall: { top: 50 },
   heroTitle: {
     position: 'absolute',
-    left: 64,
-    right: 64,
+    left: 120,
+    right: 128,
     textAlign: 'center',
     color: '#FFFFFF',
     fontFamily: fontFamily.fredokaBold,

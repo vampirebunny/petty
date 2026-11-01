@@ -31,12 +31,13 @@ export function StadiumHeader({ nextStart, reducedMotion, active = true }: Props
 const styles = StyleSheet.create({
   copy: {
     position: 'absolute',
-    left: 76,
-    right: 76,
+    left: 20,
+    right: 20,
     alignItems: 'center',
   },
-  copyPhone: { top: 54 },
-  copyTall: { top: 64 },
+  // Sits under the back button, Boop Boop mark, and settings button.
+  copyPhone: { top: 108 },
+  copyTall: { top: 120 },
   title: {
     fontFamily: fontFamily.fredokaBold,
     fontSize: 28,

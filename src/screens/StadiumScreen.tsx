@@ -44,6 +44,7 @@ import { FriendGameSetup } from '../ui/stadium/FriendGameSetup';
 import { NpcCalibrationStadium } from '../ui/stadium/NpcCalibrationDebug';
 import { FriendRoom, type FriendRoomExit } from '../ui/stadium/FriendRoom';
 import { AccountSheet } from '../ui/AccountSheet';
+import { HeaderBrand } from '../ui/HeaderBrand';
 import { raceStillValid, retargetRace } from '../invites/pick';
 import type { RaceOption } from '../invites/types';
 import { iconStroke } from '../ui/theme';
@@ -66,6 +67,8 @@ type Props = {
   /** Open the sign-up sheet for this invitation, skipping the lobby. */
   openRace?: { eventId: string; event: RaceEvent; startsAt: number } | null;
   onInviteUnavailable?: () => void;
+  pendingFriends?: boolean;
+  onSettings: () => void;
 };
 
 type Screen = 'loading' | 'lobby' | 'ticket' | 'gate' | 'race' | 'friendSetup' | 'friendRoom';
@@ -118,6 +121,8 @@ export function StadiumScreen({
   onAtGate,
   openRace = null,
   onInviteUnavailable,
+  pendingFriends = false,
+  onSettings,
 }: Props) {
   const [now, setNow] = useState(() => serverNow());
   const [board, setBoard] = useState<StadiumBoard | null>(null);
@@ -636,26 +641,29 @@ export function StadiumScreen({
   const art = <StadiumHeader nextStart={slots[0]?.startsAt ?? null} reducedMotion={reducedMotion} />;
   const headerBar = (
           <View style={styles.headerBar} pointerEvents="box-none">
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={
-                screen === 'friendSetup' || screen === 'friendRoom' || screen === 'ticket' ? 'Back to the Stadium' : 'Back to the map'
-              }
-              onPress={() => {
-                if (screen === 'friendSetup' || screen === 'ticket') {
-                  setScreen('lobby');
-                } else if (screen === 'friendRoom') {
-                  screenRef.current = 'lobby';
-                  setScreen('lobby');
-                  void load();
-                } else {
-                  onClose();
+            <View style={styles.headerLead}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={
+                  screen === 'friendSetup' || screen === 'friendRoom' || screen === 'ticket' ? 'Back to the Stadium' : 'Back to the map'
                 }
-              }}
-              style={styles.back}
-            >
-              <ChevronLeft size={22} strokeWidth={iconStroke + 1} color={ink} />
-            </Pressable>
+                onPress={() => {
+                  if (screen === 'friendSetup' || screen === 'ticket') {
+                    setScreen('lobby');
+                  } else if (screen === 'friendRoom') {
+                    screenRef.current = 'lobby';
+                    setScreen('lobby');
+                    void load();
+                  } else {
+                    onClose();
+                  }
+                }}
+                style={styles.back}
+              >
+                <ChevronLeft size={22} strokeWidth={iconStroke + 1} color={ink} />
+              </Pressable>
+              <HeaderBrand uid="stadium-settings" pendingFriends={pendingFriends} onSettings={onSettings} />
+            </View>
             <PetChip name={pet.name} level={pet.level} classId={classId} />
           </View>
   );
@@ -899,7 +907,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   columnScrollContent: {
-    paddingTop: 96,
+    paddingTop: 112,
+  },
+  headerLead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexShrink: 1,
   },
   headerBar: {
     position: 'absolute',
@@ -908,7 +922,7 @@ const styles = StyleSheet.create({
     right: 12,
     zIndex: 5,
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'space-between',
   },
   back: {

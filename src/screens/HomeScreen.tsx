@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { AccessibilityInfo, AppState, Image, Linking, Platform, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { AccessibilityInfo, AppState, Linking, Platform, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Gesture, GestureDetector, Pressable, ScrollView } from 'react-native-gesture-handler';
 import { runOnJS, useSharedValue } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
@@ -81,6 +81,7 @@ import {
 } from '../parkFinds/playerFlags';
 import { setParkFindDebug } from '../parkFinds/visit';
 import { CandyShell, candyInk, tints } from '../ui/candy';
+import { HeaderBrand } from '../ui/HeaderBrand';
 import { LevelBar } from '../ui/LevelBar';
 import { LevelUpFloat } from '../ui/LevelUpFloat';
 import { BoopsPayout } from '../components/currency/BoopsPayout';
@@ -189,7 +190,7 @@ import { careConfig } from '../sim/careConfig';
 import { formatRest, isResting, restRemainingMs, treatProgressPreview } from '../sim/training';
 import { BadgeCelebration } from '../ui/BadgeCelebration';
 import { badgeLabel } from '../sim/badges';
-import { Archive, ChevronRight, Cookie, Droplet, HandHeart, Moon, PawPrint, Settings, Sparkles } from 'lucide-react-native';
+import { Archive, ChevronRight, Cookie, Droplet, HandHeart, Moon, PawPrint, Sparkles } from 'lucide-react-native';
 import { playBadgeChime } from '../audio/badge';
 import { GREET } from '../actor/greetings';
 import { PetView } from '../ui/PetView';
@@ -2249,23 +2250,27 @@ export default function HomeScreen({ petApi }: Props) {
     );
   }
 
-  if (settingsOpen) {
-    return hosted(
-      <>
-        <PhoneColumn>
-          <SettingsScreen
-            pet={state}
-            petName={state.name}
-            pendingFriends={incomingFriends.length}
-            careRemindersOn={remindersOn}
-            onCareReminders={setRemindersOn}
-            onFriendsChanged={() => setFriendTick((value) => value + 1)}
-            onClose={() => setSettingsOpen(false)}
-          />
-        </PhoneColumn>
-        <HandlePrompt petName={state.name} idle={false} />
-      </>
-    );
+  const settingsScreen = (
+    <>
+      <PhoneColumn>
+        <SettingsScreen
+          pet={state}
+          petName={state.name}
+          pendingFriends={incomingFriends.length}
+          careRemindersOn={remindersOn}
+          onCareReminders={setRemindersOn}
+          onFriendsChanged={() => setFriendTick((value) => value + 1)}
+          onClose={() => setSettingsOpen(false)}
+        />
+      </PhoneColumn>
+      <HandlePrompt petName={state.name} idle={false} />
+    </>
+  );
+  const venueSettings = settingsOpen ? <View style={styles.settingsCover}>{settingsScreen}</View> : null;
+  const openSettings = () => setSettingsOpen(true);
+
+  if (settingsOpen && !arcadeOpen && !catwalkOpen && !stadiumOpen) {
+    return hosted(settingsScreen);
   }
 
   if (clothingOpen) {
@@ -2286,38 +2291,49 @@ export default function HomeScreen({ petApi }: Props) {
 
   if (arcadeOpen) {
     return hosted(
-      <ArcadeScreen
-        pet={state}
-        reducedMotion={reducedMotion}
-        onClose={() => {
-          commitPet({ ...state, roadSpot: 'arcade', asleep: false });
-          setArcadeOpen(false);
-        }}
-      />,
+      <View style={styles.venueHost}>
+        <ArcadeScreen
+          pet={state}
+          reducedMotion={reducedMotion}
+          pendingFriends={incomingFriends.length > 0}
+          onSettings={openSettings}
+          onClose={() => {
+            commitPet({ ...state, roadSpot: 'arcade', asleep: false });
+            setArcadeOpen(false);
+          }}
+        />
+        {venueSettings}
+      </View>,
     );
   }
 
   if (catwalkOpen) {
     return hosted(
-      <CatwalkScreen
-        pet={state}
-        ownerId={state.ownerId || currentOwner()}
-        owned={owned}
-        reducedMotion={reducedMotion}
-        seed={runwaySeed}
-        showId={runwayShowId}
-        onClose={() => {
-          commitPet({ ...state, roadSpot: 'catwalk', asleep: false });
-          setCatwalkOpen(false);
-          setRunwaySeed(null);
-          setRunwayShowId(null);
-        }}
-      />,
+      <View style={styles.venueHost}>
+        <CatwalkScreen
+          pet={state}
+          ownerId={state.ownerId || currentOwner()}
+          owned={owned}
+          reducedMotion={reducedMotion}
+          seed={runwaySeed}
+          showId={runwayShowId}
+          pendingFriends={incomingFriends.length > 0}
+          onSettings={openSettings}
+          onClose={() => {
+            commitPet({ ...state, roadSpot: 'catwalk', asleep: false });
+            setCatwalkOpen(false);
+            setRunwaySeed(null);
+            setRunwayShowId(null);
+          }}
+        />
+        {venueSettings}
+      </View>,
     );
   }
 
   if (stadiumOpen) {
     return hosted(
+      <View style={styles.venueHost}>
       <StadiumScreen
         key={`${stadiumGate}:${friendGameRoom ?? ''}`}
         pet={state}
@@ -2364,7 +2380,11 @@ export default function HomeScreen({ petApi }: Props) {
           setStadiumOpen(false);
           setRaceSeed(null);
         }}
-      />,
+        pendingFriends={incomingFriends.length > 0}
+        onSettings={openSettings}
+      />
+        {venueSettings}
+      </View>,
     );
   }
 
@@ -3127,27 +3147,12 @@ export default function HomeScreen({ petApi }: Props) {
     (state.level === gameplayConfig.tutorialLevel && state.xpIntoLevel === 0 && state.xpTotal === tutorialSpan);
   const homeHeader = (
     <View style={[styles.header, accountHandle ? styles.headerWithHandle : null]}>
-      <View style={styles.logoSlot} pointerEvents="none">
-        <Image
-          source={require('../../assets/icon.png')}
-          style={styles.logo}
-          accessibilityLabel="Boop Boop"
-          accessibilityIgnoresInvertColors
-        />
-      </View>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Settings"
-        onPress={() => setSettingsOpen(true)}
-        style={styles.settingsHit}
-      >
-        {({ pressed }) => (
-          <CandyShell tint={tints.pink} radius={22} uid="home-settings" pressed={pressed} style={styles.settings}>
-            <Settings color={candyInk(tints.pink)} size={22} strokeWidth={iconStroke} />
-            {incomingFriends.length > 0 ? <View style={styles.friendBadge} /> : null}
-          </CandyShell>
-        )}
-      </Pressable>
+      <HeaderBrand
+        style={styles.brandSlot}
+        uid="home-settings"
+        pendingFriends={incomingFriends.length > 0}
+        onSettings={openSettings}
+      />
       <View
         accessible
         accessibilityRole="header"
@@ -4219,40 +4224,20 @@ const styles = StyleSheet.create({
   headerWithHandle: {
     height: 78,
   },
-  logoSlot: {
+  brandSlot: {
     position: 'absolute',
     left: 20,
     top: 0,
     bottom: 0,
-    justifyContent: 'center',
-  },
-  logo: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-  },
-  settingsHit: {
-    position: 'absolute',
-    left: 76,
-    top: 0,
-    bottom: 0,
-    justifyContent: 'center',
     zIndex: 2,
   },
-  settings: {
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
+  venueHost: {
+    flex: 1,
   },
-  friendBadge: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#EE5C40',
+  settingsCover: {
+    ...StyleSheet.absoluteFill,
+    zIndex: 40,
+    backgroundColor: '#FFF6FB',
   },
   // Equal insets keep the name on the screen center. The Boop pill is wider than
   // the logo, so both sides use that wider clearance and a long name still clears it.

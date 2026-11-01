@@ -41,14 +41,14 @@ The header is a muted looping video in `assets/lobby/`, not a live sky scene.
 
 Play the MP4 with expo-video: muted, looping, no controls, `contentFit="cover"`. The PNG is the first frame. It sits under the video until that frame renders, and it is the only frame when Reduce Motion is on. Playback pauses in the background. Leaving the Stadium releases the player.
 
-"Stadium" and the next race time are real text over the clear top band, not drawn into the art. The back button and the pet chip stay on top of the hero. This hero keeps its falling confetti. The art does not follow the park's weather or time of day.
+"Stadium" and the next race time are real text over the hero, under the control row, not drawn into the art. The back button, the Boop Boop app mark, and the same pink settings button as the living room and bedroom sit on the left. The pet chip stays on the right (name, level, class). A waiting friend request puts the same red dot on that settings button. Opening Settings covers the Stadium and returns to the same screen. This hero keeps its falling confetti. The art does not follow the park's weather or time of day.
 
 ## 3. Lobby (screen 1)
 
 On a landscape split the tall hero fills the left side. The lobby, ticket, sign-up form, and starting gate sit in a phone-width column on the right. The sign-up form fills that column instead of a bottom sheet. A race stays full screen.
 
 Top to bottom:
-1. Header (section 2), with the back-to-map button top left and the pet chip top right (name, level, class).
+1. Header (section 2). Top left: back, the Boop Boop mark, and Settings. Top right: the pet chip (name, level, class). "Stadium" and the next race time sit under that row. The same bar stays on the ticket, sign-up, friend setup, waiting room, and starting gate. A race stays full screen.
 2. **Your races**, when the pet is in any: every open-race sign-up and the friend game, soonest first. Each row shows the event, the start time, and the class (or "Friend game"). **Open** goes to that race's page: the ticket for an open race, the waiting room for a friend game. Entering the Stadium always lands on the lobby. Back from the ticket returns here.
 3. "Upcoming races" with time-slot buttons for the next 3 slots (e.g. 3:05 / 3:10 / 3:15, each with "in m:ss"). The next slot is selected by default. The list rolls forward as slots start.
 4. Race cards for the selected slot (4 per slot). Each card shows the icon, name, an OPEN or AWAY tag where it applies, who can enter (Dogs / Cats / Dogs & cats), and "x of 6 signed up". Card states:

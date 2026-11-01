@@ -61,6 +61,7 @@ import {
 import type { LocalRunwayShow } from '../runway/types';
 import type { Equipped, OutfitSlot, PetState } from '../sim/types';
 import { AccountSheet } from '../ui/AccountSheet';
+import { HeaderBrand } from '../ui/HeaderBrand';
 import { ClosetSection } from '../ui/closet/ClosetSection';
 import { tileColumns } from '../ui/closet/closetStyle';
 import { fontFamily } from '../ui/font';
@@ -118,6 +119,8 @@ type Props = {
   seed?: RunwayInvitation | null;
   /** Live friend show opened from a push. */
   showId?: string | null;
+  pendingFriends?: boolean;
+  onSettings: () => void;
   onClose: () => void;
 };
 
@@ -149,7 +152,17 @@ function phoneArtHeight(step: Step, width: number): number {
   return Math.round(w * 0.75);
 }
 
-export function CatwalkScreen({ pet, ownerId, owned, reducedMotion, seed = null, showId = null, onClose }: Props) {
+export function CatwalkScreen({
+  pet,
+  ownerId,
+  owned,
+  reducedMotion,
+  seed = null,
+  showId = null,
+  pendingFriends = false,
+  onSettings,
+  onClose,
+}: Props) {
   const { width, height } = useWindowDimensions();
   const split = isLandscapeSplit(width, height);
   const previewClock = useOutfitClock(reducedMotion);
@@ -756,17 +769,31 @@ export function CatwalkScreen({ pet, ownerId, owned, reducedMotion, seed = null,
       <ThemeBanner themeId={themeId} />
     );
 
+  const lobby = step === 'lobby';
   const header = (
-    <View style={styles.header} pointerEvents="box-none">
+    <View
+      style={[styles.header, lobby ? (split ? styles.headerLobbySplit : styles.headerLobby) : null]}
+      pointerEvents="box-none"
+    >
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={step === 'lobby' ? 'Back to map' : 'Back'}
+        accessibilityLabel={lobby ? 'Back to map' : 'Back'}
         onPress={goBack}
         style={styles.back}
       >
         <ChevronLeft size={22} color={ink} strokeWidth={iconStroke} />
       </Pressable>
-      <Text style={styles.headerTitle}>{runwayConfig.venueName}</Text>
+      <Text style={[styles.headerTitle, lobby ? styles.headerTitleLobby : null]} numberOfLines={1}>
+        {runwayConfig.venueName}
+      </Text>
+      {lobby ? (
+        <HeaderBrand
+          style={styles.headerBrand}
+          uid="catwalk-settings"
+          pendingFriends={pendingFriends}
+          onSettings={onSettings}
+        />
+      ) : null}
     </View>
   );
 
@@ -1304,6 +1331,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  headerLobby: {
+    right: 12,
+  },
+  headerLobbySplit: {
+    right: phoneColumnWidth + 12,
+  },
+  headerTitleLobby: {
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  headerBrand: {
+    marginLeft: 'auto',
   },
   headerTitle: {
     fontFamily: fontFamily.fredokaBold,

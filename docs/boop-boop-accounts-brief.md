@@ -552,7 +552,7 @@ Apple requires apps with Sign in with Apple to revoke the user's tokens on accou
 
 ## 12. Settings page
 
-- **Entry:** a gear icon (lucide `Settings`) in the Home header **between the logo and the pet's name**, in a small glossy, puffy cotton candy button with a tap target of at least 44×44pt. The name truncates with an ellipsis to make room; the logo and the Boop counter keep their size. Not a paw print (that's the Boops coin). Opens Settings as a full screen with a back button.
+- **Entry:** a gear icon (lucide `Settings`) in the Home header **between the logo and the pet's name**, in a small glossy, puffy cotton candy button with a tap target of at least 44×44pt. The name truncates with an ellipsis to make room; the logo and the Boop counter keep their size. Not a paw print (that's the Boops coin). The same logo and button (`HeaderBrand`) sit on the Catwalk lobby, the Stadium header, and the Arcade lobby. From Home, Settings replaces the screen. From those venues, it covers the venue and closing it returns there. Opens Settings as a full screen with a back button. A waiting friend request shows a red dot on the gear in every one of these headers.
 - **Leave the existing Style & sound controls in `HomeActionPanel` exactly as they are.**
 - **Rows:**
   - **Guests:** **Sign in or create account** (top) → `AccountSheet` (`settings`).
