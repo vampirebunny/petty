@@ -50,7 +50,10 @@ export type StadiumBoard = {
   species: 'dog' | 'cat';
   capacity: number;
   cooldownUntil: number | null;
+  /** Soonest open signup. */
   activeEntry: RaceSignup | null;
+  /** Every open signup, one per start time. */
+  activeEntries: RaceSignup[];
   /** The pet's friend game, which never shows as activeEntry. */
   friendGameRaceId: string | null;
   slots: StadiumSlot[];
@@ -182,12 +185,15 @@ export function parseBoard(value: unknown): StadiumBoard {
   const row = rowOf(value);
   const config = rowOf(row.config);
   const slots = Array.isArray(row.slots) ? row.slots : [];
+  const listed = Array.isArray(row.active_entries) ? row.active_entries.flatMap((entry) => parseEntry(entry) ?? []) : [];
+  const activeEntries = listed.length > 0 ? listed : [parseEntry(row.active_entry)].flatMap((entry) => entry ?? []);
   return {
     classId: isRaceClass(row.class) ? row.class : 'beginner',
     species: speciesOf(row.species),
     capacity: num(config.capacity) ?? 6,
     cooldownUntil: time(row.cooldown_until),
-    activeEntry: parseEntry(row.active_entry),
+    activeEntry: activeEntries[0] ?? null,
+    activeEntries,
     friendGameRaceId: text(row.friend_game_race_id),
     slots: slots.flatMap((slot) => {
       const item = rowOf(slot);
@@ -333,6 +339,12 @@ export async function signUpFor(petId: string, eventId: string): Promise<Stadium
   }
   const entry = parseEntry(result.data);
   return entry ? { ok: true, data: entry } : { ok: false, offline: false, reason: 'bad entry' };
+}
+
+// Drops the sign-up that blocks the next race once this one has started.
+// A missing function (migration not applied yet) leaves the entry as it is.
+export async function releaseRaceEntry(raceId: string): Promise<StadiumResult<unknown>> {
+  return call('release_my_race_entry', { p_race_id: raceId });
 }
 
 export async function withdrawEntry(entryId: string): Promise<StadiumResult<boolean>> {

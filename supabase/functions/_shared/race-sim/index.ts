@@ -1,4 +1,13 @@
-export { CONFIG_VERSION, configFor, funRunConfig, type FunRunConfig, type RaceClassId } from './config.ts';
+export {
+  CONFIG_VERSION,
+  METERS_800_SCALE,
+  METERS_800_VERSION,
+  configFor,
+  funRunConfig,
+  meters800Config,
+  type FunRunConfig,
+  type RaceClassId,
+} from './config.ts';
 export {
   BLEND_PLAYERS,
   CURVE_POINTS,

@@ -1,4 +1,5 @@
 import {
+  METERS_800_VERSION,
   OBSTACLE_VERSION,
   REPLAY_MAX_INPUT_BYTES,
   finishMismatch,
@@ -32,6 +33,16 @@ it('parses a Fun Run log and matches runFunRun', () => {
   expect(log && 'taps' in log ? log.taps.length : 0).toBe(120);
   const replayed = replayPlayer(race, neutralModifiers, log!);
   expect(replayed.finishMs).toBe(runFunRun(taps, neutralModifiers, null, 'funrun-2').finishMs);
+});
+
+it('parses an 800 Meters log and matches runFunRun on the long track', () => {
+  const taps = Array.from({ length: 900 }, (_, index) => index * 120);
+  const log = parseInputLog('meters800', { taps }, METERS_800_VERSION);
+  expect(log && 'taps' in log ? log.taps.length : 0).toBe(900);
+  const longRace = { event: 'meters800' as const, classId: 'open' as const, seed: 'seed-1', configVersion: METERS_800_VERSION };
+  const replayed = replayPlayer(longRace, neutralModifiers, log!);
+  expect(replayed.finishMs).toBe(runFunRun(taps, neutralModifiers, null, METERS_800_VERSION).finishMs);
+  expect(replayed.finishMs).toBeGreaterThan(runFunRun(taps, neutralModifiers, null, 'funrun-2').finishMs!);
 });
 
 it('replays NPCs from the race seed without player taps', () => {

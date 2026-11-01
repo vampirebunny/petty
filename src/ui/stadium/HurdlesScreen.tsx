@@ -49,6 +49,7 @@ type Props = {
   pet: PetState;
   reducedMotion: boolean;
   onFinish: (place: number) => void;
+  onSpend: () => void;
   onExit: () => void;
 };
 
@@ -59,7 +60,7 @@ const popupMs = 900;
 const legsPerMeter = racePoses.hurdlesLegsPerMeter;
 const popupText: Record<HurdleOutcome, string> = { perfect: 'Perfect!', good: 'Nice!', clip: 'Oops!' };
 
-export function HurdlesScreen({ race, pet, reducedMotion, onFinish, onExit }: Props) {
+export function HurdlesScreen({ race, pet, reducedMotion, onFinish, onSpend, onExit }: Props) {
   const [width, setWidth] = useState(0);
   const [finalRace, setFinalRace] = useState<RaceView | null>(null);
   const [provisional, setProvisional] = useState<Standing[] | null>(null);
@@ -209,6 +210,7 @@ export function HurdlesScreen({ race, pet, reducedMotion, onFinish, onExit }: Pr
           const mineStanding = standings.find((row) => row.mine);
           const log = hurdlesLog(jumps.current);
           void deliverRaceReport(
+            race.raceId,
             () => submitRaceReport(race.raceId, mineStanding?.finishMs ?? null, log),
             (view) => grantRef.current(view),
           );
@@ -362,6 +364,7 @@ export function HurdlesScreen({ race, pet, reducedMotion, onFinish, onExit }: Pr
     // step it lands in, or the scene skips it while the replay and the results count it.
     const simMs = mine ? (runners.current.get(mine.key)?.tMs ?? 0) : 0;
     jumps.current.push(Math.max(at - race.startsAt, simMs));
+    onSpend();
   };
 
   return (

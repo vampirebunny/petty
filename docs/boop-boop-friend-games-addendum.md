@@ -1,6 +1,6 @@
 # Cursor Brief Addendum: Friend Games
 
-**Shipped.** Migration `20261030110000_friend_games.sql` and the `notify_friend_game` and `notify_friend_game_accept` Edge Functions are deployed. The client is `src/stadium/friendGames.ts`, `FriendGameSetup`, `FriendRoom`, and `FriendGameInviteModal`.
+**Shipped.** Migration `20261030110000_friend_games.sql` and the `notify_friend_game` and `notify_friend_game_accept` Edge Functions are deployed. `20261101140000_friend_game_800.sql` is applied, so a friend game can also be 800 Meters. The client is `src/stadium/friendGames.ts`, `FriendGameSetup`, `FriendRoom`, and `FriendGameInviteModal`.
 
 An addition to the gameplay progression brief. Built on live open races (phase 7, **shipped**): synchronized countdown on server time, each phone simulates its own pet and streams its state (`race:{raceId}:run`), and the server replays and verifies results. All numbers go in the gameplay config.
 
@@ -15,7 +15,7 @@ Alongside open scheduled races (anyone online, guests included), a player can cr
 ## Creating a game
 
 1. In the Stadium, the player taps **Race with friends**.
-2. Picks the event: **Fun Run, Hurdles, or Obstacle Course**. Any pet can enter, whether or not it has learned the tricks those events need in an open or veteran race. Dock Dive is not offered; it isn't a good live race. Sniff Out, Trick Show, and Weave are cancelled.
+2. Picks the event: **Fun Run, 800 Meters, Hurdles, or Obstacle Course**. Any pet can enter, whether or not it has learned the tricks those events need in an open or veteran race. Dock Dive is not offered; it isn't a good live race. Sniff Out, Trick Show, and Weave are cancelled.
 3. Picks when it starts: **in 2, 5, or 15 minutes** (default 5; `gameplayConfig.friendGames.delaysMin`).
 4. Selects up to 5 friends. The list shows friends only:
    - **Recent** at the top: the 5 friends this player invited most recently (stored per player, not per pet), newest first.
@@ -33,8 +33,8 @@ There is no scheduling for a specific date and time yet. That is a possible late
 - When a friend accepts, the host and the other friends still invited (pending or already accepted) are told. Friends who declined or left are not, and neither is the friend who just accepted. Copy: "@handle joined the Fun Run friend game!" Edge Function `notify_friend_game_accept` sends it (`data: { kind: 'friend_game_accepted', raceId, joined }`). It respects blocks and the friend-request notification setting, and it does not stamp `notified_at` (that column stays the original invite). While the app is open, the system banner stays hidden and an in-app "Boop Boop" banner shows. A closed or backgrounded app gets the push. A tap opens the waiting room when `joined` is true (the host, or someone who already accepted) and the invite when they are still pending.
 - A joined friend game uses the same 30-second local notification and in-app race call as an open-race sign-up. The call opens the waiting room. Skip withdraws that friend, or cancels the game when they are the host. The reminder is cancelled while they are in the waiting room and restored if they leave before the call time. Permission is asked when hosting or joining, and the invite or accept is not held up waiting for the answer.
 - Invites expire at line-up lock (start − 10 s). An invite answered after that shows "This game already started"; a cancelled game shows "This game was cancelled."
-- A player can be in only one race at a time. Accepting an invite declines the player's other pending invites.
-- **Conflict:** if the player already has an open-race sign-up or another friend game, accepting (or creating a game) shows a warning. The player can confirm, which withdraws them from the other race, or back out.
+- A player can be signed up for one race per start time (`20261101160000_one_race_per_slot.sql`, applied). Accepting an invite declines the player's other pending invites.
+- **Conflict:** if the player already has an open-race sign-up or another friend game at that same start time, accepting (or creating a game) shows a warning. The player can confirm, which withdraws them from the other race, or back out. Other start times stay open.
 
 ## Waiting room
 
@@ -58,7 +58,7 @@ There is no scheduling for a specific date and time yet. That is a possible late
 
 - **None** beyond the race itself: no XP, ribbons, trophies, or race badges (First Race, Blue Ribbon, Moving Up, Ribbon Rack). It does not count for "Compete in the Stadium".
 - No event rest.
-- The same energy cost as an open race (`gameplayConfig.races.energyCost`).
+- The same energy cost as an open race: 0.25 energy per input (tap, jump, duck, or a dock hold or release). Energy stops at 0.
 - Results screen shows final placings for everyone in the game.
 
 ## Data and server

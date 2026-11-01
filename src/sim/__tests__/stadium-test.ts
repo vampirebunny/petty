@@ -47,6 +47,8 @@ it('lets a new pet into the open races and locks the trick races', () => {
   };
   expect(skillBlock(trained, 'hurdles')).toBeNull();
   expect(isPlayableEvent('obstacle')).toBe(true);
+  expect(isPlayableEvent('meters800')).toBe(true);
+  expect(skillBlock(puppy, 'meters800')).toBeNull();
   expect(skillBlock(trained, 'obstacle')?.trickId).toBe('dog_tunnel');
 });
 
@@ -61,6 +63,8 @@ it('puts every level in one Open Fun Run', () => {
   expect(classForEvent('funRun', 'open', 'beginner')).toBe('open');
   expect(classForEvent('funRun', 'open', 'championship')).toBe('open');
   expect(classForEvent('funRun', 'veteran', 'expert')).toBe('veteran');
+  expect(classForEvent('meters800', 'open', 'beginner')).toBe('open');
+  expect(classForEvent('meters800', 'open', 'championship')).toBe('open');
   expect(classForEvent('hurdles', 'open', 'novice')).toBe('novice');
 });
 
@@ -103,17 +107,27 @@ it('reminds a joined friend game the same way as a sign-up', () => {
   expect(racesOf(dropEndedSignup(joined, start + 5 * 60_000)).friendGame).toBeNull();
 });
 
+it('holds one signup per start time', () => {
+  const later = { ...signup(), entryId: 'e2', raceId: 'r2', eventId: 'ev2', startsAt: start + 5 * 60_000 };
+  const both = withSignup(withSignup(pet(), signup(), now), later, now);
+  expect(racesOf(both).signups.map((row) => row.entryId)).toEqual(['e1', 'e2']);
+  expect(racesOf(both).signup?.entryId).toBe('e1');
+  expect(racesOf(dropEndedSignup(both, start + 5 * 60_000)).signups.map((row) => row.entryId)).toEqual(['e2']);
+  const sameSlot = { ...signup(), entryId: 'e3', raceId: 'r3' };
+  expect(racesOf(withSignup(both, sameSlot, now)).signups.map((row) => row.entryId)).toEqual(['e3', 'e2']);
+});
+
 it('lists every race the pet is in, including a friend game', () => {
   const entered = withSignup(pet(), signup(), now);
   const both = withFriendGame(entered, { raceId: 'fr1', event: 'hurdles', startsAt: start - 60_000 }, now);
-  const races = signedUpRaces(racesOf(both).signup, racesOf(both).friendGame ?? null, 'fr1');
+  const races = signedUpRaces(racesOf(both).signups, racesOf(both).friendGame ?? null, 'fr1');
   expect(races.map((race) => race.id)).toEqual(['fr1', 'r1']);
   expect(races[0]?.kind).toBe('friend');
   expect(races[1]?.kind).toBe('signup');
-  expect(signedUpRaces(null, null, 'fr1')).toEqual([
+  expect(signedUpRaces([], null, 'fr1')).toEqual([
     { id: 'fr1', kind: 'friend', event: null, startsAt: null, classId: null },
   ]);
-  expect(signedUpRaces(racesOf(both).signup, racesOf(both).friendGame ?? null, 'other')).toEqual([
+  expect(signedUpRaces(racesOf(both).signups, racesOf(both).friendGame ?? null, 'other')).toEqual([
     { id: 'r1', kind: 'signup', event: 'funRun', startsAt: start, classId: 'beginner' },
     { id: 'other', kind: 'friend', event: null, startsAt: null, classId: null },
   ]);

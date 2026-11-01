@@ -6,7 +6,8 @@ import { readAccountLinked, serverNow } from '../db/accountMeta';
 import { track, trackScreen } from '../analytics/analytics';
 import { pushPetBeforeRead } from '../sync/queue';
 import { askRaceReminderPermission, cancelRaceCall, scheduleRaceCall } from '../reminders/notifications';
-import { fetchBoard, signUpFor, withdrawEntry, type RaceView, type StadiumBoard, type StadiumCard, type StadiumSlot } from '../stadium/api';
+import { fetchBoard, releaseRaceEntry, signUpFor, withdrawEntry, type RaceView, type StadiumBoard, type StadiumCard, type StadiumSlot } from '../stadium/api';
+import { raceReportInFlight } from '../stadium/raceReport';
 import {
   conflictCopy,
   createFriendGame,
@@ -18,9 +19,9 @@ import {
   type FriendGameState,
 } from '../stadium/friendGames';
 import { gameplayConfig } from '../sim/gameplayConfig';
-import { applyFriendRaceResult, applyRaceRewards, noteFriendGameStarted } from '../sim/raceRewards';
+import { applyFriendRaceResult, applyRaceRewards, noteFriendGameStarted, spendRaceTap } from '../sim/raceRewards';
 import { recordFormatEntered } from '../invites/store';
-import { classForEvent, classForLevel, dropEndedSignup, eventLabel, isPlayableEvent, racesOf, signedUpRaces, skillBlock, withFriendGame, withSignup, type FriendGameCall, type RaceEvent, type RaceSignup, type SignedUpRace, type SkillBlock } from '../sim/stadium';
+import { classForEvent, classForLevel, dropEndedSignup, eventLabel, isPlayableEvent, racesOf, replaceSignups, signedUpRaces, skillBlock, withFriendGame, withSignup, withoutSignup, type FriendGameCall, type RaceEvent, type RaceSignup, type SignedUpRace, type SkillBlock } from '../sim/stadium';
 import type { PetState } from '../sim/types';
 import { fontFamily } from '../ui/font';
 import { FitScale } from '../ui/FitScale';
@@ -29,7 +30,7 @@ import { isLandscapeSplit, phoneColumnWidth } from '../ui/wideLayout';
 import { FunModal } from '../ui/FunModal';
 import { CandyButton } from '../ui/stadium/CandyButton';
 import { Lobby } from '../ui/stadium/Lobby';
-import { PetChip, ReadyBars, Toast, ink, pageFill, shared, softInk } from '../ui/stadium/parts';
+import { PetChip, Toast, ink, pageFill, shared, softInk } from '../ui/stadium/parts';
 import { DockDiveScreen } from '../ui/stadium/DockDiveScreen';
 import { FunRunScreen } from '../ui/stadium/FunRunScreen';
 import { HurdlesScreen } from '../ui/stadium/HurdlesScreen';
@@ -86,7 +87,7 @@ type Status = 'ok' | 'offline' | 'error';
 const statusTop = 48;
 
 function failureCopy(reason: string, name: string): string {
-  if (reason.includes('busy')) return `${name} is already in a race.`;
+  if (reason.includes('busy')) return `${name} is already in a race at this time.`;
   if (reason.includes('resting')) return `${name} needs a short rest before this race.`;
   if (reason.includes('closed')) return 'That race just closed. Try the next one.';
   if (reason.includes('missing_trick')) return `${name} needs a new trick for this race.`;
@@ -171,9 +172,38 @@ export function StadiumScreen({
     atGateRef.current = onAtGate;
   }, [board, onAtGate, onCommit, pet, screen]);
 
-  const signup = racesOf(pet).signup;
+  const signups = racesOf(pet).signups;
+  const [viewEntry, setViewEntry] = useState<string | null>(null);
+  const signup = signups.find((row) => row.entryId === viewEntry) ?? signups[0] ?? null;
 
   const load = useCallback(async () => {
+    // A race that already started, and that this screen is not showing, still occupies
+    // its time slot. Free that one. Signups for later slots stay.
+    const freeLeftRace = async (board: StadiumBoard): Promise<StadiumBoard> => {
+      const screen = screenRef.current;
+      const holding = screen === 'ticket' || screen === 'gate' || screen === 'race' || screen === 'friendRoom';
+      if (holding || raceReportInFlight()) return board;
+      const ids: string[] = [];
+      const leftAt = serverNow() - 30_000;
+      for (const entry of board.activeEntries) {
+        if (entry.startsAt <= leftAt) ids.push(entry.raceId);
+      }
+      if (board.friendGameRaceId && !ids.includes(board.friendGameRaceId)) {
+        const game = await fetchFriendGame(board.friendGameRaceId);
+        if (game.ok) {
+          const over =
+            (game.data.status === 'running' || game.data.status === 'finished' || game.data.status === 'cancelled') &&
+            game.data.startsAt <= leftAt;
+          if (over) ids.push(board.friendGameRaceId);
+        }
+      }
+      if (ids.length === 0) return board;
+      const released = await Promise.all(ids.map((id) => releaseRaceEntry(id)));
+      if (!released.some((row) => row.ok)) return board;
+      const again = await fetchBoard(petRef.current.id);
+      return again.ok ? again.data : board;
+    };
+
     const gen = ++loadGen.current;
     let result = await fetchBoard(petRef.current.id);
     if (gen !== loadGen.current) return;
@@ -201,12 +231,16 @@ export function StadiumScreen({
       return;
     }
     setBoardReason(null);
-    const next = result.data;
+    const next = await freeLeftRace(result.data);
+    if (gen !== loadGen.current) return;
     setStatus('ok');
     setBoard(next);
     const current = petRef.current;
-    const local = racesOf(current).signup;
-    let nextPet = local?.entryId !== next.activeEntry?.entryId ? withSignup(current, next.activeEntry, serverNow()) : current;
+    const local = racesOf(current).signups;
+    const same =
+      local.length === next.activeEntries.length &&
+      local.every((row, index) => row.entryId === next.activeEntries[index]?.entryId);
+    let nextPet = same ? current : replaceSignups(current, next.activeEntries);
     if (screenRef.current === 'loading') {
       setScreen('lobby');
     }
@@ -296,10 +330,11 @@ export function StadiumScreen({
   const selected = slots.find((slot) => slot.id === slotId) ?? slots[0] ?? null;
   const classId = board?.classId ?? classForLevel(pet.level);
 
-  const clearSignup = () => {
-    const current = petRef.current;
-    if (racesOf(current).signup) {
-      commitRef.current(withSignup(current, null, serverNow()));
+  const dropSignup = (entryId: string) => {
+    const next = withoutSignup(petRef.current, entryId);
+    if (next !== petRef.current) {
+      petRef.current = next;
+      commitRef.current(next);
     }
   };
 
@@ -309,6 +344,8 @@ export function StadiumScreen({
       return;
     }
     if (card.state === 'entered') {
+      const match = racesOf(pet).signups.find((row) => row.eventId === card.id);
+      setViewEntry(match?.entryId ?? null);
       setScreen('ticket');
       return;
     }
@@ -321,7 +358,7 @@ export function StadiumScreen({
       return;
     }
     if (card.state === 'busy') {
-      setToast('One race at a time.');
+      setToast('One race per start time.');
     }
   };
 
@@ -346,7 +383,10 @@ export function StadiumScreen({
       void load();
       return;
     }
-    commitRef.current(withSignup(petRef.current, result.data, serverNow()));
+    const joined = withSignup(petRef.current, result.data, serverNow());
+    petRef.current = joined;
+    commitRef.current(joined);
+    setViewEntry(result.data.entryId);
     if (petRef.current.ownerId) {
       void recordFormatEntered(petRef.current.ownerId, 'race', petRef.current.openedDays);
     }
@@ -370,8 +410,9 @@ export function StadiumScreen({
       return;
     }
     void cancelRaceCall();
-    clearSignup();
+    dropSignup(entry.entryId);
     setGateSignup(null);
+    setViewEntry(null);
     setToast(`You've withdrawn from ${eventLabel(entry.event)}`);
     setScreen('lobby');
     void load();
@@ -383,8 +424,9 @@ export function StadiumScreen({
   };
 
   const leaveGate = (why: GateExit) => {
-    clearSignup();
+    if (gateSignup) dropSignup(gateSignup.entryId);
     setGateSignup(null);
+    setViewEntry(null);
     if (why === 'noShow') {
       setToast('The race started without you. Catch the next one!');
     }
@@ -399,7 +441,12 @@ export function StadiumScreen({
       cup: view.cup,
       live_players: view.players.length,
     });
-    clearSignup();
+    const left = racesOf(petRef.current).signups.filter((row) => row.raceId !== view.raceId);
+    const next = replaceSignups(petRef.current, left);
+    if (next !== petRef.current) {
+      petRef.current = next;
+      commitRef.current(next);
+    }
     setRace(view);
     setScreen('race');
   };
@@ -410,12 +457,16 @@ export function StadiumScreen({
       setScreen('friendRoom');
       return;
     }
-    const entry = racesOf(petRef.current).signup ?? board?.activeEntry ?? null;
-    if (entry && !racesOf(petRef.current).signup) {
+    const entry =
+      racesOf(petRef.current).signups.find((row) => row.raceId === race.id) ??
+      board?.activeEntries.find((row) => row.raceId === race.id) ??
+      null;
+    if (entry && !racesOf(petRef.current).signups.some((row) => row.entryId === entry.entryId)) {
       const next = withSignup(petRef.current, entry, serverNow());
       petRef.current = next;
       commitRef.current(next);
     }
+    setViewEntry(entry?.entryId ?? null);
     setScreen('ticket');
   };
 
@@ -553,6 +604,12 @@ export function StadiumScreen({
         race={race}
         pet={pet}
         reducedMotion={reducedMotion}
+        onSpend={() => {
+          const next = spendRaceTap(petRef.current);
+          if (next === petRef.current) return;
+          petRef.current = next;
+          commitRef.current(next);
+        }}
         onFinish={(place) => {
           if (race.cup === 'friends') {
             commitRef.current(applyFriendRaceResult(petRef.current, race.raceId));
@@ -568,6 +625,7 @@ export function StadiumScreen({
         }}
         onExit={() => {
           setRace(null);
+          screenRef.current = 'lobby';
           setScreen('lobby');
           void load();
         }}
@@ -587,6 +645,7 @@ export function StadiumScreen({
                 if (screen === 'friendSetup' || screen === 'ticket') {
                   setScreen('lobby');
                 } else if (screen === 'friendRoom') {
+                  screenRef.current = 'lobby';
                   setScreen('lobby');
                   void load();
                 } else {
@@ -674,13 +733,10 @@ export function StadiumScreen({
           ) : board ? (
             <>
               {status === 'error' ? <Text style={[shared.copy, styles.center]}>The race board is catching up. Try again in a moment.</Text> : null}
-              <View style={shared.card}>
-                <ReadyBars energy={pet.needs.energy} mood={pet.needs.happiness} />
-              </View>
               <Lobby
                 board={board}
                 now={now}
-                races={signedUpRaces(signup, racesOf(pet).friendGame ?? null, board.friendGameRaceId)}
+                races={signedUpRaces(signups, racesOf(pet).friendGame ?? null, board.friendGameRaceId)}
                 selected={selected}
                 onSelect={(slot) => setSlotId(slot.id)}
                 onCard={onCard}

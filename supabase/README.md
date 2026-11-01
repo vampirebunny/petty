@@ -56,9 +56,13 @@ These race follow-ups are applied:
 - `20261029460000_obstacle_long_course.sql`: Obstacle Course `obstacle-2` (long course, 140 s DNF window).
 - `20261029470000_obstacle_tap_drive.sql`: Obstacle Course `obstacle-3` (tap RUN for speed, varied gaps).
 - `20261029480000_obstacle_tight_gaps.sql`: Obstacle Course `obstacle-4` (occasional tight gaps, faster NPCs).
-- `20261029490000_obstacle_faster_npcs.sql`: Obstacle Course `obstacle-5` (NPCs 1.26×–1.40× class speed). Waiting for the owner to apply.
-- `20261029500000_obstacle_npc_pace.sql`: Obstacle Course `obstacle-6` (NPCs near RUN top speed, misses cost about a second). Deploy `race_report` before applying. Waiting for the owner to apply.
-- `20261029510000_obstacle_steady_npcs.sql`: Obstacle Course `obstacle-7` (slower NPCs: Beginner 6.4–8.2 m/s up to Championship 8.0–9.8). Deploy `race_report` before applying. Waiting for the owner to apply.
+- `20261029490000_obstacle_faster_npcs.sql`: Obstacle Course `obstacle-5` (NPCs 1.26×–1.40× class speed).
+- `20261029500000_obstacle_npc_pace.sql`: Obstacle Course `obstacle-6` (NPCs near RUN top speed, misses cost about a second).
+- `20261029510000_obstacle_steady_npcs.sql`: Obstacle Course `obstacle-7` (slower NPCs: Beginner 6.4–8.2 m/s up to Championship 8.0–9.8).
+- `20261101120000_eight_hundred_meters.sql` is applied. Adds 800 Meters (`meters800`) to every slot: Fun Run physics on a 910 m track (13×), one Open field, config `meters800-1`, a 780 s time limit, and an 800 s DNF wait.
+- `20261101140000_friend_game_800.sql` is applied. Friend games can be Fun Run, 800 Meters, Hurdles, or Obstacle Course.
+- `20261101150000_release_finished_racers.sql` is applied. Leaving a race that has started marks that entry finished, so a missing report no longer blocks later sign-ups until the DNF deadline. A report that arrives afterward can still write the time.
+- `20261101160000_one_race_per_slot.sql` is applied. A pet may hold one active entry per start time. A second event in the same slot stays closed.
 
 New files in this folder are applied only by the project owner. Do not run `supabase db push`, the Supabase CLI against the hosted project, or the SQL in the dashboard from an agent or an automated script. After the CLI is linked, the owner applies new migrations with:
 

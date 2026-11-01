@@ -11,7 +11,7 @@ import { neutralModifiers, runFunRun, type Modifiers } from './funRun.ts';
 import { hurdlesConfigFor, runHurdles } from './hurdles.ts';
 import { obstacleConfigFor, runObstacle, type ObstacleButton, type ObstacleInput } from './obstacle.ts';
 
-export type RaceEventType = 'funRun' | 'hurdles' | 'dockDive' | 'obstacle';
+export type RaceEventType = 'funRun' | 'hurdles' | 'dockDive' | 'obstacle' | 'meters800';
 
 export type FunRunInputLog = { taps: number[] };
 export type HurdlesInputLog = { jumps: number[] };
@@ -124,7 +124,7 @@ export function sanitizeObstacleInputs(raw: unknown, maxMs: number): ObstacleInp
 export function parseInputLog(event: RaceEventType, value: unknown, version: string): RaceInputLog | null {
   const row = value && typeof value === 'object' ? (value as Record<string, unknown>) : null;
   if (!row) return null;
-  if (event === 'funRun') {
+  if (isTapRace(event)) {
     return { taps: sanitizeTimes(row.taps, configFor(version).maxMs) };
   }
   if (event === 'hurdles') {
@@ -149,6 +149,10 @@ function diveDetail(results: readonly { distanceM: number; flop: boolean }[], sc
   };
 }
 
+function isTapRace(event: RaceEventType): boolean {
+  return event === 'funRun' || event === 'meters800';
+}
+
 function emptyFinish(): ReplayFinish {
   return { finishMs: null, scoreDm: null, detail: null, acceptedTaps: [] };
 }
@@ -159,7 +163,7 @@ export function replayPlayer(
   inputLog: RaceInputLog,
 ): ReplayFinish {
   const { event, classId, seed, configVersion } = race;
-  if (event === 'funRun' && 'taps' in inputLog) {
+  if (isTapRace(event) && 'taps' in inputLog) {
     const result = runFunRun(inputLog.taps, mods, null, configVersion);
     return { finishMs: result.finishMs, scoreDm: null, detail: null, acceptedTaps: result.accepted };
   }
@@ -192,7 +196,7 @@ export function replayNpc(
   const { event, classId, seed, configVersion } = race;
   const npcSeed = `${seed}:${entryId}`;
   const npcSkill = clamp(skill, 0, 1);
-  if (event === 'funRun') {
+  if (isTapRace(event)) {
     const result = runFunRun([], neutralModifiers, { classId, skill: npcSkill, seed: npcSeed }, configVersion);
     return { finishMs: result.finishMs, scoreDm: null, detail: null, acceptedTaps: [] };
   }
@@ -247,7 +251,7 @@ export function scoreMismatch(claimedDm: number | null | undefined, replayedDm: 
 }
 
 export function isReplayEvent(value: unknown): value is RaceEventType {
-  return value === 'funRun' || value === 'hurdles' || value === 'dockDive' || value === 'obstacle';
+  return value === 'funRun' || value === 'hurdles' || value === 'dockDive' || value === 'obstacle' || value === 'meters800';
 }
 
 export function classIdOf(value: unknown): RaceClassId {

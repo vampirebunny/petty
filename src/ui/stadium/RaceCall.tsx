@@ -7,7 +7,7 @@ import { cancelRaceCall } from '../../reminders/notifications';
 import { withdrawEntry } from '../../stadium/api';
 import { leaveFriendGame } from '../../stadium/friendGames';
 import { gameplayConfig } from '../../sim/gameplayConfig';
-import { eventLabel, formatCountdown, gatePhase, racesOf, withFriendGame, withSignup } from '../../sim/stadium';
+import { eventLabel, formatCountdown, gatePhase, racesOf, withFriendGame, withoutSignup } from '../../sim/stadium';
 import type { PetState } from '../../sim/types';
 import { setRaceCallOpen } from '../../petCam/session';
 import { FunModal } from '../FunModal';
@@ -101,7 +101,7 @@ export function RaceCall({ pet, atGate, reducedMotion, onGo, onFriendGo, onCommi
       return;
     }
     void cancelRaceCall();
-    commitRef.current(withSignup(petRef.current, null, serverNow()));
+    commitRef.current(withoutSignup(petRef.current, signup.entryId));
     setToast(`You've withdrawn from ${eventLabel(signup.event)}`);
   };
 

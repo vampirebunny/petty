@@ -81,7 +81,7 @@ function time(value: unknown): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-const raceEvents: RaceEvent[] = ['funRun', 'hurdles', 'obstacle', 'dockDive'];
+const raceEvents: RaceEvent[] = ['funRun', 'meters800', 'hurdles', 'obstacle', 'dockDive'];
 const eventOf = (value: unknown): RaceEvent | null =>
   raceEvents.includes(value as RaceEvent) ? (value as RaceEvent) : null;
 

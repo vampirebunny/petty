@@ -54,6 +54,7 @@ type Props = {
   pet: PetState;
   reducedMotion: boolean;
   onFinish: (place: number) => void;
+  onSpend: () => void;
   onExit: () => void;
 };
 
@@ -70,7 +71,7 @@ const hopApexShare = 0.4;
 // Past this many obstacles the markers shrink and wrap so the row fits a phone.
 const roomyMarkers = 12;
 
-export function ObstacleScreen({ race, pet, reducedMotion, onFinish, onExit }: Props) {
+export function ObstacleScreen({ race, pet, reducedMotion, onFinish, onSpend, onExit }: Props) {
   const [width, setWidth] = useState(0);
   const [finalRace, setFinalRace] = useState<RaceView | null>(null);
   const [provisional, setProvisional] = useState<Standing[] | null>(null);
@@ -235,6 +236,7 @@ export function ObstacleScreen({ race, pet, reducedMotion, onFinish, onExit }: P
           const mineStanding = standings.find((row) => row.mine);
           const log = obstacleLog(inputs.current);
           void deliverRaceReport(
+            race.raceId,
             () => submitRaceReport(race.raceId, mineStanding?.finishMs ?? null, log),
             (view) => grantRef.current(view),
           );
@@ -416,6 +418,7 @@ export function ObstacleScreen({ race, pet, reducedMotion, onFinish, onExit }: P
     // step it lands in, or the scene skips it while the replay and the results count it.
     const simMs = mine ? (runners.current.get(mine.key)?.tMs ?? 0) : 0;
     inputs.current.push({ tMs: Math.max(at - race.startsAt, simMs), button });
+    onSpend();
   };
 
   return (

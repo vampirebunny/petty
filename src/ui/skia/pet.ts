@@ -1201,11 +1201,15 @@ export function drawActor(
     }
   };
   const view = Math.max(face.turn, face.front);
-  // Side view paints neckwear after the head so a turned face does not hide it.
+  // Side view paints neckwear after the head so a turned face does not hide a bow or bandana.
   // Front and 3/4 paint it first, so the face covers the part that crosses the muzzle.
+  // The ruffle is a ring around the neck. Paint it under the head in side and 3/4 too, so the
+  // muzzle covers the petals at the jaw and the frill stays on the chest.
   const neckAnchor = neckwear ? cosmeticAnchor('neckwear', neckwear.id, rig.view) : null;
   const faceCoversNeck = rig.view === 'front' || rig.view === 'front34';
-  const underHead = Boolean(neckAnchor && neckAnchor.mode !== 'knot' && (neckwearUnderHead(along) || faceCoversNeck));
+  const underHead = Boolean(
+    neckAnchor && neckAnchor.mode !== 'knot' && (neckwearUnderHead(along) || faceCoversNeck || neckwear?.shape === 'ruffle'),
+  );
   const wearNeck = () => {
     if (!neckwear || !neckAnchor || neckAnchor.mode === 'knot') {
       return;

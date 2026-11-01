@@ -10,6 +10,7 @@ type ExpoTicket = {
 
 const eventNames: Record<string, string> = {
   funRun: 'Fun Run',
+  meters800: '800 Meters',
   hurdles: 'Hurdles',
   obstacle: 'Obstacle Course',
 };

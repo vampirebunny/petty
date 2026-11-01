@@ -65,7 +65,8 @@ export const gameplayConfig = {
   // 20261030130000_launch_race_schedule.sql: 5-minute slots, 1-minute rest.
   races: {
     slotMs: 5 * 60 * 1000,
-    eventsPerSlot: 3,
+    // 20261101120000_eight_hundred_meters.sql adds 800 Meters to every slot.
+    eventsPerSlot: 4,
     slotsShown: 3,
     capacity: 6,
     gateOpenMs: 60 * 1000,
@@ -87,7 +88,6 @@ export const gameplayConfig = {
     countdownMs: 5000,
     xp: { entered: 20, third: 40, second: 60, first: 100 },
     dailyXpRaces: 8,
-    energyCost: 8,
   },
   petCam: {
     minAwayHours: 5,
@@ -142,7 +142,7 @@ export const gameplayConfig = {
   },
   // Display defaults. The server's stadium_config row decides the delays and the invite cap.
   friendGames: {
-    events: ['funRun', 'hurdles', 'obstacle'] as const,
+    events: ['funRun', 'meters800', 'hurdles', 'obstacle'] as const,
     delaysMin: [2, 5, 15] as const,
     defaultDelayMin: 5,
     maxInvites: 5,

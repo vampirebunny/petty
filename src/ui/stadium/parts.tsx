@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withDelay, withTiming } from 'react-native-reanimated';
-import { Anchor, Fence, Footprints, Route, Search, Sparkles, Trophy } from 'lucide-react-native';
+import { Anchor, Fence, Footprints, Route, Search, Sparkles, Timer, Trophy } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
 
 import { classLabel, type RaceClass, type RaceEvent } from '../../sim/stadium';
@@ -21,6 +21,7 @@ const eventIcons: Record<RaceEvent, LucideIcon> = {
   hurdles: Fence,
   weave: Route,
   obstacle: Trophy,
+  meters800: Timer,
 };
 
 const eventColors: Record<RaceEvent, string> = {
@@ -31,6 +32,7 @@ const eventColors: Record<RaceEvent, string> = {
   hurdles: '#EE5A8E',
   weave: '#2FA77A',
   obstacle: '#C46B2C',
+  meters800: '#E5484D',
 };
 
 export function EventIcon({ event, size = 26 }: { event: RaceEvent; size?: number }) {
@@ -59,23 +61,37 @@ export function PetChip({ name, level, classId }: { name: string; level: number;
   );
 }
 
-function Bar({ label, value, color }: { label: string; value: number; color: string }) {
+function Bar({ label, value, color, stacked = false }: { label: string; value: number; color: string; stacked?: boolean }) {
   const pct = Math.max(0, Math.min(100, Math.round(value)));
   return (
-    <View style={styles.barRow} accessibilityLabel={`${label} ${pct} percent`}>
-      <Text style={styles.barLabel}>{label}</Text>
-      <View style={styles.barTrack}>
+    <View style={stacked ? styles.barStack : styles.barRow} accessibilityLabel={`${label}, ${pct} percent`}>
+      <Text style={stacked ? styles.barLabelStacked : styles.barLabel} numberOfLines={1}>
+        {label}
+      </Text>
+      <View style={stacked ? styles.barTrackStacked : styles.barTrack}>
         <View style={[styles.barFill, { width: `${pct}%`, backgroundColor: color }]} />
       </View>
     </View>
   );
 }
 
-export function ReadyBars({ energy, mood }: { energy: number; mood: number }) {
+export function ReadyBars({
+  energy,
+  mood,
+  energyLabel = 'Energy',
+  moodLabel = 'Mood',
+  stacked = false,
+}: {
+  energy: number;
+  mood: number;
+  energyLabel?: string;
+  moodLabel?: string;
+  stacked?: boolean;
+}) {
   return (
     <View style={styles.bars}>
-      <Bar label="Energy" value={energy} color="#7FD8A8" />
-      <Bar label="Mood" value={mood} color="#FF9CC2" />
+      <Bar label={energyLabel} value={energy} color="#7FD8A8" stacked={stacked} />
+      <Bar label={moodLabel} value={mood} color="#FF9CC2" stacked={stacked} />
     </View>
   );
 }
@@ -170,6 +186,14 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: softInk,
   },
+  barStack: {
+    gap: 4,
+  },
+  barLabelStacked: {
+    fontFamily: fontFamily.fredokaSemibold,
+    fontSize: 13,
+    color: softInk,
+  },
   barTrack: {
     flex: 1,
     height: 12,
@@ -177,9 +201,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#F1E6FA',
     overflow: 'hidden',
   },
+  barTrackStacked: {
+    alignSelf: 'stretch',
+    width: '100%',
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: '#F1E6FA',
+    overflow: 'hidden',
+  },
   barFill: {
-    height: 12,
-    borderRadius: 6,
+    height: '100%',
+    borderRadius: 7,
   },
   toast: {
     position: 'absolute',

@@ -1,4 +1,4 @@
-import { CONFIG_VERSION, type RaceClassId } from './config.ts';
+import { CONFIG_VERSION, METERS_800_VERSION, type RaceClassId } from './config.ts';
 import { DOCK_DIVE_VERSION } from './dockDive.ts';
 import { HURDLES_VERSION } from './hurdles.ts';
 import { isObstacleVersion, OBSTACLE_VERSION } from './obstacle.ts';
@@ -57,6 +57,7 @@ export function knownConfig(event: RaceEventType, version: string): boolean {
   if (event === 'funRun') return version === 'funrun-1' || version === CONFIG_VERSION;
   if (event === 'hurdles') return version === 'hurdles-1' || version === 'hurdles-2' || version === HURDLES_VERSION;
   if (event === 'dockDive') return version === DOCK_DIVE_VERSION;
+  if (event === 'meters800') return version === METERS_800_VERSION;
   return isObstacleVersion(version);
 }
 
@@ -66,6 +67,7 @@ export function currentCatalog(): { event: RaceEventType; version: string }[] {
     { event: 'hurdles', version: HURDLES_VERSION },
     { event: 'dockDive', version: DOCK_DIVE_VERSION },
     { event: 'obstacle', version: OBSTACLE_VERSION },
+    { event: 'meters800', version: METERS_800_VERSION },
   ];
 }
 

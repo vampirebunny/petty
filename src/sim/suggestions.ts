@@ -4,6 +4,7 @@ import { startingWaterLevel } from './config';
 import { gameplayConfig } from './gameplayConfig';
 import { grantSuggestionXp, onParkFindRecorded } from './progress';
 import type { ParkFindRarity } from './parkFindsConfig';
+import { racesOf } from './stadium';
 import { speciesOf, trackDef, trackName } from './tracks';
 import type { OutfitSlot, PetState, SuggestionSlot } from './types';
 
@@ -128,7 +129,7 @@ function candidates(state: PetState, ctx: SuggestionContext): string[] {
   ids.push('pat');
   if (!state.asleep && state.needs.energy < need) ids.push('nap');
   ids.push('play');
-  if (!state.races?.signup) ids.push('race');
+  if (racesOf(state).signups.length === 0) ids.push('race');
   if ((ctx.friends ?? 0) > 0) ids.push('friendGame');
   if (ctx.toys) {
     const toy = ctx.toys.find((id) => id && id !== 'ball');

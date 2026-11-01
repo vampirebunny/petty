@@ -10,17 +10,17 @@ This brief picks up where the Stadium brief ends: the starting gate hands off th
 
 These override the sections below. The old addendum is folded in here.
 
-**Schedule.** Ship roster: Fun Run, Dock Dive, Hurdles, and Obstacle Course. Every 5-minute slot shows three events: Fun Run, Dock Dive, and one of Hurdles or Obstacle Course. The no-trick event besides Fun Run is always Dock Dive. Sniff Out, Trick Show, and Weave are cancelled and are not scheduled (their `event_type` values may remain in the DB check for old rows). All four ship events are playable. `20261030130000_launch_race_schedule.sql` is applied: 5-minute slots, the Hurdles / Obstacle Course rotation, the trick gates, and a 1-minute rest per event.
+**Schedule.** Ship roster: Fun Run, Dock Dive, Hurdles, Obstacle Course, and 800 Meters. Every 5-minute slot shows four events: Fun Run, Dock Dive, one of Hurdles or Obstacle Course, and 800 Meters. 800 Meters is Fun Run on a track 13 times as long (910 m), one Open field for every level, with no trick gate. The no-trick events besides Fun Run are Dock Dive and 800 Meters. Sniff Out, Trick Show, and Weave are cancelled and are not scheduled (their `event_type` values may remain in the DB check for old rows). All five ship events are playable. `20261030130000_launch_race_schedule.sql` set 5-minute slots, the Hurdles / Obstacle Course rotation, the trick gates, and a 1-minute rest per event. `20261101120000_eight_hundred_meters.sql` is applied and adds 800 Meters to every slot. Friend games can be Fun Run, 800 Meters, Hurdles, or Obstacle Course (`20261101140000_friend_game_800.sql`, applied).
 
-**Veteran Cup.** A fourth card, shown only to senior pets, in every third slot (every 15 minutes, on :00, :15, :30, and :45). It does not replace a regular race. The event rotates through Fun Run, Dock Dive, Hurdles, and Obstacle Course. Seniors of every level race together on Open class settings. It has its own trophy, which waits for the trophies brief. The usual trick check still applies.
+**Veteran Cup.** An extra card, shown only to senior pets, in every third slot (every 15 minutes, on :00, :15, :30, and :45). It does not replace a regular race. The event rotates through Fun Run, Dock Dive, Hurdles, and Obstacle Course. Seniors of every level race together on Open class settings. It has its own trophy, which waits for the trophies brief. The usual trick check still applies.
 
-**Classes.** Beginner, Novice, Open, Expert, and Championship, plus Veteran Cup. A pet always races in its highest class, except in Fun Run, which is one Open field for every level (section 9). At gate open (start − 60 s), neighboring classes merge into the lower class when one race has a single live player and the combined field fits in capacity. The switch defaults on. If withdrawals then leave one player, that player gets NPCs at the start.
+**Classes.** Beginner, Novice, Open, Expert, and Championship, plus Veteran Cup. A pet always races in its highest class, except in Fun Run and 800 Meters, which are one Open field for every level (section 9). At gate open (start − 60 s), neighboring classes merge into the lower class when one race has a single live player and the combined field fits in capacity. The switch defaults on. If withdrawals then leave one player, that player gets NPCs at the start.
 
-**Lifecycle.** `open` → `locked` (start − 10 s) → `countdown` (start − 3 s) → `running` → `finished` or `cancelled`. Each race stores `seed` and `config_version`. The rest is 1 minute per event (`stadium_config.cooldown_seconds`), counted from the race start and set when results are written. It only blocks races of that event that start before the rest ends, so the next 5-minute slot is open. Withdrawals, no-shows, and cancelled races do not start one. A running race that nobody reports within start + 80 s is finalized with those players as DNF, so a closed app never leaves a stale entry. One active sign-up per pet still applies. The ticket does not show a lane.
+**Lifecycle.** `open` → `locked` (start − 10 s) → `countdown` (start − 3 s) → `running` → `finished` or `cancelled`. Each race stores `seed` and `config_version`. The rest is 1 minute per event (`stadium_config.cooldown_seconds`), counted from the race start and set when results are written. It only blocks races of that event that start before the rest ends, so the next 5-minute slot is open. Withdrawals, no-shows, and cancelled races do not start one. A running race that nobody reports within the event time limit plus 20 s is finalized with those players as DNF (80 s after the start for a 60 s race, 800 s for 800 Meters). Leaving a race that has started releases that entry (`20261101150000_release_finished_racers.sql`, applied), so a missing report does not block later sign-ups until that deadline. One active sign-up per start time (`20261101160000_one_race_per_slot.sql`, applied). The ticket does not show a lane.
 
 **Results.** Solo: the phone reports its own finish time and the NPC times it simulated, and the server stores and ranks them. Once the replay Edge Function exists, the server recomputes both from the seed. Live: publish when every live player has reported, or 10 seconds after the first report. Anyone missing is DNF. Phones show provisional standings until the server ranking arrives.
 
-**Rewards.** The server never writes the pet document. It writes placings. The phone applies XP, a ribbon log (`raceId`, event, class, place, date), energy, and badges once per race id. Race XP is capped at 8 races a day and is skipped below level 10. Ribbons are still awarded then. "Race in the Stadium" is a tutorial goal that completes when the pet finishes a race. Badges: First Race (id `off-to-the-races`), Blue Ribbon, Moving Up (a ribbon in a level class above Beginner; Fun Run ribbons don't count), Ribbon Rack (5 / 25 / 100). Furniture waits.
+**Rewards.** The server never writes the pet document. It writes placings. The phone applies XP, a ribbon log (`raceId`, event, class, place, date), and badges once per race id. Energy is spent during the race, 0.25 per accepted input, and never goes below 0. A Fun Run or 800 Meters tap, a hurdle jump, an obstacle jump, duck, or RUN tap, and each dock-dive press and release all count. Finishing does not charge again. Race XP is capped at 8 races a day and is skipped below level 10. Ribbons are still awarded then. "Race in the Stadium" is a tutorial goal that completes when the pet finishes a race. Badges: First Race (id `off-to-the-races`), Blue Ribbon, Moving Up (a ribbon in a level class above Beginner; Fun Run and 800 Meters ribbons don't count), Ribbon Rack (5 / 25 / 100). Furniture waits.
 
 **Modifiers and config.** At lock, the server snapshots energy, mood, and attributes from the pet's last synced document. Config versions are immutable. Each race keeps the version it was created with.
 
@@ -49,6 +49,7 @@ These override the sections below. The old addendum is folded in here.
 | Dock Dive | none | distance | playable |
 | Hurdles | Jump the Hurdle | race | playable |
 | Obstacle Course | Jump the Hurdle + Through the Tunnel | race | playable |
+| 800 Meters | none | race | playable |
 | Sniff Out | — | — | cancelled |
 | Trick Show | — | — | cancelled |
 | Weave | — | — | cancelled |
@@ -74,7 +75,7 @@ States: `gate → countdown → running → finishing → results`.
 
 Top to bottom (canvas screens 6–7):
 1. **Top bar:** event name, timer (m:ss.t), plus event pills where needed (e.g. hurdle count).
-2. **Mini progress track:** a line with a finish flag and one avatar dot per racer, with the player's own dot ringed. It shows everyone, including racers off-camera.
+2. **Mini progress track:** a line with a finish flag and one avatar dot per racer, with the player's own dot ringed. It shows everyone, including racers off-camera. Fun Run and 800 Meters show the player's own "[pet]'s energy" and "[pet]'s mood" bars under that strip, including in a friend game. The energy bar drops as inputs land. Mood does not change during the race.
 3. **Track scene** (section 4).
 4. **Action area:** the event's control(s), large and glossy, plus one hint line. For tap events, **the whole action area responds to touch**, not just the button graphic. Support multi-touch (two thumbs).
 
@@ -142,7 +143,7 @@ The server:
 
 The function reads `races`, `race_entries`, `competition_events`, and `competition_slots` as `service_role`, which needs `select` on each (`20261029530000_race_report_read_grants.sql`). Without it every report fails with a 500 (`permission denied for table races`), nothing is stored, and the race closes at the DNF deadline with no times. When a report is rejected, the phone keeps the server's status and message (not the generic "non-2xx status code") and sends a `race_report rejected` warning to Sentry with the race id and reason only.
 
-**Rewards** stay on the phone from the published place (`applyRaceRewards`): XP, ribbon log, energy. The server never writes the pet document. Rest still comes from `stadium_finish_cooldown`.
+**Rewards** stay on the phone from the published place (`applyRaceRewards`): XP and the ribbon log. Energy was already spent per input (`spendRaceTap`). The server never writes the pet document. Rest still comes from `stadium_finish_cooldown`.
 
 **Results screen** (canvas screen 8):
 - event and class
@@ -205,6 +206,8 @@ Used only when a solo player races (Stadium brief: 1 live player → fill with N
 - Max race length: 60 s
 
 **Open to all.** Fun Run is one Open field for every level: the server enters every pet in the `open` class (`stadium_event_class`), whatever its level. The Veteran Cup Fun Run keeps its own field. XP is unchanged and the same as every other event (section 6).
+
+**800 Meters** uses these same rules on a track 13 times as long: 910 m and a 780 s limit (`meters800-1`). It is one Open field for every level, with no trick gate, and it is on every slot and in friend games. Its Moving Up ribbons do not count, the same as Fun Run.
 
 **NPC target speeds (config `funrun-2`):**
 

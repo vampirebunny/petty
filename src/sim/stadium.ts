@@ -3,7 +3,7 @@ import { trickListing } from './tricks';
 import { speciesOf } from './tracks';
 import type { PetState } from './types';
 
-export type RaceEvent = 'funRun' | 'dockDive' | 'sniffOut' | 'trickShow' | 'hurdles' | 'weave' | 'obstacle';
+export type RaceEvent = 'funRun' | 'dockDive' | 'sniffOut' | 'trickShow' | 'hurdles' | 'weave' | 'obstacle' | 'meters800';
 export type RaceClass = 'beginner' | 'novice' | 'open' | 'expert' | 'championship' | 'veteran';
 export type RaceCup = 'open' | 'veteran' | 'friends';
 export type SpeciesAllowed = 'dog' | 'cat' | 'both';
@@ -28,7 +28,10 @@ export type FriendGameCall = {
 };
 
 export type RaceRecord = {
+  /** Soonest upcoming signup. Older saves stored only this. */
   signup: RaceSignup | null;
+  /** Every open signup. One per start time. Missing on saves from before that. */
+  signups?: RaceSignup[];
   entered: boolean;
   friendGame?: FriendGameCall | null;
 };
@@ -38,7 +41,7 @@ export type SkillBlock = {
   trickName: string;
 };
 
-const raceEvents: RaceEvent[] = ['funRun', 'dockDive', 'sniffOut', 'trickShow', 'hurdles', 'weave', 'obstacle'];
+const raceEvents: RaceEvent[] = ['funRun', 'dockDive', 'sniffOut', 'trickShow', 'hurdles', 'weave', 'obstacle', 'meters800'];
 const raceClasses: RaceClass[] = ['beginner', 'novice', 'open', 'expert', 'championship', 'veteran'];
 
 const trickKeys: Partial<Record<RaceEvent, string[]>> = {
@@ -63,7 +66,12 @@ export function trickIdFor(species: 'dog' | 'cat', key: string): string {
 }
 
 export function isPlayableEvent(event: RaceEvent): boolean {
-  return event === 'funRun' || event === 'hurdles' || event === 'dockDive' || event === 'obstacle';
+  return event === 'funRun' || event === 'hurdles' || event === 'dockDive' || event === 'obstacle' || event === 'meters800';
+}
+
+/** Fun Run and 800 Meters are one Open field. Every level races together. */
+export function isOpenField(event: RaceEvent): boolean {
+  return event === 'funRun' || event === 'meters800';
 }
 
 export function isRaceEvent(value: unknown): value is RaceEvent {
@@ -80,13 +88,48 @@ function friendGameOf(value: RaceRecord['friendGame']): FriendGameCall | null {
   return { raceId: value.raceId, event: value.event, startsAt: value.startsAt };
 }
 
-export function racesOf(state: PetState): RaceRecord {
+function signupOf(value: RaceSignup | null | undefined): RaceSignup | null {
+  if (!value || typeof value.entryId !== 'string' || !value.entryId) return null;
+  if (!isRaceEvent(value.event) || typeof value.startsAt !== 'number' || !Number.isFinite(value.startsAt)) return null;
+  if (typeof value.raceId !== 'string' || typeof value.eventId !== 'string') return null;
+  if (!isRaceClass(value.classId) || typeof value.lane !== 'number') return null;
+  return value;
+}
+
+function signupsOf(record: RaceRecord): RaceSignup[] {
+  const listed = Array.isArray(record.signups) ? record.signups.flatMap((row) => signupOf(row) ?? []) : [];
+  if (listed.length > 0) {
+    return listed.sort((a, b) => a.startsAt - b.startsAt);
+  }
+  const one = signupOf(record.signup);
+  return one ? [one] : [];
+}
+
+export function racesOf(state: PetState): RaceRecord & { signups: RaceSignup[] } {
   const record = state.races;
   if (!record) {
-    return { signup: null, entered: false, friendGame: null };
+    return { signup: null, signups: [], entered: false, friendGame: null };
   }
-  const signup = record.signup && typeof record.signup.entryId === 'string' ? record.signup : null;
-  return { signup, entered: record.entered === true, friendGame: friendGameOf(record.friendGame) };
+  const signups = signupsOf(record);
+  return { signup: signups[0] ?? null, signups, entered: record.entered === true, friendGame: friendGameOf(record.friendGame) };
+}
+
+function sameSignup(a: RaceSignup, b: RaceSignup): boolean {
+  return a.entryId === b.entryId && a.raceId === b.raceId && a.eventId === b.eventId && a.startsAt === b.startsAt && a.lane === b.lane && a.classId === b.classId && a.event === b.event;
+}
+
+function sameSignups(a: readonly RaceSignup[], b: readonly RaceSignup[]): boolean {
+  return a.length === b.length && a.every((row, index) => sameSignup(row, b[index]!));
+}
+
+function storeSignups(state: PetState, signups: RaceSignup[]): PetState {
+  const record = racesOf(state);
+  const next = [...signups].sort((a, b) => a.startsAt - b.startsAt);
+  if (sameSignups(record.signups, next)) return state;
+  return {
+    ...state,
+    races: { ...record, signups: next, signup: next[0] ?? null },
+  };
 }
 
 const eventLabels: Record<RaceEvent, string> = {
@@ -97,6 +140,7 @@ const eventLabels: Record<RaceEvent, string> = {
   hurdles: 'Hurdles',
   weave: 'Weave',
   obstacle: 'Obstacle Course',
+  meters800: '800 Meters',
 };
 
 export function eventLabel(event: RaceEvent): string {
@@ -104,7 +148,7 @@ export function eventLabel(event: RaceEvent): string {
 }
 
 export function eventTip(event: RaceEvent, name: string): string {
-  if (event === 'funRun') return `Tap as fast as you can to help ${name} run.`;
+  if (isOpenField(event)) return `Tap as fast as you can to help ${name} run.`;
   return `${eventLabel(event)} is almost ready.`;
 }
 
@@ -138,10 +182,10 @@ export function classForLevel(level: number): RaceClass {
   return found;
 }
 
-// Matches the server's stadium_event_class: Fun Run is one Open field for every level.
+// Matches the server's stadium_event_class: Fun Run and 800 Meters are one Open field for every level.
 export function classForEvent(event: RaceEvent, cup: RaceCup, levelClass: RaceClass): RaceClass {
   if (cup === 'veteran') return 'veteran';
-  if (event === 'funRun') return 'open';
+  if (isOpenField(event)) return 'open';
   return levelClass;
 }
 
@@ -192,9 +236,9 @@ export type RaceCall =
 export function upcomingRaceCall(state: PetState, now: number): RaceCall | null {
   const record = racesOf(state);
   const due: RaceCall[] = [];
-  if (record.signup) {
-    const at = record.signup.startsAt - gameplayConfig.races.callMs;
-    if (at > now) due.push({ kind: 'signup', signup: record.signup, at });
+  for (const signup of record.signups) {
+    const at = signup.startsAt - gameplayConfig.races.callMs;
+    if (at > now) due.push({ kind: 'signup', signup, at });
   }
   if (record.friendGame) {
     const at = record.friendGame.startsAt - gameplayConfig.races.callMs;
@@ -218,16 +262,19 @@ export type SignedUpRace = {
 
 /** Public sign-ups and the friend game, soonest first. A board id wins over a stale local friend game. */
 export function signedUpRaces(
-  signup: RaceSignup | null,
+  signups: readonly RaceSignup[],
   friend: FriendGameCall | null,
   friendRaceId: string | null,
 ): SignedUpRace[] {
-  const rows: SignedUpRace[] = [];
-  if (signup) {
-    rows.push({ id: signup.raceId, kind: 'signup', event: signup.event, startsAt: signup.startsAt, classId: signup.classId });
-  }
+  const rows: SignedUpRace[] = signups.map((signup) => ({
+    id: signup.raceId,
+    kind: 'signup' as const,
+    event: signup.event,
+    startsAt: signup.startsAt,
+    classId: signup.classId,
+  }));
   const friendId = friendRaceId ?? friend?.raceId ?? null;
-  if (friendId && friendId !== signup?.raceId) {
+  if (friendId && !signups.some((signup) => signup.raceId === friendId)) {
     const known = friend?.raceId === friendId ? friend : null;
     rows.push({
       id: friendId,
@@ -244,12 +291,19 @@ export function signedUpRaces(
 export function withSignup(state: PetState, signup: RaceSignup | null, _now: number): PetState {
   const record = racesOf(state);
   if (signup == null) {
-    return record.signup == null ? state : { ...state, races: { ...record, signup: null } };
+    return record.signups.length === 0 ? state : storeSignups(state, []);
   }
-  if (record.signup?.entryId === signup.entryId && record.signup.startsAt === signup.startsAt) {
-    return state;
-  }
-  return { ...state, races: { ...record, signup } };
+  const kept = record.signups.filter((row) => row.entryId !== signup.entryId && row.startsAt !== signup.startsAt);
+  return storeSignups(state, [...kept, signup]);
+}
+
+/** Drops one signup. The others, in later time slots, stay. */
+export function withoutSignup(state: PetState, entryId: string): PetState {
+  return storeSignups(state, racesOf(state).signups.filter((row) => row.entryId !== entryId));
+}
+
+export function replaceSignups(state: PetState, signups: readonly RaceSignup[]): PetState {
+  return storeSignups(state, [...signups]);
 }
 
 export function withFriendGame(state: PetState, call: FriendGameCall | null, _now: number): PetState {
@@ -267,10 +321,8 @@ export function withFriendGame(state: PetState, call: FriendGameCall | null, _no
 export function dropEndedSignup(state: PetState, now: number): PetState {
   const slot = gameplayConfig.races.slotMs;
   const record = racesOf(state);
-  let next = state;
-  if (record.signup && now >= record.signup.startsAt + slot) {
-    next = withSignup(next, null, now);
-  }
+  const signups = record.signups.filter((row) => now < row.startsAt + slot);
+  let next = signups.length === record.signups.length ? state : storeSignups(state, signups);
   const friend = racesOf(next).friendGame;
   if (friend && now >= friend.startsAt + slot) {
     next = withFriendGame(next, null, now);

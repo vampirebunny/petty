@@ -1,6 +1,17 @@
-import { coastPastM, coastRunner, configFor, createRunner, neutralModifiers, runFunRun, speedScale, stepRunner } from '../../../supabase/functions/_shared/race-sim/index.ts';
+import {
+  METERS_800_SCALE,
+  METERS_800_VERSION,
+  coastPastM,
+  coastRunner,
+  configFor,
+  createRunner,
+  neutralModifiers,
+  runFunRun,
+  speedScale,
+  stepRunner,
+} from '../../../supabase/functions/_shared/race-sim/index.ts';
 import { testPet } from '../__fixtures__/pets';
-import { applyRaceRewards } from '../raceRewards';
+import { applyRaceRewards, spendRaceTap } from '../raceRewards';
 
 const now = Date.UTC(2026, 0, 1, 12, 0, 0);
 
@@ -62,6 +73,21 @@ it('keeps the one Open Fun Run field in reach of a steady tapper', () => {
   expect(configFor('funrun-1').npcRanges.open).toEqual([10.0, 11.0]);
 });
 
+it('runs 800 Meters on a track 13 times as long as Fun Run', () => {
+  const fun = configFor('funrun-2');
+  const long = configFor(METERS_800_VERSION);
+  expect(long.distanceM).toBeCloseTo(fun.distanceM * METERS_800_SCALE);
+  expect(long.maxMs).toBe(fun.maxMs * METERS_800_SCALE);
+  const tapping = (perSec: number, maxMs: number) =>
+    Array.from({ length: Math.floor((maxMs / 1000) * perSec) }, (_, index) => Math.round((index * 1000) / perSec));
+  const short = runFunRun(tapping(5, fun.maxMs), neutralModifiers, null, 'funrun-2').finishMs;
+  const extended = runFunRun(tapping(5, long.maxMs), neutralModifiers, null, METERS_800_VERSION).finishMs;
+  expect(short).not.toBeNull();
+  expect(extended).not.toBeNull();
+  expect(extended!).toBeGreaterThan(short! * 12);
+  expect(extended!).toBeLessThan(short! * 13);
+});
+
 it('drops taps past 20 in one second', () => {
   const burst = Array.from({ length: 25 }, (_, index) => index * 10);
   const capped = burst.slice(0, 20);
@@ -75,6 +101,17 @@ it('reads the pet fields the race snapshot uses', () => {
   expect(typeof pet.attributes.current.stamina).toBe('number');
   expect(typeof pet.attributes.current.agility).toBe('number');
   expect(typeof pet.attributes.current.intelligence).toBe('number');
+});
+
+it('spends a quarter energy per race input and stops at zero', () => {
+  const pet = testPet(4, 'retriever', now, 'Maple', 'pet');
+  const once = spendRaceTap(pet);
+  expect(once.needs.energy).toBeCloseTo(pet.needs.energy - 0.25);
+  const empty = spendRaceTap({ ...pet, needs: { ...pet.needs, energy: 0 } });
+  expect(empty.needs.energy).toBe(0);
+  expect(spendRaceTap(empty)).toBe(empty);
+  const scrap = spendRaceTap({ ...pet, needs: { ...pet.needs, energy: 0.1 } });
+  expect(scrap.needs.energy).toBe(0);
 });
 
 it('applies race rewards once and skips race XP during the tutorial', () => {
@@ -106,8 +143,9 @@ it('applies race rewards once and skips race XP during the tutorial', () => {
     { ...finish, raceId: 'race-signed' },
     now,
   );
-  expect(signed.races?.signup).toBeNull();
+  expect(signed.races?.signup?.raceId).toBe('race-1');
   expect(signed.races?.entered).toBe(true);
+  expect(applyRaceRewards(signed, { ...finish, raceId: 'race-1' }, now).races?.signup).toBeNull();
   expect(paid.badges).toContain('off-to-the-races');
   expect(applyRaceRewards(paid, finish, now)).toBe(paid);
 

@@ -43,10 +43,10 @@ it('counts sending invites even without the pill', () => {
   expect(next.level).toBe(pet.level + 1);
 });
 
-it('charges race energy once and gives nothing else for a friend game', () => {
+it('gives nothing but a record for a finished friend game', () => {
   const pet = { ...testPet(4, 'retriever', now, 'Maple', 'pet'), level: 15 };
   const done = applyFriendRaceResult(pet, 'friend-race');
-  expect(done.needs.energy).toBe(Math.max(0, pet.needs.energy - gameplayConfig.races.energyCost));
+  expect(done.needs.energy).toBe(pet.needs.energy);
   expect(done.appliedRaceIds).toEqual(['friend-race']);
   expect(done.level).toBe(pet.level);
   expect(done.ribbons ?? []).toEqual(pet.ribbons ?? []);

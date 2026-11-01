@@ -1,4 +1,4 @@
-import type { RaceView, StadiumResult } from './api';
+import { releaseRaceEntry, type RaceView, type StadiumResult } from './api';
 
 export type RaceReportInputLog =
   | { taps: number[] }
@@ -26,21 +26,34 @@ function wait(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+let reportsInFlight = 0;
+
+export function raceReportInFlight(): boolean {
+  return reportsInFlight > 0;
+}
+
 // One dropped report used to leave the entry checked in, so later races stayed closed.
 export async function deliverRaceReport(
+  raceId: string,
   send: () => Promise<StadiumResult<RaceView>>,
   onRecorded: (view: RaceView) => void,
 ): Promise<boolean> {
+  reportsInFlight += 1;
   const waits = [400, 800, 1600, 3200, 5000];
-  for (let attempt = 0; attempt <= waits.length; attempt += 1) {
-    const result = await send();
-    if (result.ok) {
-      onRecorded(result.data);
-      return true;
+  try {
+    for (let attempt = 0; attempt <= waits.length; attempt += 1) {
+      const result = await send();
+      if (result.ok) {
+        onRecorded(result.data);
+        return true;
+      }
+      const again = result.offline || /not in race|load failed/i.test(result.reason);
+      if (!again || attempt === waits.length) break;
+      await wait(waits[attempt] ?? 5000);
     }
-    const again = result.offline || /not in race|load failed/i.test(result.reason);
-    if (!again || attempt === waits.length) return false;
-    await wait(waits[attempt] ?? 5000);
+    await releaseRaceEntry(raceId);
+    return false;
+  } finally {
+    reportsInFlight -= 1;
   }
-  return false;
 }

@@ -52,6 +52,7 @@ type Props = {
   pet: PetState;
   reducedMotion: boolean;
   onFinish: (place: number) => void;
+  onSpend: () => void;
   onExit: () => void;
 };
 
@@ -163,7 +164,7 @@ function applyMotion(actor: Actor, breed: Breed, motion: Motion, flop: boolean, 
   }
 }
 
-export function DockDiveScreen({ race, pet, reducedMotion, onFinish, onExit }: Props) {
+export function DockDiveScreen({ race, pet, reducedMotion, onFinish, onSpend, onExit }: Props) {
   const [width, setWidth] = useState(0);
   const [finalRace, setFinalRace] = useState<RaceView | null>(null);
   const [provisional, setProvisional] = useState<Standing[] | null>(null);
@@ -336,6 +337,7 @@ export function DockDiveScreen({ race, pet, reducedMotion, onFinish, onExit }: P
         const log = dockDiveLog(inputs.current);
         const score = mineScored ? Math.round(mineScored.score.bestM * 10) : null;
         void deliverRaceReport(
+          race.raceId,
           () => submitRaceReport(race.raceId, mineScored?.score.bestAtMs ?? null, log, score),
           (view) => grantRef.current(view),
         );
@@ -488,6 +490,7 @@ export function DockDiveScreen({ race, pet, reducedMotion, onFinish, onExit }: P
     if (at0 >= config.windowMs || state.result) return;
     holdAttempt.current = index;
     inputs.current[index].push({ at: at0, down: true });
+    onSpend();
   };
 
   const lift = () => {
@@ -498,6 +501,7 @@ export function DockDiveScreen({ race, pet, reducedMotion, onFinish, onExit }: P
     const at0 = Math.max(serverNow() - race.startsAt - attemptGoMs(index, version), state.tMs);
     if (state.result) return;
     inputs.current[index].push({ at: at0, down: false });
+    onSpend();
     void Haptics.selectionAsync();
   };
 

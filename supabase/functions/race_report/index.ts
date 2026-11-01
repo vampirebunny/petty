@@ -5,6 +5,7 @@ import {
   finishMismatch,
   flagBotLike,
   inputLogBytes,
+  METERS_800_VERSION,
   isObstacleVersion,
   isReplayEvent,
   neutralModifiers,
@@ -146,7 +147,9 @@ Deno.serve(async (req) => {
   }
 
   const stillIn = mine.status === 'signed_up' || mine.status === 'checked_in';
-  if (!stillIn) {
+  // release_my_race_entry may already have freed the row. The time still needs writing.
+  const freedWithoutTime = mine.status === 'finished' && mine.finish_ms == null;
+  if (!stillIn && !freedWithoutTime) {
     const state = await admin.rpc('race_state_for', { p_race_id: raceId, p_viewer_id: caller.id });
     if (state.error) {
       return json({ error: state.error.message }, 500);
@@ -162,6 +165,10 @@ Deno.serve(async (req) => {
   };
 
   if (race.event === 'obstacle' && !isObstacleVersion(race.configVersion)) {
+    console.error('race_report is older than the race config; redeploy it', race.configVersion);
+    return json({ error: `config ${race.configVersion} not deployed` }, 409);
+  }
+  if (race.event === 'meters800' && race.configVersion !== METERS_800_VERSION) {
     console.error('race_report is older than the race config; redeploy it', race.configVersion);
     return json({ error: `config ${race.configVersion} not deployed` }, 409);
   }

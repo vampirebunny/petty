@@ -64,6 +64,9 @@ export function Ticket({ signup, petName, energy, mood, moodTreats, now, others,
       <View style={shared.card}>
         <Text style={shared.strong}>Get {petName} ready</Text>
         <ReadyBars energy={energy} mood={mood} />
+        <Text style={shared.copy}>
+          Tip: Energy and mood affect performance. Get {petName} ready by increasing energy and mood.
+        </Text>
         <View style={styles.readyRow}>
           {phase === 'waiting' ? null : (
             <CandyButton compact role="go" label="Play" onPress={onPlay} style={styles.readyButton} />

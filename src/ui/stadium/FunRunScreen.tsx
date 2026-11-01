@@ -1,16 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Canvas, Picture, Skia, useFont } from '@shopify/react-native-skia';
 import type { SkPicture } from '@shopify/react-native-skia';
 import * as Haptics from 'expo-haptics';
 import { useSharedValue } from 'react-native-reanimated';
 
-import { breedById, defaultLook, resolveBreed, spawnActor, todAt } from '../../actor';
-import type { Actor, Breed } from '../../actor';
-import { racePoses, setGallopStyle } from '../../actor/data/locomotion';
-import type { GallopStyle } from '../../actor/data/locomotion';
-import { freshPreview, stepPosePreview, stepRaceMotion } from '../../actor/raceDrive';
-import type { PoseMode, PosePreview } from '../../actor/raceDrive';
+import { todAt } from '../../actor';
+import type { Actor } from '../../actor';
+import { racePoses } from '../../actor/data/locomotion';
+import { stepRaceMotion } from '../../actor/raceDrive';
 import { skyAt, solarHour } from '../../actor/sky';
 import { serverNow } from '../../db/accountMeta';
 import { useCompetitionResult } from '../../analytics/race';
@@ -38,7 +36,7 @@ import { raceInputOpen } from './raceCountdown';
 import { actorOf, breedOf, classOf, modsOf, placeSuffix, raceLabelFont, raceLabelSize } from './raceField';
 import { useRaceCountdown } from './useRaceCountdown';
 import { useRaceLoop } from './useRaceLoop';
-import { ink, shared } from './parts';
+import { ReadyBars, ink, shared } from './parts';
 
 const legsPerMeter = racePoses.legsPerMeter * racePoses.funRunScroll;
 
@@ -47,16 +45,15 @@ type Props = {
   pet: PetState;
   reducedMotion: boolean;
   onFinish: (place: number) => void;
+  onSpend: () => void;
   onExit: () => void;
 };
 
 type Standing = { key: string; name: string; finishMs: number | null; place: number | null; mine: boolean };
 
 const bars = 8;
-const previewBreeds = ['retriever', 'corgi', 'pug', 'dachshund', 'husky', 'domesticShorthair', 'siamese'] as const;
-const previewAges = { puppy: 1, adult: 16, senior: 22 } as const;
 
-export function FunRunScreen({ race, pet, reducedMotion, onFinish, onExit }: Props) {
+export function FunRunScreen({ race, pet, reducedMotion, onFinish, onSpend, onExit }: Props) {
   const [width, setWidth] = useState(0);
   const [finalRace, setFinalRace] = useState<RaceView | null>(null);
   const [provisional, setProvisional] = useState<Standing[] | null>(null);
@@ -66,18 +63,7 @@ export function FunRunScreen({ race, pet, reducedMotion, onFinish, onExit }: Pro
   const runners = useRef(new Map<string, RunnerState>());
   const actors = useRef(new Map<string, Actor>());
   const petRef = useRef(pet);
-  const previewRef = useRef<PosePreview>(freshPreview());
-  const previewModeRef = useRef<PoseMode>('off');
-  const previewActor = useRef<Actor | null>(null);
-  const previewBreed = useRef<Breed | null>(null);
-  const [previewMode, setPreviewMode] = useState<PoseMode>('off');
-  const [previewRate, setPreviewRate] = useState(1);
-  const [previewBreedId, setPreviewBreedId] = useState<string>(pet.breedId);
-  const [previewAge, setPreviewAge] = useState<keyof typeof previewAges>('adult');
-  const [previewOutfit, setPreviewOutfit] = useState<'none' | 'boots' | 'hat'>('none');
-  const [previewStyle, setPreviewStyle] = useState<GallopStyle>('flying');
   const [quiet, setQuiet] = useState(0);
-  const [posesOpen, setPosesOpen] = useState(false);
   const stageHeight = Math.round(Math.min(320, Math.max(240, width * 0.72)));
   const [armedQuiet, setArmedQuiet] = useState<number | null>(null);
   const lastHaptic = useRef(0);
@@ -107,25 +93,6 @@ export function FunRunScreen({ race, pet, reducedMotion, onFinish, onExit }: Pro
   useEffect(() => {
     petRef.current = pet;
   }, [pet]);
-
-  useEffect(() => {
-    const found = breedById(previewBreedId) ?? breedById('retriever')!;
-    const breed = resolveBreed(found, defaultLook(found));
-    const equipped =
-      previewOutfit === 'boots' ? { boots: 'rain', jacket: 'sweater' } : previewOutfit === 'hat' ? { hat: 'top', glasses: 'classic' } : {};
-    previewBreed.current = breed;
-    previewActor.current = spawnActor({
-      id: 'preview',
-      breedId: breed.id,
-      ageDays: previewAges[previewAge],
-      weight: 0,
-      vitality: 1,
-      equipped,
-      look: defaultLook(found),
-      asleep: false,
-    });
-    setGallopStyle(previewStyle);
-  }, [previewAge, previewBreedId, previewOutfit, previewStyle]);
 
   useEffect(() => {
     grantRef.current = (view) => {
@@ -200,6 +167,7 @@ export function FunRunScreen({ race, pet, reducedMotion, onFinish, onExit }: Pro
           const mineStanding = standings.find((row) => row.mine);
           const log = funRunLog(taps.current);
           void deliverRaceReport(
+            race.raceId,
             () => submitRaceReport(race.raceId, mineStanding?.finishMs ?? null, log),
             (view) => grantRef.current(view),
           );
@@ -217,19 +185,9 @@ export function FunRunScreen({ race, pet, reducedMotion, onFinish, onExit }: Pro
         }
         stepRaceMotion(actor, breed, runners.current.get(row.key)?.v ?? 0, dt, null, reducedMotion, legsPerMeter);
       }
-      const preview = previewRef.current;
-      if (preview.mode !== 'off' && previewActor.current && previewBreed.current) {
-        stepPosePreview(previewActor.current, previewBreed.current, preview, dt, reducedMotion);
-        if (preview.mode !== previewModeRef.current) {
-          previewModeRef.current = preview.mode;
-          setPreviewMode(preview.mode);
-        }
-      }
       const trackH = stageHeight;
       if (width > 0) {
-        const showing = preview.mode !== 'off' && previewActor.current && previewBreed.current;
         const follow = mine ? (runners.current.get(mine.key)?.x ?? 0) : 0;
-        const camera = showing ? preview.clock * 3 : follow;
         const sky = skyAt(new Date(at));
         const env: Env = {
           tod: todAt(solarHour(new Date(at))),
@@ -244,17 +202,15 @@ export function FunRunScreen({ race, pet, reducedMotion, onFinish, onExit }: Pro
         };
         const recorder = Skia.PictureRecorder();
         const canvas = recorder.beginRecording(Skia.XYWHRect(0, 0, width, trackH));
-        const racers = showing && previewActor.current && previewBreed.current
-          ? [{ x: camera, name: 'Preview', mine: true, actor: previewActor.current, breed: previewBreed.current }]
-          : field.map((row) => ({
-              x: runners.current.get(row.key)?.x ?? 0,
-              name: row.petName,
-              mine: row.mine,
-              stale: stale.current.has(row.key),
-              actor: actors.current.get(row.key) ?? actorOf(row, livePet, breedOf(row, livePet)),
-              breed: breedOf(row, livePet),
-            }));
-        drawRaceTrack(canvas, width, trackH, env, camera, racers, config.distanceM, legsPerMeter, labelFont);
+        const racers = field.map((row) => ({
+          x: runners.current.get(row.key)?.x ?? 0,
+          name: row.petName,
+          mine: row.mine,
+          stale: stale.current.has(row.key),
+          actor: actors.current.get(row.key) ?? actorOf(row, livePet, breedOf(row, livePet)),
+          breed: breedOf(row, livePet),
+        }));
+        drawRaceTrack(canvas, width, trackH, env, follow, racers, config.distanceM, legsPerMeter, labelFont);
         picture.value = recorder.finishRecordingAsPicture();
       }
       const now = Date.now();
@@ -315,6 +271,7 @@ export function FunRunScreen({ race, pet, reducedMotion, onFinish, onExit }: Pro
     // step it lands in, or the scene skips it while the replay and the results count it.
     const simMs = mine ? (runners.current.get(mine.key)?.tMs ?? 0) : 0;
     taps.current.push(Math.max(at - race.startsAt, simMs));
+    onSpend();
     const local = Date.now();
     if (local - lastHaptic.current < 50) return;
     lastHaptic.current = local;
@@ -329,14 +286,7 @@ export function FunRunScreen({ race, pet, reducedMotion, onFinish, onExit }: Pro
     <View style={styles.root} onLayout={(event) => setWidth(Math.round(event.nativeEvent.layout.width))}>
       <View style={styles.bar}>
         <Text style={styles.title}>{eventLabel(race.event)}</Text>
-        <View style={styles.barEnd}>
-          {__DEV__ ? (
-            <Pressable accessibilityRole="button" accessibilityLabel="Pose preview" onPress={() => setPosesOpen((open) => !open)} style={styles.poses}>
-              <Text style={styles.chipText}>Poses</Text>
-            </Pressable>
-          ) : null}
-          <Text style={styles.timer}>{going ? formatCountdown(Math.max(0, frame.tMs)) : formatCountdown(Math.max(0, untilStart))}</Text>
-        </View>
+        <Text style={styles.timer}>{going ? formatCountdown(Math.max(0, frame.tMs)) : formatCountdown(Math.max(0, untilStart))}</Text>
       </View>
       <View style={styles.mini}>
         {field.map((row) => (
@@ -350,71 +300,15 @@ export function FunRunScreen({ race, pet, reducedMotion, onFinish, onExit }: Pro
           />
         ))}
       </View>
-      {__DEV__ && posesOpen ? (
-        <View style={styles.preview}>
-          {(
-            [
-              ['gallop', 'Gallop'],
-              ['leap', 'Leap'],
-              ['stumble', 'Stumble'],
-              ['loop', 'Loop'],
-              ['off', 'Off'],
-            ] as const
-          ).map(([mode, label]) => (
-            <Pressable
-              key={mode}
-              onPress={() => {
-                previewRef.current = { mode, rate: previewRef.current.rate, clock: 0, landed: false };
-                previewModeRef.current = mode;
-                setPreviewMode(mode);
-              }}
-              style={[styles.chip, previewMode === mode && styles.chipOn]}
-            >
-              <Text style={styles.chipText}>{label}</Text>
-            </Pressable>
-          ))}
-          {[1, 0.5, 0.25].map((rate) => (
-            <Pressable
-              key={rate}
-              onPress={() => {
-                previewRef.current.rate = rate;
-                setPreviewRate(rate);
-              }}
-              style={[styles.chip, previewRate === rate && styles.chipOn]}
-            >
-              <Text style={styles.chipText}>{rate}×</Text>
-            </Pressable>
-          ))}
-          <Pressable
-            onPress={() => setPreviewBreedId(previewBreeds[(previewBreeds.indexOf(previewBreedId as (typeof previewBreeds)[number]) + 1) % previewBreeds.length] ?? 'retriever')}
-            style={styles.chip}
-          >
-            <Text style={styles.chipText}>{previewBreedId}</Text>
-          </Pressable>
-          {(['puppy', 'adult', 'senior'] as const).map((age) => (
-            <Pressable key={age} onPress={() => setPreviewAge(age)} style={[styles.chip, previewAge === age && styles.chipOn]}>
-              <Text style={styles.chipText}>{age}</Text>
-            </Pressable>
-          ))}
-          {(
-            [
-              ['none', 'Plain'],
-              ['boots', 'Boots'],
-              ['hat', 'Hat'],
-            ] as const
-          ).map(([outfit, label]) => (
-            <Pressable key={outfit} onPress={() => setPreviewOutfit(outfit)} style={[styles.chip, previewOutfit === outfit && styles.chipOn]}>
-              <Text style={styles.chipText}>{label}</Text>
-            </Pressable>
-          ))}
-          <Pressable
-            onPress={() => setPreviewStyle(previewStyle === 'flying' ? 'classic' : 'flying')}
-            style={styles.chip}
-          >
-            <Text style={styles.chipText}>{previewStyle}</Text>
-          </Pressable>
-        </View>
-      ) : null}
+      <View style={styles.readiness}>
+        <ReadyBars
+          stacked
+          energy={pet.needs.energy}
+          mood={pet.needs.happiness}
+          energyLabel={`${pet.name}'s energy`}
+          moodLabel={`${pet.name}'s mood`}
+        />
+      </View>
       <View style={[styles.stage, { height: stageHeight }]}>
         {width > 0 ? <Canvas style={styles.canvas}><Picture picture={picture} /></Canvas> : null}
       </View>
@@ -459,17 +353,12 @@ export function FunRunScreen({ race, pet, reducedMotion, onFinish, onExit }: Pro
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#FFF4FA' },
   bar: { paddingTop: 54, paddingHorizontal: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  barEnd: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  poses: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 2, borderColor: ink, backgroundColor: '#fff' },
   title: { fontFamily: fontFamily.fredokaBold, fontSize: 26, color: ink },
   timer: { fontFamily: fontFamily.fredokaBold, fontSize: 22, color: ink },
   mini: { height: 28, marginHorizontal: 16, marginTop: 8, borderRadius: 8, backgroundColor: '#fff', borderWidth: 2, borderColor: ink },
+  readiness: { marginHorizontal: 16, marginTop: 10 },
   dot: { position: 'absolute', top: 6, width: 14, height: 14, borderRadius: 7, backgroundColor: '#CDB4F0', borderWidth: 2, borderColor: ink },
   dotMine: { backgroundColor: '#FF8FC0', width: 18, height: 18, borderRadius: 9, top: 4 },
-  preview: { position: 'absolute', top: 96, left: 12, right: 12, zIndex: 2, flexDirection: 'row', flexWrap: 'wrap', gap: 6, padding: 8, borderRadius: 12, backgroundColor: 'rgba(255,244,250,0.94)' },
-  chip: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 2, borderColor: ink, backgroundColor: '#fff' },
-  chipOn: { backgroundColor: '#FFD0E6' },
-  chipText: { fontFamily: fontFamily.bold, fontSize: 11, color: ink },
   stage: { marginTop: 8 },
   canvas: { flex: 1 },
   meter: { flexDirection: 'row', gap: 6 },

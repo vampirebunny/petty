@@ -53,7 +53,7 @@ import { ArcadeScreen } from './ArcadeScreen';
 import { CatwalkScreen } from './CatwalkScreen';
 import { StadiumScreen } from './StadiumScreen';
 import { onFriendCall, onGateRequest } from '../stadium/raceCall';
-import { racesOf } from '../sim/stadium';
+import { racesOf, type RaceEvent } from '../sim/stadium';
 import { RaceCall } from '../ui/stadium/RaceCall';
 import { flushCloudHopScore } from '../minigames/cloudHop/scores';
 import { flushStayTime } from '../minigames/stay/scores';
@@ -488,7 +488,7 @@ export default function HomeScreen({ petApi }: Props) {
   const [runwaySeed, setRunwaySeed] = useState<RunwayInvitation | null>(null);
   const [runwayShowId, setRunwayShowId] = useState<string | null>(null);
   const [stadiumOpen, setStadiumOpen] = useState(false);
-  const [raceSeed, setRaceSeed] = useState<{ eventId: string; event: 'funRun' | 'dockDive' | 'sniffOut' | 'trickShow' | 'hurdles' | 'weave' | 'obstacle'; startsAt: number } | null>(null);
+  const [raceSeed, setRaceSeed] = useState<{ eventId: string; event: RaceEvent; startsAt: number } | null>(null);
   const [stadiumGate, setStadiumGate] = useState(0);
   const [friendGameRoom, setFriendGameRoom] = useState<string | null>(null);
   const [friendCount, setFriendCount] = useState<number | undefined>(undefined);

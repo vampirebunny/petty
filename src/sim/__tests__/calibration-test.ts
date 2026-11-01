@@ -157,4 +157,6 @@ it('logs stadium finishes and skips friend games, guests, and DNFs', () => {
   expect(knownConfig('funRun', 'funrun-2')).toBe(true);
   expect(knownConfig('funRun', 'funrun-9')).toBe(false);
   expect(knownConfig('obstacle', 'obstacle-7')).toBe(true);
+  expect(knownConfig('meters800', 'meters800-1')).toBe(true);
+  expect(knownConfig('meters800', 'funrun-2')).toBe(false);
 });

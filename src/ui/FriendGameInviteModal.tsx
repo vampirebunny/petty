@@ -14,7 +14,7 @@ import {
   type FriendGameInvite,
 } from '../stadium/friendGames';
 import { gameplayConfig } from '../sim/gameplayConfig';
-import { eventLabel, formatCountdown, racesOf, withFriendGame, withSignup } from '../sim/stadium';
+import { eventLabel, formatCountdown, racesOf, withFriendGame, withoutSignup } from '../sim/stadium';
 import type { PetState } from '../sim/types';
 import { pushPetBeforeRead } from '../sync/queue';
 import { setFriendGameInviteOpen } from '../invites/session';
@@ -126,9 +126,9 @@ export function FriendGameInviteModal({ pet, linked, hidden, reducedMotion, onCo
       return;
     }
     let next = petRef.current;
-    if (replace && conflict && conflict.cup !== 'friends' && racesOf(next).signup) {
+    if (replace && conflict && conflict.cup !== 'friends' && racesOf(next).signups.some((row) => row.entryId === conflict.entryId)) {
       void cancelRaceCall();
-      next = withSignup(next, null, serverNow());
+      next = withoutSignup(next, conflict.entryId);
     }
     if (invite.event) {
       next = withFriendGame(next, { raceId: invite.raceId, event: invite.event, startsAt: invite.startsAt }, serverNow());

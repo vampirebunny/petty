@@ -49,9 +49,22 @@ export const funRunConfig: FunRunConfig = {
   npcRanges: { ...funRunV1.npcRanges, open: [8.2, 9.6] },
 };
 
+// 800 Meters is the same Open Fun Run field on a track 13 times as long.
+// The time limit scales with the track so a pet who can finish Fun Run can finish this too.
+export const METERS_800_SCALE = 13;
+export const METERS_800_VERSION = 'meters800-1';
+
+export const meters800Config: FunRunConfig = {
+  ...funRunConfig,
+  version: METERS_800_VERSION,
+  distanceM: funRunConfig.distanceM * METERS_800_SCALE,
+  maxMs: funRunConfig.maxMs * METERS_800_SCALE,
+};
+
 const versions: Record<string, FunRunConfig> = {
   'funrun-1': funRunV1,
   [CONFIG_VERSION]: funRunConfig,
+  [METERS_800_VERSION]: meters800Config,
 };
 
 export function configFor(version: string): FunRunConfig {

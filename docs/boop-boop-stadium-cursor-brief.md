@@ -4,7 +4,7 @@
 
 Build the Stadium place on the map: where players see upcoming races, sign up, get called back when a race is about to start, and gather at the starting gate. The race itself (gameplay) is a separate brief; this one ends by handing off to a placeholder race screen.
 
-**Status: shipped** through the starting gate. Race gameplay is in `docs/boop-boop-race-foundation-cursor-brief.md`. Fun Run, Hurdles, Dock Dive, and Obstacle Course are playable. Solo results go through the deployed `race_report` Edge Function. Sniff Out, Trick Show, and Weave are cancelled. The launch board is applied (`20261030130000_launch_race_schedule.sql`): 5-minute slots, Fun Run and Dock Dive every slot, Hurdles and Obstacle Course alternating, trick gates restored, and a 1-minute rest per event.
+**Status: shipped** through the starting gate. Race gameplay is in `docs/boop-boop-race-foundation-cursor-brief.md`. Fun Run, Hurdles, Dock Dive, Obstacle Course, and 800 Meters are playable. Solo results go through the deployed `race_report` Edge Function. Sniff Out, Trick Show, and Weave are cancelled. The launch board is applied (`20261030130000_launch_race_schedule.sql`): 5-minute slots, Fun Run and Dock Dive every slot, Hurdles and Obstacle Course alternating, trick gates restored, and a 1-minute rest per event. `20261101120000_eight_hundred_meters.sql` is applied and adds 800 Meters to every slot. `20261101160000_one_race_per_slot.sql` is applied: one active entry per start time.
 
 ## Global rules
 
@@ -13,7 +13,7 @@ Build the Stadium place on the map: where players see upcoming races, sign up, g
   - Go / confirm (Go to the Stadium, selected time slot): the mint/green glossy button
   - Race with friends: the lavender glossy button
   - Secondary (Withdraw, Not now, Skip this race): the existing white or text-only secondary style
-- All numbers are defaults in the gameplay config, not hardcoded: slot length (5 min), events per slot (3), slots shown (3), race capacity (6), gate opens (60 s before start), race call and local notification (30 s before start), line-up lock (10 s before start), rest per event (1 min), NPC fill count. The server's `stadium_config` row is the source of truth (`20261030130000_launch_race_schedule.sql`). The client defaults match.
+- All numbers are defaults in the gameplay config, not hardcoded: slot length (5 min), events per slot (4), slots shown (3), race capacity (6), gate opens (60 s before start), race call and local notification (30 s before start), line-up lock (10 s before start), rest per event (1 min), NPC fill count. The server's `stadium_config` row is the source of truth (`20261030130000_launch_race_schedule.sql`, plus `20261101120000_eight_hundred_meters.sql` for the fourth event). The client defaults match.
 - No speech balloons over pets; no tooltips or banners on the starting gate or during races.
 - The Stadium needs a connection. Offline: show the header plus a friendly "The Stadium needs internet to race" state with a back button. Everything else in the app keeps working offline.
 - Use **server time** for every countdown (keep a server-clock offset); never trust the device clock for slot times.
@@ -25,7 +25,7 @@ Build the Stadium place on the map: where players see upcoming races, sign up, g
 
 | # | Screen | When it shows |
 | --- | --- | --- |
-| 1 | Stadium lobby | Entering the Stadium with no active sign-up |
+| 1 | Stadium lobby | Entering the Stadium. Sign-ups stay listed under Your races |
 | 2 | Sign-up sheet | Tapping Sign up on a race card (bottom sheet over the lobby) |
 | 3 | Signed up (ticket) | Right after signing up, and from **Your races** on the lobby |
 | 4 | Race call | In-app card 30 s before the start, when the player is anywhere other than the gate |
@@ -49,40 +49,42 @@ On a landscape split the tall hero fills the left side. The lobby, ticket, sign-
 
 Top to bottom:
 1. Header (section 2), with the back-to-map button top left and the pet chip top right (name, level, class).
-2. Energy and mood bars for the pet (existing stat values; they affect race performance).
-3. **Your races**, when the pet is in any: the open-race sign-up and the friend game, soonest first. Each row shows the event, the start time, and the class (or "Friend game"). **Open** goes to that race's page: the ticket for an open race, the waiting room for a friend game. Entering the Stadium always lands on the lobby. Back from the ticket returns here.
-4. "Upcoming races" with time-slot buttons for the next 3 slots (e.g. 3:05 / 3:10 / 3:15, each with "in m:ss"). The next slot is selected by default. The list rolls forward as slots start.
-5. Race cards for the selected slot (3 per slot). Each card shows the icon, name, an OPEN or AWAY tag where it applies, who can enter (Dogs / Cats / Dogs & cats), and "x of 6 signed up". Card states:
+2. **Your races**, when the pet is in any: every open-race sign-up and the friend game, soonest first. Each row shows the event, the start time, and the class (or "Friend game"). **Open** goes to that race's page: the ticket for an open race, the waiting room for a friend game. Entering the Stadium always lands on the lobby. Back from the ticket returns here.
+3. "Upcoming races" with time-slot buttons for the next 3 slots (e.g. 3:05 / 3:10 / 3:15, each with "in m:ss"). The next slot is selected by default. The list rolls forward as slots start.
+4. Race cards for the selected slot (4 per slot). Each card shows the icon, name, an OPEN or AWAY tag where it applies, who can enter (Dogs / Cats / Dogs & cats), and "x of 6 signed up". Card states:
    - **Can enter**: pink Sign up button
    - **Missing trick**: lock line ("Requires skills in Jump the Hurdle") and a disabled "Not qualified" pill. Tapping the card offers a link to the Training School.
    - **Wrong species**: disabled "Cats only" / "Dogs only" pill
    - **Resting**: disabled "Resting" pill and the line "Again in m:ss". Only cards of the rested event that start before the rest ends show this.
-6. "Race with friends" (lavender) at the bottom: opens the friend game flow (`docs/boop-boop-friend-games-addendum.md`). Guests get the create-account sheet. A game the pet is already in is a row under **Your races**, not a separate button.
+   - **Same time**: disabled "Same time" pill when the pet is already entered in another event at that start.
+5. "Race with friends" (lavender) at the bottom: opens the friend game flow (`docs/boop-boop-friend-games-addendum.md`). Guests get the create-account sheet. A game the pet is already in is a row under **Your races**, not a separate button.
+
+Energy and mood bars are on the sign-up sheet and the ticket, not on this lobby.
 
 **Slot schedule rules (server side):**
 - A slot starts every 5 minutes on the clock (:00, :05, :10…).
-- Each slot has 3 events, all open to dogs and cats: **Fun Run** every slot, plus 2 featured events from Dock Dive, Sniff Out, Trick Show, Hurdles, Weave, and Obstacle Course. Every slot includes at least one featured event that needs no tricks (Dock Dive or Sniff Out).
-- **Veteran Cup** is a fourth card for senior pets only, every 15 minutes. See the race foundation brief.
-- A pet races in its highest class. Fun Run is the exception: every level races in one Open field. Neighboring classes can merge at gate open, into the lower class, when the combined field fits.
+- Each slot has 4 events, all open to dogs and cats: Fun Run, Dock Dive, 800 Meters, and one of Hurdles or Obstacle Course.
+- **Veteran Cup** is an extra card for senior pets only, every 15 minutes. See the race foundation brief.
+- A pet races in its highest class. Fun Run and 800 Meters are the exception: every level races in one Open field. Neighboring classes can merge at gate open, into the lower class, when the combined field fits.
 
 ## 4. Sign-up (screen 2)
 
-- Tapping Sign up opens the bottom sheet: event name, start time and countdown, class; the line-up so far (real players who've signed up, and the pet's own lane); race readiness (energy and mood, with a short nudge to play or give a mood treat); two rule lines; **Sign up [pet name]** and **Not now**.
+- Tapping Sign up opens the bottom sheet: event name, start time and countdown, class; the line-up so far (real players who've signed up, and the pet's own lane); race readiness (bars labeled "[pet]'s energy" and "[pet]'s mood", with a short nudge when either is under 50); two rule lines; **Sign up [pet name]** and **Not now**.
 - Line-up copy (replaces the mock's "Open lanes fill with friendly NPC pets at the start"): **"If no one else joins, friendly NPC pets will race with you."**
 - Rule lines: "Go anywhere you like. We'll call you 30 seconds before the start." / "Free to enter. Change your mind? You can withdraw until 10 seconds before the start."
 - On the player's **first** sign-up ever, request notification permission here (contextual, not at launch). If declined, sign-up still works; the in-app race call still shows.
 
 **Sign-up rules:**
-- Free entry, no energy cost or minimum.
-- **One active sign-up per pet.** While signed up, other races show "In a race".
+- Free entry, no energy minimum. Each accepted race input spends 0.25 energy, and energy stops at 0. See the race foundation brief.
+- **One active sign-up per start time.** A second event in that same slot shows "Same time". Other slots stay open.
 - Players can sign up for any slot shown (up to ~15 min ahead).
 - Blocked when that event's 1-minute rest (from the last race's start) is still running at the new race's start. The rest is written with the results; withdrawing, missing the gate, or a cancelled race does not start it. A pet can enter a different event during the rest.
-- Re-check eligibility server side (trick learned, species, class, cooldown, no other active entry).
+- Re-check eligibility server side (trick learned, species, class, cooldown, no other active entry at that start time).
 - Race placement: within event + class, fill races in sign-up order up to capacity 6; when one fills, the next sign-up opens a new race in the same slot. Friends signing up for the same event and class go into the same race when there's room.
 
 ## 5. Signed up, race call, notification (screens 3–4)
 
-**Ticket (screen 3):** shown right after signing up, and when the player opens that race from **Your races**. Entering the Stadium with a sign-up stays on the lobby. Shows "YOU'RE IN!", event, time, class, lane; "Gate opens in m:ss" and "Race starts in m:ss"; the note "You don't have to wait here. We'll call you 30 seconds before the start, wherever you are."; "Get [pet] ready" buttons (Play → existing play flow, shown once the gate opens; Mood treat → uses one from the Pantry, showing the owned count, and at 0 offers Visit Pet Shop); before the gate opens, **Wait somewhere else** takes the player to the map; other events in the slot shown disabled ("In a race"); **Withdraw from race** at the bottom. Back returns to the lobby.
+**Ticket (screen 3):** shown right after signing up, and when the player opens that race from **Your races**. Entering the Stadium with a sign-up stays on the lobby. Shows "YOU'RE IN!", event, time, class; "Gate opens in m:ss" and "Race starts in m:ss"; the note "You don't have to wait here. We'll call you 30 seconds before the start, wherever you are."; "Get [pet] ready" with energy and mood bars, then "Tip: Energy and mood affect performance. Get [pet] ready by increasing energy and mood."; buttons (Play → existing play flow, shown once the gate opens; Mood treat → uses one from the Pantry, showing the owned count, and at 0 offers Visit Pet Shop); before the gate opens, **Wait somewhere else** takes the player to the map; other events in the slot shown disabled ("In a race"); **Withdraw from race** at the bottom. Back returns to the lobby.
 
 The player is free to leave the Stadium and do anything.
 
@@ -96,7 +98,7 @@ The player is free to leave the Stadium and do anything.
 
 ## 6. Starting gate (screen 5)
 
-Opens at start − 60 s. Header: event name and class, "Starting gate", big countdown "Starts in 0:42". A tip line for the event (e.g. "Tap right as [pet] reaches each hoop."). **Withdraw** at the bottom until line-up lock.
+Opens at start − 60 s. Header: event name and class, "Starting gate", big countdown "Starts in 0:42". A tip line for the event (e.g. "Tap right as [pet] reaches each hoop."), then "Tip: Energy and mood improve performance". **Withdraw** at the bottom until line-up lock.
 
 **Lanes: show only live players. No open lanes, no NPC placeholders.**
 - List only real players in this race: the player's own pet first, then other signed-up players.

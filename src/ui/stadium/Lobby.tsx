@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Lock } from 'lucide-react-native';
 
 import type { StadiumBoard, StadiumCard, StadiumSlot } from '../../stadium/api';
-import { classLabel, eventLabel, formatCountdown, formatSlot, whoCanEnter, type SignedUpRace } from '../../sim/stadium';
+import { classLabel, eventLabel, formatCountdown, formatSlot, isOpenField, whoCanEnter, type SignedUpRace } from '../../sim/stadium';
 import { trickListing } from '../../sim/tricks';
 import { fontFamily } from '../font';
 import { CandyButton } from './CandyButton';
@@ -88,7 +88,7 @@ function MyRace({ race, onPress }: { race: SignedUpRace; onPress: () => void }) 
 
 function RaceCard({ card, board, now, onPress }: { card: StadiumCard; board: StadiumBoard; now: number; onPress: () => void }) {
   const trickName = card.requiredTrick ? (trickListing(card.requiredTrick)?.name ?? 'a new trick') : null;
-  const openEvent = card.event === 'funRun' || card.event === 'dockDive';
+  const openEvent = isOpenField(card.event) || card.event === 'dockDive';
   const tag = card.cup === 'veteran' ? 'VETERAN' : card.isAway ? 'AWAY' : openEvent ? 'OPEN' : null;
   return (
     <Pressable
@@ -138,7 +138,7 @@ function CardAction({ card, onPress }: { card: StadiumCard; onPress: () => void 
 }
 
 function pillLabel(card: StadiumCard): string {
-  if (card.state === 'busy') return 'In a race';
+  if (card.state === 'busy') return 'Same time';
   if (card.state === 'resting') return 'Resting';
   if (card.state === 'missing_trick') return 'Not qualified';
   if (card.state === 'wrong_species') return card.speciesAllowed === 'cat' ? 'Cats only' : 'Dogs only';

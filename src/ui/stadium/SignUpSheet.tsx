@@ -55,7 +55,13 @@ export function SignUpSheet({ card, slot, classId, capacity, petName, energy, mo
 
           <View style={shared.card}>
             <Text style={shared.strong}>Race readiness</Text>
-            <ReadyBars energy={energy} mood={mood} />
+            <ReadyBars
+              stacked
+              energy={energy}
+              mood={mood}
+              energyLabel={`${petName}'s energy`}
+              moodLabel={`${petName}'s mood`}
+            />
             {low ? <Text style={shared.copy}>A little play or a mood treat helps {petName} feel race-ready.</Text> : null}
           </View>
 
