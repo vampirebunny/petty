@@ -674,6 +674,9 @@ function startLeave(world: World, actor: Actor, guest: ParkGuestState): void {
   guest.phase = 'leave';
   guest.partnerId = null;
   guest.helloUntil = 0;
+  if (!Number.isFinite(guest.hardLeaveAt)) {
+    guest.hardLeaveAt = world.t + 12;
+  }
   actor.direction = null;
   const floor = world.scene.floor;
   const toLeft = actor.x - floor.xMin <= floor.xMax - actor.x;

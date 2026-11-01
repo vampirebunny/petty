@@ -14,7 +14,7 @@ About 70% of visitors are animals from the owner's playdate cast. The rest are o
 
 They enter from the left or the right, whichever is farther from your pet, at least about 120px from your pet and from the other visitor. About half of the visitors rolled when the park opens are already on the grass instead of walking in. They stand on a different depth from your pet, at least about 45px apart, and keep the same visit length. Anyone who shows up while you stay still walks in from the edge. Reduced motion still walks them on and off. It does not add zoomies.
 
-Friend pets are a separate roll. Up to five friends can be on the grass at the same time as this one NPC visitor. A hello with a friend pays the same +2 mood into the same 10-minute cap. See [park-friends-brief.md](park-friends-brief.md).
+Friend pets are a separate roll. Up to five friends can be on the grass at the same time as this one NPC visitor, and only while each friend's park screen is open. The town map and other full screens end that presence even when the saved scene is still the park. A friend who leaves walks off. If that walk does not finish, the pet is removed about 20 seconds later. A hello with a friend pays the same +2 mood into the same 10-minute cap. See [park-friends-brief.md](park-friends-brief.md).
 
 ## Sociability
 

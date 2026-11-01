@@ -7,14 +7,14 @@ When a player is in the park and one or more of their friends are also in the pa
 1. The player goes to the park. During the existing scene transition, the app checks which friends are already in the park.
 2. When the scene opens, those friends' pets are already in their spots, wearing their current outfits, and the "Friends at the Park" bubble shows who's there.
 3. If a friend arrives later, their pet walks in from the left or right edge (random) to its spot, and from there behaves like an NPC pet.
-4. If a friend leaves, their pet walks off the nearest edge.
+4. If a friend leaves, their pet walks off the nearest edge. If that walk does not finish, the pet is removed about 20 seconds after the leave starts.
 5. If a friend changes their pet's outfit while in the park, the outfit updates on the visiting pet.
 6. Up to **5 friends' pets** are shown at once, in addition to the player's own pet.
 
 ## Rules
 - **Friends only.** Show only accepted, mutual friends. Never show blocked players, in either direction. If a friend is unfriended or blocked mid-session, remove their pet immediately (walk off).
 - **Accounts only.** Guests (no account) can't have friends, so they see a normal solo park and broadcast nothing.
-- **Park only.** Presence exists only while the park scene is open and the app is in the foreground. Other places (Home, Stadium, Training School, Pet Shop, etc.) don't broadcast or show visitors.
+- **Park only.** Presence exists only while the park screen is open and the app is in the foreground. The saved `sceneId` is not the screen. The town map keeps `sceneId` as `park` and sets `roadSpot`. Opening the map, or a full screen over the park (Stadium, Pet Shop, closet, pantry, collection, settings, playdate, arcade, catwalk, clothing lab), sends leave. Sheets that stay on the park do not. Home, Training School, and the other rooms send leave when their own scene is showing.
 - **Offline is fine.** If there's no connection, the park works exactly as it does today, solo.
 - **No positions are streamed.** Each phone places and animates visitors locally (see Placement and Visitor behavior). After arrival, nothing is sent except leave and outfit-change events.
 - **Game effects match NPCs.** A hello with a friend's pet pays the same +2 mood, once per visitor, into the same +6 per 10 minutes cap as an NPC hello. NPC visitors keep their own roll, so the grass can hold the player's pet, one NPC, and up to five friends. Visitors never trigger park finds. Park finds remain only for the player's own pet.
@@ -34,9 +34,11 @@ The viewer's phone renders the visiting pet with the existing pet renderer and c
 5. **Dedupe by pet ID.** A friend may appear in both the initial list and a join event. Ignore a join for a pet that's already placed or already waiting.
 
 ## Leaving / disconnects
-- On leaving the park scene or the app going to the background: send leave and disconnect.
+- On leaving the park screen, or the app going to the background: send leave and disconnect. Leaving includes the town map (`roadSpot` set while `sceneId` is still `park`) and any full screen that replaces the park.
+- If the enter call finishes after the player has already left, send leave again so that call does not put the row back.
 - On a crash or lost connection: the friend's pet must disappear on its own. Use a heartbeat (about every 30s while in the park). If a presence entry hasn't been refreshed in about 90s, treat it as left.
-- On returning to the foreground while still in the park: re-register and resync, using the same dedupe rules.
+- The exit walk uses the nearer edge. If it does not finish, remove the pet about 20 seconds after the leave starts.
+- On returning to the foreground while the park screen is still open: re-register and resync, using the same dedupe rules.
 
 ## Cap: 5 visitors
 Each phone decides which 5 friends to show (views don't need to match between players):
@@ -54,7 +56,7 @@ Each phone decides which 5 friends to show (views don't need to match between pl
 - **Reuse the existing NPC pet system.** A visiting friend's pet is driven by the same behavior and pet-to-pet interaction logic as NPC pets. The only difference is that its appearance comes from the presence snapshot instead of NPC data. Don't build a separate behavior system.
 - Behavior and interactions run locally on each phone and aren't synced. Two friends may see different things happening between the same pets, and that's fine.
 - If multiple visitors are present, the NPC interaction logic should handle multiple partners the same way it would with multiple NPCs. If the current NPC system only supports one partner at a time, keep that rule and let the other visitors idle until it's their turn.
-- Entry and exit walks use the normal walk animation at a normal speed, facing the direction of travel. If a visitor leaves mid-interaction, end the interaction cleanly and then walk off.
+- Entry and exit walks use the normal walk animation at a normal speed, facing the direction of travel. If a visitor leaves mid-interaction, end the interaction cleanly and then walk off. A friend whose exit walk does not finish is removed about 20 seconds after the leave starts.
 - Tapping a visitor does nothing for now.
 
 ## "Friends at the Park" bubble
@@ -95,6 +97,7 @@ Use Supabase as the source of truth. Checked against the current Realtime docs (
 - With no friends in the park, no bubble appears. When the last friend leaves, the bubble disappears.
 - B changes outfit in the park, and A sees the change.
 - B backgrounds the app, and A sees B's pet walk off. Killing B's app makes B's pet disappear within about 90s.
+- B goes to the town map, or opens the Stadium, Pet Shop, or another full screen, and A sees B's pet walk off even though B's scene id is still park.
 - A non-friend in the park never appears. A blocked friend disappears immediately.
 - With 7 friends in the park, exactly 5 are shown. When one leaves, a waiting friend walks in.
 - Airplane mode: the park opens normally and solo, with no errors.

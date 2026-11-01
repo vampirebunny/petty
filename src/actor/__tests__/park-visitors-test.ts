@@ -320,6 +320,30 @@ describe('park visitor sim', () => {
     expect(guest!.asleep).toBe(false);
   });
 
+  it('removes a friend who left even when the exit walk does not finish', () => {
+    const { world } = parkWorld();
+    const friend = {
+      userId: 'friend-1',
+      handle: 'maple',
+      enteredAt: 1,
+      settled: true,
+      offer: offer('pal', 80, 80),
+    };
+    syncFriendGuests(world, [friend], spawnActor, setDirection);
+    syncFriendGuests(world, [], spawnActor, setDirection);
+    const guest = world.park!.guests.find((row) => row.kind === 'friend');
+    const actor = world.actors.find((row) => row.guest);
+    expect(guest?.phase).toBe('leave');
+    expect(guest && Number.isFinite(guest.hardLeaveAt)).toBe(true);
+    expect(actor).toBeTruthy();
+    actor!.x = 300;
+    actor!.task = { type: 'idle', stage: '', t: 0, bats: 0, cool: 0 };
+    world.t = guest!.hardLeaveAt + 9;
+    steps(world, 1);
+    expect(world.actors.some((row) => row.guest)).toBe(false);
+    expect(world.park!.guests.some((row) => row.kind === 'friend')).toBe(false);
+  });
+
   it('keeps the NPC roll while a friend is on the grass', () => {
     const { world } = parkWorld();
     syncParkVisitors(world, {

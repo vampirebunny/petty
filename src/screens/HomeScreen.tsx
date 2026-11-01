@@ -160,6 +160,7 @@ import { handlePromptIsStrict, onHandlePrompt } from '../compliance/handlePrompt
 import { openPathSuppressed } from '../state/sessionGate';
 import { WardrobeScreen } from './WardrobeScreen';
 import { parkOfferFromSnapshot, parkStrangerOffer, withPlayerAge } from '../playdate/npcs';
+import { parkIsOpen } from '../parkFriends/screen';
 import { useParkFriends } from '../parkFriends/useParkFriends';
 import { ParkFriendsBubble } from '../ui/ParkFriendsBubble';
 import { usePlaydates } from '../state/usePlaydates';
@@ -573,7 +574,6 @@ export default function HomeScreen({ petApi }: Props) {
     (nonce: number) => parkStrangerOffer(state?.ownerId || 'guest', nonce),
     [state?.ownerId],
   );
-  const parkFriends = useParkFriends(controlsSceneId === 'park', state);
   const owned = outfitsOwned();
   const closetKey = owned.map((item) => `${item.slot}:${item.id}`).join(',');
   const toyKey = home.toys.join(',');
@@ -624,6 +624,20 @@ export default function HomeScreen({ petApi }: Props) {
   const [storageItems, setStorageItems] = useState<StorageChoice[]>([]);
   const [storageEmpty, setStorageEmpty] = useState('Nothing in storage.');
   const [collectionOpen, setCollectionOpen] = useState(false);
+  const parkAway =
+    state?.roadSpot != null ||
+    playdateOpen ||
+    settingsOpen ||
+    clothingOpen ||
+    colorwaysOpen ||
+    arcadeOpen ||
+    catwalkOpen ||
+    stadiumOpen ||
+    shopOpen ||
+    pantryOpen ||
+    wardrobeOpen ||
+    collectionOpen;
+  const parkFriends = useParkFriends(parkIsOpen(controlsSceneId, parkAway), state);
   const [parkPrompt, setParkPrompt] = useState(false);
   const [findModal, setFindModal] = useState<{
     itemId: string;

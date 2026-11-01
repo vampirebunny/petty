@@ -77,7 +77,7 @@ White sheet, 32 pt top corners, grab handle. Title "Home", subtitle "Which room?
 
 The road is data-driven and local to the app. It works offline.
 
-`roadSpot` on the pet is `'home' | 'petShop' | 'park' | 'trainingSchool' | 'catwalk' | 'arcade' | 'stadium'` when the pet is on the road beside that door. Missing means the pet is inside `sceneId`, which is how every existing save already works.
+`roadSpot` on the pet is `'home' | 'petShop' | 'park' | 'trainingSchool' | 'catwalk' | 'arcade' | 'stadium'` when the pet is on the road beside that door. Missing means the pet is inside `sceneId`, which is how every existing save already works. While `roadSpot` is set, the pet is on the map. Park presence ends for that time, including when `sceneId` is still `park`. See [the park friends brief](park-friends-brief.md).
 
 The road is two layouts. Portrait visits Home, Pet Shop, Park, Training School, the Catwalk bend, Arcade, then Stadium. Widescreen runs Home, Pet Shop, Park, and Training School along the top, drops down the right side through the bend, then Arcade and Stadium along the bottom. Stand nodes sit on the path in front of each label. The Catwalk stand sits on the main road to the right of the building, not on a spur at the door. The bend stays so the switchback remains on the path. Crossing the landscape split mid-walk cancels the walk and puts the pet on that layout's stand node for the current door.
 

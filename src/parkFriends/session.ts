@@ -174,7 +174,13 @@ export function openParkSession(input: {
     }
     listen();
     const data = await rpc('park_presence_enter', { p_handle: input.handle, p_pet: input.pet });
-    if (closed || !data || data.ok === false) {
+    if (closed) {
+      if (data?.ok !== false) {
+        void rpc('park_presence_leave');
+      }
+      return;
+    }
+    if (!data || data.ok === false) {
       return;
     }
     roster.delete(selfId);
