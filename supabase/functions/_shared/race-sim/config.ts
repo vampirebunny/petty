@@ -22,6 +22,7 @@ const funRunV1 = {
   npcWobble: 0.05,
   npcWobbleMs: 2000,
   // Mood and energy each move the top-speed cap: +5% above 90, −5% below 80, −10% below 70.
+  // Hydration has no boost: −5% below 80, −10% below 70.
   statHigh: 0.9,
   statLow: 0.8,
   statLower: 0.7,
@@ -48,6 +49,7 @@ export const funRunConfig: FunRunConfig = {
   version: CONFIG_VERSION,
   npcRanges: { ...funRunV1.npcRanges, open: [8.2, 9.6] },
   // Each of mood and energy: +5% above 90, no change from 65 through 90, −3% below 65, −5% below 45.
+  // Hydration has no boost: no change at 65 and above, −3% below 65, −5% below 45.
   statHigh: 0.9,
   statLow: 0.65,
   statLower: 0.45,

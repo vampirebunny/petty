@@ -54,6 +54,7 @@ export {
 export { coastFloorMps, coastPastM, coastRunner, type CoastState } from './coast.ts';
 export {
   RACE_INPUT_ENERGY,
+  RACE_INPUT_HYDRATION,
   createRunner,
   neutralModifiers,
   npcSpeed,
@@ -61,6 +62,7 @@ export {
   speedScale,
   stepRunner,
   takeRaceEnergy,
+  takeRaceHydration,
   type Modifiers,
   type NpcSpec,
   type RunnerState,

@@ -20,6 +20,7 @@ export type { RaceReportInputLog } from './raceReport';
 export type RaceModifiers = {
   energy: number;
   mood: number;
+  hydration: number;
   stamina: number;
   agility: number;
   intelligence: number;
@@ -220,6 +221,8 @@ function modifiersOf(value: unknown): RaceModifiers | null {
   return {
     energy,
     mood,
+    // Older snapshots have no hydration. 85 sits above every penalty band.
+    hydration: num(row.hydration) ?? 85,
     stamina: num(row.stamina) ?? 0,
     agility: num(row.agility) ?? 0,
     intelligence: num(row.intelligence) ?? 0,

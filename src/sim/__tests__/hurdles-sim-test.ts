@@ -111,7 +111,7 @@ describe('hurdles sim', () => {
 
   it('widens the zone with agility, up to 10%', () => {
     const base = zoneHalfWidth('beginner', null, version);
-    const agile = zoneHalfWidth('beginner', { energy: 80, mood: 80, stamina: 50, agility: 100, intelligence: 50 }, version);
+    const agile = zoneHalfWidth('beginner', { energy: 80, mood: 80, hydration: 85, stamina: 50, agility: 100, intelligence: 50 }, version);
     expect(agile).toBeCloseTo(base * 1.1, 5);
   });
 

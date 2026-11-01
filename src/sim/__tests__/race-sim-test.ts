@@ -4,6 +4,7 @@ import {
   coastPastM,
   coastRunner,
   RACE_INPUT_ENERGY,
+  RACE_INPUT_HYDRATION,
   configFor,
   createRunner,
   neutralModifiers,
@@ -56,6 +57,13 @@ it('raises or lowers the top-speed cap from mood and energy', () => {
   expect(speedScale({ ...base, mood: 64, energy: 85 }, config)).toBeCloseTo(0.97);
   expect(speedScale({ ...base, mood: 44, energy: 50 }, config)).toBeCloseTo(0.92);
   expect(speedScale({ ...base, mood: 91, energy: 44 }, config)).toBeCloseTo(1);
+
+  expect(speedScale({ ...base, hydration: 100 }, config)).toBeCloseTo(1);
+  expect(speedScale({ ...base, hydration: 64 }, config)).toBeCloseTo(0.97);
+  expect(speedScale({ ...base, hydration: 44 }, config)).toBeCloseTo(0.95);
+  expect(speedScale({ ...base, mood: 95, energy: 95, hydration: 44 }, config)).toBeCloseTo(1.05);
+  expect(speedScale({ ...base, hydration: 79 }, older)).toBeCloseTo(0.95);
+  expect(speedScale({ ...base, hydration: 69 }, older)).toBeCloseTo(0.9);
 });
 
 it('slows a Fun Run once taps spend energy across a band', () => {
@@ -115,20 +123,26 @@ it('reads the pet fields the race snapshot uses', () => {
   const pet = testPet(4, 'retriever', now, 'Maple', 'pet');
   expect(typeof pet.needs.energy).toBe('number');
   expect(typeof pet.needs.happiness).toBe('number');
+  expect(typeof pet.hydration).toBe('number');
   expect(typeof pet.attributes.current.stamina).toBe('number');
   expect(typeof pet.attributes.current.agility).toBe('number');
   expect(typeof pet.attributes.current.intelligence).toBe('number');
 });
 
-it('spends energy per race input and stops at zero', () => {
+it('spends energy and hydration per race input and stops at zero', () => {
   const pet = testPet(4, 'retriever', now, 'Maple', 'pet');
   const once = spendRaceTap(pet);
   expect(once.needs.energy).toBeCloseTo(pet.needs.energy - RACE_INPUT_ENERGY);
-  const empty = spendRaceTap({ ...pet, needs: { ...pet.needs, energy: 0 } });
-  expect(empty.needs.energy).toBe(0);
-  expect(spendRaceTap(empty)).toBe(empty);
+  expect(once.hydration).toBeCloseTo(pet.hydration - RACE_INPUT_HYDRATION);
+  const dry = spendRaceTap({ ...pet, hydration: 0, needs: { ...pet.needs, energy: 0 } });
+  expect(dry.needs.energy).toBe(0);
+  expect(dry.hydration).toBe(0);
+  expect(spendRaceTap(dry)).toBe(dry);
+  const thirsty = spendRaceTap({ ...pet, needs: { ...pet.needs, energy: 0 } });
+  expect(thirsty.needs.energy).toBe(0);
+  expect(thirsty.hydration).toBeCloseTo(pet.hydration - RACE_INPUT_HYDRATION);
   const scrap = spendRaceTap({ ...pet, needs: { ...pet.needs, energy: 0.5 } });
-  expect(scrap.needs.energy).toBeCloseTo(0.1);
+  expect(scrap.needs.energy).toBeCloseTo(0.3);
   const dust = spendRaceTap({ ...pet, needs: { ...pet.needs, energy: 0.05 } });
   expect(dust.needs.energy).toBe(0);
 });

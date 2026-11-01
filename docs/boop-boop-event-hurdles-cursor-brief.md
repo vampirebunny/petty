@@ -63,7 +63,8 @@ The pet runs on its own at the class speed. The player taps **JUMP** when the pe
 
 - **Agility** widens the zone, up to +10% at full agility.
 - **Mood** adds up to +3% to run speed.
-- **Energy:** low energy shortens the Perfect boost.
+- **Energy:** a Perfect boost is 500 ms at energy 80 or above, and shortens in a straight line to 250 ms at 40 or below. Each jump spends 0.2 first, so a later Perfect can be shorter.
+- **Hydration** does not change the race. Each jump still spends 0.3.
 
 ## NPCs
 

@@ -14,7 +14,7 @@ import {
 } from '../../../supabase/functions/_shared/race-sim/index.ts';
 
 const version = 'dockdive-1';
-const mods = { energy: 85, mood: 50, stamina: 0, agility: 50, intelligence: 50 };
+const mods = { energy: 85, mood: 50, hydration: 85, stamina: 0, agility: 50, intelligence: 50 };
 
 // Hold so the meter peaks `leadMs` before the edge, and release then.
 function peakAt(leadMs: number, classId: 'beginner' | 'championship' = 'beginner') {

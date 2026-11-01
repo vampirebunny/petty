@@ -50,7 +50,7 @@ There is no scheduling for a specific date and time yet. That is a possible late
 - Starts at the game's start time, not on the slot schedule.
 - Every pet races on **Open** class settings, whatever its level.
 - No trick gate. Hurdles and Obstacle Course still require Jump the Hurdle (and Through the Tunnel, for Obstacle) in open and veteran races. Friend games do not. `create_friend_game` stores an empty `required_tricks` list, and accepting an invite does not check training. Migration `20261030140000_friend_games_no_trick_gate.sql`.
-- Same events, controls, scoring, and energy/mood effects as open races.
+- Same events, controls, scoring, and energy, mood, and hydration effects as open races.
 - Each pet shows its real coat, age, and outfit from the server copy of the pet.
 - A player who drops mid-race keeps racing on their own phone. Other phones freeze that pet and show "Reconnecting". A missing report is DNF. No NPC autoplay.
 
@@ -58,7 +58,7 @@ There is no scheduling for a specific date and time yet. That is a possible late
 
 - **None** beyond the race itself: no XP, ribbons, trophies, or race badges (First Race, Blue Ribbon, Moving Up, Ribbon Rack). It does not count for "Compete in the Stadium".
 - No event rest.
-- The same energy cost as an open race: 0.4 energy per input (tap, jump, duck, or a dock hold or release). Energy stops at 0, and Fun Run and 800 Meters slow down as it falls.
+- The same cost as an open race: 0.2 energy and 0.3 hydration per input (tap, jump, duck, or a dock hold or release). Both stop at 0. Fun Run and 800 Meters slow down as energy or hydration falls into a penalty band.
 - Results screen shows final placings for everyone in the game.
 
 ## Data and server

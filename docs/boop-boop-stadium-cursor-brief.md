@@ -59,7 +59,7 @@ Top to bottom:
    - **Same time**: disabled "Same time" pill when the pet is already entered in another event at that start.
 5. "Race with friends" (lavender) at the bottom: opens the friend game flow (`docs/boop-boop-friend-games-addendum.md`). Guests get the create-account sheet. A game the pet is already in is a row under **Your races**, not a separate button.
 
-Energy and mood bars are on the sign-up sheet and the ticket, not on this lobby.
+Energy, mood, and hydration bars are on the sign-up sheet, the ticket, and Fun Run (including 800 Meters). They are not on this lobby. Hurdles, Obstacle Course, and Dock Dive do not show them.
 
 **Slot schedule rules (server side):**
 - A slot starts every 5 minutes on the clock (:00, :05, :10…).
@@ -69,13 +69,13 @@ Energy and mood bars are on the sign-up sheet and the ticket, not on this lobby.
 
 ## 4. Sign-up (screen 2)
 
-- Tapping Sign up opens the bottom sheet: event name, start time and countdown, class; the line-up so far (real players who've signed up, and the pet's own lane); race readiness (bars labeled "[pet]'s energy" and "[pet]'s mood", with a short nudge when either is under 50); two rule lines; **Sign up [pet name]** and **Not now**.
+- Tapping Sign up opens the bottom sheet: event name, start time and countdown, class; the line-up so far (real players who've signed up, and the pet's own lane); race readiness (bars labeled "[pet]'s energy", "[pet]'s mood", and "[pet]'s hydration", with a short nudge when any is under 50); two rule lines; **Sign up [pet name]** and **Not now**.
 - Line-up copy (replaces the mock's "Open lanes fill with friendly NPC pets at the start"): **"If no one else joins, friendly NPC pets will race with you."**
 - Rule lines: "Go anywhere you like. We'll call you 30 seconds before the start." / "Free to enter. Change your mind? You can withdraw until 10 seconds before the start."
 - On the player's **first** sign-up ever, request notification permission here (contextual, not at launch). If declined, sign-up still works; the in-app race call still shows.
 
 **Sign-up rules:**
-- Free entry, no energy minimum. Each accepted race input spends 0.4 energy, and energy stops at 0. Fun Run and 800 Meters get slower as that energy falls. See the race foundation brief.
+- Free entry, no energy or hydration minimum. Each race input spends 0.2 energy and 0.3 hydration, and both stop at 0. Fun Run and 800 Meters get slower as either falls into a penalty band. See the race foundation brief.
 - **One active sign-up per start time.** A second event in that same slot shows "Same time". Other slots stay open.
 - Players can sign up for any slot shown (up to ~15 min ahead).
 - Blocked when that event's 1-minute rest (from the last race's start) is still running at the new race's start. The rest is written with the results; withdrawing, missing the gate, or a cancelled race does not start it. A pet can enter a different event during the rest.
@@ -84,7 +84,7 @@ Energy and mood bars are on the sign-up sheet and the ticket, not on this lobby.
 
 ## 5. Signed up, race call, notification (screens 3–4)
 
-**Ticket (screen 3):** shown right after signing up, and when the player opens that race from **Your races**. Entering the Stadium with a sign-up stays on the lobby. Shows "YOU'RE IN!", event, time, class; "Gate opens in m:ss" and "Race starts in m:ss"; the note "You don't have to wait here. We'll call you 30 seconds before the start, wherever you are."; "Get [pet] ready" with energy and mood bars, then "Tip: Energy and mood affect performance. Get [pet] ready by increasing energy and mood."; buttons (Play → existing play flow, shown once the gate opens; Mood treat → uses one from the Pantry, showing the owned count, and at 0 offers Visit Pet Shop); before the gate opens, **Wait somewhere else** takes the player to the map; other events in the slot shown disabled ("In a race"); **Withdraw from race** at the bottom. Back returns to the lobby.
+**Ticket (screen 3):** shown right after signing up, and when the player opens that race from **Your races**. Entering the Stadium with a sign-up stays on the lobby. Shows "YOU'RE IN!", event, time, class; "Gate opens in m:ss" and "Race starts in m:ss"; the note "You don't have to wait here. We'll call you 30 seconds before the start, wherever you are."; "Get [pet] ready" with energy, mood, and hydration bars, then "Tip: Energy, mood, and hydration affect performance. Get [pet] ready by raising energy, mood, and hydration."; buttons (Play → existing play flow, shown once the gate opens; Mood treat → uses one from the Pantry, showing the owned count, and at 0 offers Visit Pet Shop); before the gate opens, **Wait somewhere else** takes the player to the map; other events in the slot shown disabled ("In a race"); **Withdraw from race** at the bottom. Back returns to the lobby.
 
 The player is free to leave the Stadium and do anything.
 
@@ -98,7 +98,7 @@ The player is free to leave the Stadium and do anything.
 
 ## 6. Starting gate (screen 5)
 
-Opens at start − 60 s. Header: event name and class, "Starting gate", big countdown "Starts in 0:42". A tip line for the event (e.g. "Tap right as [pet] reaches each hoop."), then "Tip: Energy and mood improve performance". **Withdraw** at the bottom until line-up lock.
+Opens at start − 60 s. Header: event name and class, "Starting gate", big countdown "Starts in 0:42". A tip line for the event (e.g. "Tap right as [pet] reaches each hoop."), then "Tip: Energy, mood, and hydration improve performance". **Withdraw** at the bottom until line-up lock.
 
 **Lanes: show only live players. No open lanes, no NPC placeholders.**
 - List only real players in this race: the player's own pet first, then other signed-up players.

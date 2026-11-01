@@ -37,6 +37,7 @@ export function modsOf(row: LineupRow | undefined, pet: PetState | null): Modifi
     return {
       energy: pet.needs.energy,
       mood: pet.needs.happiness,
+      hydration: pet.hydration,
       stamina: row.modifiers?.stamina ?? pet.attributes.current.stamina,
       agility: row.modifiers?.agility ?? pet.attributes.current.agility,
       intelligence: row.modifiers?.intelligence ?? pet.attributes.current.intelligence,

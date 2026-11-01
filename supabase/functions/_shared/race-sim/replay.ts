@@ -70,6 +70,7 @@ export function parseModifiers(value: unknown): Modifiers {
   return {
     energy: num('energy'),
     mood: num('mood'),
+    hydration: num('hydration'),
     stamina: num('stamina'),
     agility: num('agility'),
     intelligence: num('intelligence'),

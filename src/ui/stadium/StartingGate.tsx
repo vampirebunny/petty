@@ -125,7 +125,7 @@ export function StartingGate({ signup, petName, now, withdrawing, onWithdraw, on
         ) : null}
       </View>
       <Text style={[shared.copy, styles.tip]}>{eventTip(signup.event, petName)}</Text>
-      <Text style={[shared.copy, styles.tip]}>Tip: Energy and mood improve performance</Text>
+      <Text style={[shared.copy, styles.tip]}>Tip: Energy, mood, and hydration improve performance</Text>
       <View style={styles.rows}>
         {rows.map((row) => {
           const ready = row.mine || present.includes(row.key);

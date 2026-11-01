@@ -4,6 +4,7 @@ import { hashSeed, mulberry32 } from './rng.ts';
 export type Modifiers = {
   energy: number;
   mood: number;
+  hydration: number;
   stamina: number;
   agility: number;
   intelligence: number;
@@ -12,18 +13,29 @@ export type Modifiers = {
 export const neutralModifiers: Modifiers = {
   energy: 85,
   mood: 85,
+  hydration: 85,
   stamina: 50,
   agility: 50,
   intelligence: 50,
 };
 
 /** Energy spent by one race input. The same amount comes off the pet and off the speed used for the rest of the race. */
-export const RACE_INPUT_ENERGY = 0.4;
+export const RACE_INPUT_ENERGY = 0.2;
+/** Hydration spent by one race input. It lowers the top-speed cap once it crosses a penalty band. */
+export const RACE_INPUT_HYDRATION = 0.3;
+
+function spendRaceStat(left: number | null, start: number, inputs: number, cost: number): number {
+  const base = left == null ? start : left;
+  if (inputs <= 0 || base <= 0) return Math.max(0, base);
+  return Math.max(0, base - inputs * cost);
+}
 
 export function takeRaceEnergy(energyLeft: number | null, start: number, inputs: number): number {
-  const base = energyLeft == null ? start : energyLeft;
-  if (inputs <= 0 || base <= 0) return Math.max(0, base);
-  return Math.max(0, base - inputs * RACE_INPUT_ENERGY);
+  return spendRaceStat(energyLeft, start, inputs, RACE_INPUT_ENERGY);
+}
+
+export function takeRaceHydration(hydrationLeft: number | null, start: number, inputs: number): number {
+  return spendRaceStat(hydrationLeft, start, inputs, RACE_INPUT_HYDRATION);
 }
 
 export type NpcSpec = {
@@ -40,6 +52,8 @@ export type RunnerState = {
   accepted: number[];
   /** Energy still left for this pet. Null until the first player step copies the start value. */
   energyLeft: number | null;
+  /** Hydration still left for this pet. Null until the first player step copies the start value. */
+  hydrationLeft: number | null;
 };
 
 function clamp(value: number, lo: number, hi: number): number {
@@ -67,9 +81,21 @@ function statBand(value: number, config: FunRunConfig): number {
   return 0;
 }
 
-// Each of mood and energy shifts the top-speed cap on its own. They stack.
+// Low hydration only. A full meter does not raise the cap.
+function hydrationPenalty(value: number, config: FunRunConfig): number {
+  const stat = unit(value);
+  if (stat < config.statLower) {
+    return -config.statLowerDrop;
+  }
+  if (stat < config.statLow) {
+    return -config.statLowDrop;
+  }
+  return 0;
+}
+
+// Mood and energy each shift the top-speed cap. Hydration can only lower it. They stack.
 export function speedScale(mods: Modifiers, config: FunRunConfig): number {
-  return 1 + statBand(mods.mood, config) + statBand(mods.energy, config);
+  return 1 + statBand(mods.mood, config) + statBand(mods.energy, config) + hydrationPenalty(mods.hydration, config);
 }
 
 function tapPower(x: number, mods: Modifiers, config: FunRunConfig): number {
@@ -88,7 +114,7 @@ export function npcSpeed(spec: NpcSpec, tMs: number, version: string): number {
 }
 
 export function createRunner(): RunnerState {
-  return { x: 0, v: 0, tMs: 0, finishMs: null, accepted: [], energyLeft: null };
+  return { x: 0, v: 0, tMs: 0, finishMs: null, accepted: [], energyLeft: null, hydrationLeft: null };
 }
 
 function acceptTap(state: RunnerState, tMs: number, config: FunRunConfig): boolean {
@@ -120,19 +146,21 @@ export function stepRunner(
     state.v = npcSpeed(npc, state.tMs, version);
   } else {
     if (state.energyLeft == null) state.energyLeft = mods.energy;
+    if (state.hydrationLeft == null) state.hydrationLeft = mods.hydration;
     const power = tapPower(state.x, mods, config);
     for (const tap of taps) {
       if (tap < state.tMs || tap >= next) {
         continue;
       }
       state.energyLeft = takeRaceEnergy(state.energyLeft, mods.energy, 1);
-      const scale = speedScale({ ...mods, energy: state.energyLeft }, config);
+      state.hydrationLeft = takeRaceHydration(state.hydrationLeft, mods.hydration, 1);
+      const scale = speedScale({ ...mods, energy: state.energyLeft, hydration: state.hydrationLeft }, config);
       if (acceptTap(state, tap, config)) {
         state.v = Math.min(config.topSpeed * scale, state.v + config.tapAccel * power * scale);
       }
     }
     state.v *= Math.exp(-config.fadePerSec * dt);
-    const cap = config.topSpeed * speedScale({ ...mods, energy: state.energyLeft }, config);
+    const cap = config.topSpeed * speedScale({ ...mods, energy: state.energyLeft, hydration: state.hydrationLeft }, config);
     state.v = Math.min(cap, state.v);
   }
   state.x += state.v * dt;

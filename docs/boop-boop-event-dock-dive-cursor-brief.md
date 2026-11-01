@@ -71,6 +71,7 @@ Each player gets 3 attempts; the best counts.
 
 - **Stamina** adds up to +5% to the distance at a full bar. It does not change the run-up: a faster run would move the edge and break the shared rhythm.
 - **Mood** adds up to +5% to the distance, from mood 50 (none) to 100 (full).
+- **Energy** and **hydration** do not change the jump. The press and the release each spend 0.2 energy and 0.3 hydration.
 - A belly flop is always 1.0 m.
 
 ## NPCs

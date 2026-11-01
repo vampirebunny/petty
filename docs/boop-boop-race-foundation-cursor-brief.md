@@ -20,9 +20,9 @@ These override the sections below. The old addendum is folded in here.
 
 **Results.** Solo: the phone reports its own finish time and the NPC times it simulated, and the server stores and ranks them. Once the replay Edge Function exists, the server recomputes both from the seed. Live: publish when every live player has reported, or 10 seconds after the first report. Anyone missing is DNF. Phones show provisional standings until the server ranking arrives.
 
-**Rewards.** The server never writes the pet document. It writes placings. The phone applies XP, a ribbon log (`raceId`, event, class, place, date), and badges once per race id. Energy is spent during the race, 0.4 per accepted input, and never goes below 0. Fun Run and 800 Meters apply that falling energy to each later tap and to the top-speed cap. Hurdles and Obstacle Course apply it to the next Perfect boost. Mood stays at the value from the start. A Fun Run or 800 Meters tap, a hurdle jump, an obstacle jump, duck, or RUN tap, and each dock-dive press and release all count. Finishing does not charge again. Race XP is capped at 8 races a day and is skipped below level 10. Ribbons are still awarded then. "Race in the Stadium" is a tutorial goal that completes when the pet finishes a race. Badges: First Race (id `off-to-the-races`), Blue Ribbon, Moving Up (a ribbon in a level class above Beginner; Fun Run and 800 Meters ribbons don't count), Ribbon Rack (5 / 25 / 100). Furniture waits.
+**Rewards.** The server never writes the pet document. It writes placings. The phone applies XP, a ribbon log (`raceId`, event, class, place, date), and badges once per race id. Each race input spends 0.2 energy and 0.3 hydration. Both stop at 0, and an input at 0 still counts. Fun Run and 800 Meters apply the falling energy and hydration to each later tap and to the top-speed cap. Hurdles and Obstacle Course apply the falling energy to the next Perfect boost. Hydration does not change those events, or Dock Dive. Mood stays at the value from the start. A Fun Run or 800 Meters tap (including one the 20-per-second cap ignores), a hurdle jump, an obstacle jump, duck, or RUN tap, and each dock-dive press and release all count. Finishing does not charge again. Race XP is capped at 8 races a day and is skipped below level 10. Ribbons are still awarded then. "Race in the Stadium" is a tutorial goal that completes when the pet finishes a race. Badges: First Race (id `off-to-the-races`), Blue Ribbon, Moving Up (a ribbon in a level class above Beginner; Fun Run and 800 Meters ribbons don't count), Ribbon Rack (5 / 25 / 100). Furniture waits.
 
-**Modifiers and config.** At lock, the server snapshots mood, attributes, and the energy the race starts from. Energy then falls by 0.4 on each input. Config versions are immutable. Each race keeps the version it was created with.
+**Modifiers and config.** At lock, the server snapshots mood, hydration, attributes, and the energy the race starts from (`20261101170000_race_hydration.sql`, applied). Energy then falls by 0.2 and hydration by 0.3 on each input. A snapshot from before that migration has no hydration key; replay treats that as 85, which is above every penalty band. Config versions are immutable. Each race keeps the version it was created with.
 
 **Live races.** Open sign-ups are for anyone online, guests included (a guest has no handle, so the name tag shows the pet name only). Fun Run, Hurdles, and Obstacle Course stream each pet's state (section 5). Dock Dive keeps its per-jump flags on `race:{raceId}:dives`. Other players' pets show their real coat, age, and outfit from the server copy of the pet. A player who drops mid-race keeps racing on their own phone; other phones freeze that pet and show "Reconnecting", and a missing report is DNF. There is no NPC autoplay.
 
@@ -159,21 +159,24 @@ The standings scroll. Back to the Stadium stays pinned under that list so it sta
 
 Level-ups show the existing level-up moment after the results screen closes.
 
-## 7. Pet modifiers (attributes, energy, mood)
+## 7. Pet modifiers (attributes, energy, mood, hydration)
 
 The pet's stats should matter, but **the player's skill should matter more.**
 
-Mood, stamina, agility, and intelligence are taken at the start and stay fixed. Energy starts there too, then falls by 0.4 on each input, and the race uses the energy still left. The server replay starts from the locked energy and spends the same 0.4 per input in the log, so the finish matches the phone.
+Mood, stamina, agility, and intelligence are taken at the start and stay fixed. Energy and hydration start there too, then fall by 0.2 and 0.3 on each input, and Fun Run uses whatever is still left. The server replay starts from the locked values and spends the same amounts per input in the log, so the finish matches the phone.
 
-| Input | Effect (Fun Run) | Notes for later events |
+| Input | Effect (Fun Run and 800 Meters) | Other events |
 | --- | --- | --- |
-| Stamina | How much late-race tap power fades | Weave rhythm forgiveness, Dock Dive distance (up to +5%) |
-| Agility | (no effect) | Hurdles and Obstacle Course zone width, Weave timing window |
-| Intelligence | (no effect) | Trick Show demo pace or one free mistake, Sniff Out shuffle readability |
-| Energy | Shifts each tap and the top-speed cap | All races |
-| Mood | Shifts each tap and the top-speed cap | All events |
+| Stamina | How much late-race tap power fades | Dock Dive distance (up to +5%) |
+| Agility | (no effect) | Hurdles and Obstacle Course zone width |
+| Intelligence | (no effect) | (no effect on the ship events) |
+| Energy | Shifts each tap and the top-speed cap | Hurdles and Obstacle Course: shortens the Perfect boost. Dock Dive: no effect |
+| Mood | Shifts each tap and the top-speed cap | Hurdles and Obstacle Course: up to +3% run speed. Dock Dive: up to +5% distance |
+| Hydration | Can only lower the top-speed cap | No effect. Still spent, 0.3 per input |
 
-Energy and mood each apply on their own, and they stack. Above 90%: **+5%**. From 65% through 90%: no change. Below 65%: **−3%**. Below 45%: **−5%**. Both above 90% is a 12.1 m/s cap. Both below 45% is a 9.9 m/s cap. The same factor multiplies the push of every tap, so the bonus shows up before the pet is already at the cap.
+On `funrun-2` and `meters800-1`, energy and mood each apply on their own, and they stack. Above 90: **+5%**. From 65 through 90: no change. Below 65: **−3%**. Below 45: **−5%**. The cuts are strict: 90 is not a boost, 65 is still neutral, and 45 is still the milder cut. Hydration uses only the penalty half of that table. It never adds the +5%. Both energy and mood above 90 is a 12.1 m/s cap. All three below 45 is 9.35 m/s. The same factor multiplies the push of every accepted tap, so the bonus shows up before the pet is already at the cap. A tap over the 20-per-second cap still spends energy and hydration.
+
+Races stamped `funrun-1` keep their older bands. Energy and mood: above 90 is +5%, below 80 is −5%, below 70 is −10%. Hydration uses only those drops.
 
 Send the modifiers with the race start so the server replays with the same values.
 
@@ -199,7 +202,7 @@ Used only when a solo player races (Stadium brief: 1 live player → fill with N
 
 **Rules (defaults, all config):**
 - Distance: 70 m
-- Each tap adds 2.8 m/s of speed, up to a top speed of 11 m/s before mood and energy
+- Each tap adds 2.8 m/s of speed, up to a top speed of 11 m/s before mood, energy, and hydration
 - Speed fades without taps at 1.3 per second (`v *= e^(−1.3·dt)`)
 - Stamina fade: from 60% of the distance onward, tap power falls by up to 15% at the line, reduced by stamina
 - Tap cap: 20 taps per rolling second; extra taps are ignored
@@ -216,7 +219,7 @@ Used only when a solo player races (Stadium brief: 1 live player → fill with N
 | Open | every level | 8.2–9.6 m/s |
 | Veteran Cup | senior pets | 10.0–11.0 m/s |
 
-NPCs run at full speed from Go!. With ordinary mood and energy, about 4.5 taps per second beats the slowest NPC, 5 places about third, and the fastest NPC takes about 8 taps per second, or 6 with mood and energy above 90. Races stamped `funrun-1` keep its level-class ranges (Beginner 8.2–9.4, Novice 9.2–10.2, Open 10.0–11.0, Expert 10.6–11.6, Championship 11.0–12.0 m/s).
+NPCs run at full speed from Go!. With ordinary mood and energy, about 4.5 taps per second beats the slowest NPC, 5 places about third, and the fastest NPC takes about 8 taps per second, or 6 with mood and energy above 90. Hydration does not raise that cap. Races stamped `funrun-1` keep its level-class ranges (Beginner 8.2–9.4, Novice 9.2–10.2, Open 10.0–11.0, Expert 10.6–11.6, Championship 11.0–12.0 m/s).
 
 **Controls:** a large round pink TAP! button with a paw. The whole action area is the tap target, with multi-touch. Each tap gives a brief press-down animation and a light haptic. Above it, a speed meter of 8 bars fills green → yellow → pink with current speed.
 

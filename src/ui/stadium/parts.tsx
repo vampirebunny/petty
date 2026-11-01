@@ -78,20 +78,25 @@ function Bar({ label, value, color, stacked = false }: { label: string; value: n
 export function ReadyBars({
   energy,
   mood,
+  hydration,
   energyLabel = 'Energy',
   moodLabel = 'Mood',
+  hydrationLabel = 'Hydration',
   stacked = false,
 }: {
   energy: number;
   mood: number;
+  hydration: number;
   energyLabel?: string;
   moodLabel?: string;
+  hydrationLabel?: string;
   stacked?: boolean;
 }) {
   return (
     <View style={styles.bars}>
       <Bar label={energyLabel} value={energy} color="#7FD8A8" stacked={stacked} />
       <Bar label={moodLabel} value={mood} color="#FF9CC2" stacked={stacked} />
+      <Bar label={hydrationLabel} value={hydration} color="#5EC8E6" stacked={stacked} />
     </View>
   );
 }
@@ -181,7 +186,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   barLabel: {
-    width: 54,
+    width: 78,
     fontFamily: fontFamily.fredokaSemibold,
     fontSize: 13,
     color: softInk,

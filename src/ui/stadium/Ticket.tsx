@@ -12,6 +12,7 @@ type Props = {
   petName: string;
   energy: number;
   mood: number;
+  hydration: number;
   moodTreats: number;
   now: number;
   others: StadiumCard[];
@@ -24,7 +25,7 @@ type Props = {
   onWithdraw: () => void;
 };
 
-export function Ticket({ signup, petName, energy, mood, moodTreats, now, others, withdrawing, onGate, onPlay, onWaitElsewhere, onMoodTreat, onShop, onWithdraw }: Props) {
+export function Ticket({ signup, petName, energy, mood, hydration, moodTreats, now, others, withdrawing, onGate, onPlay, onWaitElsewhere, onMoodTreat, onShop, onWithdraw }: Props) {
   const phase = gatePhase(signup.startsAt, now);
   const gateAt = signup.startsAt - gameplayConfig.races.gateOpenMs;
   return (
@@ -63,9 +64,9 @@ export function Ticket({ signup, petName, energy, mood, moodTreats, now, others,
 
       <View style={shared.card}>
         <Text style={shared.strong}>Get {petName} ready</Text>
-        <ReadyBars energy={energy} mood={mood} />
+        <ReadyBars energy={energy} mood={mood} hydration={hydration} />
         <Text style={shared.copy}>
-          Tip: Energy and mood affect performance. Get {petName} ready by increasing energy and mood.
+          Tip: Energy, mood, and hydration affect performance. Get {petName} ready by raising energy, mood, and hydration.
         </Text>
         <View style={styles.readyRow}>
           {phase === 'waiting' ? null : (

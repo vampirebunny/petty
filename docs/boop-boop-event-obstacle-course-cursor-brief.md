@@ -84,7 +84,8 @@ Exactly like Fun Run and Hurdles: every pet lines up with its toes on the start 
 
 - **Agility** widens hurdle and tunnel zones, up to +10%.
 - **Mood** up to +3% base speed.
-- **Energy:** low energy shortens the Perfect boost (Hurdles rule).
+- **Energy:** low energy shortens the Perfect boost (Hurdles rule). Each jump, duck, or RUN tap spends 0.2 first.
+- **Hydration** does not change the race. Each of those inputs still spends 0.3.
 
 ## NPCs
 

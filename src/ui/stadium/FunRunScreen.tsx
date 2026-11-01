@@ -306,8 +306,10 @@ export function FunRunScreen({ race, pet, reducedMotion, onFinish, onSpend, onEx
           stacked
           energy={pet.needs.energy}
           mood={pet.needs.happiness}
+          hydration={pet.hydration}
           energyLabel={`${pet.name}'s energy`}
           moodLabel={`${pet.name}'s mood`}
+          hydrationLabel={`${pet.name}'s hydration`}
         />
       </View>
       <View style={[styles.stage, { height: stageHeight }]}>

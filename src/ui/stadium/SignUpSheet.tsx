@@ -15,6 +15,7 @@ type Props = {
   petName: string;
   energy: number;
   mood: number;
+  hydration: number;
   now: number;
   busy: boolean;
   onSignUp: () => void;
@@ -23,8 +24,8 @@ type Props = {
   panel?: boolean;
 };
 
-export function SignUpSheet({ card, slot, classId, capacity, petName, energy, mood, now, busy, onSignUp, onClose, panel = false }: Props) {
-  const low = Math.min(energy, mood) < 50;
+export function SignUpSheet({ card, slot, classId, capacity, petName, energy, mood, hydration, now, busy, onSignUp, onClose, panel = false }: Props) {
+  const low = Math.min(energy, mood, hydration) < 50;
   const others = card.signedUp;
   const form = (
           <>
@@ -59,10 +60,12 @@ export function SignUpSheet({ card, slot, classId, capacity, petName, energy, mo
               stacked
               energy={energy}
               mood={mood}
+              hydration={hydration}
               energyLabel={`${petName}'s energy`}
               moodLabel={`${petName}'s mood`}
+              hydrationLabel={`${petName}'s hydration`}
             />
-            {low ? <Text style={shared.copy}>A little play or a mood treat helps {petName} feel race-ready.</Text> : null}
+            {low ? <Text style={shared.copy}>A little play, a drink, or a mood treat helps {petName} feel race-ready.</Text> : null}
           </View>
 
           <Text style={shared.copy}>

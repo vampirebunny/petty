@@ -1,5 +1,5 @@
 import { localDay } from '../economy/clock';
-import { RACE_INPUT_ENERGY } from '../../supabase/functions/_shared/race-sim/index.ts';
+import { RACE_INPUT_ENERGY, RACE_INPUT_HYDRATION } from '../../supabase/functions/_shared/race-sim/index.ts';
 import { gameplayConfig } from './gameplayConfig';
 import { grantXp, noteTutorialAction } from './progress';
 import { syncBadges } from './badges';
@@ -35,11 +35,12 @@ export function ribbonCount(state: PetState): number {
   return (state.ribbons ?? []).filter((row) => row.place >= 1 && row.place <= 3).length;
 }
 
-/** One race input. Energy stops at 0, and a tap at 0 still counts. */
+/** One race input. Energy and hydration each stop at 0, and a tap at 0 still counts. */
 export function spendRaceTap(state: PetState): PetState {
-  if (state.needs.energy <= 0) return state;
+  if (state.needs.energy <= 0 && state.hydration <= 0) return state;
   return {
     ...state,
+    hydration: Math.max(0, state.hydration - RACE_INPUT_HYDRATION),
     needs: { ...state.needs, energy: Math.max(0, state.needs.energy - RACE_INPUT_ENERGY) },
   };
 }
@@ -76,7 +77,7 @@ export function applyRaceRewards(state: PetState, finish: RaceFinish, now: numbe
   return syncBadges(next, now);
 }
 
-// Friend games give no XP or ribbon. Energy is spent on each input, not at the finish.
+// Friend games give no XP or ribbon. Energy and hydration are spent on each input, not at the finish.
 export function applyFriendRaceResult(state: PetState, raceId: string): PetState {
   const applied = state.appliedRaceIds ?? [];
   if (!raceId || applied.includes(raceId)) {

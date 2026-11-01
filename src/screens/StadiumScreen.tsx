@@ -740,6 +740,7 @@ export function StadiumScreen({
               petName={pet.name}
               energy={pet.needs.energy}
               mood={pet.needs.happiness}
+              hydration={pet.hydration}
               moodTreats={moodTreats}
               now={now}
               others={othersInSlot(signup)}
@@ -786,6 +787,7 @@ export function StadiumScreen({
         petName={pet.name}
         energy={pet.needs.energy}
         mood={pet.needs.happiness}
+        hydration={pet.hydration}
         now={now}
         busy={busy}
         onSignUp={() => void signUp()}
