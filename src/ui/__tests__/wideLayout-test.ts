@@ -10,6 +10,8 @@ import {
   stageSizeFor,
   schoolStackedHeightShare,
   stackedHeightShare,
+  wardrobeCard,
+  wardrobePaneZoom,
 } from '../wideLayout';
 
 describe('isLandscapeSplit', () => {
@@ -93,5 +95,24 @@ describe('stageSizeFor', () => {
     expect(sized.viewWidth).toBe(paneW);
     expect(sized.viewHeight).toBeCloseTo(paneH, 5);
     expect(sized.contentWidth / stageWidth).toBeCloseTo(sized.viewHeight / stageHeight, 5);
+  });
+});
+
+describe('wardrobePaneZoom', () => {
+  it('keeps the widescreen wardrobe crop at the phone card', () => {
+    const sameShape = wardrobePaneZoom(wardrobeCard.width * 2, wardrobeCard.height * 2);
+    expect(sameShape).toBeCloseTo(wardrobeCard.zoom, 5);
+
+    // iPad-sized left pane: taller than the phone card, so the old width scale cropped the pet.
+    const paneW = 683;
+    const paneH = 900;
+    const zoom = wardrobePaneZoom(paneW, paneH);
+    expect(zoom).toBeLessThan(wardrobeCard.zoom);
+    expect(zoom).toBeLessThan((wardrobeCard.zoom * paneW) / wardrobeCard.width);
+
+    const refFit = Math.min(wardrobeCard.width / stageWidth, wardrobeCard.height / stageHeight);
+    const phoneWorldW = wardrobeCard.width / (refFit * wardrobeCard.zoom);
+    const paneFit = Math.min(paneW / stageWidth, paneH / stageHeight);
+    expect(paneW / (paneFit * zoom)).toBeCloseTo(phoneWorldW, 5);
   });
 });

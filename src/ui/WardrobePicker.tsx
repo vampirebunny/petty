@@ -14,7 +14,7 @@ import { ItemIconArt } from './refresh/ItemIconArt';
 import { ItemTile } from './refresh/ItemTile';
 import { SlotTabs, type ClosetTab } from './refresh/SlotTabs';
 import { ui } from './refresh/tokens';
-import { isLandscapeSplit } from './wideLayout';
+import { isLandscapeSplit, wardrobeCard, wardrobePaneZoom } from './wideLayout';
 
 type Props = {
   subject: OutfitSubject;
@@ -36,11 +36,10 @@ export function WardrobePicker({ subject, owned, equipped, onEquip, reducedMotio
   const limited = useLimitedContentWidth();
   const split = limited == null && isLandscapeSplit(windowWidth, windowHeight);
   const width = limited ?? windowWidth;
-  const previewW = Math.min(420, width - 32);
-  const previewH = 236;
+  const previewW = Math.min(wardrobeCard.width, width - 32);
+  const previewH = wardrobeCard.height;
   const [pane, setPane] = useState({ width: 0, height: 0 });
-  // The phone card frames the pet at 3.2 across 420pt. A wide pane keeps that framing, so the pet grows with it.
-  const paneZoom = 3.2 * Math.max(1, pane.width / 420);
+  const paneZoom = wardrobePaneZoom(pane.width, pane.height);
   const [tab, setTab] = useState<ClosetTab>('hat');
   const worn = outfitSlots.flatMap((slot) => {
     const item = wearItem(slot, equipped[slot]);

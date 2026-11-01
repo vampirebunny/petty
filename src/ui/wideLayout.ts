@@ -17,6 +17,22 @@ export const schoolStackedHeightShare = 0.34;
 
 const minStageWidth = 280;
 
+// Phone closet card. Zoom 3.2 is that card's crop. The wide pane keeps the same crop.
+export const wardrobeCard = { width: 420, height: 236, zoom: 3.2 };
+
+// `drawWorld` already scales by how the canvas fits the stage. Zoom only changes the crop.
+// Match the phone card on the tighter axis so a tall left pane shows the whole pet.
+export function wardrobePaneZoom(paneWidth: number, paneHeight: number): number {
+  const refFit = Math.min(wardrobeCard.width / stageWidth, wardrobeCard.height / stageHeight);
+  const paneFit = Math.min(paneWidth / stageWidth, paneHeight / stageHeight);
+  if (paneWidth <= 0 || paneHeight <= 0 || paneFit <= 0) {
+    return wardrobeCard.zoom;
+  }
+  const zoomW = (wardrobeCard.zoom * refFit * paneWidth) / (wardrobeCard.width * paneFit);
+  const zoomH = (wardrobeCard.zoom * refFit * paneHeight) / (wardrobeCard.height * paneFit);
+  return Math.min(zoomW, zoomH);
+}
+
 export type StageFrame = {
   width: number;
   height: number;
