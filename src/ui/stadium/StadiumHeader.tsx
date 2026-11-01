@@ -8,7 +8,9 @@ import { useSharedValue } from 'react-native-reanimated';
 import { todAt } from '../../actor';
 import { skyAt, solarHour } from '../../actor/sky';
 import { formatSlot } from '../../sim/stadium';
+import type { PetState } from '../../sim/types';
 import { fontFamily } from '../font';
+import { LobbyPet } from '../lobby/LobbyPet';
 import type { Env } from '../skia/env';
 import { clamp01, hash, noise, rect } from '../skia/ink';
 import { drawSkyPane } from '../skia/sky';
@@ -17,6 +19,7 @@ import { isLandscapeSplit } from '../wideLayout';
 import { stadiumPlates, type StadiumCut } from './stadiumPlate';
 
 type Props = {
+  pet: PetState;
   nextStart: number | null;
   reducedMotion: boolean;
   /** False once this lobby is no longer the screen being shown. */
@@ -89,7 +92,7 @@ function drawConfetti(c: SkCanvas, width: number, height: number, env: Env): voi
   }
 }
 
-export function StadiumHeader({ nextStart, reducedMotion, active = true }: Props) {
+export function StadiumHeader({ pet, nextStart, reducedMotion, active = true }: Props) {
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const cut: StadiumCut = isLandscapeSplit(windowWidth, windowHeight) ? 'tall' : 'phone';
   const plate = stadiumPlates[cut];
@@ -215,6 +218,7 @@ export function StadiumHeader({ nextStart, reducedMotion, active = true }: Props
       <Canvas pointerEvents="none" style={StyleSheet.absoluteFill}>
         <Picture picture={picture} />
       </Canvas>
+      <LobbyPet pet={pet} reducedMotion={reducedMotion} feet={tall ? 0.9 : 0.97} size={tall ? 0.26 : 0.32} />
       <View pointerEvents="none" style={[styles.copy, tall ? styles.copyTall : styles.copyPhone]}>
         <Text accessibilityRole="header" style={styles.title}>
           Stadium
@@ -233,7 +237,7 @@ const styles = StyleSheet.create({
     right: 20,
     alignItems: 'center',
   },
-  copyPhone: { top: 108 },
+  copyPhone: { top: 72 },
   copyTall: { top: 120 },
   title: {
     fontFamily: fontFamily.fredokaBold,

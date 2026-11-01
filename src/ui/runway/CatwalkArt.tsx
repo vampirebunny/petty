@@ -3,14 +3,16 @@ import { Image, StyleSheet, Text, View, useWindowDimensions } from 'react-native
 
 import { themeById } from '../../runway/catalog';
 import { themePreview } from '../../runway/themePreviews';
+import type { PetState } from '../../sim/types';
 import { fontFamily } from '../font';
 import { LobbyHero } from '../lobby/LobbyHero';
+import { LobbyPet } from '../lobby/LobbyPet';
 import { lobbyHeroFill } from '../lobby/heroes';
 import { isLandscapeSplit } from '../wideLayout';
 
 const stageFill = lobbyHeroFill.catwalk;
 
-export function LobbyBanner({ reducedMotion }: { reducedMotion: boolean }) {
+export function LobbyBanner({ pet, reducedMotion }: { pet?: PetState; reducedMotion: boolean }) {
   const { width, height } = useWindowDimensions();
   const tall = isLandscapeSplit(width, height);
   return (
@@ -21,6 +23,9 @@ export function LobbyBanner({ reducedMotion }: { reducedMotion: boolean }) {
         reducedMotion={reducedMotion}
         label="A lit fashion-show stage"
       >
+        {pet ? (
+          <LobbyPet pet={pet} reducedMotion={reducedMotion} feet={tall ? 0.9 : 0.98} size={tall ? 0.24 : 0.3} />
+        ) : null}
         <Text style={[styles.strut, tall ? styles.strutTall : styles.strutPhone]}>Strut your stuff</Text>
       </LobbyHero>
     </View>

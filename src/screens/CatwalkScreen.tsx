@@ -744,7 +744,7 @@ export function CatwalkScreen({
 
   const art =
     step === 'lobby' || step === 'past' || step === 'judge' ? (
-      <LobbyBanner reducedMotion={reducedMotion} />
+      <LobbyBanner pet={step === 'lobby' ? pet : undefined} reducedMotion={reducedMotion} />
     ) : step === 'backstage' ? (
       <BackstageStage themeId={themeId}>
         <OutfitPreview

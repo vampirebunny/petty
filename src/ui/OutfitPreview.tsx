@@ -88,7 +88,7 @@ function applyPreviewMotion(actor: Actor, t: number, sleeping: boolean, pose: Ou
       actor.x = 320 - WALK_SPAN + local * WALK_SPAN * 2;
       faceWalk(actor, goingRight ? 1 : -1);
     }
-  } else if (pose === 'sit') {
+  } else if (pose === 'sit' || pose === 'idle') {
     actor.pose.walk = 0;
     actor.pose.sit = 1;
     actor.pose.headTurn = 1;

@@ -640,7 +640,7 @@ export function StadiumScreen({
     );
   }
 
-  const art = <StadiumHeader nextStart={slots[0]?.startsAt ?? null} reducedMotion={reducedMotion} />;
+  const art = <StadiumHeader pet={pet} nextStart={slots[0]?.startsAt ?? null} reducedMotion={reducedMotion} />;
   const subScreen = screen === 'friendSetup' || screen === 'friendRoom' || screen === 'ticket';
   const headerBar = (
           <View style={styles.headerBar} pointerEvents="box-none">

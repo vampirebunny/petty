@@ -17,7 +17,7 @@ Build the Stadium place on the map: where players see upcoming races, sign up, g
 - No speech balloons over pets; no tooltips or banners on the starting gate or during races.
 - The Stadium needs a connection. Offline: show the header plus a friendly "The Stadium needs internet to race" state with a back button. Everything else in the app keeps working offline.
 - Use **server time** for every countdown (keep a server-clock offset); never trust the device clock for slot times.
-- Respect the OS "reduce motion" setting: the Stadium header keeps the current sky and stays still (section 2).
+- Respect the OS "reduce motion" setting: the Stadium header keeps the current sky and stays still, and the pet stays seated (section 2).
 
 ---
 
@@ -41,7 +41,9 @@ The header is the stadium illustration over the same live sky as the park, the l
 
 The sky in both plates is transparent. Behind it, draw the shared sky (`skyAt`, sun, moon, clouds, rainbow) and the same rain and snow. Each phone uses its own local time and weather. Confetti still falls over the art. Reduce motion keeps the illustration and the current sky, without drifting clouds, confetti, or precipitation. Redrawing pauses in the background.
 
-"Stadium" and the next race time are real text over the hero, under the control row, not drawn into the art. The back button, the Boop Boop app mark, and the same pink settings button as the living room and bedroom sit on the left. The pet chip stays on the right (name, level, class). A waiting friend request puts the same red dot on that settings button. Opening Settings covers the Stadium and returns to the same screen.
+The pet stands on the track in the current outfit, in front of the art. An awake pet idles: the 3/4 sit (blink, breath, a slow wag) and a short walk that stays on the track. Asleep, the pet lies with eyes closed and tail still, with only the slow sleep breath. Reduce Motion keeps that pet seated. The same hero, pet included, stays on the ticket, sign-up, friend setup, waiting room, and starting gate. A race stays full screen.
+
+"Stadium" and the next race time are real text over the hero, above the pet, not drawn into the art. On a phone the title sits higher so the pet has the track. The back button, the Boop Boop app mark, and the same pink settings button as the living room and bedroom sit on the left. The pet chip stays on the right (name, level, class). A waiting friend request puts the same red dot on that settings button. Opening Settings covers the Stadium and returns to the same screen.
 
 ## 3. Lobby (screen 1)
 

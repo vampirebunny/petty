@@ -12,6 +12,7 @@ import { fontFamily } from '../ui/font';
 import { HandlePrompt } from '../ui/HandleScreen';
 import { HeaderBrand } from '../ui/HeaderBrand';
 import { LobbyHero } from '../ui/lobby/LobbyHero';
+import { LobbyPet } from '../ui/lobby/LobbyPet';
 import { GoSomewhere } from '../ui/refresh/GoSomewhere';
 import { StatStrip } from '../ui/refresh/StatStrip';
 import { lobbyHeroFill, lobbyPhoneAspect } from '../ui/lobby/heroes';
@@ -85,6 +86,7 @@ export function ArcadeScreen({ pet, reducedMotion, pendingFriends = false, onSet
 
   const art = (
     <LobbyHero venue="arcade" cut={split ? 'tall' : 'phone'} reducedMotion={reducedMotion} label="Glowing game cabinets">
+      <LobbyPet pet={pet} reducedMotion={reducedMotion} feet={split ? 0.9 : 0.97} size={split ? 0.28 : 0.42} />
       <HeaderBrand
         style={[styles.brand, split ? styles.brandTall : styles.brandPhone]}
         uid="arcade-settings"
