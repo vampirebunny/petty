@@ -1,8 +1,10 @@
 import { getSupabase } from '../compliance/supabase';
+import { parseShowDetail, parseShowList, type RecentInvitee, type RunwayShowDetail, type RunwayShowSummary } from './showRead';
 
 export type RunwayRpcError =
   | 'auth'
   | 'deadline_past'
+  | 'deadline_too_soon'
   | 'invitees'
   | 'theme'
   | 'track'
@@ -130,10 +132,64 @@ export async function hideRunwayShowRemote(showId: string): Promise<RpcResult<{ 
   }
 }
 
+function rpcError(data: unknown, errored: boolean): RunwayRpcError | null {
+  if (errored || data == null) {
+    return errored ? 'unknown' : 'offline';
+  }
+  if (typeof data === 'object' && data && 'error' in data && (data as { error?: unknown }).error) {
+    return ((data as { error: string }).error as RunwayRpcError) ?? 'unknown';
+  }
+  return null;
+}
+
+export async function getRunwayShow(showId: string): Promise<RpcResult<RunwayShowDetail>> {
+  const supabase = getSupabase();
+  if (!supabase) {
+    return { ok: false, error: 'offline' };
+  }
+  try {
+    const { data, error } = await supabase.rpc('get_runway_show', { p_show_id: showId });
+    const code = rpcError(data, Boolean(error));
+    if (code) {
+      return { ok: false, error: code };
+    }
+    const detail = parseShowDetail(data);
+    if (!detail) {
+      return { ok: false, error: 'unknown' };
+    }
+    return { ok: true, data: detail };
+  } catch {
+    return { ok: false, error: 'offline' };
+  }
+}
+
+export async function listMyRunwayShows(): Promise<RpcResult<{ shows: RunwayShowSummary[]; recent: RecentInvitee[] }>> {
+  const supabase = getSupabase();
+  if (!supabase) {
+    return { ok: false, error: 'offline' };
+  }
+  try {
+    const { data, error } = await supabase.rpc('list_my_runway_shows');
+    const code = rpcError(data, Boolean(error));
+    if (code) {
+      return { ok: false, error: code };
+    }
+    const list = parseShowList(data);
+    if (!list) {
+      return { ok: false, error: 'unknown' };
+    }
+    return { ok: true, data: list };
+  } catch {
+    return { ok: false, error: 'offline' };
+  }
+}
+
 export function runwayErrorCopy(error: RunwayRpcError): string {
   switch (error) {
     case 'deadline_past':
       return 'Pick a deadline in the future.';
+    case 'deadline_too_soon':
+      return 'Pick a deadline at least 10 minutes from now.';
     case 'costume_taken':
       return 'Someone already claimed that costume. Pick another piece.';
     case 'voted':

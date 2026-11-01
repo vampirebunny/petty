@@ -349,7 +349,7 @@ export function RunwayView({ show, viewerSubmissionId, reducedMotion, onDone }: 
       const elapsedInBeat = Math.max(0, (now - beatStartRef.current) / 1000);
       const scrollMode = venueScrolls(beat.stepId);
 
-      // Scroll in stack units (same as docs/boopboop-venues and the strips mock).
+      // Scroll in stack units (venueLayerLayout).
       if (scrollMode === 'out') {
         scrollRef.current = beatScrollStartRef.current + strutStageSpeed * elapsedInBeat;
       } else if (scrollMode === 'back') {

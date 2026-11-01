@@ -18,15 +18,29 @@ Each player submits 3 looks; the show's creator sets the theme and the music.
 - **3 looks:** each look is built from the player's owned wardrobe items (Closet) plus any available runway costume pieces (see Costumes). A look can use several pieces. Each look needs at least one piece, closet or costume.
 - **One piece per slot:** choosing another closet item or costume for a slot replaces what was there. Closet items and costumes share hat, glasses, neckwear, jacket, and boots. Back is costumes only. Closet `OutfitSlot` stays the five everyday slots; costumes use the same names plus `back`.
 - **Music:** one track from a list stored in Supabase for the whole show. The inviter picks it for a friend show (invitees hear it but don't choose it); the player picks it for a solo show. Playback loops that track for every round and every model, including across skips. The app mute switch silences it. If the track is missing locally, play silently. No error, no fallback track, and **no bundled runway music** (keeps the binary small). Source files are the ten re-encoded MP3s listed under Music seed (128 kbps stereo). Host them in the public Storage bucket `catwalk-music` (same public-read pattern as `background-music`). Object names match the filenames and `runway_tracks.audio_path`. The client downloads every object into `Documents/catwalk-music/` when Home runs `prepareRemoteMusic` (and again on foreground / network restore), skipping any file that already exists with size > 0 — there is no content-hash check. To ship an updated take of a track, upload under a **new** object name and point `audio_path` / the client `fileName` at it.
-- **Theme:** solo shows, the player picks it. Friend shows, the inviter picks it when sending invites, and it applies to everyone. The theme sets the venue background only — every theme shares the same 23-piece costume catalog. The theme picker shows a still of each venue (Skia composite of the layered SVGs + static lit FX): 2 columns on phones, 3 on mid-width, 4 on wide tablets.
-- **Music picker:** each row has a play control that previews ~10 seconds of the downloaded track (with a small sound-bars animation while it plays). Tapping the title chooses the track and continues. Missing local audio stays silent.
-- **Backstage:** wardrobe-style look builder on a dark grey page, with a live pet preview of the current look (3/4 sit pose). Closet sections use the Closet tiles; the costume rack uses the PNG thumbnails. Picking anything in an occupied slot replaces it, whether the old piece was a Closet item or a costume.
+- **Theme:** solo shows, the player picks it. Friend shows, the inviter picks it when sending invites, and it applies to everyone. The theme sets the venue only — every theme shares the same 23-piece costume catalog. The picker shows a large still of the selected theme (left pane on a widescreen split, top on a phone) and a 2-column grid of baked thumbnails. The still stays put while the grid scrolls. It fills its pane (`cover`); on a phone the pane is 4:3 so the crop matches the thumbnails. The stills are `assets/runway-themes/<id>.png` (`@2x` / `@3x`), cut from each show set with the lighting baked in. Tapping a thumbnail selects it; Continue moves on.
+- **Music:** a dropdown, not its own screen. A solo player picks it on Backstage. A host picks it on Invite friends, and after the invites go out it is locked. Invitees see it read-only ("picked by @host") with a play control. The play control previews ~10 seconds of the downloaded track (sound bars while it plays). Missing local audio stays silent.
+- **Lobby:** the hero is `assets/runway/lobby-hero.png` (`@2x` / `@3x`; `lobby-hero.svg` is the vector beside it). "Strut your stuff" is drawn as text over the clear center. Show invites sit under the banner, then Invite friends, Solo show, and Past Shows. Widescreen puts the banner on the left and the controls in a phone-width column, the same split Stadium uses.
+- **Backstage:** the light page (`#FBF4FF`). The pet sits in a 3/4 sit pose over the selected theme still. That preview stays put (left pane on a widescreen split, top on a phone) while the closet scrolls. Look 1/2/3 chips stay pinned under the preview. Closet sections and the costume rack stay stacked in the scroll under the chips. "Next: Look N" stays pinned at the bottom, outside that scroll, and advances the pinned look tab. On the last look the button is "Start the show" (solo) or "Submit looks" (friends). Picking anything in an occupied slot replaces it, whether the old piece was a Closet item or a costume.
 - **Snapshot on submit:** the three looks lock forever. Store each worn item's id and a copy of the colorway it resolved to (its colors and its clothing pattern, which live together on the item). Store each costume the same way. Later Closet changes, and a later recolor of the catalog item, do not change the show. Playback uses the current drawing code for that shape with the saved colorway. There is no new closet model: players still pick items, not a color and a pattern on their own.
 - **No theme tags on wardrobe items.** Costumes are shared across themes (no theme-tag filtering).
 
 ## Costumes
 
-Art lives in `assets/runway-costumes/`: `rack/` PNG thumbnails (`@2x` / `@3x`) for the backstage rack, `worn/` SVGs drawn on the pet, and `catalog.json`. Frames, attach rules, draw order and the Closet-id overlap are in `docs/boopboop-costumes/README.md`; the fit reference is `docs/Runway Costume Pieces.html`.
+Art lives in `assets/runway-costumes/`: `rack/` PNG thumbnails (`@2x` / `@3x`) for the backstage rack, `worn/` SVGs drawn on the pet, and `catalog.json`. Worn XML is generated into `src/runway/costumeSvgXml.ts`. Attach is in `src/ui/skia/costumeWorn.ts` and `src/ui/skia/cosmetics.ts`.
+
+Reference rig (side-view dog, facing +x, ground y 0): head radius 21 at (54, −88), body 92 × 48 at (0, −56), leg width 10.
+
+| Slot | Origin | Placement |
+| --- | --- | --- |
+| hat | head center | Head position and pitch; scale `headR / 21` |
+| glasses | head center | Lenses on the near eye (reference (6, −4), r 3.8), scale `eyeR / 3.8`. Mustache on the muzzle (reference (17, 7), rx 14), scale `muzzle.rx / 14`. Clamp 0.7–1.4 × `headR / 21` |
+| neckwear | neck (40, −66) | Chin; scale `headR / 21` |
+| jacket | body center | `(0, bodyY)`; scale x `bodyLen / 92`, y `bodyH / 48`. Skip worn art on the front and back passes |
+| back | withers (14, −80) | Torso rotation; the withers point follows 3/4 foreshorten and pose scale; scale `bodyH / 48` |
+| boots | each paw | Shin angle; scale `legWidth / 10`; far paws darkened 28% |
+
+Draw order: far legs → far boots → tail → neck and body → jacket → near legs → near boots → back → neckwear → head → glasses → hat. The eye mask is drawn over the eye, then the near eye is drawn again so it shows through the hole. Some costume ids match Closet items (`crown`, `bowtie`, `vest`, `bandana`); worn art is chosen by the `costume: true` flag, not by id.
 
 - **Shared 23-piece catalog:** every theme uses the same rack (hat, glasses, neckwear, jacket, back, boots). There are no theme-specific or wildcard seed tables.
 - **Runway-only:** costume pieces never enter the Closet, are never owned, and never appear in playdate outfit rotations.
@@ -56,7 +70,9 @@ Friends submit anytime before a deadline. A contestant can't peek until they've 
 
 - Invitees, and the host, can submit anytime up to the deadline.
 - A player can't watch any other submission until they've submitted their own. A judge-only player has no looks to submit, so this wait does not apply to them.
-- An invitee who opens the invite after the deadline sees: "Submissions are closed, but you can still be a judge! We'll let you know when voting opens." If voting is already open, take them straight to watching.
+- An invitee who opens the invite after the deadline sees a modal: "Submissions are closed, but you can still be a judge! We'll let you know when voting opens." If voting is already open, open the vote screen. After submitting, and before voting opens, the status screen shows the countdown, who has submitted, and "Watch submitted shows".
+- The vote screen is one row per contestant and a single "Cast my vote". It does not offer a per-row replay.
+- Results show the winner banner (every pet tied for the top count), each vote total, "Watch the show again", and "Back to The Catwalk".
 - The host follows the same rule. If the host has not submitted when the deadline arrives, they become a judge: they do not walk, and they can still vote.
 
 **Voting**
@@ -83,7 +99,7 @@ Shows play in rounds, one round per look: every model walks once per round, the 
 - **Music:** the show's one track loops for the entire show, including across skips. Scene background music is held for the whole time the runway is open (start to the end modal), including when the track is missing or music is muted. Music holds are per owner (`holdMusic(on, owner)`: `runway`, `runwayPreview`, `arcade`), so one releasing can't bring scene music back under another.
 - **End of show:** the runway track stops, the last frame holds, and a one-second applause plays (`assets/sounds/vvqne-applause-383901.mp3`, with the fade-out baked into the file; it follows the pet-sounds switch). There is no applause during the show. A FunModal ("That's a wrap!") offers **Replay** (restarts the show and its track) or **Return to The Catwalk**. Skipping past the last round lands on the same modal.
 - **Zoom:** closer than the home scene, less than the Closet close-up. The full pet (top of a hat down to boots) stays in frame.
-- **Venue:** v2 show-set layers (7 SVGs + `fx.json` per theme). Placement, paw y 687, stack 990, and FX order are in `docs/boopboop-venues/README.md`. Runtime art lives in `assets/runway/<theme>/`. The pet never collides with anything.
+- **Venue:** seven SVG layers plus `fx.json` per theme, in `assets/runway/<theme>/`. The app embeds them in `src/runway/venueSvgXml.ts` and `src/runway/venueFxData.ts`. Stack is 990 px, paws at y 687, tile 1200 px. Layer y, height, and scroll speed are `venueLayerLayout` in `src/runway/venue.ts`. Draw order and live FX (beams, follow spot, LED chase, flashes, particles, theme extras) are `src/ui/runway/venueFx.ts`. Reduced motion keeps the set lit and still. The pet never collides with anything.
 - **Turning:** use the existing in-between turn view, never a flat flip.
 
 ### The strut
@@ -177,6 +193,7 @@ Suggested tables; adjust names to match existing conventions. Costume claims and
 - Votes store the voter only to enforce one vote each, and that vote cannot be changed. The app never displays who voted for whom. Account deletion removes the voter id and keeps the tally.
 - `poll_closes_at` is `voting_opens_at` plus the poll length (15 minutes). Set both when voting opens.
 - Theme and costume catalogs ship in the client (`src/runway/catalog.ts`) and are mirrored in Supabase seed tables. Track **metadata** is the same pattern (`runway_tracks` + client list). Track **audio** is Storage-only: downloaded like remote scene music (`src/audio/remoteCatwalkMusic.ts`), not like the Pet Shop catalog.
+- Show rows are not readable with SELECT. `get_runway_show(show_id)` returns one show the caller hosts or is invited to (contestants, claims, and — only after they have submitted, become a judge, or voting/results are open — other players' looks). Vote counts are included only after `results_revealed_at`. `list_my_runway_shows()` returns the caller's shows for the lobby and Past Shows, plus the five friends they invited most recently. Both are `security definer` and granted to `authenticated`.
 
 ## Placeholder content
 

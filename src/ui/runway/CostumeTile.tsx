@@ -78,8 +78,10 @@ const styles = StyleSheet.create({
   wrap: { flex: 1, minWidth: 0 },
   dim: { opacity: 0.5 },
   tile: {
-    backgroundColor: '#48484E',
-    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    borderWidth: 3,
+    borderColor: 'transparent',
     paddingVertical: 8,
     paddingHorizontal: 4,
     alignItems: 'center',
@@ -87,7 +89,8 @@ const styles = StyleSheet.create({
     minHeight: 108,
   },
   worn: {
-    backgroundColor: '#5A4A7A',
+    backgroundColor: '#EFE9FF',
+    borderColor: '#6E4FC0',
   },
   art: { width: 56, height: 56 },
   badge: {
@@ -115,8 +118,8 @@ const styles = StyleSheet.create({
     zIndex: 2,
   },
   label: {
-    fontFamily: fontFamily.regular,
-    color: '#F4F1EA',
+    fontFamily: fontFamily.semibold,
+    color: '#4A4670',
     fontSize: 11,
     textAlign: 'center',
     lineHeight: 13,
@@ -124,13 +127,13 @@ const styles = StyleSheet.create({
   wornLabel: { fontFamily: fontFamily.fredokaSemibold },
   countdown: {
     fontFamily: fontFamily.fredokaSemibold,
-    color: '#C9B6FF',
+    color: '#6E4FC0',
     fontSize: 10,
     textAlign: 'center',
   },
   taken: {
     fontFamily: fontFamily.fredokaSemibold,
-    color: '#FFAD7A',
+    color: '#4B3B7A',
     fontSize: 10,
     textAlign: 'center',
   },

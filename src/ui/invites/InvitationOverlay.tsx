@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
 import Svg, { Ellipse, Path, Polygon, Rect } from 'react-native-svg';
@@ -10,7 +10,7 @@ import { inviteConfig } from '../../invites/config';
 import type { Invitation } from '../../invites/types';
 import { classLabel, eventLabel, formatCountdown, formatSlot } from '../../sim/stadium';
 import { fontFamily } from '../font';
-import { ThemeStill } from '../runway/ThemeStill';
+import { themePreview } from '../../runway/themePreviews';
 import { themeBands } from './themeBands';
 
 type Stage = 'closed' | 'opening' | 'reveal' | 'leaving';
@@ -274,7 +274,11 @@ function RunwayCard({ invitation }: { invitation: Extract<Invitation, { type: 'r
           setArtW((current) => (current === next ? current : next));
         }}
       >
-        {artW > 0 ? <ThemeStill themeId={invitation.themeId} width={artW} height={112} fit="cover" radius={0} /> : <View style={styles.themeArt} />}
+        {artW > 0 && themePreview(invitation.themeId) ? (
+          <Image source={themePreview(invitation.themeId)!} style={styles.themeArt} resizeMode="cover" />
+        ) : (
+          <View style={styles.themeArt} />
+        )}
         <View style={[styles.themeBand, { backgroundColor: band.band }]}>
           <Text style={[styles.themeEyebrow, { color: band.eyebrow }]}>THEME</Text>
           <Text style={[styles.themeName, { color: band.name }]}>{invitation.themeName}</Text>

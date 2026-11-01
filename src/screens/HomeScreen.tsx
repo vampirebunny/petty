@@ -151,7 +151,7 @@ import { friendGameInviteOpen } from '../invites/session';
 import { useNpcInvitation } from '../invites/useNpcInvitation';
 import type { RunwayInvitation } from '../invites/types';
 import { InvitationOverlay } from '../ui/invites/InvitationOverlay';
-import { onFriendModalRequest } from '../friends/open';
+import { onFriendModalRequest, onRunwayShowRequest } from '../friends/open';
 import { clearPendingAdd, readPendingAdd, savePendingAdd } from '../friends/pendingAdd';
 import { friendPromptShouldShow, newestRequestAt, readFriendSeenAt, writeFriendSeenAt } from '../friends/prompt';
 import { listenForFriendPushes, registerFriendPushToken } from '../friends/push';
@@ -482,6 +482,7 @@ export default function HomeScreen({ petApi }: Props) {
   const [arcadeOpen, setArcadeOpen] = useState(false);
   const [catwalkOpen, setCatwalkOpen] = useState(false);
   const [runwaySeed, setRunwaySeed] = useState<RunwayInvitation | null>(null);
+  const [runwayShowId, setRunwayShowId] = useState<string | null>(null);
   const [stadiumOpen, setStadiumOpen] = useState(false);
   const [raceSeed, setRaceSeed] = useState<{ eventId: string; event: 'funRun' | 'dockDive' | 'sniffOut' | 'trickShow' | 'hurdles' | 'weave' | 'obstacle'; startsAt: number } | null>(null);
   const [stadiumGate, setStadiumGate] = useState(0);
@@ -896,6 +897,14 @@ export default function HomeScreen({ petApi }: Props) {
   }, []);
 
   useEffect(() => {
+    const unsubRunway = onRunwayShowRequest((id) => {
+      if (!id) {
+        return;
+      }
+      setRunwaySeed(null);
+      setRunwayShowId(id);
+      setCatwalkOpen(true);
+    });
     const unsubModal = onFriendModalRequest(() => {
       closeFindFriends();
       setForceRequests(true);
@@ -912,6 +921,7 @@ export default function HomeScreen({ petApi }: Props) {
     void flushCloudHopScore();
     void flushStayTime();
     return () => {
+      unsubRunway();
       unsubModal();
       unsubHandle();
       unsubAccount();
@@ -2244,10 +2254,12 @@ export default function HomeScreen({ petApi }: Props) {
         owned={owned}
         reducedMotion={reducedMotion}
         seed={runwaySeed}
+        showId={runwayShowId}
         onClose={() => {
           commitPet({ ...state, roadSpot: 'catwalk', asleep: false });
           setCatwalkOpen(false);
           setRunwaySeed(null);
+          setRunwayShowId(null);
         }}
       />,
     );

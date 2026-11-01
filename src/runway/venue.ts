@@ -12,7 +12,7 @@ export const venueLayerFiles = [
   '7-front.svg',
 ] as const;
 
-/** Stack positions from docs/boopboop-venues/README.md (v2). */
+/** Stack positions for the v2 show set. */
 export const venueLayerLayout = [
   { y: 0, height: 600, speed: 0.1 },
   { y: 0, height: 600, speed: 0.3 },
@@ -44,7 +44,7 @@ export function venueScale(screenHeight: number): number {
 
 /**
  * Parallax offset for a layer. `scroll` is in stack (unscaled) px — same units as
- * docs/boopboop-venues and the strips mock: offset = -(((scroll × k × s) mod tw) + tw) % tw.
+ * offset = -(((scroll × k × s) mod tw) + tw) % tw.
  */
 export function layerOffset(scroll: number, speed: number, scale: number): number {
   const tile = venueTileWidth * scale;
