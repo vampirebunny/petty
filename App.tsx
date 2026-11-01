@@ -85,9 +85,12 @@ export default function App() {
         if (
           kind == null ||
           kind === 'race' ||
+          kind === 'friend_game_call' ||
           kind === 'friend_request' ||
           kind === 'friend_game' ||
+          kind === 'friend_game_accepted' ||
           kind === 'runway_show' ||
+          kind === 'runway_submitted' ||
           kind === 'runway_vote' ||
           kind === 'runway_results'
         ) {

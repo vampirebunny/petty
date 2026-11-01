@@ -15,6 +15,7 @@ type Props = {
   role?: CandyRole;
   disabled?: boolean;
   compact?: boolean;
+  lines?: number;
   onPress?: () => void;
   accessibilityLabel?: string;
   style?: StyleProp<ViewStyle>;
@@ -22,7 +23,7 @@ type Props = {
 
 const roleTint = { primary: tints.pink, go: tints.mint, friends: tints.lilac } as const;
 
-export function CandyButton({ label, role = 'primary', disabled = false, compact = false, onPress, accessibilityLabel, style }: Props) {
+export function CandyButton({ label, role = 'primary', disabled = false, compact = false, lines = 1, onPress, accessibilityLabel, style }: Props) {
   const uid = useId().replace(/:/g, '');
   const press = () => {
     if (disabled || !onPress) {
@@ -39,11 +40,15 @@ export function CandyButton({ label, role = 'primary', disabled = false, compact
         accessibilityLabel={accessibilityLabel ?? label}
         accessibilityState={{ disabled }}
         onPress={press}
-        style={({ pressed }) => [styles.hit, compact && styles.compact, pressed && !disabled && styles.squish, style]}
+        style={[styles.hit, compact && styles.compact, style]}
       >
-        <View style={[styles.secondary, compact && styles.compactFace, disabled && styles.dim]}>
-          <Text style={[styles.secondaryText, compact && styles.compactText]}>{label}</Text>
-        </View>
+        {({ pressed }) => (
+          <View style={[styles.secondary, compact && styles.compactFace, disabled && styles.dim, pressed && !disabled && styles.pressed]}>
+            <Text style={[styles.secondaryText, compact && styles.compactText, lines > 1 && styles.wrap]} numberOfLines={lines}>
+              {label}
+            </Text>
+          </View>
+        )}
       </Pressable>
     );
   }
@@ -55,7 +60,7 @@ export function CandyButton({ label, role = 'primary', disabled = false, compact
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityState={{ disabled }}
       onPress={press}
-      style={({ pressed }) => [styles.hit, compact && styles.compact, pressed && !disabled && styles.squish, style]}
+      style={[styles.hit, compact && styles.compact, style]}
     >
       {({ pressed }) => (
         <CandyShell
@@ -66,7 +71,7 @@ export function CandyButton({ label, role = 'primary', disabled = false, compact
           uid={uid}
           style={[styles.face, compact && styles.compactFace]}
         >
-          <Text style={[styles.label, compact && styles.compactText, { color: candyInk(tint) }]} numberOfLines={1}>
+          <Text style={[styles.label, compact && styles.compactText, lines > 1 && styles.wrap, { color: candyInk(tint) }]} numberOfLines={lines}>
             {label}
           </Text>
           {!disabled && !compact ? <Sparkle style={styles.sparkle} opacity={0.9} /> : null}
@@ -83,8 +88,8 @@ const styles = StyleSheet.create({
   compact: {
     alignSelf: 'auto',
   },
-  squish: {
-    transform: [{ scale: 0.97 }],
+  pressed: {
+    opacity: 0.92,
   },
   face: {
     minHeight: minTouch + 6,
@@ -102,6 +107,9 @@ const styles = StyleSheet.create({
   },
   compactText: {
     fontSize: 14,
+  },
+  wrap: {
+    textAlign: 'center',
   },
   sparkle: {
     position: 'absolute',

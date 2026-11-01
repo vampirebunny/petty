@@ -4,7 +4,8 @@ import * as Notifications from 'expo-notifications';
 import { readServerOffsetMs } from '../db/accountMeta';
 import type { PetState } from '../sim/types';
 import { gameplayConfig } from '../sim/gameplayConfig';
-import { eventLabel, raceReminderAt, racesOf } from '../sim/stadium';
+import { eventLabel, raceReminderAt, upcomingRaceCall, type RaceCall } from '../sim/stadium';
+import { foregroundNotificationBehavior } from '../friends/present';
 import { planReminders, reminderCopy } from './nextReminder';
 import { track } from '../analytics/analytics';
 import { scheduleNpcPush } from '../invites/push';
@@ -18,12 +19,7 @@ function ensureHandler(): void {
   }
   handlerReady = true;
   Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowBanner: true,
-      shouldShowList: true,
-      shouldPlaySound: false,
-      shouldSetBadge: false,
-    }),
+    handleNotification: async (notification) => foregroundNotificationBehavior(notification),
   });
 }
 
@@ -46,6 +42,49 @@ export async function cancelRaceCall(): Promise<void> {
     await Notifications.cancelScheduledNotificationAsync(raceCallId);
   } catch {
     // Already fired or never scheduled.
+  }
+}
+
+function raceCallNotification(pet: PetState, call: RaceCall) {
+  const event = call.kind === 'signup' ? call.signup.event : call.call.event;
+  const data =
+    call.kind === 'signup'
+      ? { kind: 'race', entryId: call.signup.entryId, raceId: call.signup.raceId }
+      : { kind: 'friend_game_call', raceId: call.call.raceId };
+  return {
+    title: `${pet.name}'s race starts in ${Math.round(gameplayConfig.races.callMs / 1000)} seconds! 🏁`,
+    body: `${eventLabel(event)} is about to begin. Tap to head to the Stadium.`,
+    data,
+  };
+}
+
+/** Schedules or clears only the gate reminder. Care reminders stay as they are. */
+export async function scheduleRaceCall(pet: PetState, now = Date.now()): Promise<void> {
+  if (Platform.OS === 'web') {
+    return;
+  }
+  try {
+    const offset = readServerOffsetMs();
+    const call = upcomingRaceCall(pet, now + offset);
+    if (!call) {
+      await cancelRaceCall();
+      return;
+    }
+    const current = await Notifications.getPermissionsAsync();
+    if (current.status !== 'granted') {
+      return;
+    }
+    await Notifications.scheduleNotificationAsync({
+      identifier: raceCallId,
+      content: raceCallNotification(pet, call),
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: new Date(call.at - offset),
+        channelId: Platform.OS === 'android' ? 'care' : undefined,
+      },
+    });
+  } catch {
+    // The in-app gate call still shows if the local notification cannot be scheduled.
   }
 }
 
@@ -106,20 +145,15 @@ export async function syncReminder(
         importance: Notifications.AndroidImportance.DEFAULT,
       });
     }
-    const signup = racesOf(pet).signup;
     const offset = readServerOffsetMs();
-    const raceAt = raceReminderAt(pet, now + offset);
-    if (signup && raceAt != null) {
+    const call = upcomingRaceCall(pet, now + offset);
+    if (call) {
       await Notifications.scheduleNotificationAsync({
         identifier: raceCallId,
-        content: {
-          title: `${pet.name}'s race starts in ${Math.round(gameplayConfig.races.callMs / 1000)} seconds! 🏁`,
-          body: `${eventLabel(signup.event)} is about to begin. Tap to head to the Stadium.`,
-          data: { kind: 'race', entryId: signup.entryId, raceId: signup.raceId },
-        },
+        content: raceCallNotification(pet, call),
         trigger: {
           type: Notifications.SchedulableTriggerInputTypes.DATE,
-          date: new Date(raceAt - offset),
+          date: new Date(call.at - offset),
           channelId: Platform.OS === 'android' ? 'care' : undefined,
         },
       });

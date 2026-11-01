@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { serverNow } from '../../db/accountMeta';
+import { cancelRaceCall } from '../../reminders/notifications';
 import type { RaceView } from '../../stadium/api';
 import { fetchFriendGame, friendGameHeartbeat, type FriendGameMember, type FriendGameState } from '../../stadium/friendGames';
 import { gameplayConfig } from '../../sim/gameplayConfig';
@@ -24,6 +25,10 @@ type Props = {
   onLeave: (game: FriendGameState | null) => void;
   onRace: (race: RaceView) => void;
   onExit: (exit: FriendRoomExit) => void;
+  /** Latest waiting-room state, so the gate reminder can follow a moved start time. */
+  onUpdate: (game: FriendGameState) => void;
+  /** Put the local gate reminder back when the player leaves this room. */
+  onRest: () => void;
 };
 
 const lateMs = 30_000;
@@ -34,13 +39,22 @@ function statusChip(member: FriendGameMember): { label: string; tone: 'ready' | 
   return { label: 'Waiting', tone: 'wait' };
 }
 
-export function FriendRoom({ raceId, petName, now, leaving, onLeave, onRace, onExit }: Props) {
+export function FriendRoom({ raceId, petName, now, leaving, onLeave, onRace, onExit, onUpdate, onRest }: Props) {
   const [game, setGame] = useState<FriendGameState | null>(null);
-  const handlers = useRef({ onRace, onExit });
+  const handlers = useRef({ onRace, onExit, onUpdate });
+  const restRef = useRef(onRest);
 
   useEffect(() => {
-    handlers.current = { onRace, onExit };
-  }, [onExit, onRace]);
+    handlers.current = { onRace, onExit, onUpdate };
+    restRef.current = onRest;
+  }, [onExit, onRace, onRest, onUpdate]);
+
+  useEffect(() => {
+    void cancelRaceCall();
+    return () => {
+      restRef.current();
+    };
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -86,6 +100,8 @@ export function FriendRoom({ raceId, petName, now, leaving, onLeave, onRace, onE
       const view = result.data;
       latest = view;
       setGame(view);
+      handlers.current.onUpdate(view);
+      void cancelRaceCall();
       if (view.status === 'cancelled') {
         done = true;
         handlers.current.onExit({

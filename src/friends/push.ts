@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
-import { Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
 
 import { getSupabase } from '../compliance/supabase';
 import { currentOwner } from '../db/currentOwner';
@@ -9,8 +9,9 @@ import { localDay } from '../economy/clock';
 import { markInvitePushOpened } from '../invites/push';
 import { requestNpcInvite } from '../invites/session';
 import { updateCounters } from '../invites/store';
-import { requestGate } from '../stadium/raceCall';
-import { requestFriendGame, requestFriendModal, requestRunwayShow } from './open';
+import { requestFriendCall, requestGate } from '../stadium/raceCall';
+import { requestFriendAcceptNotice, requestFriendAcceptOpen, requestFriendGame, requestFriendModal, requestRunwayNotice, requestRunwayShow } from './open';
+import { foregroundNotificationBehavior } from './present';
 
 const tokenKey = 'petty.friends.pushToken';
 
@@ -75,7 +76,7 @@ export async function requestFriendPermission(): Promise<boolean> {
   return true;
 }
 
-type PushData = { kind?: string; raceId?: string; showId?: string };
+type PushData = { kind?: string; raceId?: string; showId?: string; joined?: unknown };
 
 function pushData(notification: Notifications.Notification): PushData | undefined {
   const data = notification.request.content.data;
@@ -85,16 +86,20 @@ function pushData(notification: Notifications.Notification): PushData | undefine
   return data as PushData;
 }
 
-/** Foreground pushes are discarded unless a handler answers. Same presentation as care reminders. */
+/** Foreground pushes are discarded unless a handler answers. Accept notices stay in-app. */
 function presentWhileOpen(): void {
   Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowBanner: true,
-      shouldShowList: true,
-      shouldPlaySound: false,
-      shouldSetBadge: false,
-    }),
+    handleNotification: async (notification) => foregroundNotificationBehavior(notification),
   });
+}
+
+function joinedOf(data: PushData | undefined): boolean {
+  return data?.joined === true || data?.joined === 'true' || data?.joined === 1;
+}
+
+function acceptMessage(notification: Notifications.Notification): string {
+  const body = notification.request.content.body;
+  return typeof body === 'string' && body.trim().length > 0 ? body : 'A friend joined the game!';
 }
 
 function noteFriendPush(): void {
@@ -111,6 +116,7 @@ function openFriendPush(data: PushData | undefined): void {
     data?.kind === 'friend_request' ||
     data?.kind === 'friend_game' ||
     data?.kind === 'runway_show' ||
+    data?.kind === 'runway_submitted' ||
     data?.kind === 'runway_vote' ||
     data?.kind === 'runway_results'
   ) {
@@ -122,7 +128,12 @@ function openFriendPush(data: PushData | undefined): void {
   if (data?.kind === 'friend_game') {
     requestFriendGame(typeof data.raceId === 'string' ? data.raceId : null);
   }
-  if (data?.kind === 'runway_show' || data?.kind === 'runway_vote' || data?.kind === 'runway_results') {
+  if (
+    data?.kind === 'runway_show' ||
+    data?.kind === 'runway_submitted' ||
+    data?.kind === 'runway_vote' ||
+    data?.kind === 'runway_results'
+  ) {
     requestRunwayShow(typeof data.showId === 'string' ? data.showId : null);
   }
 }
@@ -142,6 +153,16 @@ export function listenForFriendPushes(): void {
       requestNpcInvite();
       return;
     }
+    if (data?.kind === 'friend_game_call') {
+      requestFriendCall(typeof data.raceId === 'string' ? data.raceId : null);
+      return;
+    }
+    if (data?.kind === 'friend_game_accepted') {
+      noteFriendPush();
+      const raceId = typeof data.raceId === 'string' ? data.raceId : '';
+      if (raceId) requestFriendAcceptOpen({ raceId, joined: joinedOf(data) });
+      return;
+    }
     openFriendPush(data);
     if (data?.kind === 'race') {
       requestGate(typeof data.raceId === 'string' ? data.raceId : null);
@@ -151,6 +172,29 @@ export function listenForFriendPushes(): void {
   Notifications.addNotificationReceivedListener((notification) => {
     const data = pushData(notification);
     if (data?.kind === 'npc_invite') {
+      return;
+    }
+    if (data?.kind === 'friend_game_accepted') {
+      if (AppState.currentState !== 'active') return;
+      const raceId = typeof data.raceId === 'string' ? data.raceId : '';
+      if (!raceId) return;
+      noteFriendPush();
+      requestFriendAcceptNotice({ raceId, message: acceptMessage(notification), joined: joinedOf(data) });
+      return;
+    }
+    if (
+      data?.kind === 'runway_show' ||
+      data?.kind === 'runway_submitted' ||
+      data?.kind === 'runway_vote' ||
+      data?.kind === 'runway_results'
+    ) {
+      if (AppState.currentState !== 'active') return;
+      const showId = typeof data.showId === 'string' ? data.showId : '';
+      if (!showId) return;
+      noteFriendPush();
+      const body = notification.request.content.body;
+      const message = typeof body === 'string' && body.trim().length > 0 ? body : 'A fashion show is ready.';
+      requestRunwayNotice({ showId, message });
       return;
     }
     openFriendPush(data);

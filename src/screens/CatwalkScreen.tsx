@@ -21,6 +21,7 @@ import {
   getRunwayShow,
   hideRunwayShowRemote,
   listMyRunwayShows,
+  notifyRunwayShow,
   respondRunwayInvite,
   runwayErrorCopy,
   submitRunwayLooks,
@@ -29,9 +30,15 @@ import { equipFromDraft } from '../runway/lookEquip';
 import { buildSoloShow, freezePlayerLooks } from '../runway/npcs';
 import { friendNextUnlockAt, friendUnlockCount, soloShowRack } from '../runway/rack';
 import {
+  joinedShow,
+  joinedShowHint,
+  lobbyShowLabel,
   localShowFromDetail,
+  mergeShowDetails,
   mySubmissionId,
   routeShow,
+  showNeedsLooks,
+  votingStillOpen,
   type RunwayContestant,
   type RunwayShowDetail,
   type RunwayShowSummary,
@@ -151,7 +158,7 @@ export function CatwalkScreen({ pet, ownerId, owned, reducedMotion, seed = null,
   const [friends, setFriends] = useState<FriendRow[]>([]);
   const [friendQuery, setFriendQuery] = useState('');
   const [chosen, setChosen] = useState<string[]>([]);
-  const [deadlineHours, setDeadlineHours] = useState<12 | 24 | 48>(24);
+  const [deadlineMinutes, setDeadlineMinutes] = useState<30 | 60 | 1440>(30);
   const [voteFor, setVoteFor] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -224,6 +231,13 @@ export function CatwalkScreen({ pet, ownerId, owned, reducedMotion, seed = null,
       setLooks(emptyLooks(petRef.current.equipped));
       setLookIndex(0);
     }
+    if (!force && routed === 'vote' && next.submissions.length > 0) {
+      setShow(localShowFromDetail(next));
+      setViewerId(mySubmissionId(next));
+      setWatchReturn('vote');
+      setStep('runway');
+      return;
+    }
     setStep(routed);
   }, []);
 
@@ -249,15 +263,46 @@ export function CatwalkScreen({ pet, ownerId, owned, reducedMotion, seed = null,
   }, [openDetail, seed, showId]);
 
   useEffect(() => {
+    if (step !== 'status' || !liveId || npcFriend) {
+      return;
+    }
+    let alive = true;
+    const pull = () => {
+      void getRunwayShow(liveId).then((result) => {
+        if (!alive || !result.ok) {
+          return;
+        }
+        const routed = routeShow(result.data, Date.now());
+        if (routed === 'vote' || routed === 'results') {
+          openDetail(result.data);
+          return;
+        }
+        setDetail((current) => (current && current.id === result.data.id ? mergeShowDetails(current, result.data) : result.data));
+      });
+    };
+    pull();
+    const timer = setInterval(pull, 15_000);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+    };
+  }, [step, liveId, npcFriend, openDetail]);
+
+  useEffect(() => {
     if (step !== 'lobby' && step !== 'past') {
       return;
     }
     let alive = true;
     if (readAccountLinked()) {
       void listMyRunwayShows().then((result) => {
-        if (!alive || !result.ok) {
+        if (!alive) {
           return;
         }
+        if (!result.ok) {
+          setError(runwayErrorCopy(result.error));
+          return;
+        }
+        setError(null);
         setRemoteShows(result.data.shows);
         setRecent(result.data.recent);
       });
@@ -457,6 +502,10 @@ export function CatwalkScreen({ pet, ownerId, owned, reducedMotion, seed = null,
       setBusy(false);
       return;
     }
+    void notifyRunwayShow(liveId, 'runway_submitted');
+    if (result.data.voting_opened) {
+      void notifyRunwayShow(liveId, 'runway_vote');
+    }
     const loaded = await getRunwayShow(liveId);
     setBusy(false);
     if (!loaded.ok) {
@@ -475,13 +524,14 @@ export function CatwalkScreen({ pet, ownerId, owned, reducedMotion, seed = null,
     setBusy(true);
     setError(null);
     stopRunwayPreview();
-    const deadline = new Date(Date.now() + deadlineHours * 60 * 60 * 1000).toISOString();
+    const deadline = new Date(Date.now() + deadlineMinutes * 60 * 1000).toISOString();
     const created = await createRunwayShow(themeId, trackId, deadline, chosen);
     if (!created.ok) {
       setError(runwayErrorCopy(created.error));
       setBusy(false);
       return;
     }
+    void notifyRunwayShow(created.data.show_id, 'runway_show');
     const loaded = await getRunwayShow(created.data.show_id);
     setBusy(false);
     if (!loaded.ok) {
@@ -508,7 +558,8 @@ export function CatwalkScreen({ pet, ownerId, owned, reducedMotion, seed = null,
       setError(runwayErrorCopy(loaded.error));
       return;
     }
-    openDetail(loaded.data, 'backstage');
+    const late = loaded.data.deadlineAt <= Date.now();
+    openDetail(loaded.data, late ? undefined : 'backstage');
   };
 
   const declineInvite = async () => {
@@ -534,6 +585,9 @@ export function CatwalkScreen({ pet, ownerId, owned, reducedMotion, seed = null,
       setBusy(false);
       return;
     }
+    if (result.data.results_revealed) {
+      void notifyRunwayShow(liveId, 'runway_results');
+    }
     const loaded = await getRunwayShow(liveId);
     setBusy(false);
     if (!loaded.ok) {
@@ -543,16 +597,35 @@ export function CatwalkScreen({ pet, ownerId, owned, reducedMotion, seed = null,
     openDetail(loaded.data);
   };
 
-  const watchDetail = (next: RunwayShowDetail, back: Step) => {
-    const local = localShowFromDetail(next);
+  const watchDetail = async (next: RunwayShowDetail, back: Step) => {
+    setError(null);
+    const loaded = await getRunwayShow(next.id);
+    const source = loaded.ok ? mergeShowDetails(next, loaded.data) : next;
+    if (loaded.ok) {
+      setDetail(source);
+    }
+    const local = localShowFromDetail(source);
     if (local.submissions.length === 0) {
       setError('Nothing to watch yet.');
       return;
     }
     setShow(local);
-    setViewerId(mySubmissionId(next));
+    setViewerId(mySubmissionId(source) ?? mySubmissionId(next));
     setWatchReturn(back);
     setStep('runway');
+  };
+
+  const watchFresh = async (back: Step) => {
+    if (!detail) {
+      return;
+    }
+    const loaded = await getRunwayShow(detail.id);
+    if (!loaded.ok) {
+      watchDetail(detail, back);
+      return;
+    }
+    setDetail(loaded.data);
+    watchDetail(loaded.data, back);
   };
 
   const openSummary = async (row: RunwayShowSummary) => {
@@ -564,6 +637,20 @@ export function CatwalkScreen({ pet, ownerId, owned, reducedMotion, seed = null,
       return;
     }
     openDetail(loaded.data);
+  };
+
+  const openJoinedShow = async (row: RunwayShowSummary) => {
+    setBusy(true);
+    const loaded = await getRunwayShow(row.id);
+    setBusy(false);
+    if (!loaded.ok) {
+      setError(runwayErrorCopy(loaded.error));
+      return;
+    }
+    const submitted = loaded.data.contestants.some((person) => person.isMe && person.submitted);
+    const needsLooks = !submitted && showNeedsLooks(loaded.data, Date.now());
+    const dismissed = loaded.data.myStatus === 'declined' && loaded.data.resultsRevealedAt == null;
+    openDetail(loaded.data, dismissed ? 'join' : needsLooks ? 'backstage' : undefined);
   };
 
   const removeLocal = async (row: LocalRunwayShow) => {
@@ -588,6 +675,7 @@ export function CatwalkScreen({ pet, ownerId, owned, reducedMotion, seed = null,
         show={show}
         viewerSubmissionId={viewerId ?? show.submissions[0]?.submissionId}
         reducedMotion={reducedMotion}
+        doneLabel={watchReturn === 'vote' ? 'Continue' : 'Return to The Catwalk'}
         onDone={() => {
           if (seed && watchReturn === 'lobby') {
             track('invite_event_completed', { type: 'runway' });
@@ -644,7 +732,8 @@ export function CatwalkScreen({ pet, ownerId, owned, reducedMotion, seed = null,
     </View>
   );
 
-  const lobbyCards = remoteShows.filter((row) => row.resultsRevealedAt == null);
+  const lobbyCards = remoteShows.filter((row) => row.resultsRevealedAt == null && row.myStatus === 'invited' && !row.amHost);
+  const joinedShows = remoteShows.filter((row) => joinedShow(row));
   const query = friendQuery.trim().toLowerCase().replace(/^@/, '');
   const recentIds = new Set(recent.map((row) => row.userId));
   const matched = friends.filter((row) => !query || row.handle.toLowerCase().includes(query));
@@ -698,26 +787,45 @@ export function CatwalkScreen({ pet, ownerId, owned, reducedMotion, seed = null,
     body = (
       <>
         {lobbyCards.length > 0 ? <Text style={styles.section}>Show invites</Text> : null}
-        {lobbyCards.map((row) => (
-          <View key={row.id} style={styles.card}>
-            <View style={styles.inviteRow}>
-              <View style={styles.avatar}><Text style={styles.avatarText}>{initial(row.hostHandle)}</Text></View>
-              <View style={styles.flex}>
-                <Text style={styles.cardTitle}>{row.amHost ? 'Your show' : `@${row.hostHandle} invited you`}</Text>
-                <Text style={styles.cardBody}>
-                  {themeById(row.themeId)?.name ?? row.themeId}
-                  {row.deadlineAt ? ` · submit by ${formatWhen(row.deadlineAt)}` : ''}
-                </Text>
+        {lobbyCards.map((row) => {
+          const action = lobbyShowLabel(row, nowTick);
+          const voted = action === 'Vote already cast; polls still open';
+          return (
+            <View key={row.id} style={styles.card}>
+              <View style={styles.inviteRow}>
+                <View style={styles.avatar}><Text style={styles.avatarText}>{initial(row.hostHandle)}</Text></View>
+                <View style={styles.flex}>
+                  <Text style={styles.cardTitle}>{row.amHost ? 'Your show' : `@${row.hostHandle} invited you`}</Text>
+                  <Text style={styles.cardBody}>
+                    {themeById(row.themeId)?.name ?? row.themeId}
+                    {row.deadlineAt ? ` · submit by ${formatWhen(row.deadlineAt)}` : ''}
+                  </Text>
+                </View>
               </View>
+              <CandyButton
+                compact={!voted}
+                lines={voted ? 2 : 1}
+                role="friends"
+                label={busy ? 'Opening…' : action}
+                onPress={() => void openSummary(row)}
+              />
             </View>
+          );
+        })}
+        {joinedShows.map((row) => {
+          const theme = themeById(row.themeId)?.name ?? 'Show';
+          const who = row.amHost ? 'Your show' : `@${row.hostHandle}`;
+          return (
             <CandyButton
-              compact
+              key={row.id}
               role="friends"
-              label={busy ? 'Opening…' : row.myStatus === 'invited' ? 'Join' : 'Open'}
-              onPress={() => void openSummary(row)}
+              lines={2}
+              label={`${who} · ${theme}\n${joinedShowHint(row, nowTick)}`}
+              disabled={busy}
+              onPress={() => void openJoinedShow(row)}
             />
-          </View>
-        ))}
+          );
+        })}
         <CandyButton
           role="friends"
           label="Invite friends to a show"
@@ -801,9 +909,11 @@ export function CatwalkScreen({ pet, ownerId, owned, reducedMotion, seed = null,
             return [...ids, row.userId];
           });
         }} style={styles.friendRow}>
-          <View style={styles.avatar}><Text style={styles.avatarText}>{initial(row.handle)}</Text></View>
-          <Text style={styles.cardTitle}>@{row.handle}</Text>
-          <View style={[styles.check, on && styles.checkOn]} />
+          <View pointerEvents="none" style={styles.friendRowInner}>
+            <View style={styles.avatar}><Text style={styles.avatarText}>{initial(row.handle)}</Text></View>
+            <Text style={styles.cardTitle}>@{row.handle}</Text>
+            <View style={[styles.check, on && styles.checkOn]} />
+          </View>
         </Pressable>
       );
     };
@@ -833,12 +943,12 @@ export function CatwalkScreen({ pet, ownerId, owned, reducedMotion, seed = null,
         <Text style={styles.kicker}>Submit by</Text>
         <View style={styles.row}>
           {([
-            [12, '12 hours'],
-            [24, '1 day'],
-            [48, '2 days'],
-          ] as const).map(([hours, label]) => (
-            <Pressable key={hours} onPress={() => setDeadlineHours(hours)} style={[styles.deadline, deadlineHours === hours && styles.deadlineOn]}>
-              <Text style={[styles.deadlineText, deadlineHours === hours && styles.deadlineTextOn]}>{label}</Text>
+            [30, '30 min'],
+            [60, '1 hour'],
+            [1440, '24 hours'],
+          ] as const).map(([minutes, label]) => (
+            <Pressable key={minutes} onPress={() => setDeadlineMinutes(minutes)} style={[styles.deadline, deadlineMinutes === minutes && styles.deadlineOn]}>
+              <Text style={[styles.deadlineText, deadlineMinutes === minutes && styles.deadlineTextOn]}>{label}</Text>
             </Pressable>
           ))}
         </View>
@@ -882,6 +992,9 @@ export function CatwalkScreen({ pet, ownerId, owned, reducedMotion, seed = null,
         ))}
         <View style={styles.rack}>
           <Text style={styles.kicker}>Costume rack</Text>
+          {friendRack && unlockedCount < rack.length ? (
+            <Text style={styles.cardBody}>Costumes begin unlocking in 5 minutes and then every few minutes after that.</Text>
+          ) : null}
           {chunk(rack, tileColumns).map((row, index) => (
             <View key={index} style={styles.rackRow}>
               {row.map((piece) => {
@@ -920,6 +1033,8 @@ export function CatwalkScreen({ pet, ownerId, owned, reducedMotion, seed = null,
     );
   } else if (step === 'status' && detail) {
     const closeIn = detail.deadlineAt - nowTick;
+    const waitingOnFriends = detail.contestants.some((row) => row.status === 'invited' || row.status === 'accepted');
+    const runwayReady = detail.deadlineAt <= nowTick || (detail.votingOpensAt != null && detail.votingOpensAt <= nowTick) || !waitingOnFriends;
     body = (
       <>
         <Text style={styles.cardTitle}>{detail.myVoteSubmissionId ? 'Your vote is in' : "You're in!"}</Text>
@@ -941,14 +1056,23 @@ export function CatwalkScreen({ pet, ownerId, owned, reducedMotion, seed = null,
             <Text style={styles.cardBody}>{row.submitted ? 'Submitted' : row.status === 'judge' ? 'Judge' : 'Not yet'}</Text>
           </View>
         ))}
-        <Text style={styles.cardBody}>{'Voting opens when everyone submits or at the deadline. We\u2019ll let you know.'}</Text>
         {error ? <Text style={styles.error}>{error}</Text> : null}
-        <CandyButton
-          role="primary"
-          label={`Watch submitted shows (${detail.submissions.length})`}
-          disabled={detail.submissions.length === 0}
-          onPress={() => watchDetail(detail, 'status')}
-        />
+        {runwayReady ? (
+          <CandyButton
+            role="primary"
+            label={`Watch submitted shows (${detail.submissions.length})`}
+            disabled={detail.submissions.length === 0}
+            onPress={() => {
+              const voteNext = detail.myVoteSubmissionId == null && detail.votingOpensAt != null && detail.votingOpensAt <= nowTick;
+              void watchFresh(voteNext ? 'vote' : 'status');
+            }}
+          />
+        ) : (
+          <>
+            <Text style={styles.cardBody}>Come back when all friends have submitted.</Text>
+            <CandyButton role="secondary" label="Return to lobby" onPress={() => setStep('lobby')} />
+          </>
+        )}
       </>
     );
   } else if (step === 'vote' && detail) {
@@ -1006,7 +1130,7 @@ export function CatwalkScreen({ pet, ownerId, owned, reducedMotion, seed = null,
           </View>
         ))}
         {error ? <Text style={styles.error}>{error}</Text> : null}
-        <CandyButton role="primary" label="Watch the show again" disabled={detail.submissions.length === 0} onPress={() => watchDetail(detail, 'results')} />
+        <CandyButton role="primary" label="Watch the show again" disabled={detail.submissions.length === 0} onPress={() => void watchFresh('results')} />
         <CandyButton role="secondary" label="Back to The Catwalk" onPress={() => setStep('lobby')} />
       </>
     );
@@ -1016,27 +1140,44 @@ export function CatwalkScreen({ pet, ownerId, owned, reducedMotion, seed = null,
         <Text style={styles.cardTitle}>Past Shows</Text>
         {history.length === 0 && remoteShows.length === 0 ? <Text style={styles.cardBody}>No shows yet.</Text> : null}
         {remoteShows.map((row) => {
-          const chip = row.resultsRevealedAt
+          const revealed = row.resultsRevealedAt != null;
+          const voting = votingStillOpen(row, nowTick);
+          const chip = revealed
             ? row.winnerHandles.length > 0
               ? `Most votes: ${row.winnerHandles.map((handle) => `@${handle}`).join(' & ')}`
-              : 'Results in'
-            : row.votingOpensAt != null && row.votingOpensAt <= nowTick
-              ? 'Voting open'
+              : 'No votes yet'
+            : row.pollClosesAt != null && row.pollClosesAt <= nowTick
+              ? 'Results coming'
               : 'Friend show';
           return (
-            <Pressable key={row.id} style={styles.card} onPress={() => void openSummary(row)}>
-              <View style={styles.pastArt}>
-                <ThemeBanner themeId={row.themeId} />
-              </View>
-              <Text style={styles.cardTitle}>{themeById(row.themeId)?.name ?? row.themeId}</Text>
-              <Text style={styles.cardBody}>
-                Friend show · {row.contestantCount} contestants · {row.createdAt ? formatWhen(row.createdAt) : ''}
-              </Text>
+            <View key={row.id} style={styles.card}>
+              <Pressable onPress={() => void openSummary(row)}>
+                <View style={styles.pastArt}>
+                  <ThemeBanner themeId={row.themeId} />
+                </View>
+                <Text style={styles.cardTitle}>{themeById(row.themeId)?.name ?? row.themeId}</Text>
+                <Text style={styles.cardBody}>
+                  Friend show · {row.contestantCount} contestants · {row.createdAt ? formatWhen(row.createdAt) : ''}
+                </Text>
+                {revealed && row.standings.length > 0
+                  ? row.standings.map((standing) => (
+                      <Text key={`${row.id}-${standing.handle}`} style={styles.cardBody}>
+                        @{standing.handle} · {standing.votes} {standing.votes === 1 ? 'vote' : 'votes'}
+                      </Text>
+                    ))
+                  : null}
+              </Pressable>
               <View style={styles.rowBetween}>
-                <View style={styles.chip}><Text style={styles.chipText}>{chip}</Text></View>
+                {voting ? (
+                  <CandyButton compact role="friends" label="Voting still open" onPress={() => void openSummary(row)} />
+                ) : revealed && row.standings.length > 0 ? (
+                  <View style={styles.chip}><Text style={styles.chipText}>Results</Text></View>
+                ) : (
+                  <View style={styles.chip}><Text style={styles.chipText}>{chip}</Text></View>
+                )}
                 <Pressable onPress={() => void hideRemote(row)}><Text style={styles.link}>Hide</Text></Pressable>
               </View>
-            </Pressable>
+            </View>
           );
         })}
         {history.filter((row) => row.mode === 'solo').map((row) => (
@@ -1140,7 +1281,8 @@ const styles = StyleSheet.create({
   cardTitle: { fontFamily: fontFamily.fredokaSemibold, fontSize: 16, color: ink },
   cardBody: { fontFamily: fontFamily.regular, fontSize: 14, color: softInk },
   inviteRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  friendRow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#FFFFFF', borderRadius: 18, padding: 10 },
+  friendRow: { backgroundColor: '#FFFFFF', borderRadius: 18, padding: 10 },
+  friendRowInner: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   avatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#EFE9FF', alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontFamily: fontFamily.fredokaBold, color: '#4B3B7A', fontSize: 16 },
   flex: { flex: 1 },

@@ -52,6 +52,8 @@ export type RunwayShowSummary = {
   contestantCount: number;
   submittedCount: number;
   winnerHandles: string[];
+  standings: { handle: string; votes: number }[];
+  voted: boolean;
 };
 
 export type RecentInvitee = { userId: string; handle: string };
@@ -66,7 +68,44 @@ function millis(value: unknown): number | null {
     return null;
   }
   const parsed = Date.parse(value);
-  return Number.isFinite(parsed) ? parsed : null;
+  if (Number.isFinite(parsed)) {
+    return parsed;
+  }
+  const iso = Date.parse(value.replace(' ', 'T'));
+  return Number.isFinite(iso) ? iso : null;
+}
+
+function asObject(value: unknown): Record<string, unknown> | null {
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value) as unknown;
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
+      return null;
+    }
+    return null;
+  }
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  return null;
+}
+
+function asArray(value: unknown): unknown[] {
+  if (Array.isArray(value)) {
+    return value;
+  }
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value) as unknown;
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
 }
 
 function str(value: unknown): string | null {
@@ -115,44 +154,70 @@ function pieceOf(value: unknown): FrozenPiece | null {
   };
 }
 
+function lookNumberOf(value: unknown): 1 | 2 | 3 | null {
+  const n = typeof value === 'number' ? value : typeof value === 'string' && value.trim() !== '' ? Number(value) : NaN;
+  if (n === 1 || n === 2 || n === 3) {
+    return n;
+  }
+  return null;
+}
+
+function piecesOf(value: unknown): FrozenPiece[] {
+  let piecesRaw = value;
+  const nested = asObject(piecesRaw);
+  if (nested) {
+    piecesRaw = nested.pieces ?? piecesRaw;
+  }
+  return asArray(piecesRaw).map(pieceOf).filter((piece) => piece != null) as FrozenPiece[];
+}
+
 function looksOf(value: unknown): FrozenLook[] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
+  const raw = asArray(value);
   const looks: FrozenLook[] = [];
-  for (const item of value) {
-    if (!item || typeof item !== 'object') {
+  for (const item of raw) {
+    const row = asObject(item);
+    if (!row) {
       continue;
     }
-    const number = (item as { look_number?: unknown }).look_number;
-    if (number !== 1 && number !== 2 && number !== 3) {
+    const number = lookNumberOf(row.look_number ?? row.lookNumber);
+    if (number == null) {
       continue;
     }
-    const pieces = Array.isArray((item as { pieces?: unknown }).pieces)
-      ? ((item as { pieces: unknown[] }).pieces.map(pieceOf).filter((piece) => piece != null) as FrozenPiece[])
-      : [];
-    looks.push({ lookNumber: number, pieces });
+    looks.push({ lookNumber: number, pieces: piecesOf(row.pieces) });
   }
+  if (looks.length === 0) {
+    raw.forEach((item, index) => {
+      if (index > 2) {
+        return;
+      }
+      const row = asObject(item);
+      if (!row) {
+        return;
+      }
+      looks.push({ lookNumber: (index + 1) as 1 | 2 | 3, pieces: piecesOf(row.pieces) });
+    });
+  }
+  looks.sort((a, b) => a.lookNumber - b.lookNumber);
   return looks;
 }
 
 function petOf(value: unknown, petName: string): RunwayPetSnap | null {
-  if (!value || typeof value !== 'object') {
+  const row = asObject(value);
+  if (!row) {
     return null;
   }
-  const row = value as Record<string, unknown>;
-  const look = row.look;
-  if (!look || typeof look !== 'object' || typeof (look as { coat?: unknown }).coat !== 'string') {
+  const look = asObject(row.look);
+  if (!look || typeof look.coat !== 'string') {
     return null;
   }
-  const breedId = str(row.breedId);
+  const breedId = str(row.breedId) ?? str(row.breed_id);
   if (!breedId) {
     return null;
   }
   const ageDays = typeof row.ageDays === 'number' ? row.ageDays : 0;
   const weight = typeof row.weight === 'number' ? row.weight : 1;
   return {
-    snapshotId: str(row.snapshotId) ?? `snap-${breedId}`,
+    snapshotId: str(row.snapshotId) ?? str(row.snapshot_id) ?? `snap-${breedId}`,
     source: row.source === 'npc' || row.source === 'friend' || row.source === 'self' ? row.source : 'friend',
     name: str(row.name) ?? petName,
     species: row.species === 'cat' ? 'cat' : 'dog',
@@ -163,22 +228,36 @@ function petOf(value: unknown, petName: string): RunwayPetSnap | null {
   };
 }
 
-function submissionsOf(value: unknown): RunwaySubmission[] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-  const rows: RunwaySubmission[] = [];
-  for (const item of value) {
-    if (!item || typeof item !== 'object') {
+function standingsOf(value: unknown): { handle: string; votes: number }[] {
+  const rows: { handle: string; votes: number }[] = [];
+  for (const item of asArray(value)) {
+    const row = asObject(item);
+    if (!row) {
       continue;
     }
-    const row = item as Record<string, unknown>;
-    const submissionId = str(row.submission_id);
-    const petName = str(row.pet_name) ?? 'Pet';
-    const pet = petOf(row.pet_snapshot, petName);
+    const handle = str(row.handle);
+    const votes = typeof row.votes === 'number' ? row.votes : typeof row.votes === 'string' ? Number(row.votes) : NaN;
+    if (!handle || !Number.isFinite(votes)) {
+      continue;
+    }
+    rows.push({ handle, votes });
+  }
+  return rows;
+}
+
+function submissionsOf(value: unknown): RunwaySubmission[] {
+  const rows: RunwaySubmission[] = [];
+  for (const item of asArray(value)) {
+    const row = asObject(item);
+    if (!row) {
+      continue;
+    }
+    const submissionId = str(row.submission_id) ?? str(row.submissionId);
+    const petName = str(row.pet_name) ?? str(row.petName) ?? 'Pet';
+    const pet = petOf(row.pet_snapshot ?? row.petSnapshot, petName);
     const looks = looksOf(row.looks);
-    const submittedAt = millis(row.submitted_at);
-    if (!submissionId || !pet || looks.length === 0 || submittedAt == null) {
+    const submittedAt = millis(row.submitted_at ?? row.submittedAt) ?? 0;
+    if (!submissionId || !pet || looks.length === 0) {
       continue;
     }
     rows.push({
@@ -288,6 +367,8 @@ export function parseShowList(data: unknown): { shows: RunwayShowSummary[]; rece
         contestantCount: typeof show.contestant_count === 'number' ? show.contestant_count : 0,
         submittedCount: typeof show.submitted_count === 'number' ? show.submitted_count : 0,
         winnerHandles: strList(show.winner_handles),
+        standings: standingsOf(show.standings),
+        voted: show.voted === true,
       });
     }
   }
@@ -307,6 +388,95 @@ export function parseShowList(data: unknown): { shows: RunwayShowSummary[]; rece
   return { shows, recent };
 }
 
+export function votingStillOpen(
+  show: { votingOpensAt: number | null; pollClosesAt: number | null; resultsRevealedAt: number | null },
+  now: number,
+): boolean {
+  return (
+    show.resultsRevealedAt == null &&
+    show.votingOpensAt != null &&
+    show.votingOpensAt <= now &&
+    (show.pollClosesAt == null || show.pollClosesAt > now)
+  );
+}
+
+/** A show this player started, accepted, or dismissed. */
+export function joinedShow(show: { amHost: boolean; myStatus: string; resultsRevealedAt: number | null }): boolean {
+  if (show.myStatus === 'withdrawn') {
+    return false;
+  }
+  if (show.myStatus === 'declined') {
+    return !show.amHost;
+  }
+  if (show.myStatus === 'invited') {
+    return show.amHost;
+  }
+  return show.amHost || show.myStatus === 'accepted' || show.myStatus === 'submitted' || show.myStatus === 'judge';
+}
+
+/** Looks are still open for this player to pick. */
+export function showNeedsLooks(
+  show: { amHost: boolean; myStatus: string; deadlineAt: number | null },
+  now: number,
+): boolean {
+  if (show.myStatus === 'submitted' || show.myStatus === 'judge') {
+    return false;
+  }
+  if (show.deadlineAt != null && show.deadlineAt <= now) {
+    return false;
+  }
+  return show.amHost || show.myStatus === 'accepted';
+}
+
+export function joinedShowHint(
+  show: {
+    amHost: boolean;
+    myStatus: string;
+    deadlineAt: number | null;
+    votingOpensAt: number | null;
+    pollClosesAt: number | null;
+    resultsRevealedAt: number | null;
+    voted: boolean;
+  },
+  now: number,
+): string {
+  if (show.resultsRevealedAt != null) {
+    return 'Results in';
+  }
+  if (show.myStatus === 'declined') {
+    return 'You were invited';
+  }
+  if (showNeedsLooks(show, now)) {
+    return 'Select looks';
+  }
+  if (votingStillOpen(show, now)) {
+    return show.voted ? 'Vote already cast; polls still open' : 'Cast your vote';
+  }
+  if (show.myStatus === 'judge' || (show.deadlineAt != null && show.deadlineAt <= now)) {
+    return 'Submissions are closed';
+  }
+  return 'You already submitted';
+}
+
+export function lobbyShowLabel(
+  show: {
+    myStatus: string;
+    votingOpensAt: number | null;
+    pollClosesAt: number | null;
+    resultsRevealedAt: number | null;
+    voted: boolean;
+  },
+  now: number,
+): string {
+  if (show.myStatus === 'invited') {
+    return 'Join';
+  }
+  if (votingStillOpen(show, now)) {
+    return show.voted ? 'Vote already cast; polls still open' : 'Cast your vote';
+  }
+  return 'Open';
+}
+
 /** Where a loaded friend show should open. */
 export function routeShow(show: RunwayShowDetail, now: number): ShowStep {
   const revealed = show.resultsRevealedAt != null || (show.pollClosesAt != null && show.pollClosesAt <= now);
@@ -324,10 +494,32 @@ export function routeShow(show: RunwayShowDetail, now: number): ShowStep {
   if (submitted) {
     return 'status';
   }
-  if (show.myStatus === 'invited') {
+  if (show.myStatus === 'invited' || show.myStatus === 'declined') {
     return 'join';
   }
   return 'backstage';
+}
+
+/** Keep every friend already parsed, and take a newer copy when the reload has their looks. */
+export function mergeShowDetails(previous: RunwayShowDetail, next: RunwayShowDetail): RunwayShowDetail {
+  if (previous.id !== next.id) {
+    return next;
+  }
+  const byId = new Map<string, RunwaySubmission>();
+  for (const row of previous.submissions) {
+    byId.set(row.submissionId, row);
+  }
+  for (const row of next.submissions) {
+    const prior = byId.get(row.submissionId);
+    if (!prior || row.looks.length >= prior.looks.length) {
+      byId.set(row.submissionId, row);
+    }
+  }
+  return {
+    ...next,
+    submissions: [...byId.values()].sort((a, b) => a.submittedAt - b.submittedAt),
+    contestants: next.contestants.length > 0 ? next.contestants : previous.contestants,
+  };
 }
 
 export function localShowFromDetail(show: RunwayShowDetail): LocalRunwayShow {

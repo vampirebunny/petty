@@ -13,7 +13,7 @@ export const runwayConfig = {
   /** Minutes between subsequent tranches. */
   dripTrancheGapMin: 2,
   /** Friend show deadline must be at least this many minutes from create. */
-  minDeadlineMin: 10,
+  minDeadlineMin: 30,
   pollCloseMin: 15,
   poseEnabled: true,
   runwayZoom: 1.8,

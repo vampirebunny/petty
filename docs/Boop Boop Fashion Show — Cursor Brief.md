@@ -52,7 +52,7 @@ Draw order: far legs → far boots → tail → neck and body → jacket → nea
 - **Claim on submit (friends):** selecting a piece doesn't reserve it. The claim happens on the server when the player submits. If a piece was claimed by someone else while the player was building, block submission and show: "Someone already claimed the \[piece\]. Pick another piece for Look \[n\]."
 - **Drip unlock (friend shows):** unlock in catalog order by tranche — **8 / 8 / 7** at `invites_sent_at + 5m`, then `+2m`, then `+2m` (full rack by ~9m). Locked tiles show a countdown. Config: `dripFirstUnlockMin`, `dripTrancheGapMin`, `dripTrancheSizes`.
 - **Solo shows:** seed a shared show rack of `round(23/3) = 8` pieces from the catalog (seeded by show id). Player and NPCs share that rack; NPCs only take unclaimed leftovers. Store `soloRackIds` on the local show for stable replay.
-- **Friend deadline:** at least **10 minutes** from create time (client + `create_runway_show`).
+- **Friend deadline:** the host picks **30 minutes, 1 hour, or 24 hours**. Reject a time already past or less than 30 minutes from create (client + `create_runway_show`).
 
 ## Friend shows
 
@@ -62,15 +62,15 @@ Friends submit anytime before a deadline. A contestant can't peek until they've 
 
 - Reuse the friend-competition invite picker: up to 5 friends, with the 5 most recently invited friends shown for quick reselection.
 - The inviter picks the theme, the music track, and the deadline, and sends invites via push and in-app notification.
-- **Deadline:** the host picks a calendar day and a time in their own zone. Store that instant in UTC. Each friend sees it in their own zone. Reject a time that is already past or less than 10 minutes from create.
+- **Deadline:** the host picks 30 minutes, 1 hour, or 24 hours from now. Store that instant in UTC. Each friend sees it in their own zone. Reject a time that is already past or less than 30 minutes from create.
 - Show size is the host plus up to 5 invitees (max 6 contestants).
-- An invitee may decline. A decline removes them from the runway and from the vote, and they no longer count as someone the show is waiting on. Being in one show does not block joining or hosting another.
+- An invitee may decline. A decline removes them from the runway and from the vote, and they no longer count as someone the show is waiting on. The invite stays on the lobby list, and that friend can accept it later (`20261031280000_runway_declined_invites.sql`). Being in one show does not block joining or hosting another.
 
 **Submitting**
 
 - Invitees, and the host, can submit anytime up to the deadline.
-- A player can't watch any other submission until they've submitted their own. A judge-only player has no looks to submit, so this wait does not apply to them.
-- An invitee who opens the invite after the deadline sees a modal: "Submissions are closed, but you can still be a judge! We'll let you know when voting opens." If voting is already open, open the vote screen. After submitting, and before voting opens, the status screen shows the countdown, who has submitted, and "Watch submitted shows".
+- A player can't watch submitted shows until every contestant has submitted, or the deadline has passed, whichever comes first. A judge-only player has no looks to submit, so this wait does not apply to them.
+- An invitee who opens the invite after the deadline sees a modal: "Submissions are closed, but you can still be a judge! We'll let you know when voting opens." If voting is already open, open the vote screen. After submitting, and before everyone else has submitted and before the deadline, the status screen shows the countdown, who has submitted, "Come back when all friends have submitted.", and "Return to lobby". "Watch submitted shows" appears once every contestant has submitted or the deadline has passed.
 - The vote screen is one row per contestant and a single "Cast my vote". It does not offer a per-row replay.
 - Results show the winner banner (every pet tied for the top count), each vote total, "Watch the show again", and "Back to The Catwalk".
 - The host follows the same rule. If the host has not submitted when the deadline arrives, they become a judge: they do not walk, and they can still vote.
@@ -80,7 +80,7 @@ Friends submit anytime before a deadline. A contestant can't peek until they've 
 - Voting stays shut until every contestant who has not declined has submitted, or until the deadline. An early submission does not open voting, and it does not start the poll clock.
 - The poll closes 15 minutes after voting opens. That length is a config value. A "last submission plus 15 minutes" time that is already past when voting opens is ignored, so the poll cannot close before anyone can vote.
 - Every invitee can vote, including judge-only players and a host who never submitted. One vote each. It cannot be changed. Players may vote for themselves.
-- Push notifications: when voting opens, and when results are ready.
+- Push notifications: when a friend submits their outfit (every invitee except the submitter, and except anyone who declined), when voting opens, and when results are ready. If the app is open, show the in-app notice instead of a system banner.
 
 **Results**
 

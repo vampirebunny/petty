@@ -252,17 +252,21 @@ export function fetchInvites(): Promise<FriendGameReply<FriendGameInvite[]>> {
   return reply('list_friend_game_invites', {}, parseInvites);
 }
 
-export function respondInvite(
+export async function respondInvite(
   raceId: string,
   action: 'accept' | 'decline',
   petId: string | null,
   replace: boolean,
 ): Promise<FriendGameReply<{ game: FriendGameCreated | null }>> {
-  return reply(
+  const result = await reply(
     'respond_friend_game_invite',
     { p_race_id: raceId, p_action: action, p_pet_id: petId, p_replace: replace },
     (row) => ({ game: createdOf(row) }),
   );
+  if (result.ok && action === 'accept') {
+    void notifyFriendGameAccepted(raceId);
+  }
+  return result;
 }
 
 export function fetchFriendGame(raceId: string): Promise<FriendGameReply<FriendGameState>> {
@@ -284,6 +288,16 @@ export async function notifyFriendGame(raceId: string): Promise<void> {
     await supabase.functions.invoke('notify_friend_game', { body: { raceId } });
   } catch {
     // Friends still see the invite the next time they open the app.
+  }
+}
+
+export async function notifyFriendGameAccepted(raceId: string): Promise<void> {
+  const supabase = getSupabase();
+  if (!supabase) return;
+  try {
+    await supabase.functions.invoke('notify_friend_game_accept', { body: { raceId } });
+  } catch {
+    // The waiting room still shows who joined.
   }
 }
 

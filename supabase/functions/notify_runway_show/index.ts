@@ -22,6 +22,19 @@ Deno.serve(async (req) => {
   if (show.error || !show.data) {
     return json({ error: 'not found' }, 404);
   }
+  if (kind === 'runway_submitted') {
+    const mine = await admin
+      .from('runway_invites')
+      .select('status, submitted')
+      .eq('show_id', showId)
+      .eq('player_id', caller.id)
+      .maybeSingle();
+    const status = mine.data?.status;
+    const submitted = mine.data?.submitted === true || status === 'submitted';
+    if (!submitted || status === 'declined' || status === 'withdrawn') {
+      return json({ error: 'not found' }, 404);
+    }
+  }
   const invites = await admin
     .from('runway_invites')
     .select('player_id')
@@ -46,7 +59,9 @@ Deno.serve(async (req) => {
       ? 'Voting is open at The Catwalk!'
       : kind === 'runway_results'
         ? 'Fashion show results are in!'
-        : `@${handle || 'A friend'} invited you to a fashion show!`;
+        : kind === 'runway_submitted'
+          ? `@${handle || 'A friend'} submitted their outfit!`
+          : `@${handle || 'A friend'} invited you to a fashion show!`;
   if (allowed.length > 0) {
     const tokens = await admin.from('push_tokens').select('token, player_id').in('player_id', allowed);
     const rows = (tokens.data ?? []) as TokenRow[];

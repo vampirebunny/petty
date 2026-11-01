@@ -1,4 +1,4 @@
-import { buildBeats, modelsForViewer, skipToNextModel, skipToNextRound, venueScrolls } from '../playback';
+import { buildBeats, lookForRound, modelsForViewer, skipToNextModel, skipToNextRound, venueScrolls } from '../playback';
 import type { LocalRunwayShow } from '../types';
 
 function show(): LocalRunwayShow {
@@ -66,6 +66,15 @@ describe('runway playback', () => {
     expect(beats[afterModel].modelIndex).not.toBe(beats[0].modelIndex);
     const afterRound = skipToNextRound(beats, 0);
     expect(beats[afterRound].lookIndex).toBe(1);
+  });
+
+  it('plays the outfit for that look number', () => {
+    const looks = [
+      { lookNumber: 3, pieces: [] },
+      { lookNumber: 1, pieces: [] },
+    ];
+    expect(lookForRound(looks, 0)?.lookNumber).toBe(1);
+    expect(lookForRound(looks, 2)?.lookNumber).toBe(3);
   });
 
   it('scrolls only on walkOut and walkBack', () => {

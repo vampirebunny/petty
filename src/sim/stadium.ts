@@ -20,9 +20,17 @@ export type RaceSignup = {
   lane: number;
 };
 
+/** A friend game this pet has joined. Drives the same gate call and local reminder as a signup. */
+export type FriendGameCall = {
+  raceId: string;
+  event: RaceEvent;
+  startsAt: number;
+};
+
 export type RaceRecord = {
   signup: RaceSignup | null;
   entered: boolean;
+  friendGame?: FriendGameCall | null;
 };
 
 export type SkillBlock = {
@@ -66,13 +74,19 @@ export function isRaceClass(value: unknown): value is RaceClass {
   return typeof value === 'string' && (raceClasses as string[]).includes(value);
 }
 
+function friendGameOf(value: RaceRecord['friendGame']): FriendGameCall | null {
+  if (!value || typeof value.raceId !== 'string' || !value.raceId) return null;
+  if (!isRaceEvent(value.event) || typeof value.startsAt !== 'number' || !Number.isFinite(value.startsAt)) return null;
+  return { raceId: value.raceId, event: value.event, startsAt: value.startsAt };
+}
+
 export function racesOf(state: PetState): RaceRecord {
   const record = state.races;
   if (!record) {
-    return { signup: null, entered: false };
+    return { signup: null, entered: false, friendGame: null };
   }
   const signup = record.signup && typeof record.signup.entryId === 'string' ? record.signup : null;
-  return { signup, entered: record.entered === true };
+  return { signup, entered: record.entered === true, friendGame: friendGameOf(record.friendGame) };
 }
 
 const eventLabels: Record<RaceEvent, string> = {
@@ -170,14 +184,61 @@ export function skillBlock(state: PetState, event: RaceEvent): SkillBlock | null
   return null;
 }
 
+export type RaceCall =
+  | { kind: 'signup'; signup: RaceSignup; at: number }
+  | { kind: 'friend'; call: FriendGameCall; at: number };
+
 // The local notification asks the player back to the gate this long before the start.
-export function raceReminderAt(state: PetState, now: number): number | null {
-  const signup = racesOf(state).signup;
-  if (!signup) {
-    return null;
+export function upcomingRaceCall(state: PetState, now: number): RaceCall | null {
+  const record = racesOf(state);
+  const due: RaceCall[] = [];
+  if (record.signup) {
+    const at = record.signup.startsAt - gameplayConfig.races.callMs;
+    if (at > now) due.push({ kind: 'signup', signup: record.signup, at });
   }
-  const at = signup.startsAt - gameplayConfig.races.callMs;
-  return at > now ? at : null;
+  if (record.friendGame) {
+    const at = record.friendGame.startsAt - gameplayConfig.races.callMs;
+    if (at > now) due.push({ kind: 'friend', call: record.friendGame, at });
+  }
+  due.sort((a, b) => a.at - b.at);
+  return due[0] ?? null;
+}
+
+export function raceReminderAt(state: PetState, now: number): number | null {
+  return upcomingRaceCall(state, now)?.at ?? null;
+}
+
+export type SignedUpRace = {
+  id: string;
+  kind: 'signup' | 'friend';
+  event: RaceEvent | null;
+  startsAt: number | null;
+  classId: RaceClass | null;
+};
+
+/** Public sign-ups and the friend game, soonest first. A board id wins over a stale local friend game. */
+export function signedUpRaces(
+  signup: RaceSignup | null,
+  friend: FriendGameCall | null,
+  friendRaceId: string | null,
+): SignedUpRace[] {
+  const rows: SignedUpRace[] = [];
+  if (signup) {
+    rows.push({ id: signup.raceId, kind: 'signup', event: signup.event, startsAt: signup.startsAt, classId: signup.classId });
+  }
+  const friendId = friendRaceId ?? friend?.raceId ?? null;
+  if (friendId && friendId !== signup?.raceId) {
+    const known = friend?.raceId === friendId ? friend : null;
+    rows.push({
+      id: friendId,
+      kind: 'friend',
+      event: known?.event ?? null,
+      startsAt: known?.startsAt ?? null,
+      classId: null,
+    });
+  }
+  rows.sort((a, b) => (a.startsAt ?? Number.MAX_SAFE_INTEGER) - (b.startsAt ?? Number.MAX_SAFE_INTEGER));
+  return rows;
 }
 
 export function withSignup(state: PetState, signup: RaceSignup | null, _now: number): PetState {
@@ -188,13 +249,31 @@ export function withSignup(state: PetState, signup: RaceSignup | null, _now: num
   if (record.signup?.entryId === signup.entryId && record.signup.startsAt === signup.startsAt) {
     return state;
   }
-  return { ...state, races: { signup, entered: record.entered } };
+  return { ...state, races: { ...record, signup } };
+}
+
+export function withFriendGame(state: PetState, call: FriendGameCall | null, _now: number): PetState {
+  const record = racesOf(state);
+  if (call == null) {
+    return record.friendGame == null ? state : { ...state, races: { ...record, friendGame: null } };
+  }
+  const current = record.friendGame;
+  if (current?.raceId === call.raceId && current.event === call.event && current.startsAt === call.startsAt) {
+    return state;
+  }
+  return { ...state, races: { ...record, friendGame: call } };
 }
 
 export function dropEndedSignup(state: PetState, now: number): PetState {
-  const signup = racesOf(state).signup;
-  if (!signup || now < signup.startsAt + gameplayConfig.races.slotMs) {
-    return state;
+  const slot = gameplayConfig.races.slotMs;
+  const record = racesOf(state);
+  let next = state;
+  if (record.signup && now >= record.signup.startsAt + slot) {
+    next = withSignup(next, null, now);
   }
-  return withSignup(state, null, now);
+  const friend = racesOf(next).friendGame;
+  if (friend && now >= friend.startsAt + slot) {
+    next = withFriendGame(next, null, now);
+  }
+  return next;
 }

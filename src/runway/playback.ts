@@ -27,6 +27,11 @@ export type PlaybackBeat = {
   seconds: number;
 };
 
+export function lookForRound<T extends { lookNumber: number }>(looks: T[], lookIndex: number): T | undefined {
+  const number = lookIndex + 1;
+  return looks.find((look) => look.lookNumber === number) ?? looks[lookIndex];
+}
+
 export function buildBeats(show: LocalRunwayShow, viewerSubmissionId?: string): PlaybackBeat[] {
   const models = modelsForViewer(show, viewerSubmissionId);
   const beats: PlaybackBeat[] = [];

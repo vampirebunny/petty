@@ -37,7 +37,10 @@ export function EventIcon({ event, size = 26 }: { event: RaceEvent; size?: numbe
   const Icon = eventIcons[event];
   const color = eventColors[event];
   return (
-    <View style={[styles.iconBadge, { width: size + 18, height: size + 18, borderRadius: (size + 18) / 2, shadowColor: color }]}>
+    <View
+      pointerEvents="none"
+      style={[styles.iconBadge, { width: size + 18, height: size + 18, borderRadius: (size + 18) / 2, shadowColor: color }]}
+    >
       <Icon size={size} strokeWidth={iconStroke + 0.75} color={color} />
     </View>
   );

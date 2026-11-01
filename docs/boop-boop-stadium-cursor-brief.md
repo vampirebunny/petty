@@ -29,7 +29,7 @@ Visual reference: the "Boop Boop Stadium" design canvas, screens 1–5 (Stadium 
 | --- | --- | --- |
 | 1 | Stadium lobby | Entering the Stadium with no active sign-up |
 | 2 | Sign-up sheet | Tapping Sign up on a race card (bottom sheet over the lobby) |
-| 3 | Signed up (ticket) | Entering the Stadium while the pet has an active sign-up; also right after signing up |
+| 3 | Signed up (ticket) | Right after signing up, and from **Your races** on the lobby |
 | 4 | Race call | In-app card 30 s before the start, when the player is anywhere other than the gate |
 | 5 | Starting gate | From 60 s before start, reached from the race call, the push notification, or the ticket |
 | — | Race (placeholder) | At start time; receives the race id and line-up. Built in the next brief |
@@ -62,13 +62,14 @@ On a landscape split the header scene fills the left side. The lobby, ticket, si
 Top to bottom:
 1. Header scene (section 2), with the back-to-map button top left and the pet chip top right (name, level, class).
 2. Energy and mood bars for the pet (existing stat values; they affect race performance).
-3. "Upcoming races" with time-slot buttons for the next 3 slots (e.g. 3:05 / 3:10 / 3:15, each with "in m:ss"). The next slot is selected by default. The list rolls forward as slots start.
-4. Race cards for the selected slot (3 per slot). Each card shows the icon, name, an OPEN or AWAY tag where it applies, who can enter (Dogs / Cats / Dogs & cats), and "x of 6 signed up". Card states:
+3. **Your races**, when the pet is in any: the open-race sign-up and the friend game, soonest first. Each row shows the event, the start time, and the class (or "Friend game"). **Open** goes to that race's page: the ticket for an open race, the waiting room for a friend game. Entering the Stadium always lands on the lobby. Back from the ticket returns here.
+4. "Upcoming races" with time-slot buttons for the next 3 slots (e.g. 3:05 / 3:10 / 3:15, each with "in m:ss"). The next slot is selected by default. The list rolls forward as slots start.
+5. Race cards for the selected slot (3 per slot). Each card shows the icon, name, an OPEN or AWAY tag where it applies, who can enter (Dogs / Cats / Dogs & cats), and "x of 6 signed up". Card states:
    - **Can enter**: pink Sign up button
    - **Missing trick**: lock line ("Requires skills in Jump the Hurdle") and a disabled "Not qualified" pill. Tapping the card offers a link to the Training School.
    - **Wrong species**: disabled "Cats only" / "Dogs only" pill
    - **Resting**: disabled "Resting" pill and the line "Again in m:ss". Only cards of the rested event that start before the rest ends show this.
-5. "Race with friends" (lavender) at the bottom: opens the friend game flow (`docs/boop-boop-friend-games-addendum.md`). Guests get the create-account sheet. While the pet is in a friend game, the lobby shows a button back to its waiting room.
+6. "Race with friends" (lavender) at the bottom: opens the friend game flow (`docs/boop-boop-friend-games-addendum.md`). Guests get the create-account sheet. A game the pet is already in is a row under **Your races**, not a separate button.
 
 **Slot schedule rules (server side):**
 - A slot starts every 5 minutes on the clock (:00, :05, :10…).
@@ -93,14 +94,14 @@ Top to bottom:
 
 ## 5. Signed up, race call, notification (screens 3–4)
 
-**Ticket (screen 3):** shown whenever the player enters the Stadium with an active sign-up, and right after signing up. Shows "YOU'RE IN!", event, time, class, lane; "Gate opens in m:ss" and "Race starts in m:ss"; the note "You don't have to wait here. We'll call you 30 seconds before the start, wherever you are."; "Get [pet] ready" buttons (Play → existing play flow, shown once the gate opens; Mood treat → uses one from the Pantry, showing the owned count, and at 0 offers Visit Pet Shop); before the gate opens, **Wait somewhere else** takes the player to the map; other events in the slot shown disabled ("In a race"); **Withdraw from race** at the bottom.
+**Ticket (screen 3):** shown right after signing up, and when the player opens that race from **Your races**. Entering the Stadium with a sign-up stays on the lobby. Shows "YOU'RE IN!", event, time, class, lane; "Gate opens in m:ss" and "Race starts in m:ss"; the note "You don't have to wait here. We'll call you 30 seconds before the start, wherever you are."; "Get [pet] ready" buttons (Play → existing play flow, shown once the gate opens; Mood treat → uses one from the Pantry, showing the owned count, and at 0 offers Visit Pet Shop); before the gate opens, **Wait somewhere else** takes the player to the map; other events in the slot shown disabled ("In a race"); **Withdraw from race** at the bottom. Back returns to the lobby.
 
 The player is free to leave the Stadium and do anything.
 
-**Local notification:** at sign-up, schedule a local notification for **start − 30 s** (the gate itself still opens at start − 60 s): title "[Pet]'s race starts in 30 seconds! 🏁", body "[Event] is about to begin. Tap to head to the Stadium." Cancel it on withdraw, if the race is cancelled, or if the player is already at the gate. Tapping it opens the app **directly to the starting gate** (deep link with the race id).
+**Local notification:** at sign-up, and when a friend game is joined, schedule a local notification for **start − 30 s** (the gate itself still opens at start − 60 s): title "[Pet]'s race starts in 30 seconds! 🏁", body "[Event] is about to begin. Tap to head to the Stadium." Cancel it on withdraw, if the race is cancelled, or if the player is already at the gate or in that friend game's waiting room. Tapping an open-race reminder opens the app **directly to the starting gate**. Tapping a friend-game reminder (`friend_game_call`) opens that waiting room. While the app is open, the system banner stays hidden and the in-app race call is the notice.
 
-**In-app race call (screen 4):** if the app is open and the player is anywhere other than the gate at start − 30 s (park, home, a mini-game, the Stadium lobby), show the race call card: "RACE CALL / The gate is open!", the event, a live countdown, **Go to the starting gate** (mint) and **Skip this race**.
-- Go to the starting gate jumps straight to the gate. **Skip the map walk** for this jump, since the walk would eat the countdown.
+**In-app race call (screen 4):** if the app is open and the player is anywhere other than the gate (or that friend game's waiting room) at start − 30 s (park, home, a mini-game, The Catwalk, the Stadium lobby), show the race call card: "The gate is open!", the event, a live countdown, **Go to the starting gate** (mint) and **Skip this race**.
+- **Go to the starting gate** leaves the current screen, including The Catwalk, and opens the gate immediately. A friend-game call opens that game's waiting room instead. **Skip the map walk** for this jump, since the walk would eat the countdown.
 - Skip this race = withdraw.
 - In a mini-game: show the card at the end of the current run, or as a small pause-and-ask if the countdown would otherwise run out. Don't interrupt mid-jump without pausing.
 - Don't show it if the player is already at the gate.

@@ -5,8 +5,9 @@ import { arcadeRoundRunning } from '../../audio/arcadeMusic';
 import { serverNow } from '../../db/accountMeta';
 import { cancelRaceCall } from '../../reminders/notifications';
 import { withdrawEntry } from '../../stadium/api';
+import { leaveFriendGame } from '../../stadium/friendGames';
 import { gameplayConfig } from '../../sim/gameplayConfig';
-import { eventLabel, formatCountdown, gatePhase, racesOf, withSignup } from '../../sim/stadium';
+import { eventLabel, formatCountdown, gatePhase, racesOf, withFriendGame, withSignup } from '../../sim/stadium';
 import type { PetState } from '../../sim/types';
 import { setRaceCallOpen } from '../../petCam/session';
 import { FunModal } from '../FunModal';
@@ -17,6 +18,8 @@ type Props = {
   atGate: boolean;
   reducedMotion: boolean;
   onGo: () => void;
+  /** Open this friend game's waiting room. */
+  onFriendGo: (raceId: string) => void;
   onCommit: (pet: PetState) => void;
 };
 
@@ -24,8 +27,10 @@ type Props = {
 const holdForRunMs = 20_000;
 
 // The in-app race call: shows callMs before the start, wherever the player is except the gate itself.
-export function RaceCall({ pet, atGate, reducedMotion, onGo, onCommit }: Props) {
-  const signup = racesOf(pet).signup;
+export function RaceCall({ pet, atGate, reducedMotion, onGo, onFriendGo, onCommit }: Props) {
+  const record = racesOf(pet);
+  const signup = record.signup;
+  const friend = record.friendGame;
   const [now, setNow] = useState(() => serverNow());
   const [running, setRunning] = useState(() => arcadeRoundRunning());
   const [skipped, setSkipped] = useState<string | null>(null);
@@ -38,9 +43,9 @@ export function RaceCall({ pet, atGate, reducedMotion, onGo, onCommit }: Props) 
     commitRef.current = onCommit;
   }, [onCommit, pet]);
 
-  const startsAt = signup?.startsAt ?? null;
+  const clockAt = signup || friend ? `${signup?.startsAt ?? 0}:${friend?.startsAt ?? 0}` : '';
   useEffect(() => {
-    if (startsAt == null) {
+    if (!clockAt) {
       return;
     }
     const timer = setInterval(() => {
@@ -48,20 +53,20 @@ export function RaceCall({ pet, atGate, reducedMotion, onGo, onCommit }: Props) 
       setRunning(arcadeRoundRunning());
     }, 1000);
     return () => clearInterval(timer);
-  }, [startsAt]);
+  }, [clockAt]);
 
   const hideToast = useCallback(() => setToast(null), []);
 
-  const lockAt = (startsAt ?? 0) - gameplayConfig.races.lockMs;
-  const callAt = (startsAt ?? 0) - gameplayConfig.races.callMs;
-  const waitForRun = running && lockAt - now > holdForRunMs;
-  const show =
-    signup != null &&
-    !atGate &&
-    skipped !== signup.entryId &&
-    now >= callAt &&
-    gatePhase(signup.startsAt, now) === 'gate' &&
-    !waitForRun;
+  const inGate = (startsAt: number, id: string) =>
+    skipped !== id && now >= startsAt - gameplayConfig.races.callMs && gatePhase(startsAt, now) === 'gate';
+  const friendDue = friend != null && inGate(friend.startsAt, friend.raceId);
+  const signupDue = signup != null && inGate(signup.startsAt, signup.entryId);
+  const showingFriend = friendDue && friend != null && (!signupDue || !signup || friend.startsAt <= signup.startsAt);
+  const mode = showingFriend && friend ? 'friend' : signupDue && signup ? 'signup' : null;
+  const active = mode === 'friend' ? friend : mode === 'signup' ? signup : null;
+  const lockAt = (active?.startsAt ?? 0) - gameplayConfig.races.lockMs;
+  const waitForRun = running && active != null && lockAt - now > holdForRunMs;
+  const show = active != null && !atGate && !waitForRun;
 
   useEffect(() => {
     setRaceCallOpen(show);
@@ -69,7 +74,20 @@ export function RaceCall({ pet, atGate, reducedMotion, onGo, onCommit }: Props) 
   }, [show]);
 
   const skip = async () => {
-    if (!signup) {
+    if (!active) {
+      return;
+    }
+    if (!signup || mode !== 'signup') {
+      if (!friend) return;
+      setSkipped(friend.raceId);
+      const result = await leaveFriendGame(friend.raceId);
+      if (!result.ok) {
+        setToast(result.offline ? 'The Stadium needs internet to race.' : 'The line-up is locked now.');
+        return;
+      }
+      void cancelRaceCall();
+      commitRef.current(withFriendGame(petRef.current, null, serverNow()));
+      setToast(result.data.cancelled ? 'You cancelled the friend game.' : `You've withdrawn from ${eventLabel(friend.event)}`);
       return;
     }
     setSkipped(signup.entryId);
@@ -89,15 +107,18 @@ export function RaceCall({ pet, atGate, reducedMotion, onGo, onCommit }: Props) 
 
   return (
     <>
-      {show && signup ? (
+      {show && active ? (
         <FunModal
           title="The gate is open!"
-          body={`RACE CALL · ${eventLabel(signup.event)} starts in ${formatCountdown(signup.startsAt - now)}`}
+          body={`RACE CALL · ${eventLabel(active.event)} starts in ${formatCountdown(active.startsAt - now)}`}
           icon={Flag}
           tint="mint"
           sparkle
           reducedMotion={reducedMotion}
-          primary={{ label: 'Go to the starting gate', onPress: onGo, closeFirst: true }}
+          primary={{
+            label: 'Go to the starting gate',
+            onPress: () => (mode === 'friend' && friend ? onFriendGo(friend.raceId) : onGo()),
+          }}
           secondary={{ label: 'Skip this race', onPress: () => void skip() }}
         />
       ) : null}

@@ -9,8 +9,10 @@ import {
   gatePhase,
   raceReminderAt,
   racesOf,
+  signedUpRaces,
   isPlayableEvent,
   skillBlock,
+  withFriendGame,
   withSignup,
   type RaceSignup,
 } from '../stadium';
@@ -83,6 +85,38 @@ it('keeps the sign-up for the reminder until the race is finished', () => {
   expect(racesOf(withdrawn).entered).toBe(false);
   expect(dropEndedSignup(entered, start + 1000)).toBe(entered);
   expect(racesOf(dropEndedSignup(entered, start + 5 * 60_000)).signup).toBeNull();
+});
+
+it('reminds a joined friend game the same way as a sign-up', () => {
+  const joined = withFriendGame(pet(), { raceId: 'fr1', event: 'hurdles', startsAt: start }, now);
+  expect(racesOf(joined).friendGame?.raceId).toBe('fr1');
+  expect(raceReminderAt(joined, now)).toBe(start - gameplayConfig.races.callMs);
+  expect(raceReminderAt(joined, start - gameplayConfig.races.callMs)).toBeNull();
+  expect(withFriendGame(joined, { raceId: 'fr1', event: 'hurdles', startsAt: start }, now)).toBe(joined);
+  const signed = withSignup(joined, signup(), now);
+  expect(racesOf(signed).friendGame?.raceId).toBe('fr1');
+  expect(racesOf(signed).signup?.entryId).toBe('e1');
+  expect(raceReminderAt(signed, now)).toBe(start - gameplayConfig.races.callMs);
+  const left = withFriendGame(joined, null, now);
+  expect(racesOf(left).friendGame).toBeNull();
+  expect(dropEndedSignup(joined, start + 1000)).toBe(joined);
+  expect(racesOf(dropEndedSignup(joined, start + 5 * 60_000)).friendGame).toBeNull();
+});
+
+it('lists every race the pet is in, including a friend game', () => {
+  const entered = withSignup(pet(), signup(), now);
+  const both = withFriendGame(entered, { raceId: 'fr1', event: 'hurdles', startsAt: start - 60_000 }, now);
+  const races = signedUpRaces(racesOf(both).signup, racesOf(both).friendGame ?? null, 'fr1');
+  expect(races.map((race) => race.id)).toEqual(['fr1', 'r1']);
+  expect(races[0]?.kind).toBe('friend');
+  expect(races[1]?.kind).toBe('signup');
+  expect(signedUpRaces(null, null, 'fr1')).toEqual([
+    { id: 'fr1', kind: 'friend', event: null, startsAt: null, classId: null },
+  ]);
+  expect(signedUpRaces(racesOf(both).signup, racesOf(both).friendGame ?? null, 'other')).toEqual([
+    { id: 'r1', kind: 'signup', event: 'funRun', startsAt: start, classId: 'beginner' },
+    { id: 'other', kind: 'friend', event: null, startsAt: null, classId: null },
+  ]);
 });
 
 it('reads the server board, entry, and race line-up', () => {

@@ -23,3 +23,27 @@ export function onGateRequest(listener: Listener): () => void {
     listeners.delete(listener);
   };
 }
+
+const friendListeners = new Set<Listener>();
+let friendPending: { raceId: string | null } | null = null;
+
+/** A tap on the friend-game gate reminder. Held until Home is listening. */
+export function requestFriendCall(raceId: string | null): void {
+  if (friendListeners.size === 0) {
+    friendPending = { raceId };
+    return;
+  }
+  friendListeners.forEach((listener) => listener(raceId));
+}
+
+export function onFriendCall(listener: Listener): () => void {
+  friendListeners.add(listener);
+  if (friendPending) {
+    const { raceId } = friendPending;
+    friendPending = null;
+    listener(raceId);
+  }
+  return () => {
+    friendListeners.delete(listener);
+  };
+}

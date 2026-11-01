@@ -11,10 +11,13 @@ type Props = {
 
 export function FriendFace({ userId, pet }: Props) {
   const snapshot = pet ? snapshotFromFriend(userId, pet) : null;
-  if (!snapshot) {
-    return <View style={styles.empty} />;
-  }
-  return <SnapshotStill snapshot={snapshot} width={72} height={90} />;
+  // The portrait sits inside invite rows. Skia keeps the touch unless the wrapper opts out,
+  // so the first taps on a friend never reach the row.
+  return (
+    <View pointerEvents="none">
+      {snapshot ? <SnapshotStill snapshot={snapshot} width={72} height={90} /> : <View style={styles.empty} />}
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({

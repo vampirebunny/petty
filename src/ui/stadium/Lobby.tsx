@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Lock } from 'lucide-react-native';
 
 import type { StadiumBoard, StadiumCard, StadiumSlot } from '../../stadium/api';
-import { eventLabel, formatCountdown, formatSlot, whoCanEnter } from '../../sim/stadium';
+import { classLabel, eventLabel, formatCountdown, formatSlot, whoCanEnter, type SignedUpRace } from '../../sim/stadium';
 import { trickListing } from '../../sim/tricks';
 import { fontFamily } from '../font';
 import { CandyButton } from './CandyButton';
@@ -11,15 +11,27 @@ import { EventIcon, ink, shared, softInk } from './parts';
 type Props = {
   board: StadiumBoard;
   now: number;
+  races: SignedUpRace[];
   selected: StadiumSlot | null;
   onSelect: (slot: StadiumSlot) => void;
   onCard: (card: StadiumCard, slot: StadiumSlot) => void;
+  onRace: (race: SignedUpRace) => void;
   onFriends: () => void;
 };
 
-export function Lobby({ board, now, selected, onSelect, onCard, onFriends }: Props) {
+export function Lobby({ board, now, races, selected, onSelect, onCard, onRace, onFriends }: Props) {
   return (
     <View style={styles.root}>
+      {races.length > 0 ? (
+        <View style={styles.mine}>
+          <Text style={shared.section} accessibilityRole="header">
+            Your races
+          </Text>
+          {races.map((race) => (
+            <MyRace key={race.id} race={race} onPress={() => onRace(race)} />
+          ))}
+        </View>
+      ) : null}
       <Text style={shared.section} accessibilityRole="header">
         Upcoming races
       </Text>
@@ -47,6 +59,30 @@ export function Lobby({ board, now, selected, onSelect, onCard, onFriends }: Pro
         : null}
       <CandyButton role="friends" label="Race with friends" onPress={onFriends} />
     </View>
+  );
+}
+
+function MyRace({ race, onPress }: { race: SignedUpRace; onPress: () => void }) {
+  const title = race.event ? eventLabel(race.event) : 'Friend game';
+  const when = race.startsAt != null ? formatSlot(race.startsAt) : null;
+  const kind = race.kind === 'friend' ? 'Friend game' : race.classId ? classLabel(race.classId) : 'Race';
+  const detail = when ? `${when} · ${kind}` : kind;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${title}. ${detail}`}
+      onPress={onPress}
+      style={({ pressed }) => [shared.card, styles.card, pressed && styles.minePressed]}
+    >
+      {race.event ? <EventIcon event={race.event} /> : null}
+      <View style={styles.cardBody} pointerEvents="none">
+        <Text style={styles.title} numberOfLines={1}>
+          {title}
+        </Text>
+        <Text style={styles.meta}>{detail}</Text>
+      </View>
+      <CandyButton compact role="go" label="Open" onPress={onPress} />
+    </Pressable>
   );
 }
 
@@ -113,6 +149,9 @@ const styles = StyleSheet.create({
   root: {
     gap: 12,
   },
+  mine: {
+    gap: 12,
+  },
   slots: {
     flexDirection: 'row',
     gap: 10,
@@ -135,6 +174,9 @@ const styles = StyleSheet.create({
   },
   pressed: {
     transform: [{ scale: 0.98 }],
+  },
+  minePressed: {
+    opacity: 0.92,
   },
   cardBody: {
     flex: 1,

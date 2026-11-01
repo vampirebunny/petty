@@ -52,7 +52,8 @@ import { roadSpotForScene } from '../sim/road';
 import { ArcadeScreen } from './ArcadeScreen';
 import { CatwalkScreen } from './CatwalkScreen';
 import { StadiumScreen } from './StadiumScreen';
-import { onGateRequest } from '../stadium/raceCall';
+import { onFriendCall, onGateRequest } from '../stadium/raceCall';
+import { racesOf } from '../sim/stadium';
 import { RaceCall } from '../ui/stadium/RaceCall';
 import { flushCloudHopScore } from '../minigames/cloudHop/scores';
 import { flushStayTime } from '../minigames/stay/scores';
@@ -139,6 +140,8 @@ import { AccountSheet } from '../ui/AccountSheet';
 import { FindFriendsHost } from '../ui/FindFriendsHost';
 import { FriendRequestModal } from '../ui/FriendRequestModal';
 import { FriendGameInviteModal } from '../ui/FriendGameInviteModal';
+import { FriendAcceptNotice } from '../ui/FriendAcceptNotice';
+import { RunwayNotice } from '../ui/RunwayNotice';
 import { BlockConfirm, ReportSheet, ReportThanks } from '../ui/FriendDialogs';
 import { FriendNotifyPrompt } from '../ui/FriendNotifyPrompt';
 import { loadFriends, blockPlayer, reportPlayer } from '../friends/api';
@@ -151,7 +154,7 @@ import { friendGameInviteOpen } from '../invites/session';
 import { useNpcInvitation } from '../invites/useNpcInvitation';
 import type { RunwayInvitation } from '../invites/types';
 import { InvitationOverlay } from '../ui/invites/InvitationOverlay';
-import { onFriendModalRequest, onRunwayShowRequest } from '../friends/open';
+import { onFriendAcceptOpen, onFriendModalRequest, onRunwayShowRequest, requestFriendGame } from '../friends/open';
 import { clearPendingAdd, readPendingAdd, savePendingAdd } from '../friends/pendingAdd';
 import { friendPromptShouldShow, newestRequestAt, readFriendSeenAt, writeFriendSeenAt } from '../friends/prompt';
 import { listenForFriendPushes, registerFriendPushToken } from '../friends/push';
@@ -491,6 +494,8 @@ export default function HomeScreen({ petApi }: Props) {
   const [friendCount, setFriendCount] = useState<number | undefined>(undefined);
   const [atGate, setAtGate] = useState(false);
   const gateOpener = useRef<() => void>(() => undefined);
+  const friendRoomOpener = useRef<(raceId: string) => void>(() => undefined);
+  const acceptOpener = useRef<(target: { raceId: string; joined: boolean }) => void>(() => undefined);
   const gatePending = useRef(false);
   const [bedTip, setBedTip] = useState(false);
   const [bedSwap, setBedSwap] = useState<{ piece: FurniturePiece; occupantId: string; name: string; x: number; y: number } | null>(null);
@@ -1948,6 +1953,9 @@ export default function HomeScreen({ petApi }: Props) {
     setClothingOpen(false);
     setColorwaysOpen(false);
     setArcadeOpen(false);
+    setCatwalkOpen(false);
+    setRunwaySeed(null);
+    setRunwayShowId(null);
     setShopOpen(false);
     setPantryOpen(false);
     setWardrobeOpen(false);
@@ -1956,12 +1964,24 @@ export default function HomeScreen({ petApi }: Props) {
     setStadiumGate((value) => value + 1);
     setStadiumOpen(true);
   };
+  const openPublicGate = () => {
+    setFriendGameRoom(null);
+    openStadiumGate();
+  };
   const openFriendGameRoom = (raceId: string) => {
     setFriendGameRoom(raceId);
     openStadiumGate();
   };
   useEffect(() => {
     gateOpener.current = openStadiumGate;
+    friendRoomOpener.current = openFriendGameRoom;
+    acceptOpener.current = ({ raceId, joined }) => {
+      if (joined || (state && racesOf(state).friendGame?.raceId === raceId)) {
+        openFriendGameRoom(raceId);
+        return;
+      }
+      requestFriendGame(raceId);
+    };
     if (gatePending.current && state) {
       gatePending.current = false;
       const timer = setTimeout(() => gateOpener.current(), 0);
@@ -1969,6 +1989,14 @@ export default function HomeScreen({ petApi }: Props) {
     }
   });
   useEffect(() => onGateRequest(() => gateOpener.current()), []);
+  useEffect(
+    () =>
+      onFriendCall((raceId) => {
+        if (raceId) friendRoomOpener.current(raceId);
+      }),
+    [],
+  );
+  useEffect(() => onFriendAcceptOpen((target) => acceptOpener.current(target)), []);
 
   const payoutPoint = burst?.origin ?? { x: stageWidth / 2, y: stageHeight * 0.5 };
   const payoutLocal = stageToView(payoutPoint);
@@ -2029,7 +2057,14 @@ export default function HomeScreen({ petApi }: Props) {
     <FindFriendsHost accountHandle={accountHandle} onChanged={() => setFriendTick((value) => value + 1)}>
       {screen}
       {state ? (
-        <RaceCall pet={state} atGate={atGate && stadiumOpen} reducedMotion={reducedMotion} onGo={() => openStadiumGate()} onCommit={commitPet} />
+        <RaceCall
+          pet={state}
+          atGate={atGate && stadiumOpen}
+          reducedMotion={reducedMotion}
+          onGo={openPublicGate}
+          onFriendGo={openFriendGameRoom}
+          onCommit={commitPet}
+        />
       ) : null}
       {state ? (
         <FriendGameInviteModal
@@ -2083,6 +2118,8 @@ export default function HomeScreen({ petApi }: Props) {
           }}
         />
       ) : null}
+      <FriendAcceptNotice reducedMotion={reducedMotion} />
+      <RunwayNotice reducedMotion={reducedMotion} />
       {npcInvite.invitation && inviteHome && !inviteBlocked ? (
         <InvitationOverlay
           invitation={npcInvite.invitation}

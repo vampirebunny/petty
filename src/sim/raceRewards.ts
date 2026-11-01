@@ -2,6 +2,7 @@ import { localDay } from '../economy/clock';
 import { gameplayConfig } from './gameplayConfig';
 import { grantXp, noteTutorialAction } from './progress';
 import { syncBadges } from './badges';
+import { racesOf } from './stadium';
 import { completeSuggestion } from './suggestions';
 import type { PetState } from './types';
 
@@ -41,6 +42,7 @@ export function applyRaceRewards(state: PetState, finish: RaceFinish, now: numbe
   const day = localDay(now);
   const count = state.raceXpDay === day ? (state.raceXpCount ?? 0) : 0;
   const pay = state.level >= gameplayConfig.tutorialLevel && count < gameplayConfig.races.dailyXpRaces;
+  const record = racesOf(state);
   let next: PetState = {
     ...state,
     needs: {
@@ -53,7 +55,7 @@ export function applyRaceRewards(state: PetState, finish: RaceFinish, now: numbe
     raceXpCount: pay ? count + 1 : count,
     // The ticket is for the race that just ended. Keeping it made the next board
     // look like the pet was still signed up.
-    races: { signup: null, entered: true },
+    races: { signup: null, entered: true, friendGame: record.friendGame },
   };
   if (pay) {
     next = grantXp(next, xpForPlace(finish.place));
@@ -69,6 +71,7 @@ export function applyFriendRaceResult(state: PetState, raceId: string): PetState
   if (!raceId || applied.includes(raceId)) {
     return state;
   }
+  const record = racesOf(state);
   return {
     ...state,
     needs: {
@@ -76,6 +79,11 @@ export function applyFriendRaceResult(state: PetState, raceId: string): PetState
       energy: Math.max(0, state.needs.energy - gameplayConfig.races.energyCost),
     },
     appliedRaceIds: [...applied, raceId],
+    races: {
+      signup: record.signup,
+      entered: record.entered,
+      friendGame: record.friendGame?.raceId === raceId ? null : record.friendGame,
+    },
   };
 }
 

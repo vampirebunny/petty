@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { Pressable } from 'react-native-gesture-handler';
+import { ActivityIndicator, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView } from 'react-native-gesture-handler';
 import { ChevronLeft } from 'lucide-react-native';
 
 import {

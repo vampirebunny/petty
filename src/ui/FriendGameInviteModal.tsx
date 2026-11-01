@@ -4,7 +4,7 @@ import { Users } from 'lucide-react-native';
 
 import { serverNow } from '../db/accountMeta';
 import { onFriendGameRequest } from '../friends/open';
-import { cancelRaceCall } from '../reminders/notifications';
+import { askRaceReminderPermission, cancelRaceCall, scheduleRaceCall } from '../reminders/notifications';
 import {
   conflictCopy,
   fetchInvites,
@@ -14,7 +14,7 @@ import {
   type FriendGameInvite,
 } from '../stadium/friendGames';
 import { gameplayConfig } from '../sim/gameplayConfig';
-import { eventLabel, formatCountdown, racesOf, withSignup } from '../sim/stadium';
+import { eventLabel, formatCountdown, racesOf, withFriendGame, withSignup } from '../sim/stadium';
 import type { PetState } from '../sim/types';
 import { pushPetBeforeRead } from '../sync/queue';
 import { setFriendGameInviteOpen } from '../invites/session';
@@ -103,6 +103,7 @@ export function FriendGameInviteModal({ pet, linked, hidden, reducedMotion, onCo
   const accept = async (replace: boolean) => {
     if (busy) return;
     setBusy(true);
+    const permission = askRaceReminderPermission();
     let result = await respondInvite(invite.raceId, 'accept', petRef.current.id, replace);
     if (!result.ok && /pet not synced/i.test(result.error)) {
       const pushed = await pushPetBeforeRead(petRef.current);
@@ -124,10 +125,19 @@ export function FriendGameInviteModal({ pet, linked, hidden, reducedMotion, onCo
       setNote(friendGameErrorCopy(result.error));
       return;
     }
-    if (replace && conflict && conflict.cup !== 'friends' && racesOf(petRef.current).signup) {
+    let next = petRef.current;
+    if (replace && conflict && conflict.cup !== 'friends' && racesOf(next).signup) {
       void cancelRaceCall();
-      onCommit(withSignup(petRef.current, null, serverNow()));
+      next = withSignup(next, null, serverNow());
     }
+    if (invite.event) {
+      next = withFriendGame(next, { raceId: invite.raceId, event: invite.event, startsAt: invite.startsAt }, serverNow());
+    }
+    if (next !== petRef.current) {
+      petRef.current = next;
+      onCommit(next);
+    }
+    void permission.then(() => scheduleRaceCall(petRef.current));
     const raceId = invite.raceId;
     close(raceId);
     onJoined(raceId);

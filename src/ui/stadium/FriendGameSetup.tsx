@@ -71,18 +71,21 @@ export function FriendGameSetup({ busy, onSend, onBack }: Props) {
         accessibilityState={{ checked: on, disabled }}
         accessibilityLabel={`@${row.handle}${row.pet ? `, ${row.pet.name}` : ''}${reason ? `. ${reason}` : ''}`}
         onPress={() => toggle(row)}
+        disabled={disabled}
         style={[shared.card, styles.friend, blocked && styles.dim, on && styles.friendOn]}
       >
-        <FriendFace userId={row.userId} pet={row.pet} />
-        <View style={styles.friendText}>
-          <Text style={shared.strong} numberOfLines={1}>
-            {row.pet?.name ?? `@${row.handle}`}
-          </Text>
-          <Text style={styles.meta} numberOfLines={1}>
-            {reason ?? `@${row.handle}`}
-          </Text>
+        <View pointerEvents="none" style={styles.friendInner}>
+          <FriendFace userId={row.userId} pet={row.pet} />
+          <View style={styles.friendText}>
+            <Text style={shared.strong} numberOfLines={1}>
+              {row.pet?.name ?? `@${row.handle}`}
+            </Text>
+            <Text style={styles.meta} numberOfLines={1}>
+              {reason ?? `@${row.handle}`}
+            </Text>
+          </View>
+          <View style={[styles.box, on && styles.boxOn]}>{on ? <Check size={16} strokeWidth={3} color="#FFFFFF" /> : null}</View>
         </View>
-        <View style={[styles.box, on && styles.boxOn]}>{on ? <Check size={16} strokeWidth={3} color="#FFFFFF" /> : null}</View>
       </Pressable>
     );
   };
@@ -106,8 +109,10 @@ export function FriendGameSetup({ busy, onSend, onBack }: Props) {
             onPress={() => setEvent(id)}
             style={[styles.eventChip, event === id && styles.chipOn]}
           >
-            <EventIcon event={id} size={20} />
-            <Text style={styles.chipText}>{eventLabel(id)}</Text>
+            <View pointerEvents="none" style={styles.eventInner}>
+              <EventIcon event={id} size={20} />
+              <Text style={styles.chipText}>{eventLabel(id)}</Text>
+            </View>
           </Pressable>
         ))}
       </View>
@@ -174,17 +179,19 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   eventChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
     minHeight: minTouch,
-    paddingVertical: 4,
-    paddingLeft: 4,
-    paddingRight: 14,
     borderRadius: 28,
     borderWidth: 2,
     borderColor: '#E4D6F5',
     backgroundColor: '#FFFFFF',
+  },
+  eventInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 4,
+    paddingLeft: 4,
+    paddingRight: 14,
   },
   delayChip: {
     minHeight: minTouch,
@@ -212,11 +219,13 @@ const styles = StyleSheet.create({
     color: softInk,
   },
   friend: {
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  friendInner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    borderWidth: 2,
-    borderColor: 'transparent',
   },
   friendOn: {
     borderColor: lilac,

@@ -78,7 +78,7 @@ export async function submitRunwayLooks(
   petName: string,
   looks: object[],
   costumeIds: string[],
-): Promise<RpcResult<{ submission_id: string }>> {
+): Promise<RpcResult<{ submission_id: string; voting_opened?: boolean }>> {
   const supabase = getSupabase();
   if (!supabase) {
     return { ok: false, error: 'offline' };
@@ -100,7 +100,7 @@ export async function submitRunwayLooks(
   }
 }
 
-export async function castRunwayVote(showId: string, submissionId: string): Promise<RpcResult<{ ok: true }>> {
+export async function castRunwayVote(showId: string, submissionId: string): Promise<RpcResult<{ results_revealed?: boolean }>> {
   const supabase = getSupabase();
   if (!supabase) {
     return { ok: false, error: 'offline' };
@@ -184,12 +184,27 @@ export async function listMyRunwayShows(): Promise<RpcResult<{ shows: RunwayShow
   }
 }
 
+export async function notifyRunwayShow(
+  showId: string,
+  kind: 'runway_show' | 'runway_submitted' | 'runway_vote' | 'runway_results',
+): Promise<void> {
+  const supabase = getSupabase();
+  if (!supabase) {
+    return;
+  }
+  try {
+    await supabase.functions.invoke('notify_runway_show', { body: { showId, kind } });
+  } catch {
+    // The show is saved even if the notice cannot be sent.
+  }
+}
+
 export function runwayErrorCopy(error: RunwayRpcError): string {
   switch (error) {
     case 'deadline_past':
       return 'Pick a deadline in the future.';
     case 'deadline_too_soon':
-      return 'Pick a deadline at least 10 minutes from now.';
+      return 'Pick a deadline at least 30 minutes from now.';
     case 'costume_taken':
       return 'Someone already claimed that costume. Pick another piece.';
     case 'voted':

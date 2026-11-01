@@ -108,7 +108,8 @@ type ShellProps = {
 
 export function CandyShell({ tint, radius, lip = 6, selected = false, pressed = false, uid, style, children }: ShellProps) {
   const restingLip = selected ? LIP_ACTIVE : lip;
-  const drawnLip = pressed ? 1 : restingLip;
+  // Press only slides the face. Changing the lip's padding resizes the button under the finger and a parent ScrollView cancels the tap.
+  const shift = pressed ? lip - 1 : lip - restingLip;
   return (
     <View
       style={[
@@ -124,8 +125,8 @@ export function CandyShell({ tint, radius, lip = 6, selected = false, pressed = 
             backgroundColor: tint.lip,
             shadowColor: tint.lip,
             borderRadius: radius,
-            paddingBottom: drawnLip,
-            transform: [{ translateY: pressed ? restingLip - 1 : lip - restingLip }],
+            paddingBottom: restingLip,
+            transform: [{ translateY: shift }],
           },
         ]}
       >
