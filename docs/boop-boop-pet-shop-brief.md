@@ -112,6 +112,7 @@ The generated colorways (rows with a `theme`, from `tools/colorways`) are not on
 - **Buying:** a rotating piece can only be bought while its theme is up (`priceCart` and `listedPrice`). When the theme changes while the shop is open, its pieces are taken out of the bag with a note.
 - **Older downloads:** a catalog cached before the app read `theme` gets it from the end of the generated id (`hat:beanie.mint-choc` → `mint-choc`), so no catalog version bump is needed.
 - **Older app builds** don't know about themes and still list every colorway on the Clothes shelf.
+- **Runway NPCs** may wear the rotating collection colorways. Exclusive and limited colorways stay off them, same as the rest of the closet. Playdate partners do not wear collection colorways.
 
 ---
 

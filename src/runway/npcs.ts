@@ -1,5 +1,5 @@
 import { wardrobe, outfitSlots, wearItem, type WearItem } from '../actor/wardrobe';
-import { fitsSpecies, type SpeciesId } from '../economy/shop';
+import { fitsSpecies, sellsByCollection, type ShopCatalog, type SpeciesId } from '../economy/shop';
 import { loadShopCatalog } from '../economy/shopState';
 import { npcMayWear, parkStranger } from '../playdate/npcs';
 import { pickIndex, rngFrom, shuffle } from '../playdate/rng';
@@ -119,7 +119,7 @@ function freezeWardrobe(item: WearItem, slot: OutfitSlot): FrozenPiece {
   };
 }
 
-function shopCatalog() {
+function shopCatalog(): ShopCatalog | null {
   try {
     return loadShopCatalog();
   } catch {
@@ -130,22 +130,47 @@ function shopCatalog() {
 function wardrobeChoices(species: SpeciesId, usedIds: Set<string>, style: RunwayStyle, costumeColors: string[]): { slot: OutfitSlot; item: WearItem }[] {
   const catalog = shopCatalog();
   const out: { slot: OutfitSlot; item: WearItem }[] = [];
+  const seen = new Set<string>();
   for (const slot of outfitSlots) {
     for (const item of wardrobe[slot].items) {
-      if (item.id === 'none' || usedIds.has(`${slot}:${item.id}`)) {
+      const key = `${slot}:${item.id}`;
+      if (item.id === 'none' || usedIds.has(key) || seen.has(key)) {
         continue;
       }
       if (!npcMayWear(slot, item.id, catalog)) {
         continue;
       }
-      const listing = catalog?.items.find((row) => row.id === `${slot}:${item.id}`);
+      const listing = catalog?.items.find((row) => row.id === key);
       if (listing && !fitsSpecies(listing.species, species)) {
         continue;
       }
       if (!colorOk(item.colorway.c, costumeColors, style)) {
         continue;
       }
+      seen.add(key);
       out.push({ slot, item });
+    }
+  }
+  // Rotating collection colorways live on the shop catalog, not in the bundled closet.
+  // Exclusive and limited colorways fail npcMayWear, and sellsByCollection already leaves them out.
+  if (catalog) {
+    for (const listing of catalog.items) {
+      if (!listing.slot || !listing.wearId || !sellsByCollection(listing) || !fitsSpecies(listing.species, species)) {
+        continue;
+      }
+      const key = `${listing.slot}:${listing.wearId}`;
+      if (usedIds.has(key) || seen.has(key) || wardrobe[listing.slot].items.some((item) => item.id === listing.wearId)) {
+        continue;
+      }
+      if (!npcMayWear(listing.slot, listing.wearId, catalog)) {
+        continue;
+      }
+      const item = wearItem(listing.slot, listing.wearId);
+      if (!item || !colorOk(item.colorway.c, costumeColors, style)) {
+        continue;
+      }
+      seen.add(key);
+      out.push({ slot: listing.slot, item });
     }
   }
   return out;

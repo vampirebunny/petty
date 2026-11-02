@@ -1,10 +1,28 @@
+import { outfitSlots, wardrobe } from '../../actor/wardrobe';
+import { rememberActiveDefs, resetRemoteDefsForTest } from '../../economy/remoteDefs';
+import type { ShopCatalog, ShopListing } from '../../economy/shop';
 import { runwayConfig } from '../config';
 import { soloShowRack } from '../rack';
 import { buildSoloShow, dressNpcModels, pickNpcModels } from '../npcs';
 
+let mockCatalog: ShopCatalog | null = null;
+
 jest.mock('../../economy/shopState', () => ({
-  loadShopCatalog: () => null,
+  loadShopCatalog: () => mockCatalog,
 }));
+
+function listing(partial: Pick<ShopListing, 'id'> & Partial<ShopListing>): ShopListing {
+  return {
+    name: partial.id,
+    category: 'clothes',
+    shop: 'always',
+    price: 100,
+    sort: 0,
+    stackable: false,
+    tier: 'standard',
+    ...partial,
+  };
+}
 
 describe('runway npc dress', () => {
   it('picks a configurable number of models with unique styles when possible', () => {
@@ -66,5 +84,112 @@ describe('runway npc dress', () => {
     expect(show.submissions.length).toBe(1 + runwayConfig.npcCount);
     const npcClaims = show.submissions.slice(1).flatMap((sub) => sub.claimedCostumeIds);
     expect(npcClaims).not.toContain(claimedId);
+  });
+
+  it('wears rotating collection colorways and skips exclusive and limited colorways', () => {
+    const shapes: Record<(typeof outfitSlots)[number], string[]> = {
+      hat: ['beanie', 'cap', 'bucket'],
+      glasses: ['square', 'red-rim', 'heart'],
+      neckwear: ['collar', 'bandana', 'scarf'],
+      jacket: ['sweater', 'hoodie', 'puffer'],
+      boots: ['rain', 'sneaker', 'hightop'],
+    };
+    const collectionIds = outfitSlots.flatMap((slot) => shapes[slot].map((shape) => `${slot}:${shape}.autumn-plaid`));
+    const catOnly = 'hat:beret.strawberry-milk';
+    const dogOnly = 'hat:party.mint-choc';
+    const exclusiveId = 'hat:crown.rainbow-sherbet';
+    const limitedId = 'glasses:star.midnight-stars';
+    const remoteIds = [...collectionIds, catOnly, dogOnly, exclusiveId, limitedId];
+
+    resetRemoteDefsForTest();
+    rememberActiveDefs(
+      {
+        version: 1,
+        items: remoteIds.map((id) => {
+          const [slot, wearId] = id.split(':');
+          const shape = wearId.split('.')[0];
+          return {
+            id,
+            name: id,
+            species: id === catOnly ? (['cat'] as const) : id === dogOnly ? (['dog'] as const) : null,
+            def: { v: 1, kind: 'outfit', slot, shape, label: id, colorway: { c: '#ffffff' } },
+          };
+        }),
+      },
+      () => {},
+    );
+
+    const blocked = outfitSlots.flatMap((slot) =>
+      wardrobe[slot].items.map((item) =>
+        listing({ id: `${slot}:${item.id}`, tier: 'exclusive', shop: 'rotation', price: null, slot, wearId: item.id }),
+      ),
+    );
+    mockCatalog = {
+      version: 1,
+      items: [
+        ...blocked,
+        ...collectionIds.map((id) => {
+          const [slot, wearId] = id.split(':');
+          return listing({ id, theme: 'autumn-plaid', slot: slot as ShopListing['slot'], wearId });
+        }),
+        listing({ id: catOnly, theme: 'strawberry-milk', slot: 'hat', wearId: 'beret.strawberry-milk', species: ['cat'] }),
+        listing({ id: dogOnly, theme: 'mint-choc', slot: 'hat', wearId: 'party.mint-choc', species: ['dog'] }),
+        listing({
+          id: exclusiveId,
+          theme: 'rainbow-sherbet',
+          shop: 'rotation',
+          tier: 'exclusive',
+          slot: 'hat',
+          wearId: 'crown.rainbow-sherbet',
+        }),
+        listing({
+          id: limitedId,
+          theme: 'midnight-stars',
+          shop: 'featured',
+          tier: 'limited',
+          slot: 'glasses',
+          wearId: 'star.midnight-stars',
+        }),
+      ],
+      bundles: [],
+      pickSlots: ['clothes'],
+      noRepeatDays: 5,
+      dealPct: 20,
+    };
+
+    try {
+      const showId = 'show-collections';
+      const models = pickNpcModels({ id: showId });
+      const dressed = dressNpcModels(showId, 'royal', [], models, soloShowRack(showId));
+      const allowed = new Set([
+        ...collectionIds.map((id) => id.split(':')[1]),
+        'beret.strawberry-milk',
+        'party.mint-choc',
+      ]);
+      let wardrobePieces = 0;
+      for (const sub of dressed) {
+        for (const look of sub.looks) {
+          for (const piece of look.pieces) {
+            if (piece.kind !== 'wardrobe') {
+              continue;
+            }
+            wardrobePieces += 1;
+            expect(allowed.has(piece.id)).toBe(true);
+            expect(piece.id).not.toBe('crown.rainbow-sherbet');
+            expect(piece.id).not.toBe('star.midnight-stars');
+            if (sub.pet.species === 'dog') {
+              expect(piece.id).not.toBe('beret.strawberry-milk');
+            }
+            if (sub.pet.species === 'cat') {
+              expect(piece.id).not.toBe('party.mint-choc');
+            }
+          }
+        }
+      }
+      expect(wardrobePieces).toBeGreaterThan(0);
+    } finally {
+      mockCatalog = null;
+      resetRemoteDefsForTest();
+    }
   });
 });
