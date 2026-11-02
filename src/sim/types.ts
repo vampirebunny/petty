@@ -199,6 +199,8 @@ export type PetState = {
   parkFinds: import('../parkFinds/types').PetParkFindsState;
   // Set when the pet is retired. The sim never loads a pet that has this.
   retiredAt?: number;
+  // Set when the player started over with a new pet. Hidden from play. Not retired.
+  restartedAt?: number;
 };
 
 export type PetEvent =

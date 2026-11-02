@@ -4,6 +4,7 @@ import { readRoadSpot } from '../sim/road';
 import type { PetState } from '../sim/types';
 import { asyncPetStorage } from '../storage/asyncStorage';
 import { getDb } from './database';
+import { readRestartMarker } from './restartPet';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -85,6 +86,9 @@ export const sqlitePetStorage = {
     return importLegacy();
   },
   async save(pet: PetState): Promise<void> {
+    if (readRestartMarker()?.oldPetId === pet.id) {
+      return;
+    }
     const rev = ++revision;
     queue = queue.then(() => {
       if (rev !== revision) {
@@ -95,10 +99,15 @@ export const sqlitePetStorage = {
     await queue;
   },
   async clear(): Promise<void> {
-    revision += 1;
-    getDb().runSync('DELETE FROM pet');
+    abandonActivePet();
   },
 };
+
+// Drops the live row and invalidates a save that has not written yet.
+export function abandonActivePet(): void {
+  revision += 1;
+  getDb().runSync('DELETE FROM pet');
+}
 
 export function writePetNow(pet: PetState): void {
   revision += 1;

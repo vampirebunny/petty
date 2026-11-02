@@ -4,6 +4,8 @@ import { Pressable } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 import { ChevronLeft, Music, Volume2, VolumeX, X } from 'lucide-react-native';
 
+import { track } from '../analytics/analytics';
+import { speciesOf, masteredTrickIds } from '../sim/tracks';
 import { onAccountFlags, readAccountLinked, setHandleSaved } from '../db/accountMeta';
 import { logOutOfAccount } from '../compliance/accountWipe';
 import { runAccountDeletion } from '../compliance/deleteAccount';
@@ -37,6 +39,7 @@ type Props = {
   onSound: () => void;
   onMusic: () => void;
   onStadium?: () => void;
+  onRestart: () => void;
   initialCaseTab?: TrophyCaseTab | null;
 };
 
@@ -73,6 +76,7 @@ export function SettingsScreen({
   onSound,
   onMusic,
   onStadium,
+  onRestart,
   initialCaseTab = null,
 }: Props) {
   const duoTop = useOpenedDuoTopInset();
@@ -87,6 +91,7 @@ export function SettingsScreen({
   const [caseOpen, setCaseOpen] = useState(() => initialCaseTab != null);
   const [handleOpen, setHandleOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [restartOpen, setRestartOpen] = useState(false);
   const [typed, setTyped] = useState('');
   const [working, setWorking] = useState(false);
   const [note, setNote] = useState<string | null>(null);
@@ -339,6 +344,24 @@ export function SettingsScreen({
     </>
   );
 
+  const restartBlock = (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Restart Pet"
+      onPress={() => {
+        track('restart_pet_tapped');
+        setRestartOpen(true);
+      }}
+      style={styles.rowHit}
+    >
+      {({ pressed }) => (
+        <CandyShell tint={tints.coral} radius={22} uid="settings-restart" pressed={pressed} style={styles.row}>
+          <Text style={[styles.rowText, { color: candyInk(tints.coral) }]}>Restart Pet</Text>
+        </CandyShell>
+      )}
+    </Pressable>
+  );
+
   const deleteBlock = (
     <>
       <Pressable
@@ -405,7 +428,10 @@ export function SettingsScreen({
               {friendsButton}
               {deleteBlock}
             </View>
-            <View style={styles.wideColumn}>{soundToggles}</View>
+            <View style={styles.wideColumn}>
+              {soundToggles}
+              {restartBlock}
+            </View>
           </View>
           {badgesSlot}
         </ScrollView>
@@ -417,9 +443,61 @@ export function SettingsScreen({
           {friendsButton}
           {badgesSlot}
           {logOutBlock}
+          {restartBlock}
           {deleteBlock}
         </ScrollView>
       )}
+      <Modal transparent visible={restartOpen} animationType="fade" onRequestClose={() => setRestartOpen(false)}>
+        <View style={styles.dim}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Cancel"
+            onPress={() => setRestartOpen(false)}
+            style={styles.dimTap}
+          />
+          <CandyShell tint={tints.pink} radius={28} uid="settings-restart-confirm" style={styles.restartCard}>
+            <Text style={styles.cardTitle}>
+              {'Restart with a new pet? You\'ll choose a new pet and start from the beginning.'}
+            </Text>
+            <View style={styles.choiceRow}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Cancel"
+                onPress={() => setRestartOpen(false)}
+                style={styles.choiceHit}
+              >
+                {({ pressed }) => (
+                  <CandyShell tint={tints.sky} radius={22} uid="settings-restart-cancel" pressed={pressed} style={styles.row}>
+                    <Text style={[styles.rowText, styles.choiceDefault, { color: candyInk(tints.sky) }]}>Cancel</Text>
+                  </CandyShell>
+                )}
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Restart"
+                onPress={() => {
+                  track('restart_pet_confirmed', {
+                    old_species: speciesOf(pet.breedId),
+                    old_breed: pet.breedId,
+                    old_pet_age_days: pet.ageDays,
+                    old_pet_level: pet.level,
+                    old_tricks_learned: masteredTrickIds(pet).length,
+                  });
+                  setRestartOpen(false);
+                  onRestart();
+                }}
+                style={styles.choiceHit}
+              >
+                {({ pressed }) => (
+                  <CandyShell tint={tints.coral} radius={22} uid="settings-restart-go" pressed={pressed} style={styles.row}>
+                    <Text style={[styles.rowText, { color: candyInk(tints.coral) }]}>Restart</Text>
+                  </CandyShell>
+                )}
+              </Pressable>
+            </View>
+          </CandyShell>
+        </View>
+      </Modal>
       <Modal transparent visible={confirmOpen} animationType="fade" onRequestClose={() => setConfirmOpen(false)}>
         <View style={styles.dim}>
           <CandyShell tint={tints.pink} radius={28} uid="settings-confirm" style={styles.card}>
@@ -650,6 +728,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
+  },
+  dimTap: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+  },
+  restartCard: {
+    width: '100%',
+    maxWidth: 360,
+    paddingHorizontal: 18,
+    paddingTop: 18,
+    paddingBottom: 16,
+    gap: 12,
+    zIndex: 1,
+  },
+  choiceRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  choiceHit: {
+    flex: 1,
+  },
+  choiceDefault: {
+    fontFamily: fontFamily.black,
   },
   card: {
     width: '100%',

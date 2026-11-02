@@ -3,6 +3,7 @@ import { getSupabase } from '../compliance/supabase';
 import { readLocalRevision, readStandby, setLocalRevision, setSyncedRevision } from '../db/accountMeta';
 import { currentOwner } from '../db/currentOwner';
 import { getDb } from '../db/database';
+import { readRestartMarker } from '../db/restartPet';
 import { playerDoc } from '../db/playerHome';
 import type { PetState } from '../sim/types';
 import { authTransition } from '../state/sessionGate';
@@ -36,7 +37,7 @@ let timer: ReturnType<typeof setTimeout> | null = null;
 let delayMs = 400;
 let finishSeq = 0;
 
-type SendResult = 'ok' | 'stale' | 'not_active' | 'retry' | 'drop' | 'name' | 'owner' | 'auth' | 'retired';
+type SendResult = 'ok' | 'stale' | 'not_active' | 'retry' | 'drop' | 'name' | 'owner' | 'auth' | 'retired' | 'restarted';
 
 const finishes = new Map<string, { outcome: SendResult; seq: number }>();
 
@@ -75,6 +76,9 @@ function upsert(entityKey: string, kind: string, payload: PetPayload | PlayerPay
 }
 
 export function queuePet(pet: PetState): void {
+  if (readRestartMarker()?.oldPetId === pet.id) {
+    return;
+  }
   const localRevision = revisionForThisTurn();
   upsert(`pet:${pet.id}`, 'push_active_pet', {
     id: pet.id,
@@ -98,6 +102,25 @@ export function queuePlayer(): void {
 export function queueCoupled(pet: PetState): void {
   queuePet(pet);
   queuePlayer();
+}
+
+export function queueRestart(pet: PetState): void {
+  const database = getDb();
+  database.runSync('DELETE FROM push_queue WHERE entity_key = ?', `pet:${pet.id}`);
+  const localRevision = bumpRevision();
+  database.runSync(
+    'INSERT INTO push_queue (entity_key, kind, payload) VALUES (?, ?, ?)',
+    `pet:${pet.id}`,
+    'restart_pet',
+    JSON.stringify({
+      id: pet.id,
+      doc: pet,
+      docSchema: petDocSchema,
+      localRevision,
+      clientUpdatedAt: new Date().toISOString(),
+    } satisfies PetPayload),
+  );
+  kick(true);
 }
 
 export function queueRetire(pet: PetState): void {
@@ -283,6 +306,9 @@ async function send(kind: string, payload: PetPayload | PlayerPayload): Promise<
     if (/retired/i.test(error.message)) {
       return 'retired';
     }
+    if (/restarted/i.test(error.message)) {
+      return 'restarted';
+    }
     return 'retry';
   }
   if (data === 'stale' || data === 'not_active') {
@@ -326,7 +352,7 @@ async function flush(): Promise<void> {
     const result = await send(row.kind, JSON.parse(row.payload) as PetPayload | PlayerPayload);
     noteFinish(row.entity_key, result);
     paused = resumeBound(bound);
-    if (result === 'ok' || result === 'drop' || result === 'name' || result === 'owner' || result === 'auth' || result === 'retired') {
+    if (result === 'ok' || result === 'drop' || result === 'name' || result === 'owner' || result === 'auth' || result === 'retired' || result === 'restarted') {
       if (result !== 'ok') {
         console.warn('dropping the queued push', result);
       }

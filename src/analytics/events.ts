@@ -80,6 +80,15 @@ export type NoParams = Record<string, never>;
 export type AnalyticsEvents = {
   onboarding_step: { step: OnboardingStep };
   pet_adopted: { species: Species; breed: string; coat_style: string; eye_color: string; archetype: string };
+  restart_pet_tapped: NoParams;
+  restart_pet_confirmed: {
+    old_species: Species;
+    old_breed: string;
+    old_pet_age_days: number;
+    old_pet_level: number;
+    old_tricks_learned: number;
+  };
+  restart_pet_completed: { new_species: Species; new_breed: string; seconds_to_complete: number };
   tutorial_begin: NoParams;
   tutorial_complete: NoParams;
   suggested_activity_complete: { activity_id: ActivityId; list: 'tutorial' | 'daily'; pet_level: number };

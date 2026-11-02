@@ -16,6 +16,7 @@ import {
 import { applyRestore, type RestoredLedgerEntry, type RestoredPet } from '../db/applyRestore';
 import { ownerIdTables } from '../db/ownerTables';
 import { getDb } from '../db/database';
+import { readRestartMarker } from '../db/restartPet';
 import type { PlayerDoc } from '../db/playerHome';
 import type { LedgerLine } from '../db/ledgerWrite';
 import type { PetState } from '../sim/types';
@@ -442,7 +443,7 @@ export async function clearLeftoverGuestSession(): Promise<void> {
   await SecureStore.deleteItemAsync(guestSessionKey).catch(() => undefined);
 }
 
-export type InstallResult = 'home' | 'adopt' | 'welcome' | 'offline' | 'restore';
+export type InstallResult = 'home' | 'adopt' | 'welcome' | 'offline' | 'restore' | 'restart';
 
 type PendingInstall =
   | { kind: 'restore'; linkAccount: boolean; hasPet: boolean }
@@ -474,6 +475,9 @@ function userIsGone(error: { message?: string; code?: string } | null): boolean 
 // A Keychain session with an empty database. No confirm, no guest delete, and no local write.
 export async function installServerPet(): Promise<InstallResult> {
   pendingInstall = null;
+  if (!getDb().getFirstSync('SELECT id FROM pet LIMIT 1') && readRestartMarker()) {
+    return 'restart';
+  }
   if (welcomeIsHeld()) {
     return 'welcome';
   }

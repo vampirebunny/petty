@@ -453,6 +453,7 @@ export default function HomeScreen({ petApi }: Props) {
     setWeightValue,
     reset,
     retire,
+    restart,
     finishPlaydate,
     remindersOn,
     setRemindersOn,
@@ -2266,6 +2267,7 @@ export default function HomeScreen({ petApi }: Props) {
           setCaseLaunch(null);
         }}
         initialCaseTab={caseLaunch}
+        onRestart={restart}
         onStadium={() => {
           setSettingsOpen(false);
           setCaseLaunch(null);

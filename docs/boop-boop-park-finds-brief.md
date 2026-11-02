@@ -18,7 +18,7 @@ Build on existing systems (park scene, pet pose channels in `pet.ts`, scene prop
 ## Global rules
 
 - **Every number is a default.** Put them in a `parkFinds` section of the gameplay config.
-- **Finds belong to the pet.** A new pet starts with an empty collection. The Treasure Chest is the **player's** furniture (it stays when a pet is retired) and always shows the current pet's collection.
+- **Finds belong to the pet.** A first pet starts with an empty collection. Restart Pet copies `items` and `firstFindVisitDone` onto the new pet and drops an in-progress find. The Treasure Chest is the **player's** furniture (it stays when a pet is retired or restarted) and always shows the current pet's collection.
 - **No Boops from finds.** First-find XP is paid from level 10 (common 10, uncommon 25, rare 75, legendary 150). A find before level 10 sets `firstFindRewarded` and pays nothing. Badges still listen later.
 - No speech balloons. Use the pet's existing bark, meow and purr sounds.
 - Cotton candy style for modals and buttons: glossy, puffy.

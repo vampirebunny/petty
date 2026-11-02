@@ -30,7 +30,7 @@ import {
 import type { Cue, Look, Mood, OutfitSlot, PetAttributes, PetEvent, PetState, Trait } from '../sim';
 import { noteForegroundDay } from '../compliance/accountPrompts';
 import { offerPetCam } from '../petCam/trigger';
-import { clearReturnSkips, dropPendingCam, expectGreet, noteSlotSkip } from '../petCam/session';
+import { clearReturnSkips, dismissCam, dropPendingCam, expectGreet, noteSlotSkip } from '../petCam/session';
 import { noteBackgroundAt } from '../petCam/store';
 import { bucketHoursAway, stat, track } from '../analytics/analytics';
 import { noteLastBackgroundAt, noteTrickAttempt, takeAppReturn } from '../analytics/clock';
@@ -48,6 +48,7 @@ import { devicePhrase } from '../sync/deviceLabel';
 import { reconcileFromServer } from '../sync/reconcile';
 import {
   authTransition,
+  bumpSaveGeneration,
   consumeInstalledSettle,
   finishInstalledPet,
   onInstallState,
@@ -71,7 +72,11 @@ import {
 import { skyAt } from '../actor/sky';
 import { localDay } from '../economy/clock';
 import { aliasBadgeId, syncBadges } from '../sim/badges';
-import { sqlitePetStorage } from '../db/sqlitePetStorage';
+import { abandonActivePet, sqlitePetStorage } from '../db/sqlitePetStorage';
+import { archiveRestartedPet, clearRestartMarker, readRestartedPet, readRestartMarker, writeRestartMarker } from '../db/restartPet';
+import { carryRestartedPet, restartedSnapshot } from '../sim/restartPet';
+import { cancelNpcPush } from '../invites/push';
+import { updateCounters } from '../invites/store';
 import { emptyPlaydateSave, petHasCompletedPlaydate } from '../playdate/save';
 import { loadPlaydateSave } from '../playdate/storage';
 import { getDb } from '../db/database';
@@ -88,7 +93,7 @@ import {
   type OpenRewards,
 } from '../economy/service';
 import { onIapBoops } from '../economy/iapApply';
-import { queuePet, queuePlayer, queueRetire, kick } from '../sync/queue';
+import { queuePet, queuePlayer, queueRestart, queueRetire, kick } from '../sync/queue';
 import type { PetStorage } from '../storage/PetStorage';
 import {
   clearDraft,
@@ -150,6 +155,7 @@ type PetApi = {
   setWeightValue: (weight: number) => void;
   reset: () => void;
   retire: () => void;
+  restart: () => void;
   attemptTrick: (trackId: string) => { ok: boolean; mastered: boolean; confused: boolean } | null;
   resolveTraining: (
     choice: 'treat' | 'none',
@@ -544,6 +550,7 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
       setCareRemindersOnState(care);
       setReady(true);
       if (loaded) {
+        clearRestartMarker();
         considerOpenRef.current(loaded);
         void resumeLimitedPurchases().then((result) => {
           if (cancelled) {
@@ -934,6 +941,39 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
       .catch(() => undefined);
   }, []);
 
+  const restart = useCallback(() => {
+    const current = stateRef.current;
+    if (!current) {
+      return;
+    }
+    const now = Date.now();
+    const frozen = restartedSnapshot(current, now);
+    const ownerId = frozen.ownerId;
+    bumpSaveGeneration();
+    archiveRestartedPet(frozen);
+    writeRestartMarker({ oldPetId: frozen.id, startedAt: now });
+    void (async () => {
+      await clearDraft();
+      if (stateRef.current?.id !== frozen.id) {
+        return;
+      }
+      abandonActivePet();
+      queueRestart(frozen);
+      stateRef.current = null;
+      setState(null);
+      tokenRef.current += 1;
+      setCue({ kind: 'none', token: tokenRef.current });
+      dismissCam();
+      dropPendingCam();
+      noteBackgroundAt(Date.now());
+      await cancelReminders();
+      await cancelNpcPush();
+      if (ownerId) {
+        await updateCounters(ownerId, (counters) => ({ ...counters, pendingPushAt: null }));
+      }
+    })();
+  }, []);
+
   const retire = useCallback(() => {
     const current = stateRef.current;
     if (!current) {
@@ -950,13 +990,32 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
   const adopt = useCallback(
     (breedId: string, attributes: PetAttributes, look: Look, name: string, ownerId: string) => {
       void (async () => {
-        if (readAccountLinked() && !(await linkedChangeIsCurrent('Adoption', name))) {
+        const marker = readRestartMarker();
+        if (!marker && readAccountLinked() && !(await linkedChangeIsCurrent('Adoption', name))) {
           return;
         }
         const now = Date.now();
         const id = createUuid();
         grantSpeciesHome(ownerId, speciesOf(breedId));
-        const created = createPet({ id, ownerId, name, breedId, look, attributes, now });
+        let created = createPet({ id, ownerId, name, breedId, look, attributes, now });
+        if (marker) {
+          const previous = readRestartedPet(marker.oldPetId);
+          if (previous) {
+            created = carryRestartedPet(created, previous);
+            if (created.dailyOutfitEnabled) {
+              created = dressForNewDay(created, now, true);
+            }
+          }
+          const restartedSpecies = breedById(breedId)?.species;
+          if (restartedSpecies) {
+            track('restart_pet_completed', {
+              new_species: restartedSpecies,
+              new_breed: breedId,
+              seconds_to_complete: Math.max(0, Math.round((now - marker.startedAt) / 1000)),
+            });
+          }
+          clearRestartMarker();
+        }
         const species = breedById(breedId)?.species;
         if (species) {
           track('pet_adopted', {
@@ -1436,6 +1495,7 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
     setWeightValue,
     reset,
     retire,
+    restart,
     finishPlaydate,
     adopt,
     setOwnerId,

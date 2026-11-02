@@ -115,6 +115,15 @@ export type AnalyticsEvents = {
   // Onboarding
   onboarding_step: { step: OnboardingStep };
   pet_adopted: { species: Species; breed: string; coat_style: string; eye_color: string; archetype: string };
+  restart_pet_tapped: NoParams;
+  restart_pet_confirmed: {
+    old_species: Species;
+    old_breed: string;
+    old_pet_age_days: number;
+    old_pet_level: number;
+    old_tricks_learned: number;
+  };
+  restart_pet_completed: { new_species: Species; new_breed: string; seconds_to_complete: number };
   tutorial_begin: NoParams;
   tutorial_complete: NoParams;
   suggested_activity_complete: { activity_id: ActivityId; list: 'tutorial' | 'daily'; pet_level: number };
@@ -319,7 +328,10 @@ The measurable funnel starts at consent: welcome-screen views and anyone who sto
 | `onboarding_step` `name` | The name step first shows |  |
 | `onboarding_step` `meet` | MeetScreen shows |  |
 | `onboarding_step` `home` | HomeScreen first shows after adoption |  |
-| `pet_adopted` | Pet is created and saved | `coat_style` and `eye_color` are ids, `archetype` = chosen attribute set |
+| `pet_adopted` | Pet is created and saved | `coat_style` and `eye_color` are ids, `archetype` = chosen attribute set. A restart also fires this, plus `restart_pet_completed` |
+| `restart_pet_tapped` | Settings row tapped | No params |
+| `restart_pet_confirmed` | Restart confirmed | `old_species`, `old_breed`, `old_pet_age_days`, `old_pet_level`, `old_tricks_learned` (count of mastered tricks) |
+| `restart_pet_completed` | The new pet is saved | `new_species`, `new_breed`, `seconds_to_complete` from the confirm |
 | `tutorial_begin` | First tutorial goal is shown to a new pet | Once per pet |
 | `tutorial_complete` | Every tutorial goal is complete |  |
 | `suggested_activity_complete` | Any tutorial goal or daily-list item completes | `activity_id` is a tutorial goal action (`feed`, `parkFind`, `school`, …), a fixed daily slot (`hat`, `park`, `find`, …), or the prefix `toy`, `practice`, or `progress`. Strip `toy:<id>`, `practice:<trickId>`, and `progress:<trickId>` down to that prefix. Never send the `tutorial:` prefix or the label. `park` and `parkFind` stay distinct |

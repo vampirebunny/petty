@@ -65,7 +65,8 @@ Player-level flag: `seenDailyOutfitTooltip` (boolean), since the tooltip is abou
 
 - **Item no longer owned or not valid for species:** skip it; never auto-equip something the player doesn't own.
 - **Only one owned item total:** wear it; the no-repeat rule can't be met, so accept the repeat.
-- **Pet retired/rehomed:** the setting goes with that pet; a new pet starts with the toggle off. Retired pets are not loaded, so the picker does not run for them.
+- **Pet retired:** the setting goes with that pet; a new pet starts with the toggle off. Retired pets are not loaded, so the picker does not run for them.
+- **Pet restarted:** the toggle is copied onto the new pet. If it was on, the new pet gets an outfit from owned items on its first day.
 - **Playdates:** unaffected. Players still choose the playdate outfit separately. When a friend picks this pet as a partner, it shows whatever it's wearing.
 - **Newly bought items** become eligible from the next pick; buying doesn't trigger a re-pick.
 

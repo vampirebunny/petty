@@ -84,6 +84,11 @@ CREATE TABLE IF NOT EXISTS retired_pets (
   json TEXT NOT NULL,
   retired_at INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS restarted_pets (
+  id TEXT PRIMARY KEY NOT NULL,
+  json TEXT NOT NULL,
+  restarted_at INTEGER NOT NULL
+);
 CREATE TABLE IF NOT EXISTS owned_toys (
   owner_id TEXT NOT NULL,
   toy_id TEXT NOT NULL,
@@ -193,6 +198,7 @@ DROP TABLE IF EXISTS owner_state;
 DROP TABLE IF EXISTS daily_counters;
 DROP TABLE IF EXISTS pet;
 DROP TABLE IF EXISTS retired_pets;
+DROP TABLE IF EXISTS restarted_pets;
 DROP TABLE IF EXISTS owned_toys;
 DROP TABLE IF EXISTS owned_furniture;
 DROP TABLE IF EXISTS home_layouts;

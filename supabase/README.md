@@ -64,6 +64,8 @@ These race follow-ups are applied:
 - `20261101150000_release_finished_racers.sql` is applied. Leaving a race that has started marks that entry finished, so a missing report no longer blocks later sign-ups until the DNF deadline. A report that arrives afterward can still write the time.
 - `20261101160000_one_race_per_slot.sql` is applied. A pet may hold one active entry per start time. A second event in the same slot stays closed.
 
+`20261101210000_pet_restarted_status.sql` and `20261101220000_restart_pet.sql` are applied. `pet_status` includes `restarted`, `pets.restarted_at` is set by `restart_pet`, and a leftover active pet becomes `restarted` instead of `retired` when a new active pet is pushed. `restart_pet` also withdraws an upcoming stadium entry, cancels or leaves a friend competition that has not started, and withdraws a runway invite whose looks are not submitted. See [Restart Pet](../docs/Restart%20Pet%20%E2%80%94%20Cursor%20Brief.md).
+
 New files in this folder are applied only by the project owner. Do not run `supabase db push`, the Supabase CLI against the hosted project, or the SQL in the dashboard from an agent or an automated script. After the CLI is linked, the owner applies new migrations with:
 
 ```bash

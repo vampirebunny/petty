@@ -25,6 +25,7 @@ import { UpdateRequiredScreen } from './src/screens/UpdateRequiredScreen';
 import { useAgeGate } from './src/state/useAgeGate';
 import { useIdentity } from './src/state/useIdentity';
 import { usePet } from './src/state/usePet';
+import { restartInProgress } from './src/db/restartPet';
 import { onAccountFlags, readRestoreInProgress } from './src/db/accountMeta';
 import { onLocalWiped } from './src/compliance/accountWipe';
 import { releaseWelcomeHold } from './src/state/sessionGate';
@@ -177,7 +178,7 @@ export default function App() {
       }
       if (result === 'offline') {
         setEntry('offline');
-      } else if (result === 'home') {
+      } else if (result === 'home' || result === 'restart') {
         setEntry('started');
       } else {
         setEntry('welcome');
@@ -307,7 +308,9 @@ export default function App() {
         <AdoptScreen
           onBusyChange={setSignInBusy}
           onAdopt={(...args) => {
-            setMeeting(true);
+            if (!restartInProgress()) {
+              setMeeting(true);
+            }
             adopt(...args, ownerId);
           }}
         />
