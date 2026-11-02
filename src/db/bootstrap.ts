@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getOrCreateInstallId, peekSessionUserId, setCachedUserId } from '../compliance/identity';
 import { bindInstallToAuth } from './bindOwner';
 import { markOwnerReady, setCurrentOwner } from './currentOwner';
+import { loadSavedEconomy } from '../economy/remoteEconomy';
 import { getDb, takeAsyncWipe } from './database';
 
 const dataDeletes = [
@@ -58,6 +59,7 @@ async function run(): Promise<void> {
     setCurrentOwner(installId);
   }
   markOwnerReady();
+  loadSavedEconomy();
 }
 
 export function bootstrapLocal(): Promise<void> {

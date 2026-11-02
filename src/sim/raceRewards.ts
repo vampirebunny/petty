@@ -1,6 +1,7 @@
 import { ribbonFacts } from '../awards/cache';
 import { localDay } from '../economy/clock';
 import { RACE_INPUT_ENERGY, RACE_INPUT_HYDRATION, inputCost, type RaceInputKind } from '../../supabase/functions/_shared/race-sim/index.ts';
+import { grantCompetitionBoops } from '../economy/grants';
 import { gameplayConfig } from './gameplayConfig';
 import { grantXp, noteTutorialAction } from './progress';
 import { syncBadges } from './badges';
@@ -122,6 +123,7 @@ export function applyRaceRewards(state: PetState, finish: RaceFinish, now: numbe
   if (pay) {
     next = grantXp(next, xpForPlace(finish.place));
   }
+  grantCompetitionBoops(finish.raceId, finish.place, true, now);
   next = noteTutorialAction(next, 'race');
   next = completeSuggestion(next, 'race', now);
   return syncBadges(next, now);

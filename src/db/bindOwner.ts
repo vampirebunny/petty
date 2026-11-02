@@ -44,10 +44,10 @@ export function copyOwnerRows(from: string, to: string): void {
       database.runSync(
         `INSERT INTO owner_state (
            owner_id, time_paid_through, time_capped_day, last_trusted_time, server_time_offset_ms,
-           login_streak, login_last_claimed_day, last_open_at
+           login_streak, login_last_claimed_day, last_open_at, utc_offset_minutes, day_accepted_at
          )
          SELECT ?, time_paid_through, time_capped_day, last_trusted_time, server_time_offset_ms,
-           login_streak, login_last_claimed_day, last_open_at
+           login_streak, login_last_claimed_day, last_open_at, utc_offset_minutes, day_accepted_at
          FROM owner_state WHERE owner_id = ?`,
         to,
         from,

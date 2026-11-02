@@ -28,16 +28,17 @@ export function writeLedgerEntry(
   key: string,
   sourceRef: string | null,
   lines: LedgerLine[],
-  options?: { outbox?: boolean; kind?: string },
+  options?: { outbox?: boolean; kind?: string; localDay?: string | null; utcOffsetMinutes?: number | null },
 ): void {
   const database = getDb();
   const kind = options?.kind ?? ledgerKind(source);
   const deviceTime = new Date().toISOString();
   const catalogVersion = activeCatalogVersion();
+  const localDay = options?.localDay ?? null;
   database.runSync(
     `INSERT INTO transactions (
-       id, owner_id, idempotency_key, source, kind, source_ref, device_time, app_version, config_version, catalog_version
-     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       id, owner_id, idempotency_key, source, kind, source_ref, device_time, app_version, config_version, catalog_version, local_day
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     id,
     ownerId,
     key,
@@ -48,6 +49,7 @@ export function writeLedgerEntry(
     appVersion(),
     economyConfig.version,
     catalogVersion,
+    localDay,
   );
   lines.forEach((line, index) => {
     database.runSync(
@@ -87,7 +89,8 @@ export function writeLedgerEntry(
         scene: line.scene ?? null,
       })),
       reverses_key: source === 'reversal' ? sourceRef : null,
-      local_day: null,
+      local_day: localDay,
+      utc_offset_minutes: options?.utcOffsetMinutes ?? null,
       device_time: deviceTime,
     }),
   );

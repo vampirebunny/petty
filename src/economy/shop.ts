@@ -712,79 +712,14 @@ const scratchPole: ShopListing = {
   shop: 'always',
   tier: 'standard',
   species: ['cat'],
-  price: 5000,
+  price: 3000,
   sort: 2,
   stackable: false,
 };
 
-// A downloaded catalog from before this item existed still shows it on the Furniture shelf.
-const furnitureShelfPrices: Record<string, number> = {
-  scratcher: 5000,
-  catTree: 10000,
-  dogHouse: 9000,
-};
-
-// October 2026 list. Pins a downloaded catalog that still has the previous prices.
-const priceAdjustments: Record<string, number> = {
-  'glasses:classic': 900,
-  'glasses:square': 900,
-  'glasses:heart': 1200,
-  'glasses:heart-sky': 1200,
-  'hat:beanie-pink': 1100,
-  'hat:beanie-stripe': 1200,
-  'hat:cap': 1200,
-  'hat:cap-sky': 1200,
-  'hat:bucket': 1300,
-  'hat:party': 1400,
-  'hat:beret': 1500,
-  'hat:bucket-daisy': 1600,
-  'hat:top': 1800,
-  'boots:rain': 2000,
-  'boots:sneaker': 2000,
-  'boots:rain-blue': 2000,
-  'boots:sneaker-pink': 2100,
-  'jacket:sweater': 3000,
-  'jacket:vest': 3000,
-  'jacket:puffer-mint': 3000,
-  'jacket:sweater-lilac': 3000,
-  'jacket:hoodie': 3200,
-  'jacket:rain': 3500,
-  'glasses:star': 900,
-  'hat:top-velvet': 4500,
-  'boots:sneaker-gold': 2000,
-  'jacket:puffer-rainbow': 6000,
-  'hat:crown': 20000,
-  squeaky: 900,
-  bone: 1000,
-  rope: 1200,
-  frisbee: 1500,
-  crinkle: 800,
-  yarn: 900,
-  mouse: 900,
-  wand: 1700,
-  laser: 2500,
-  bowl_food: 700,
-  bowl_water: 700,
-  bed_standard: 3000,
-  scratcher: 5000,
-  bed_cloud_puff: 5500,
-  bed_kitty_cave: 5500,
-  bed_bone_sofa: 8000,
-  bed_moon_cradle: 8000,
-  dogHouse: 9000,
-  catTree: 10000,
-  special: 200,
-  treat_jerky: 250,
-  treat_tuna: 250,
-  food_gourmet: 300,
-  food_steak: 300,
-  food_fish: 300,
-  second_wind: 500,
-};
-
 const homeShelf: ShopListing[] = [
-  { id: 'bowl_food', name: 'Extra food bowl', category: 'home', shop: 'always', tier: 'standard', price: 700, sort: 10, stackable: false },
-  { id: 'bowl_water', name: 'Extra water bowl', category: 'home', shop: 'always', tier: 'standard', price: 700, sort: 11, stackable: false },
+  { id: 'bowl_food', name: 'Extra food bowl', category: 'home', shop: 'always', tier: 'standard', price: 600, sort: 10, stackable: false },
+  { id: 'bowl_water', name: 'Extra water bowl', category: 'home', shop: 'always', tier: 'standard', price: 600, sort: 11, stackable: false },
   {
     id: 'dogHouse',
     name: 'Pup Cabana',
@@ -798,7 +733,7 @@ const homeShelf: ShopListing[] = [
     restMultiplier: 2,
     description: '2× faster rest',
   },
-  { id: 'bed_standard', name: 'Standard Bed', category: 'home', shop: 'always', tier: 'standard', price: 3000, sort: 20, stackable: false, restMultiplier: 1 },
+  { id: 'bed_standard', name: 'Standard Bed', category: 'home', shop: 'always', tier: 'standard', price: 2500, sort: 20, stackable: false, restMultiplier: 1 },
   {
     id: 'bed_cloud_puff',
     name: 'Marshmallow Mat',
@@ -806,7 +741,7 @@ const homeShelf: ShopListing[] = [
     shop: 'always',
     tier: 'standard',
     species: ['dog'],
-    price: 5500,
+    price: 5000,
     sort: 21,
     stackable: false,
     restMultiplier: 2,
@@ -819,7 +754,7 @@ const homeShelf: ShopListing[] = [
     shop: 'always',
     tier: 'standard',
     species: ['dog'],
-    price: 8000,
+    price: 7500,
     sort: 22,
     stackable: false,
     restMultiplier: 2.5,
@@ -832,7 +767,7 @@ const homeShelf: ShopListing[] = [
     shop: 'always',
     tier: 'standard',
     species: ['cat'],
-    price: 5500,
+    price: 5000,
     sort: 23,
     stackable: false,
     restMultiplier: 2,
@@ -845,7 +780,7 @@ const homeShelf: ShopListing[] = [
     shop: 'always',
     tier: 'standard',
     species: ['cat'],
-    price: 8000,
+    price: 7500,
     sort: 24,
     stackable: false,
     restMultiplier: 2.5,
@@ -865,7 +800,7 @@ export function withHomeShelf(catalog: ShopCatalog): ShopCatalog {
     return {
       ...item,
       name: shelf.name,
-      price: shelf.price ?? item.price,
+      price: item.price ?? shelf.price,
       restMultiplier: shelf.restMultiplier ?? item.restMultiplier,
       description: shelf.description ?? item.description,
       sort: shelf.sort,
@@ -877,33 +812,11 @@ export function withHomeShelf(catalog: ShopCatalog): ShopCatalog {
   return { ...catalog, items: [...items, ...extra] };
 }
 
-export function withPriceAdjustments(catalog: ShopCatalog): ShopCatalog {
-  let changed = false;
-  const items = catalog.items.map((item) => {
-    const price = priceAdjustments[item.id];
-    if (price == null || item.price === price) {
-      return item;
-    }
-    changed = true;
-    return { ...item, price };
-  });
-  return changed ? { ...catalog, items } : catalog;
-}
-
 export function withScratchPole(catalog: ShopCatalog): ShopCatalog {
-  let changed = false;
-  const items = catalog.items.map((item) => {
-    const price = furnitureShelfPrices[item.id];
-    if (price == null || item.price === price) {
-      return item;
-    }
-    changed = true;
-    return { ...item, price };
-  });
-  if (!items.some((item) => item.id === scratchPole.id)) {
-    return { ...catalog, items: [...items, scratchPole] };
+  if (catalog.items.some((item) => item.id === scratchPole.id)) {
+    return catalog;
   }
-  return changed ? { ...catalog, items } : catalog;
+  return { ...catalog, items: [...catalog.items, scratchPole] };
 }
 
 export function itemDefsFromCatalog(

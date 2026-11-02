@@ -1,4 +1,5 @@
 import { localDay } from '../economy/clock';
+import { grantActivityBoops, grantParkFindBoops } from '../economy/grants';
 import { ITEM_KINDS } from '../items/kinds';
 import { startingWaterLevel } from './config';
 import { gameplayConfig } from './gameplayConfig';
@@ -244,6 +245,9 @@ export function completeSuggestion(state: PetState, key: string, now: number, ct
     suggestions: (next.suggestions ?? []).filter((slot) => slot.id !== hit.id),
     suggestionsDone: tutorial ? next.suggestionsDone : [...(next.suggestionsDone ?? []), hit.id],
   };
+  if (!tutorial) {
+    grantActivityBoops(hit.id, now);
+  }
   if (!tutorial && next.level >= gameplayConfig.tutorialLevel) {
     next = {
       ...next,
@@ -291,6 +295,7 @@ export function recordParkFind(
   rarity: ParkFindRarity,
   now: number,
 ): PetState {
+  grantParkFindBoops(state.id, itemId, now, now);
   let next = completeSuggestion(onParkFindRecorded(state, itemId, isNew, rarity, now), 'parkFind', now);
   if (isNew) {
     next = completeSuggestion(next, 'find', now);

@@ -192,6 +192,7 @@ import { BadgeCelebration } from '../ui/BadgeCelebration';
 import { badgeLabel } from '../sim/badges';
 import { Archive, Cookie, Droplet, HandHeart, Moon, Sparkles } from 'lucide-react-native';
 import { playBadgeChime } from '../audio/badge';
+import { playEnergyPop } from '../audio/energyPop';
 import { GREET } from '../actor/greetings';
 import { PetView } from '../ui/PetView';
 import { PhoneColumn } from '../ui/PhoneColumn';
@@ -3141,6 +3142,11 @@ export default function HomeScreen({ petApi }: Props) {
                   if (!used.ok || !used.pet) {
                     flash(!used.ok && used.reason === 'daily_limit' ? 'Second Wind is used up for today.' : 'Could not use that.');
                     return;
+                  }
+                  if (used.energyGained && used.energyGained > 0) {
+                    const pop = { color: tints.butter.icon, amount: Math.round(used.energyGained), label: 'Energy' };
+                    setPops((current) => (current ? [...current, pop] : [pop]));
+                    playEnergyPop();
                   }
                   commitPet(used.pet, 'speak');
                   dismissSheet();

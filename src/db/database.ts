@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS transactions (
   app_version TEXT,
   config_version INTEGER,
   catalog_version INTEGER,
+  local_day TEXT,
   UNIQUE (owner_id, idempotency_key)
 );
 CREATE TABLE IF NOT EXISTS transaction_lines (
@@ -65,7 +66,9 @@ CREATE TABLE IF NOT EXISTS owner_state (
   server_time_offset_ms INTEGER NOT NULL,
   login_streak INTEGER NOT NULL,
   login_last_claimed_day TEXT,
-  last_open_at INTEGER NOT NULL
+  last_open_at INTEGER NOT NULL,
+  utc_offset_minutes INTEGER,
+  day_accepted_at INTEGER NOT NULL DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS daily_counters (
   day TEXT NOT NULL,
@@ -222,6 +225,16 @@ function ensureLedgerColumns(database: SQLite.SQLiteDatabase): void {
   const transactions = columns('transactions');
   if (!transactions.includes('catalog_version')) {
     database.execSync('ALTER TABLE transactions ADD COLUMN catalog_version INTEGER');
+  }
+  if (!transactions.includes('local_day')) {
+    database.execSync('ALTER TABLE transactions ADD COLUMN local_day TEXT');
+  }
+  const owner = columns('owner_state');
+  if (!owner.includes('utc_offset_minutes')) {
+    database.execSync('ALTER TABLE owner_state ADD COLUMN utc_offset_minutes INTEGER');
+  }
+  if (!owner.includes('day_accepted_at')) {
+    database.execSync('ALTER TABLE owner_state ADD COLUMN day_accepted_at INTEGER NOT NULL DEFAULT 0');
   }
   const lines = columns('transaction_lines');
   if (!lines.includes('unit_price')) {

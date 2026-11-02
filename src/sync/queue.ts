@@ -512,7 +512,16 @@ async function flushOutbox(): Promise<void> {
       }
       try {
         const payload = JSON.parse(row.payload) as { source?: string };
-        return payload.source === 'time_payout';
+        return (
+          payload.source === 'time_payout' ||
+          payload.source === 'time_clock' ||
+          payload.source === 'first_open' ||
+          payload.source === 'streak' ||
+          payload.source === 'activity' ||
+          payload.source === 'playdate' ||
+          payload.source === 'competition' ||
+          payload.source === 'park_find'
+        );
       } catch {
         return false;
       }

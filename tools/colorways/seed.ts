@@ -23,31 +23,29 @@ const root = join(__dirname);
 const picks = JSON.parse(readFileSync(join(root, 'picks.json'), 'utf8')) as string[];
 const items = JSON.parse(readFileSync(join(root, 'generated', 'colorways.json'), 'utf8')) as Generated[];
 
-// Same Boops as the hand-made item of that shape (October 2026 list).
-// Rarity still chooses the shelf. It does not change the price.
-// A shape with two standards uses the always-shelf price.
-// Star shades match the other shades at 900. High-tops match the other sneakers at 2000.
+// Shape prices. Rare colorways stay at the shape price.
+// Exclusive is 1.25× and limited is 1.5×, rounded half-up to the nearest 50.
 const priceOf: Record<string, number> = {
-  beanie: 1100,
-  party: 1400,
+  beanie: 1000,
+  party: 1300,
   top: 1800,
-  cap: 1200,
-  bucket: 1300,
-  beret: 1500,
+  cap: 1100,
+  bucket: 1200,
+  beret: 1400,
   square: 900,
   'red-rim': 900,
-  heart: 1200,
+  heart: 900,
   star: 900,
   collar: 600,
   bandana: 500,
   scarf: 700,
-  bow: 600,
+  bow: 500,
   bowtie: 800,
-  sweater: 3000,
+  sweater: 2800,
   hoodie: 3200,
-  puffer: 3000,
-  vest: 3000,
-  raincoat: 3500,
+  puffer: 3200,
+  vest: 2800,
+  raincoat: 3600,
   red: 2000,
   rain: 2000,
   sneaker: 2000,
@@ -67,7 +65,8 @@ function price(item: Generated): number {
   if (amount == null) {
     throw new Error(`no price for shape ${item.shape}`);
   }
-  return amount;
+  const multiplier = item.tier === 'exclusive' ? 1.25 : item.tier === 'limited' ? 1.5 : 1;
+  return Math.round((amount * multiplier) / 50) * 50;
 }
 
 function shelf(tier: Tier): { shop: string; tier: string; cap: string } {

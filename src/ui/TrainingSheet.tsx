@@ -95,6 +95,7 @@ export function TrainingSheet({
               {remain ? <Text style={styles.remainLine}>{remain.label} until practice</Text> : null}
               <Text style={[styles.body, styles.bodyAside, { color: ink }]}>{body}</Text>
               <Text style={styles.windName}>Second Wind</Text>
+              <Text style={styles.ownedText}>Ends the training break and gives +10 energy</Text>
               <Text style={styles.ownedText}>You have {wind.owned}</Text>
             </View>
           </View>
@@ -260,6 +261,7 @@ function WindRow({ owned, species, hot }: { owned: number; species: 'dog' | 'cat
       <WindArt species={species} size={44} />
       <View style={styles.windCopy}>
         <Text style={styles.windName}>Second Wind</Text>
+        <Text style={styles.ownedText}>Ends the training break and gives +10 energy</Text>
         <Text style={styles.ownedText}>You have {owned}</Text>
       </View>
     </View>

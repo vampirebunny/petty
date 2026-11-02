@@ -17,10 +17,14 @@ import { listedPrice, quoteCart } from './shopState';
 import type { CartInput, PricedLine, SpeciesId } from './shop';
 import { accrualNow } from '../db/accountMeta';
 import { queueCoupled, queuePlayer } from '../sync/queue';
-import { economyConfig, type PlayFindKind } from './economyConfig';
+import { economyConfig } from './economyConfig';
 import { localDay } from './clock';
+import { acceptedLocalDay } from './dayGate';
 import { planTimePayout } from './accrual';
 import { loginOffer, type LoginOffer } from './login';
+import { grantCapped, setWalletNotifier } from './grants';
+import { secondWindEnergy } from './rewards';
+import { activeClient } from '../sync/clientScope';
 import { levelsToPay, stagesToPay } from './levels';
 import { earn, stat, track } from '../analytics/analytics';
 import { noteTrickStart } from '../analytics/clock';
@@ -250,6 +254,8 @@ function readOwner() {
     login_streak: number;
     login_last_claimed_day: string | null;
     last_open_at: number;
+    utc_offset_minutes: number | null;
+    day_accepted_at: number | null;
   }>('SELECT * FROM owner_state WHERE owner_id = ?', ownerId());
   if (!row) {
     throw new Error('missing owner_state');
@@ -261,7 +267,8 @@ function writeOwner(row: ReturnType<typeof readOwner>): void {
   db().runSync(
     `UPDATE owner_state SET
       time_paid_through = ?, time_capped_day = ?, last_trusted_time = ?, server_time_offset_ms = ?,
-      login_streak = ?, login_last_claimed_day = ?, last_open_at = ?
+      login_streak = ?, login_last_claimed_day = ?, last_open_at = ?,
+      utc_offset_minutes = ?, day_accepted_at = ?
      WHERE owner_id = ?`,
     row.time_paid_through,
     row.time_capped_day,
@@ -270,6 +277,8 @@ function writeOwner(row: ReturnType<typeof readOwner>): void {
     row.login_streak,
     row.login_last_claimed_day,
     row.last_open_at,
+    row.utc_offset_minutes,
+    row.day_accepted_at ?? 0,
     ownerId(),
   );
 }
@@ -308,9 +317,27 @@ function applyLedgerLine(owner: string, line: LedgerLine): void {
   }
 }
 
-function insertTransaction(source: string, key: string, sourceRef: string | null, lines: LedgerLine[]): void {
+function deviceOffset(now: number): number | null {
+  const bound = activeClient()?.utcOffsetMinutes;
+  if (bound != null) {
+    return bound;
+  }
+  const offset = -new Date(now).getTimezoneOffset();
+  return Number.isFinite(offset) ? offset : null;
+}
+
+function insertTransaction(
+  source: string,
+  key: string,
+  sourceRef: string | null,
+  lines: LedgerLine[],
+  localDayKey: string | null = null,
+): void {
   const owner = ownerId();
-  writeLedgerEntry(owner, newRequestId(), source, key, sourceRef, lines);
+  writeLedgerEntry(owner, newRequestId(), source, key, sourceRef, lines, {
+    localDay: localDayKey,
+    utcOffsetMinutes: deviceOffset(Date.now()),
+  });
   for (const line of lines) {
     applyLedgerLine(owner, line);
   }
@@ -333,6 +360,8 @@ function emit(): void {
     listener(next);
   }
 }
+
+setWalletNotifier(emit);
 
 export function reloadWallet(): void {
   emit();
@@ -508,8 +537,10 @@ function commitUse(pet: PetState, item: CatalogItem, opts: UseOpts, key: string,
     const day = localDay(now);
     setDaily(day, pet.id, 'second_wind', dailyCount(day, pet.id, 'second_wind') + 1);
     const track = pet.training[trickId];
+    const energy = secondWindEnergy(pet.needs.energy);
     return {
       ...pet,
+      needs: { ...pet.needs, energy: energy.next },
       training: {
         ...pet.training,
         [trickId]: { ...track, restUntil: null, focusUsed: 0, hadNoTreat: false },
@@ -568,6 +599,7 @@ export function purchaseCart(
         id: line.id,
         value: line.lineTotal,
         category: spendCategory(line),
+        deal: line.deal,
       }));
       for (const row of granted) {
         const spot = buySpot(row.sku, sceneId);
@@ -596,6 +628,7 @@ export function purchaseCart(
             value: line.value,
             item_name: line.id,
             category: line.category,
+            daily_deal: line.deal ? 1 : 0,
           });
         }
       }
@@ -642,6 +675,7 @@ export function purchaseLimited(itemId: string, price: number, serial: number, r
         value: result.price,
         item_name: itemId,
         category: item?.kind ?? 'outfit',
+        daily_deal: 0,
       });
     }
     if (result.ok) {
@@ -763,6 +797,7 @@ export function buyTrick(
         value: result.price,
         item_name: trickId,
         category: 'trick',
+        daily_deal: 0,
       });
     }
     if (result.ok && result.pet) {
@@ -805,6 +840,7 @@ export function purchase(itemId: string, qty: number, requestId: string): Check 
           value: price * qty,
           item_name: itemId,
           category: item.kind,
+          daily_deal: 0,
         });
       }
     }
@@ -817,7 +853,13 @@ export function purchase(itemId: string, qty: number, requestId: string): Check 
   }
 }
 
-export function useItem(pet: PetState, itemId: string, opts: UseOpts, requestId: string, now = Date.now()): Check & { pet?: PetState } {
+export function useItem(
+  pet: PetState,
+  itemId: string,
+  opts: UseOpts,
+  requestId: string,
+  now = Date.now(),
+): Check & { pet?: PetState; energyGained?: number } {
   try {
     const result = transaction(() => {
       ensureOwnerRows(now);
@@ -840,7 +882,10 @@ export function useItem(pet: PetState, itemId: string, opts: UseOpts, requestId:
       } else if (item?.kind === 'treat') {
         track('care_action', { action: 'treat', stat_before: stat(pet.needs.happiness), item_id: itemId });
       } else if (item?.kind === 'second_wind' && opts.trickId) {
-        track('second_wind_used', { trick_id: opts.trickId });
+        const gained = Math.max(0, (result.pet.needs.energy ?? 0) - pet.needs.energy);
+        track('second_wind_used', { trick_id: opts.trickId, energy_gained: gained });
+        queueCoupled(result.pet);
+        return { ...result, energyGained: gained };
       }
       queueCoupled(result.pet);
     }
@@ -894,6 +939,7 @@ export function buyAndUse(pet: PetState, itemId: string, opts: UseOpts, requestI
           value: price,
           item_name: itemId,
           category: item.kind,
+          daily_deal: 0,
         });
       }
     }
@@ -942,11 +988,24 @@ export function ensureStarter(now = Date.now()): void {
   queuePlayer();
 }
 
-function grantBoops(source: string, key: string, ref: string | null, amount: number): number {
+function boopsFromSource(source: string, day: string): number {
+  const row = db().getFirstSync<{ total: number }>(
+    `SELECT COALESCE(SUM(l.delta), 0) AS total
+     FROM transactions t
+     JOIN transaction_lines l ON l.transaction_id = t.id
+     WHERE t.owner_id = ? AND t.source = ? AND t.local_day = ? AND l.asset = 'boops'`,
+    ownerId(),
+    source,
+    day,
+  );
+  return Number(row?.total ?? 0);
+}
+
+function grantBoops(source: string, key: string, ref: string | null, amount: number, day: string | null = null): number {
   if (amount <= 0 || hasKey(key)) {
     return 0;
   }
-  insertTransaction(source, key, ref, [{ asset: 'boops', delta: amount }]);
+  insertTransaction(source, key, ref, [{ asset: 'boops', delta: amount }], day);
   return amount;
 }
 
@@ -983,7 +1042,7 @@ export function payoutTimeAccrual(mode: 'live' | 'return', wallNow?: number): nu
         timeCappedDay: owner.time_capped_day,
         lastTrustedTime: owner.last_trusted_time,
       },
-      dailyCount(day, '', 'time_boops'),
+      boopsFromSource('time_clock', day) + boopsFromSource('time_payout', day),
       mode,
     );
     if (!planned.save) {
@@ -995,10 +1054,7 @@ export function payoutTimeAccrual(mode: 'live' | 'return', wallNow?: number): nu
     owner.last_trusted_time = planned.owner.lastTrustedTime;
     writeOwner(owner);
     if (planned.amount > 0) {
-      const paid = grantBoops('time_payout', `time:${planned.owner.timePaidThrough}`, null, planned.amount);
-      if (paid > 0) {
-        setDaily(planned.day, '', 'time_boops', dailyCount(planned.day, '', 'time_boops') + paid);
-      }
+      const paid = grantBoops('time_clock', `time:${planned.owner.timePaidThrough}`, null, planned.amount, planned.day);
       return paid;
     }
     return 0;
@@ -1020,13 +1076,13 @@ export function dropRejectedTimePayout(key: string): void {
   const owner = ownerId();
   let changed = false;
   transaction(() => {
-    const row = db().getFirstSync<{ id: string; device_time: string }>(
-      'SELECT id, device_time FROM transactions WHERE owner_id = ? AND idempotency_key = ? AND source = ?',
+    const row = db().getFirstSync<{ id: string; device_time: string; source: string }>(
+      'SELECT id, device_time, source FROM transactions WHERE owner_id = ? AND idempotency_key = ?',
       owner,
       key,
-      'time_payout',
     );
-    if (row) {
+    const reversible = row && ['time_clock', 'time_payout', 'first_open', 'streak', 'activity', 'playdate', 'competition', 'park_find'].includes(row.source);
+    if (row && reversible) {
       const sum = db().getFirstSync<{ total: number }>(
         "SELECT COALESCE(SUM(delta), 0) AS total FROM transaction_lines WHERE transaction_id = ? AND asset = 'boops'",
         row.id,
@@ -1052,7 +1108,8 @@ export function dropRejectedTimePayout(key: string): void {
     }
     const state = db().getFirstSync<{ owner_id: string }>('SELECT owner_id FROM owner_state WHERE owner_id = ?', owner);
     const payable = accrualNow();
-    if (state && payable != null) {
+    const timeSource = row?.source === 'time_clock' || row?.source === 'time_payout';
+    if (timeSource && state && payable != null) {
       const ownerRow = readOwner();
       if (ownerRow.time_paid_through > payable) {
         ownerRow.time_paid_through = payable;
@@ -1067,10 +1124,23 @@ export function dropRejectedTimePayout(key: string): void {
   }
 }
 
+function loginFor(now: number, owner: ReturnType<typeof readOwner>): LoginOffer {
+  const today = acceptedLocalDay(now, {
+    lastTrustedTime: owner.last_trusted_time,
+    loginLastClaimedDay: owner.login_last_claimed_day,
+    utcOffset: owner.utc_offset_minutes,
+    dayAcceptedAt: owner.day_accepted_at ?? 0,
+  });
+  if (!today) {
+    const streakDay = Math.min(economyConfig.streak.length, Math.max(1, owner.login_streak || 1));
+    return { claimable: false, streakDay, reward: 0 };
+  }
+  return loginOffer(owner.login_last_claimed_day, owner.login_streak, today);
+}
+
 export function getDailyLogin(now = Date.now()): LoginOffer {
   ensureOwnerRows(now);
-  const owner = readOwner();
-  return loginOffer(owner.login_last_claimed_day, owner.login_streak, localDay(now));
+  return loginFor(now, readOwner());
 }
 
 export function claimDailyLogin(now = Date.now()): Check & { amount?: number; streakDay?: number } {
@@ -1078,21 +1148,37 @@ export function claimDailyLogin(now = Date.now()): Check & { amount?: number; st
     const result = transaction(() => {
       ensureOwnerRows(now);
       const owner = readOwner();
-      const today = localDay(now);
+      const today = acceptedLocalDay(now, {
+        lastTrustedTime: owner.last_trusted_time,
+        loginLastClaimedDay: owner.login_last_claimed_day,
+        utcOffset: owner.utc_offset_minutes,
+        dayAcceptedAt: owner.day_accepted_at ?? 0,
+      });
+      if (!today) {
+        return { ok: false as const, reason: 'clock' };
+      }
       const offer = loginOffer(owner.login_last_claimed_day, owner.login_streak, today);
       if (!offer.claimable) {
         return { ok: false as const, reason: 'already_claimed' };
       }
-      const key = `login:${today}`;
-      const amount = grantBoops('daily_login', key, today, offer.reward);
+      const opened = grantBoops('first_open', `first:${today}`, today, economyConfig.firstOpen.boops, today);
+      const streak =
+        offer.streakDay === economyConfig.streak.length
+          ? grantBoops('streak', `streak:${today}`, today, economyConfig.streak.bonus, today)
+          : 0;
       owner.login_streak = offer.streakDay;
       owner.login_last_claimed_day = today;
+      owner.day_accepted_at = accrualNow(now) ?? now;
+      owner.utc_offset_minutes = deviceOffset(now);
       writeOwner(owner);
-      return { ok: true as const, amount, streakDay: offer.streakDay };
+      return { ok: true as const, amount: opened + streak, streakDay: offer.streakDay, opened, streak };
     });
     emit();
-    if (result.ok && result.amount && result.amount > 0) {
-      earn('daily_login', result.amount);
+    if (result.ok && result.opened && result.opened > 0) {
+      earn('first_open', result.opened);
+    }
+    if (result.ok && result.streak && result.streak > 0) {
+      earn('streak', result.streak);
     }
     if (result.ok) {
       queuePlayer();
@@ -1164,7 +1250,7 @@ function payLevelsAndStages(pet: PetState): {
 export function settleProgress(
   pet: PetState,
   now = Date.now(),
-  extra?: { playdateId?: string; find?: PlayFindKind },
+  extra?: { playdateId?: string },
 ): { pet: PetState; boops: number; label: string | null; payouts: { label: string; amount: number }[] } {
   const result = transaction(() => {
     ensureOwnerRows(now);
@@ -1177,33 +1263,30 @@ export function settleProgress(
     const payouts = [...progressed.payouts];
     const credits = [...progressed.credits];
     if (extra?.playdateId) {
-      const paid = grantBoops('playdate', `playdate:${extra.playdateId}`, extra.playdateId, economyConfig.playdate.boops);
+      const clock = readOwner();
+      const day = acceptedLocalDay(now, {
+        lastTrustedTime: clock.last_trusted_time,
+        loginLastClaimedDay: clock.login_last_claimed_day,
+        utcOffset: clock.utc_offset_minutes,
+        dayAcceptedAt: clock.day_accepted_at ?? 0,
+      });
+      const paid = day
+        ? grantCapped(
+            'playdate',
+            `playdate:${extra.playdateId}`,
+            extra.playdateId,
+            economyConfig.playdate.boops,
+            day,
+            economyConfig.playdate.dailyCap,
+            false,
+          )
+        : 0;
       boops += paid;
       if (paid > 0) {
         credits.push({ source: 'playdate', value: paid });
         payouts.push({ label: 'Boops', amount: paid });
         if (!label) {
           label = 'Boops';
-        }
-      }
-    }
-    if (extra?.find) {
-      const day = localDay(now);
-      const room = economyConfig.playFinds.dailyCap - dailyCount(day, '', 'play_finds');
-      const chance = economyConfig.playFinds.chanceByAction[extra.find];
-      if (room > 0 && Math.random() < chance) {
-        const span = economyConfig.playFinds.maxBoops - economyConfig.playFinds.minBoops + 1;
-        const rolled = economyConfig.playFinds.minBoops + Math.floor(Math.random() * span);
-        const amount = Math.min(room, rolled);
-        const paid = grantBoops('play_find', `find:${newRequestId()}`, extra.find, amount);
-        if (paid > 0) {
-          setDaily(day, '', 'play_finds', dailyCount(day, '', 'play_finds') + paid);
-          credits.push({ source: 'play_find', value: paid });
-          boops += paid;
-          payouts.push({ label: 'Boops', amount: paid });
-          if (!label) {
-            label = 'Boops';
-          }
         }
       }
     }
@@ -1255,7 +1338,7 @@ export function onAppOpen(pet: PetState, now = Date.now()): OpenRewards {
         timeCappedDay: owner.time_capped_day,
         lastTrustedTime: owner.last_trusted_time,
       },
-      dailyCount(localDay(payable), '', 'time_boops'),
+      boopsFromSource('time_clock', localDay(payable)) + boopsFromSource('time_payout', localDay(payable)),
       'return',
     );
     const bursts: Burst[] = [];
@@ -1265,22 +1348,12 @@ export function onAppOpen(pet: PetState, now = Date.now()): OpenRewards {
       owner.time_capped_day = planned.owner.timeCappedDay;
       owner.last_trusted_time = planned.owner.lastTrustedTime;
       if (planned.amount > 0) {
-        const paid = grantBoops('time_payout', `time:${planned.owner.timePaidThrough}`, null, planned.amount);
+        const paid = grantBoops('time_clock', `time:${planned.owner.timePaidThrough}`, null, planned.amount, planned.day);
         if (paid > 0) {
-          setDaily(planned.day, '', 'time_boops', dailyCount(planned.day, '', 'time_boops') + paid);
           awayBoops = paid;
           credits.push({ source: 'away_payout', value: paid });
           bursts.push({ label: 'Boops', amount: paid, coinCount: 5 });
         }
-      }
-    }
-    const away = owner.last_open_at > 0 ? now - owner.last_open_at : 0;
-    if (away >= economyConfig.welcomeBack.minDaysAway * 86_400_000) {
-      const welcomeKey = `welcome:${localDay(now)}`;
-      const paid = grantBoops('welcome_back', welcomeKey, null, economyConfig.welcomeBack.boops);
-      if (paid > 0) {
-        credits.push({ source: 'welcome_back', value: paid });
-        bursts.push({ label: 'Welcome back!', amount: paid, coinCount: 5 });
       }
     }
     const progressed = payLevelsAndStages(pet);
@@ -1296,7 +1369,7 @@ export function onAppOpen(pet: PetState, now = Date.now()): OpenRewards {
     return {
       pet: synced,
       bursts,
-      login: loginOffer(owner.login_last_claimed_day, owner.login_streak, localDay(now)),
+      login: loginFor(now, owner),
       awardedBadges,
       awayBoops,
       credits,

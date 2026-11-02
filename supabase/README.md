@@ -21,9 +21,11 @@ Applied by the owner through `20261024250000_ledger_source_ambiguity.sql`, inclu
 
 `20261101240000_friend_playdates.sql` is applied. It adds `playdates`, `playdate_participants`, `submit_friend_playdate`, `list_friend_playdates`, and `mark_playdate_seen`. `notify_friend_playdate` sends `@handle arranged a playdate!` (`kind: friend_playdate`). A tap does not open a screen. See [the sharing brief](../docs/Friend%20Playdate%20Sharing%20%26%20Notifications%20%E2%80%94%20Cursor%20Brief.md).
 
+`20261102120000_boops_earnings.sql` is applied. It adds `economy_config` (grant amounts, caps, streak grace, and the exclusive and limited multipliers), daily caps and clock checks on `append_ledger_entries` for `time_clock`, `first_open`, `streak`, `activity`, `playdate`, `competition`, and `park_find`, and stores the new Pet Shop prices on `shop_items` and `shop_bundles`. The Golden Crown (`hat:crown`) is `shop = 'hidden'` and `active = false`. Second Wind is 250, described as ending the training break and giving +10 energy. Old earn rules (`time_payout`, `daily_login`, `play_find`, `welcome_back`) stay so already-queued entries can still sync. See [the earnings brief](../docs/Cursor%20Brief%20Boops%20Earnings%20%26%20Pet%20Shop%20Pricing.md).
+
 `20261027120000_colorway_columns.sql` is applied. It adds `theme`, `collection`, `season`, and `rarity` on `shop_items`. The 238 launch colorways were inserted from `tools/colorways/generated/seed.sql`, which is not a migration: 190 `always`/`standard`, 24 `rotation`/`exclusive`, and 24 `featured`/`limited` with cap 500. A later drop is another insert-only file from `npm run colorways:seed`. The app reads `theme`: the `always`/`standard` themes rotate in the shop's collection section every 3 hours instead of sitting on the Clothes shelf (see [the shop brief](../docs/boop-boop-pet-shop-brief.md#5a-collection-rotation)).
 
-`20261028120000_colorway_shape_prices.sql` is applied. Colorway rows cost the same Boops as the hand-made item of that shape. Gold Star Shades are 900. Gold High-Tops are 2000.
+`20261028120000_colorway_shape_prices.sql` is applied. It first set each colorway to the handmade price of its shape. `20261102120000_boops_earnings.sql` replaces those numbers: rare colorways stay at the shape price, exclusive is 1.25×, and limited is 1.5×, rounded half-up to the nearest 50. Gold Star Shades are 1,150. Gold High-Tops are 2,500.
 
 `20261028153000_background_music_bucket.sql` creates the public `background-music` bucket, or marks the existing one public, and adds `background_music_public_read` so anon and signed-in clients can read objects. Hosted Storage rejects `DELETE` on `storage.objects` and `storage.buckets`, so this migration does not remove the bucket or its files. Upload the scene tracks that are not bundled in the app after it is applied. The app downloads those files by public URL and does not read a table.
 
@@ -37,7 +39,7 @@ Applied by the owner through `20261024250000_ledger_source_ambiguity.sql`, inclu
 
 `20261028180000_iap_service_grants.sql` is applied. `service_role` can insert and update `webhook_events` and read `boops_packs`. Without that, the webhook returns `{"error":"unavailable"}`. After the grant, a RevenueCat test event returned `{"ok":true}`.
 
-`20261029120000_second_wind_price.sql` is applied. Second Wind costs 500 Boops. The app also pins that price in `priceAdjustments`, so a catalog saved before the download charges 500 too.
+`20261029120000_second_wind_price.sql` is applied. It set Second Wind to 500. `20261102120000_boops_earnings.sql` sets it to 250 and the app no longer pins catalog prices.
 
 `20261029200000_stadium.sql` is applied. It adds the Stadium schedule (`competition_slots`, `competition_events`, `races`, `race_entries`, `pet_race_state`, `stadium_config`, `stadium_classes`) and the RPCs `get_upcoming_slots`, `sign_up`, `withdraw`, `gate_heartbeat`, and `race_state`. Each RPC creates upcoming slots and locks or starts due races first. A pg_cron job running `select public.stadium_tick();` every minute is an optional backstop. See [the Stadium brief](../docs/boop-boop-stadium-cursor-brief.md).
 

@@ -82,7 +82,7 @@ import { loadPlaydateSave } from '../playdate/storage';
 import { getDb } from '../db/database';
 import { catalogItem } from '../economy/catalog';
 import { resumeLimitedPurchases } from '../economy/limited';
-import type { PlayFindKind } from '../economy/economyConfig';
+import { takeBoopBurst } from '../economy/pendingBoops';
 import {
   claimDailyLogin,
   onAppOpen,
@@ -174,7 +174,7 @@ type PetApi = {
   adopt: (breedId: string, attributes: PetAttributes, look: Look, name: string, ownerId: string) => void;
   setOwnerId: (ownerId: string) => void;
   commitPet: (pet: PetState, cueKind?: Cue['kind']) => void;
-  noteFind: (kind: PlayFindKind, at?: { x: number; y: number }) => void;
+  noteFind: (kind: string, at?: { x: number; y: number }) => void;
   burst: Burst | null;
   pendingBoops: number;
   dismissBurst: () => void;
@@ -280,6 +280,7 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
   const [xpBursts, setXpBursts] = useState<number[]>([]);
   const clearXpBursts = useCallback(() => setXpBursts([]), []);
   const burstRef = useRef<Burst | null>(null);
+  const flushBoopsRef = useRef<() => void>(() => undefined);
   const burstQueue = useRef<Burst[]>([]);
   const burstSeq = useRef(0);
   const greetAfter = useRef<{ elapsedH: number } | null>(null);
@@ -336,6 +337,7 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
     stagedRef.current = false;
     stateRef.current = clean;
     setState(clean);
+    flushBoopsRef.current();
     if (nextCue?.kind === 'greet') {
       expectGreet();
     }
@@ -411,6 +413,15 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
     showBursts(tagged);
   }, [showBursts, stamp]);
 
+  useEffect(() => {
+    flushBoopsRef.current = () => {
+      const amount = takeBoopBurst();
+      if (amount > 0) {
+        pushBurst({ label: 'Boops', amount, coinCount: amount >= 15 ? 5 : 1 });
+      }
+    };
+  }, [pushBurst]);
+
   useEffect(
     () =>
       onIapBoops((credits) => {
@@ -422,27 +433,22 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
   );
 
   const enqueueOpen = useCallback((rewards: OpenRewards): boolean => {
-    const bursts = rewards.bursts.filter((item) => item.amount > 0);
+    let total = rewards.bursts.reduce((sum, item) => sum + item.amount, 0);
     if (rewards.login.claimable) {
       const claimed = claimDailyLogin();
-      if (claimed.ok && claimed.amount && claimed.amount > 0) {
-        bursts.push({
-          label: `Day ${claimed.streakDay ?? rewards.login.streakDay}`,
-          amount: claimed.amount,
-          coinCount: 5,
-        });
+      if (claimed.ok && claimed.amount) {
+        total += claimed.amount;
       }
     }
-    if (bursts.length === 0) {
+    if (total <= 0) {
       return false;
     }
-    const tagged = bursts.map(stamp);
+    const tagged = [stamp({ label: 'Boops', amount: total, coinCount: 5 })];
     const head = burstRef.current;
     if (head) {
       burstQueue.current.push(...tagged);
       showBursts(head);
     } else {
-      burstQueue.current.push(...tagged.slice(1));
       showBursts(tagged[0]);
     }
     return true;
@@ -591,6 +597,10 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
       const paid = payoutTimeAccrual('live');
       if (paid > 0) {
         pushBurst({ label: 'Boops', amount: paid, coinCount: 1 });
+      }
+      const opened = claimDailyLogin();
+      if (opened.ok && opened.amount && opened.amount > 0) {
+        pushBurst({ label: 'Boops', amount: opened.amount, coinCount: 5 });
       }
     }, openTickMs);
     return () => clearInterval(timer);
@@ -846,16 +856,16 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
   );
 
   const commitProgress = useCallback(
-    (event: PetEvent, extra?: { playdateId?: string; find?: PlayFindKind }) => {
+    (event: PetEvent, extra?: { playdateId?: string }) => {
       const current = stateRef.current;
       if (!current) {
         return null;
       }
       const result = applyEvent(current, event);
       const settled = settleProgress(result.state, Date.now(), extra);
-      const coinCount = extra?.find ? 1 : 5;
-      for (const payout of settled.payouts) {
-        pushBurst({ label: payout.label, amount: payout.amount, coinCount });
+      const total = settled.payouts.reduce((sum, payout) => sum + payout.amount, 0);
+      if (total > 0) {
+        pushBurst({ label: 'Boops', amount: total, coinCount: 5 });
       }
       publish(settled.pet, result.cue);
       noteInviteMoment();
@@ -1353,7 +1363,7 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
       if (seconds > 0 && current) {
         track('care_action', { action: 'cuddle', stat_before: stat(current.needs.happiness) });
       }
-      commitProgress({ type: 'cuddled', seconds }, seconds > 0 ? { find: 'cuddle_session' } : undefined);
+      commitProgress({ type: 'cuddled', seconds });
     },
     [commitProgress],
   );
@@ -1453,12 +1463,12 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
   );
 
   const noteFind = useCallback(
-    (kind: PlayFindKind, at?: { x: number; y: number }) => {
+    (_kind: string, at?: { x: number; y: number }) => {
       const current = stateRef.current;
       if (!current) {
         return;
       }
-      const settled = settleProgress(current, Date.now(), { find: kind });
+      const settled = settleProgress(current, Date.now());
       for (const payout of settled.payouts) {
         pushBurst({ label: payout.label, amount: payout.amount, coinCount: 1, origin: at });
       }

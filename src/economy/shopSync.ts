@@ -1,4 +1,5 @@
 import { getSupabase } from '../compliance/supabase';
+import { saveEconomyConfig } from './remoteEconomy';
 import { remoteVersion, saveLimitedStock, saveShopDownload } from './shopState';
 import type { ItemTier, LimitedStock, PickSlot, RemoteShop, RemoteShopItem, ShopBundle, ShopCategory, ShopFlag, SpeciesId } from './shop';
 
@@ -109,6 +110,10 @@ export async function refreshShopCatalog(now = Date.now()): Promise<boolean> {
     return false;
   }
   await refreshLimitedStock();
+  const economy = await supabase.from('economy_config').select('config').eq('id', 1).maybeSingle();
+  if (!economy.error && economy.data && typeof economy.data.config === 'object' && economy.data.config) {
+    saveEconomyConfig(economy.data.config);
+  }
   const { data: config, error } = await supabase
     .from('shop_config')
     .select('pick_slots, no_repeat_days, deal_pct, version')

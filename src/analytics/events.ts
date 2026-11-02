@@ -47,8 +47,13 @@ export type EarnSource =
   | 'iap'
   | 'level_up'
   | 'daily_login'
+  | 'first_open'
+  | 'streak'
+  | 'activity'
   | 'welcome_back'
   | 'playdate'
+  | 'competition'
+  | 'park_find'
   | 'play_find';
 export type HoursAway = '5m-1h' | '1-5' | '5-12' | '12-24' | '24-72' | '72+';
 export type OnboardingStep = 'consent_accepted' | 'adopt' | 'attributes' | 'name' | 'meet' | 'home';
@@ -108,7 +113,7 @@ export type AnalyticsEvents = {
   trick_attempt: { trick_id: string; success: Bit; treat_given: Bit; at_school: Bit };
   trick_learned: { trick_id: string; attempts_total: number; days_to_learn: number };
   training_break: { trick_id: string; second_wind_owned: number };
-  second_wind_used: { trick_id: string };
+  second_wind_used: { trick_id: string; energy_gained: number };
 
   earn_virtual_currency: { virtual_currency_name: 'Boops'; value: number; source: EarnSource };
   spend_virtual_currency: {
@@ -116,6 +121,7 @@ export type AnalyticsEvents = {
     value: number;
     item_name: string;
     category: SpendCategory;
+    daily_deal: Bit;
   };
   shop_item_view: { item_id: string; section: ShopSection };
   shop_try_on: { item_id: string };

@@ -2,6 +2,8 @@
 
 Oct 21, 2026 · @A
 
+Grant amounts, daily caps, and Pet Shop prices in this document are the October design. The live rules are [Boops Earnings & Pet Shop Pricing](Cursor%20Brief%20Boops%20Earnings%20%26%20Pet%20Shop%20Pricing.md), applied in `20261102120000_boops_earnings.sql`. The time clock caps at 400, the login ladder, welcome-back Boops, and play-find Boops are gone, and Second Wind is 250 plus up to 10 energy.
+
 ## Overview and principles
 
 Boops are one fungible currency, recorded in an append-only ledger that works offline and syncs to Supabase. Every earn, purchase and item use is one atomic transaction. Balance and inventory are derived from the ledger, never edited directly.
