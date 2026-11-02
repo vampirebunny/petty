@@ -163,12 +163,50 @@ async function waitForPush(key: string, since: number, timeoutMs: number): Promi
   return 'retry';
 }
 
+// This device still holds the play slot. The server revision is ahead of this
+// payload, so raise the number and keep the same document. A pull here would
+// write the older server pet over the live one.
+async function raiseQueuedRevision(row: { seq: number; payload: string }): Promise<void> {
+  const body = JSON.parse(row.payload) as { localRevision?: number };
+  const server = await serverActivePet();
+  const current = typeof body.localRevision === 'number' ? body.localRevision : 0;
+  const floor = Math.max(readLocalRevision(), server?.revision ?? 0, current) + 1;
+  prepareRevisionAbove(floor);
+  body.localRevision = floor;
+  getDb().runSync('UPDATE push_queue SET payload = ? WHERE seq = ?', JSON.stringify(body), row.seq);
+}
+
 function prepareRevisionAbove(floor: number): void {
   setLocalRevision(Math.max(readLocalRevision(), floor));
   turnRevision = null;
   if (turnTimer) {
     clearTimeout(turnTimer);
     turnTimer = null;
+  }
+}
+
+// A stale push means the server revision is ahead of this device. The following
+// save has to use a higher revision, or the server keeps the old pet and the
+// next stale result pulls it back over the live one.
+export function adoptServerRevision(serverRevision: number): void {
+  if (!Number.isFinite(serverRevision)) {
+    return;
+  }
+  const next = Math.max(readLocalRevision(), serverRevision) + 1;
+  prepareRevisionAbove(next);
+  const database = getDb();
+  const rows = database.getAllSync<{ seq: number; payload: string }>('SELECT seq, payload FROM push_queue');
+  for (const queued of rows) {
+    try {
+      const body = JSON.parse(queued.payload) as { localRevision?: number };
+      if (typeof body.localRevision === 'number' && body.localRevision >= next) {
+        continue;
+      }
+      body.localRevision = next;
+      database.runSync('UPDATE push_queue SET payload = ? WHERE seq = ?', JSON.stringify(body), queued.seq);
+    } catch {
+      database.runSync('DELETE FROM push_queue WHERE seq = ?', queued.seq);
+    }
   }
 }
 
@@ -337,9 +375,17 @@ async function flush(): Promise<void> {
   if (authTransition() !== 'idle' || readStandby()) {
     return;
   }
-  const row = getDb().getFirstSync<{ seq: number; entity_key: string; kind: string; payload: string }>(
-    'SELECT seq, entity_key, kind, payload FROM push_queue ORDER BY seq ASC LIMIT 1',
-  );
+  const restarting = readRestartMarker();
+  const row = restarting
+    ? getDb().getFirstSync<{ seq: number; entity_key: string; kind: string; payload: string }>(
+        `SELECT seq, entity_key, kind, payload FROM push_queue WHERE kind = 'restart_pet' ORDER BY seq ASC LIMIT 1`,
+      ) ??
+      getDb().getFirstSync<{ seq: number; entity_key: string; kind: string; payload: string }>(
+        'SELECT seq, entity_key, kind, payload FROM push_queue ORDER BY seq ASC LIMIT 1',
+      )
+    : getDb().getFirstSync<{ seq: number; entity_key: string; kind: string; payload: string }>(
+        'SELECT seq, entity_key, kind, payload FROM push_queue ORDER BY seq ASC LIMIT 1',
+      );
   if (!row) {
     delayMs = 400;
     void flushOutbox();
@@ -353,23 +399,47 @@ async function flush(): Promise<void> {
     noteFinish(row.entity_key, result);
     paused = resumeBound(bound);
     if (result === 'ok' || result === 'drop' || result === 'name' || result === 'owner' || result === 'auth' || result === 'retired' || result === 'restarted') {
-      if (result !== 'ok') {
-        console.warn('dropping the queued push', result);
+      const fresh = getDb().getFirstSync<{ payload: string }>(
+        'SELECT payload FROM push_queue WHERE seq = ?',
+        row.seq,
+      );
+      if (result === 'ok' && fresh && fresh.payload !== row.payload) {
+        const body = JSON.parse(fresh.payload) as { localRevision?: number };
+        const sent = JSON.parse(row.payload) as { localRevision?: number };
+        const sentRevision = typeof sent.localRevision === 'number' ? sent.localRevision : 0;
+        if (typeof body.localRevision !== 'number' || body.localRevision <= sentRevision) {
+          const floor = sentRevision + 1;
+          prepareRevisionAbove(floor);
+          body.localRevision = floor;
+          getDb().runSync('UPDATE push_queue SET payload = ? WHERE seq = ?', JSON.stringify(body), row.seq);
+        }
+        again = true;
+      } else {
+        if (result !== 'ok') {
+          console.warn('dropping the queued push', result);
+        }
+        if (fresh) {
+          getDb().runSync('DELETE FROM push_queue WHERE seq = ?', row.seq);
+        }
+        const sent = JSON.parse(row.payload) as { localRevision?: number };
+        if (result === 'ok' && typeof sent.localRevision === 'number') {
+          setSyncedRevision(sent.localRevision);
+        }
+        delayMs = 400;
+        again = true;
       }
-      getDb().runSync('DELETE FROM push_queue WHERE seq = ?', row.seq);
-      const sent = JSON.parse(row.payload) as { localRevision?: number };
-      if (result === 'ok' && typeof sent.localRevision === 'number') {
-        setSyncedRevision(sent.localRevision);
-      }
-      delayMs = 400;
-      again = true;
     } else if (result === 'not_active') {
       void enterStandby(true);
     } else if (result === 'stale') {
-      if (!preferLocalPet) {
-        const { reconcileFromServer } = await import('./reconcile');
-        void reconcileFromServer();
+      if (preferLocalPet && !readRestartMarker()) {
+        return;
       }
+      if (readRestartMarker() && row.kind !== 'restart_pet') {
+        getDb().runSync('DELETE FROM push_queue WHERE seq = ?', row.seq);
+      } else {
+        await raiseQueuedRevision(row);
+      }
+      again = true;
     } else {
       delayMs = Math.min(delayMs * 2, 60_000);
       again = true;

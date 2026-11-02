@@ -550,8 +550,13 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
       setCareRemindersOnState(care);
       setReady(true);
       if (loaded) {
-        clearRestartMarker();
-        considerOpenRef.current(loaded);
+        const pendingRestart = readRestartMarker();
+        if (pendingRestart?.oldPetId === loaded.id) {
+          abandonActivePet();
+        } else {
+          clearRestartMarker();
+          considerOpenRef.current(loaded);
+        }
         void resumeLimitedPurchases().then((result) => {
           if (cancelled) {
             return;
@@ -718,7 +723,16 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
     return onInstallState(() => {
       void storageRef.current.load().then((loaded) => {
         const settling = consumeInstalledSettle();
+        const pendingRestart = readRestartMarker();
         try {
+          if (pendingRestart && loaded?.id === pendingRestart.oldPetId) {
+            abandonActivePet();
+            if (stateRef.current?.id === loaded.id) {
+              stateRef.current = null;
+              setState(null);
+            }
+            return;
+          }
           if (!loaded) {
             if (settling) {
               stateRef.current = null;
@@ -954,7 +968,8 @@ export function usePet(storage: PetStorage = sqlitePetStorage): PetApi {
     writeRestartMarker({ oldPetId: frozen.id, startedAt: now });
     void (async () => {
       await clearDraft();
-      if (stateRef.current?.id !== frozen.id) {
+      if (stateRef.current && stateRef.current.id !== frozen.id) {
+        clearRestartMarker();
         return;
       }
       abandonActivePet();

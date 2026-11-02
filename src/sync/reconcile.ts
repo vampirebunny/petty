@@ -7,10 +7,12 @@ import {
   setSyncedRevision,
 } from '../db/accountMeta';
 import { getDb } from '../db/database';
+import { readRestartMarker } from '../db/restartPet';
 import type { PetState } from '../sim/types';
 import { authTransition, notifyInstallState, setAuthTransition } from '../state/sessionGate';
 import { enterStandby, type ClaimResult } from './activeDevice';
 import { deviceNow } from './clientScope';
+import { adoptServerRevision, queuePlayer } from './queue';
 
 type PullState = {
   pet?: PetState | null;
@@ -21,7 +23,7 @@ type PullState = {
 
 /** Replace this device's pet with the server pet when the account is newer. Purchases stay in the outbox. */
 export async function reconcileFromServer(claim?: ClaimResult | null): Promise<boolean> {
-  if (!readAccountLinked()) {
+  if (!readAccountLinked() || readRestartMarker()) {
     return false;
   }
   const supabase = getSupabase();
@@ -62,7 +64,7 @@ export async function reconcileFromServer(claim?: ClaimResult | null): Promise<b
         return false;
       }
     }
-    database.runSync('DELETE FROM push_queue');
+    database.runSync("DELETE FROM push_queue WHERE kind != 'push_player_state'");
     const { data, error } = await supabase.rpc('pull_account_state');
     if (error || !data || typeof data !== 'object') {
       return false;
@@ -83,6 +85,7 @@ export async function reconcileFromServer(claim?: ClaimResult | null): Promise<b
     }
     if (typeof pulled.server_revision === 'number') {
       setSyncedRevision(pulled.server_revision);
+      adoptServerRevision(pulled.server_revision);
     }
     if (pulled.pet && pulled.pet.id) {
       try {
@@ -92,6 +95,9 @@ export async function reconcileFromServer(claim?: ClaimResult | null): Promise<b
       }
     }
     notifyInstallState();
+    if (!getDb().getFirstSync("SELECT seq FROM push_queue WHERE kind = 'push_player_state' LIMIT 1")) {
+      queuePlayer();
+    }
     return true;
   } finally {
     if (!heldLock) {

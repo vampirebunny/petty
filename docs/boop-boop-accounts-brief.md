@@ -221,10 +221,10 @@ Other rules:
 - `push_active_pet`, `retire_pet`, and `push_player_state` take `p_device_id` and return `ok`, `stale` (revision behind), or `not_active` (the account's `active_device_id` is set and isn't `p_device_id`; null accepts). **[v14] `push_player_state` never writes `active_device_id`, `active_since`, `last_seen`, or `active_device_label` (A2).**
 - Only `ok` deletes a queue row and sets `meta.syncedRevision` to the server revision.
 - **`not_active`:** stop the queue, keep its rows (they're cleared, never re-sent, by the next reconcile), and enter standby (A6). **Don't claim.**
-- **`stale`** (this device is still active but the server is newer): stop the queue, set the lock, `claim_device` once, `reconcileFromServer(claim)`, the A4 settle once, then release the lock.
+- **`stale`** (this device still holds the play slot, but the payload revision is behind the server): keep the queued document, raise `localRevision` above `greatest(local, server, payload)`, and resend. Do **not** claim and do **not** `reconcileFromServer`. `device_gate` already returned null, so another device is not the writer. Pulling here writes the older server pet over the live one and the next open tick jumps needs (energy 0 → ~27) until the next stale answer repeats it. A restart row uses the same raise-and-resend. A Stadium read (`preferLocalPet`) still waits instead of raising.
 - Add `pull_account_state()`: active pet, retired pets, `player_state`, all of the user's `ledger_entries`, the pet and player revisions, `active_device_id`, `last_seen`, `server_now`, **[v14] `has_handle`** (whether `profiles` has a handle for this user), **[v14+] and `active_device_label`**.
 
-**`reconcileFromServer(claim)`** is the one path for a linked device taking the server's state. It's used by app open (A4), Play here (A6), `stale`, adoption and goodbye (A7), and reauth (A5). It's not used when an account replaces a guest (§7).
+**`reconcileFromServer(claim)`** is the one path for a linked device taking the server's pet. It's used after a successful `claim_device` on app open (A4), Play here (A6), adoption and goodbye (A7), and reauth (A5), and only when `active_device_id_before` was another device or `server_revision` is newer than `meta.syncedRevision`. It is not used for a `stale` push on the already-active device, and it is not used when an account replaces a guest (§7). While a restart marker is set, it returns without writing.
 
 **Reconcile never claims.** Its caller claims once and passes in `{ active_device_id_before, last_seen_before, server_now, server_revision }`.
 
@@ -232,9 +232,9 @@ Other rules:
 2. **Outbox, safely:** delete `earn` and `consume` rows now. Send `purchase`, `spend`, and `reversal` rows with `append_ledger_entries(..., p_replay: true)`. Remove each only when its result is `ok` or `duplicate`. An `invalid` result is logged and dropped.
    - **Network failure:** keep the rows, release the lock, and retry the whole reconcile (claiming again) on reconnect or the next foreground.
    - **`not_active`** (another device claimed in the gap): keep the rows, release the lock, and enter standby (A6).
-3. Clear the pet/player push queue. **Never re-push this device's old pet or player document.**
+3. Clear queued `push_active_pet`, `retire_pet`, and `restart_pet` rows. **Never re-push this device's old pet.** Keep an already-queued `push_player_state`, or queue one after the pull, so room layout, shop day, and streak stay on this device and upload after the pet lands. The pull writes the server pet only; it does not replace the local player tables.
 4. `pull_account_state()`.
-5. In one local transaction, replace local pet, retired pets, layouts, `owner_state`, daily counters, shop state, and the **whole local ledger** with the server's. Rebuild derived state (balance, items, toys, furniture, closet) from that ledger, placing replayed shop furniture with `shopFurnitureSpot` if the layout doesn't have it. Clear local NPC playdate data (`petty.playdates.<ownerId>`); it isn't on the server and wouldn't match the arriving pet. Set `meta.localRevision` = max(pet revision, player revision) + 1 and `meta.syncedRevision` = max(pet revision, player revision). **Then `installState()`.** **[v14] Then set `meta.serverTimeOffsetMs` from this pull's `server_now`, and set `meta.handleSaved = true` if `has_handle`.**
+5. Write the pulled active pet into the local `pet` row. Drop unsent `earn` and `consume` outbox rows as in step 2. Purchases stay. Set `meta.syncedRevision` to the pulled `server_revision` and `meta.localRevision` to max(local, server) + 1 (`adoptServerRevision`) so the next push is not `stale`. **Then `installState()`.** **[v14] Then set `meta.serverTimeOffsetMs` from this pull's `server_now`, and set `meta.handleSaved = true` if `has_handle`.** Full restore (`applyRestore`) still replaces layouts, `owner_state`, shop state, and the ledger in one transaction. This pull does not.
 6. **Copy**, only if `active_device_id_before` was another device:
    - nothing was discarded (step 1): **"All caught up from your other device!"**
    - something was discarded: **"You played on your other device more recently, so {petName} is just how you left them there. Anything you bought here is safe."**
@@ -299,7 +299,7 @@ A linked device enters standby when the server answers `not_active` to a push, a
 - A device that went offline **while active** (not in standby) keeps playing offline. If another device claims meanwhile, this device learns on its next push and enters standby; its purchases survive and its other play is dropped (§9).
 
 ### A7. Adoption and goodbye on a linked account
-Adopting a pet and saying goodbye (retiring) are pet changes. On a device that turns out to be stale, reconcile would undo them: the new pet gone, or the retired pet back. So on a linked account:
+Adopting a pet and saying goodbye (retiring) are pet changes. If another device already holds the play slot, a takeover pull would undo them: the new pet gone, or the retired pet back. So on a linked account:
 - Both need network. Offline: "You'll need internet to do this." with a close button.
 - **[v14+] The screens open without a claim.** When the player confirms the name, or confirms goodbye: set the lock and `claim_device` once (fresh `p_claim_id`). If `active_device_id_before` was another device, or the server revision is newer, `reconcileFromServer`, settle, leave the flow, and show the caught-up copy (A3 step 6). Don't adopt or retire on top of a pet that just changed. If this device was already active and the server isn't newer, finish and push the new pet or `retire_pet` right away.
 - Guests are unchanged: they adopt and retire offline as today.
@@ -311,7 +311,7 @@ Adopting a pet and saying goodbye (retiring) are pet changes. On a device that t
 - A guest whose anonymous user is gone (deleted on the server) gets a new anonymous user on the next online launch, keeps its pet and ledger, and pushes them without owner-mismatch errors.
 - Signing in to a different account with a guest pet loaded never re-stamps or pushes the guest pet under the account id.
 - **[v14+]** A pet save already on `saveQueue` when `installState` bumps the generation never writes the old pet, and its reminder sync does not reschedule.
-- A push answered `stale` or `not_active` keeps its rows until reconcile and is never re-sent afterwards.
+- A push answered `stale` keeps the row, raises its revision, and resends. A push answered `not_active` keeps its rows until the next reconcile (Continue here / Play here) and is never re-sent afterwards.
 - Phone offline buys a toy and a treat, uses a treat, and earns a level-up; iPad opens and plays; phone returns: **[v14+]** the phone's question names the iPad and warns, before either button, that play since then will be replaced, purchases are safe, and **Not now** keeps that play until **Play here**. The phone does not claim until **Continue**. After **Continue**, the phone's purchase (Boops charged **and** toy granted) appears on both devices once; the treat use, the level-up, and the phone's away payouts don't; the phone's pet and layouts don't come back; balances match; the phone shows the "played on your other device more recently" line. **Not now** leaves the iPad active and leaves the phone's unsent play local.
 - A replayed limited purchase keeps its serial and doesn't call `reserve_limited`; a refunded limited item stays not-owned after restore and reconcile.
 - A replayed purchase lands even if it passes the daily cap.
@@ -334,6 +334,7 @@ Adopting a pet and saying goodbye (retiring) are pet changes. On a device that t
 - Existing guests keep syncing (null `active_device_id`).
 - A away 10 days, B unused for those 10 days: A's open pays 150 welcome-back Boops. A away 10 days, B used yesterday: A gets no welcome-back bonus, and A's time payout follows the normal rules.
 - An open on a current, still-active device doesn't reconcile and doesn't drop unsent earns.
+- A `stale` push on that same active device raises the queued revision and keeps the live pet (needs, XP, worn clothes, scene). It does not pull, and it does not drop the player queue or unsent earns.
 - If `append_ledger_entries` fails during reconcile, the toy purchase stays in the outbox and lands on the next attempt.
 - Another device claiming between this device's claim and its replay leaves the purchase in the outbox and puts this device in standby; **Play here** lands it.
 - A `not_active` during a normal outbox flush keeps the rows and enters standby; nothing is dropped.
@@ -641,7 +642,7 @@ These bugs only show up when two devices interleave, so test them in code, not b
 - Script every Phase A "done when" item and every handoff case as a scenario, e.g. "A offline: buy toy, use treat, level up → B opens, plays → A opens," and assert both clients' balance, items, pet, and the server rows.
 - Include clock skew (ahead and behind), different timezones across local midnight, and kill-mid-flow cases: app killed during reconcile, at each step of restore (after 3, after 4, after 5, after 6), and before the handle save.
 - Include: both clients in the foreground pushing every second (one standby, no reconcile loop); **the standby client foregrounded repeatedly (never claims)**; `claim_device` delayed past the timeout **(late response ignored, retry gets the original values)**; an offline deal purchase flushed after the deal ended; deleting an account while the other client is open (the other client's sign-in shows the deleted-elsewhere message).
-- **Also:** a save already on `saveQueue` racing a reconcile; a guest whose anonymous user is deleted server-side; a simulated iOS reinstall (keep the Keychain store, drop SQLite) for a linked account, an anonymous user with a pet, and an anonymous user without one; adoption and goodbye confirmed on a stale device.
+- **Also:** a save already on `saveQueue` racing a reconcile; a guest whose anonymous user is deleted server-side; a simulated iOS reinstall (keep the Keychain store, drop SQLite) for a linked account, an anonymous user with a pet, and an anonymous user without one; adoption and goodbye confirmed after another device already claimed; a stale push on the already-active device that raises the revision and keeps the live pet.
 - **Single-device simulations** cover the reinstall cases and A5b; the harness supports one client as well as two.
 - Report the negative-balance rate across the scenarios.
 - Run the suite after every phase.

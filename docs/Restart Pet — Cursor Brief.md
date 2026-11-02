@@ -2,7 +2,7 @@
 
 Nov 1, 2026 · @A
 
-Shipped. Migrations `20261101210000_pet_restarted_status.sql` and `20261101220000_restart_pet.sql` are applied.
+Shipped. Migrations `20261101210000_pet_restarted_status.sql`, `20261101220000_restart_pet.sql`, and `20261101230000_restart_pet_wins.sql` are applied.
 
 ## Summary
 
@@ -76,6 +76,7 @@ One player, many pet records, one active pet. Restart only flips a status, so re
 - **Pet-scoped tables** (tricks and progress, XP/level, badges, ribbons/trophies/Cover Stars, stats, attributes) keep their `pet_id` foreign key and are **not deleted**. Hide them by filtering on the pet's status.
 - **Player-scoped tables** (Boops ledger, inventory, wardrobe, furniture, friends, settings) have no `pet_id` dependency and are untouched.
 - `push_active_pet` refuses to write a restarted pet back to active. If a new active pet is pushed while another active row is still there, that leftover row becomes `restarted`, not `retired`.
+- While the restart marker is set, a signed-in account must not reconcile. `pull_account_state` still returns the active pet until `restart_pet` lands, and writing that row back was putting the old pet on screen. A `stale` answer on the already-active device now raises the queued revision and resends; it does not pull. `20261101230000_restart_pet_wins.sql` also accepts the restart when this phone's revision is behind the server pet. After a real two-device takeover, `reconcileFromServer` still writes the other device's pet, then `adoptServerRevision` so the next save is not stale.
 - `restart_pet` stores the old pet as `restarted`, clears what it was wearing, withdraws an upcoming stadium entry, cancels a friend competition this player is hosting that has not started, withdraws them from one they joined that has not started, and marks runway invites `withdrawn` only when looks are not submitted.
 - **No hard deletes.** Support can restore a restarted pet manually by flipping its status back to `active` and making sure no other row is active. No restore UI.
 - Delete account still removes all pets, including restarted ones, because `pets.owner_user_id` cascades from `auth.users`.
