@@ -4,11 +4,11 @@ import { StyleSheet, Text, View } from 'react-native';
 import { fontFamily } from '../font';
 import { caseTokens } from './tokens';
 
-export function caseTileWidth(paneWidth: number, min = 158, gap = 10, maxCols = 4): number {
+export function caseTileWidth(paneWidth: number, min = 158, gap = 10, maxCols = 4, minCols = 2): number {
   if (paneWidth <= 0) {
     return min;
   }
-  const cols = Math.min(maxCols, Math.max(2, Math.floor((paneWidth + gap) / (min + gap))));
+  const cols = Math.min(maxCols, Math.max(minCols, Math.floor((paneWidth + gap) / (min + gap))));
   return (paneWidth - gap * (cols - 1)) / cols;
 }
 

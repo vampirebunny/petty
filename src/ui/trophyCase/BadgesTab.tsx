@@ -43,7 +43,7 @@ export function BadgesTab({ pet, paneWidth }: Props) {
     earned.has(id),
   ).length;
   const values = seriesValues(pet);
-  const badgeTile = { width: caseTileWidth(paneWidth, 108, 10, 5) };
+  const badgeTile = { width: Math.floor(caseTileWidth(paneWidth, 108, 10, 5, 3)) };
 
   return (
     <View style={styles.wrap}>
