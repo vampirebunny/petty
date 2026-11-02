@@ -18,6 +18,7 @@ type Props = {
   onPress: () => void;
   onUnavailablePress?: () => void;
   reducedMotion?: boolean;
+  badge?: number;
 };
 
 export function ActionCard({
@@ -30,6 +31,7 @@ export function ActionCard({
   onPress,
   onUnavailablePress,
   reducedMotion = false,
+  badge = 0,
 }: Props) {
   const candy = ui.candy[accent];
   const unavailable = state === 'unavailable';
@@ -46,7 +48,13 @@ export function ActionCard({
         onPress={onPress}
         onDisabledPress={onUnavailablePress}
         reducedMotion={reducedMotion}
-        accessibilityLabel={unavailable ? `${title}. ${sublabel}` : title}
+        accessibilityLabel={
+          badge > 0
+            ? `${title}, ${badge} new`
+            : unavailable
+              ? `${title}. ${sublabel}`
+              : title
+        }
       >
         <View
           style={[styles.body, quarter && styles.bodyQuarter, size === 'full' && styles.row, suggested && styles.suggested]}
@@ -82,6 +90,11 @@ export function ActionCard({
           ) : null}
         </View>
       </PressableCard>
+      {badge > 0 ? (
+        <View pointerEvents="none" style={[styles.count, quarter && styles.countQuarter]}>
+          <Text style={styles.countText}>{badge > 9 ? '9+' : String(badge)}</Text>
+        </View>
+      ) : null}
       {suggested ? (
         <View pointerEvents="none" style={[styles.pill, quarter && styles.pillQuarter]}>
           <Text style={[styles.pillText, quarter && styles.pillTextQuarter]}>Suggested</Text>
@@ -182,6 +195,31 @@ const styles = StyleSheet.create({
     color: ui.card,
     fontFamily: fontFamily.fredokaBold,
     fontSize: 11,
+  },
+  count: {
+    position: 'absolute',
+    top: -6,
+    right: -4,
+    zIndex: 3,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: ui.accent.care.main,
+    borderWidth: 1.5,
+    borderColor: ui.card,
+  },
+  countQuarter: {
+    top: -4,
+    right: -2,
+  },
+  countText: {
+    color: ui.card,
+    fontFamily: fontFamily.fredokaBold,
+    fontSize: 11,
+    lineHeight: 13,
   },
   icon: {
     width: 44,

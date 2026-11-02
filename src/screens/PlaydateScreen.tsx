@@ -14,7 +14,8 @@ import { dailyCast, withPlayerAge } from '../playdate/npcs';
 import { createGroupPlaydateRecord, createPlaydateRecord } from '../playdate/record';
 import { attributeGains, bondHint, rareEventLine } from '../playdate/rewards';
 import type { AttributeGain } from '../playdate/rewards';
-import { latestPlaydateTags, recentPlaydateTags, relationshipFor, rememberPlaydate } from '../playdate/save';
+import { latestPlaydateTags, markPlaydateWatched, recentPlaydateTags, relationshipFor, rememberPlaydate } from '../playdate/save';
+import { incomingPlaydateLabel, markFriendPlaydateSeen, newPlaydateId, playdateTooNew, refreshFriendGuests, syncFriendPlaydates } from '../playdate/share';
 import { snapshotFromFriend, snapshotPet } from '../playdate/snapshot';
 import type { ActivityDefinition, PetSnapshot, PlaydateRecord, PlaydateSave } from '../playdate/types';
 import type { FriendRow } from '../friends/types';
@@ -88,7 +89,9 @@ export function PlaydateScreen({ pet, save, now, remaining, reducedMotion, onSav
   // What the paid playdate added, worked out from the pet before the rewards landed.
   const [gains, setGains] = useState<AttributeGain[] | null>(null);
   const [skipReady, setSkipReady] = useState(false);
+  const [updateNote, setUpdateNote] = useState<string | null>(null);
   const finished = useRef(false);
+  const starting = useRef(false);
   const skipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clearSkipTimer = () => {
@@ -99,6 +102,12 @@ export function PlaydateScreen({ pet, save, now, remaining, reducedMotion, onSav
   };
 
   useEffect(() => clearSkipTimer, []);
+
+  useEffect(() => {
+    if (ownerId) {
+      void syncFriendPlaydates(ownerId);
+    }
+  }, [ownerId]);
 
   const resetSkip = () => {
     clearSkipTimer();
@@ -201,21 +210,48 @@ export function PlaydateScreen({ pet, save, now, remaining, reducedMotion, onSav
   };
 
   const start = () => {
+    if (!partner || !activity || cooling || !ownerId || starting.current) {
+      return;
+    }
+    starting.current = true;
+    void begin().finally(() => {
+      starting.current = false;
+    });
+  };
+
+  const begin = async () => {
     if (!partner || !activity || cooling || !ownerId) {
       return;
     }
+    let nextGuests = guests;
+    let nextPartner = partner;
+    if (nextGuests && nextGuests.length > 0) {
+      const fresh = await refreshFriendGuests(nextGuests);
+      const first = fresh?.[0];
+      if (fresh && first) {
+        nextGuests = fresh;
+        nextPartner = first;
+        setGuests(fresh);
+        setPartner(first);
+      }
+    }
     const createdAt = new Date().toISOString();
-    const seed = seedOf(`${pet.id}|${guests?.map((guest) => guest.snapshotId).join(',') ?? partner.snapshotId}|${createdAt}`) >>> 0;
-    if (guests && guests.length >= 2) {
+    const friendPlay = (nextGuests != null && nextGuests.length > 0) || nextPartner.source === 'friend';
+    const sharedId = friendPlay ? newPlaydateId() : undefined;
+    const syncStatus = friendPlay ? ('pending' as const) : undefined;
+    const seed = seedOf(`${pet.id}|${nextGuests?.map((guest) => guest.snapshotId).join(',') ?? nextPartner.snapshotId}|${createdAt}`) >>> 0;
+    if (nextGuests && nextGuests.length >= 2) {
       const next = createGroupPlaydateRecord({
         pet,
-        guests,
+        guests: nextGuests,
         activity,
         sceneId,
         outfit,
         seed,
         createdAt,
         ownerId,
+        playdateId: sharedId,
+        syncStatus,
       });
       finished.current = false;
       setReplay(false);
@@ -223,12 +259,12 @@ export function PlaydateScreen({ pet, save, now, remaining, reducedMotion, onSav
       resetSkip();
       setRecord(next);
       setStep('play');
-      track('playdate_start', { partner_type: 'friend', friend_count: guests.length });
+      track('playdate_start', { partner_type: 'friend', friend_count: nextGuests.length });
       return;
     }
     const next = createPlaydateRecord({
       pet,
-      partner,
+      partner: nextPartner,
       activity,
       sceneId,
       outfit,
@@ -237,7 +273,9 @@ export function PlaydateScreen({ pet, save, now, remaining, reducedMotion, onSav
       ownerId,
       recentTags: recentPlaydateTags(save.history),
       latestTags: latestPlaydateTags(save.history),
-      bond: relationshipFor(save, pet.id, partner.snapshotId)?.bond ?? 0,
+      bond: relationshipFor(save, pet.id, nextPartner.snapshotId)?.bond ?? 0,
+      playdateId: sharedId,
+      syncStatus,
     });
     finished.current = false;
     setReplay(false);
@@ -246,12 +284,21 @@ export function PlaydateScreen({ pet, save, now, remaining, reducedMotion, onSav
     setRecord(next);
     setStep('play');
     track('playdate_start', {
-      partner_type: guests && guests.length > 0 ? 'friend' : 'npc',
-      friend_count: guests?.length ?? 0,
+      partner_type: nextGuests && nextGuests.length > 0 ? 'friend' : 'npc',
+      friend_count: nextGuests?.length ?? 0,
     });
   };
 
   const watch = (saved: PlaydateRecord) => {
+    setUpdateNote(null);
+    if (saved.incoming && saved.unwatched) {
+      onSave(markPlaydateWatched(save, saved.playdateId));
+      void markFriendPlaydateSeen(saved.playdateId);
+    }
+    if (playdateTooNew(saved)) {
+      setUpdateNote('Update Boop Boop to watch this playdate');
+      return;
+    }
     finished.current = false;
     setGains(null);
     resetSkip();
@@ -352,20 +399,31 @@ export function PlaydateScreen({ pet, save, now, remaining, reducedMotion, onSav
             {save.history.length > 0 ? (
               <View style={styles.stack}>
                 <Text style={styles.section}>Recent playdates</Text>
-                {save.history.map((saved) => (
-                  <Pressable
-                    key={saved.playdateId}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Replay playdate with ${guestNames(saved)}`}
-                    onPress={() => watch(saved)}
-                    style={styles.choice}
-                  >
-                    <Text style={styles.choiceLabel}>
-                      {guestNames(saved)} · {activityById(saved.activityId)?.name ?? 'Playdate'}
-                      {saved.beats.some((beat) => beat.tag === 'golden') ? ' · Golden' : ''}
-                    </Text>
-                  </Pressable>
-                ))}
+                {updateNote ? <Text style={styles.cardMeta}>{updateNote}</Text> : null}
+                {save.history.map((saved) => {
+                  const names = saved.incoming
+                    ? incomingPlaydateLabel(saved, ownerId, pet.name)
+                    : guestNames(saved);
+                  return (
+                    <Pressable
+                      key={saved.playdateId}
+                      accessibilityRole="button"
+                      accessibilityLabel={
+                        saved.incoming && saved.unwatched ? `New playdate. ${names}` : `Replay playdate with ${names}`
+                      }
+                      onPress={() => watch(saved)}
+                      style={styles.choice}
+                    >
+                      <View style={styles.choiceRow}>
+                        <Text style={styles.choiceLabel}>
+                          {names} · {activityById(saved.activityId)?.name ?? 'Playdate'}
+                          {saved.beats.some((beat) => beat.tag === 'golden') ? ' · Golden' : ''}
+                        </Text>
+                        {saved.incoming && saved.unwatched ? <Text style={styles.newMark}>New</Text> : null}
+                      </View>
+                    </Pressable>
+                  );
+                })}
               </View>
             ) : null}
           </View>
@@ -570,9 +628,25 @@ const styles = StyleSheet.create({
   choiceOn: {
     backgroundColor: '#DDF6E8',
   },
+  choiceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   choiceLabel: {
+    flex: 1,
     color: '#243044',
     fontSize: 16,
+  },
+  newMark: {
+    color: '#FFFFFF',
+    backgroundColor: '#D6406F',
+    overflow: 'hidden',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    fontSize: 12,
+    fontWeight: '700',
   },
   slotRow: {
     gap: 8,

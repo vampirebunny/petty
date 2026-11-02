@@ -13,7 +13,7 @@ import { propAt } from '../props';
 import { dailyCast, generateCast, withPlayerAge } from '../npcs';
 import { createPlaydateRecord } from '../record';
 import { applyPlaydateRewards, attributeGains } from '../rewards';
-import { clearPet, emptyPlaydateSave, recentPlaydateTags, settlePlaydate } from '../save';
+import { clearPet, emptyPlaydateSave, mergeIncomingPlaydate, recentPlaydateTags, settlePlaydate } from '../save';
 import replayFixture from './fixtures/v1-replay.json';
 import { stageHeight, stageWidth } from '../../actor/geometry';
 import { cameraAt } from '../camera';
@@ -21,6 +21,10 @@ import { ambientCues, crossBeats, resolveSfx, sfxShots } from '../sfx';
 import { voiceCues } from '../voice';
 import { actorSourceOf, snapshotPet } from '../snapshot';
 import type { ActivityDefinition, PetSnapshot, PlaydateRecord, SpeciesPair } from '../types';
+
+jest.mock('@react-native-async-storage/async-storage', () =>
+  require('@react-native-async-storage/async-storage/jest/async-storage-mock'),
+);
 
 const stats = (value: number): Stats => ({
   stamina: value,
@@ -606,6 +610,24 @@ describe('playdate rewards, cooldown, and history', () => {
     expect(again.applied).toBe(false);
     expect(again.pet.needs.happiness).toBe(paid.needs.happiness);
     expect(again.save.lastPlaydateCompletedAt).toBe(4000);
+  });
+
+  it('keeps an unwatched friend playdate and does not raise that friend bond', () => {
+    const pet = testPet(8, 'corgi', 50, 'Pip', 'pet');
+    let save = mergeIncomingPlaydate(emptyPlaydateSave(), {
+      ...recordFor('in-1', 'friend:alex'),
+      incoming: true,
+      unwatched: true,
+    });
+    let paid = pet;
+    for (let i = 1; i <= 4; i += 1) {
+      const settled = settlePlaydate(save, paid, recordFor(`pd-${i}`, `npc-${i}`), i * 1000);
+      save = settled.save;
+      paid = settled.pet;
+    }
+    expect(save.history.map((entry) => entry.playdateId)).toEqual(['pd-4', 'pd-3', 'pd-2', 'in-1']);
+    expect(save.relationships.pet?.['friend:alex']).toBeUndefined();
+    expect(save.lastPlaydateCompletedAt).toBe(4000);
   });
 
   it('clears one pet and keeps the cast', () => {

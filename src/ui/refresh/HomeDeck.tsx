@@ -56,6 +56,7 @@ type Props = {
   onGoSomewhere: () => void;
   suggestedId: string | null;
   note: string | null;
+  unwatchedPlaydates?: number;
 };
 
 function byId(list: DeckAction[], id: string): DeckAction | undefined {
@@ -82,6 +83,10 @@ export function HomeDeck(props: Props) {
   const alerts = new Set<HomeTab>();
   if (suggestedTab) {
     alerts.add(suggestedTab);
+  }
+  const unwatchedPlaydates = props.unwatchedPlaydates ?? 0;
+  if (unwatchedPlaydates > 0) {
+    alerts.add('bond');
   }
 
   const stateFor = (action: DeckAction | undefined): 'default' | 'suggested' | 'unavailable' => {
@@ -201,6 +206,7 @@ export function HomeDeck(props: Props) {
               accent="bond"
               state={stateFor(byId(props.bond, 'playdate'))}
               reducedMotion={props.reducedMotion}
+              badge={unwatchedPlaydates}
               onPress={() => byId(props.bond, 'playdate')?.onPress()}
             />
           </ActionGrid>

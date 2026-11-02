@@ -19,6 +19,8 @@ Applied by the owner through `20261024250000_ledger_source_ambiguity.sql`, inclu
 
 `notify_friend_game_accept` tells the host and the other friends still invited when someone accepts a friend-game invite (`kind: friend_game_accepted`). While the app is open, that push and the other social pushes (`friend_request`, `friend_game`, `friend_game_call`, `race`, `runway_show`, `runway_submitted`, `runway_vote`, `runway_results`) stay in the app instead of a system banner. A closed or backgrounded app still gets the system notification.
 
+`20261101240000_friend_playdates.sql` is applied. It adds `playdates`, `playdate_participants`, `submit_friend_playdate`, `list_friend_playdates`, and `mark_playdate_seen`. `notify_friend_playdate` sends `@handle arranged a playdate!` (`kind: friend_playdate`). A tap does not open a screen. See [the sharing brief](../docs/Friend%20Playdate%20Sharing%20%26%20Notifications%20%E2%80%94%20Cursor%20Brief.md).
+
 `20261027120000_colorway_columns.sql` is applied. It adds `theme`, `collection`, `season`, and `rarity` on `shop_items`. The 238 launch colorways were inserted from `tools/colorways/generated/seed.sql`, which is not a migration: 190 `always`/`standard`, 24 `rotation`/`exclusive`, and 24 `featured`/`limited` with cap 500. A later drop is another insert-only file from `npm run colorways:seed`. The app reads `theme`: the `always`/`standard` themes rotate in the shop's collection section every 3 hours instead of sitting on the Clothes shelf (see [the shop brief](../docs/boop-boop-pet-shop-brief.md#5a-collection-rotation)).
 
 `20261028120000_colorway_shape_prices.sql` is applied. Colorway rows cost the same Boops as the hand-made item of that shape. Gold Star Shades are 900. Gold High-Tops are 2000.

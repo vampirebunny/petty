@@ -17,6 +17,8 @@ export function createPlaydateRecord(input: {
   recentTags?: readonly string[];
   latestTags?: readonly string[];
   bond?: number;
+  playdateId?: string;
+  syncStatus?: PlaydateRecord['syncStatus'];
 }): PlaydateRecord {
   const snapshotId = `${input.pet.id}-${input.seed}`;
   const petA = snapshotPet(input.pet, input.outfit, input.createdAt, snapshotId);
@@ -32,7 +34,8 @@ export function createPlaydateRecord(input: {
   });
   return {
     version: 2,
-    playdateId: snapshotId,
+    playdateId: input.playdateId ?? snapshotId,
+    ...(input.syncStatus ? { syncStatus: input.syncStatus } : {}),
     ownerId: input.ownerId,
     createdAt: input.createdAt,
     sceneId: input.sceneId,
@@ -56,6 +59,8 @@ export function createGroupPlaydateRecord(input: {
   seed: number;
   createdAt: string;
   ownerId: string;
+  playdateId?: string;
+  syncStatus?: PlaydateRecord['syncStatus'];
 }): PlaydateRecord {
   const snapshotId = `${input.pet.id}-${input.seed}`;
   const petA = snapshotPet(input.pet, input.outfit, input.createdAt, snapshotId);
@@ -71,7 +76,8 @@ export function createGroupPlaydateRecord(input: {
   });
   return {
     version: 3,
-    playdateId: snapshotId,
+    playdateId: input.playdateId ?? snapshotId,
+    ...(input.syncStatus ? { syncStatus: input.syncStatus } : {}),
     ownerId: input.ownerId,
     createdAt: input.createdAt,
     sceneId: input.sceneId,

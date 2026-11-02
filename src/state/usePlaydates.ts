@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 
 import { ensureCast, loadPlaydateSave, savePlaydateSave, subscribePlaydates } from '../playdate/storage';
 import { getCooldownRemaining } from '../playdate/cooldown';
+import { onFriendPlaydatePush } from '../playdate/pushNote';
+import { syncFriendPlaydates } from '../playdate/share';
 import type { PlaydateSave } from '../playdate/types';
 import { emptyPlaydateSave } from '../playdate/save';
 
@@ -43,19 +46,35 @@ export function usePlaydates(ownerId: string | undefined) {
       });
     };
     pull();
+    void syncFriendPlaydates(ownerId);
     const unsubscribe = subscribePlaydates(pull);
+    const app = AppState.addEventListener('change', (status) => {
+      if (status === 'active') {
+        void syncFriendPlaydates(ownerId);
+      }
+    });
+    const pushes = onFriendPlaydatePush(() => {
+      void syncFriendPlaydates(ownerId);
+    });
     return () => {
       cancelled = true;
       unsubscribe();
+      app.remove();
+      pushes();
     };
   }, [ownerId]);
 
   const persist = useCallback(
     (next: PlaydateSave) => {
       setSave(next);
-      if (ownerId) {
-        void savePlaydateSave(ownerId, next);
+      if (!ownerId) {
+        return;
       }
+      void savePlaydateSave(ownerId, next).then(() => {
+        if (next.history.some((record) => record.syncStatus === 'pending' && !record.incoming)) {
+          void syncFriendPlaydates(ownerId);
+        }
+      });
     },
     [ownerId],
   );

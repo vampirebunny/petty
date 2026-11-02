@@ -283,11 +283,13 @@ export function applyEvent(state: PetState, event: PetEvent): EventResult {
     return { state: withDerived(next), cue: { kind: 'none' } };
   }
 
-  // Cuddle mode starting only wakes the pet. The view runs the task itself, so there is no cue.
+  // Pressing Cuddle wakes the pet and clears the suggestion. Mood and tutorial credit wait for a finished cuddle.
   if (event.type === 'cuddleStart') {
-    const next = copyState(state);
+    let next = copyState(state);
     next.asleep = false;
-    return { state: next, cue: { kind: 'none' } };
+    next = completeSuggestion(next, 'cuddle', Date.now());
+    next = completeSuggestion(next, 'pat', Date.now());
+    return { state: withDerived(next), cue: { kind: 'none' } };
   }
 
   // A finished cuddle with real petting in it. Longer cuddles count for more, up to double a quick stroke.

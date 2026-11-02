@@ -11,6 +11,7 @@ import { requestNpcInvite } from '../invites/session';
 import { updateCounters } from '../invites/store';
 import { requestFriendCall, requestGate } from '../stadium/raceCall';
 import { requestFriendAcceptNotice, requestFriendAcceptOpen, requestFriendGame, requestFriendModal, requestRunwayNotice, requestRunwayShow } from './open';
+import { noteFriendPlaydatePush } from '../playdate/pushNote';
 import { foregroundNotificationBehavior } from './present';
 
 const tokenKey = 'petty.friends.pushToken';
@@ -153,6 +154,10 @@ export function listenForFriendPushes(): void {
       requestNpcInvite();
       return;
     }
+    if (data?.kind === 'friend_playdate') {
+      noteFriendPlaydatePush();
+      return;
+    }
     if (data?.kind === 'friend_game_call') {
       requestFriendCall(typeof data.raceId === 'string' ? data.raceId : null);
       return;
@@ -172,6 +177,12 @@ export function listenForFriendPushes(): void {
   Notifications.addNotificationReceivedListener((notification) => {
     const data = pushData(notification);
     if (data?.kind === 'npc_invite') {
+      return;
+    }
+    if (data?.kind === 'friend_playdate') {
+      if (AppState.currentState === 'active') {
+        noteFriendPlaydatePush();
+      }
       return;
     }
     if (data?.kind === 'friend_game_accepted') {

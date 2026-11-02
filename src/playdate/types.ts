@@ -46,6 +46,8 @@ export type PetSnapshot = {
   petId?: string;
   source: SnapshotSource;
   name: string;
+  /** Set when the player's account is deleted and this snapshot was renamed. */
+  anonymized?: boolean;
   species: Species;
   breedId: string;
   look: Look;
@@ -135,8 +137,11 @@ export type PlaydateOutcome = {
   rareEvents: RareEvent[];
 };
 
+/** This build can replay records up to this version. A higher version asks for an update. */
+export const maxPlaydateRecordVersion = 3;
+
 export type PlaydateRecord = {
-  version: 1 | 2 | 3;
+  version: number;
   playdateId: string;
   ownerId: string;
   createdAt: string;
@@ -151,6 +156,14 @@ export type PlaydateRecord = {
   seed: number;
   beats: Beat[];
   outcome: PlaydateOutcome;
+  /** Friend playdates waiting to upload, or already stored on the server. NPC rows omit this. */
+  syncStatus?: 'pending' | 'synced';
+  /** A playdate someone else started that includes this player's pet. */
+  incoming?: boolean;
+  /** Incoming row the player has not opened. */
+  unwatched?: boolean;
+  /** The initiator's account was deleted. Their pet name is Pup or Kitty. */
+  initiatorFormer?: boolean;
 };
 
 export type Relationship = {

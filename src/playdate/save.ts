@@ -50,11 +50,62 @@ export function rememberPlaydate(
         ...save.relationships,
         [petId]: book,
       },
-      history: [record, ...save.history].slice(0, playdateConfig.historyLimit),
+      history: trimPlaydateHistory([record, ...save.history]),
       lastPlaydateCompletedAt: completedAt,
     },
     applied: true,
   };
+}
+
+export function isUnwatchedPlaydate(record: PlaydateRecord): boolean {
+  return record.incoming === true && record.unwatched === true;
+}
+
+// Watched rows stay at the history cap. Unwatched incoming rows stay until they are opened.
+export function trimPlaydateHistory(history: readonly PlaydateRecord[]): PlaydateRecord[] {
+  const unwatched = new Set(history.filter(isUnwatchedPlaydate).map((record) => record.playdateId));
+  const watched: string[] = [];
+  for (const record of history) {
+    if (unwatched.has(record.playdateId)) {
+      continue;
+    }
+    if (watched.length >= playdateConfig.historyLimit) {
+      continue;
+    }
+    watched.push(record.playdateId);
+  }
+  const kept = new Set([...unwatched, ...watched]);
+  return history.filter((record) => kept.has(record.playdateId));
+}
+
+export function mergeIncomingPlaydate(save: PlaydateSave, record: PlaydateRecord): PlaydateSave {
+  if (save.history.some((entry) => entry.playdateId === record.playdateId)) {
+    return save;
+  }
+  return {
+    ...save,
+    history: trimPlaydateHistory([record, ...save.history]),
+  };
+}
+
+export function markPlaydateWatched(save: PlaydateSave, playdateId: string): PlaydateSave {
+  const history = save.history.map((record) =>
+    record.playdateId === playdateId ? { ...record, unwatched: false } : record,
+  );
+  return { ...save, history: trimPlaydateHistory(history) };
+}
+
+export function markPlaydateSynced(save: PlaydateSave, playdateId: string): PlaydateSave {
+  return {
+    ...save,
+    history: save.history.map((record) =>
+      record.playdateId === playdateId ? { ...record, syncStatus: 'synced' } : record,
+    ),
+  };
+}
+
+export function unwatchedPlaydateCount(save: PlaydateSave): number {
+  return save.history.filter(isUnwatchedPlaydate).length;
 }
 
 export function petHasCompletedPlaydate(save: PlaydateSave, petId: string): boolean {

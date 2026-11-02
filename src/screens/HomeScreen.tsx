@@ -169,6 +169,7 @@ import { useParkFriends } from '../parkFriends/useParkFriends';
 import { ParkFriendsBubble } from '../ui/ParkFriendsBubble';
 import { usePlaydates } from '../state/usePlaydates';
 import { formatCooldown } from '../playdate/cooldown';
+import { unwatchedPlaydateCount } from '../playdate/save';
 import { DebugPanel } from '../ui/DebugPanel';
 import { needHold, presentNeeds, sumHolds } from '../ui/needHold';
 import type { NeedHold } from '../ui/needHold';
@@ -3545,6 +3546,7 @@ export default function HomeScreen({ petApi }: Props) {
             return null;
           })()}
           note={note}
+          unwatchedPlaydates={unwatchedPlaydateCount(playdates.save)}
         />
         <CuddleHelpSheet visible={helpOpen} onClose={() => setHelpOpen(false)} />
         <SilentModeHint visible={silentHintOpen} onClose={dismissSilentHint} />

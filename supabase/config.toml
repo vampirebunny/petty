@@ -411,6 +411,9 @@ verify_jwt = true
 [functions.notify_friend_game_accept]
 verify_jwt = true
 
+[functions.notify_friend_playdate]
+verify_jwt = true
+
 [functions.notify_runway_show]
 verify_jwt = true
 

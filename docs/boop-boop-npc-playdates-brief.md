@@ -209,7 +209,7 @@ One local blob per `ownerId`: cast, relationships, history (newest first, max 3)
 
 ## Friend playdates
 
-A linked player who has friends can invite them from the partner step. NPC cards stay the one-partner path above.
+A linked player who has friends can invite them from the partner step. NPC cards stay the one-partner path above. The shared record, the friend's replay, and the push are specified in `docs/Friend Playdate Sharing & Notifications — Cursor Brief.md`. Bond, rewards, and the cooldown stay on the player who starts the playdate.
 
 1. Each friend who has a pet is a toggle. A tap shows a checkmark. A second tap clears it. The cap is 5. A friend with no pet stays on the list and cannot be checked. **Invite to playdate** stays disabled until at least one friend is checked, and while the cooldown is running.
 2. Place. Only rooms this pet owns: the living room, the bedroom, and the catio when this pet is a cat. Park and training school stay on the NPC path.
@@ -230,11 +230,11 @@ Each friend is shown in the outfit on their pet card. They do not wear the NPC c
 
 ## Out of scope
 
-- Rehome, sharing, and async viewing by someone else
+- Rehome
+- Sharing or cloud sync of NPC playdates. A friend playdate the other player can watch is in `docs/Friend Playdate Sharing & Notifications — Cursor Brief.md`.
 - A trick catalog or writing a learned trick onto the pet
 - Cooldown-skip purchases
 - Notifications when the cooldown ends
-- Cloud sync
 - Treats or toys brought to the playdate
 
 ## Acceptance checks
