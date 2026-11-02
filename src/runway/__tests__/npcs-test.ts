@@ -1,3 +1,4 @@
+import { runwayConfig } from '../config';
 import { soloShowRack } from '../rack';
 import { buildSoloShow, dressNpcModels, pickNpcModels } from '../npcs';
 
@@ -8,7 +9,7 @@ jest.mock('../../economy/shopState', () => ({
 describe('runway npc dress', () => {
   it('picks a configurable number of models with unique styles when possible', () => {
     const models = pickNpcModels({ id: 'show-a' });
-    expect(models.length).toBe(3);
+    expect(models.length).toBe(runwayConfig.npcCount);
     const styles = models.map((pet) => pet.style);
     expect(new Set(styles).size).toBe(styles.length);
   });
@@ -20,7 +21,7 @@ describe('runway npc dress', () => {
     const claimed = rack.slice(0, 2).map((piece) => piece.id);
     const models = pickNpcModels({ id: showId });
     const dressed = dressNpcModels(showId, themeId, claimed, models, rack);
-    expect(dressed.length).toBe(3);
+    expect(dressed.length).toBe(runwayConfig.npcCount);
     for (const sub of dressed) {
       expect(sub.looks.length).toBe(3);
       for (const look of sub.looks) {
@@ -62,7 +63,7 @@ describe('runway npc dress', () => {
     expect(show.mode).toBe('solo');
     expect(show.soloRackIds?.length).toBe(8);
     expect(show.submissions[0]?.pet.name).toBe('Maple');
-    expect(show.submissions.length).toBe(4);
+    expect(show.submissions.length).toBe(1 + runwayConfig.npcCount);
     const npcClaims = show.submissions.slice(1).flatMap((sub) => sub.claimedCostumeIds);
     expect(npcClaims).not.toContain(claimedId);
   });

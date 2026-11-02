@@ -133,7 +133,7 @@ The next model enters from the left after the previous one exits, so outfit chan
 
 ## Solo NPC models
 
-Config sets how many NPC models walk (default 3). Guests can run solo shows.
+Config sets how many NPC models walk (default 2). Guests can run solo shows.
 
 - **When:** generate NPC looks right after the player submits their 3 looks, not before. Snapshot them exactly like a player submission (items, colorways, costume pieces) so replays never change. Seed all randomness with the show id.
 - **Who:** generic NPC pets (random species, breed, fur, name) from the existing NPC pet generator, behind one function `pickNpcModels(show)`. Do not build another source now.
@@ -233,7 +233,7 @@ Failures: offline or a single bad download leaves other tracks alone, deletes th
 
 ## Closed for this pass
 
-- NPC count is config, default 3. Looks follow the Solo NPC models section.
+- NPC count is config, default 2. Looks follow the Solo NPC models section.
 - Rewards are the winner banner and vote counts only. No ribbon, XP, or badge.
 - Voters may skip models and rounds. Watching is not a completeness gate.
 - Saved shows are kept forever, with hide (friend) / delete (solo) as above.

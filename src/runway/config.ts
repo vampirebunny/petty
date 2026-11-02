@@ -1,6 +1,6 @@
 export const runwayConfig = {
   venueName: 'The Catwalk',
-  npcCount: 3,
+  npcCount: 2,
   looksPerModel: 3,
   maxInvites: 5,
   recentShown: 5,
