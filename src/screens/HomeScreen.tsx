@@ -54,6 +54,7 @@ import { StadiumScreen } from './StadiumScreen';
 import { onFriendCall, onGateRequest } from '../stadium/raceCall';
 import { racesOf, type RaceEvent } from '../sim/stadium';
 import { RaceCall } from '../ui/stadium/RaceCall';
+import { flushAcornAttackScore } from '../minigames/acornAttack/scores';
 import { flushCloudHopScore } from '../minigames/cloudHop/scores';
 import { flushStayTime } from '../minigames/stay/scores';
 import { PantryScreen } from './PantryScreen';
@@ -901,6 +902,7 @@ export default function HomeScreen({ petApi }: Props) {
         pullShop();
         void flushCloudHopScore();
         void flushStayTime();
+        void flushAcornAttackScore();
         if (!openPathSuppressed()) {
           setFriendTick((value) => value + 1);
         }
@@ -939,9 +941,11 @@ export default function HomeScreen({ petApi }: Props) {
       setFriendTick((value) => value + 1);
       void flushCloudHopScore();
       void flushStayTime();
+      void flushAcornAttackScore();
     });
     void flushCloudHopScore();
     void flushStayTime();
+    void flushAcornAttackScore();
     return () => {
       unsubRunway();
       unsubModal();

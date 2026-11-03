@@ -13,7 +13,7 @@ export type LifeStage = Stage;
 export type MapSpot = RoadSpot;
 export type Room = HomeRoom['id'];
 export type Place = MapSpot | Room;
-export type MiniGameId = 'paddlePaws' | 'cloudHop' | 'stay';
+export type MiniGameId = 'paddlePaws' | 'cloudHop' | 'stay' | 'acornAttack';
 // Tutorial actions are gameplayConfig.goals. Daily slots add hat, park, and find.
 // park and parkFind stay distinct. Prefixed slots log the prefix only.
 export type ActivityId =

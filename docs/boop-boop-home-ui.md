@@ -66,6 +66,6 @@ Boop Boop Town uses a portrait zigzag scaled to the width, up to 600 pt, and a h
 
 Get started keeps its phone-width column. The pink page fills the rest of the window. The Trophy Case on landscape is 880pt (`trophyCaseMaxWidth`), not the 400pt control column.
 
-Cloud Hop and Paddle Paws stay portrait on a landscape window: a column at most 400pt wide, centered, with that game's background on either side. Stay uses the full window.
+Cloud Hop and Paddle Paws stay portrait on a landscape window: a column at most 400pt wide, centered, with that game's background on either side. Stay uses the full window. Acorn Attack uses the full window and centers a portrait column at most 0.62 of the height, with the lawn continuing across the sides.
 
 Pantry and the rest of playdate stay one centered column of that same width so they do not stretch across the window.

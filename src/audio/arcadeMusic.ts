@@ -6,12 +6,16 @@ import { holdMusic, isMusicEnabled, pickNext } from './music';
 
 // Metro needs static requires, so the track list is explicit.
 const tracks: number[] = [
+  require('../../assets/arcade-music/echoes_of_lumen-pixel-art-game-soundtrack-chiptune-588667.mp3'),
   require('../../assets/arcade-music/ejah_music-disco-funky-slap-bass-theme-402224.mp3'),
   require('../../assets/arcade-music/ejah_music-tense-music-from-game-show-460826.mp3'),
+  require('../../assets/arcade-music/mfcc-gaming-game-video-game-music-522352.mp3'),
   require('../../assets/arcade-music/openmindaudio-cartoon-classic-background-music-bright-journey-short-preview-497390.mp3'),
   require('../../assets/arcade-music/openmindaudio-cartoon-epic-cinematic-thriumphal-outro-sunset-signoff-preview-497374.mp3'),
   require('../../assets/arcade-music/openmindaudio-cartoon-good-vibes-intro-sunny-spark-497372.mp3'),
+  require('../../assets/arcade-music/paulyudin-game-game-music-573991.mp3'),
   require('../../assets/arcade-music/sergequadrado-big-beat-loop-275479.mp3'),
+  require('../../assets/arcade-music/serhii_kliets-spaceship-arcade-shooter-game-background-soundtrack-318508.mp3'),
   require('../../assets/arcade-music/xtremefreddy-game-music-loop-3-144252.mp3'),
 ];
 

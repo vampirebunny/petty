@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import { trackScreen } from '../analytics/analytics';
+import { AcornAttackScreen } from '../minigames/acornAttack/AcornAttackScreen';
 import { CloudHopScreen } from '../minigames/cloudHop/CloudHopScreen';
 import { PaddlePawsScreen } from '../minigames/paddlePaws/PaddlePawsScreen';
 import { StayScreen } from '../minigames/stay/StayScreen';
@@ -16,6 +17,7 @@ import { LobbyPet } from '../ui/lobby/LobbyPet';
 import { GoSomewhere } from '../ui/refresh/GoSomewhere';
 import { StatStrip } from '../ui/refresh/StatStrip';
 import { lobbyHeroFill, lobbyPhoneAspect } from '../ui/lobby/heroes';
+import { AcornAttackIcon } from '../ui/places/acornAttackIcon';
 import { CloudHopIcon } from '../ui/places/cloudHopIcon';
 import { PaddlePawsIcon } from '../ui/places/paddlePawsIcon';
 import { StayIcon } from '../ui/places/stayIcon';
@@ -47,11 +49,11 @@ function PortraitPlay({ backgroundColor, children }: { backgroundColor: string; 
 const bannerTop = 52;
 
 export function ArcadeScreen({ pet, reducedMotion, pendingFriends = false, onSettings, onClose }: Props) {
-  const [game, setGame] = useState<'hop' | 'paddle' | 'stay' | null>(null);
+  const [game, setGame] = useState<'hop' | 'paddle' | 'stay' | 'acorn' | null>(null);
   const { width, height } = useWindowDimensions();
   const split = isLandscapeSplit(width, height);
   const column = split ? phoneColumnWidth : width;
-  const tile = Math.min(120, Math.max(84, (column - 56) / 3));
+  const tile = Math.min(120, Math.max(84, (column - 56) / 2));
   const artHeight = Math.round(Math.min(width, 560) / lobbyPhoneAspect);
   useEffect(() => {
     trackScreen(game ? 'minigame' : 'arcade');
@@ -79,6 +81,15 @@ export function ArcadeScreen({ pet, reducedMotion, pendingFriends = false, onSet
     return (
       <View style={styles.fill}>
         <StayScreen pet={pet} reducedMotion={reducedMotion} onBack={() => setGame(null)} onMenu={() => setGame(null)} />
+        <HandlePrompt petName={pet.name} idle={false} />
+      </View>
+    );
+  }
+
+  if (game === 'acorn') {
+    return (
+      <View style={styles.fill}>
+        <AcornAttackScreen pet={pet} reducedMotion={reducedMotion} onBack={() => setGame(null)} onMenu={() => setGame(null)} />
         <HandlePrompt petName={pet.name} idle={false} />
       </View>
     );
@@ -122,6 +133,10 @@ export function ArcadeScreen({ pet, reducedMotion, pendingFriends = false, onSet
         <Pressable accessibilityRole="button" accessibilityLabel="Stay" onPress={() => setGame('stay')} style={styles.tile}>
           <StayIcon size={tile} />
           <Text style={styles.label}>Stay!</Text>
+        </Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="Acorn Attack" onPress={() => setGame('acorn')} style={styles.tile}>
+          <AcornAttackIcon size={tile} />
+          <Text style={styles.label}>Acorn Attack</Text>
         </Pressable>
       </View>
     </>
@@ -206,7 +221,7 @@ const styles = StyleSheet.create({
   heroTitlePhone: { top: 14 },
   heroTitleTall: { top: 58 },
   subtitle: { fontFamily: fontFamily.bold, fontSize: 15, color: '#6B6F8A' },
-  grid: { flexDirection: 'row', gap: 12 },
-  tile: { flex: 1, alignItems: 'center' },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 16 },
+  tile: { width: '48%', alignItems: 'center' },
   label: { marginTop: 8, fontFamily: fontFamily.black, fontSize: 16, lineHeight: 20, color: '#2C2F4A', textAlign: 'center' },
 });
