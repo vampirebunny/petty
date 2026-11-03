@@ -4,7 +4,7 @@ Nov 3, 2026 · @A
 
 ## Overview and scope
 
-Build Acorn Attack, an endless vertical shooter mini-game: the player's pet runs up a park lawn, fires lasers on its own, and the player steers it by dragging to boop squirrels and dodge acorns, rocks and logs. It levels up automatically as the pet runs; each level is a discrete step up in speed and danger, like Tetris. It sits in the Arcade's 2×2 grid with Cloud Hop, Paddle Paws, and Stay!.
+Build Acorn Attack, an endless vertical shooter mini-game: the player's pet runs up a park lawn, fires lasers on its own, and the player steers it by dragging to boop squirrels and dodge acorns, rocks and logs. It levels up automatically as the pet runs; each level is a discrete step up in speed and danger, like Tetris. It sits in the Arcade's 2×2 grid with Cloud Hop, Paddle Paws, and Stay!. The lobby tile is the spotted squirrel in `docs/Acorn Attack Icon.html` (option A): an acorn-cap helmet on a striped lawn, looking up at a red laser dot.
 
 **Reference prototype.** `docs/Acorn Attack.html` is the source of truth for feel, timing and art. Play it in a browser before writing code. Port its behavior and numbers, not its DOM or canvas code. Where this brief and the prototype differ, this brief wins. The differences are listed at the end of this section.
 
@@ -296,7 +296,7 @@ The game must hold 60 fps on older Android phones with a full screen: at level 1
 
 ## Open questions
 
-- Final name and icon: "Acorn Attack" is a working name and hasn't been trademark-checked; the mini-games list needs an icon.
+- Final name: "Acorn Attack" is a working name and hasn't been trademark-checked. The lobby tile is settled (option A in `docs/Acorn Attack Icon.html`).
 - Power-up choice on every level-up may be too generous; every other level is a one-line change.
 - Level cadence: levels currently last about 24–29 s each. Using a fixed 300 m per level instead would make levels come faster as speed rises, more like Tetris.
 - The space on the results card for the future cross-promotion button: when the full game exists, what does it say and when does it show?

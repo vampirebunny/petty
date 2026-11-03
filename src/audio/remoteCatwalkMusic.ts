@@ -3,8 +3,28 @@ import * as Network from 'expo-network';
 
 import { runwayTracks } from '../runway/catalog';
 
-// Runway tracks live only in Storage — nothing is bundled. Filenames match `runway_tracks.audio_path`.
+// Filenames match `runway_tracks.audio_path`. One track is also bundled for offline shows.
+export const bundledRunwayFile = 'bearstockmusic-fashion-runway-586679.mp3';
+const bundledRunway: number = require('../../assets/runway-music/bearstockmusic-fashion-runway-586679.mp3');
+
 export const catwalkRemoteTracks = runwayTracks.map((track) => track.fileName);
+
+// The downloaded file when it is on disk, the bundled Fashion Runway clip for that one track, or null.
+export function runwayClip(fileName: string): number | string | null {
+  const local = localCatwalkUri(fileName);
+  if (local) {
+    return local;
+  }
+  if (fileName === bundledRunwayFile) {
+    return bundledRunway;
+  }
+  return null;
+}
+
+// A show always has music: a missing chosen track loops the bundled Fashion Runway clip.
+export function runwayClipOrFallback(fileName: string): number | string {
+  return runwayClip(fileName) ?? bundledRunway;
+}
 
 const bucket = 'catwalk-music';
 

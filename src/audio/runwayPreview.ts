@@ -1,7 +1,7 @@
 import { createAudioPlayer } from 'expo-audio';
 import type { AudioPlayer } from 'expo-audio';
 
-import { localCatwalkUri } from './remoteCatwalkMusic';
+import { runwayClip } from './remoteCatwalkMusic';
 import { configurePlayback } from './session';
 import { holdMusic, isMusicEnabled } from './music';
 import { trackById } from '../runway/catalog';
@@ -54,7 +54,7 @@ export function stopRunwayPreview(): void {
   dispose();
 }
 
-/** Play ~10 seconds of a downloaded track. Missing file or muted music → no-op. */
+/** Play ~10 seconds of a track that is already on disk, or the bundled Fashion Runway clip. */
 export function previewRunwayTrack(trackId: string): void {
   if (activeId === trackId) {
     dispose();
@@ -65,14 +65,14 @@ export function previewRunwayTrack(trackId: string): void {
     return;
   }
   const track = trackById(trackId);
-  const uri = track ? localCatwalkUri(track.fileName) : null;
-  if (!uri) {
+  const clip = track ? runwayClip(track.fileName) : null;
+  if (clip == null) {
     return;
   }
   try {
     configurePlayback();
     holdMusic(true, 'runwayPreview');
-    const next = createAudioPlayer(uri, { keepAudioSessionActive: true });
+    const next = createAudioPlayer(clip, { keepAudioSessionActive: true });
     next.loop = false;
     next.volume = volume;
     player = next;

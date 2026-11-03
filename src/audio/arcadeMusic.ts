@@ -1,23 +1,19 @@
 import { createAudioPlayer } from 'expo-audio';
 import type { AudioPlayer } from 'expo-audio';
 
+import { arcadeDownloaded } from './remoteArcadeMusic';
 import { configurePlayback } from './session';
 import { holdMusic, isMusicEnabled, pickNext } from './music';
 
-// Metro needs static requires, so the track list is explicit.
-const tracks: number[] = [
-  require('../../assets/arcade-music/echoes_of_lumen-pixel-art-game-soundtrack-chiptune-588667.mp3'),
-  require('../../assets/arcade-music/ejah_music-disco-funky-slap-bass-theme-402224.mp3'),
-  require('../../assets/arcade-music/ejah_music-tense-music-from-game-show-460826.mp3'),
-  require('../../assets/arcade-music/mfcc-gaming-game-video-game-music-522352.mp3'),
-  require('../../assets/arcade-music/openmindaudio-cartoon-classic-background-music-bright-journey-short-preview-497390.mp3'),
-  require('../../assets/arcade-music/openmindaudio-cartoon-epic-cinematic-thriumphal-outro-sunset-signoff-preview-497374.mp3'),
-  require('../../assets/arcade-music/openmindaudio-cartoon-good-vibes-intro-sunny-spark-497372.mp3'),
-  require('../../assets/arcade-music/paulyudin-game-game-music-573991.mp3'),
-  require('../../assets/arcade-music/sergequadrado-big-beat-loop-275479.mp3'),
-  require('../../assets/arcade-music/serhii_kliets-spaceship-arcade-shooter-game-background-soundtrack-318508.mp3'),
-  require('../../assets/arcade-music/xtremefreddy-game-music-loop-3-144252.mp3'),
-];
+type Track = number | string;
+
+// The one loop that plays with no connection. The rest join once they are on disk.
+const bundled: Track[] = [require('../../assets/arcade-music/xtremefreddy-game-music-loop-3-144252.mp3')];
+
+function playlist(): Track[] {
+  const extra = arcadeDownloaded();
+  return extra.length === 0 ? bundled : bundled.concat(extra);
+}
 
 const volume = 0.15;
 
@@ -35,6 +31,7 @@ function dispose(): void {
 function playLoop(): void {
   try {
     dispose();
+    const tracks = playlist();
     last = pickNext(tracks.length, last);
     const next = createAudioPlayer(tracks[last], { keepAudioSessionActive: true });
     next.loop = true;
