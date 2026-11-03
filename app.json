@@ -2,12 +2,13 @@
   "expo": {
     "name": "Boop Boop",
     "slug": "boop-boop",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "scheme": "boopboop",
     "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
+      "buildNumber": "0",
       "supportsTablet": true,
       "usesAppleSignIn": true,
       "appleTeamId": "89T43H6V58",
