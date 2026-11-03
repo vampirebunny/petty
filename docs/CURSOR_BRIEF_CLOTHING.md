@@ -217,7 +217,7 @@ Apply the same part colors and textures to the panel ovals:
 
 ## 3. Hats
 
-The hats are authored as SVG path data for `r = 30`, origin at the centre of the hat's base, y up negative. Draw them with `Skia.Path.MakeFromSVGString(d)` under `c.scale(r / 30, r / 30)`. Paths are verbatim from the reference.
+The hats are authored as SVG path data for `r = 30`, origin at the centre of the hat's base, y up negative. `hatPath` parses them with `Skia.Path.MakeFromSVGString(d)`, then scales by `r / 30` on a `PathBuilder` (`addPath` + `transform` + `detach()`). Do not call `SkPath.transform`. Paths are verbatim from the reference.
 
 In `drawHat`:
 

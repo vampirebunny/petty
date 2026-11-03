@@ -290,6 +290,8 @@ Retiring a pet deletes its park-find rows with the pet. The Treasure Chest furni
 - `chestIntroShown`
 - `chestTooltipDone`
 
+Those two flags are stored in `meta` and read from `src/db/docFlags.ts` when `playerDoc` is built. `src/parkFinds/playerFlags.ts` writes them and then calls `queuePlayer()`. `docFlags` must not import the sync queue.
+
 **Per park visit (local only):**
 - Whether this visit has a find, its notice time, and whether it has been used.
 - Decals (holes and mounds).

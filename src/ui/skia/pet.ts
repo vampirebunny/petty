@@ -384,7 +384,7 @@ function replayIdlePet(
 }
 
 function drawStar(c: SkCanvas, x: number, y: number, r: number): void {
-  const path = Skia.Path.Make();
+  const path = Skia.PathBuilder.Make();
   for (let i = 0; i < 8; i += 1) {
     const angle = (i / 8) * Math.PI * 2 - Math.PI / 2;
     const rad = i % 2 === 0 ? r : r * 0.42;
@@ -394,7 +394,7 @@ function drawStar(c: SkCanvas, x: number, y: number, r: number): void {
     else path.lineTo(px, py);
   }
   path.close();
-  c.drawPath(path, paintOf('#F2C230'));
+  c.drawPath(path.detach(), paintOf('#F2C230'));
 }
 
 export function drawActor(

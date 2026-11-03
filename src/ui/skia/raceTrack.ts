@@ -325,12 +325,12 @@ function drawStart(c: SkCanvas, x: number, width: number, top: number, bottom: n
   const post = paint('#4A3560');
   const flag = paint('#2DAA6C');
   c.drawRect(Skia.XYWHRect(x - 1.5, top - 26, 3, 26), post);
-  const path = Skia.Path.Make();
+  const path = Skia.PathBuilder.Make();
   path.moveTo(x + 1.5, top - 26);
   path.lineTo(x + 18, top - 20);
   path.lineTo(x + 1.5, top - 14);
   path.close();
-  c.drawPath(path, flag);
+  c.drawPath(path.detach(), flag);
 }
 
 function drawFinish(c: SkCanvas, x: number, width: number, top: number, bottom: number): void {
@@ -348,13 +348,14 @@ function drawFinish(c: SkCanvas, x: number, width: number, top: number, bottom: 
 }
 
 function drawOffscreen(c: SkCanvas, x: number, y: number, dir: -1 | 1): void {
-  const path = Skia.Path.Make();
+  const path = Skia.PathBuilder.Make();
   path.moveTo(x + dir * 6, y);
   path.lineTo(x - dir * 4, y - 7);
   path.lineTo(x - dir * 4, y + 7);
   path.close();
-  c.drawPath(path, paint('#CDB4F0'));
-  c.drawPath(path, stroke('#3B2F4A', 2));
+  const arrow = path.detach();
+  c.drawPath(arrow, paint('#CDB4F0'));
+  c.drawPath(arrow, stroke('#3B2F4A', 2));
 }
 
 function drawRacer(c: SkCanvas, x: number, y: number, fit: number, racer: TrackRacer, env: Env): void {

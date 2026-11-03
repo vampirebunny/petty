@@ -56,7 +56,7 @@ function drawText(
 
 function chevron(c: SkCanvas, x: number, y: number, up: boolean, alpha: number): void {
   const d = up ? -1 : 1;
-  const path = Skia.Path.Make();
+  const path = Skia.PathBuilder.Make();
   path.moveTo(x - 9, y - d * 4);
   path.lineTo(x, y + d * 6);
   path.lineTo(x + 9, y - d * 4);
@@ -64,17 +64,17 @@ function chevron(c: SkCanvas, x: number, y: number, up: boolean, alpha: number):
   path.lineTo(x, y + d * 9);
   path.lineTo(x - 9, y - d * 1);
   path.close();
-  c.drawPath(path, paintOf('#ffffff', alpha));
+  c.drawPath(path.detach(), paintOf('#ffffff', alpha));
 }
 
 function drawKelp(c: SkCanvas, run: Run, floor: number): void {
   const swayT = run.reduced ? 0 : run.decoT;
   for (const kelp of run.kelp) {
     const sway = Math.sin(swayT * 1.2 + kelp.ph) * 14;
-    const path = Skia.Path.Make();
+    const path = Skia.PathBuilder.Make();
     path.moveTo(kelp.x, floor + 12);
     path.cubicTo(kelp.x + sway * 0.4, floor - kelp.h * 0.35, kelp.x - sway * 0.6, floor - kelp.h * 0.7, kelp.x + sway, floor - kelp.h);
-    c.drawPath(path, paintOf('#145064', 0.22, 8));
+    c.drawPath(path.detach(), paintOf('#145064', 0.22, 8));
   }
 }
 
@@ -89,21 +89,21 @@ function drawBubbles(c: SkCanvas, run: Run, own: boolean): void {
 }
 
 function drawSeabed(c: SkCanvas, run: Run, floor: number): void {
-  const path = Skia.Path.Make();
+  const path = Skia.PathBuilder.Make();
   path.moveTo(0, run.H);
   for (let x = 0; x <= run.W; x += 16) {
     path.lineTo(x, floor + Math.sin((x + run.dist) * 0.03) * 3);
   }
   path.lineTo(run.W, run.H);
   path.close();
-  c.drawPath(path, paintOf('#f3d6a4'));
+  c.drawPath(path.detach(), paintOf('#f3d6a4'));
   for (let i = 0; i < 8; i += 1) {
     const x = ((i * 62 - run.dist) % (run.W + 60) + run.W + 60) % (run.W + 60) - 30;
     const y = floor + 14 + (i % 3) * 9;
-    const ripple = Skia.Path.Make();
+    const ripple = Skia.PathBuilder.Make();
     ripple.moveTo(x, y);
     ripple.quadTo(x + 10, y - 4, x + 20, y);
-    c.drawPath(ripple, paintOf('#e2bd82', 1, 2));
+    c.drawPath(ripple.detach(), paintOf('#e2bd82', 1, 2));
   }
   for (let i = 0; i < 3; i += 1) {
     const x = ((i * 170 + 60 - run.dist) % (run.W + 80) + run.W + 80) % (run.W + 80) - 40;
@@ -111,7 +111,7 @@ function drawSeabed(c: SkCanvas, run: Run, floor: number): void {
     c.save();
     c.translate(x, y);
     c.rotate((i * 180) / Math.PI, 0, 0);
-    const star = Skia.Path.Make();
+    const star = Skia.PathBuilder.Make();
     for (let k = 0; k < 10; k += 1) {
       const angle = (k / 10) * Math.PI * 2 - Math.PI / 2;
       const radius = k % 2 ? 3 : 8;
@@ -124,7 +124,7 @@ function drawSeabed(c: SkCanvas, run: Run, floor: number): void {
       }
     }
     star.close();
-    c.drawPath(star, paintOf(i % 2 ? '#ff9fb8' : '#ffb070'));
+    c.drawPath(star.detach(), paintOf(i % 2 ? '#ff9fb8' : '#ffb070'));
     c.restore();
   }
 }
@@ -149,11 +149,11 @@ function drawShell(c: SkCanvas, x: number, y: number, time: number, ph: number):
   c.save();
   c.translate(x, y);
   c.rotate((Math.sin(time * 2 + ph) * 0.2 * 180) / Math.PI, 0, 0);
-  const shell = Skia.Path.Make();
+  const shell = Skia.PathBuilder.Make();
   shell.moveTo(0, 8);
   shell.addArc(Skia.XYWHRect(-11, -12, 22, 22), 189, 162);
   shell.close();
-  c.drawPath(shell, paintOf('#ffb3cf'));
+  c.drawPath(shell.detach(), paintOf('#ffb3cf'));
   fillRRect(c, -4, 5, 8, 4, 2, '#e8679a');
   c.restore();
 }
@@ -169,14 +169,14 @@ function drawGem(c: SkCanvas, x: number, y: number, time: number, ph: number): v
   c.translate(x, y);
   c.scale(0.75 + 0.25 * Math.cos(time * 2 + ph), 1);
   fillCircle(c, 0, 0, 20, '#ffffff', 0.25);
-  const gem = Skia.Path.Make();
+  const gem = Skia.PathBuilder.Make();
   gem.moveTo(-12, -4);
   gem.lineTo(-6, -11);
   gem.lineTo(6, -11);
   gem.lineTo(12, -4);
   gem.lineTo(0, 13);
   gem.close();
-  c.drawPath(gem, paintOf('#3fb6dc'));
+  c.drawPath(gem.detach(), paintOf('#3fb6dc'));
   c.restore();
 }
 
@@ -217,10 +217,10 @@ function drawJelly(c: SkCanvas, hazard: Hazard, time: number, meters: number): v
   }
   for (let i = 0; i < 4; i += 1) {
     const tx = hazard.x - 9 + i * 6;
-    const path = Skia.Path.Make();
+    const path = Skia.PathBuilder.Make();
     path.moveTo(tx, y + 2);
     path.quadTo(tx + Math.sin(time * 4 + i) * 5, y + 14, tx + Math.sin(time * 4 + i + 1) * 4, y + 26);
-    c.drawPath(path, paintOf('#e588cf', 1, 2.6));
+    c.drawPath(path.detach(), paintOf('#e588cf', 1, 2.6));
   }
   fillOval(c, hazard.x, y, 16, 13, '#f6b2e6');
   fillCircle(c, hazard.x - 5, y - 3, 1.8, '#5a3a6e');
@@ -233,12 +233,12 @@ function drawPuffer(c: SkCanvas, hazard: Hazard, time: number, font: SkFont | nu
   const wobble = puff.warn ? Math.sin(time * 40) * 1.6 : 0;
   c.save();
   c.translate(hazard.x + wobble, y);
-  const tail = Skia.Path.Make();
+  const tail = Skia.PathBuilder.Make();
   tail.moveTo(puff.r - 2, 0);
   tail.lineTo(puff.r + 9, -7);
   tail.lineTo(puff.r + 9, 7);
   tail.close();
-  c.drawPath(tail, paintOf('#f2a93b'));
+  c.drawPath(tail.detach(), paintOf('#f2a93b'));
   fillCircle(c, 0, 0, puff.r, '#ffd36b');
   fillOval(c, 0, puff.r * 0.4, puff.r * 0.75, puff.r * 0.45, '#fff0c2');
   fillCircle(c, -puff.r * 0.45, -puff.r * 0.25, puff.r * 0.22, '#ffffff');
@@ -318,13 +318,13 @@ export function drawPaddlePaws(
   if (ray > 0 && !run.reduced) {
     for (let i = 0; i < 4; i += 1) {
       const x0 = i * 110 + 30 + Math.sin(run.decoT * 0.35 + i * 1.7) * 18;
-      const path = Skia.Path.Make();
+      const path = Skia.PathBuilder.Make();
       path.moveTo(x0, 0);
       path.lineTo(x0 + 34 + i * 4, 0);
       path.lineTo(x0 - 80, run.H * 0.8);
       path.lineTo(x0 - 150, run.H * 0.8);
       path.close();
-      c.drawPath(path, paintOf('#ffffff', ray));
+      c.drawPath(path.detach(), paintOf('#ffffff', ray));
     }
   }
   const glow = clamp((meters - UNLOCK.glow) / 200, 0, 1);
@@ -338,14 +338,14 @@ export function drawPaddlePaws(
     }
   }
   const floor = floorY(run);
-  const surface = Skia.Path.Make();
+  const surface = Skia.PathBuilder.Make();
   surface.moveTo(0, 0);
   for (let x = 0; x <= run.W; x += 10) {
     surface.lineTo(x, 10 + Math.sin(x * 0.045 + (run.reduced ? 0 : run.decoT) * 2.2) * 4);
   }
   surface.lineTo(run.W, 0);
   surface.close();
-  c.drawPath(surface, paintOf('#ffffff', 0.28));
+  c.drawPath(surface.detach(), paintOf('#ffffff', 0.28));
   drawKelp(c, run, floor);
   drawBubbles(c, run, false);
   if (run.bestMeters > 0 && fontSm) {

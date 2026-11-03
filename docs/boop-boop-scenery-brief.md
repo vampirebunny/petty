@@ -167,7 +167,7 @@ These were inferred from how `world.ts` and `scenery.ts` use them. Fix any that 
 - Actors have an `id`.
 - `draw.ts` still exports `clamp`, `fillOval`, `fillCircle`, `oval` and `paintOf`. The toy drawings use them unchanged.
 
-**React Native Skia 2.14 warning:** 2.14 made `SkPath` immutable (no `moveTo` and friends; you build paths with `PathBuilder` instead). The existing code and this code both rely on mutable paths, so stay on ≤ 2.13 until that migration is done.
+**Skia paths:** build with `Skia.PathBuilder`, then `detach()` or `build()` before drawing. Do not mutate an `SkPath` (`moveTo`, `lineTo`, `transform`, and the rest). That migration is done; new scenery should follow it. See `AGENTS.md`.
 
 ## Moon calendar
 

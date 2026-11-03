@@ -1778,8 +1778,7 @@ function hatPath(d: string, r: number): SkPath {
   }
   const matrix = Skia.Matrix();
   matrix.scale(r / 30, r / 30);
-  made.transform(matrix);
-  return made;
+  return Skia.PathBuilder.Make().addPath(made).transform(matrix).detach();
 }
 
 function hatStroke(c: SkCanvas, d: string, r: number, color: string, width: number, alpha = 1, dash?: [number, number], cap = StrokeCap.Round): void {

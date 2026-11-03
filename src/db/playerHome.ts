@@ -25,8 +25,7 @@ import { catalogItem } from '../economy/catalog';
 import { startingToys } from '../sim/config';
 import { getDb } from './database';
 import { writeLedgerEntry } from './ledgerWrite';
-import { parkFindPlayerFlags } from '../parkFinds/playerFlags';
-import { seenDailyOutfitTooltip } from '../storage/dailyOutfitTip';
+import { parkFindPlayerFlags, seenDailyOutfitTooltip } from './docFlags';
 
 export type SpeciesId = 'dog' | 'cat';
 

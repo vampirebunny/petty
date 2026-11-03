@@ -94,20 +94,20 @@ function eachTile(
 
 function drawDiamond(canvas: SkCanvas, r: number, color: string, alpha: number) {
   const paint = paintFill(hexA(color, alpha));
-  const path = Skia.Path.Make();
+  const path = Skia.PathBuilder.Make();
   path.moveTo(0, -r * 2);
   path.lineTo(r * 0.4, 0);
   path.lineTo(0, r * 2);
   path.lineTo(-r * 0.4, 0);
   path.close();
-  canvas.drawPath(path, paint);
-  const path2 = Skia.Path.Make();
+  canvas.drawPath(path.detach(), paint);
+  const path2 = Skia.PathBuilder.Make();
   path2.moveTo(-r * 2, 0);
   path2.lineTo(0, r * 0.4);
   path2.lineTo(r * 2, 0);
   path2.lineTo(0, -r * 0.4);
   path2.close();
-  canvas.drawPath(path2, paint);
+  canvas.drawPath(path2.detach(), paint);
 }
 
 export function advanceVenueFx(
@@ -241,10 +241,10 @@ export function drawVenueExtras(
           TileMode.Clamp,
         ),
       );
-      const path = Skia.Path.Make();
+      const path = Skia.PathBuilder.Make();
       path.moveTo(runtime.star.x - 160 * s, runtime.star.y - 50 * s);
       path.lineTo(runtime.star.x, runtime.star.y);
-      canvas.drawPath(path, paint);
+      canvas.drawPath(path.detach(), paint);
     }
   } else if (extra === 'causticShimmer' || extra === 'auroraDrift') {
     canvas.save();
@@ -252,13 +252,13 @@ export function drawVenueExtras(
       const cx = ((i * 0.3 + t * 0.03) % 1.2) * W - 0.1 * W;
       if (extra === 'causticShimmer') {
         const paint = paintFill('rgba(255,255,255,0.07)');
-        const path = Skia.Path.Make();
+        const path = Skia.PathBuilder.Make();
         path.moveTo(cx, opts.stageTop);
         path.lineTo(cx + 70 * s, opts.stageTop);
         path.lineTo(cx - 60 * s, opts.stageTop + 600 * s);
         path.lineTo(cx - 150 * s, opts.stageTop + 600 * s);
         path.close();
-        canvas.drawPath(path, paint);
+        canvas.drawPath(path.detach(), paint);
       } else {
         const cols = [
           'rgba(155,255,200,0.16)',
@@ -269,7 +269,7 @@ export function drawVenueExtras(
         const paint = paintFill(cols[i]!);
         paint.setStrokeWidth((30 - i * 5) * s);
         paint.setStyle(PaintStyle.Stroke);
-        const path = Skia.Path.Make();
+        const path = Skia.PathBuilder.Make();
         for (let x = 0; x <= W; x += 20 * s) {
           const yy = opts.stageTop + (120 + i * 30) * s + Math.sin(x / (160 * s) + t * 0.5 + i) * 30 * s;
           if (x === 0) {
@@ -278,7 +278,7 @@ export function drawVenueExtras(
             path.lineTo(x, yy);
           }
         }
-        canvas.drawPath(path, paint);
+        canvas.drawPath(path.detach(), paint);
       }
     }
     canvas.restore();
@@ -306,13 +306,13 @@ export function drawVenueExtras(
           TileMode.Clamp,
         ),
       );
-      const path = Skia.Path.Make();
+      const path = Skia.PathBuilder.Make();
       path.moveTo(-14 * s, 0);
       path.lineTo(14 * s, 0);
       path.lineTo(90 * s, -620 * s);
       path.lineTo(-90 * s, -620 * s);
       path.close();
-      canvas.drawPath(path, paint);
+      canvas.drawPath(path.detach(), paint);
       canvas.restore();
     });
     canvas.restore();
@@ -412,13 +412,13 @@ export function drawVenueBeams(
             TileMode.Clamp,
           ),
         );
-        const path = Skia.Path.Make();
+        const path = Skia.PathBuilder.Make();
         path.moveTo(-8 * s, 0);
         path.lineTo(8 * s, 0);
         path.lineTo(60 * s, len);
         path.lineTo(-60 * s, len);
         path.close();
-        canvas.drawPath(path, paint);
+        canvas.drawPath(path.detach(), paint);
         canvas.restore();
         glowAt(canvas, x, y, 30 * s, col, 0.55 + 0.25 * Math.sin(t * 4 + i));
       });
@@ -444,13 +444,13 @@ export function drawVenueBeams(
       TileMode.Clamp,
     ),
   );
-  const cone = Skia.Path.Make();
+  const cone = Skia.PathBuilder.Make();
   cone.moveTo(cx - 24 * s, opts.stageTop);
   cone.lineTo(cx + 24 * s, opts.stageTop);
   cone.lineTo(cx + 130 * s, pawY);
   cone.lineTo(cx - 130 * s, pawY);
   cone.close();
-  canvas.drawPath(cone, spot);
+  canvas.drawPath(cone.detach(), spot);
   canvas.drawOval(Skia.XYWHRect(cx - 140 * s, pawY - 14 * s, 280 * s, 28 * s), paintFill('rgba(255,250,235,0.45)'));
   canvas.restore();
 }

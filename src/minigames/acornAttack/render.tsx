@@ -74,7 +74,7 @@ function layered(c: SkCanvas, alpha: number, draw: () => void): void {
 }
 
 function star(c: SkCanvas, x: number, y: number, r: number, color: string): void {
-  const path = Skia.Path.Make();
+  const path = Skia.PathBuilder.Make();
   for (let i = 0; i < 10; i += 1) {
     const a = -Math.PI / 2 + (i * Math.PI) / 5;
     const rr = i % 2 ? r * 0.45 : r;
@@ -85,14 +85,14 @@ function star(c: SkCanvas, x: number, y: number, r: number, color: string): void
     }
   }
   path.close();
-  fillPath(c, path, color);
+  fillPath(c, path.detach(), color);
 }
 
 // Canvas `arc(x, y, r, from, to)` drawn clockwise.
 function arcPath(x: number, y: number, r: number, from: number, to: number): SkPath {
-  const path = Skia.Path.Make();
+  const path = Skia.PathBuilder.Make();
   path.addArc(oval(x, y, r, r), deg(from), deg(to - from));
-  return path;
+  return path.detach();
 }
 
 function drawGround(c: SkCanvas, scroll: number, H: number, x0: number, x1: number): void {
@@ -107,7 +107,7 @@ function drawGround(c: SkCanvas, scroll: number, H: number, x0: number, x1: numb
   const rowBase = Math.floor(scroll / cell);
   const first = Math.floor(x0 / WORLD_W);
   const last = Math.ceil(x1 / WORLD_W);
-  const tufts = Skia.Path.Make();
+  const tufts = Skia.PathBuilder.Make();
   for (let panel = first; panel < last; panel += 1) {
     const px = panel * WORLD_W;
     const salt = panel * 97;
@@ -144,7 +144,7 @@ function drawGround(c: SkCanvas, scroll: number, H: number, x0: number, x1: numb
       }
     }
   }
-  strokePath(c, tufts, '#5fae55', 2);
+  strokePath(c, tufts.detach(), '#5fae55', 2);
 }
 
 function drawAcorn(c: SkCanvas, x: number, y: number, s: number, rot = 0): void {
@@ -184,23 +184,23 @@ export function drawSquirrelArt(
     fillOval(c, 2, 17, 11, 3.6, SHADOW, 0.22);
   }
   if (kind === 'glider') {
-    const wing = Skia.Path.Make();
+    const wing = Skia.PathBuilder.Make();
     wing.moveTo(-6, -2);
     wing.quadTo(-25, -1, -21, 12);
     wing.quadTo(-9, 9, 0, 14);
     wing.quadTo(9, 9, 21, 12);
     wing.quadTo(25, -1, 6, -2);
     wing.close();
-    fillPath(c, wing, '#c7ae8e');
+    fillPath(c, wing.detach(), '#c7ae8e');
   }
   const w = Math.sin(t * 6) * 2;
-  const tail = Skia.Path.Make();
+  const tail = Skia.PathBuilder.Make();
   tail.moveTo(3, 8);
   tail.cubicTo(22 + w, 6, 24 + w, -22, 8 + w, -26);
   tail.cubicTo(3 + w, -27, -1, -24, 2, -20);
   tail.cubicTo(14, -16, 12, -2, -1, 4);
   tail.close();
-  fillPath(c, tail, P.tail);
+  fillPath(c, tail.detach(), P.tail);
   fillOval(c, 0, 7, 10, 10.5, P.body);
   fillOval(c, 0, 9, 6, 7, '#f4dcb8');
   fillOval(c, -5, 16, 3.5, 2.2, P.body);
@@ -230,12 +230,12 @@ export function drawSquirrelArt(
   fillRect(c, -1.3, -2.4, 2.6, 2.2, '#fffaf0');
   if (kind === 'scout') {
     fillOval(c, 0, -14.2, 8.6, 3.8, '#7d4c27');
-    const hatch = Skia.Path.Make();
+    const hatch = Skia.PathBuilder.Make();
     for (let i = -6; i <= 6; i += 3) {
       hatch.moveTo(i - 1.5, -16.6);
       hatch.lineTo(i + 1.5, -12);
     }
-    strokePath(c, hatch, '#5f3819', 0.7);
+    strokePath(c, hatch.detach(), '#5f3819', 0.7);
     fillRect(c, -0.7, -19.6, 1.4, 3, '#5f3819');
   }
   if (flash > 0) {
@@ -249,18 +249,18 @@ function drawTreat(c: SkCanvas, item: Pickup): void {
   c.translate(item.x, item.y + Math.sin(item.t * 5) * 1.5);
   fillOval(c, 1, 7, 9, 2.4, SHADOW, 0.22);
   if (item.shape === 'fish') {
-    const fish = Skia.Path.Make();
+    const fish = Skia.PathBuilder.Make();
     fish.addOval(oval(-2, 0, 8.5, 5.2));
     fish.moveTo(5, 0);
     fish.lineTo(11.5, -5.2);
     fish.quadTo(10, 0, 11.5, 5.2);
     fish.close();
-    fillPath(c, fish, '#e8ad66');
+    fillPath(c, fish.detach(), '#e8ad66');
     fillOval(c, -3, -2.3, 5, 1.2, '#f6cf95');
     fillCircle(c, -6.4, -0.8, 1.1, '#8a5634');
     strokePath(c, arcPath(-1, 0, 3.4, -0.9, 0.9), '#c98a4b', 1.1);
   } else {
-    const bone = Skia.Path.Make();
+    const bone = Skia.PathBuilder.Make();
     for (const [a, b] of [
       [-8, -3],
       [-8, 3],
@@ -270,7 +270,7 @@ function drawTreat(c: SkCanvas, item: Pickup): void {
       bone.addCircle(a, b, 3.6);
     }
     bone.addRect(Skia.XYWHRect(-8, -2.6, 16, 5.2));
-    fillPath(c, bone, '#e8ad66');
+    fillPath(c, bone.detach(), '#e8ad66');
     fillRect(c, -7, -2.2, 14, 1.6, '#f6cf95');
   }
   c.restore();
@@ -349,18 +349,18 @@ function drawGate(c: SkCanvas, kind: OfferKind, x: number, y: number, t: number,
   } else if (kind === 'shield') {
     c.drawCircle(0, 0, 9, paintOf('#ffffff', 1, 3.6));
   } else if (kind === 'magnet') {
-    const path = Skia.Path.Make();
+    const path = Skia.PathBuilder.Make();
     path.moveTo(-7, -8);
     path.lineTo(-7, 0);
     path.arcToOval(oval(0, 0, 7, 7), 180, -180, false);
     path.lineTo(7, -8);
-    strokePath(c, path, '#ffffff', 3.6);
+    strokePath(c, path.detach(), '#ffffff', 3.6);
   } else {
-    const path = Skia.Path.Make();
+    const path = Skia.PathBuilder.Make();
     path.moveTo(0, 8);
     path.cubicTo(-13, -1, -7, -12, 0, -5);
     path.cubicTo(7, -12, 13, -1, 0, 8);
-    fillPath(c, path, '#ffffff');
+    fillPath(c, path.detach(), '#ffffff');
   }
   if (font) {
     outlined(c, font, GATE[kind].label, 0, 36, 12, '#ffffff', '#281e37', 0.6, 3.5);
@@ -369,7 +369,7 @@ function drawGate(c: SkCanvas, kind: OfferKind, x: number, y: number, t: number,
 }
 
 function blob(x: number, y: number, r: number, seed: number): SkPath {
-  const path = Skia.Path.Make();
+  const path = Skia.PathBuilder.Make();
   for (let k = 0; k < 9; k += 1) {
     const a = (k / 9) * TAU;
     const rr = r * (0.84 + 0.22 * hr(seed * 31, k));
@@ -382,7 +382,7 @@ function blob(x: number, y: number, r: number, seed: number): SkPath {
     }
   }
   path.close();
-  return path;
+  return path.detach();
 }
 
 function drawObstacle(c: SkCanvas, o: Obstacle): void {
@@ -411,11 +411,11 @@ function drawObstacle(c: SkCanvas, o: Obstacle): void {
     fillPath(c, blob(x + 4, y + 6, r, seed), SHADOW, 0.22);
     fillPath(c, blob(x, y, r, seed), '#9ea3b2');
     fillPath(c, blob(x - r * 0.18, y - r * 0.22, r * 0.62, seed + 3), '#c2c6d2');
-    const crack = Skia.Path.Make();
+    const crack = Skia.PathBuilder.Make();
     crack.moveTo(x + r * 0.15, y - r * 0.1);
     crack.lineTo(x + r * 0.35, y + r * 0.2);
     crack.lineTo(x + r * 0.25, y + r * 0.45);
-    strokePath(c, crack, '#7f8494', 1.4);
+    strokePath(c, crack.detach(), '#7f8494', 1.4);
     return;
   }
   fillOval(c, x + 4, y + 6, r, r * 0.9, SHADOW, 0.22);
@@ -431,7 +431,7 @@ function drawObstacle(c: SkCanvas, o: Obstacle): void {
 }
 
 function drawLasers(c: SkCanvas, run: Run): void {
-  const path = Skia.Path.Make();
+  const path = Skia.PathBuilder.Make();
   let any = false;
   for (const beam of run.lasers) {
     if (!beam.alive) {
@@ -444,9 +444,10 @@ function drawLasers(c: SkCanvas, run: Run): void {
   if (!any) {
     return;
   }
-  strokePath(c, path, '#ff4f7a', 8, 0.35);
-  strokePath(c, path, '#ff2d55', 3.6);
-  strokePath(c, path, '#ffd3dd', 1.4);
+  const beams = path.detach();
+  strokePath(c, beams, '#ff4f7a', 8, 0.35);
+  strokePath(c, beams, '#ff2d55', 3.6);
+  strokePath(c, beams, '#ffd3dd', 1.4);
 }
 
 function drawSquirrels(c: SkCanvas, run: Run): void {

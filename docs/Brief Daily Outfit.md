@@ -59,7 +59,7 @@ Store on the pet's state (outfits stay with the pet), synced with the rest of pe
 | `lastOutfitPickDate` | local date string (YYYY-MM-DD) | Prevents more than one pick per day, and holds a manual outfit for the day |
 | `previousOutfit` | equipped map, slot to wear id | The outfit the no-repeat rule compares against |
 
-Player-level flag: `seenDailyOutfitTooltip` (boolean), since the tooltip is about the wardrobe, not the pet.
+Player-level flag: `seenDailyOutfitTooltip` (boolean), since the tooltip is about the wardrobe, not the pet. It is stored in `meta` and read from `src/db/docFlags.ts` inside `playerDoc`. `src/storage/dailyOutfitTip.ts` writes it and then calls `queuePlayer()`. `docFlags` must not import the sync queue.
 
 **Edge cases**
 

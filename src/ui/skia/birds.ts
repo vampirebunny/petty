@@ -408,10 +408,10 @@ function drawDuck(c: SkCanvas, p: BirdPose, variant: number, flying: boolean): v
 }
 
 function curl(x: number, y: number) {
-  const path = Skia.Path.Make();
+  const path = Skia.PathBuilder.Make();
   path.moveTo(x, y);
   path.quadTo(x + 1.6, y - 3.2, x + 3.4, y - 1.6);
-  return path;
+  return path.detach();
 }
 
 // ---- owl (night, perched) ----

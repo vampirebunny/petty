@@ -241,13 +241,14 @@ function drawDock(c: SkCanvas, edgeX: number, deckY: number, waterY: number, hei
 
 function drawFlag(c: SkCanvas, x: number, y: number, color: string, alpha: number): void {
   c.drawRect(Skia.XYWHRect(x - 1, y - 30, 2, 30), paint('#4A3560', alpha));
-  const path = Skia.Path.Make();
+  const path = Skia.PathBuilder.Make();
   path.moveTo(x + 1, y - 30);
   path.lineTo(x + 15, y - 25);
   path.lineTo(x + 1, y - 20);
   path.close();
-  c.drawPath(path, paint(color, alpha));
-  c.drawPath(path, stroke('#4A3560', 1.5, alpha));
+  const flag = path.detach();
+  c.drawPath(flag, paint(color, alpha));
+  c.drawPath(flag, stroke('#4A3560', 1.5, alpha));
 }
 
 const splashS = 1.6;

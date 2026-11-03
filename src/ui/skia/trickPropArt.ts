@@ -1,5 +1,5 @@
 import { ClipOp, PaintStyle, Skia, StrokeCap, StrokeJoin } from '@shopify/react-native-skia';
-import type { SkCanvas, SkPath, SkPicture } from '@shopify/react-native-skia';
+import type { SkCanvas, SkPathBuilder, SkPicture } from '@shopify/react-native-skia';
 
 import { barTop, CONES, HOOP, hoopCenter, HURDLE, PROP_SCALE, TUNNEL, type PlacedTrickProp } from '../../sim/trickProps';
 
@@ -48,7 +48,7 @@ function paletteFor(type: PlacedTrickProp['type'], species: 'dog' | 'cat'): Pale
 
 // A tiny path builder with canvas-style arcs (degrees, clockwise unless ccw).
 class Pen {
-  readonly path: SkPath = Skia.Path.Make();
+  readonly path: SkPathBuilder = Skia.PathBuilder.Make();
   m(x: number, y: number): this {
     this.path.moveTo(x, y);
     return this;
@@ -99,7 +99,7 @@ function skiaCtx(canvas: SkCanvas): Ctx {
     return paint;
   };
   return {
-    fill: (p, color, alpha = 1) => canvas.drawPath(p.path, base(color, alpha)),
+    fill: (p, color, alpha = 1) => canvas.drawPath(p.path.build(), base(color, alpha)),
     stroke: (p, color, width, alpha = 1, cap = 'round', dash) => {
       const paint = base(color, alpha);
       paint.setStyle(PaintStyle.Stroke);
@@ -109,9 +109,9 @@ function skiaCtx(canvas: SkCanvas): Ctx {
       if (dash) {
         paint.setPathEffect(Skia.PathEffect.MakeDash(dash, 0));
       }
-      canvas.drawPath(p.path, paint);
+      canvas.drawPath(p.path.build(), paint);
     },
-    clip: (p) => canvas.clipPath(p.path, ClipOp.Intersect, true),
+    clip: (p) => canvas.clipPath(p.path.build(), ClipOp.Intersect, true),
     save: () => {
       canvas.save();
     },
