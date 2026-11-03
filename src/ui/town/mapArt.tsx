@@ -289,14 +289,30 @@ const wideLamps = [
   { x: 600, y: 560 },
 ];
 
-function Lamp({ x, y, night, glow }: { x: number; y: number; night: boolean; glow: number }) {
+function LampPost({ x, y, night }: { x: number; y: number; night: boolean }) {
   return (
     <G>
-      {night ? <Ellipse cx={x} cy={y - 6} rx={18} ry={14} fill="#FFE08A" opacity={0.35 * glow} /> : null}
       <Line x1={x} y1={y + 22} x2={x} y2={y} stroke="#5A3E8C" strokeWidth={2.5} strokeLinecap="round" />
+      {night ? null : (
+        <Path
+          d={`M${x - 7} ${y} H${x + 7} L${x + 4} ${y - 10} H${x - 4} Z`}
+          fill="#FFF6E6"
+          stroke="#5A3E8C"
+          strokeWidth={2}
+          strokeLinejoin="round"
+        />
+      )}
+    </G>
+  );
+}
+
+function LampLight({ x, y, glow }: { x: number; y: number; glow: number }) {
+  return (
+    <G>
+      <Ellipse cx={x} cy={y - 6} rx={20} ry={16} fill="#FFE08A" opacity={0.5 * glow} />
       <Path
         d={`M${x - 7} ${y} H${x + 7} L${x + 4} ${y - 10} H${x - 4} Z`}
-        fill={night ? '#FFE08A' : '#FFF6E6'}
+        fill="#FFF4C4"
         stroke="#5A3E8C"
         strokeWidth={2}
         strokeLinejoin="round"
@@ -441,11 +457,14 @@ export function TownGround({
       ))}
       {layout.id === 'portrait' ? <PortraitScenery paint={paint} snow={chrome.snow} /> : <WideScenery paint={paint} snow={chrome.snow} />}
       {lamps.map((lamp) => (
-        <Lamp key={`${lamp.x}-${lamp.y}`} x={lamp.x} y={lamp.y} night={chrome.night} glow={glow} />
+        <LampPost key={`${lamp.x}-${lamp.y}`} x={lamp.x} y={lamp.y} night={chrome.night} />
       ))}
       {chrome.tint === 'transparent' ? null : (
         <Path d={`M0 0 H${layout.width} V${layout.height} H0 Z`} fill={chrome.tint} />
       )}
+      {chrome.night
+        ? lamps.map((lamp) => <LampLight key={`lit-${lamp.x}-${lamp.y}`} x={lamp.x} y={lamp.y} glow={glow} />)
+        : null}
       <Rainbow layout={layout} strength={rainbow} />
       <Precip layout={layout} chrome={chrome} wind={wind} now={now} reducedMotion={reducedMotion} />
     </Svg>
