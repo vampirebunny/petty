@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { AppState, Image, StyleSheet, View } from 'react-native';
 import { useVideoPlayer, VideoView } from 'expo-video';
 
+import { restoreAfterVideoSession } from '../../audio/session';
 import { lobbyHeroFill, lobbyHeroes, type LobbyCut, type LobbyVenue } from './heroes';
 
 type Props = {
@@ -68,12 +69,17 @@ function PlayingHero({ venue, cut, active = true, label, children }: Omit<Props,
         if (active && AppState.currentState === 'active') player.play();
         else player.pause();
       });
+      // play/pause makes expo-video set .playback, which ignores the silent switch.
+      restoreAfterVideoSession();
     };
     sync();
+    const playing = player.addListener('playingChange', () => restoreAfterVideoSession());
     const subscription = AppState.addEventListener('change', sync);
     return () => {
       mounted = false;
+      playing.remove();
       subscription.remove();
+      restoreAfterVideoSession();
     };
   }, [active, player]);
 
@@ -92,7 +98,10 @@ function PlayingHero({ venue, cut, active = true, label, children }: Omit<Props,
         surfaceType="textureView"
         pointerEvents="none"
         accessible={false}
-        onFirstFrameRender={() => setShown(true)}
+        onFirstFrameRender={() => {
+          setShown(true);
+          restoreAfterVideoSession();
+        }}
       />
       {children}
     </View>
