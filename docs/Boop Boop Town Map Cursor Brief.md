@@ -8,7 +8,7 @@ Boop Boop Town is the road, not a picker laid over a hidden room. Leaving a plac
 
 The map is drawn in the cotton-candy style. This pass does not include Vet, Groomer, or their roads. A new place adds its own road when it is built.
 
-- **Doors:** Home, Pet Shop, Park, Training School, The Catwalk, Arcade, and Stadium. Tapping The Catwalk walks the pet there and opens the venue. The screen is specified in `docs/Boop Boop Fashion Show — Cursor Brief.md`.
+- **Doors:** Home, Pet Shop, Park, Arcade, The Catwalk, Training School, and Stadium. Tapping The Catwalk walks the pet there and opens the venue. The screen is specified in `docs/Boop Boop Fashion Show — Cursor Brief.md`.
 - **Home rooms stay off the road.** Tapping Home walks the pet to Home, then a bottom sheet offers the room. Living room and Bedroom show for every pet. Catio shows for a cat, using the scene flags already on the catio (`playerOwned` and `species: 'cat'`), the same ownership as the other home rooms. Dogs see two rooms, centered.
 - **No Settings gear** on this screen.
 - Keep the scenes themselves. The grid and its unused styles are already removed.
@@ -79,7 +79,7 @@ The road is data-driven and local to the app. It works offline.
 
 `roadSpot` on the pet is `'home' | 'petShop' | 'park' | 'trainingSchool' | 'catwalk' | 'arcade' | 'stadium'` when the pet is on the road beside that door. Missing means the pet is inside `sceneId`, which is how every existing save already works. While `roadSpot` is set, the pet is on the map. Park presence ends for that time, including when `sceneId` is still `park`. See [the park friends brief](park-friends-brief.md).
 
-The road is two layouts. Portrait visits Home, Pet Shop, Park, Training School, the Catwalk bend, Arcade, then Stadium. Widescreen runs Home, Pet Shop, Park, and Training School along the top, drops down the right side through the bend, then Arcade and Stadium along the bottom. Stand nodes sit on the path in front of each label. The Catwalk stand sits on the main road to the right of the building, not on a spur at the door. The bend stays so the switchback remains on the path. Crossing the landscape split mid-walk cancels the walk and puts the pet on that layout's stand node for the current door.
+The road is two layouts. Portrait visits Home, Pet Shop, Park, Arcade, the Catwalk bend, Training School, then Stadium. Widescreen runs Home, Pet Shop, Park, and Arcade along the top, drops down the right side through the bend, then Training School and Stadium along the bottom. Stand nodes sit on the path in front of each label. The Catwalk stand sits on the main road to the right of the building, not on a spur at the door. The bend stays so the switchback remains on the path. Crossing the landscape split mid-walk cancels the walk and puts the pet on that layout's stand node for the current door.
 
 ## Walking
 

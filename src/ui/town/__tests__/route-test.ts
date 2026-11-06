@@ -11,7 +11,7 @@ function connects(layout: TownLayout) {
     const back = routeNodes(spot, 'home', layout.edges);
     expect(there[0]).toBe('home');
     expect(there[there.length - 1]).toBe(spot);
-    if (spot === 'catwalk' || spot === 'arcade' || spot === 'stadium') {
+    if (spot === 'catwalk' || spot === 'trainingSchool' || spot === 'stadium') {
       expect(there).toContain('bend');
     } else {
       expect(there).not.toContain('bend');
@@ -43,7 +43,7 @@ describe('town routes', () => {
     const there = routeNodes('home', 'stadium', wideLayout.edges);
     expect(there).toContain('trainingSchool');
     expect(there).toContain('catwalk');
-    expect(there.indexOf('arcade')).toBeGreaterThan(there.indexOf('trainingSchool'));
+    expect(there.indexOf('trainingSchool')).toBeGreaterThan(there.indexOf('arcade'));
   });
 
   it('sends a mid-edge reroute to the nearest node first', () => {
