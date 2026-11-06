@@ -3,8 +3,8 @@ import type { PetState } from './types';
 export const parkFinds = {
   firstVisitFindChance: 1,
   visitFindChance: 0.3,
-  noticeMinSec: 5,
-  noticeMaxSec: 10,
+  noticeMinSec: 3,
+  noticeMaxSec: 5,
   /** 0 = never auto-dismiss; prompt waits for "Let's see!" or another action. */
   promptTimeoutSec: 0,
   bushChance: 0.4,

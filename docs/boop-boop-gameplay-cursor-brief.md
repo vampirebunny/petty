@@ -188,7 +188,7 @@ Small goals the game offers, not things the pet asks for. Ignoring one costs not
 
 **Shipped behavior (summary)**
 - At most one find chance per park visit. The first completed find is guaranteed (`firstFindVisitDone` stays false until a find is recorded, so leaving early does not spend it). Later visits roll at 30%.
-- The pet notices on its own; the player taps **"Let's see!"** (or dismisses by doing something else).
+- The pet notices on its own, 3–5 seconds after the walk-in finishes; the player taps **"Let's see!"** (or dismisses by doing something else).
 - Dogs dig; cats rustle grass or bat a bush. Both carry the find to the front, then the reveal modal.
 - Collection lives in the player's **Treasure Chest** furniture + Home **Collection** button. Page: 3-column floating art over light pools (no glass cubes).
 - Park finds are not level-gated. During levels 1–10, a park find is one tutorial action and can be the level-up at any time (see section 3).
