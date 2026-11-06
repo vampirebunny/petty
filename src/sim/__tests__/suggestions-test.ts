@@ -76,6 +76,25 @@ it('hides the row at the daily cap and brings it back the next day', () => {
   expect(restored.suggestions).toHaveLength(2);
 });
 
+it('clears a tutorial Pat or Cuddle when Cuddle is pressed and waits to give credit', () => {
+  const today = Date.now();
+  const seen = ['feed', 'water', 'school', 'play', 'nap', 'parkFind'];
+  for (const id of ['tutorial:pat', 'tutorial:cuddle']) {
+    const pet: PetState = {
+      ...pup(),
+      suggestionDay: localDay(today),
+      tutorialSeen: seen,
+      suggestions: [{ id }],
+    };
+    const started = applyEvent(pet, { type: 'cuddleStart' }).state;
+    expect(started.level).toBe(pet.level);
+    expect(started.tutorialSeen ?? []).not.toContain('pat');
+    expect(started.tutorialSeen ?? []).not.toContain('cuddle');
+    expect(started.suggestions.some((slot) => slot.id === 'pat' || slot.id === 'cuddle' || slot.id.endsWith(':pat') || slot.id.endsWith(':cuddle'))).toBe(false);
+    expect(syncSuggestions(started, today).suggestions.some((slot) => slot.id.includes('pat') || slot.id.includes('cuddle'))).toBe(false);
+  }
+});
+
 it('clears Pat when Cuddle is pressed and does not bring it back the same day', () => {
   const today = Date.now();
   const pet = syncSuggestions(

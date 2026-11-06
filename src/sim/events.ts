@@ -16,7 +16,7 @@ import {
   waterDrainPerDrink,
 } from './config';
 import { grantEverydayXp, noteTutorialAction } from './progress';
-import { completeSuggestion } from './suggestions';
+import { completeSuggestion, dismissPetSuggestions } from './suggestions';
 import { canRaiseMood } from './mood';
 import { nextRng } from './rng';
 import { rememberScene } from './game';
@@ -287,8 +287,10 @@ export function applyEvent(state: PetState, event: PetEvent): EventResult {
   if (event.type === 'cuddleStart') {
     let next = copyState(state);
     next.asleep = false;
-    next = completeSuggestion(next, 'cuddle', Date.now());
-    next = completeSuggestion(next, 'pat', Date.now());
+    const now = Date.now();
+    next = completeSuggestion(next, 'cuddle', now);
+    next = completeSuggestion(next, 'pat', now);
+    next = dismissPetSuggestions(next, now);
     return { state: withDerived(next), cue: { kind: 'none' } };
   }
 

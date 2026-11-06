@@ -2582,9 +2582,11 @@ export default function HomeScreen({ petApi }: Props) {
           if (result === 'bonus') {
             pet();
             applyActorHappiness(GREET.PAT_BONUS);
+            startCuddle();
             return;
           }
           if (result === 'repeat') {
+            startCuddle();
             return;
           }
         }

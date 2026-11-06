@@ -38,7 +38,7 @@ Bands, from `lastUpdatedAt`: under 2 minutes, nothing; under 5 minutes, the spec
 
 Above 2 minutes, the current task ends and a sleeper wakes. A sleeping cat weights stretch by 3. A sleeping dog gets a short eyes-open, lie-to-stand step first. Trill starts off-screen and stretch starts on the bed, before the 0.35 s delay.
 
-The Cuddle button is the pat control. Inside a pat window the first tap extends the step once and adds the usual pet mood plus 5. Later taps in that window only replay the sound and hearts. Outside the window, Cuddle interrupts and enters cuddle. Any other action interrupts.
+The Cuddle button is the pat control. Inside a pat window the first tap extends the step once and adds the usual pet mood plus 5. Later taps in that window only replay the sound and hearts. Outside the window, Cuddle interrupts and enters cuddle. Any other action interrupts. Every Cuddle tap, including those greeting pats, clears a Pat or Cuddle suggestion so the Bond dot and the Suggested box drop even when cuddle mode does not start.
 
 There is no hungry-look closer and no sit-and-look closer. Crouch and butt-wiggle are not in the scripts. Rollover uses the existing belly channel. A raised tail uses `tailLift`. Play bow and knead use the existing formulas at 1. New draw channels are side, rearUp, headUp, headPush, jawHold, pupils, closeUp, rubSway, and legPedal.
 

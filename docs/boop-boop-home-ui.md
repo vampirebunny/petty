@@ -12,7 +12,7 @@ Go somewhere leaves the living room, bedroom, catio, park, or training school. T
 
 ## Sections
 
-The strip shows Tummy, Water, Energy, and Mood. Tummy is the inverse of stored hunger. Water is stored hydration. Each bar uses the 75, 50, and 25 bands: Yummy, Peckish, Rumbly, Starving; Full, Sipping, Thirsty, Parched; Zoomy, Chill, Sleepy, Exhausted; Joyful, Content, Meh, Gloomy. The panel opens on Care and keeps that tab until Home unmounts. The tab body can scroll. A suggestion that maps to a panel button highlights that button and dots its tab. Park, Stadium, and the other suggestions with no panel button stay a bubble.
+The strip shows Tummy, Water, Energy, and Mood. Tummy is the inverse of stored hunger. Water is stored hydration. Each bar uses the 75, 50, and 25 bands: Yummy, Peckish, Rumbly, Starving; Full, Sipping, Thirsty, Parched; Zoomy, Chill, Sleepy, Exhausted; Joyful, Content, Meh, Gloomy. The panel opens on Care and keeps that tab until Home unmounts. The tab body can scroll. A suggestion that maps to a panel button highlights that button and dots its tab. Pat and Cuddle both highlight Cuddle and dot Bond. Pressing Cuddle clears that highlight and the dot immediately, including a greeting tap that does not enter cuddle mode. Park, Stadium, and the other suggestions with no panel button stay a bubble.
 
 Care: Feed, Water, Treat, Sleep in one row. Sleep says Wake only once the pet is actually asleep.
 

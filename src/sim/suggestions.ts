@@ -191,12 +191,20 @@ function tutorialOffers(action: string, current: SuggestionSlot[], ctx: Suggesti
   return ctx.friends > 0;
 }
 
+function suggestionDismissed(done: Set<string>, action: string): boolean {
+  return done.has(action) || done.has(`tutorial:${action}`);
+}
+
 export function syncSuggestions(state: PetState, now: number, ctx: SuggestionContext = {}): PetState {
   const stamped = stampDay(state, now);
   if (stamped.level < gameplayConfig.tutorialLevel) {
     const current = stamped.suggestions ?? [];
+    const done = new Set(stamped.suggestionsDone ?? []);
     const next = gameplayConfig.goals.find(
-      (goal) => !(stamped.tutorialSeen ?? []).includes(goal.action) && tutorialOffers(goal.action, current, ctx),
+      (goal) =>
+        !(stamped.tutorialSeen ?? []).includes(goal.action) &&
+        !suggestionDismissed(done, goal.action) &&
+        tutorialOffers(goal.action, current, ctx),
     );
     const id = next ? `tutorial:${next.action}` : '';
     if (!id) {
@@ -255,6 +263,25 @@ export function completeSuggestion(state: PetState, key: string, now: number, ct
     };
     next = grantSuggestionXp(next);
   }
+  return syncSuggestions(next, now, ctx);
+}
+
+// Pat and Cuddle share one button. Pressing it drops both for the rest of the day.
+// Tutorial credit still waits for a finished cuddle, so this does not mark them seen.
+const petSuggestionKeys = ['pat', 'cuddle'];
+
+export function dismissPetSuggestions(state: PetState, now: number, ctx: SuggestionContext = {}): PetState {
+  let next = stampDay(state, now);
+  const done = new Set(next.suggestionsDone ?? []);
+  for (const key of petSuggestionKeys) {
+    done.add(key);
+    done.add(`tutorial:${key}`);
+  }
+  next = {
+    ...next,
+    suggestionsDone: [...done],
+    suggestions: (next.suggestions ?? []).filter((slot) => !petSuggestionKeys.includes(actionOf(slot.id))),
+  };
   return syncSuggestions(next, now, ctx);
 }
 

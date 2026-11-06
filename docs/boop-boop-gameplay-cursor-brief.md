@@ -150,7 +150,7 @@ A missed day resets the streak count but never removes a badge. Use the device's
 Small goals the game offers, not things the pet asks for. Ignoring one costs nothing.
 
 **UI**
-- When the tip matches a Home panel button (Feed, Water, Sleep, Cuddle, Play, Wardrobe, or a trick row), that button shows Suggested and its tab gets a red dot. Doing it clears both. A cuddle with real petting also finishes a pat or scratch tip.
+- When the tip matches a Home panel button (Feed, Water, Sleep, Cuddle, Play, Wardrobe, or a trick row), that button shows Suggested and its tab gets a red dot. Doing it clears both. Pat and Cuddle share the Cuddle button. Pressing that button clears the Suggested box and the Bond dot in every case, including a greeting pat that does not enter cuddle mode. The press finishes a daily pat or scratch tip. It also dismisses both pat and cuddle for the rest of the day, so the highlight cannot move from one to the other. Tutorial credit for Cuddle still waits for a finished cuddle with real petting: the press does not mark Pat or Cuddle seen and does not raise the tutorial level.
 - Any other tip uses a pill in the top left of the scene, labeled "Try this," showing the current tip (e.g. "Visit the park").
 - One tip shows at a time. Tapping the pill dismisses it until the next tip. When more than one slot is filled, dismissing one reveals the next.
 - A new suggestion is announced with the pet's sound.
@@ -159,7 +159,7 @@ Small goals the game offers, not things the pet asks for. Ignoring one costs not
 - Slots: 1 until level 10, 2 until level 20, then 3.
 - **During the tutorial (levels 1–10), the single slot shows one tutorial action the player has not done yet**, in the same pill. Those actions don't count toward the 10-per-day cap and award no suggestion XP (they award the 10 XP level instead).
 - 30 XP each, max 10 completions per day. After the cap, hide the pill until the next day.
-- A finished suggestion is not offered again that day (`suggestionsDone`, cleared with the daily count). Feed, fill the water bowl, and nap come back the same day only when that need is low again.
+- A finished suggestion is not offered again that day (`suggestionsDone`, cleared with the daily count). Feed, fill the water bowl, and nap come back the same day only when that need is low again. Pressing Cuddle writes `pat`, `cuddle`, and their `tutorial:` ids into `suggestionsDone` even when tutorial credit has not been earned. Tutorial sync skips a goal that is in that list. The next day the list clears, so an unfinished tutorial Pat or Cuddle can be offered again.
 - Only suggest what makes sense now (no "Feed" when tummy is full) and what's available at the pet's level.
 - Persist current suggestions across app restarts.
 
